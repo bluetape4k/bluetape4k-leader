@@ -239,11 +239,29 @@ The order test intentionally checks order and call count without depending on a
 locale-specific `Duration.toString()` rendering. Add a separate timeout capture
 assertion against `275.milliseconds` so the callback receives the exact input.
 
-- [ ] **Step 2: Add provider-level invalid-timeout regression to `LeaderBackendDiagnosticsTest`.**
+- [ ] **Step 2: Add provider-level invalid-timeout and legacy-override regression
+  to `LeaderBackendDiagnosticsTest`.**
 
 Keep the existing `RecordingProvider` test and assert that `Duration.ZERO`, a
 negative duration, and `Duration.INFINITE` reject before `checkConnectivity` is
-entered. Run:
+entered. Add two explicit legacy-provider fixtures and a direct-call matrix:
+
+- a provider overriding only `checkConnectivity(timeout)` must still receive
+  base `diagnostics(probe = true, timeout = invalid)` prevalidation before its
+  override is entered; for valid timeout, its returned `NOT_CHECKED` and its
+  ordinary `Exception`, `CancellationException`, `InterruptedException`, and
+  same-instance `Error` are returned/rethrown unchanged because custom code is
+  outside the built-in helper;
+- a provider overriding `diagnostics(probe, timeout)` must retain its existing
+  full escape-hatch behavior, including bypassing base timeout prevalidation,
+  returning `NOT_CHECKED`, and preserving the same exception instances for
+  ordinary/cancellation/interruption/`Error` cases. Verify the timeout received
+  by the override and clear the interrupt flag in `finally` around interruption
+  cases.
+
+The consumer smoke in Task 6 must compile equivalent source-only legacy
+implementations for both override shapes, in addition to the new helper call.
+Run:
 
 ```bash
 ./gradlew :bluetape4k-leader-core:test --tests 'io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbeTest' --tests 'io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsTest' --no-daemon --no-configuration-cache --max-workers=1 --console=plain
@@ -529,19 +547,39 @@ Ktor application-pipeline responses remain application-owned and must be
 sanitized by the caller. Link [Issue #774](https://github.com/bluetape4k/bluetape4k-leader/issues/774)
 for future cause signals and readiness/runbook policy.
 
+Before editing either locale, write and use this fact matrix as the read-back
+oracle; record the EN/KO evidence in the lesson/review artifact instead of
+claiming parity from terminology counts alone:
+
+| Fact key | English wording to preserve | Korean meaning to preserve |
+|---|---|---|
+| timeout | positive finite provider-native budget; no wall-clock deadline | 양수 유한 provider-native budget; wall-clock deadline 아님 |
+| direct-exception | built-in callback `Exception -> UNKNOWN`; clock/validation failures propagate | 내장 callback `Exception -> UNKNOWN`; clock/검증 실패는 전파 |
+| adapter-exception | Ktor built-in ordinary `Exception -> HTTP 200 + UNKNOWN`, fatal/validation -> pipeline; Spring normalized ordinary `Exception -> UNKNOWN` without warning, caught cancellation/interruption/validation -> `UNKNOWN + warning`, `Error` rethrows | Ktor 내장 일반 `Exception -> HTTP 200 + UNKNOWN`, fatal/검증 실패 -> pipeline; Spring 정규화 일반 `Exception`은 warning 없이 `UNKNOWN`, 포착된 취소/중단/검증 실패는 `UNKNOWN + warning`, `Error`는 재전파 |
+| custom | custom override/pipeline/descriptor is caller-owned and must be sanitized | custom override/pipeline/descriptor는 caller 소유이며 caller가 정제 |
+| follow-up | link Issue #774 for cause, readiness, and runbook policy | 원인·readiness·runbook 정책은 Issue #774 링크 |
+
+The matrix must distinguish callback `Exception`, clock failure, invalid
+timeout, invalid `NOT_CHECKED`, cancellation, interruption, and `Error`; do not
+compress those into one “exception semantics” sentence.
+
 - [ ] **Step 2: Correct Ktor module documentation.**
 
 State that the existing route calls the provider inside `withContext(Dispatchers.IO)`
 but the helper does not hop threads or enforce a wall-clock deadline. Document
 built-in ordinary exception `HTTP 200 + UNKNOWN`, custom exception delegation to
-application `StatusPages`/pipeline, and custom `NOT_CHECKED` JSON behavior.
+application pipeline, custom `NOT_CHECKED` JSON behavior, and the fact that
+custom descriptor/pipeline payload sanitization remains the caller's
+responsibility.
 
 - [ ] **Step 3: Correct Spring module documentation.**
 
 Document the allow-listed details and warning matrix from Task 4, including
 interrupt restoration and fatal `Error` rethrow. State that `UNKNOWN` does not
 automatically pass readiness and that the active probe still requires management
-endpoint protection.
+endpoint protection. Repeat that the built-in Spring allow-list is sanitized,
+while custom provider descriptor/detail values remain caller-owned and must be
+sanitized before exposure.
 
 - [ ] **Step 4: Run documentation checks and commit.**
 
@@ -595,6 +633,7 @@ hosted artifact or full console evidence; a skipped task is not a passing test.
 Read the generated JUnit XML and fail the verification if any test was skipped:
 
 ```bash
+set -eu
 modules=(leader-core leader-mongodb leader-redis-lettuce leader-redis-redisson leader-hazelcast leader-zookeeper leader-ktor leader-spring-boot)
 skipped=0
 files=0
@@ -627,24 +666,49 @@ with this exact source:
 
 ```kotlin
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDescriptor
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnostics
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe
 import kotlin.time.Duration.Companion.milliseconds
 
 fun consumerProbe() = LeaderBackendDiagnosticsProbe.check(1.milliseconds) {
     LeaderBackendConnectivityStatus.UNKNOWN
 }
+
+fun legacyCheckProvider(descriptor: LeaderBackendDescriptor) =
+    object : LeaderBackendDiagnosticsProvider {
+        override val backendDescriptor = descriptor
+        override fun checkConnectivity(timeout: kotlin.time.Duration): LeaderBackendConnectivity =
+            LeaderBackendConnectivity.notChecked()
+    }
+
+fun legacyDiagnosticsProvider(descriptor: LeaderBackendDescriptor) =
+    object : LeaderBackendDiagnosticsProvider {
+        override val backendDescriptor = descriptor
+        override fun diagnostics(
+            probe: Boolean,
+            timeout: kotlin.time.Duration,
+        ): LeaderBackendDiagnostics =
+            LeaderBackendDiagnostics(descriptor, LeaderBackendConnectivity.notChecked())
+    }
 ```
 
 Run:
 
 ```bash
+./gradlew :bluetape4k-leader-core:jar --no-daemon --no-configuration-cache --max-workers=1 --console=plain
+CORE_JAR=leader-core/build/libs/bluetape4k-leader-core-1.0.0.jar
+test "$(find leader-core/build/libs -maxdepth 1 -type f -name 'bluetape4k-leader-core-1.0.0.jar' | wc -l | tr -d ' ')" -eq 1
+test -f "$CORE_JAR"
 CONSUMER_DIR=build/issue-766-kotlin-consumer
 rm -rf "$CONSUMER_DIR"
 trap 'rm -rf "$CONSUMER_DIR"' EXIT
 mkdir -p "$CONSUMER_DIR/classes"
-kotlinc -classpath leader-core/build/libs/bluetape4k-leader-core-1.0.0.jar -d "$CONSUMER_DIR/classes" "$CONSUMER_DIR/ProbeConsumer.kt"
-jar tf leader-core/build/libs/bluetape4k-leader-core-1.0.0.jar | rg 'io/bluetape4k/leader/diagnostics/LeaderBackendDiagnosticsProbe'
-javap -classpath leader-core/build/libs/bluetape4k-leader-core-1.0.0.jar 'io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe'
+kotlinc -classpath "$CORE_JAR" -d "$CONSUMER_DIR/classes" "$CONSUMER_DIR/ProbeConsumer.kt"
+jar tf "$CORE_JAR" | rg 'io/bluetape4k/leader/diagnostics/LeaderBackendDiagnosticsProbe'
+javap -classpath "$CORE_JAR" 'io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe'
 ```
 
 Expected: `kotlinc` exits 0; `jar tf` prints the helper class; `javap` prints
@@ -690,8 +754,11 @@ Record the decision to establish a core helper before provider-specific KDoc,
 the `Exception`/cancellation/interruption/`Error` boundary, why custom override
 and versioned manual were kept outside the base migration, the Ktor/Spring
 adapter behavior change, test commands/results, and the deferred #774 operating
-policy. Include the exact release pin reason and no claim that provider-native
-timeout enforces a wall-clock deadline.
+policy. Include the exact release pin reason, the direct/Ktor/Spring observable
+behavior change for opt-in users, and no claim that provider-native timeout
+enforces a wall-clock deadline. If a post-release corrective rollback is needed,
+the Korean release note must state the restored provider behavior and retain the
+public helper ABI.
 
 - [ ] **Step 2: Run lesson writer checks and commit.**
 
@@ -774,9 +841,14 @@ approval. This plan authorizes neither PR creation nor merge.
 
 Before release, reverting commits 6 through 1 in reverse order restores the
 previous implementation, including the RED tests and lesson/evidence files.
-After release, preserve `LeaderBackendDiagnosticsProbe` ABI and revert only
-provider migration in a corrective release; never delete the public helper from
-an already published artifact.
+After release, preserve `LeaderBackendDiagnosticsProbe` ABI and core helper
+tests, then revert the provider implementation together with the dependent
+Ktor/Spring adapter expectations, root/module README wording, and Korean release
+note in the same corrective release. Re-run the direct/Ktor/Spring exception
+matrix and consumer/ABI checks against that corrective release; do not leave
+tests or documentation asserting the removed provider behavior. Record the
+observable behavior change for opt-in users, and never delete the public helper
+from an already published artifact.
 
 ## Plan self-review
 
