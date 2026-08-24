@@ -121,6 +121,8 @@ JMH이며, 결과는 같은 장비에서 전/후 비교를 하기 위한 기준�
 Spring Boot의 정적 `leaderBackendDiagnostics` Actuator endpoint는 명시적으로 활성화하고 노출하기 전까지 비활성입니다. `bluetape4k.leader.observability.backend-health`의 backend health probe도 기본 비활성이며 기본 timeout은 `500ms`입니다. Ktor는 별도 `/management/leaderElection/diagnostics` route를 사용합니다. `backendDiagnosticsRouteEnabled`와 `backendConnectivityCheckEnabled`는 모두 기본값이 `false`이고 connectivity timeout 기본값도 `500ms`입니다.
 
 Diagnostics 응답에는 backend 종류, capability 제한, connectivity 상태, 검사 시각과 지연 시간이 포함될 수 있습니다. Spring Actuator와 Ktor management route를 인증과 network policy로 보호하세요. 애플리케이션별 정책 없이 diagnostics를 소유권 판단이나 readiness 근거로 사용하면 안 됩니다.
+
+내장 provider는 공개 `LeaderBackendDiagnosticsProbe.check` helper를 사용합니다. 이 helper는 양수이면서 유한한 provider-native timeout을 검증하고, callback 전에 clock을 한 번 읽으며, 일반 `Exception`을 `UNKNOWN`으로 정규화합니다. `CancellationException`, interrupt flag를 복원한 `InterruptedException`, 치명적인 `Error`는 재전파하고 `NOT_CHECKED` callback 결과는 잘못된 결과로 거부합니다. 기존 `checkConnectivity` 또는 `diagnostics` custom override는 호환성을 위한 escape hatch로 유지되며 예외 동작은 해당 provider가 소유합니다.
 <!-- LEADER_BACKEND_DIAGNOSTICS:END -->
 
 `@LeaderGroupElection`은 scalar, suspend, `Mono` 결과를 지원하지만 slot별 stream lease extension이 정의되지 않아 `Flux`와 Kotlin `Flow`를 거부합니다. 길거나 무한에 가까운 단일 리더 stream에는 `@LeaderElection(autoExtend = true)`를 사용하세요.

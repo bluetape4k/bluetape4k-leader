@@ -121,6 +121,8 @@ Built-in electors expose their immutable capability descriptor through `LeaderBa
 Spring Boot keeps the static `leaderBackendDiagnostics` Actuator endpoint disabled until it is explicitly enabled and exposed. Its backend health probe is also disabled by default under `bluetape4k.leader.observability.backend-health`; the default timeout is `500ms`. Ktor uses a separate `/management/leaderElection/diagnostics` route. `backendDiagnosticsRouteEnabled` and `backendConnectivityCheckEnabled` both default to `false`, and the connectivity timeout also defaults to `500ms`.
 
 Diagnostics can disclose backend type, capability limits, connectivity status, and check timing. Protect Spring Actuator and Ktor management routes with authentication and network policy, and do not treat diagnostics as an ownership decision or readiness proof without an application-specific policy.
+
+Built-in providers use the public `LeaderBackendDiagnosticsProbe.check` helper. It validates a positive, finite provider-native timeout, reads the clock once before invoking the callback, maps an ordinary `Exception` to `UNKNOWN`, and rethrows `CancellationException`, `InterruptedException` (after restoring the interrupt flag), and fatal `Error` values. A `NOT_CHECKED` callback result is invalid. Providers with an existing custom `checkConnectivity` or `diagnostics` override remain a compatibility escape hatch and own their exception behavior.
 <!-- LEADER_BACKEND_DIAGNOSTICS:END -->
 
 `@LeaderGroupElection` supports scalar, suspend, and `Mono` results, but rejects `Flux` and Kotlin `Flow` because per-slot stream lease extension is undefined. For long-running or unbounded single-leader streams, use `@LeaderElection(autoExtend = true)`.

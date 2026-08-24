@@ -367,6 +367,10 @@ The HTTP adapters in the Spring and Ktor modules share this mapping:
 | ownership/release/registry failures | 503 | No |
 | `ACTION_TIMED_OUT` | 504 | No |
 
+### Framework-neutral backend probe
+
+`LeaderBackendDiagnosticsProbe.check(timeout, clock, probe)` is the shared synchronous boundary for built-in backend connectivity checks. It accepts only a positive, finite provider-native timeout, reads the supplied clock once before the callback, and never creates I/O, locks, clients, retries, threads, executors, or wall-clock deadlines. Ordinary callback `Exception` values become `UNKNOWN`; `CancellationException`, `InterruptedException` (with the interrupt flag restored), and fatal `Error` values retain identity and propagate. Returning `NOT_CHECKED` from the callback is invalid. Existing custom `checkConnectivity` or `diagnostics` overrides remain source-compatible and bypass this normalization by design.
+
 ## Tenant Namespacing
 
 Use `TenantLockNamespace` and `forTenant()` when the same logical job must run

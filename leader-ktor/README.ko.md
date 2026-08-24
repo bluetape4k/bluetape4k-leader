@@ -398,6 +398,8 @@ install(LeaderElectionPlugin) {
 
 Route는 설정된 제한 시간으로 `Dispatchers.IO`에서 `LeaderBackendDiagnosticsProvider.checkConnectivity()`를 한 번 호출합니다. 지원하지 않거나 판정할 수 없는 검사는 `UNKNOWN`을 반환합니다. Elector는 provider를 직접 노출하거나 `LeaderBackendDiagnosticsAware`를 통해 제공할 수 있습니다. Diagnostics가 활성화됐지만 provider를 찾지 못하면 플러그인 설치 단계에서 명확한 오류와 함께 실패합니다.
 
+내장 provider는 `LeaderBackendDiagnosticsProbe.check`를 사용합니다. callback의 일반 예외는 `UNKNOWN`인 HTTP 200 응답이 되지만 cancellation, interruption, 치명적인 `Error`, 잘못된 `NOT_CHECKED` 결과는 caller-owned pipeline 실패로 남습니다. Custom provider override는 route가 다시 작성하지 않으며 기존 예외 정책을 유지합니다.
+
 신뢰된 management boundary 밖으로 노출하기 전에 route를 보호하세요. 연결 진단 결과는 현재 프로세스가 leader lease를 보유한다는 증거가 아닙니다.
 
 ## `leaderScheduled` 안의 LockAssert / LockExtender (Issue #79)
