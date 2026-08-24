@@ -37,10 +37,12 @@ provider는 backend별 상태 판정만 담당하게 한다.
 | [Issue #766](https://github.com/bluetape4k/bluetape4k-leader/issues/766) | 이번 범위는 core base contract와 기존 provider migration이며, framework endpoint나 새 backend 추가는 제외한다. |
 | 격리 worktree baseline | `./gradlew :bluetape4k-leader-core:test --no-daemon --no-configuration-cache --max-workers=1 --console=plain`이 840 tests 실행 후 `BUILD SUCCESSFUL`이다. |
 
-현재 공개 모델의 의미는 다음과 같이 보존한다.
+현재 공개 모델과 내장 helper 경로의 의미는 다음과 같이 보존한다.
 
 - `NOT_CHECKED`는 probe를 실행하지 않은 `diagnostics(probe = false)` 전용
-  결과다.
+  결과로 내장 helper가 생성하지 않는다. 기존 public interface를 직접
+  override하는 사용자 provider는 helper 적용 대상이 아니며, source
+  호환성을 위해 기존 반환 동작을 유지한다.
 - `UNKNOWN`은 backend가 정상이라는 뜻이 아니라 bounded 검사로 상태를
   확정하지 못했다는 뜻이다.
 - 기존 client의 lifecycle 또는 connection 상태를 읽는 것만 허용하며,
@@ -58,7 +60,8 @@ base 기능 목표를 충족하지 못하므로 채택하지 않는다.
 ### 대안 B — `leader-core` 공개 probe helper 추가 (권장)
 
 `LeaderBackendDiagnosticsProbe`가 timeout 검증, 단일 `checkedAt` 생성,
-`Exception -> UNKNOWN`, `Error` 재전파, 상태 불변식 검증을 담당한다.
+일반 `Exception -> UNKNOWN`, cancellation/interruption 보존, `Error` 재전파,
+상태 불변식 검증을 담당한다.
 provider는 기존 client에서 `LeaderBackendConnectivityStatus`만 판정하고
 helper를 호출한다. 상속 구조를 바꾸지 않으면서 모든 provider가 같은
 contract를 사용한다.
@@ -91,12 +94,15 @@ object LeaderBackendDiagnosticsProbe {
 2. `timeout.isFinite()`를 별도로 검증해 `Duration.INFINITE`를 거부한다.
 3. `clock.instant()`를 callback 실행 전에 한 번만 호출한다.
 4. `probe(timeout)`를 호출해 backend 상태를 얻는다.
-5. callback이 `Exception`을 던지면 동일한 `checkedAt`으로
+5. callback이 `CancellationException`을 던지면 동일 인스턴스를 재전파한다.
+6. callback이 `InterruptedException`을 던지면 현재 thread의 interrupt flag를
+   복원한 뒤 동일 인스턴스를 재전파한다.
+7. 그 밖의 일반 `Exception`을 던지면 동일한 `checkedAt`으로
    `LeaderBackendConnectivity.unknown(checkedAt)`을 반환한다.
-6. callback이 `Error`를 던지면 catch하지 않고 동일 인스턴스를 재전파한다.
-7. callback이 `UP`, `DOWN`, `UNKNOWN`을 반환하면 동일한 `checkedAt`으로
+8. callback이 `Error`를 던지면 catch하지 않고 동일 인스턴스를 재전파한다.
+9. callback이 `UP`, `DOWN`, `UNKNOWN`을 반환하면 동일한 `checkedAt`으로
    대응하는 `LeaderBackendConnectivity` factory를 호출한다.
-8. callback이 `NOT_CHECKED`를 반환하면 probe helper의 계약 위반이므로
+10. callback이 `NOT_CHECKED`를 반환하면 내장 probe helper의 계약 위반이므로
    `IllegalArgumentException`을 던진다. 이 예외는 callback `Exception` 정규화
    범위 밖에서 발생해야 한다.
 
@@ -119,8 +125,12 @@ return LeaderBackendDiagnosticsProbe.check(timeout) {
 
 `diagnostics(probe = true)`의 기존 timeout 사전 검증은 유지한다. 따라서
 사용자 정의 provider가 자체 `checkConnectivity`를 구현하더라도 invalid
-timeout은 callback 전에 거부된다. `probe = false`일 때는 helper를 호출하지
-않고 계속 `LeaderBackendConnectivity.notChecked()`를 반환한다.
+timeout은 callback 전에 거부된다. 다만 기존 override가 helper를 우회하는
+경우에는 예외 정규화, `NOT_CHECKED` postcondition, checkedAt 단일화가
+강제되지 않는다. 이는 public interface의 source 호환성을 보존하기 위한
+경계이며 사용자 provider가 helper를 호출해야 공통 contract를 얻는다.
+`probe = false`일 때는 helper를 호출하지 않고 계속
+`LeaderBackendConnectivity.notChecked()`를 반환한다.
 
 ## 5. Provider migration 범위
 
@@ -133,6 +143,7 @@ timeout은 callback 전에 거부된다. `probe = false`일 때는 helper를 호
 | `leader-hazelcast` | 수동 `try/catch`와 검증을 helper로 이동하고 lifecycle 상태 의미 유지 |
 | `leader-zookeeper` | 수동 `try/catch`와 검증을 helper로 이동하고 Curator 연결 상태 의미 유지 |
 | 기타 정적 provider | 현재처럼 기본 `UNKNOWN` 경로를 상속하므로 source 변경 없음 |
+| `README.md`, `README.ko.md` 및 새 helper KDoc | bounded passive probe, `Exception`/`Error`, cancellation/interruption, `NOT_CHECKED` 경계를 문서화 |
 | `leader-spring-boot`, `leader-ktor`, `leader-micrometer` | endpoint, route, metric payload와 opt-in 정책은 변경하지 않음 |
 
 provider별 상태 의미는 바꾸지 않는다.
@@ -144,20 +155,31 @@ provider별 상태 의미는 바꾸지 않는다.
 - Hazelcast: running이면 `UNKNOWN`, 아니면 `DOWN`.
 - ZooKeeper: connected면 `UP`, 아니면 `DOWN`.
 
-모든 provider에서 callback 내부의 일반 `Exception`은 `UNKNOWN`으로
-정규화하고, `Error`는 기존 인스턴스로 재전파한다.
+내장 helper를 사용하는 provider에서 callback 내부의 일반 `Exception`은
+`UNKNOWN`으로 정규화하고, `CancellationException`과
+`InterruptedException`은 각각 재전파하며 `InterruptedException`의 flag를
+복원한다. `Error`는 기존 인스턴스로 재전파한다. helper를 우회하는 기존
+사용자 override의 예외 정책은 변경하지 않는다.
 
 ## 6. 호환성과 위험 경계
 
-- 새 `LeaderBackendDiagnosticsProbe`는 `leader-core`의 공개 JVM API다. 기존
+- 새 `LeaderBackendDiagnosticsProbe`는 Kotlin 중심의 공개 Kotlin/JVM API다. 기존
   interface, enum, data class, endpoint JSON shape는 변경하지 않는다.
-- Kotlin `object`의 단일 `check` 함수와 `Clock` 기본값을 사용한다. Java용
-  별도 static overload나 새 dependency는 추가하지 않는다.
+- Kotlin `object`의 단일 `check` 함수와 `Clock` 기본값을 사용한다. Java
+  source ergonomics를 위한 별도 static overload나 `java.time.Duration`
+  bridge, 새 dependency는 추가하지 않는다. Java caller는 기존 Kotlin/JVM
+  ABI 표면을 직접 사용해야 하며, 이 이슈에서는 Java facade를 추가하지 않는다.
 - helper는 순수한 상태 매핑과 callback 경계만 담당하므로 실제 backend I/O의
-  timeout 보장 여부를 대신하지 않는다. provider callback이 bounded·read-only
-  계약을 지켜야 한다.
-- `Exception` 정규화는 운영 진단의 fail-closed 동작을 위한 것이며,
+  timeout을 wall-clock으로 강제하거나 executor/thread hop을 수행하지 않는다.
+  provider callback이 bounded·read-only 계약을 지켜야 하며, helper는 전달받은
+  timeout을 provider-native budget으로만 제공한다. 실제 deadline 강제는
+  별도 이슈에서 다룬다.
+- 일반 `Exception` 정규화는 운영 진단의 fail-closed 동작을 위한 것이며,
+  cancellation/interruption은 제어 흐름이므로 보존한다.
   `Error`를 복구 가능한 backend 상태로 오인하지 않도록 반드시 재전파한다.
+- 내장 provider의 callback은 호출 thread에서 동기 실행되며 helper는 공유
+  mutable state를 만들지 않는다. 동시성 안전성은 주입된 `Clock`과 callback의
+  책임이다.
 - 롤백은 helper 파일과 provider import/호출 변경을 되돌리면 된다. 기존
   `checkConnectivity(Duration)` 공개 메서드는 유지되므로 사용자 provider의
   source 호환성을 깨지 않는다.
@@ -172,9 +194,15 @@ provider별 상태 의미는 바꾸지 않는다.
 - `UP`, `DOWN`, `UNKNOWN` 상태가 고정 clock의 동일 `checkedAt`으로 매핑된다.
 - 양수 미만과 `Duration.INFINITE`는 callback을 호출하지 않고 거부된다.
 - callback의 일반 `Exception`은 `UNKNOWN`으로 정규화된다.
+- callback의 `CancellationException`은 동일 인스턴스로 재전파된다.
+- callback의 `InterruptedException`은 interrupt flag를 복원하고 동일
+  인스턴스로 재전파된다.
 - callback의 `Error`는 동일 인스턴스로 재전파된다.
 - `NOT_CHECKED` 반환은 `IllegalArgumentException`으로 거부된다.
 - callback에 동일 timeout이 전달되고 clock은 한 번만 읽힌다.
+- clock의 `instant()` 예외는 동일 인스턴스로 전파되고 callback은 호출되지
+  않는다.
+- invalid timeout에서는 clock과 callback을 모두 호출하지 않는다.
 
 기존 `LeaderBackendDiagnosticsTest`와 `LocalLeaderBackendDiagnosticsTest`는
 기본·Local 동작이 그대로 유지되는지 확인한다.
@@ -182,8 +210,12 @@ provider별 상태 의미는 바꾸지 않는다.
 ### Provider 회귀
 
 Lettuce, Redisson, Hazelcast, ZooKeeper 테스트에 기존 상태 판정과 일반
-`Exception`/`Error` 경계를 유지하는 사례를 둔다. 실제 네트워크나
-Testcontainers를 새로 요구하지 않고 현재 MockK 기반 fixture를 재사용한다.
+`Exception`/`CancellationException`/`InterruptedException`/`Error` 경계를
+유지하는 사례를 둔다. 기존 Lettuce/Redisson의 일반 예외 전파가 helper
+사용 후 `UNKNOWN`으로 바뀌는 것은 의도한 fail-closed 행동 변경이며 회귀
+기대값에 명시한다. 실제 네트워크나 Testcontainers를 새로 요구하지 않고
+현재 MockK 기반 fixture를 재사용한다. provider별 passive-probe contract
+fixture로 lock·lease·scan·client factory 호출이 없음을 확인한다.
 
 ### 정적·통합 검증
 
@@ -195,6 +227,8 @@ Testcontainers를 새로 요구하지 않고 현재 MockK 기반 fixture를 재�
 
 Spring Boot/Ktor route payload와 Micrometer metric 테스트는 source 변경이
 없는지 확인하는 범위로 남기며, 새 probe I/O를 추가하지 않는다.
+route/health 호출이 callback의 wall-clock timeout을 강제하지 않는다는 점과
+provider-native bounded 책임은 운영 문서와 KDoc에 명시한다.
 
 ## 8. Acceptance criteria와 DoD
 
@@ -202,12 +236,17 @@ Spring Boot/Ktor route payload와 Micrometer metric 테스트는 source 변경�
 
 1. `leader-core`에 문서화된 공개 `LeaderBackendDiagnosticsProbe`가 존재한다.
 2. timeout 검증은 `requireGt`와 유한성 검사를 사용하고 callback 전에 끝난다.
-3. `Exception`은 `UNKNOWN`, `Error`는 동일 인스턴스 재전파로 처리한다.
-4. `NOT_CHECKED`는 helper에서 허용하지 않는다.
+3. 내장 helper callback의 일반 `Exception`은 `UNKNOWN`,
+   `CancellationException`/`InterruptedException`/`Error`는 제어 흐름과
+   fatal 상태를 보존한다.
+4. 내장 helper는 `NOT_CHECKED`를 허용하지 않으며, 사용자 override의 기존
+   source 호환성 경계를 문서화한다.
 5. 지정한 여섯 provider가 helper를 사용하고 상태 의미를 유지한다.
 6. lock, lease, scan, client 생성, background executor 생성이 추가되지 않는다.
-7. 기존 diagnostics endpoint/route/metric JSON과 opt-in 기본값이 변하지 않는다.
-8. core/provider 테스트, detekt, ABI, diff check가 통과한다.
+7. helper가 wall-clock timeout을 강제한다고 주장하지 않으며, provider-native
+   bounded 책임과 실제 deadline 후속 범위를 명시한다.
+8. 기존 diagnostics endpoint/route/metric JSON과 opt-in 기본값이 변하지 않는다.
+9. core/provider 테스트, detekt, ABI, diff check가 통과한다.
 
 ### DoD
 
@@ -223,6 +262,7 @@ Spring Boot/Ktor route payload와 Micrometer metric 테스트는 source 변경�
 ## 9. 범위 제외
 
 - 실제 network connectivity probe나 backend command 추가
+- callback을 위한 wall-clock deadline enforcement, executor, thread hop 추가
 - Spring Boot Actuator, Ktor route, Micrometer payload/metric 변경
 - capability enum 또는 endpoint schema 변경
 - 추상 base class, 새 module, 새 dependency 도입
