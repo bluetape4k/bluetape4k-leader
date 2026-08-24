@@ -44,8 +44,10 @@ public object LeaderBackendDiagnosticsProbe {
             LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivity.up(checkedAt)
             LeaderBackendConnectivityStatus.DOWN -> LeaderBackendConnectivity.down(checkedAt)
             LeaderBackendConnectivityStatus.UNKNOWN -> LeaderBackendConnectivity.unknown(checkedAt)
-            LeaderBackendConnectivityStatus.NOT_CHECKED ->
-                throw IllegalArgumentException("probe callback must return a checked connectivity status")
+            LeaderBackendConnectivityStatus.NOT_CHECKED -> invalidProbeStatus()
         }
     }
+
+    private fun invalidProbeStatus(): Nothing =
+        throw IllegalArgumentException("probe callback must return a checked connectivity status")
 }
