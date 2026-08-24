@@ -1,9 +1,11 @@
 package io.bluetape4k.leader.diagnostics
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderGroupElector
@@ -26,6 +28,7 @@ import io.bluetape4k.leader.withListeners
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -54,6 +57,24 @@ class LocalLeaderBackendDiagnosticsTest {
         connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.UP
         connectivity.checkedAt.shouldNotBeNull()
         connectivity.latencyMillis.shouldBeNull()
+    }
+
+    @Test
+    fun `Local probe는 공통 helper의 positive finite timeout 계약을 적용한다`() {
+        val zero = assertFailsWith<IllegalArgumentException> {
+            LocalLeaderBackendDiagnostics.checkConnectivity(Duration.ZERO)
+        }
+        zero.message shouldContain "probe timeout[0s] must be greater than 0s."
+
+        val negative = assertFailsWith<IllegalArgumentException> {
+            LocalLeaderBackendDiagnostics.checkConnectivity((-1).milliseconds)
+        }
+        negative.message shouldContain "probe timeout[-1ms] must be greater than 0s."
+
+        val infinite = assertFailsWith<IllegalArgumentException> {
+            LocalLeaderBackendDiagnostics.checkConnectivity(Duration.INFINITE)
+        }
+        infinite.message shouldContain "probe timeout must be finite"
     }
 
     @Test
