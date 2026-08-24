@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderLeaseDefaults
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseHandle
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -88,7 +89,15 @@ internal class SuspendLeaderLeaseLifecycle(
             if (!state.compareAndSet(State.LIVE, State.CLOSING)) return@withContext
             val deadline = releaseDeadline()
             try {
-                if (options.autoExtend) runCatching { callbacks.stopWatchdog(backend, deadline) }
+                if (options.autoExtend) {
+                    try {
+                        callbacks.stopWatchdog(backend, deadline)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        // watchdog 중지는 release와 독립적으로 best-effort 처리합니다.
+                    }
+                }
                 watchdog.close()
                 val remaining = (
                     options.minLeaseTime.inWholeNanoseconds -
@@ -96,7 +105,14 @@ internal class SuspendLeaderLeaseLifecycle(
                     )
                     .coerceAtLeast(0L)
                 if (remaining > 0L) delay(remaining / NANOS_PER_MILLISECOND)
-                when (runCatching { callbacks.release(backend, deadline) }.getOrElse { BackendReleaseOutcome.ERROR }) {
+                val releaseOutcome = try {
+                    callbacks.release(backend, deadline)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    BackendReleaseOutcome.ERROR
+                }
+                when (releaseOutcome) {
                     BackendReleaseOutcome.RELEASED, BackendReleaseOutcome.NOT_HELD ->
                         status.set(LeaseOwnershipStatus.NOT_HELD)
                     BackendReleaseOutcome.ERROR, BackendReleaseOutcome.TIMEOUT ->

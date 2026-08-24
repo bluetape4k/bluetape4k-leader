@@ -22,6 +22,9 @@ import io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.reactor.mono
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -382,11 +385,7 @@ class LeaderWebFluxRouteGuardTest {
         releaseFirst.countDown()
         firstDone.await(2, TimeUnit.SECONDS).shouldBeTrue()
         first.dispose()
-        val deadline = System.nanoTime() + 1.seconds.inWholeNanoseconds
-        while (leaseRuntime.activeLeases != 0 && System.nanoTime() < deadline) {
-            Thread.sleep(5)
-        }
-        leaseRuntime.activeLeases shouldBeEqualTo 0
+        awaitActiveLeases(leaseRuntime, 0)
         elector.tryAcquire(slot)?.release()
         leaseRuntime.close()
     }
@@ -430,19 +429,11 @@ class LeaderWebFluxRouteGuardTest {
 
         firstCompletion.get().success()
         firstDone.await(2, TimeUnit.SECONDS).shouldBeTrue()
-        val retainedDeadline = System.nanoTime() + 1.seconds.inWholeNanoseconds
-        while (leaseRuntime.activeLeases != 1 && System.nanoTime() < retainedDeadline) {
-            Thread.sleep(5)
-        }
-        leaseRuntime.activeLeases shouldBeEqualTo 1
+        awaitActiveLeases(leaseRuntime, 1)
 
         secondCompletion.get().success()
         secondDone.await(2, TimeUnit.SECONDS).shouldBeTrue()
-        val releasedDeadline = System.nanoTime() + 1.seconds.inWholeNanoseconds
-        while (leaseRuntime.activeLeases != 0 && System.nanoTime() < releasedDeadline) {
-            Thread.sleep(5)
-        }
-        leaseRuntime.activeLeases shouldBeEqualTo 0
+        awaitActiveLeases(leaseRuntime, 0)
         elector.tryAcquire(slot)?.release()
         leaseRuntime.close()
     }
@@ -460,18 +451,10 @@ class LeaderWebFluxRouteGuardTest {
         )
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/guarded").build())
         val subscription = route.filter(slot).filter(exchange, WebFilterChain { Mono.never() }).subscribe()
-        val acquiredDeadline = System.nanoTime() + 1.seconds.inWholeNanoseconds
-        while (leaseRuntime.activeLeases == 0 && System.nanoTime() < acquiredDeadline) {
-            Thread.sleep(5)
-        }
-        leaseRuntime.activeLeases shouldBeEqualTo 1
+        awaitActiveLeases(leaseRuntime, 1)
 
         subscription.dispose()
-        val releasedDeadline = System.nanoTime() + 1.seconds.inWholeNanoseconds
-        while (leaseRuntime.activeLeases != 0 && System.nanoTime() < releasedDeadline) {
-            Thread.sleep(5)
-        }
-        leaseRuntime.activeLeases shouldBeEqualTo 0
+        awaitActiveLeases(leaseRuntime, 0)
         elector.tryAcquire(slot)?.release()
         leaseRuntime.close()
     }
@@ -557,4 +540,10 @@ class LeaderWebFluxRouteGuardTest {
             properties = LeaderRouteGuardProperties(rejectionStatus = rejectionStatus, redirect = redirect),
             evaluationScheduler = evaluationScheduler,
         )
+
+    private fun awaitActiveLeases(runtime: LeaderRouteLeaseRuntime, expected: Int) {
+        await.atMost(1.seconds).untilAsserted {
+            runtime.activeLeases shouldBeEqualTo expected
+        }
+    }
 }

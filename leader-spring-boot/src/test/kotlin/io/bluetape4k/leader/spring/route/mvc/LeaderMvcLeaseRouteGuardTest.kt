@@ -3,6 +3,7 @@ package io.bluetape4k.leader.spring.route.mvc
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.local.LocalLeaderElector
@@ -14,6 +15,9 @@ import io.bluetape4k.leader.spring.route.LeaderRouteDecision
 import io.bluetape4k.leader.spring.route.LeaderRouteLeaseRuntime
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
@@ -113,15 +117,8 @@ class LeaderMvcLeaseRouteGuardTest {
     }
 
     private fun awaitLeaseRelease(elector: LocalLeaderElector) {
-        val deadline = System.nanoTime() + 1.seconds.inWholeNanoseconds
-        while (System.nanoTime() < deadline) {
-            val probe = elector.tryAcquire(slot)
-            if (probe != null) {
-                probe.release()
-                return
-            }
-            Thread.sleep(5)
+        await.atMost(1.seconds).untilAsserted {
+            elector.tryAcquire(slot).shouldNotBeNull().release()
         }
-        error("lease cleanup did not complete within the test deadline")
     }
 }

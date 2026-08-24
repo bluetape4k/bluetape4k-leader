@@ -2,9 +2,11 @@ package io.bluetape4k.leader.spring.route
 
 import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import kotlin.time.Duration
 
-/** Monotonic shutdown state owner for a LEASE route runtime. */
+/** LEASE route runtime의 monotonic shutdown state owner입니다. */
 internal class LeaderRouteLeaseShutdownCoordinator(
     private val drainTimeout: Duration,
     private val activeLeases: () -> Int = { 0 },
@@ -20,38 +22,38 @@ internal class LeaderRouteLeaseShutdownCoordinator(
     }
 
     private val state = AtomicReference(State.RUNNING)
-    private val lifecycleMonitor = Any()
+    private val lifecycleLock = ReentrantLock()
     private val registeredHandles = IdentityHashMap<Any, () -> Unit>()
 
     val runtimeState: State get() = state.get()
     fun acceptsAcquire(): Boolean = runtimeState == State.RUNNING
     fun allowsCleanup(): Boolean = runtimeState in setOf(State.RUNNING, State.QUIESCING, State.DRAINING)
 
-    fun quiesce(): Boolean = synchronized(lifecycleMonitor) {
+    fun quiesce(): Boolean = lifecycleLock.withLock {
         state.compareAndSet(State.RUNNING, State.QUIESCING)
     }
 
     /** handle publication과 shutdown drain 사이를 선형화합니다. */
-    fun registerHandle(key: Any, release: () -> Unit): Boolean = synchronized(lifecycleMonitor) {
-        if (state.get() != State.RUNNING) return@synchronized false
+    fun registerHandle(key: Any, release: () -> Unit): Boolean = lifecycleLock.withLock {
+        if (state.get() != State.RUNNING) return@withLock false
         registeredHandles[key] = release
         true
     }
 
-    fun unregisterHandle(key: Any) = synchronized(lifecycleMonitor) {
+    fun unregisterHandle(key: Any) = lifecycleLock.withLock {
         registeredHandles.remove(key)
     }
 
-    /** Drains active handles within the configured bounded timeout. */
+    /** 설정된 bounded timeout 안에서 active handle을 drain합니다. */
     @Suppress("ReturnCount")
     fun drain(): State {
-        synchronized(lifecycleMonitor) {
+        lifecycleLock.withLock {
             if (state.compareAndSet(State.RUNNING, State.QUIESCING).not() && state.get() != State.QUIESCING) {
                 return state.get()
             }
             if (!state.compareAndSet(State.QUIESCING, State.DRAINING)) return state.get()
         }
-        val registered = synchronized(lifecycleMonitor) { registeredHandles.values.toList() }
+        val registered = lifecycleLock.withLock { registeredHandles.values.toList() }
         registered.forEach { release -> runCatching { release() } }
         runCatching { releaseHandles() }
         val deadline = System.nanoTime() + drainTimeout.inWholeNanoseconds.coerceAtLeast(0L)

@@ -17,6 +17,7 @@ import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode
 import io.bluetape4k.leader.spring.properties.LeaderRouteGuardProperties
 import io.bluetape4k.leader.spring.properties.LeaderRouteLeaseProperties
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.Callable
 import java.util.concurrent.Delayed
@@ -25,7 +26,9 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.time.Instant
-import kotlinx.coroutines.runBlocking
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -82,11 +85,9 @@ class LeaderRouteLeaseShutdownCoordinatorTest {
         )
 
         runtime.tryAcquire(LeaderSlot("scheduler-race", "node")).shouldBeNull()
-        val deadline = System.nanoTime() + 5.seconds.inWholeNanoseconds
-        while (runtime.activeLeases != 0 && System.nanoTime() < deadline) {
-            Thread.sleep(5)
+        await.atMost(5.seconds).untilAsserted {
+            runtime.activeLeases shouldBeEqualTo 0
         }
-        runtime.activeLeases shouldBeEqualTo 0
         elector.tryAcquire(LeaderSlot("scheduler-race", "node"))?.release()
 
         runtime.close()
@@ -135,18 +136,16 @@ class LeaderRouteLeaseShutdownCoordinatorTest {
 
         runtime.tryAcquire(LeaderSlot("shutdown-race", "node")).shouldBeNull()
         acquireCount.get() shouldBeEqualTo 1
-        val deadline = System.nanoTime() + 5.seconds.inWholeNanoseconds
-        while (releaseCount.get() == 0 && System.nanoTime() < deadline) {
-            Thread.sleep(5)
+        await.atMost(5.seconds).untilAsserted {
+            releaseCount.get() shouldBeEqualTo 1
         }
-        releaseCount.get() shouldBeEqualTo 1
         runtime.close()
         releaseCount.get() shouldBeEqualTo 1
         lifetimeScheduler.shutdownNow()
     }
 
     @Test
-    fun `suspend lifetime callback publishes terminal state before returning`() = runBlocking {
+    fun `suspend lifetime callback publishes terminal state before returning`() = runSuspendIO {
         val releaseCount = AtomicInteger()
         val handle = object : SuspendLeaderLeaseHandle {
             override val lockName: String = "suspend-shutdown-race"
@@ -186,15 +185,12 @@ class LeaderRouteLeaseShutdownCoordinatorTest {
         )
 
         runtime.tryAcquireSuspend(LeaderSlot("suspend-shutdown-race", "node")).shouldBeNull()
-        val deadline = System.nanoTime() + 5.seconds.inWholeNanoseconds
-        while (releaseCount.get() == 0 && System.nanoTime() < deadline) {
-            Thread.sleep(5)
+        await.atMost(5.seconds).untilAsserted {
+            releaseCount.get() shouldBeEqualTo 1
         }
-        releaseCount.get() shouldBeEqualTo 1
         runtime.close()
         releaseCount.get() shouldBeEqualTo 1
         lifetimeScheduler.shutdownNow()
-        Unit
     }
 
     private class ImmediateLifetimeScheduler(

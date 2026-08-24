@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.route
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAcquirer
@@ -11,10 +12,12 @@ import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.leader.spring.properties.LeaderRouteLeaseProperties
 import org.junit.jupiter.api.Test
-import java.util.concurrent.TimeUnit
 import java.time.Instant
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LeaderRouteLeaseDiagnosticsTest {
 
@@ -28,10 +31,10 @@ class LeaderRouteLeaseDiagnosticsTest {
             externalObservationSink = SanitizedRouteLeaseObservationSink { sinkCodes += it },
         )
 
-        runtime.tryAcquire(LeaderSlot("private-lock-name", "private-leader-id"))!!.release()
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2)
-        while (runtime.activeLeases != 0 && System.nanoTime() < deadline) Thread.sleep(2)
-        runtime.activeLeases shouldBeEqualTo 0
+        runtime.tryAcquire(LeaderSlot("private-lock-name", "private-leader-id")).shouldNotBeNull().release()
+        await.atMost(2.seconds).untilAsserted {
+            runtime.activeLeases shouldBeEqualTo 0
+        }
 
         val diagnostics = LeaderRouteLeaseDiagnosticsContributor(runtime).diagnostics()
         diagnostics.runtimeState shouldBeEqualTo "RUNNING"
@@ -55,12 +58,11 @@ class LeaderRouteLeaseDiagnosticsTest {
         )
 
         runtime.tryAcquire(LeaderSlot("lifetime-lock", "node"))
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2)
-        while (runtime.activeLeases != 0 && System.nanoTime() < deadline) Thread.sleep(2)
-
-        runtime.activeLeases shouldBeEqualTo 0
+        await.atMost(2.seconds).untilAsserted {
+            runtime.activeLeases shouldBeEqualTo 0
+        }
         runtime.residualLeases shouldBeEqualTo 0
-        runtime.diagnostics().observations[LeaseObservationCode.TIMEOUT.name]!! shouldBeEqualTo 1
+        runtime.diagnostics().observations[LeaseObservationCode.TIMEOUT.name].shouldNotBeNull() shouldBeEqualTo 1
         runtime.close()
     }
 
@@ -74,13 +76,12 @@ class LeaderRouteLeaseDiagnosticsTest {
                 drainTimeout = java.time.Duration.ofMillis(40),
             ),
         )
-        runtime.tryAcquire(LeaderSlot("cleanup-timeout", "node"))!!.release()
+        runtime.tryAcquire(LeaderSlot("cleanup-timeout", "node")).shouldNotBeNull().release()
 
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2)
-        while (
-            runtime.diagnostics().observations[LeaseObservationCode.CLEANUP_TIMEOUT.name] == 0L &&
-            System.nanoTime() < deadline
-        ) Thread.sleep(2)
+        await.atMost(2.seconds).untilAsserted {
+            runtime.diagnostics().observations[LeaseObservationCode.CLEANUP_TIMEOUT.name]
+                .shouldNotBeNull() shouldBeEqualTo 1
+        }
 
         runtime.residualLeases shouldBeEqualTo 1
         runtime.diagnostics().observations[LeaseObservationCode.CLEANUP_TIMEOUT.name] shouldBeEqualTo 1

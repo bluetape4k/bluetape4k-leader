@@ -9,6 +9,8 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import kotlin.time.Duration
 
 /**
@@ -61,7 +63,7 @@ class SharedLeaseAcquire(
             releaseWaiter(attempt)
             return null
         }
-        synchronized(attempt) {
+        attempt.lock.withLock {
             if (attempt.closed.get() || attempt.terminal.get() || attempt.delegate.get() !== delegate) {
                 releaseWaiter(attempt)
                 return null
@@ -87,23 +89,23 @@ class SharedLeaseAcquire(
                     return completedAttempt(slot)
                 }
                 val candidate = Attempt(slot, reservation)
-                synchronized(candidate) { candidate.waiters.incrementAndGet() }
+                candidate.lock.withLock { candidate.waiters.incrementAndGet() }
                 if (attempts.putIfAbsent(slot, candidate) == null) return candidate
                 closeReservationOnce(candidate)
                 continue
             }
 
             var retry = false
-            synchronized(existing) {
+            existing.lock.withLock {
                 when {
                     closed.get() || existing.closed.get() || existing.terminal.get() -> {
                         attempts.remove(slot, existing)
                         retry = true
                     }
                     existing.future.isDone && existing.delegate.get() != null -> {
-                        // Published attempts remain mapped until their physical handle is
-                        // released. A later request contends normally without replacing that
-                        // mapping and opening a second backend acquire window.
+                        // 공개된 attempt는 물리 handle이 release될 때까지 매핑을 유지합니다.
+                        // 후속 요청은 이 매핑을 교체하거나 두 번째 backend acquire 구간을
+                        // 열지 않고 정상적으로 경합합니다.
                         return completedAttempt(slot)
                     }
                     else -> {
@@ -134,7 +136,7 @@ class SharedLeaseAcquire(
                 val result = acquire(attempt.slot)
                 publish(attempt, result)
             } catch (failure: Throwable) {
-                synchronized(attempt) {
+                attempt.lock.withLock {
                     attempt.future.completeExceptionally(failure)
                 }
                 finish(attempt, published = false)
@@ -152,7 +154,7 @@ class SharedLeaseAcquire(
 
     private fun publish(attempt: Attempt, delegate: LeaderLeaseHandle?) {
         var accepted = false
-        synchronized(attempt) {
+        attempt.lock.withLock {
             if (delegate != null && !attempt.closed.get() && !attempt.terminal.get()) {
                 accepted = attempt.delegate.compareAndSet(null, delegate)
                 if (accepted) attempt.future.complete(delegate)
@@ -177,7 +179,7 @@ class SharedLeaseAcquire(
     private fun releaseWaiter(attempt: Attempt) {
         var cancel = false
         var terminalize = false
-        synchronized(attempt) {
+        attempt.lock.withLock {
             if (attempt.waiters.decrementAndGet() == 0) {
                 cancel = !attempt.future.isDone
                 terminalize = true
@@ -188,7 +190,7 @@ class SharedLeaseAcquire(
     }
 
     private fun terminalizeIfUnclaimed(attempt: Attempt) {
-        val terminalize = synchronized(attempt) {
+        val terminalize = attempt.lock.withLock {
             if (attempt.waiters.get() != 0) {
                 false
             } else {
@@ -204,7 +206,7 @@ class SharedLeaseAcquire(
     }
 
     private fun terminalizeForce(attempt: Attempt) {
-        val terminalize = synchronized(attempt) {
+        val terminalize = attempt.lock.withLock {
             attempt.future.complete(null)
             attempt.terminal.compareAndSet(false, true).also { changed ->
                 if (changed) {
@@ -217,7 +219,7 @@ class SharedLeaseAcquire(
     }
 
     private fun closeAttempt(attempt: Attempt) {
-        synchronized(attempt) {
+        attempt.lock.withLock {
             attempt.closed.set(true)
             attempts.remove(attempt.slot, attempt)
             attempt.task.get()?.cancel(true)
@@ -246,7 +248,7 @@ class SharedLeaseAcquire(
         try {
             attempt.reservation?.close()
         } catch (_: Exception) {
-            // Admission resources are best-effort terminal bookkeeping.
+            // admission resource 정리는 terminal bookkeeping이므로 best-effort로 처리합니다.
         }
     }
 
@@ -261,6 +263,7 @@ class SharedLeaseAcquire(
         val reservationClosed = AtomicBoolean(false)
         val delegateReleased = AtomicBoolean(false)
         val waiters = AtomicInteger()
+        val lock = ReentrantLock()
         val future = CompletableFuture<LeaderLeaseHandle?>()
         val task = AtomicReference<Future<*>?>(null)
         val delegate = AtomicReference<LeaderLeaseHandle?>(null)

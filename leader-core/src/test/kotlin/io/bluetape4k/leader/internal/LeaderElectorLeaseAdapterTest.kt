@@ -11,6 +11,9 @@ import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.local.LocalLeaderElector
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -29,8 +32,8 @@ class LeaderElectorLeaseAdapterTest {
         val slot = LeaderSlot("adapter-lock", "request-node")
         val adapter = LeaderElectorLeaseAdapter({ LocalLeaderElector(options) }, options)
 
-        val handle = adapter.tryAcquire(slot)
-        handle!!.auditLeaderId shouldBeEqualTo "request-node"
+        val handle = adapter.tryAcquire(slot).shouldNotBeNull()
+        handle.auditLeaderId shouldBeEqualTo "request-node"
         handle.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.HELD
         handle.extend(500.milliseconds).let { it is io.bluetape4k.leader.ExtendOutcome.Extended }.shouldBeTrue()
         handle.release()
@@ -47,8 +50,8 @@ class LeaderElectorLeaseAdapterTest {
         val slot = LeaderSlot("suspend-adapter-lock", "request-node")
         val adapter = SuspendLeaderElectorLeaseAdapter({ LocalSuspendLeaderElector(options) }, options)
 
-        val handle = adapter.tryAcquire(slot)
-        handle!!.auditLeaderId shouldBeEqualTo "request-node"
+        val handle = adapter.tryAcquire(slot).shouldNotBeNull()
+        handle.auditLeaderId shouldBeEqualTo "request-node"
         handle.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.HELD
         handle.release()
         handle.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.NOT_HELD
@@ -82,7 +85,9 @@ class LeaderElectorLeaseAdapterTest {
             block = { adapter.tryAcquire(LeaderSlot("admission-lock", "request-node")) },
         )
 
-        Thread.sleep(180)
+        await.atMost(2.seconds).untilAsserted {
+            (rejectedTicks.get() > 0).shouldBeTrue()
+        }
         handle.shouldNotBeNull().release()
 
         (rejectedTicks.get() > 0).shouldBeTrue()
