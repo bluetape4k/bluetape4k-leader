@@ -702,6 +702,8 @@ bluetape4k:
 
 `UP` and `DOWN` map directly to Spring health statuses. `UNKNOWN` and `NOT_CHECKED` map to Spring `UNKNOWN`. Both surfaces use the same elector selection as `bluetape4k.leader.observability.state-provider-bean`; when the selected elector does not expose a `LeaderBackendDiagnosticsProvider`, the typed endpoint and health indicator are not registered.
 
+If the active backend probe throws an ordinary provider exception, the health indicator reports `UNKNOWN` without copying the `error` key, exception class/message/cause, endpoint, token, or credential into Actuator details. This remains true when `management.endpoint.health.show-details=always`; only the indicator's allow-listed details are returned. Fatal JVM `Error` values are not normalized and are rethrown. Keep the endpoint protected even with sanitized failures because the probe still performs live backend I/O.
+
 Protect these Actuator surfaces with the same authentication and network policy as other management endpoints. A healthy backend only proves connectivity at the time of the probe; it does not prove that this process currently owns a leader lease.
 
 ## Migration Notes
