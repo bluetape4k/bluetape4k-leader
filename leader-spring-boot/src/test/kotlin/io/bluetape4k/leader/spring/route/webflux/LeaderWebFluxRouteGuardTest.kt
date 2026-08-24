@@ -33,6 +33,7 @@ import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.server.WebFilterChain
 import org.springframework.web.server.WebHandler
 import reactor.core.publisher.Mono
+import reactor.core.publisher.MonoSink
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.nio.charset.StandardCharsets
@@ -383,6 +384,62 @@ class LeaderWebFluxRouteGuardTest {
         first.dispose()
         val deadline = System.nanoTime() + 1.seconds.inWholeNanoseconds
         while (leaseRuntime.activeLeases != 0 && System.nanoTime() < deadline) {
+            Thread.sleep(5)
+        }
+        leaseRuntime.activeLeases shouldBeEqualTo 0
+        elector.tryAcquire(slot)?.release()
+        leaseRuntime.close()
+    }
+
+    @Test
+    fun `owner completion before duplicate releases the physical handle`() {
+        val elector = LocalLeaderElector(
+            LeaderElectionOptions(waitTime = 10.milliseconds, leaseTime = 1.seconds, nodeId = "node-a"),
+        )
+        val leaseRuntime = LeaderRouteLeaseRuntime(elector, null, LeaderRouteGuardProperties().lease)
+        val route = LeaderWebFluxRouteGuardFactory(
+            runtime = LeaderRouteAuthorityRuntime(LeaderRouteAuthority { LeaderRouteDecision.Allowed }),
+            properties = LeaderRouteGuardProperties(authorityMode = LeaderRouteAuthorityMode.LEASE),
+            leaseRuntime = leaseRuntime,
+        )
+        val firstEntered = CountDownLatch(1)
+        val secondEntered = CountDownLatch(1)
+        val firstCompletion = AtomicReference<MonoSink<Void>>()
+        val secondCompletion = AtomicReference<MonoSink<Void>>()
+        val calls = AtomicInteger()
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/guarded").build())
+        val chain = WebFilterChain {
+            when (calls.incrementAndGet()) {
+                1 -> Mono.create { sink ->
+                    firstCompletion.set(sink)
+                    firstEntered.countDown()
+                }
+                else -> Mono.create { sink ->
+                    secondCompletion.set(sink)
+                    secondEntered.countDown()
+                }
+            }
+        }
+        val filter = route.filter(slot)
+        val firstDone = CountDownLatch(1)
+        filter.filter(exchange, chain).subscribe({}, {}, firstDone::countDown)
+        firstEntered.await(2, TimeUnit.SECONDS).shouldBeTrue()
+        val secondDone = CountDownLatch(1)
+        filter.filter(exchange, chain).subscribe({}, {}, secondDone::countDown)
+        secondEntered.await(2, TimeUnit.SECONDS).shouldBeTrue()
+
+        firstCompletion.get().success()
+        firstDone.await(2, TimeUnit.SECONDS).shouldBeTrue()
+        val retainedDeadline = System.nanoTime() + 1.seconds.inWholeNanoseconds
+        while (leaseRuntime.activeLeases != 1 && System.nanoTime() < retainedDeadline) {
+            Thread.sleep(5)
+        }
+        leaseRuntime.activeLeases shouldBeEqualTo 1
+
+        secondCompletion.get().success()
+        secondDone.await(2, TimeUnit.SECONDS).shouldBeTrue()
+        val releasedDeadline = System.nanoTime() + 1.seconds.inWholeNanoseconds
+        while (leaseRuntime.activeLeases != 0 && System.nanoTime() < releasedDeadline) {
             Thread.sleep(5)
         }
         leaseRuntime.activeLeases shouldBeEqualTo 0

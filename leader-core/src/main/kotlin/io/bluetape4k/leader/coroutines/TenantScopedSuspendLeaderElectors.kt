@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.coroutines
 
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
@@ -71,7 +72,7 @@ internal class TenantScopedSuspendLeaderElector(
             ?: delegate is SuspendLeaderLeaseAcquirer
 
     override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
-        val acquirer = requireNotNull(delegate as? SuspendLeaderLeaseAcquirer) {
+        val acquirer = (delegate as? SuspendLeaderLeaseAcquirer).requireNotNull {
             "The tenant-scoped suspend elector delegate does not expose request-lease capability"
         }
         object : SuspendLeaderLeaseAcquirer {

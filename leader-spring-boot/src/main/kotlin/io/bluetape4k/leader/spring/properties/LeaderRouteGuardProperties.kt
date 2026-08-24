@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.properties
 
+import io.bluetape4k.support.requireNotNull
 import java.io.Serializable
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 
@@ -159,9 +160,15 @@ data class LeaderRouteGuardProperties(
             marker: Any?,
         ): LeaderRouteGuardProperties = self.copy(
             enabled = if (mask and 0x001 != 0) self.enabled else enabled,
-            authorityMode = if (mask and 0x002 != 0) self.authorityMode else requireNotNull(authorityMode),
-            electorBean = if (mask and 0x004 != 0) self.electorBean else requireNotNull(electorBean),
-            rejectionStatus = if (mask and 0x008 != 0) self.rejectionStatus else requireNotNull(rejectionStatus),
+            authorityMode = if (mask and 0x002 != 0) self.authorityMode else authorityMode.requireNotNull(
+                "authorityMode",
+            ),
+            electorBean = if (mask and 0x004 != 0) self.electorBean else electorBean.requireNotNull(
+                "electorBean",
+            ),
+            rejectionStatus = if (mask and 0x008 != 0) self.rejectionStatus else rejectionStatus.requireNotNull(
+                "rejectionStatus",
+            ),
             redirect = self.redirect,
             lease = self.lease,
         )
@@ -180,10 +187,18 @@ data class LeaderRouteGuardProperties(
             marker: Any?,
         ): LeaderRouteGuardProperties = self.copy(
             enabled = if (mask and 0x001 != 0) self.enabled else enabled,
-            authorityMode = if (mask and 0x002 != 0) self.authorityMode else requireNotNull(authorityMode),
-            electorBean = if (mask and 0x004 != 0) self.electorBean else requireNotNull(electorBean),
-            rejectionStatus = if (mask and 0x008 != 0) self.rejectionStatus else requireNotNull(rejectionStatus),
-            redirect = if (mask and 0x010 != 0) self.redirect else requireNotNull(redirect),
+            authorityMode = if (mask and 0x002 != 0) self.authorityMode else authorityMode.requireNotNull(
+                "authorityMode",
+            ),
+            electorBean = if (mask and 0x004 != 0) self.electorBean else electorBean.requireNotNull(
+                "electorBean",
+            ),
+            rejectionStatus = if (mask and 0x008 != 0) self.rejectionStatus else rejectionStatus.requireNotNull(
+                "rejectionStatus",
+            ),
+            redirect = if (mask and 0x010 != 0) self.redirect else redirect.requireNotNull(
+                "redirect",
+            ),
             lease = self.lease,
         )
 

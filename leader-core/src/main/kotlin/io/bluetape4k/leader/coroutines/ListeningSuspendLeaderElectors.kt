@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.coroutines
 
 import io.bluetape4k.coroutines.flow.extensions.subject.PublishSubject
+import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.LeaderElectionListener
@@ -45,7 +46,7 @@ class ListeningSuspendLeaderElector(
             ?: delegate is SuspendLeaderLeaseAcquirer
 
     override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
-        requireNotNull(delegate as? SuspendLeaderLeaseAcquirer) {
+        (delegate as? SuspendLeaderLeaseAcquirer).requireNotNull {
             "The listening suspend elector delegate does not expose request-lease capability"
         }
     }

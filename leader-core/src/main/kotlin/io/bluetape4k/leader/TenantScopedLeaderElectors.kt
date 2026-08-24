@@ -1,6 +1,7 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
+import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.resolveLeaderBackendDiagnosticsProvider
@@ -109,7 +110,7 @@ internal class TenantScopedLeaderElector(
             ?: delegate is LeaderLeaseAcquirer
 
     override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
-        val acquirer = requireNotNull(delegate as? LeaderLeaseAcquirer) {
+        val acquirer = (delegate as? LeaderLeaseAcquirer).requireNotNull {
             "The tenant-scoped elector delegate does not expose request-lease capability"
         }
         object : LeaderLeaseAcquirer {

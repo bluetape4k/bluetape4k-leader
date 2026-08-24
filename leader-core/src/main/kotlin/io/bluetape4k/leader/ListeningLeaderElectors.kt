@@ -1,5 +1,6 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.resolveLeaderBackendDiagnosticsProvider
@@ -46,7 +47,7 @@ class ListeningLeaderElector(
             ?: delegate is LeaderLeaseAcquirer
 
     override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
-        requireNotNull(delegate as? LeaderLeaseAcquirer) {
+        (delegate as? LeaderLeaseAcquirer).requireNotNull {
             "The listening elector delegate does not expose request-lease capability"
         }
     }

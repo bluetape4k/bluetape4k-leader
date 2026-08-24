@@ -176,7 +176,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
             is LeaseExchangeHolder -> if (
                 existing.fingerprint == requestedFingerprint && retainHolderUse(exchange, existing)
             ) {
-                chain.filter(exchange).doFinally { releaseHolderUse(exchange, existing.token) }
+                withRetainedHolder(exchange, chain, existing)
             } else {
                 staleRejection(runtime, exchange)
             }
@@ -186,7 +186,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
                         if (!retainHolderUse(exchange, holder)) {
                             Mono.empty()
                         } else {
-                            chain.filter(exchange).doFinally { releaseHolderUse(exchange, holder.token) }
+                            withRetainedHolder(exchange, chain, holder)
                         }
                     }
                     .switchIfEmpty(Mono.defer { reject(exchange) })
@@ -218,6 +218,18 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
             }
         }
     }
+
+    private fun withRetainedHolder(
+        exchange: ServerWebExchange,
+        chain: org.springframework.web.server.WebFilterChain,
+        holder: LeaseExchangeHolder,
+    ): Mono<Void> = Mono.usingWhen(
+        Mono.just(holder),
+        { chain.filter(exchange) },
+        { releaseHolderUse(exchange, holder.token) },
+        { _, _ -> releaseHolderUse(exchange, holder.token) },
+        { releaseHolderUse(exchange, holder.token) },
+    )
 
     @Suppress("ThrowsCount")
     private fun acquireResource(
@@ -306,7 +318,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         marker: LeaseAcquireMarker,
         fingerprint: Int,
     ): Mono<Void> {
-        val holder = LeaseExchangeHolder(token = resource.handle, fingerprint = fingerprint)
+        val holder = LeaseExchangeHolder(resource = resource, fingerprint = fingerprint)
         return if (publishHolder(exchange, marker, holder, resource)) {
             chain.filter(exchange)
         } else {
@@ -324,7 +336,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         marker: LeaseAcquireMarker,
         fingerprint: Int,
     ): Mono<Void> {
-        val holder = LeaseExchangeHolder(token = resource.handle, fingerprint = fingerprint)
+        val holder = LeaseExchangeHolder(resource = resource, fingerprint = fingerprint)
         return if (publishHolder(exchange, marker, holder, resource)) {
             chain.filter(exchange)
         } else {
@@ -345,33 +357,40 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
     }
 
     private fun releaseResource(exchange: ServerWebExchange, resource: LeaseResource): Mono<Void> {
-        if (!resource.released.compareAndSet(false, true)) return Mono.empty()
-        return when (resource) {
-            LeaseResource.Rejected -> Mono.empty()
-            is LeaseResource.Blocking -> Mono.fromRunnable {
-                if (takePhysicalOwnership(exchange, resource)) resource.handle.release()
-            }
-            is LeaseResource.Suspend -> mono<Void> {
-                if (takePhysicalOwnership(exchange, resource)) resource.handle.release()
-                null
+        return when {
+            !resource.released.compareAndSet(false, true) -> Mono.empty()
+            resource is LeaseResource.Rejected -> Mono.empty()
+            else -> {
+                val physical = synchronized(exchange.attributes) {
+                    if (!resource.published.get()) {
+                        true
+                    } else {
+                        releaseHolderUseLocked(exchange, resource.token) == HolderRelease.PHYSICAL
+                    }
+                }
+                if (physical) releasePhysicalResource(resource) else Mono.empty()
             }
         }
     }
 
-    private fun takePhysicalOwnership(exchange: ServerWebExchange, resource: LeaseResource): Boolean =
-        synchronized(exchange.attributes) {
-            if (!resource.published.get()) {
-                true
-            } else {
-                releaseHolderUseLocked(exchange, resource.token) == HolderRelease.PHYSICAL
-            }
+    private fun releasePhysicalResource(resource: LeaseResource): Mono<Void> = when (resource) {
+        LeaseResource.Rejected -> Mono.empty()
+        is LeaseResource.Blocking -> Mono.fromRunnable { resource.handle.release() }
+        is LeaseResource.Suspend -> mono<Void> {
+            resource.handle.release()
+            null
         }
+    }
 
-    @Suppress("ReturnCount")
-    private fun releaseHolderUse(exchange: ServerWebExchange, token: Any): Boolean {
-        return synchronized(exchange.attributes) {
-            releaseHolderUseLocked(exchange, token) == HolderRelease.PHYSICAL
+    private fun releaseHolderUse(exchange: ServerWebExchange, token: Any): Mono<Void> {
+        val resource = synchronized(exchange.attributes) {
+            val holder = exchange.attributes[LEASE_HANDLE_ATTRIBUTE] as? LeaseExchangeHolder
+                ?: return@synchronized null
+            if (holder.token !== token || !holder.releaseUse()) return@synchronized null
+            exchange.attributes.remove(LEASE_HANDLE_ATTRIBUTE)
+            holder.resource
         }
+        return resource?.let(::releasePhysicalResource) ?: Mono.empty()
     }
 
     @Suppress("ReturnCount")
@@ -448,11 +467,13 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
     }
 
     private data class LeaseExchangeHolder(
-        val token: Any,
+        val resource: LeaseResource,
         val fingerprint: Int,
         val uses: AtomicInteger = AtomicInteger(1),
         val terminal: AtomicBoolean = AtomicBoolean(false),
     ) {
+        val token: Any get() = resource.token
+
         fun tryRetain(): Boolean {
             var retained = false
             while (!terminal.get() && !retained) {

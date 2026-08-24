@@ -175,11 +175,11 @@ internal class LeaderRouteLeaseRuntime(
             ::observe,
             onTerminal = { shutdownCoordinator.unregisterHandle(result) },
         )
-        if (!result.scheduleLifetime()) {
+        if (!shutdownCoordinator.registerHandle(result) { result.release() }) {
             result.release()
             return null
         }
-        if (!shutdownCoordinator.registerHandle(result) { result.release() }) {
+        if (!result.scheduleLifetime() || result.isTerminal()) {
             result.release()
             return null
         }
@@ -187,7 +187,7 @@ internal class LeaderRouteLeaseRuntime(
     }
 
     /** WebFlux suspend 경로도 blocking 경로와 같은 admission/cleanup 경계를 사용합니다. */
-    @Suppress("TooGenericExceptionCaught")
+    @Suppress("TooGenericExceptionCaught", "CyclomaticComplexMethod")
     suspend fun tryAcquireSuspend(slot: LeaderSlot): SuspendLeaderLeaseHandle? {
         if (!acceptsAcquire()) {
             observe(LeaseObservationCode.SHUTDOWN)
@@ -237,11 +237,11 @@ internal class LeaderRouteLeaseRuntime(
             observe = ::observe,
             onTerminal = { shutdownCoordinator.unregisterHandle(result) },
         )
-        if (!result.scheduleLifetime()) {
+        if (!shutdownCoordinator.registerHandle(result) { result.requestRelease() }) {
             result.requestRelease()
             return null
         }
-        if (!shutdownCoordinator.registerHandle(result) { result.requestRelease() }) {
+        if (!result.scheduleLifetime() || result.isTerminal()) {
             result.requestRelease()
             return null
         }
@@ -431,22 +431,26 @@ internal class LeaderRouteLeaseRuntime(
             }
         }
 
+        fun isTerminal(): Boolean = released.get()
+
         fun scheduleLifetime(): Boolean {
             lifetimeDeadlineNanos.set(safeDeadline(System.nanoTime(), maxLeaseLifetime.inWholeNanoseconds))
             return try {
-                lifetime.set(
-                    lifetimeScheduler.schedule(
-                        {
-                            if (!released.get()) {
-                                observe(LeaseObservationCode.TIMEOUT)
-                                release()
-                            }
-                        },
-                        maxLeaseLifetime.inWholeNanoseconds.coerceAtLeast(1L),
-                        TimeUnit.NANOSECONDS,
-                    ),
+                val scheduled = lifetimeScheduler.schedule(
+                    {
+                        if (!released.get()) {
+                            observe(LeaseObservationCode.TIMEOUT)
+                            release()
+                        }
+                    },
+                    maxLeaseLifetime.inWholeNanoseconds.coerceAtLeast(1L),
+                    TimeUnit.NANOSECONDS,
                 )
-                true
+                if (!lifetime.compareAndSet(null, scheduled) || released.get()) {
+                    lifetime.compareAndSet(scheduled, null)
+                    scheduled.cancel(false)
+                }
+                !released.get()
             } catch (_: java.util.concurrent.RejectedExecutionException) {
                 false
             }
@@ -510,6 +514,7 @@ internal class LeaderRouteLeaseRuntime(
         private val onTerminal: () -> Unit,
     ) : SuspendLeaderLeaseHandle {
         private val released = AtomicBoolean(false)
+        private val lifetimeExpired = AtomicBoolean(false)
         private val terminalStatus = AtomicReference<LeaseOwnershipStatus?>(null)
         private val lifetimeDeadlineNanos = AtomicLong(Long.MAX_VALUE)
         private val lifetime = AtomicReference<ScheduledFuture<*>?>(null)
@@ -598,22 +603,26 @@ internal class LeaderRouteLeaseRuntime(
             lifecycleScope.cancel()
         }
 
+        fun isTerminal(): Boolean = released.get() || lifetimeExpired.get()
+
         fun scheduleLifetime(): Boolean {
             lifetimeDeadlineNanos.set(safeDeadline(System.nanoTime(), maxLeaseLifetime.inWholeNanoseconds))
             return try {
-                lifetime.set(
-                    lifetimeScheduler.schedule(
-                        {
-                            if (!released.get()) {
-                                observe(LeaseObservationCode.TIMEOUT)
-                                lifecycleScope.launch { release() }
-                            }
-                        },
-                        maxLeaseLifetime.inWholeNanoseconds.coerceAtLeast(1L),
-                        TimeUnit.NANOSECONDS,
-                    ),
+                val scheduled = lifetimeScheduler.schedule(
+                    {
+                        if (!released.get() && lifetimeExpired.compareAndSet(false, true)) {
+                            observe(LeaseObservationCode.TIMEOUT)
+                            lifecycleScope.launch { release() }
+                        }
+                    },
+                    maxLeaseLifetime.inWholeNanoseconds.coerceAtLeast(1L),
+                    TimeUnit.NANOSECONDS,
                 )
-                true
+                if (!lifetime.compareAndSet(null, scheduled) || released.get() || lifetimeExpired.get()) {
+                    lifetime.compareAndSet(scheduled, null)
+                    scheduled.cancel(false)
+                }
+                !released.get() && !lifetimeExpired.get()
             } catch (_: java.util.concurrent.RejectedExecutionException) {
                 false
             }

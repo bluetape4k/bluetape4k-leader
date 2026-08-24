@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.micrometer
 
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderLeaseAcquirer
 import io.bluetape4k.leader.LeaderLeaseAcquirerSupport
@@ -47,7 +48,7 @@ class InstrumentedLeaderElector private constructor(
             ?: delegate is LeaderLeaseAcquirer
 
     override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
-        requireNotNull(delegate as? LeaderLeaseAcquirer) {
+        (delegate as? LeaderLeaseAcquirer).requireNotNull {
             "The instrumented elector delegate does not expose request-lease capability"
         }
     }
@@ -214,7 +215,7 @@ class InstrumentedSuspendLeaderElector private constructor(
             ?: delegate is SuspendLeaderLeaseAcquirer
 
     override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
-        requireNotNull(delegate as? SuspendLeaderLeaseAcquirer) {
+        (delegate as? SuspendLeaderLeaseAcquirer).requireNotNull {
             "The instrumented suspend elector delegate does not expose request-lease capability"
         }
     }
