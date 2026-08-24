@@ -59,6 +59,7 @@ class LeaderElectionAspectTest {
         fun runWithArg(region: String): String?
         fun runWithMinLease(): String?
         fun runWithAutoExtend(): String?
+        fun runWithDotName(): String?
     }
 
     private class SampleServiceImpl: SampleService {
@@ -73,6 +74,9 @@ class LeaderElectionAspectTest {
 
         @LeaderElection(name = "auto-job", leaseTime = "PT30S", autoExtend = true)
         override fun runWithAutoExtend(): String? = SAMPLE_RESULT
+
+        @LeaderElection(name = "ns.subns.lock")
+        override fun runWithDotName(): String? = SAMPLE_RESULT
     }
 
     // Class-level mocks — reused across all tests, cleared in @BeforeEach
@@ -95,14 +99,17 @@ class LeaderElectionAspectTest {
         every { pjp.args } returns args
     }
 
-    private fun newAspect(recorders: List<LeaderAopMetricsRecorder> = emptyList()): LeaderElectionAspect {
+    private fun newAspect(
+        recorders: List<LeaderAopMetricsRecorder> = emptyList(),
+        props: LeaderAopProperties = LeaderAopProperties(),
+    ): LeaderElectionAspect {
         every { factoryMock.create(any()) } returns election
         every { beanSelector.selectElectionFactory(any(), any()) } returns
                 LeaderBeanSelector.Selected("testFactory", factoryMock)
 
         return LeaderElectionAspect(
             beanSelector = beanSelector,
-            props = LeaderAopProperties(),
+            props = props,
             spel = SpelExpressionEvaluator(embeddedValueResolver = { it }, allowMethodInvocation = false),
             lockNameValidator = LockNameValidator(prefix = ""),
             recorders = recorders,
@@ -353,6 +360,25 @@ class LeaderElectionAspectTest {
 
         nameSlot.captured shouldBeEqualTo "r-EU"
         result shouldBeEqualTo "result-EU"
+    }
+
+    @Test
+    fun `core lock-name 정책 - dot 포함 annotation 이름은 backend 호출 전에 거부`() {
+        val target = SampleServiceImpl()
+        val method = SampleService::class.java.getDeclaredMethod("runWithDotName")
+        listOf(
+            LeaderAspectFailureMode.RETHROW,
+            LeaderAspectFailureMode.SKIP,
+            LeaderAspectFailureMode.FAIL_OPEN_RUN,
+        ).forEach { failureMode ->
+            clearMocks(election, signature, pjp, factoryMock, beanSelector)
+            configureJoinPoint(method, target, emptyArray())
+            val aspect = newAspect(props = LeaderAopProperties(failureMode = failureMode))
+
+            assertFailsWith<IllegalArgumentException> { aspect.aroundLeader(pjp) }
+            verify(exactly = 0) { pjp.proceed() }
+            verify(exactly = 0) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
+        }
     }
 
     @Test

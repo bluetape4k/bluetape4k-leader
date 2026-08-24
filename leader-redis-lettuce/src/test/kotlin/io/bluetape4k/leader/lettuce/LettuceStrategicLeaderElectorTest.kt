@@ -68,6 +68,20 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
     }
 
     @Test
+    fun `registerCandidate - core lock-name 정책 위반은 Redis 호출 전에 거부`() {
+        assertFailsWith<IllegalArgumentException> {
+            node1.registerCandidate("ns.subns.lock", CandidateInfo("node-1"))
+        }
+    }
+
+    @Test
+    fun `runIfLeader - 후보 조회 fallback이 core lock-name 정책 위반을 삼키지 않는다`() {
+        assertFailsWith<IllegalArgumentException> {
+            node1.runIfLeader("ns.subns.lock", FifoElectionStrategy) { "must-not-run" }
+        }
+    }
+
+    @Test
     fun `TTL 만료 후 후보 자동 제거`() {
         val lockName = randomName()
         val ttl = 300.milliseconds

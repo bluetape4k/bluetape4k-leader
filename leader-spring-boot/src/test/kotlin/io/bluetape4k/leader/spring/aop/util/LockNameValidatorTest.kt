@@ -10,6 +10,7 @@ import org.junit.jupiter.params.provider.ValueSource
 /**
  * [LockNameValidator] — charset 화이트리스트 + max length + lock-name-prefix 검증 (T5.3 + T5.9b).
  */
+@Suppress("DEPRECATION")
 class LockNameValidatorTest {
 
     companion object: KLogging()
@@ -65,6 +66,34 @@ class LockNameValidatorTest {
     fun `validate - 256자 정확히는 통과`() {
         val exactly256 = "a".repeat(256)
         validator.validate(exactly256)
+    }
+
+    @Test
+    fun `validateEffectiveName - core 정책과 prefix 결과를 함께 검증`() {
+        prefixedValidator.validateEffectiveName("daily-job") shouldBeEqualTo "myapp:daily-job"
+        assertFailsWith<IllegalArgumentException> {
+            validator.validateEffectiveName("ns.subns.lock")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            validator.validateEffectiveName("a".repeat(256))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            LockNameValidator(prefix = "my.app:").validateEffectiveName("daily-job")
+        }
+    }
+
+    @Test
+    fun `validateEffectiveName - 공개 maxLength는 effective 이름에도 적용된다`() {
+        val bounded = LockNameValidator(maxLength = 64)
+
+        bounded.validateEffectiveName("a".repeat(64)) shouldBeEqualTo "a".repeat(64)
+        assertFailsWith<IllegalArgumentException> {
+            bounded.validateEffectiveName("a".repeat(65))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            LockNameValidator(prefix = "app:", maxLength = 64)
+                .validateEffectiveName("a".repeat(61))
+        }
     }
 
     @Test

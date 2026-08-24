@@ -8,6 +8,7 @@ import io.bluetape4k.leader.coroutines.StrategicSuspendLeaderElector
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.ElectionStrategy
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
@@ -57,6 +58,8 @@ class LettuceStrategicSuspendLeaderElector(
         options: LeaderElectionOptions,
         action: suspend () -> T,
     ): T? {
+        // 정책 위반은 정상 contention이 아니므로 후보 조회 실패 fallback보다 먼저 전파합니다.
+        validateLockName(lockName)
         val candidates = try {
             listCandidates(lockName)
         } catch (e: CancellationException) {

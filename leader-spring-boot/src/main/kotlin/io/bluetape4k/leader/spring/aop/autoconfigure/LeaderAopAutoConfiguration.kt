@@ -61,8 +61,19 @@ class LeaderAopAutoConfiguration {
         beanFactory: ConfigurableBeanFactory,
         props: LeaderAopProperties,
     ): LockNameValidator {
-        val resolvedPrefix = beanFactory.resolveEmbeddedValue(props.lockNamePrefix) ?: ""
-        return LockNameValidator(prefix = resolvedPrefix)
+        // 선택적 application name이 없으면 `${spring.application.name:}:`가 `:`로
+        // 해석됩니다. 이는 namespace prefix가 아닌 placeholder 잔여값이므로
+        // 기본값에서만 제거하고 명시적 custom prefix는 그대로 유지합니다.
+        val resolvedPrefix = beanFactory.resolveEmbeddedValue(props.lockNamePrefix).orEmpty()
+        val effectivePrefix = if (
+            props.lockNamePrefix == LeaderAopProperties.DEFAULT_LOCK_NAME_PREFIX &&
+            resolvedPrefix == ":"
+        ) {
+            ""
+        } else {
+            resolvedPrefix
+        }
+        return LockNameValidator(prefix = effectivePrefix)
     }
 
     @Bean
