@@ -2,8 +2,10 @@ package io.bluetape4k.leader.hazelcast
 
 import com.hazelcast.core.HazelcastInstance
 import com.hazelcast.core.LifecycleService
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
@@ -50,6 +52,33 @@ class HazelcastLeaderBackendDiagnosticsTest {
 
         provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
         provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.DOWN
+    }
+
+    @Test
+    fun `lifecycle Exception은 UNKNOWN으로 정규화한다`() {
+        val lifecycle = mockk<LifecycleService>()
+        val hazelcast = mockk<HazelcastInstance>()
+        every { hazelcast.lifecycleService } returns lifecycle
+        every { lifecycle.isRunning } throws IllegalStateException("probe failed")
+
+        HazelcastLeaderBackendDiagnostics(hazelcast)
+            .checkConnectivity(100.milliseconds)
+            .status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+    }
+
+    @Test
+    fun `lifecycle Error는 동일 인스턴스로 재전파한다`() {
+        val fatal = AssertionError("fatal Hazelcast probe")
+        val lifecycle = mockk<LifecycleService>()
+        val hazelcast = mockk<HazelcastInstance>()
+        every { hazelcast.lifecycleService } returns lifecycle
+        every { lifecycle.isRunning } throws fatal
+
+        val thrown = assertFailsWith<AssertionError> {
+            HazelcastLeaderBackendDiagnostics(hazelcast).checkConnectivity(100.milliseconds)
+        }
+
+        thrown shouldBeSameInstanceAs fatal
     }
 
     @Test
