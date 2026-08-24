@@ -682,6 +682,8 @@ bluetape4k:
 
 `UP`과 `DOWN`은 같은 이름의 Spring health status로 매핑됩니다. `UNKNOWN`과 `NOT_CHECKED`는 Spring `UNKNOWN`으로 매핑됩니다. 두 surface는 `bluetape4k.leader.observability.state-provider-bean`과 같은 elector 선택 규칙을 사용합니다. 선택된 elector가 `LeaderBackendDiagnosticsProvider`를 노출하지 않으면 typed endpoint와 health indicator를 등록하지 않습니다.
 
+활성 backend probe가 일반 provider 예외를 던지면 health indicator는 이를 `UNKNOWN`으로 정규화하고 `error` 키, 예외 class/message/cause, endpoint, token, credential을 Actuator detail에 복사하지 않습니다. `management.endpoint.health.show-details=always`여도 이 계약을 유지하며 indicator의 allow-list detail만 반환합니다. 치명적인 JVM `Error`는 정규화하지 않고 재전파합니다. Probe는 실제 backend I/O를 수행하므로 실패 내용을 정제하더라도 endpoint 접근은 계속 보호해야 합니다.
+
 다른 management endpoint와 동일하게 인증과 network policy로 보호하세요. Backend가 정상이라는 결과는 probe 시점의 연결 가능성만 의미하며, 현재 프로세스가 leader lease를 보유한다는 증거가 아닙니다.
 
 ## 마이그레이션 노트
