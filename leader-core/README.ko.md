@@ -364,6 +364,10 @@ Spring 및 Ktor 모듈의 HTTP adapter는 다음 공통 mapping을 사용합니�
 | ownership/release/registry failure | 503 | No |
 | `ACTION_TIMED_OUT` | 504 | No |
 
+### Framework-neutral backend probe
+
+`LeaderBackendDiagnosticsProbe.check(timeout, clock, probe)`는 내장 backend connectivity 검사를 위한 공통 동기 경계입니다. 양수이면서 유한한 provider-native timeout만 받고 callback 전에 전달된 clock을 한 번 읽으며, I/O, lock, client, retry, thread, executor, wall-clock deadline을 만들거나 관리하지 않습니다. callback의 일반 `Exception`은 `UNKNOWN`이 되고, `CancellationException`, interrupt flag를 복원하는 `InterruptedException`, 치명적인 `Error`는 동일 인스턴스로 재전파됩니다. callback이 `NOT_CHECKED`를 반환하면 잘못된 결과로 거부합니다. 기존 custom `checkConnectivity` 또는 `diagnostics` override는 source 호환성을 위해 유지되며 의도적으로 이 정규화를 우회합니다.
+
 ## 테넌트 네임스페이스
 
 같은 논리 작업을 테넌트별 독립 락으로 실행해야 한다면 backend 설정을 바꾸지

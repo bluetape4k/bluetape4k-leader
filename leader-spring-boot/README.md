@@ -789,6 +789,8 @@ bluetape4k:
 
 If the active backend probe throws an ordinary provider exception, the health indicator reports `UNKNOWN` without copying the `error` key, exception class/message/cause, endpoint, token, or credential into Actuator details. This remains true when `management.endpoint.health.show-details=always`; only the indicator's allow-listed details are returned. Fatal JVM `Error` values are not normalized and are rethrown. Keep the endpoint protected even with sanitized failures because the probe still performs live backend I/O.
 
+Built-in providers use `LeaderBackendDiagnosticsProbe.check`: ordinary callback exceptions are normalized to an `UNKNOWN` connectivity result without a warning, while cancellation, interruption, and invalid `NOT_CHECKED` callback results are reported as `UNKNOWN` with the fixed warning `leader.spring.health backend probe failed; status=UNKNOWN`. Fatal `Error` values retain identity and are rethrown. Custom provider overrides remain caller-owned compatibility escapes.
+
 Protect these Actuator surfaces with the same authentication and network policy as other management endpoints. A healthy backend only proves connectivity at the time of the probe; it does not prove that this process currently owns a leader lease.
 
 ## Migration Notes

@@ -402,6 +402,8 @@ install(LeaderElectionPlugin) {
 
 The route calls `LeaderBackendDiagnosticsProvider.checkConnectivity()` once on `Dispatchers.IO` with the configured timeout. Unsupported or indeterminate checks return `UNKNOWN`. Electors may expose the provider directly or through `LeaderBackendDiagnosticsAware`; plugin installation fails with a clear error when diagnostics are enabled but no provider is available.
 
+Built-in providers use `LeaderBackendDiagnosticsProbe.check`: ordinary callback exceptions become an HTTP 200 response with `UNKNOWN`, while cancellation, interruption, fatal `Error`, and invalid `NOT_CHECKED` results remain caller-owned pipeline failures. A custom provider override is not rewritten by the route and keeps its existing exception policy.
+
 Protect the route before exposing it outside a trusted management boundary. Connectivity diagnostics are not proof that this process currently owns a leader lease.
 
 ## LockAssert / LockExtender inside `leaderScheduled` (Issue #79)
