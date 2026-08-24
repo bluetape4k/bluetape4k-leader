@@ -403,7 +403,8 @@ longer alive.
 ```
 
 Expected: `BUILD SUCCESSFUL`; all existing and new provider tests pass without
-new container requirements.
+adding container requirements beyond those already declared by the provider
+modules.
 
 ```bash
 git add leader-core leader-mongodb leader-redis-lettuce leader-redis-redisson leader-hazelcast leader-zookeeper
@@ -599,9 +600,16 @@ Expected: `kotlinc` exits 0; `jar tf` prints the helper class; `javap` prints
 the singleton `INSTANCE` and a public mangled `check-...` method whose first
 parameter is primitive `long` (Kotlin `Duration` value-class lowering), followed
 by `java.time.Clock` and `kotlin.jvm.functions.Function1`; do not expect an
-unmangled `kotlin.time.Duration` JVM signature. Use
-`javap ... | rg 'INSTANCE|check-.*long'` as the bounded symbol assertion. Remove only
-`build/issue-766-kotlin-consumer` after capturing the evidence.
+unmangled `kotlin.time.Duration` JVM signature. Use the exact bounded symbol
+assertion below:
+
+```bash
+javap -classpath leader-core/build/libs/bluetape4k-leader-core-1.0.0.jar \
+  'io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe' |
+  rg 'INSTANCE|check-.*long'
+```
+
+Remove only `build/issue-766-kotlin-consumer` after capturing the evidence.
 
 - [ ] **Step 4: Verify diff and source scope.**
 
