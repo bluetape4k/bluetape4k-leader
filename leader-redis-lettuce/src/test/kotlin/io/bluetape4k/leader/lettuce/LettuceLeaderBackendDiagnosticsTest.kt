@@ -1,6 +1,9 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeSameInstanceAs
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
@@ -14,6 +17,7 @@ import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.util.concurrent.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -47,6 +51,61 @@ class LettuceLeaderBackendDiagnosticsTest {
         every { connection.isOpen } returns false
         val down = provider.checkConnectivity(100.milliseconds)
         down.status shouldBeEqualTo LeaderBackendConnectivityStatus.DOWN
+    }
+
+    @Test
+    fun `Lettuce connection Exception은 UNKNOWN으로 정규화한다`() {
+        val connection = mockk<StatefulRedisConnection<String, String>>()
+        every { connection.isOpen } throws IllegalStateException("probe failed")
+
+        LettuceLeaderBackendDiagnostics(connection)
+            .checkConnectivity(100.milliseconds)
+            .status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+    }
+
+    @Test
+    fun `Lettuce connection CancellationException은 동일 인스턴스로 재전파한다`() {
+        val cancellation = CancellationException("probe cancelled")
+        val connection = mockk<StatefulRedisConnection<String, String>>()
+        every { connection.isOpen } throws cancellation
+
+        val thrown = assertFailsWith<CancellationException> {
+            LettuceLeaderBackendDiagnostics(connection).checkConnectivity(100.milliseconds)
+        }
+
+        thrown shouldBeSameInstanceAs cancellation
+    }
+
+    @Test
+    fun `Lettuce connection InterruptedException은 flag를 복원하고 동일 인스턴스로 재전파한다`() {
+        Thread.interrupted()
+        val interrupted = InterruptedException("probe interrupted")
+        val connection = mockk<StatefulRedisConnection<String, String>>()
+        every { connection.isOpen } throws interrupted
+
+        try {
+            val thrown = assertFailsWith<InterruptedException> {
+                LettuceLeaderBackendDiagnostics(connection).checkConnectivity(100.milliseconds)
+            }
+
+            thrown shouldBeSameInstanceAs interrupted
+            Thread.currentThread().isInterrupted.shouldBeTrue()
+        } finally {
+            Thread.interrupted()
+        }
+    }
+
+    @Test
+    fun `Lettuce connection Error는 동일 인스턴스로 재전파한다`() {
+        val fatal = AssertionError("fatal Lettuce probe")
+        val connection = mockk<StatefulRedisConnection<String, String>>()
+        every { connection.isOpen } throws fatal
+
+        val thrown = assertFailsWith<AssertionError> {
+            LettuceLeaderBackendDiagnostics(connection).checkConnectivity(100.milliseconds)
+        }
+
+        thrown shouldBeSameInstanceAs fatal
     }
 
     @Test

@@ -1,6 +1,9 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeSameInstanceAs
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
@@ -13,6 +16,7 @@ import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import org.redisson.api.RedissonClient
+import java.util.concurrent.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 
 class RedissonLeaderBackendDiagnosticsTest {
@@ -48,6 +52,61 @@ class RedissonLeaderBackendDiagnosticsTest {
         every { client.isShuttingDown } returns false
         every { client.isShutdown } returns true
         provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.DOWN
+    }
+
+    @Test
+    fun `Redisson client Exception은 UNKNOWN으로 정규화한다`() {
+        val client = mockk<RedissonClient>()
+        every { client.isShutdown } throws IllegalStateException("probe failed")
+
+        RedissonLeaderBackendDiagnostics(client)
+            .checkConnectivity(100.milliseconds)
+            .status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+    }
+
+    @Test
+    fun `Redisson client CancellationException은 동일 인스턴스로 재전파한다`() {
+        val cancellation = CancellationException("probe cancelled")
+        val client = mockk<RedissonClient>()
+        every { client.isShutdown } throws cancellation
+
+        val thrown = assertFailsWith<CancellationException> {
+            RedissonLeaderBackendDiagnostics(client).checkConnectivity(100.milliseconds)
+        }
+
+        thrown shouldBeSameInstanceAs cancellation
+    }
+
+    @Test
+    fun `Redisson client InterruptedException은 flag를 복원하고 동일 인스턴스로 재전파한다`() {
+        Thread.interrupted()
+        val interrupted = InterruptedException("probe interrupted")
+        val client = mockk<RedissonClient>()
+        every { client.isShutdown } throws interrupted
+
+        try {
+            val thrown = assertFailsWith<InterruptedException> {
+                RedissonLeaderBackendDiagnostics(client).checkConnectivity(100.milliseconds)
+            }
+
+            thrown shouldBeSameInstanceAs interrupted
+            Thread.currentThread().isInterrupted.shouldBeTrue()
+        } finally {
+            Thread.interrupted()
+        }
+    }
+
+    @Test
+    fun `Redisson client Error는 동일 인스턴스로 재전파한다`() {
+        val fatal = AssertionError("fatal Redisson probe")
+        val client = mockk<RedissonClient>()
+        every { client.isShutdown } throws fatal
+
+        val thrown = assertFailsWith<AssertionError> {
+            RedissonLeaderBackendDiagnostics(client).checkConnectivity(100.milliseconds)
+        }
+
+        thrown shouldBeSameInstanceAs fatal
     }
 
     @Test

@@ -3,14 +3,15 @@ package io.bluetape4k.leader.lettuce
 import io.bluetape4k.leader.diagnostics.LeaderBackendCapabilities
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDescriptor
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe
 import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
 import io.lettuce.core.api.StatefulRedisConnection
-import java.time.Clock
 import kotlin.time.Duration
 
 /** Redis Lettuce backend의 정적 capability와 기존 connection 기반 connectivity 계약입니다. */
@@ -22,12 +23,12 @@ class LettuceLeaderBackendDiagnostics(
 
     /** 기존 Lettuce connection의 open 상태만 읽어 연결 상태를 확인합니다. */
     override fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity {
-        timeout.requirePositiveFiniteProbeTimeout()
-        val checkedAt = Clock.systemUTC().instant()
-        return if (connection.isOpen) {
-            LeaderBackendConnectivity.unknown(checkedAt)
-        } else {
-            LeaderBackendConnectivity.down(checkedAt)
+        return LeaderBackendDiagnosticsProbe.check(timeout) {
+            if (connection.isOpen) {
+                LeaderBackendConnectivityStatus.UNKNOWN
+            } else {
+                LeaderBackendConnectivityStatus.DOWN
+            }
         }
     }
 
@@ -57,11 +58,5 @@ class LettuceLeaderBackendDiagnostics(
                 ttlMode = LeaderBackendTtlMode.SERVER_TTL,
             ),
         )
-    }
-}
-
-private fun Duration.requirePositiveFiniteProbeTimeout() {
-    require(isFinite() && this > Duration.ZERO) {
-        "probe timeout must be positive and finite: $this"
     }
 }
