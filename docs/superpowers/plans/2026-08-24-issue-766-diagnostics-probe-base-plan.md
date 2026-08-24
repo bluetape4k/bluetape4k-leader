@@ -155,6 +155,8 @@ class LeaderBackendDiagnosticsProbeTest {
     @Test
     fun `clock은 callback보다 먼저 한 번 읽고 callback은 같은 timeout으로 한 번 실행한다`() {
         val events = mutableListOf<String>()
+        var capturedTimeout: Duration? = null
+        val callerThread = Thread.currentThread()
         val orderedClock = object : Clock() {
             override fun getZone() = ZoneOffset.UTC
             override fun withZone(zone: java.time.ZoneId) = this
@@ -165,12 +167,33 @@ class LeaderBackendDiagnosticsProbeTest {
         }
 
         LeaderBackendDiagnosticsProbe.check(275.milliseconds, orderedClock) { timeout ->
+            Thread.currentThread() shouldBeSameInstanceAs callerThread
+            capturedTimeout = timeout
             events += "callback:$timeout"
             LeaderBackendConnectivityStatus.UP
         }
 
         events.first() shouldBeEqualTo "clock"
         events.size shouldBeEqualTo 2
+        capturedTimeout shouldBeEqualTo 275.milliseconds
+    }
+
+    @Test
+    fun `동시 호출은 helper 공유 상태 없이 각자의 timestamp와 결과를 만든다`() {
+        val results = java.util.concurrent.ConcurrentLinkedQueue<LeaderBackendConnectivity>()
+
+        io.bluetape4k.junit5.concurrency.MultithreadingTester()
+            .workers(8)
+            .rounds(4)
+            .add {
+                results += LeaderBackendDiagnosticsProbe.check(100.milliseconds, clock) {
+                    LeaderBackendConnectivityStatus.UP
+                }
+            }
+            .run()
+
+        results.size shouldBeEqualTo 32
+        results.forEach { it shouldBeEqualTo LeaderBackendConnectivity.up(checkedAt) }
     }
 
     @Test
@@ -242,10 +265,10 @@ public object LeaderBackendDiagnosticsProbe {
         clock: Clock = Clock.systemUTC(),
         probe: (Duration) -> LeaderBackendConnectivityStatus,
     ): LeaderBackendConnectivity {
-        timeout.requirePositiveFiniteProbeTimeout()
+        val validTimeout = timeout.requirePositiveFiniteProbeTimeout()
         val checkedAt = clock.instant()
         val status = try {
-            probe(timeout)
+            probe(validTimeout)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (interrupted: InterruptedException) {
@@ -277,9 +300,10 @@ rethrow.
 Replace the current compound predicate in `LeaderBackendDiagnostics.kt` with:
 
 ```kotlin
-internal fun Duration.requirePositiveFiniteProbeTimeout() {
-    requireGt(Duration.ZERO, "probe timeout")
-    require(isFinite()) { "probe timeout must be finite: $this" }
+internal fun Duration.requirePositiveFiniteProbeTimeout(): Duration {
+    val validTimeout = requireGt(Duration.ZERO, "probe timeout")
+    require(validTimeout.isFinite()) { "probe timeout must be finite: $validTimeout" }
+    return validTimeout
 }
 ```
 
@@ -362,8 +386,11 @@ direct cancellation/interruption to rethrow with flag restoration; ordinary
 
 Keep the existing lifecycle/open/shutdown/connected status tests. Add ordinary
 `Exception` normalization where Lettuce/Redisson previously propagated it, and
-add cancellation, interruption, and same-instance `Error` tests to every
-changed provider. For Hazelcast and ZooKeeper, preserve existing ordinary
+add cancellation, interruption, and same-instance `Error` tests to the
+exception-injectable Lettuce, Redisson, Hazelcast, and ZooKeeper providers. Local
+and MongoDB callbacks return constant statuses, so their regression scope is
+status mapping plus timeout validation; the core helper tests own the full
+exception matrix. For Hazelcast and ZooKeeper, preserve existing ordinary
 `Exception -> UNKNOWN` and `Error` identity tests and add interruption cleanup.
 Use `Thread.interrupted()` before and in `finally` around each interruption case;
 if a dedicated thread is used, assert `join(1000)` returns and the thread is no
@@ -397,10 +424,18 @@ Use `testApplication` and provider fixtures that either delegate to
 Assert the following exact boundaries:
 
 - built-in ordinary `Exception` becomes HTTP `200` JSON with `UNKNOWN`;
-- built-in cancellation/interruption/`Error` reaches the application pipeline;
-- built-in invalid `NOT_CHECKED` reaches the application pipeline as
-  `IllegalArgumentException`;
-- custom ordinary exception is not translated by the route;
+- built-in `CancellationException`, `InterruptedException`, and `Error` are
+  not converted into a response by the route: with no `StatusPages` plugin in
+  the fixture, the `client.get` call is asserted with
+  `assertFailsWith<Throwable>` and the thrown object (or its direct cause) is
+  the same instance; the interruption flag is verified only in the direct
+  provider/helper test so a Ktor `Dispatchers.IO` worker is never contaminated;
+- built-in invalid `NOT_CHECKED` reaches the application pipeline as the same
+  `IllegalArgumentException` (again captured from `client.get`), without adding
+  a `StatusPages` dependency or changing route defaults;
+- custom ordinary exception is delegated to the application pipeline rather
+  than translated by the route; the fixture may install its existing
+  `StatusPages` mapping to prove the custom response;
 - custom returned `NOT_CHECKED` is serialized as JSON `NOT_CHECKED`;
 - configured timeout is passed once; the existing `Dispatchers.IO` route boundary
   remains, while the helper itself creates no thread.
@@ -426,6 +461,16 @@ Extend `LeaderBackendHealthIndicatorTest` with this matrix:
 Retain the existing `show-details=always` raw-detail test. Verify interruption
 flag cleanup and use `io.bluetape4k.assertions.assertFailsWith` plus
 `shouldBeSameInstanceAs` for fatal identity.
+
+Use Spring Boot's existing test support rather than a new logging dependency:
+annotate `LeaderBackendHealthIndicatorTest` with
+`@ExtendWith(OutputCaptureExtension::class)`, accept `CapturedOutput` in the
+warning-matrix tests, and assert the exact existing warning string
+`leader.spring.health backend probe failed; status=UNKNOWN`. The normalized
+ordinary-`Exception` and custom returned `NOT_CHECKED` cases must not contain
+that warning; cancellation, interruption, invalid built-in `NOT_CHECKED`, and
+custom thrown exceptions must contain it. Keep `Error` cases free of a health
+result and free of normalization logging.
 
 - [ ] **Step 3: Run adapter tests and commit.**
 
@@ -507,6 +552,17 @@ If the combined command exceeds the normal terminal window, run the same exact
 tasks through the repository's long Gradle/context-mode runner and preserve the
 hosted artifact or full console evidence; a skipped task is not a passing test.
 
+Read the generated JUnit XML and fail the verification if any test was skipped:
+
+```bash
+skipped=0
+while IFS= read -r -d '' xml; do
+    count=$(rg -o 'skipped="[0-9]+"' "$xml" | awk -F'"' '{sum += $2} END {print sum + 0}')
+    skipped=$((skipped + count))
+done < <(find leader-*/build/test-results -type f -name 'TEST-*.xml' -print0)
+test "$skipped" -eq 0
+```
+
 - [ ] **Step 2: Verify ABI compatibility using the current release version.**
 
 ```bash
@@ -540,8 +596,11 @@ javap -classpath leader-core/build/libs/bluetape4k-leader-core-1.0.0.jar 'io.blu
 ```
 
 Expected: `kotlinc` exits 0; `jar tf` prints the helper class; `javap` prints
-the public `check(kotlin.time.Duration, java.time.Clock, Function1)` JVM
-signature and the singleton `INSTANCE`. Remove only
+the singleton `INSTANCE` and a public mangled `check-...` method whose first
+parameter is primitive `long` (Kotlin `Duration` value-class lowering), followed
+by `java.time.Clock` and `kotlin.jvm.functions.Function1`; do not expect an
+unmangled `kotlin.time.Duration` JVM signature. Use
+`javap ... | rg 'INSTANCE|check-.*long'` as the bounded symbol assertion. Remove only
 `build/issue-766-kotlin-consumer` after capturing the evidence.
 
 - [ ] **Step 4: Verify diff and source scope.**
@@ -590,6 +649,34 @@ refs. Each receipt mutation uses the latest receipt checksum as
 `--expected-head`; do not reuse an older checksum. Complete only after every
 component has a check result and component evidence.
 
+Use the live receipt head for every mutation; the following commands are the
+exact plan-stage pattern for this run (repeat the head refresh after each
+component):
+
+```bash
+FLOW=/Users/debop/.codex/skills/bluetape-workflow/scripts/bluetape-flow.py
+RUN_ID=20260824T134721Z-fbca5142
+OWNER=/Users/debop/work/bluetape4k/bluetape4k-leader/.bluetape/handles/706788D3-CD7D-44E8-8CDC-C153B0880364-diagnostics-probe-base.owner
+STATE_ROOT=/Users/debop/work/bluetape4k/bluetape4k-leader/.bluetape/receipts
+EXPECTED_HEAD="$(python3 "$FLOW" receipt-diagnose --run-id "$RUN_ID" | jq -r '.last_trusted_checksum')"
+python3 "$FLOW" check-result \
+  --run-id "$RUN_ID" \
+  --owner-file "$OWNER" \
+  --expected-head "$EXPECTED_HEAD" \
+  --evidence /tmp/issue766-plan-evidence.json \
+  --input /tmp/issue766-plan-base-input.json
+```
+
+The evidence file is a JSON array of bounded refs (`kind`, `summary`, and
+optional `path`, `checksum`, `exit_status`); each input file is one object with
+`component_id`, `check_id: "plan"`, `passed: true`, and an optional `reason`.
+Run the same command sequentially for `provider-migration`, `docs`, and
+`verification`, changing only the input file and refreshing `EXPECTED_HEAD`
+from `receipt-diagnose` each time. Do not call `component-evidence` while the
+`main-diagnostics-probe-base` lane is active; attach component evidence only
+after `lane-complete` and all implementation checks have passed. The owner,
+run ID, flow path, and state root above are fixed for this worktree.
+
 ## Task 8: Final local verification and stop gate
 
 - [ ] **Step 1: Read back source, tests, docs, plan, lesson, receipt, and live Issue #766/#774.**
@@ -622,7 +709,8 @@ approval. This plan authorizes neither PR creation nor merge.
 5. Root/module README and KDoc documentation.
 6. Lesson and final evidence.
 
-Before release, reverting commits 2–5 restores the previous implementation.
+Before release, reverting commits 6 through 1 in reverse order restores the
+previous implementation, including the RED tests and lesson/evidence files.
 After release, preserve `LeaderBackendDiagnosticsProbe` ABI and revert only
 provider migration in a corrective release; never delete the public helper from
 an already published artifact.
@@ -642,5 +730,8 @@ an already published artifact.
 | Korean lesson, receipt, DoD, PR/merge gates | Tasks 7–8 |
 
 Placeholder scan found no unfinished markers or vague error-handling language.
+The final review pass additionally locks adapter exception capture, warning-log
+assertions, value-class ABI inspection, same-thread behavior, zero-skipped XML
+verification, and receipt-head sequencing.
 Later code snippets use the same `LeaderBackendDiagnosticsProbe.check`
 signature and `LeaderBackendConnectivityStatus` mapping defined in Task 2.
