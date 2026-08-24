@@ -167,8 +167,9 @@ provider별 상태 의미는 바꾸지 않는다.
   interface, enum, data class, endpoint JSON shape는 변경하지 않는다.
 - Kotlin `object`의 단일 `check` 함수와 `Clock` 기본값을 사용한다. Java
   source ergonomics를 위한 별도 static overload나 `java.time.Duration`
-  bridge, 새 dependency는 추가하지 않는다. Java caller는 기존 Kotlin/JVM
-  ABI 표면을 직접 사용해야 하며, 이 이슈에서는 Java facade를 추가하지 않는다.
+  bridge, 새 dependency는 추가하지 않는다. 이 helper의 Java source 호출은
+  지원하지 않으며 Java facade는 후속 범위로 남긴다. Kotlin/JVM ABI와
+  `checkBinaryCompatibility` 결과만 이 이슈의 호환성 기준으로 삼는다.
 - helper는 순수한 상태 매핑과 callback 경계만 담당하므로 실제 backend I/O의
   timeout을 wall-clock으로 강제하거나 executor/thread hop을 수행하지 않는다.
   provider callback이 bounded·read-only 계약을 지켜야 하며, helper는 전달받은
@@ -210,25 +211,34 @@ provider별 상태 의미는 바꾸지 않는다.
 ### Provider 회귀
 
 Lettuce, Redisson, Hazelcast, ZooKeeper 테스트에 기존 상태 판정과 일반
-`Exception`/`CancellationException`/`InterruptedException`/`Error` 경계를
-유지하는 사례를 둔다. 기존 Lettuce/Redisson의 일반 예외 전파가 helper
-사용 후 `UNKNOWN`으로 바뀌는 것은 의도한 fail-closed 행동 변경이며 회귀
-기대값에 명시한다. 실제 네트워크나 Testcontainers를 새로 요구하지 않고
-현재 MockK 기반 fixture를 재사용한다. provider별 passive-probe contract
-fixture로 lock·lease·scan·client factory 호출이 없음을 확인한다.
+`Exception`/`Error` 경계를 확인하고, helper migration으로
+`CancellationException`/`InterruptedException`을 보존하는 사례를 둔다.
+Lettuce/Redisson뿐 아니라 현재 `Exception`을 `UNKNOWN`으로 정규화하던
+Hazelcast/ZooKeeper의 direct `checkConnectivity()` 호출도 cancellation/
+interruption에 대해서는 의도적으로 재전파·interrupt 복원 동작으로 바뀐다.
+각 provider direct 호출과 Spring health 경계를 별도로 검증한다. 실제
+네트워크나 Testcontainers를 새로 요구하지 않고 현재 MockK 기반 fixture를
+재사용한다. provider별 passive-probe contract fixture로 lock·lease·scan·
+client factory 호출이 없음을 확인한다.
 
 ### 정적·통합 검증
 
 - `:bluetape4k-leader-core:test`
 - 변경 provider 모듈의 targeted test 및 module test
 - `detekt`
-- 공개 API 변경에 대한 binary compatibility 검사
+- `ABI_BASE_VERSION=0.5.0 ABI_CURRENT_VERSION=0.6.0 ./gradlew --no-daemon --console=plain --no-configuration-cache checkBinaryCompatibility`
 - `git diff --check`
 
 Spring Boot/Ktor route payload와 Micrometer metric 테스트는 source 변경이
 없는지 확인하는 범위로 남기며, 새 probe I/O를 추가하지 않는다.
 route/health 호출이 callback의 wall-clock timeout을 강제하지 않는다는 점과
-provider-native bounded 책임은 운영 문서와 KDoc에 명시한다.
+provider-native bounded 책임은 운영 문서와 KDoc에 명시한다. 현재
+`LeaderBackendDiagnosticsProvider`의 “주어진 timeout 안에서” 표현도
+“provider-native budget을 전달한다”는 의미로 정정한다. Ktor/Spring route와
+health는 custom provider가 반환한 상태·예외 정책을 그대로 소비할 수 있으므로
+helper 적용은 내장 provider 경계라는 점을 문서화한다. raw exception을
+응답에 넣지 않는 대신 로그·metric hook은 이번 범위에서 추가하지 않으며,
+관측성 보강은 별도 후속 과제로 기록한다.
 
 ## 8. Acceptance criteria와 DoD
 
@@ -263,6 +273,7 @@ provider-native bounded 책임은 운영 문서와 KDoc에 명시한다.
 
 - 실제 network connectivity probe나 backend command 추가
 - callback을 위한 wall-clock deadline enforcement, executor, thread hop 추가
+- raw exception의 새 log/metric/hook surface 추가
 - Spring Boot Actuator, Ktor route, Micrometer payload/metric 변경
 - capability enum 또는 endpoint schema 변경
 - 추상 base class, 새 module, 새 dependency 도입
