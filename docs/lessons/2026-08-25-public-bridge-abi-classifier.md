@@ -29,10 +29,22 @@ release gate에서 숨길 수 있다.
 - 정적 검증: `py_compile` 및 `git diff --check` 통과.
 - 현재 release 경로에 맞춘
   `ABI_BASE_VERSION=0.5.0 ABI_CURRENT_VERSION=1.0.0 ./gradlew checkBinaryCompatibility`
-  는 `unknown=5`로 실패했다. synthetic accessor 7개는 분류됐고, 남은
-  incompatibility는 `leader-spring-boot`의 기존 공개 API 제거·생성자·직렬화
-  진단이다. 따라서 이 실행은 classifier 수정의 GREEN 증거가 아니라,
-  fail-closed 전체 gate가 동작한다는 증거로 기록한다.
+  는 처음에 `unknown=5`로 실패했다. synthetic accessor 7개는 분류됐고,
+  남은 incompatibility는 `leader-spring-boot`의 기존 공개 factory,
+  companion descriptor, synthetic constructor, serialVersionUID 진단이었다.
+  기존 migration/review 문서가 재컴파일 없는 사용을 요구하므로 해당
+  descriptor를 호환 overload로 복구했다.
+- RED: `PublicJvmAbiCompatibilityTest`가 수정 전 기존 AOP descriptor와
+  `LeaderElectionStatusResponse` synthetic constructor의
+  `NoSuchMethodException`, route 예외의 UID mismatch를 확인했다.
+- GREEN: 같은 테스트 3개, `leader-spring-boot` 전체 테스트 572개, detekt가
+  통과했다. companion의 기존 internal descriptor도 reflection으로 고정했다.
+- synthetic constructor 회귀 테스트는 `0.5.0`의 실제 default mask와
+  `null` placeholder를 사용해 기본 인자를 적용하는 호출 규약까지 확인한다.
+- 최종 release 경로는
+  `ABI_BASE_VERSION=0.5.0 ABI_CURRENT_VERSION=1.0.0 ./gradlew
+  checkBinaryCompatibility`에서 `artifacts=16, ignored=7, unknown=0` 및
+  `Binary API compatibility gate passed`를 반환했다.
 - Issue가 작성될 당시의 `0.6.0` 릴리스선 커밋 `af3b4369`를 임시 detached
   worktree에서 재현했다. 동일한 수정과 6개 회귀 테스트 뒤
   `ABI_BASE_VERSION=0.5.0 ABI_CURRENT_VERSION=0.6.0 ./gradlew
@@ -47,3 +59,8 @@ ABI gate를 통과시키기 위해 public bridge를 다시 blanket ignore로 되
 consumer와 아티팩트 provenance를 확보한 후 별도 작업으로 닫는다. 현재
 확보한 0.5.0 → 0.6.0 gate 결과는 classifier가 unclassified public
 incompatibility를 숨기지 않는다는 release-path 증거다.
+
+`internal` 함수에 새 인자를 추가하거나 data class field를 확장할 때도
+`javap`로 이전 published descriptor를 비교하고, 필요한 경우 exact
+compatibility overload와 reflection fixture를 함께 추가한다. synthetic
+이라는 이유만으로 전체 block을 분류기에서 무시하지 않는다.

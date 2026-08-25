@@ -135,6 +135,26 @@ class LeaderElectionReadinessHealthIndicator private constructor(
         ) + failureDetails
 
     companion object {
+        /** `0.5.0`에서 공개된 내부 JVM descriptor를 새 failure window 경계 뒤로 연결합니다. */
+        @JvmSynthetic
+        @Suppress("LongParameterList")
+        internal fun fromSelectedState(
+            backendName: String,
+            stateProviderBean: String,
+            state: LeaderElectionState,
+            registry: LeaderElectionStatusRegistry,
+            leaseWarningThreshold: Duration,
+            clock: Clock = Clock.systemUTC(),
+        ): LeaderElectionReadinessHealthIndicator = fromSelectedState(
+            backendName = backendName,
+            stateProviderBean = stateProviderBean,
+            state = state,
+            registry = registry,
+            leaseWarningThreshold = leaseWarningThreshold,
+            clock = clock,
+            acquisitionFailureWindow = null,
+        )
+
         @JvmSynthetic
         @Suppress("LongParameterList")
         internal fun fromSelectedState(

@@ -24,5 +24,8 @@ class LeaderRouteGuardConfigurationException(
         const val LEASE_SUSPEND_UNSUPPORTED: String = "LEADER_ROUTE_LEASE_SUSPEND_UNSUPPORTED"
         const val LEASE_CLEANUP_TIMEOUT: String = "LEADER_ROUTE_LEASE_CLEANUP_TIMEOUT"
         const val LEASE_DRAIN_TIMEOUT: String = "LEADER_ROUTE_LEASE_DRAIN_TIMEOUT"
+
+        /** 새 route 진단 상수 추가 전 `0.5.0`의 Java serialization 계약입니다. */
+        private const val serialVersionUID: Long = 2956475360686774009L
     }
 }

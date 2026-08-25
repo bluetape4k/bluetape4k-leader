@@ -38,6 +38,30 @@ class LeaderElectionReadinessHealthAutoConfiguration {
         registry: LeaderElectionStatusRegistry,
         properties: LeaderProperties,
         acquisitionFailureWindow: ObjectProvider<LeaderAcquisitionFailureWindow>,
+    ): HealthIndicator = selectedReadiness(
+        beanFactory = beanFactory,
+        registry = registry,
+        properties = properties,
+        acquisitionFailureWindow = acquisitionFailureWindow.getIfAvailable(),
+    )
+
+    /** `0.5.0`에서 공개된 3-인자 JVM bean factory descriptor를 보존합니다. */
+    fun leaderElectionReadiness(
+        beanFactory: ConfigurableListableBeanFactory,
+        registry: LeaderElectionStatusRegistry,
+        properties: LeaderProperties,
+    ): HealthIndicator = selectedReadiness(
+        beanFactory = beanFactory,
+        registry = registry,
+        properties = properties,
+        acquisitionFailureWindow = null,
+    )
+
+    private fun selectedReadiness(
+        beanFactory: ConfigurableListableBeanFactory,
+        registry: LeaderElectionStatusRegistry,
+        properties: LeaderProperties,
+        acquisitionFailureWindow: LeaderAcquisitionFailureWindow?,
     ): HealthIndicator {
         val selected = LeaderElectionStateSelector(
             beanFactory,
@@ -49,7 +73,7 @@ class LeaderElectionReadinessHealthAutoConfiguration {
             state = selected.state,
             registry = registry,
             leaseWarningThreshold = properties.observability.health.leaseWarningThreshold,
-            acquisitionFailureWindow = acquisitionFailureWindow.getIfAvailable(),
+            acquisitionFailureWindow = acquisitionFailureWindow,
         )
     }
 }

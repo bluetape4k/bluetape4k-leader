@@ -42,6 +42,30 @@ class LeaderElectionActuatorAutoConfiguration {
         properties: LeaderProperties,
         registry: LeaderElectionStatusRegistry,
         acquisitionFailureWindow: ObjectProvider<LeaderAcquisitionFailureWindow>,
+    ): LeaderElectionStatusEndpoint = selectedStatusEndpoint(
+        beanFactory = beanFactory,
+        properties = properties,
+        registry = registry,
+        acquisitionFailureWindow = acquisitionFailureWindow.getIfAvailable(),
+    )
+
+    /** `0.5.0`에서 공개된 3-인자 JVM bean factory descriptor를 보존합니다. */
+    fun leaderElectionStatusEndpoint(
+        beanFactory: ConfigurableListableBeanFactory,
+        properties: LeaderProperties,
+        registry: LeaderElectionStatusRegistry,
+    ): LeaderElectionStatusEndpoint = selectedStatusEndpoint(
+        beanFactory = beanFactory,
+        properties = properties,
+        registry = registry,
+        acquisitionFailureWindow = null,
+    )
+
+    private fun selectedStatusEndpoint(
+        beanFactory: ConfigurableListableBeanFactory,
+        properties: LeaderProperties,
+        registry: LeaderElectionStatusRegistry,
+        acquisitionFailureWindow: LeaderAcquisitionFailureWindow?,
     ): LeaderElectionStatusEndpoint {
         val selected = LeaderElectionStateSelector(
             beanFactory,
@@ -52,7 +76,7 @@ class LeaderElectionActuatorAutoConfiguration {
             stateProviderBean = selected.beanName,
             state = selected.state,
             registry = registry,
-            acquisitionFailureWindow = acquisitionFailureWindow.getIfAvailable(),
+            acquisitionFailureWindow = acquisitionFailureWindow,
         )
     }
 
