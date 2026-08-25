@@ -1,6 +1,9 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LockStateHolder
@@ -105,7 +108,7 @@ class ReactorOperatorNegativeTest {
             }
             .block()
 
-        assert(result == "value") { "Expected 'value', got $result" }
+        result shouldBeEqualTo "value"
     }
 
     /**
@@ -124,7 +127,7 @@ class ReactorOperatorNegativeTest {
             }
             .block()
 
-        assert(result == false) { "Expected false, got $result" }
+        result.shouldBeFalse()
     }
 
     /**
@@ -146,7 +149,7 @@ class ReactorOperatorNegativeTest {
             }
             .block()
 
-        assert(result == true) { "Expected true, got $result" }
+        result.shouldBeTrue()
     }
 
     /**
@@ -171,6 +174,6 @@ class ReactorOperatorNegativeTest {
         }
 
         // On same thread, ThreadLocal is visible
-        assert(sawLocked == true) { "Expected true (same-thread synchronous Mono), got $sawLocked" }
+        sawLocked.shouldBeTrue()
     }
 }
