@@ -12,6 +12,7 @@ import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -323,13 +324,14 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
         val cancelLock = randomName()
 
         coroutineScope {
+            val actionStarted = CompletableDeferred<Unit>()
             val deferred = async {
                 el.runIfLeader(cancelLock) {
-                    delay(50.milliseconds)
-                    "cancelled-action"
+                    actionStarted.complete(Unit)
+                    awaitCancellation()
                 }
             }
-            delay(20.milliseconds)
+            actionStarted.await()
             deferred.cancelAndJoin()
         }
 
