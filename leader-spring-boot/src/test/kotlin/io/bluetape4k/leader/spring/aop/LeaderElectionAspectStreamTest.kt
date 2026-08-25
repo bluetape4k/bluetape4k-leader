@@ -18,6 +18,7 @@ import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -42,9 +43,11 @@ class LeaderElectionAspectStreamTest {
         fun fluxAutoExtend(): Flux<String>
         fun fluxFailOpen(): Flux<String>
         fun fluxInvalid(): Flux<String>
+        fun fluxInvalidName(): Flux<String>
         fun flowBounded(): Flow<String?>
         fun flowFailOpen(): Flow<String>
         fun flowInvalid(): Flow<String>
+        fun flowInvalidName(): Flow<String>
     }
 
     private class StreamServiceImpl : StreamService {
@@ -64,6 +67,9 @@ class LeaderElectionAspectStreamTest {
         @LeaderElection(name = "flux-invalid")
         override fun fluxInvalid(): Flux<String> = Flux.empty()
 
+        @LeaderElection(name = "ns.subns.flux", streamBounded = true)
+        override fun fluxInvalidName(): Flux<String> = Flux.empty()
+
         @LeaderElection(name = "flow-bounded", streamBounded = true)
         override fun flowBounded(): Flow<String?> = flowOf()
 
@@ -76,6 +82,9 @@ class LeaderElectionAspectStreamTest {
 
         @LeaderElection(name = "flow-invalid")
         override fun flowInvalid(): Flow<String> = flowOf()
+
+        @LeaderElection(name = "ns.subns.flow", streamBounded = true)
+        override fun flowInvalidName(): Flow<String> = flowOf()
     }
 
     private class CountingSuspendElector(
@@ -273,6 +282,19 @@ class LeaderElectionAspectStreamTest {
     }
 
     @Test
+    fun `invalid flux lock-name fails at subscription time`() {
+        configureJoinPoint("fluxInvalidName")
+        every { pjp.proceed() } returns Flux.just("unexpected")
+        val elector = CountingSuspendElector()
+        val aspect = newAspect(fakeFactory(elector))
+        val flux = aspect.aroundLeader(pjp) as Flux<*>
+
+        assertFailsWith<IllegalArgumentException> { flux.collectList().block() }
+        elector.acquireCount.get() shouldBeEqualTo 0
+        verify(exactly = 0) { pjp.proceed() }
+    }
+
+    @Test
     fun `flow elected success keeps lock and supports null element`() = runTest {
         configureJoinPoint("flowBounded")
         every { pjp.proceed() } returns flowOf("a", null, "b")
@@ -348,6 +370,19 @@ class LeaderElectionAspectStreamTest {
         val flow = aspect.aroundLeader(pjp) as Flow<*>
 
         assertFailsWith<LeaderElectionException> { flow.toList() }
+    }
+
+    @Test
+    fun `invalid flow lock-name fails at collection time`() = runTest {
+        configureJoinPoint("flowInvalidName")
+        every { pjp.proceed() } returns flowOf("unexpected")
+        val elector = CountingSuspendElector()
+        val aspect = newAspect(fakeFactory(elector))
+        val flow = aspect.aroundLeader(pjp) as Flow<*>
+
+        assertFailsWith<IllegalArgumentException> { flow.toList() }
+        elector.acquireCount.get() shouldBeEqualTo 0
+        verify(exactly = 0) { pjp.proceed() }
     }
 
     private fun eventually(block: () -> Boolean): Boolean {

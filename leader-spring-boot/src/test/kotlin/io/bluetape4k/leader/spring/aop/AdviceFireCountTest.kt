@@ -3,6 +3,7 @@ package io.bluetape4k.leader.spring.aop
 import io.bluetape4k.leader.annotation.LeaderElection
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
+import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.shouldBeEqualTo
 import org.junit.jupiter.api.Test
@@ -90,6 +91,31 @@ class AdviceFireCountTest {
             .run { ctx ->
                 val svc = ctx.getBean(AdviceFireTestService::class.java)
                 svc.doWork() shouldBeEqualTo "done"
+            }
+    }
+
+    @Test
+    fun `application name 없는 기본 prefix는 빈 문자열로 정규화된다`() {
+        runner.run { ctx ->
+            ctx.getBean(LockNameValidator::class.java).prefix shouldBeEqualTo ""
+        }
+    }
+
+    @Test
+    fun `application name이 있으면 기본 prefix에 application name을 사용한다`() {
+        runner
+            .withPropertyValues("spring.application.name=my-app")
+            .run { ctx ->
+                ctx.getBean(LockNameValidator::class.java).prefix shouldBeEqualTo "my-app:"
+            }
+    }
+
+    @Test
+    fun `custom lock-name-prefix는 placeholder 정규화 대상이 아니다`() {
+        runner
+            .withPropertyValues("bluetape4k.leader.aop.lock-name-prefix=custom:")
+            .run { ctx ->
+                ctx.getBean(LockNameValidator::class.java).prefix shouldBeEqualTo "custom:"
             }
     }
 }

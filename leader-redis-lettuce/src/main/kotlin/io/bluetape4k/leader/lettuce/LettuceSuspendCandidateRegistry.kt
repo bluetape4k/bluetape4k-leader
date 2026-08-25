@@ -4,8 +4,8 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.logging.warn
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.SetArgs
@@ -35,10 +35,6 @@ internal class LettuceSuspendCandidateRegistry(
 
     private fun candidateKey(lockName: String, nodeId: String) =
         "${indexKey(lockName)}:$nodeId"
-
-    private fun validateLockName(lockName: String) {
-        lockName.requireNotBlank("lockName")
-    }
 
     /**
      * `registerCandidate` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.

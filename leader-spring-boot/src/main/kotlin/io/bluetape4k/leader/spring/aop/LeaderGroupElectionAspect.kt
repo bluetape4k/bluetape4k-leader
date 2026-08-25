@@ -18,6 +18,7 @@ import io.bluetape4k.leader.metrics.SkipReason
 import io.bluetape4k.leader.spring.aop.cache.GroupFactoryCacheKey
 import io.bluetape4k.leader.spring.aop.internal.AdviceBranch
 import io.bluetape4k.leader.spring.aop.internal.BodyThrownMarker
+import io.bluetape4k.leader.spring.aop.internal.InvalidLockNameException
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.AnnotationLookup
@@ -113,7 +114,6 @@ class LeaderGroupElectionAspect(
         return try {
             val resolvedName = resolveLockName(meta, method, args, target)
             lockName = resolvedName
-
             // ── Reentrant short-circuit (T15 + Tier 7 P1-1): full LockIdentity 매칭 시에만 short-circuit ──
             val identity = resolveIdentity(resolvedName, AdviceBranch.SYNC)
             val existing = AopScopeAccess.peekSyncMatching(resolvedName)
@@ -185,6 +185,7 @@ class LeaderGroupElectionAspect(
         } catch (bodyMarker: BodyThrownMarker) {
             throw bodyMarker.cause
         } catch (backendEx: Exception) {
+            if (backendEx is InvalidLockNameException) throw backendEx
             val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
             val wrapped =
                 LeaderGroupElectionException("leader group backend error for lock '$effectiveName'", backendEx)
@@ -332,6 +333,7 @@ class LeaderGroupElectionAspect(
             } catch (bm: BodyThrownMarker) {
                 throw bm.cause
             } catch (backendEx: Exception) {
+                if (backendEx is InvalidLockNameException) throw backendEx
                 val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
                 val wrapped =
                     LeaderGroupElectionException("leader group backend error for lock '$effectiveName'", backendEx)
@@ -474,6 +476,7 @@ class LeaderGroupElectionAspect(
                 } catch (bm: BodyThrownMarker) {
                     throw bm.cause
                 } catch (backendEx: Exception) {
+                    if (backendEx is InvalidLockNameException) throw backendEx
                     val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
                     val wrapped =
                         LeaderGroupElectionException("leader group backend error for lock '$effectiveName'", backendEx)
@@ -562,9 +565,11 @@ class LeaderGroupElectionAspect(
         } else {
             spel.evaluate(meta.nameExpression, method, args, target)
         }
-        val prefixed = lockNameValidator.applyPrefix(rawName)
-        lockNameValidator.validate(prefixed)
-        return prefixed
+        return try {
+            lockNameValidator.validateEffectiveName(rawName)
+        } catch (e: IllegalArgumentException) {
+            throw InvalidLockNameException(e)
+        }
     }
 
     private fun resolveMetadata(method: Method, target: Any): GroupAdviceMetadata {

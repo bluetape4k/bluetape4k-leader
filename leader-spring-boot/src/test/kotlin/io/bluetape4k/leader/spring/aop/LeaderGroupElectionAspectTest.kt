@@ -59,6 +59,7 @@ class LeaderGroupElectionAspectTest {
         fun runSync(): String?
         fun runWithArg(region: String): String?
         fun runWithMinLease(): String?
+        fun runWithDotName(): String?
     }
 
     private class SampleServiceImpl: SampleService {
@@ -70,6 +71,9 @@ class LeaderGroupElectionAspectTest {
 
         @LeaderGroupElection(name = "min-group-job", maxLeaders = 3, leaseTime = "PT30S", minLeaseTime = "PT10S")
         override fun runWithMinLease(): String? = SAMPLE_RESULT
+
+        @LeaderGroupElection(name = "ns.subns.group", maxLeaders = 2)
+        override fun runWithDotName(): String? = SAMPLE_RESULT
     }
 
     // Class-level mocks — reused across all tests, cleared in @BeforeEach
@@ -92,14 +96,17 @@ class LeaderGroupElectionAspectTest {
         every { pjp.args } returns args
     }
 
-    private fun newAspect(recorders: List<LeaderAopMetricsRecorder> = emptyList()): LeaderGroupElectionAspect {
+    private fun newAspect(
+        recorders: List<LeaderAopMetricsRecorder> = emptyList(),
+        props: LeaderAopProperties = LeaderAopProperties(),
+    ): LeaderGroupElectionAspect {
         every { factoryMock.create(any()) } returns election
         every { beanSelector.selectGroupElectionFactory(any(), any()) } returns
                 LeaderBeanSelector.Selected("testGroupFactory", factoryMock)
 
         return LeaderGroupElectionAspect(
             beanSelector = beanSelector,
-            props = LeaderAopProperties(),
+            props = props,
             spel = SpelExpressionEvaluator(embeddedValueResolver = { it }, allowMethodInvocation = false),
             lockNameValidator = LockNameValidator(prefix = ""),
             recorders = recorders,
@@ -291,6 +298,25 @@ class LeaderGroupElectionAspectTest {
 
         nameSlot.captured shouldBeEqualTo "r-AP"
         result shouldBeEqualTo "result-AP"
+    }
+
+    @Test
+    fun `core lock-name 정책 - group dot 포함 annotation 이름은 backend 호출 전에 거부`() {
+        val target = SampleServiceImpl()
+        val method = SampleService::class.java.getDeclaredMethod("runWithDotName")
+        listOf(
+            LeaderAspectFailureMode.RETHROW,
+            LeaderAspectFailureMode.SKIP,
+            LeaderAspectFailureMode.FAIL_OPEN_RUN,
+        ).forEach { failureMode ->
+            clearMocks(election, signature, pjp, factoryMock, beanSelector)
+            configureJoinPoint(method, target, emptyArray())
+            val aspect = newAspect(props = LeaderAopProperties(failureMode = failureMode))
+
+            assertFailsWith<IllegalArgumentException> { aspect.aroundLeader(pjp) }
+            verify(exactly = 0) { pjp.proceed() }
+            verify(exactly = 0) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
+        }
     }
 
     @Test

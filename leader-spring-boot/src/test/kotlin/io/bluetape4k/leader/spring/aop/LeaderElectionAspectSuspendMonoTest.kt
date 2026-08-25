@@ -14,6 +14,7 @@ import io.bluetape4k.logging.KLogging
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
@@ -57,6 +58,7 @@ class LeaderElectionAspectSuspendMonoTest {
         suspend fun runSuspend(): String?
         suspend fun runSuspendFailOpen(): String?
         suspend fun runSuspendSkip(): String?
+        suspend fun runSuspendInvalidName(): String?
     }
 
     private class SuspendServiceImpl : SuspendService {
@@ -68,6 +70,9 @@ class LeaderElectionAspectSuspendMonoTest {
 
         @LeaderElection(name = "suspend-skip", failureMode = LeaderAspectFailureMode.SKIP)
         override suspend fun runSuspendSkip(): String? = SAMPLE_RESULT
+
+        @LeaderElection(name = "ns.subns.suspend")
+        override suspend fun runSuspendInvalidName(): String? = SAMPLE_RESULT
     }
 
     // ── Mono 서비스 정의 ────────────────────────────────────────────────────
@@ -75,6 +80,7 @@ class LeaderElectionAspectSuspendMonoTest {
     private interface MonoService {
         fun runMono(): Mono<String>
         fun runMonoFailOpen(): Mono<String>
+        fun runMonoInvalidName(): Mono<String>
     }
 
     private class MonoServiceImpl : MonoService {
@@ -83,6 +89,9 @@ class LeaderElectionAspectSuspendMonoTest {
 
         @LeaderElection(name = "mono-fail-open", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
         override fun runMonoFailOpen(): Mono<String> = Mono.just(SAMPLE_RESULT)
+
+        @LeaderElection(name = "ns.subns.mono")
+        override fun runMonoInvalidName(): Mono<String> = Mono.just(SAMPLE_RESULT)
     }
 
     // ── Fake 구현체 ─────────────────────────────────────────────────────────
@@ -244,6 +253,16 @@ class LeaderElectionAspectSuspendMonoTest {
         result shouldBeEqualTo SAMPLE_RESULT
     }
 
+    @Test
+    fun `suspend invalid lock-name은 failure mode에 흡수되지 않는다`() = runTest {
+        configureSuspendPjp("runSuspendInvalidName", SuspendServiceImpl())
+        every { pjp.proceed(any<Array<Any?>>()) } returns SAMPLE_RESULT
+        val aspect = newAspect(fakeSuspendFactory(ElectedSuspendElector()))
+
+        assertFailsWith<IllegalArgumentException> { runSuspendAspect(aspect) }
+        verify(exactly = 0) { pjp.proceed(any<Array<Any?>>()) }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Mono 분기 테스트
     // ═══════════════════════════════════════════════════════════════════════
@@ -301,6 +320,8 @@ class LeaderElectionAspectSuspendMonoTest {
             override fun runMono(): Mono<String> = Mono.just(SAMPLE_RESULT)
             @LeaderElection(name = "mono-fail-open-job2", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
             override fun runMonoFailOpen(): Mono<String> = Mono.just(SAMPLE_RESULT)
+            @LeaderElection(name = "mono-invalid-name-job")
+            override fun runMonoInvalidName(): Mono<String> = Mono.just(SAMPLE_RESULT)
         }
         val method = MonoService::class.java.getDeclaredMethod("runMono")
         every { signature.method } returns method
@@ -336,6 +357,18 @@ class LeaderElectionAspectSuspendMonoTest {
         val result = (aspect.aroundLeader(pjp) as Mono<*>).block()
 
         result shouldBeEqualTo SAMPLE_RESULT
+    }
+
+    @Test
+    fun `mono invalid lock-name은 구독 시 failure mode에 흡수되지 않는다`() {
+        configureMonoJoinPoint("runMonoInvalidName", MonoServiceImpl())
+        every { pjp.proceed() } returns Mono.just("unexpected")
+        val aspect = newAspect(fakeSuspendFactory(ElectedSuspendElector()))
+
+        assertFailsWith<IllegalArgumentException> {
+            (aspect.aroundLeader(pjp) as Mono<*>).block()
+        }
+        verify(exactly = 0) { pjp.proceed() }
     }
 
     @Test

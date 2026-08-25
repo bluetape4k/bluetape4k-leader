@@ -19,6 +19,7 @@ import io.bluetape4k.leader.spring.aop.cache.FactoryCacheKey
 import io.bluetape4k.leader.spring.aop.internal.AdviceBranch
 import io.bluetape4k.leader.spring.aop.internal.AdviceMetadata
 import io.bluetape4k.leader.spring.aop.internal.BodyThrownMarker
+import io.bluetape4k.leader.spring.aop.internal.InvalidLockNameException
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.AnnotationLookup
@@ -154,7 +155,6 @@ class LeaderElectionAspect(
         return try {
             val resolvedName = resolveLockName(meta, method, args, target)
             lockName = resolvedName
-
             // ── Reentrant short-circuit (T14 + Tier 7 P1-1): full LockIdentity 매칭 시에만 short-circuit ──
             //   동일 lockName + 다른 annotation kind (SINGLE vs GROUP) 또는 다른 groupParams 는 별개 lock — 새 acquire.
             val identity = resolveIdentity(resolvedName, AdviceBranch.SYNC)
@@ -221,6 +221,7 @@ class LeaderElectionAspect(
         } catch (bodyMarker: BodyThrownMarker) {
             throw bodyMarker.cause
         } catch (backendEx: Exception) {
+            if (backendEx is InvalidLockNameException) throw backendEx
             val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
             val wrapped = LeaderElectionException("leader backend error for lock '$effectiveName'", backendEx)
             when (meta.failureMode) {
@@ -368,6 +369,7 @@ class LeaderElectionAspect(
             } catch (bm: BodyThrownMarker) {
                 throw bm.cause
             } catch (backendEx: Exception) {
+                if (backendEx is InvalidLockNameException) throw backendEx
                 val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
                 val wrapped = LeaderElectionException("leader backend error for lock '$effectiveName'", backendEx)
                 when (meta.failureMode) {
@@ -515,6 +517,7 @@ class LeaderElectionAspect(
                 } catch (bm: BodyThrownMarker) {
                     throw bm.cause
                 } catch (backendEx: Exception) {
+                    if (backendEx is InvalidLockNameException) throw backendEx
                     val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
                     val wrapped = LeaderElectionException("leader backend error for lock '$effectiveName'", backendEx)
                     when (meta.failureMode) {
@@ -660,6 +663,7 @@ class LeaderElectionAspect(
             } catch (bm: BodyThrownMarker) {
                 throw bm.cause
             } catch (backendEx: Exception) {
+                if (backendEx is InvalidLockNameException) throw backendEx
                 val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
                 val wrapped = LeaderElectionException("leader backend error for lock '$effectiveName'", backendEx)
                 when (meta.failureMode) {
@@ -789,6 +793,7 @@ class LeaderElectionAspect(
                 } catch (bm: BodyThrownMarker) {
                     throw bm.cause
                 } catch (backendEx: Exception) {
+                    if (backendEx is InvalidLockNameException) throw backendEx
                     val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
                     val wrapped = LeaderElectionException("leader backend error for lock '$effectiveName'", backendEx)
                     when (meta.failureMode) {
@@ -859,9 +864,11 @@ class LeaderElectionAspect(
         } else {
             spel.evaluate(meta.nameExpression, method, args, target)
         }
-        val prefixed = lockNameValidator.applyPrefix(rawName)
-        lockNameValidator.validate(prefixed)
-        return prefixed
+        return try {
+            lockNameValidator.validateEffectiveName(rawName)
+        } catch (e: IllegalArgumentException) {
+            throw InvalidLockNameException(e)
+        }
     }
 
     private fun resolveMetadata(method: Method, target: Any): MetadataResolution =

@@ -54,6 +54,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         suspend fun runSuspend(): String?
         suspend fun runSuspendFailOpen(): String?
         suspend fun runSuspendSkip(): String?
+        suspend fun runSuspendInvalidName(): String?
     }
 
     private class SuspendGroupServiceImpl : SuspendGroupService {
@@ -65,6 +66,9 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
         @LeaderGroupElection(name = "g-suspend-skip", maxLeaders = 3, failureMode = LeaderAspectFailureMode.SKIP)
         override suspend fun runSuspendSkip(): String? = SAMPLE_RESULT
+
+        @LeaderGroupElection(name = "ns.subns.group-suspend", maxLeaders = 3)
+        override suspend fun runSuspendInvalidName(): String? = SAMPLE_RESULT
     }
 
     // ── Mono 서비스 정의 ────────────────────────────────────────────────────
@@ -72,6 +76,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
     private interface MonoGroupService {
         fun runMono(): Mono<String>
         fun runMonoFailOpen(): Mono<String>
+        fun runMonoInvalidName(): Mono<String>
     }
 
     private class MonoGroupServiceImpl : MonoGroupService {
@@ -80,6 +85,9 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
         @LeaderGroupElection(name = "g-mono-fail-open", maxLeaders = 3, failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
         override fun runMonoFailOpen(): Mono<String> = Mono.just(SAMPLE_RESULT)
+
+        @LeaderGroupElection(name = "ns.subns.group-mono", maxLeaders = 3)
+        override fun runMonoInvalidName(): Mono<String> = Mono.just(SAMPLE_RESULT)
     }
 
     private interface StreamGroupService {
@@ -261,6 +269,16 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         result shouldBeEqualTo SAMPLE_RESULT
     }
 
+    @Test
+    fun `group suspend invalid lock-name은 failure mode에 흡수되지 않는다`() = runTest {
+        configureSuspendPjp("runSuspendInvalidName", SuspendGroupServiceImpl())
+        every { pjp.proceed(any<Array<Any?>>()) } returns SAMPLE_RESULT
+        val aspect = newAspect(fakeGroupFactory(ElectedGroupElector()))
+
+        assertFailsWith<IllegalArgumentException> { runSuspendAspect(aspect) }
+        verify(exactly = 0) { pjp.proceed(any<Array<Any?>>()) }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Mono 분기 테스트
     // ═══════════════════════════════════════════════════════════════════════
@@ -332,6 +350,18 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val result = (aspect.aroundLeader(pjp) as Mono<*>).block()
 
         result shouldBeEqualTo SAMPLE_RESULT
+    }
+
+    @Test
+    fun `group mono invalid lock-name은 구독 시 failure mode에 흡수되지 않는다`() {
+        configureMonoJoinPoint("runMonoInvalidName", MonoGroupServiceImpl())
+        every { pjp.proceed() } returns Mono.just("unexpected")
+        val aspect = newAspect(fakeGroupFactory(ElectedGroupElector()))
+
+        assertFailsWith<IllegalArgumentException> {
+            (aspect.aroundLeader(pjp) as Mono<*>).block()
+        }
+        verify(exactly = 0) { pjp.proceed() }
     }
 
     @Test

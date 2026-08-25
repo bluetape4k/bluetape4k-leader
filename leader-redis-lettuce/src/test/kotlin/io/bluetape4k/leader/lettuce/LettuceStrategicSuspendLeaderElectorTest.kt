@@ -76,6 +76,20 @@ class LettuceStrategicSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
     }
 
     @Test
+    fun `registerCandidate - suspend 경로도 core lock-name 정책 위반을 Redis 호출 전에 거부`() = runSuspendIO {
+        assertFailsWith<IllegalArgumentException> {
+            node1.registerCandidate("ns.subns.lock", CandidateInfo("node-1"))
+        }
+    }
+
+    @Test
+    fun `runIfLeader - suspend 후보 조회 fallback이 core lock-name 정책 위반을 삼키지 않는다`() = runSuspendIO {
+        assertFailsWith<IllegalArgumentException> {
+            node1.runIfLeader("ns.subns.lock", FifoElectionStrategy) { "must-not-run" }
+        }
+    }
+
+    @Test
     fun `TTL 만료 후 후보 자동 제거`() = runSuspendIO {
         val lockName = randomName()
         val ttl = 300.milliseconds
