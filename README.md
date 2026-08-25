@@ -24,6 +24,7 @@ Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 - **Multiple execution models** — blocking, `CompletableFuture`, virtual threads, coroutines
 - **Multi-leader support** — `LeaderGroupElector` allows N concurrent leaders via distributed semaphore
 - **Strategic election** — pluggable candidate-registry + election strategy (FIFO, scored, weighted); no distributed lock required
+- **Strategic group election** — `GroupElectionStrategy` selects a deterministic top-N candidate list for blocking and coroutine APIs
 - **Self-contained Redis test infrastructure** — Testcontainers, no external test-util dependencies
 - **ShedLock-compatible skip semantics** — action is simply skipped if the lock cannot be acquired
 
@@ -413,6 +414,8 @@ Multiple nodes call `runIfLeader` concurrently — only one acquires the lock an
 | `SuspendLeaderGroupElector` | `T?` | Coroutine multi-leader (semaphore) |
 | `StrategicLeaderElector` | `T?` | Blocking strategic election (candidate registry) |
 | `StrategicSuspendLeaderElector` | `T?` | Coroutine strategic election (candidate registry) |
+| `StrategicLeaderGroupElector` | `T?` | Blocking strategic group election (advisory top-N candidate list) |
+| `StrategicSuspendLeaderGroupElector` | `T?` | Coroutine strategic group election (advisory top-N candidate list) |
 
 `runIfLeader(lockName, action)` — returns `action()` result on success, `null` if not elected.
 
@@ -521,6 +524,26 @@ val scorer = WeightedScorer(
 )
 val result = election.runIfLeader("job", ScoredElectionStrategy(scorer)) { doWork() }
 ```
+
+### Strategic group election (blocking/coroutine)
+
+Strategic group election evaluates one observed candidate snapshot and runs the action only on nodes in the selected top-N set. Use `FifoGroupElectionStrategy` for registration order or `ScoredGroupElectionStrategy` for deterministic score-based ordering:
+
+```kotlin
+import io.bluetape4k.leader.lettuce.LettuceStrategicLeaderGroupElector
+import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
+
+val election = LettuceStrategicLeaderGroupElector(connection, nodeId = "node-1")
+election.registerCandidate("batch-shard", CandidateInfo("node-1"), ttl = 5.minutes)
+
+val result = election.runIfLeader(
+    "batch-shard",
+    FifoGroupElectionStrategy,
+    maxLeaders = 2,
+) { processShard() }
+```
+
+`maxLeaders` is an advisory top-N limit for the candidate list read by that invocation; it is not a global distributed concurrency cap. Different nodes can observe different candidate lists and their union can exceed N. Use `LeaderGroupElector` when a hard global slot limit is required. Redis strategic group registries use separate backend-qualified namespaces (`leader:strategy:group-candidates:lettuce:v1` and `leader:strategy:group-candidates:redisson:v1`) from strategic single-leader registries. A non-zero candidate TTL requires re-registration or heartbeat before expiry; `Duration.ZERO` is persistent, while the Local implementation keeps candidates for the process lifetime and ignores TTL. Lettuce keeps the candidate index independent from per-candidate TTLs, so an expiring candidate cannot hide a persistent candidate with the same lock name. Custom strategies must return a complete, non-overlapping winner/elimination partition of the same candidate list, or the elector fails fast with `IllegalArgumentException`.
 
 ### Strategic election vs lock-based election
 

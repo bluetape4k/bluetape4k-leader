@@ -15,11 +15,22 @@ import java.util.concurrent.TimeUnit
  * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  * @property redissonClient Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  */
-internal class RedissonCandidateRegistry(private val redissonClient: RedissonClient) {
+internal class RedissonCandidateRegistry(
+    private val redissonClient: RedissonClient,
+    private val keyPrefix: String = DEFAULT_KEY_PREFIX,
+) {
+    /** 기존 internal JVM constructor descriptor를 보존합니다. */
+    internal constructor(redissonClient: RedissonClient) : this(
+        redissonClient,
+        DEFAULT_KEY_PREFIX,
+    )
 
-    companion object: KLogging()
+    companion object: KLogging() {
+        internal const val DEFAULT_KEY_PREFIX = "leader:strategy:candidates"
+        internal const val GROUP_KEY_PREFIX = "leader:strategy:group-candidates:redisson:v1"
+    }
 
-    private fun cacheKey(lockName: String) = "leader:strategy:candidates:$lockName"
+    private fun cacheKey(lockName: String) = "$keyPrefix:$lockName"
 
     private fun mapCacheFor(lockName: String) =
         redissonClient.getMapCache<String, CandidateInfo>(cacheKey(lockName))

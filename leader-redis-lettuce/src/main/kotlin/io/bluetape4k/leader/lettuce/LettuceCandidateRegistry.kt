@@ -17,15 +17,23 @@ import kotlin.time.Duration
  */
 internal class LettuceCandidateRegistry(
     private val connection: StatefulRedisConnection<String, String>,
+    private val keyPrefix: String = DEFAULT_KEY_PREFIX,
 ) {
+    /** 기존 internal JVM constructor descriptor를 보존합니다. */
+    internal constructor(connection: StatefulRedisConnection<String, String>) : this(
+        connection,
+        DEFAULT_KEY_PREFIX,
+    )
+
     companion object: KLogging() {
-        private const val KEY_PREFIX = "leader:strategy:candidates"
+        internal const val DEFAULT_KEY_PREFIX = "leader:strategy:candidates"
+        internal const val GROUP_KEY_PREFIX = "leader:strategy:group-candidates:lettuce:v1"
     }
 
     private val sync = connection.sync()
 
     private fun indexKey(lockName: String) =
-        "$KEY_PREFIX:$lockName"
+        "$keyPrefix:$lockName"
 
     private fun candidateKey(lockName: String, nodeId: String) =
         "${indexKey(lockName)}:$nodeId"
@@ -43,8 +51,9 @@ internal class LettuceCandidateRegistry(
         if (ttl == Duration.ZERO) sync.set(key, value)
         else sync.psetex(key, ttl.inWholeMilliseconds, value)
         sync.sadd(indexKey, info.nodeId)
-        if (ttl == Duration.ZERO) sync.persist(indexKey)
-        else sync.pexpire(indexKey, ttl.inWholeMilliseconds)
+        // 후보별 TTL은 candidate key에만 적용한다. index set까지 만료시키면
+        // 유한 TTL 후보가 영구 후보를 같은 lockName에서 가릴 수 있다.
+        sync.persist(indexKey)
     }
 
     /**
