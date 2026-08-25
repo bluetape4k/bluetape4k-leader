@@ -1,0 +1,176 @@
+# Strategic Group Election API 설계 사양
+
+상태: 승인된 설계
+
+작성일: 2026-08-25
+
+이슈: [#463](https://github.com/bluetape4k/bluetape4k-leader/issues/463)
+
+트레인: `STRATEGIC-01`
+
+## 1. 목적과 현재 계약
+
+현재 `LeaderGroupElector`/`SuspendLeaderGroupElector`는 분산 세마포어의
+slot을 획득한 노드를 최대 `maxLeaders`개까지 동시에 통과시킨다. 반면
+`StrategicLeaderElector`/`StrategicSuspendLeaderElector`는 후보 레지스트리의
+`CandidateInfo`를 `ElectionStrategy`로 평가해 단일 후보만 선택한다.
+
+`#463`은 두 모델을 후보 집합 기준으로 결합한다. 호출자는 후보를 등록하고,
+매 선출 라운드마다 같은 후보 목록과 `maxLeaders`에서 최대 N개의 후보를
+결정론적으로 선택한다. 선택된 노드만 작업을 실행하고, 나머지는 즉시
+`null`을 반환한다.
+
+범위는 다음 구현체로 한정한다.
+
+| 실행 모델 | 지원 백엔드 |
+| --- | --- |
+| blocking | `LocalStrategicLeaderGroupElector`, `LettuceStrategicLeaderGroupElector`, `RedissonStrategicLeaderGroupElector` |
+| coroutine | `LocalStrategicSuspendLeaderGroupElector`, `LettuceStrategicSuspendLeaderGroupElector`, `RedissonStrategicSuspendLeaderGroupElector` |
+
+Exposed, MongoDB, DynamoDB, etcd, Consul, Kubernetes, Hazelcast, ZooKeeper와
+기존 `ElectionStrategy` ABI 변경은 이 설계의 범위가 아니다.
+
+## 2. 확정 결정
+
+### 2.1 별도 strategy 계약
+
+기존 `ElectionStrategy.elect(List<CandidateInfo>)`는 단일 승자 계약이므로
+그 시그니처를 변경하지 않는다. 새 `GroupElectionStrategy`는
+`maxLeaders`를 명시적으로 받아 복수 승자 결과를 반환한다.
+
+```kotlin
+fun interface GroupElectionStrategy {
+    fun elect(
+        candidates: List<CandidateInfo>,
+        maxLeaders: Int,
+    ): StrategicGroupElectionResult
+}
+```
+
+`maxLeaders`는 `1` 이상이어야 하며, 구현체는 후보 수보다 큰 값도 허용한다.
+후보가 부족하면 존재하는 후보를 모두 선택한다.
+
+### 2.2 결과 모델
+
+```kotlin
+data class StrategicGroupElectionResult(
+    val winners: List<CandidateInfo>,
+    val eliminations: List<Elimination>,
+    val scores: Map<String, Double> = emptyMap(),
+) : Serializable
+```
+
+결과 불변식은 다음과 같다.
+
+- `winners`는 선출 우선순위가 높은 순서로 정렬된 목록이다.
+- 한 결과에서 `winners`의 `nodeId`는 중복되지 않는다.
+- `winners`와 `eliminations`는 같은 후보를 동시에 포함하지 않는다.
+- 모든 입력 후보는 `winners` 또는 `eliminations` 중 정확히 한 곳에 기록된다.
+- 빈 후보 목록은 `StrategicGroupElectionResult.EMPTY`를 반환한다.
+- `scores`는 점수 전략이 계산한 후보만 `nodeId` 키로 담고, FIFO 전략은 빈 맵을 반환한다.
+
+`Elimination.reason`은 진단용 사람이 읽는 문자열이며 안정적인 파싱 계약이
+아니다. 안정적인 분류가 필요하면 후속 이슈에서 사유 코드 필드를 별도로
+설계한다.
+
+### 2.3 공통 옵션과 실행 semantics
+
+`runIfLeader`는 기존 strategic API의 후보 등록, TTL, 결과 갱신, cancellation
+semantics를 그대로 유지하며 `LeaderGroupElectionOptions`를 재사용한다.
+선출에 직접 사용하는 필드는 `maxLeaders`다. `waitTime`, `leaseTime`,
+`minLeaseTime`, `useDbTime`의 lock/lease 의미는 일반 group elector에만
+적용되고 strategic candidate registry에는 새 distributed claim을 추가하지
+않는다.
+
+```kotlin
+fun <T> runIfLeader(
+    lockName: String,
+    strategy: GroupElectionStrategy,
+    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
+    action: () -> T,
+): T?
+```
+
+coroutine variant는 같은 인자와 `suspend () -> T` action을 사용한다.
+
+- `registerCandidate`, `unregisterCandidate`, `listCandidates`, `updateResult`는
+  기존 `StrategicLeaderElector`와 같은 시그니처와 TTL 전달 규칙을 따른다.
+- 현재 `nodeId`가 선택된 목록에 없으면 action을 호출하지 않고 `null`을 반환한다.
+- 현재 `nodeId`가 선택되면 action을 정확히 한 번 호출하고 그 결과를 반환한다.
+- action 성공 시 `CandidateResult.SUCCESS`, 일반 예외 시 `FAILURE`를 기록한다.
+- `CancellationException`은 결과 갱신으로 삼키지 않고 기존 구현과 동일하게
+  재전파한다. 결과 갱신 자체의 일반 예외는 경고 로그 후 action 결과를 보존한다.
+
+### 2.4 결정론적 내장 전략
+
+#### `FifoGroupElectionStrategy`
+
+`registeredAt` 오름차순, 동률이면 `nodeId` 사전순으로 전체 후보를 정렬하고
+앞에서 `maxLeaders`개를 winner로 선택한다. 나머지는
+`registered later` 또는 `nodeId lexicographically after winner` 의미의
+진단 사유로 elimination에 기록한다.
+
+#### `ScoredGroupElectionStrategy`
+
+기존 `CandidateScorer`를 재사용한다. 각 후보 점수를 한 번 계산한 뒤 점수
+내림차순, 동점이면 `registeredAt` 오름차순, 다시 동률이면 `nodeId` 사전순으로
+정렬하고 앞에서 `maxLeaders`개를 선택한다. 결과의 `scores`에는 모든 입력
+후보의 점수를 기록한다.
+
+## 3. 백엔드 경계
+
+- Local은 기존 `ConcurrentHashMap` 후보 레지스트리와 lock/mutex 보호를
+  재사용한다.
+- Lettuce와 Redisson은 기존 후보 레지스트리의 TTL, 직렬화, 후보 목록 조회,
+  결과 갱신 경로를 재사용한다.
+- 후보 목록 조회와 선택은 backend별 read consistency 범위 안에서 수행한다.
+  이 API는 후보 선택과 action 실행 사이에 새로운 distributed atomic claim을
+  제공하지 않는다.
+- TTL이 만료된 후보는 기존 레지스트리 조회 결과에 포함되지 않으며, 한
+  라운드에서 읽은 후보 목록은 해당 라운드의 선택 입력으로 고정한다.
+- 지원하지 않는 backend에 전략적 group adapter를 추가하는 작업은 별도
+  issue로 분리한다.
+
+## 4. 호환성과 공개 API 원칙
+
+- 기존 `ElectionStrategy`, `StrategicLeaderElector`,
+  `StrategicSuspendLeaderElector`, `LeaderGroupElectionOptions`의 기존
+  메서드와 JVM descriptor를 변경하지 않는다.
+- 새 public 타입과 KDoc은 기존 bluetape4k Kotlin 패턴, `requireGe` 계열
+  검증 helper, `CandidateInfo`/`CandidateScorer` 재사용 규칙을 따른다.
+- 별도 의존성이나 새 serialization 포맷을 추가하지 않는다.
+- 단일 strategic election과 strategic group election을 같은 registry key에
+  섞어 호출하지 않는 사용 가이드를 README와 README.ko에 함께 추가한다.
+
+## 5. 수용 기준과 테스트 표
+
+| 영역 | 검증 |
+| --- | --- |
+| 전략 결과 | 빈 후보, 후보 수가 N보다 적은 경우, 정확히 N개, 중복 후보 방지 |
+| 결정론 | FIFO의 `registeredAt`/`nodeId` tie-break, scored의 score/`registeredAt`/`nodeId` tie-break |
+| 실행 | 선택된 node만 action 실행, 비선택 node는 `null`과 action 미실행 |
+| 상태 | 성공·실패 `updateResult`, 예외 전파, coroutine cancellation 재전파 |
+| backend | Local unit, Lettuce Redis integration, Redisson Redis integration의 blocking/coroutine 대칭 |
+| 문서 | README.md와 README.ko.md의 API 표, 선택 가이드, 지원 backend 범위 일치 |
+| 회귀 | 기존 strategic single 및 기존 group 테스트와 ABI/Detekt/build 통과 |
+
+## 6. 비범위와 후속 이슈
+
+- 선택된 여러 노드에 대한 순차 실행, quorum, weighted capacity는 지원하지
+  않는다. `winners` 순서는 관찰 가능한 우선순위이며 실행 순서를 보장하지
+  않는다.
+- action을 시작한 뒤 lease를 자동 연장하는 별도 watchdog은 추가하지 않는다.
+- candidate registry 읽기와 action 시작 사이의 fencing token 또는 atomic claim은
+  별도 설계가 필요하다.
+- Exposed/R2DBC group contract와 추가 strategic backend adapter는 현재
+  트레인 이후 issue로 분리한다.
+
+## 7. 설계 근거
+
+- 현재 API와 구현: `StrategicLeaderElector`,
+  `StrategicSuspendLeaderElector`, Local/Lettuce/Redisson strategic elector
+- 기존 단일 전략: `ElectionStrategy`, `ElectionResult`,
+  `FifoElectionStrategy`, `ScoredElectionStrategy`
+- 공통 group 옵션: `LeaderGroupElectionOptions`
+- 선행 계약 검토: [#681](https://github.com/bluetape4k/bluetape4k-leader/issues/681)
+- 요구사항 원문: [#463](https://github.com/bluetape4k/bluetape4k-leader/issues/463)
