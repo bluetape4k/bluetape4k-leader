@@ -20,8 +20,8 @@ slot을 획득한 노드를 최대 `maxLeaders`개까지 동시에 통과시킨�
 결정론적으로 선택한다. 선택된 노드만 작업을 실행하고, 나머지는 즉시
 `null`을 반환한다.
 
-이 계약은 **관찰한 후보 snapshot에 대한 advisory top-N 선출**이다. 여러 backend
-호출이 서로 다른 시점의 snapshot을 읽을 수 있으므로 `maxLeaders`는 각 라운드의
+이 계약은 **관찰한 후보 기준 목록에 대한 advisory top-N 선출**이다. 여러 backend
+호출이 서로 다른 시점의 후보 기준 목록을 읽을 수 있으므로 `maxLeaders`는 각 라운드의
 선택 수이지 모든 분산 노드의 전역 동시 실행 상한이 아니다. 전역 상한과 fencing이
 필요한 작업은 기존 `LeaderGroupElector`를 사용해야 한다.
 
@@ -55,8 +55,8 @@ fun interface GroupElectionStrategy {
 `maxLeaders`는 `1` 이상이어야 하며, 구현체는 후보 수보다 큰 값도 허용한다.
 후보가 부족하면 존재하는 후보를 모두 선택한다.
 
-전략이 반환한 결과는 elector가 후보 snapshot과 대조한다. winner와 elimination의
-후보 ID는 입력 snapshot에 있어야 하고 중복·교집합·누락·`maxLeaders` 초과가
+전략이 반환한 결과는 elector가 후보 기준 목록과 대조한다. winner와 elimination의
+후보 ID는 입력 후보 기준 목록에 있어야 하고 중복·교집합·누락·`maxLeaders` 초과가
 있으면 `IllegalArgumentException`으로 즉시 거부한다. 후보 ID의 동일성 기준은
 `nodeId`다. 입력 후보 자체에 중복 ID가 있으면 backend registry 계약 위반으로
 간주하고 같은 예외를 반환한다.
@@ -84,21 +84,18 @@ data class StrategicGroupElectionResult(
 아니다. 안정적인 분류가 필요하면 후속 이슈에서 사유 코드 필드를 별도로
 설계한다.
 
-### 2.3 공통 옵션과 실행 semantics
+### 2.3 실행 인자와 실행 semantics
 
 `runIfLeader`는 기존 strategic API의 후보 등록, TTL, 결과 갱신, cancellation
-semantics를 그대로 유지하며 `LeaderGroupElectionOptions`를 재사용한다.
-선출에 직접 사용하는 필드는 `maxLeaders`다. `options.nodeId`는 무시하고
-elector의 `nodeId`를 현재 후보 ID로 사용한다. `waitTime`, `leaseTime`,
-`minLeaseTime`, `useDbTime`은 기존 생성자 검증은 적용하지만 lock/lease 의미는
-일반 group elector에만 적용하고 strategic candidate registry에는 새 distributed
-claim을 추가하지 않는다.
+semantics를 그대로 유지하며, 의미가 있는 `maxLeaders`만 직접 받는다. 기존
+`LeaderGroupElectionOptions`는 전역 slot/lease 계약을 표현하므로 이 API에서
+재사용하지 않는다.
 
 ```kotlin
 fun <T> runIfLeader(
     lockName: String,
     strategy: GroupElectionStrategy,
-    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
+    maxLeaders: Int = LeaderGroupElectionOptions.DefaultMaxLeaders,
     action: () -> T,
 ): T?
 ```
@@ -107,10 +104,10 @@ coroutine variant는 같은 인자와 `suspend () -> T` action을 사용한다.
 
 - `registerCandidate`, `unregisterCandidate`, `listCandidates`, `updateResult`는
   기존 `StrategicLeaderElector`와 같은 시그니처와 TTL 전달 규칙을 따른다.
-- 현재 `nodeId`가 관찰된 snapshot의 winner 목록에 없으면 action을 호출하지 않고
+- 현재 `nodeId`가 관찰된 후보 기준 목록의 winner 목록에 없으면 action을 호출하지 않고
   `null`을 반환한다.
-- 현재 `nodeId`가 관찰된 snapshot의 winner 목록에 있으면 해당 호출에서 action을
-  한 번 호출하고 그 결과를 반환한다. 서로 다른 snapshot에서 여러 node가 선택될
+- 현재 `nodeId`가 관찰된 후보 기준 목록의 winner 목록에 있으면 해당 호출에서 action을
+  한 번 호출하고 그 결과를 반환한다. 서로 다른 후보 기준 목록에서 여러 node가 선택될
   수 있으며, 이는 이 API의 비범위인 전역 동시 실행 보장과 구분한다.
 - action 성공 시 `CandidateResult.SUCCESS`, 일반 예외 시 `FAILURE`를 best-effort로
   기록한다. TTL이 action 전후에 만료되면 결과 갱신은 no-op일 수 있다.
@@ -144,11 +141,16 @@ coroutine variant는 같은 인자와 `suspend () -> T` action을 사용한다.
   결과 갱신 경로를 재사용한다.
 - strategic single과 strategic group은 backend별 별도 key namespace를 사용해
   같은 `lockName`을 우연히 공유해도 후보 집합과 결과 갱신을 섞지 않는다.
+  Group namespace는 저장 schema 충돌을 막기 위해
+  `leader:strategy:group-candidates:lettuce:v1`와
+  `leader:strategy:group-candidates:redisson:v1`로 backend/schema를 명시한다.
 - 후보 목록 조회와 선택은 backend별 read consistency 범위 안에서 수행한다.
   이 API는 후보 선택과 action 실행 사이에 새로운 distributed atomic claim을
   제공하지 않으며, `maxLeaders`의 전역 동시 실행 상한을 보장하지 않는다.
 - TTL이 만료된 후보는 기존 레지스트리 조회 결과에 포함되지 않으며, 한
-  라운드에서 읽은 후보 목록은 해당 라운드의 선택 입력으로 고정한다.
+  라운드에서 읽은 후보 목록은 해당 라운드의 선택 입력으로 고정한다. Lettuce
+  index set은 후보별 TTL과 독립적으로 유지해 영구 후보와 유한 TTL 후보가 같은
+  `lockName`에 함께 등록되어도 유한 후보 만료가 영구 후보를 가리지 않게 한다.
 - `Duration.ZERO`는 만료되지 않는 후보 등록이다. 유한 TTL 후보는 호출자가
   재등록/heartbeat해야 하며 권장 cadence는 TTL보다 짧게 잡는다. Local은
   기존 구현과 같이 TTL을 저장하지 않고 프로세스 메모리 수명으로 유지한다.
@@ -162,6 +164,8 @@ coroutine variant는 같은 인자와 `suspend () -> T` action을 사용한다.
   메서드와 JVM descriptor를 변경하지 않는다.
 - 새 public 타입과 KDoc은 기존 bluetape4k Kotlin 패턴, `requireGe` 계열
   검증 helper, `CandidateInfo`/`CandidateScorer` 재사용 규칙을 따른다.
+- 모든 adapter는 core의 public `GroupElectionStrategy.electValidated` helper를
+  사용해 결과 불변식을 한 곳에서 검증한다.
 - 별도 의존성이나 새 serialization 포맷을 추가하지 않는다.
 - 단일 strategic election과 strategic group election은 key namespace로
   구조적으로 격리되며, 사용 가이드에서도 두 실행 모델의 선택 기준을 구분한다.
@@ -174,7 +178,7 @@ coroutine variant는 같은 인자와 `suspend () -> T` action을 사용한다.
 | 결정론 | FIFO의 `registeredAt`/`nodeId` tie-break, scored의 score/`registeredAt`/`nodeId` tie-break |
 | 실행 | 선택된 node만 action 실행, 비선택 node는 `null`과 action 미실행 |
 | 상태 | 성공·실패 `updateResult`, 예외 전파, coroutine cancellation 재전파 |
-| backend | Local unit, Lettuce Redis integration, Redisson Redis integration의 blocking/coroutine 대칭 |
+| backend | Local unit, Lettuce/Redisson Redis integration의 blocking/coroutine 대칭 및 mixed-TTL 회귀 |
 | 문서 | README.md와 README.ko.md의 API 표, 선택 가이드, 지원 backend 범위 일치 |
 | 회귀 | 기존 strategic single 및 기존 group 테스트와 ABI/Detekt/build 통과 |
 
@@ -195,6 +199,6 @@ coroutine variant는 같은 인자와 `suspend () -> T` action을 사용한다.
   `StrategicSuspendLeaderElector`, Local/Lettuce/Redisson strategic elector
 - 기존 단일 전략: `ElectionStrategy`, `ElectionResult`,
   `FifoElectionStrategy`, `ScoredElectionStrategy`
-- 공통 group 옵션: `LeaderGroupElectionOptions`
+- 기존 group slot 계약 참고: `LeaderGroupElectionOptions` (strategic API에는 재사용하지 않음)
 - 선행 계약 검토: [#681](https://github.com/bluetape4k/bluetape4k-leader/issues/681)
 - 요구사항 원문: [#463](https://github.com/bluetape4k/bluetape4k-leader/issues/463)

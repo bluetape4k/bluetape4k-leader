@@ -23,6 +23,7 @@ Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 - **다양한 실행 모델** — 블로킹, `CompletableFuture`, 가상 스레드, 코루틴 지원
 - **복수 리더(그룹) 지원** — `LeaderGroupElector`으로 분산 세마포어 기반 N개 동시 리더 허용
 - **전략적 선출(Strategic Election)** — 플러그형 후보 레지스트리 + 선출 전략(FIFO, Scored, Weighted); 분산 락 불필요
+- **전략적 그룹 선출** — `GroupElectionStrategy`가 후보 기준 목록에서 결정론적인 top-N을 선택하는 블로킹·코루틴 API
 - **자립형 Redis 테스트 인프라** — Testcontainers 직접 사용, 외부 테스트 유틸 의존 없음
 - **ShedLock 호환 skip 동작** — 락 획득 실패 시 작업을 조용히 건너뜀
 
@@ -108,7 +109,7 @@ JMH이며, 결과는 같은 장비에서 전/후 비교를 하기 위한 기준�
 
 이 matrix는 현재 source tree를 기준으로 검증합니다. 버전별 매뉴얼은 해당 release commit에 고정되어 있으므로 안정판 동작은 매뉴얼을, 개발 중인 capability 선택은 이 matrix를 기준으로 확인하세요.
 
-`State`는 core의 빈 단일 state 기본값 대신 단일(`S`) 또는 그룹(`G`) state snapshot을 실제로 제공하는 백엔드를 표시합니다. `Audit ID`는 단일 리더 state가 호출자 관점의 `LeaderSlot.leaderId`를 보존한다는 뜻입니다 (`supportsAuditLeaderState = true`).
+`State`는 core의 빈 단일 state 기본값 대신 단일(`S`) 또는 그룹(`G`) 상태 기준 정보를 실제로 제공하는 백엔드를 표시합니다. `Audit ID`는 단일 리더 state가 호출자 관점의 `LeaderSlot.leaderId`를 보존한다는 뜻입니다 (`supportsAuditLeaderState = true`).
 
 `autoExtend`는 단일 리더에서만 opt-in으로 동작합니다. Local, Redis, Exposed, MongoDB, Hazelcast, etcd, Consul, DynamoDB, Kubernetes는 공통 extender 계약으로 각 백엔드의 TTL, lease, session을 갱신합니다. Redisson은 항상 명시적인 `leaseTime`으로 락을 획득하고, 활성화된 경우 공통 extender로 연장합니다. ZooKeeper 락은 TTL이 없는 session 기반이므로 `autoExtend = true`를 경고와 함께 무시합니다. 그룹 옵션은 `autoExtend`를 제공하지 않으므로 그룹 slot이 lease보다 오래 유지되어야 한다면 `LockExtender`를 명시적으로 사용하세요.
 
@@ -302,7 +303,7 @@ val election = RedissonLeaderElector(client, options)
 
 `autoExtend` 의미는 백엔드마다 다릅니다. [백엔드 capability matrix](#백엔드-capability-matrix)와 [lease 연장 가이드](docs/manual/ko/core/lease-extension.md)를 기준으로 확인하세요. `@LeaderGroupElection`은 auto-extension을 지원하지 않습니다.
 
-### 상태 스냅샷
+### 상태 기준 정보
 
 ```kotlin
 val single = election.state("daily-report-job")
@@ -316,7 +317,7 @@ println("available=${group.availableSlots}")
 println("leaders=${group.leaders.map { it.leaderId }}")
 ```
 
-상태 API는 진단과 메트릭을 위한 best-effort 스냅샷입니다. 이 값으로 작업 실행 여부를 직접 판단하지 말고, 항상 `runIfLeader`를 사용해 backend가 원자적으로 락을 획득하게 해야 합니다.
+상태 API는 진단과 메트릭을 위한 best-effort 기준 정보입니다. 이 값으로 작업 실행 여부를 직접 판단하지 말고, 항상 `runIfLeader`를 사용해 backend가 원자적으로 락을 획득하게 해야 합니다.
 
 ### 테넌트 네임스페이스
 
@@ -339,7 +340,7 @@ tenantGroup.runIfLeader("aggregation") {
 
 `forTenant()`는 blocking, coroutine, group, virtual-thread elector에서 사용할 수 있습니다. 네임스페이스 구분자 `:`는 예약되어 있으므로 tenant id, custom prefix, tenant-local lock name에는 `:`를 넣을 수 없습니다. 기존 caller-facing lock name이 `batch:daily`처럼 `:`를 포함한다면 tenant scope를 추가하기 전에 이름을 바꾸세요. 생성된 backend lock name은 공통 lock name 제한인 255자를 계속 만족해야 합니다.
 
-Tenant-scoped 상태 스냅샷은 `tenant:acme:daily-report-job` 같은 전체 backend lock name을 반환합니다. 같은 tenant-scoped elector의 `runIfLeader()`에 `state().lockName`을 다시 전달하지 말고, `daily-report-job` 같은 원래 caller-facing lock name을 계속 사용하세요.
+Tenant-scoped 상태 기준 정보는 `tenant:acme:daily-report-job` 같은 전체 backend lock name을 반환합니다. 같은 tenant-scoped elector의 `runIfLeader()`에 `state().lockName`을 다시 전달하지 말고, `daily-report-job` 같은 원래 caller-facing lock name을 계속 사용하세요.
 
 ### 마이그레이션 노트
 
@@ -412,6 +413,8 @@ GET /management/leaderElection
 | `SuspendLeaderGroupElector` | `T?` | 코루틴 복수 리더 (세마포어) |
 | `StrategicLeaderElector` | `T?` | 블로킹 전략적 선출 (후보 레지스트리) |
 | `StrategicSuspendLeaderElector` | `T?` | 코루틴 전략적 선출 (후보 레지스트리) |
+| `StrategicLeaderGroupElector` | `T?` | 블로킹 전략적 그룹 선출 (자문형 top-N 후보 기준 목록) |
+| `StrategicSuspendLeaderGroupElector` | `T?` | 코루틴 전략적 그룹 선출 (자문형 top-N 후보 기준 목록) |
 
 `runIfLeader(lockName, action)` — 선출 성공 시 `action()` 결과, 실패 시 `null` 반환.
 
@@ -522,6 +525,26 @@ val scorer = WeightedScorer(
 )
 val result = election.runIfLeader("job", ScoredElectionStrategy(scorer)) { doWork() }
 ```
+
+### 전략적 그룹 선출 (블로킹/코루틴)
+
+전략적 그룹 선출은 한 번 관찰한 후보 기준 목록을 평가하고, top-N 집합에 포함된 노드에서만 action을 실행합니다. 등록 순서가 중요하면 `FifoGroupElectionStrategy`, 결정론적인 점수 순서가 필요하면 `ScoredGroupElectionStrategy`를 사용하세요.
+
+```kotlin
+import io.bluetape4k.leader.lettuce.LettuceStrategicLeaderGroupElector
+import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
+
+val election = LettuceStrategicLeaderGroupElector(connection, nodeId = "node-1")
+election.registerCandidate("batch-shard", CandidateInfo("node-1"), ttl = 5.minutes)
+
+val result = election.runIfLeader(
+    "batch-shard",
+    FifoGroupElectionStrategy,
+    maxLeaders = 2,
+) { processShard() }
+```
+
+`maxLeaders`는 해당 호출이 읽은 후보 기준 목록에 대한 자문형 top-N 한도이며, 전역 분산 동시 실행 상한이 아닙니다. 노드마다 서로 다른 후보 기준 목록을 볼 수 있으므로 합집합은 N을 초과할 수 있습니다. 전역 슬롯 상한이 필요하면 `LeaderGroupElector`를 사용하세요. Redis 전략적 그룹 레지스트리는 전략적 단일 리더와 분리하고, 저장 schema 충돌을 막기 위해 Lettuce는 `leader:strategy:group-candidates:lettuce:v1`, Redisson은 `leader:strategy:group-candidates:redisson:v1` namespace를 사용합니다. 0이 아닌 후보 TTL은 만료 전에 재등록 또는 heartbeat가 필요하고, `Duration.ZERO`는 영구 등록입니다. Local 구현은 프로세스 메모리 수명 동안 후보를 유지하며 TTL을 무시합니다. Lettuce는 후보별 TTL과 index set을 분리하므로, 같은 lockName의 유한 TTL 후보가 만료되어도 영구 후보가 가려지지 않습니다. Custom strategy는 같은 후보 기준 목록의 모든 후보를 winner/elimination으로 중복 없이 완전히 분할해 반환해야 하며, 위반 시 elector가 `IllegalArgumentException`을 즉시 던집니다.
 
 ### 전략적 선출 vs 락 기반 선출
 
@@ -829,7 +852,7 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 
 ## 게시 metadata 검증
 
-Release, snapshot, publishable module upload task는 Maven publication을
+Release, 개발 버전, publishable module upload task는 Maven publication을
 업로드하기 전에 이 gate를 실행합니다. 단독으로 실행하려면 다음 명령을
 사용합니다.
 
