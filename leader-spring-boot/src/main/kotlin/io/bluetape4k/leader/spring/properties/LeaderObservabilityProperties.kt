@@ -1,7 +1,9 @@
 package io.bluetape4k.leader.spring.properties
 
+import io.bluetape4k.support.requireNotNull
 import java.io.Serializable
 import java.time.Duration
+import kotlin.jvm.internal.DefaultConstructorMarker
 import kotlin.time.toKotlinDuration
 
 /**
@@ -186,6 +188,24 @@ data class LeaderObservabilityHealthProperties(
     val leaseWarningThreshold: Duration = Duration.ofSeconds(10),
     val acquisitionFailureWindow: Duration = Duration.ofMinutes(DefaultAcquisitionFailureWindowMinutes),
 ) : Serializable {
+    /** `0.5.0`에서 Kotlin 기본 인자 호출자가 사용한 synthetic constructor를 보존합니다. */
+    @Deprecated("0.5.0 JVM ABI 호환성 생성자", level = DeprecationLevel.HIDDEN)
+    @Suppress("UNUSED_PARAMETER")
+    constructor(
+        enabled: Boolean,
+        leaseWarningThreshold: Duration?,
+        mask: Int,
+        marker: DefaultConstructorMarker?,
+    ) : this(
+        enabled = if (mask and 0x001 != 0) false else enabled,
+        leaseWarningThreshold = if (mask and 0x002 != 0) {
+            Duration.ofSeconds(10)
+        } else {
+            leaseWarningThreshold.requireNotNull("leaseWarningThreshold")
+        },
+        acquisitionFailureWindow = Duration.ofMinutes(DefaultAcquisitionFailureWindowMinutes),
+    )
+
     /** acquisition failure window 추가 전에 공개된 두 인자 생성자 바이너리 호환성을 유지합니다. */
     constructor(
         enabled: Boolean,

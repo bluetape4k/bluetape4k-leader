@@ -1,11 +1,13 @@
 package io.bluetape4k.leader.spring.observability
 
+import io.bluetape4k.support.requireNotNull
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation
 import java.io.Serializable
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import kotlin.jvm.internal.DefaultConstructorMarker
 import io.bluetape4k.leader.LeaderElectionState
 import io.bluetape4k.leader.LeaderElector
 
@@ -85,6 +87,21 @@ class LeaderElectionStatusEndpoint private constructor(
     }
 
     companion object {
+        /** `0.5.0`에서 공개된 내부 JVM descriptor를 새 failure window 경계 뒤로 연결합니다. */
+        @JvmSynthetic
+        internal fun fromSelectedState(
+            backendName: String,
+            stateProviderBean: String,
+            state: io.bluetape4k.leader.LeaderElectionState,
+            registry: LeaderElectionStatusRegistry,
+        ): LeaderElectionStatusEndpoint = fromSelectedState(
+            backendName = backendName,
+            stateProviderBean = stateProviderBean,
+            state = state,
+            registry = registry,
+            acquisitionFailureWindow = null,
+        )
+
         @JvmSynthetic
         internal fun fromSelectedState(
             backendName: String,
@@ -147,6 +164,24 @@ data class LeaderElectionStatusResponse(
     val stateSupported: Boolean = false,
     val acquisitionFailures: LeaderAcquisitionFailureView = LeaderAcquisitionFailureView.empty(),
 ) : Serializable {
+    /** `0.5.0`에서 Kotlin 기본 인자 호출자가 사용한 synthetic constructor를 보존합니다. */
+    @Deprecated("0.5.0 JVM ABI 호환성 생성자", level = DeprecationLevel.HIDDEN)
+    @Suppress("UNUSED_PARAMETER")
+    constructor(
+        locks: List<LeaderElectionLockStatus>,
+        backend: String?,
+        stateProviderBean: String?,
+        stateSupported: Boolean,
+        mask: Int,
+        marker: DefaultConstructorMarker?,
+    ) : this(
+        locks = locks,
+        backend = if (mask and 0x002 != 0) "unknown" else backend.requireNotNull("backend"),
+        stateProviderBean = if (mask and 0x004 != 0) "" else stateProviderBean.requireNotNull("stateProviderBean"),
+        stateSupported = if (mask and 0x008 != 0) false else stateSupported,
+        acquisitionFailures = LeaderAcquisitionFailureView.empty(),
+    )
+
     /** 0.4.0 공개 API의 네 인자 생성자 바이너리 호환성을 유지합니다. */
     constructor(
         locks: List<LeaderElectionLockStatus>,

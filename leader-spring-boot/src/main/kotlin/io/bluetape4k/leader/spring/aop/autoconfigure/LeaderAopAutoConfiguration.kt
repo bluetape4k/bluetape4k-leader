@@ -96,6 +96,22 @@ class LeaderAopAutoConfiguration {
         scheduledPolicyRegistry = scheduledPolicyRegistryProvider.getIfAvailable(),
     )
 
+    /** `0.5.0`에서 공개된 scheduled-policy 이전의 JVM factory descriptor를 보존합니다. */
+    fun leaderElectionAspect(
+        beanSelector: LeaderBeanSelector,
+        props: LeaderAopProperties,
+        spel: SpelExpressionEvaluator,
+        lockNameValidator: LockNameValidator,
+        recordersProvider: ObjectProvider<LeaderAopMetricsRecorder>,
+    ): LeaderElectionAspect = LeaderElectionAspect(
+        beanSelector = beanSelector,
+        props = props,
+        spel = spel,
+        lockNameValidator = lockNameValidator,
+        recorders = recordersProvider.orderedStream().toList(),
+        scheduledPolicyRegistry = null,
+    )
+
     @Bean
     @Order(LeaderAspectOrder.AOP_ORDER)
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
