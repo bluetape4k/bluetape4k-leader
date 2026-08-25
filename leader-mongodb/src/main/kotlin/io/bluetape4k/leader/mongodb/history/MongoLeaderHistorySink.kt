@@ -3,16 +3,15 @@ package io.bluetape4k.leader.mongodb.history
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
+import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendLeaderHistorySink
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.warn
-import kotlinx.coroutines.flow.firstOrNull
 import org.bson.Document
 import java.time.Instant
-import java.util.UUID
 
 /**
  * `MongoLeaderHistorySink`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -48,7 +47,9 @@ class MongoLeaderHistorySink(
     }
 
     override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
-        val historyId = UUID.randomUUID().toString()
+        // `nextIdAsString()`은 Base62 인코딩이므로 기존 canonical UUID 문자열
+        // 형식과 호환되는 값 객체의 문자열 표현을 사용합니다.
+        val historyId = Uuid.V7.nextUUID().toString()
         val doc = Document()
             .append(FIELD_HISTORY_ID, historyId)
             .append(FIELD_LOCK_NAME, record.lockName)
