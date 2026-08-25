@@ -7,6 +7,10 @@ N개를 선택하는 blocking/coroutine strategic group API를 추가한다. 기
 single strategic API, 일반 group API, `ElectionStrategy` ABI와 backend별
 후보 레지스트리 semantics는 유지한다.
 
+이 API의 `maxLeaders`는 호출이 관찰한 후보 snapshot에 대한 advisory top-N이다.
+분산 snapshot이 다르면 전역 동시 실행 상한이 될 수 없으므로 전역 상한이 필요한
+작업에는 기존 `LeaderGroupElector`를 사용한다.
+
 ## 변경 파일
 
 ### leader-core 공개 계약과 전략
@@ -20,6 +24,8 @@ single strategic API, 일반 group API, `ElectionStrategy` ABI와 backend별
   - 기존 `ElectionStrategy`를 변경하지 않고 `(candidates, maxLeaders)` 계약을 추가한다.
 - `leader-core/src/main/kotlin/io/bluetape4k/leader/strategy/StrategicGroupElectionResult.kt`
   - ordered `winners`, `eliminations`, `scores`, `EMPTY`를 제공한다.
+- `leader-core/src/main/kotlin/io/bluetape4k/leader/strategy/StrategicGroupElectionResultValidation.kt`
+  - strategy 결과의 nodeId 중복·교집합·누락·입력 외 후보·N 초과를 검증한다.
 - `leader-core/src/main/kotlin/io/bluetape4k/leader/strategy/strategies/FifoGroupElectionStrategy.kt`
   - `registeredAt`와 `nodeId` tie-break로 상위 N개를 선택한다.
 - `leader-core/src/main/kotlin/io/bluetape4k/leader/strategy/strategies/ScoredGroupElectionStrategy.kt`
@@ -30,7 +36,9 @@ single strategic API, 일반 group API, `ElectionStrategy` ABI와 backend별
 - `leader-core/src/main/kotlin/io/bluetape4k/leader/local/LocalStrategicLeaderGroupElector.kt`
 - `leader-core/src/main/kotlin/io/bluetape4k/leader/local/LocalStrategicSuspendLeaderGroupElector.kt`
   - 기존 Local strategic registry와 lock/mutex를 재사용한다.
-  - 현재 elector의 `nodeId`가 winner 목록에 있을 때만 action을 실행한다.
+  - 현재 elector의 `nodeId`가 관찰된 winner snapshot에 있을 때만 action을 실행한다.
+  - backend snapshot 차이로 전역 실행 수가 `maxLeaders`를 넘을 수 있다는 경계를
+    KDoc와 README에 명시한다.
   - 성공/실패 결과 갱신과 `CancellationException` 재전파를 기존 구현과 대칭으로 유지한다.
 
 ### Redis adapters
@@ -40,7 +48,7 @@ single strategic API, 일반 group API, `ElectionStrategy` ABI와 backend별
 - `leader-redis-redisson/src/main/kotlin/io/bluetape4k/leader/redisson/RedissonStrategicLeaderGroupElector.kt`
 - `leader-redis-redisson/src/main/kotlin/io/bluetape4k/leader/redisson/RedissonStrategicSuspendLeaderGroupElector.kt`
   - 기존 candidate registry의 TTL, 직렬화, read/update와 backend별 lock-name/coroutine
-    예외 경계를 재사용한다.
+    예외 경계를 재사용하되 group 전용 key namespace를 사용한다.
   - 후보 조회 실패는 기존 strategic adapter와 같이 cancellation은 전파하고 그 밖의
     조회 오류는 경고 후 `null`로 skip한다.
 
@@ -77,6 +85,8 @@ single strategic API, 일반 group API, `ElectionStrategy` ABI와 backend별
 3. core 전략 테스트를 실행해 GREEN을 확인한다.
 4. `maxLeaders.requireGe(1, "maxLeaders")`와 기존 bluetape4k `require*` helper 사용을
    코드 리뷰로 확인한다.
+5. scorer가 `NaN`/무한대를 반환하면 즉시 `IllegalArgumentException`을 반환하도록
+   테스트한다.
 
 ### 2. public elector 계약을 추가한다
 
@@ -90,13 +100,15 @@ single strategic API, 일반 group API, `ElectionStrategy` ABI와 backend별
 1. 선택 node의 action 실행과 비선택 node의 null 반환 테스트를 RED로 추가한다.
 2. blocking 구현을 기존 `ReentrantLock` 경계에 맞춰 추가한다.
 3. coroutine 구현을 기존 `Mutex`와 cancellation 보존 helper에 맞춰 추가한다.
-4. 결과 갱신과 예외 테스트를 GREEN으로 만든다.
+4. 잘못된 custom strategy 결과가 action을 실행하기 전에 거부되는지 검증한다.
+5. 결과 갱신과 예외 테스트를 GREEN으로 만든다.
 
 ### 4. Lettuce와 Redisson 구현을 추가한다
 
 1. 각 backend의 blocking 테스트를 먼저 추가해 RED를 확인한다.
 2. 기존 `LettuceCandidateRegistry`/`LettuceSuspendCandidateRegistry`와
-   `RedissonCandidateRegistry`를 직접 재사용한다.
+   `RedissonCandidateRegistry`의 TTL·직렬화 경로를 재사용하되 group namespace를
+   전달한다.
 3. coroutine adapter에서 `CancellationException`을 삼키지 않도록 테스트한다.
 4. Redis Testcontainers targeted test를 순차 실행한다.
 
@@ -141,3 +153,4 @@ Docker context를 먼저 확인하고, 실패 원인과 검증 범위를 DoD에 
 - Redis 조회 오류 처리에서 cancellation을 일반 오류로 바꾸지 않는다.
 - 기존 `ElectionStrategy`와 public constructor를 수정하지 않아 ABI 위험을 줄인다.
 - 새로운 의존성은 추가하지 않는다.
+- strategic single/group Redis key namespace를 섞지 않는다.

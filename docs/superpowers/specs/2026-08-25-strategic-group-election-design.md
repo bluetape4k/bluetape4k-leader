@@ -20,6 +20,11 @@ slot을 획득한 노드를 최대 `maxLeaders`개까지 동시에 통과시킨�
 결정론적으로 선택한다. 선택된 노드만 작업을 실행하고, 나머지는 즉시
 `null`을 반환한다.
 
+이 계약은 **관찰한 후보 snapshot에 대한 advisory top-N 선출**이다. 여러 backend
+호출이 서로 다른 시점의 snapshot을 읽을 수 있으므로 `maxLeaders`는 각 라운드의
+선택 수이지 모든 분산 노드의 전역 동시 실행 상한이 아니다. 전역 상한과 fencing이
+필요한 작업은 기존 `LeaderGroupElector`를 사용해야 한다.
+
 범위는 다음 구현체로 한정한다.
 
 | 실행 모델 | 지원 백엔드 |
@@ -50,6 +55,12 @@ fun interface GroupElectionStrategy {
 `maxLeaders`는 `1` 이상이어야 하며, 구현체는 후보 수보다 큰 값도 허용한다.
 후보가 부족하면 존재하는 후보를 모두 선택한다.
 
+전략이 반환한 결과는 elector가 후보 snapshot과 대조한다. winner와 elimination의
+후보 ID는 입력 snapshot에 있어야 하고 중복·교집합·누락·`maxLeaders` 초과가
+있으면 `IllegalArgumentException`으로 즉시 거부한다. 후보 ID의 동일성 기준은
+`nodeId`다. 입력 후보 자체에 중복 ID가 있으면 backend registry 계약 위반으로
+간주하고 같은 예외를 반환한다.
+
 ### 2.2 결과 모델
 
 ```kotlin
@@ -77,10 +88,11 @@ data class StrategicGroupElectionResult(
 
 `runIfLeader`는 기존 strategic API의 후보 등록, TTL, 결과 갱신, cancellation
 semantics를 그대로 유지하며 `LeaderGroupElectionOptions`를 재사용한다.
-선출에 직접 사용하는 필드는 `maxLeaders`다. `waitTime`, `leaseTime`,
-`minLeaseTime`, `useDbTime`의 lock/lease 의미는 일반 group elector에만
-적용되고 strategic candidate registry에는 새 distributed claim을 추가하지
-않는다.
+선출에 직접 사용하는 필드는 `maxLeaders`다. `options.nodeId`는 무시하고
+elector의 `nodeId`를 현재 후보 ID로 사용한다. `waitTime`, `leaseTime`,
+`minLeaseTime`, `useDbTime`은 기존 생성자 검증은 적용하지만 lock/lease 의미는
+일반 group elector에만 적용하고 strategic candidate registry에는 새 distributed
+claim을 추가하지 않는다.
 
 ```kotlin
 fun <T> runIfLeader(
@@ -95,9 +107,13 @@ coroutine variant는 같은 인자와 `suspend () -> T` action을 사용한다.
 
 - `registerCandidate`, `unregisterCandidate`, `listCandidates`, `updateResult`는
   기존 `StrategicLeaderElector`와 같은 시그니처와 TTL 전달 규칙을 따른다.
-- 현재 `nodeId`가 선택된 목록에 없으면 action을 호출하지 않고 `null`을 반환한다.
-- 현재 `nodeId`가 선택되면 action을 정확히 한 번 호출하고 그 결과를 반환한다.
-- action 성공 시 `CandidateResult.SUCCESS`, 일반 예외 시 `FAILURE`를 기록한다.
+- 현재 `nodeId`가 관찰된 snapshot의 winner 목록에 없으면 action을 호출하지 않고
+  `null`을 반환한다.
+- 현재 `nodeId`가 관찰된 snapshot의 winner 목록에 있으면 해당 호출에서 action을
+  한 번 호출하고 그 결과를 반환한다. 서로 다른 snapshot에서 여러 node가 선택될
+  수 있으며, 이는 이 API의 비범위인 전역 동시 실행 보장과 구분한다.
+- action 성공 시 `CandidateResult.SUCCESS`, 일반 예외 시 `FAILURE`를 best-effort로
+  기록한다. TTL이 action 전후에 만료되면 결과 갱신은 no-op일 수 있다.
 - `CancellationException`은 결과 갱신으로 삼키지 않고 기존 구현과 동일하게
   재전파한다. 결과 갱신 자체의 일반 예외는 경고 로그 후 action 결과를 보존한다.
 
@@ -117,17 +133,25 @@ coroutine variant는 같은 인자와 `suspend () -> T` action을 사용한다.
 정렬하고 앞에서 `maxLeaders`개를 선택한다. 결과의 `scores`에는 모든 입력
 후보의 점수를 기록한다.
 
+`CandidateScorer`가 `NaN` 또는 무한대를 반환하면 `IllegalArgumentException`으로
+실패한다. 유한 점수만 순위와 `scores`에 사용한다.
+
 ## 3. 백엔드 경계
 
 - Local은 기존 `ConcurrentHashMap` 후보 레지스트리와 lock/mutex 보호를
   재사용한다.
 - Lettuce와 Redisson은 기존 후보 레지스트리의 TTL, 직렬화, 후보 목록 조회,
   결과 갱신 경로를 재사용한다.
+- strategic single과 strategic group은 backend별 별도 key namespace를 사용해
+  같은 `lockName`을 우연히 공유해도 후보 집합과 결과 갱신을 섞지 않는다.
 - 후보 목록 조회와 선택은 backend별 read consistency 범위 안에서 수행한다.
   이 API는 후보 선택과 action 실행 사이에 새로운 distributed atomic claim을
-  제공하지 않는다.
+  제공하지 않으며, `maxLeaders`의 전역 동시 실행 상한을 보장하지 않는다.
 - TTL이 만료된 후보는 기존 레지스트리 조회 결과에 포함되지 않으며, 한
   라운드에서 읽은 후보 목록은 해당 라운드의 선택 입력으로 고정한다.
+- `Duration.ZERO`는 만료되지 않는 후보 등록이다. 유한 TTL 후보는 호출자가
+  재등록/heartbeat해야 하며 권장 cadence는 TTL보다 짧게 잡는다. Local은
+  기존 구현과 같이 TTL을 저장하지 않고 프로세스 메모리 수명으로 유지한다.
 - 지원하지 않는 backend에 전략적 group adapter를 추가하는 작업은 별도
   issue로 분리한다.
 
@@ -139,8 +163,8 @@ coroutine variant는 같은 인자와 `suspend () -> T` action을 사용한다.
 - 새 public 타입과 KDoc은 기존 bluetape4k Kotlin 패턴, `requireGe` 계열
   검증 helper, `CandidateInfo`/`CandidateScorer` 재사용 규칙을 따른다.
 - 별도 의존성이나 새 serialization 포맷을 추가하지 않는다.
-- 단일 strategic election과 strategic group election을 같은 registry key에
-  섞어 호출하지 않는 사용 가이드를 README와 README.ko에 함께 추가한다.
+- 단일 strategic election과 strategic group election은 key namespace로
+  구조적으로 격리되며, 사용 가이드에서도 두 실행 모델의 선택 기준을 구분한다.
 
 ## 5. 수용 기준과 테스트 표
 
@@ -156,9 +180,9 @@ coroutine variant는 같은 인자와 `suspend () -> T` action을 사용한다.
 
 ## 6. 비범위와 후속 이슈
 
-- 선택된 여러 노드에 대한 순차 실행, quorum, weighted capacity는 지원하지
-  않는다. `winners` 순서는 관찰 가능한 우선순위이며 실행 순서를 보장하지
-  않는다.
+- 전역 동시 실행 상한을 위한 atomic claim, 선택된 여러 노드의 순차 실행,
+  quorum, weighted capacity는 지원하지 않는다. `winners` 순서는 관찰 가능한
+  우선순위이며 실행 순서를 보장하지 않는다.
 - action을 시작한 뒤 lease를 자동 연장하는 별도 watchdog은 추가하지 않는다.
 - candidate registry 읽기와 action 시작 사이의 fencing token 또는 atomic claim은
   별도 설계가 필요하다.
