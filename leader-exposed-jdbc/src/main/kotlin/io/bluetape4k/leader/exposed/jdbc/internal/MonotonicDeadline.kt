@@ -1,6 +1,6 @@
 package io.bluetape4k.leader.exposed.jdbc.internal
 
-import java.util.concurrent.TimeUnit
+import io.bluetape4k.leader.internal.MonotonicDeadline as CoreMonotonicDeadline
 import kotlin.time.Duration
 
 /**
@@ -16,28 +16,13 @@ internal class MonotonicDeadline private constructor(
     private val ticker: () -> Long,
 ) {
 
-    private fun elapsedNanos(): Long = (ticker() - startNanos).coerceAtLeast(0L)
+    private val delegate = CoreMonotonicDeadline.fromStart(startNanos, timeoutNanos, ticker)
 
-    fun remainingNanos(): Long {
-        val elapsedNanos = elapsedNanos()
-        return if (elapsedNanos >= timeoutNanos) {
-            0L
-        } else {
-            timeoutNanos - elapsedNanos
-        }
-    }
+    fun remainingNanos(): Long = delegate.remainingNanos()
 
-    fun remainingMillisForSleep(): Long {
-        val remainingNanos = remainingNanos()
-        if (remainingNanos <= 0L) {
-            return 0L
-        }
-        // RetryStrategy and Thread.sleep accept milliseconds; keep a positive
-        // sub-millisecond budget observable as one last sleep window.
-        return TimeUnit.NANOSECONDS.toMillis(remainingNanos).coerceAtLeast(1L)
-    }
+    fun remainingMillisForSleep(): Long = delegate.remainingMillisForSleep()
 
-    fun hasTimeRemaining(): Boolean = elapsedNanos() < timeoutNanos
+    fun hasTimeRemaining(): Boolean = delegate.hasTimeRemaining()
 
     companion object {
         fun fromNow(

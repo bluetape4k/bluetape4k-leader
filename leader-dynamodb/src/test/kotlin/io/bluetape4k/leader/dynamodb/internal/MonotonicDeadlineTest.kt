@@ -1,4 +1,4 @@
-package io.bluetape4k.leader.mongodb.internal
+package io.bluetape4k.leader.dynamodb.internal
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.contract.AbstractMonotonicDeadlineMathContractTest
