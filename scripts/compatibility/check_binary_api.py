@@ -2,10 +2,10 @@
 """Compare published JVM artifacts with the previous release.
 
 The release gate intentionally reports every japicmp incompatibility, then
-filters only compiler-generated Kotlin/AspectJ classes, bridge methods, JVM
-class-file format changes, and explicitly retired Kotlin-internal facades. A
-new public incompatibility must therefore be classified in the migration
-notes or the command fails.
+filters only compiler-generated Kotlin/AspectJ classes, synthetic accessor
+methods, JVM class-file format changes, and explicitly retired Kotlin-internal
+facades. A new public incompatibility must therefore be classified in the
+migration notes or the command fails.
 """
 
 from __future__ import annotations
@@ -106,13 +106,11 @@ def is_intentionally_ignored(block: str) -> str | None:
     ]
     if "REMOVED CLASS:" in header and name in LEGACY_INTERNAL_JVM_FACADES:
         return "legacy Kotlin-internal JVM facade"
-    if incompatible_members and all("BRIDGE" in line for line in incompatible_members):
-        return "JVM bridge method"
     if incompatible_members and all(
-        "SYNTHETIC" in line and "access$" in line or "BRIDGE" in line
+        "SYNTHETIC" in line and "access$" in line
         for line in incompatible_members
     ):
-        return "compiler-generated synthetic accessor/bridge method"
+        return "compiler-generated synthetic accessor"
     if not incompatible_members and has_class_file_format_change:
         return "JVM class-file format"
     if ".internal." in name:
