@@ -1,32 +1,33 @@
 package io.bluetape4k.leader.dynamodb.internal
 
-import java.util.concurrent.TimeUnit
+import io.bluetape4k.leader.internal.MonotonicDeadline as CoreMonotonicDeadline
 import kotlin.time.Duration
 
 internal class MonotonicDeadline private constructor(
     private val deadlineNanos: Long,
     private val ticker: () -> Long,
 ) {
-    fun hasTimeRemaining(): Boolean = deadlineNanos - ticker() > 0L
+
+    private var delegate = CoreMonotonicDeadline.fromStart(deadlineNanos, 0L, ticker)
+
+    private fun withTimeout(timeoutNanos: Long): MonotonicDeadline {
+        delegate = CoreMonotonicDeadline.fromStart(deadlineNanos, timeoutNanos, ticker)
+        return this
+    }
+    fun remainingNanos(): Long = delegate.remainingNanos()
+
+    fun hasTimeRemaining(): Boolean = delegate.hasTimeRemaining()
 
     fun remainingMillisForDelay(maxDelayMillis: Long): Long {
         require(maxDelayMillis >= 1L) { "maxDelayMillis must be at least 1" }
-        val remaining = deadlineNanos - ticker()
-        if (remaining <= 0L) {
-            return 0L
-        }
-        return TimeUnit.NANOSECONDS.toMillis(remaining)
-            .coerceAtLeast(1L)
-            .coerceAtMost(maxDelayMillis)
+        return delegate.remainingMillisForDelay(maxDelayMillis)
     }
 
     companion object {
         fun fromNow(waitTime: Duration, ticker: () -> Long = System::nanoTime): MonotonicDeadline {
-            val now = ticker()
-            val timeout = waitTime.inWholeNanoseconds.coerceAtLeast(0L)
-            val deadline =
-                if (Long.MAX_VALUE - timeout < now) Long.MAX_VALUE else now + timeout
-            return MonotonicDeadline(deadline, ticker)
+            val startNanos = ticker()
+            val timeoutNanos = waitTime.inWholeNanoseconds.coerceAtLeast(0L)
+            return MonotonicDeadline(startNanos, ticker).withTimeout(timeoutNanos)
         }
     }
 }
