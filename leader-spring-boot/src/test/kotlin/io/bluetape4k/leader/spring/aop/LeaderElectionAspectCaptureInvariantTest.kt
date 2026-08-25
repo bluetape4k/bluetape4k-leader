@@ -3,6 +3,8 @@ package io.bluetape4k.leader.spring.aop
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectorFactory
@@ -27,7 +29,7 @@ import org.junit.jupiter.api.TestInstance
  * ## 검증 항목
  * - [CaptureInvariantException] 은 [IllegalStateException] 서브타입 (SPI 계약)
  * - [AopScopeAccess.pollCapture] 는 set 없으면 null 반환 (single elector 정상 동작)
- * - [AopScopeAccess.pollCapture] 는 set 후 한 번만 값 반환 (poll semantics — idempotent)
+ * - [AopScopeAccess.pollCapture] 는 set 후 첫 호출이 값을 소비하고 두 번째 호출은 null 반환
  * - single elector action body 에서 pollCapture() == null 은 CaptureInvariantException 으로
  *   이어지지 않아야 함 (single elector 는 CaptureScope 미사용 → null 이 정상)
  *
@@ -46,7 +48,6 @@ class LeaderElectionAspectCaptureInvariantTest {
     fun `CaptureInvariantException 은 IllegalStateException 서브타입`() {
         val ex = CaptureInvariantException("test message")
         ex.shouldBeInstanceOf<IllegalStateException>()
-        // assert(ex is IllegalStateException) { "CaptureInvariantException must extend IllegalStateException" }
         ex.message shouldBeEqualTo "test message"
     }
 
@@ -62,20 +63,21 @@ class LeaderElectionAspectCaptureInvariantTest {
     @Test
     fun `pollCapture - set 없으면 null 반환 (single elector 정상)`() {
         val result = AopScopeAccess.pollCapture()
-        assert(result == null) { "pollCapture without set must return null" }
+        result.shouldBeNull()
     }
 
     @Test
-    fun `pollCapture - poll 은 exactly-once semantics — 두 번째 호출은 null`() {
+    fun `pollCapture - set 후 첫 호출이 값을 소비하고 두 번째 호출은 null`() {
         val syntheticReal = AopScopeAccess.createSyntheticReal("test-lock", "testFactory")
-        // Simulate set via LeaderLockHandleCapture (done via elector CaptureScope in production)
-        // Here we test poll() idempotency by calling twice without set
-        val first = AopScopeAccess.pollCapture()
-        val second = AopScopeAccess.pollCapture()
-        assert(first == null) { "first poll without set must be null" }
-        assert(second == null) { "second poll must also be null" }
-        // Synthetic handle is valid
-        assert(syntheticReal.lockName == "test-lock")
+        AopScopeAccess.setCapture(syntheticReal)
+        try {
+            val first = AopScopeAccess.pollCapture()
+            val second = AopScopeAccess.pollCapture()
+            first shouldBeSameInstanceAs syntheticReal
+            second.shouldBeNull()
+        } finally {
+            AopScopeAccess.clearCapture()
+        }
     }
 
     // ── Single elector action body: pollCapture null 은 CaptureInvariantException 미발생 ──

@@ -3,6 +3,7 @@ package io.bluetape4k.leader
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.ExtendDelegate
@@ -117,9 +118,7 @@ class LockExtenderTest {
         LockStateHolder.withPushed(realHandle(delegate = delegate)) {
             LockExtender.extendActiveLock(45.seconds)
         }
-        assert(delegate.extendCalledWith == 45.seconds) {
-            "Expected delegate.extend called with 45s, got ${delegate.extendCalledWith}"
-        }
+        delegate.extendCalledWith shouldBeEqualTo 45.seconds
     }
 
     @Test
@@ -199,21 +198,21 @@ class LockExtenderTest {
         val delegate = FakeDelegate(ExtendOutcome.Extended(expireAt))
         LockStateHolder.withPushed(realHandle(delegate = delegate)) {
             val outcome = LockExtender.extendActiveLockDetailed(60.seconds)
-            assert(outcome is ExtendOutcome.Extended) { "Expected Extended, got $outcome" }
+            outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         }
     }
 
     @Test
     fun `extendActiveLockDetailed returns NotHeld when outside scope`() {
         val outcome = LockExtender.extendActiveLockDetailed(30.seconds)
-        assert(outcome is ExtendOutcome.NotHeld) { "Expected NotHeld, got $outcome" }
+        outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 
     @Test
     fun `extendActiveLockDetailed returns NotHeld for FailOpen scope`() {
         LockStateHolder.withPushed(failOpenHandle()) {
             val outcome = LockExtender.extendActiveLockDetailed(30.seconds)
-            assert(outcome is ExtendOutcome.NotHeld) { "Expected NotHeld, got $outcome" }
+            outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
         }
     }
 
@@ -222,7 +221,7 @@ class LockExtenderTest {
         val delegate = FakeDelegate(ExtendOutcome.WrongThread)
         LockStateHolder.withPushed(realHandle(delegate = delegate)) {
             val outcome = LockExtender.extendActiveLockDetailed(30.seconds)
-            assert(outcome is ExtendOutcome.WrongThread) { "Expected WrongThread, got $outcome" }
+            outcome.shouldBeInstanceOf<ExtendOutcome.WrongThread>()
         }
     }
 
@@ -232,8 +231,7 @@ class LockExtenderTest {
         val delegate = FakeDelegate(ExtendOutcome.BackendError(cause))
         LockStateHolder.withPushed(realHandle(delegate = delegate)) {
             val outcome = LockExtender.extendActiveLockDetailed(30.seconds)
-            assert(outcome is ExtendOutcome.BackendError) { "Expected BackendError, got $outcome" }
-            assert((outcome as ExtendOutcome.BackendError).cause === cause)
+            outcome.shouldBeInstanceOf<ExtendOutcome.BackendError>().cause shouldBeSameInstanceAs cause
         }
     }
 
@@ -295,7 +293,7 @@ class LockExtenderTest {
         val delegate = FakeDelegate(ExtendOutcome.Extended(Instant.now().plusSeconds(30)))
         withContext(LockHandleElement(realHandle(delegate = delegate))) {
             val outcome = LockExtender.extendActiveLockDetailedSuspend(30.seconds)
-            assert(outcome is ExtendOutcome.Extended) { "Expected Extended, got $outcome" }
+            outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         }
     }
 
@@ -304,7 +302,7 @@ class LockExtenderTest {
         val delegate = FakeSuspendDelegate(ExtendOutcome.Extended(Instant.now().plusSeconds(30)))
         withContext(LockHandleElement(realHandle(delegate = delegate))) {
             val outcome = LockExtender.extendActiveLockDetailedSuspend(30.seconds)
-            assert(outcome is ExtendOutcome.Extended) { "Expected Extended, got $outcome" }
+            outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         }
 
         delegate.suspendExtendCalls.get() shouldBeEqualTo 1
@@ -317,7 +315,7 @@ class LockExtenderTest {
         val delegate = FakeSuspendDelegate(ExtendOutcome.NotHeld)
         withContext(LockHandleElement(realHandle(delegate = delegate))) {
             val outcome = LockExtender.extendActiveLockDetailedSuspend(30.seconds)
-            assert(outcome is ExtendOutcome.NotHeld) { "Expected NotHeld, got $outcome" }
+            outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
         }
 
         delegate.lastExtendDeadline.get() shouldBeEqualTo Instant.EPOCH
@@ -345,7 +343,7 @@ class LockExtenderTest {
         val delegate = FakeSuspendDelegate(ExtendOutcome.Extended(Instant.now().plusSeconds(30)))
         LockStateHolder.withPushed(realHandle(delegate = delegate)) {
             val outcome = LockExtender.extendActiveLockDetailed(30.seconds)
-            assert(outcome is ExtendOutcome.BackendError) { "Expected BackendError, got $outcome" }
+            outcome.shouldBeInstanceOf<ExtendOutcome.BackendError>()
         }
 
         delegate.syncExtendCalls.get() shouldBeEqualTo 1
@@ -355,7 +353,7 @@ class LockExtenderTest {
     @Test
     fun `extendActiveLockDetailedSuspend returns NotHeld when outside scope`() = runTest {
         val outcome = LockExtender.extendActiveLockDetailedSuspend(30.seconds)
-        assert(outcome is ExtendOutcome.NotHeld) { "Expected NotHeld, got $outcome" }
+        outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 
     @Test
@@ -363,7 +361,7 @@ class LockExtenderTest {
         val delegate = FakeDelegate(ExtendOutcome.Extended(Instant.now()))
         withContext(LockHandleElement(realHandle("lock-a", delegate))) {
             val outcome = LockExtender.extendActiveLockDetailedSuspend("lock-b", 30.seconds)
-            assert(outcome is ExtendOutcome.NotHeld) { "Expected NotHeld, got $outcome" }
+            outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
         }
     }
 }
