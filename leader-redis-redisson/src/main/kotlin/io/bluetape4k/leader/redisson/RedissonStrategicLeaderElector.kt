@@ -6,6 +6,7 @@ import io.bluetape4k.leader.StrategicLeaderElector
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.ElectionStrategy
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
@@ -49,6 +50,7 @@ class RedissonStrategicLeaderElector(
         options: LeaderElectionOptions,
         action: () -> T,
     ): T? {
+        validateLockName(lockName)
         val candidates = runCatching { listCandidates(lockName) }
             .onFailure { log.warn(it) { "[$lockName] 후보 목록 조회 실패 — 선출 skip" } }
             .getOrElse { return null }

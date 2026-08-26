@@ -3,6 +3,7 @@ package io.bluetape4k.leader.local
 import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.StrategicLeaderElector
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.ElectionStrategy
@@ -33,8 +34,10 @@ class LocalStrategicLeaderElector(
     private val registry = ConcurrentHashMap<String, ConcurrentHashMap<String, CandidateInfo>>()
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
 
-    private fun candidatesFor(lockName: String): ConcurrentHashMap<String, CandidateInfo> =
-        registry.computeIfAbsent(lockName) { ConcurrentHashMap() }
+    private fun candidatesFor(lockName: String): ConcurrentHashMap<String, CandidateInfo> {
+        validateLockName(lockName)
+        return registry.computeIfAbsent(lockName) { ConcurrentHashMap() }
+    }
 
     private fun lockFor(lockName: String): ReentrantLock =
         locks.computeIfAbsent(lockName) { ReentrantLock() }
@@ -60,6 +63,7 @@ class LocalStrategicLeaderElector(
         options: LeaderElectionOptions,
         action: () -> T,
     ): T? {
+        validateLockName(lockName)
         // 선출 단계만 lockName 단위 락으로 보호
         val result = lockFor(lockName).withLock {
             strategy.elect(listCandidates(lockName))
