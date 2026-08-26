@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.backend
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeEqualTo
 import io.bluetape4k.assertions.shouldNotBeNull
@@ -16,6 +17,7 @@ import org.springframework.context.annotation.Configuration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.measureTime
 
@@ -85,6 +87,7 @@ class SuspendBeanInitializationTest {
         val releaser = Executors.newSingleThreadScheduledExecutor()
         val started = CountDownLatch(1)
         val release = CountDownLatch(1)
+        val bodyStarted = AtomicBoolean()
         executor.submit {
             started.countDown()
             release.await()
@@ -98,7 +101,10 @@ class SuspendBeanInitializationTest {
                     createSuspendBackendBean(
                         timeout = 20.milliseconds,
                         dispatcher = dispatcher,
-                    ) { "never-started" }
+                    ) {
+                        bodyStarted.set(true)
+                        "never-started"
+                    }
                 }
             }
             (elapsed < 250.milliseconds).shouldBeTrue()
@@ -108,6 +114,8 @@ class SuspendBeanInitializationTest {
             dispatcher.close()
             executor.shutdownNow()
         }
+        executor.awaitTermination(1, TimeUnit.SECONDS).shouldBeTrue()
+        bodyStarted.get().shouldBeFalse()
     }
 
     private fun startupFailure(configuration: Class<*>): Throwable {
