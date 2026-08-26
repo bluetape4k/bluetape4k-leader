@@ -656,6 +656,41 @@ GET /actuator/leaderElection
 Actuator, Ktor management route, Micrometer, logging, tracing, custom dashboard는 framework별 event
 contract를 새로 만들지 말고 이 core event stream을 adapter로 사용해야 합니다.
 
+### HTTP/webhook sink로 audit export
+
+정제한 history 또는 lifecycle event를 전달할 때는 core의
+`HttpLeaderAuditExporter`와 애플리케이션이 소유한 `LeaderAuditPayloadEncoder`를
+조합합니다.
+
+```kotlin
+val endpoint = LeaderAuditTrustedHttpsEndpoint.trusted(
+    URI("https://audit.example.test/v1/leader-events"),
+)
+val client = HttpClient.newBuilder()
+    .followRedirects(HttpClient.Redirect.NEVER)
+    .build()
+val exporter = MicrometerLeaderAuditExporter(
+    delegate = HttpLeaderAuditExporter(
+        client = client,
+        endpoint = endpoint,
+        headers = mapOf("Authorization" to "Bearer ${System.getenv("AUDIT_WEBHOOK_TOKEN")}"),
+        encoder = LeaderAuditPayloadEncoder { event ->
+            LeaderAuditHttpPayload.of("text/plain; charset=utf-8", event.toString().toByteArray())
+        },
+        exportOptions = exportOptions,
+        httpOptions = LeaderAuditHttpOptions.defaults(),
+    ),
+    registry = meterRegistry,
+)
+```
+
+adapter는 `POST`, bounded retry, `BodyHandlers.discarding()`을 사용합니다. 허용하는
+header는 `Content-Type`과 `Authorization`뿐이며 redirect는 끕니다.
+`LeaderAuditTrustedHttpsEndpoint`는 HTTPS 문법을 확인하고 endpoint allow-list와
+DNS/SSRF 정책을 호출자가 소유한다는 책임 경계를 남깁니다. `submit`의
+`ACCEPTED`는 admission만 뜻하므로 수신 서버는 idempotency를 제공해야 합니다.
+JSONL과 OpenTelemetry transport는 애플리케이션이 선택하는 별도 범위입니다.
+
 `bluetape4k.leader.observability.lock-names`는 첫 runtime event가 관측되기 전에 JVM-local status registry를 seed합니다. Listener-aware elector는 lifecycle event를 관측하면서 이름을 추가할 수도 있습니다. fallback `LeaderElectionEventPublisher`는 publisher 전용이며 `LeaderElector` candidate가 되지 않으므로 기존 elector injection은 안정적으로 유지됩니다.
 
 Spring diagnostics, readiness, Actuator endpoint는 blocking과 suspend `LeaderElectionState` bean을
