@@ -12,7 +12,6 @@ import io.bluetape4k.leader.mongodb.MongoSuspendLeaderElector
 import io.bluetape4k.leader.mongodb.MongoSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
-import kotlinx.coroutines.runBlocking
 import org.bson.Document
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -67,9 +66,12 @@ class MongoLeaderConfiguration {
         coroutineDb: CoroutineMongoDatabase,
         props: LeaderProperties,
         recorderProvider: ObjectProvider<SuspendSafeLeaderHistoryRecorder>,
-    ): MongoSuspendLeaderElector = runBlocking {
-        val collection = coroutineDb.getCollection<Document>(props.mongo.singleCollection)
-        MongoSuspendLeaderElector(collection, electionOptions(props), recorderProvider.ifAvailable)
+    ): MongoSuspendLeaderElector = createSuspendBackendBean {
+        MongoSuspendLeaderElector(
+            coroutineDb.getCollection<Document>(props.mongo.singleCollection),
+            electionOptions(props),
+            recorderProvider.ifAvailable,
+        )
     }
 
     @Bean
@@ -80,9 +82,12 @@ class MongoLeaderConfiguration {
         coroutineDb: CoroutineMongoDatabase,
         props: LeaderProperties,
         recorderProvider: ObjectProvider<SuspendSafeLeaderHistoryRecorder>,
-    ): MongoSuspendLeaderGroupElector = runBlocking {
-        val syncCollection = db.getCollection(props.mongo.groupCollection, Document::class.java)
-        val coroutineCollection = coroutineDb.getCollection<Document>(props.mongo.groupCollection)
-        MongoSuspendLeaderGroupElector(syncCollection, coroutineCollection, groupOptions(props), recorderProvider.ifAvailable)
+    ): MongoSuspendLeaderGroupElector = createSuspendBackendBean {
+        MongoSuspendLeaderGroupElector(
+            db.getCollection(props.mongo.groupCollection, Document::class.java),
+            coroutineDb.getCollection<Document>(props.mongo.groupCollection),
+            groupOptions(props),
+            recorderProvider.ifAvailable,
+        )
     }
 }
