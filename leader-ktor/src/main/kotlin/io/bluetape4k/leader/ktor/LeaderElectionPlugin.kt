@@ -1,5 +1,8 @@
 package io.bluetape4k.leader.ktor
 
+import io.bluetape4k.leader.LeaderElectionEventPublisher
+import io.bluetape4k.leader.ktor.stream.LeaderEventStreamHub
+import io.bluetape4k.leader.ktor.stream.toLeaderEventStreamConfig
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
@@ -9,6 +12,8 @@ import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.hooks.MonitoringEvent
+import io.ktor.server.application.install
+import io.ktor.server.application.pluginOrNull
 import io.ktor.util.AttributeKey
 
 /**
@@ -27,6 +32,26 @@ val LeaderElectionPlugin = createApplicationPlugin(
     application.attributes.put(LeaderElectionConfigKey, config)
     val resourceRegistry = LeaderElectionResourceRegistryImpl()
     application.attributes.put(LeaderElectionResourceRegistryKey, resourceRegistry)
+
+    val eventStreamConfig = config.toLeaderEventStreamConfig()
+    if (eventStreamConfig.eventStreamRouteEnabled) {
+        val publisher = leaderElection as? LeaderElectionEventPublisher
+            ?: throw LeaderElectionConfigurationException(
+                "eventStreamRouteEnabled=true이면 leaderElection이 LeaderElectionEventPublisher여야 합니다.",
+            )
+        val hub = LeaderEventStreamHub(
+            publisher = publisher,
+            capacity = eventStreamConfig.eventStreamReplayCapacity,
+            scope = application,
+            maxConnections = eventStreamConfig.eventStreamMaxConnections,
+            allLocksEnabled = eventStreamConfig.eventStreamAllLocksEnabled,
+        )
+        val runtime = LeaderEventStreamRuntime(hub = hub, config = eventStreamConfig)
+        application.install(LeaderEventStreamRuntimePlugin) {
+            this.runtime = runtime
+        }
+        resourceRegistry.register(hub)
+    }
 
     if (config.managementActionRouteEnabled) {
         requireNotNull(config.managementActionRegistry) {
@@ -64,6 +89,15 @@ val LeaderElectionPlugin = createApplicationPlugin(
     }
 
     on(MonitoringEvent(ApplicationStarted)) { application ->
+        val eventStreamRuntime = application.pluginOrNull(LeaderEventStreamRuntimePlugin)
+        if (eventStreamRuntime != null &&
+            eventStreamRuntime.config.eventStreamRouteEnabled &&
+            !eventStreamRuntime.routeRegistered.get()
+        ) {
+            throw LeaderElectionConfigurationException(
+                "eventStreamRouteEnabled=true이면 caller route에서 leaderElectionEventStream()을 한 번 등록해야 합니다.",
+            )
+        }
         LeaderElectionPluginInternals.log.info {
             "LeaderElectionPlugin 시작 — application=${application.javaClass.simpleName}"
         }
