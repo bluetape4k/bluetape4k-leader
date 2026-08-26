@@ -191,6 +191,50 @@ install(StatusPages) {
 분리된 `leaderScheduled` 예외는 이 HTTP mapping에 들어오지 않습니다. Plugin이
 정제한 예외 type을 `WARN`으로 기록하고 해당 회차만 건너뛴 뒤 다음 schedule을 계속합니다.
 
+## Route-scoped leader guard (Issue #701, unreleased)
+
+`Route.leaderGuard`와 짧은 표기인 `leaderOnlyRoute`는 같은 안정적인
+leader-election 오류 계약으로 route를 보호합니다. Guard는 Ktor 공개
+`AuthenticationChecked` hook 이후에 실행되므로 바깥의 `authenticate(...)` route와
+애플리케이션 authorization/rate-limit plugin이 먼저 실행됩니다. 따라서 인증되지
+않았거나 권한이 없는 요청은 leader backend를 호출하지 않습니다. 이 모듈은
+`ktor-server-auth`를 `compileOnly`로만 참조하므로 `authenticate`를 사용하는
+애플리케이션이 일치하는 Ktor auth artifact를 직접 제공해야 합니다.
+
+```kotlin
+import io.bluetape4k.leader.ktor.leaderGuard
+import io.ktor.server.auth.authenticate
+import io.ktor.server.routing.get
+
+routing {
+    authenticate("service") {
+        leaderGuard("projection-refresh") {
+            get { call.respondText("ok") }
+        }
+    }
+}
+```
+
+기본 authority mode는 `STATE`입니다. 요청마다 현재 `LeaderState`를 정확히 한 번
+읽고 Empty이면 `NOT_LEADER`(503)를 반환합니다. 이는 passive한 현재 상태 기준값일 뿐
+요청을 예약하거나 lease를 연장하지 않으며 downstream 작업의 원자성을 보장하지
+않습니다. 기본 elector는 `supportsAuditLeaderState`를 광고해야 하고, 이를 지원하지
+않는 경우 명시적인 `stateProvider`로 현재 상태 기준값을 공급할 수 있습니다. 메서드 실행을 원자적으로
+보호하려면 `@LeaderElection`을 사용하고, 요청 자체가 lease를 보유해야 하면
+`authorityMode = LeaderRouteAuthorityMode.LEASE`를 명시하세요.
+
+`LEASE`는 명시적 opt-in이며 `STATE`로 조용히 대체되지 않습니다. 명시적인
+`SuspendLeaderLeaseAcquirer` 또는 해당 capability를 노출하는 elector가 필요하고
+`leaseMaxDuration`은 유한한 양수여야 합니다. Acquire와 release는 이 제한 시간으로
+bounded하게 실행됩니다. 경쟁으로 lease를 얻지 못하면 `LEADER_LOCKED`(423)을
+반환하고, 성공한 요청은 정확히 한 번 release합니다. Release 실패나 timeout은
+로그에 남기되 downstream 응답이나 cancellation을 바꾸지 않습니다.
+
+Route guard 오류는 기본적으로 `lockName`과 leader metadata를 숨깁니다.
+신뢰된 경계에서 의도적으로 필요할 때만 `exposeMetadata = true`를 사용하세요.
+사용자 정의 status/metadata 정책도 typed allow-list인
+`LeaderElectionErrorResponder` 계약을 우회하지 않습니다.
+
 ## Management Action Route (Issue #532, unreleased)
 
 Write route는 별도의 명시적 opt-in입니다. `managementActionRouteEnabled=true`이면

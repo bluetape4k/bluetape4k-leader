@@ -32,6 +32,7 @@ public fun StatusPagesConfig.leaderElectionErrors(
 internal suspend fun ApplicationCall.respondLeaderElectionError(
     context: LeaderElectionErrorContext,
     responder: LeaderElectionErrorResponder? = null,
+    exposeLockName: Boolean = false,
 ) {
     val config = application.attributes.getOrNull(LeaderElectionConfigKey)
     val selectedResponder = responder ?: config?.errorResponder
@@ -48,7 +49,9 @@ internal suspend fun ApplicationCall.respondLeaderElectionError(
     val appliedOverride = callbackOverride ?: configuredOverride
     val safeContext = appliedOverride?.let(context::withOverride) ?: context
     respondText(
-        text = safeContext.toJson(exposeLockName = appliedOverride?.exposeLockName == true),
+        text = safeContext.toJson(
+            exposeLockName = exposeLockName || appliedOverride?.exposeLockName == true,
+        ),
         contentType = ContentType.Application.Json,
         status = safeContext.status,
     )

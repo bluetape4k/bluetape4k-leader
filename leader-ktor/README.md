@@ -196,6 +196,51 @@ Detached `leaderScheduled` exceptions stay outside this HTTP mapping: the
 plugin logs the sanitized exception type at `WARN`, skips that iteration, and
 continues with the next schedule.
 
+## Route-scoped leader guard (Issue #701, unreleased)
+
+`Route.leaderGuard` and its `leaderOnlyRoute` shorthand protect a route with the
+same stable leader-election error contract. The guard runs after Ktor's public
+`AuthenticationChecked` hook, so an enclosing `authenticate(...)` route and
+your authorization or rate-limit plugins run first. An unauthenticated or
+forbidden request therefore does not call the leader backend. This module keeps
+`ktor-server-auth` as `compileOnly`; applications that use `authenticate` must
+provide the matching Ktor auth artifact themselves.
+
+```kotlin
+import io.bluetape4k.leader.ktor.leaderGuard
+import io.ktor.server.auth.authenticate
+import io.ktor.server.routing.get
+
+routing {
+    authenticate("service") {
+        leaderGuard("projection-refresh") {
+            get { call.respondText("ok") }
+        }
+    }
+}
+```
+
+`STATE` is the default authority mode. It reads the current `LeaderState` once
+per request and rejects an empty state with `NOT_LEADER` (503). This is a
+passive snapshot: it does not reserve the request, extend a lease, or make
+downstream work atomic. The default elector must advertise
+`supportsAuditLeaderState`; an explicit `stateProvider` can supply the snapshot
+when the elector does not. Use `@LeaderElection` for atomic execution of a
+method, or select `authorityMode = LeaderRouteAuthorityMode.LEASE` when the
+request itself must hold a lease.
+
+`LEASE` is explicit and never silently falls back to `STATE`. It requires an
+explicit `SuspendLeaderLeaseAcquirer` or an elector exposing that capability,
+and `leaseMaxDuration` must be finite and positive. Acquire and release are
+bounded by that duration; contention returns `LEADER_LOCKED` (423), a successful
+request releases exactly once, and release failure or timeout is logged without
+replacing the downstream response or cancellation.
+
+Route-guard errors hide `lockName` and other leader metadata by default. Set
+`exposeMetadata = true` only for a deliberate trusted boundary; any custom
+status or metadata policy still goes through the typed, allow-listed
+`LeaderElectionErrorResponder` contract.
+
 ## Management Action Route (Issue #532, unreleased)
 
 The write route is a separate, explicit opt-in. `LeaderElectionPlugin` validates that
