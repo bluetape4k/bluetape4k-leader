@@ -1,10 +1,10 @@
 package io.bluetape4k.leader.examples.webhook
 
 import com.mongodb.kotlin.client.coroutine.MongoClient
+import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.mongodb.MongoSuspendLeaderElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
-import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -28,6 +28,11 @@ object WebhookPollerDemo: KLogging() {
     private const val DEMO_EVENT_COUNT = 10
     private const val DEMO_INSTANCE_COUNT = 3
 
+    /**
+     * 데모 event ID에 읽기 쉬운 sequence와 매 실행마다 새로운 UUID v4 suffix를 결합합니다.
+     */
+    internal fun newEventId(index: Int): String = "evt-$index-${Uuid.V4.nextUUID()}"
+
     @JvmStatic
     fun main(args: Array<String>) = runBlocking {
         val mongoUrl = System.getenv("MONGO_URL") ?: "mongodb://localhost:27017"
@@ -44,7 +49,7 @@ object WebhookPollerDemo: KLogging() {
 
             // Insert fake events.
             val pendingEvents = (1..DEMO_EVENT_COUNT).map { idx ->
-                WebhookEvent(eventId = "evt-$idx-${UUID.randomUUID()}", payload = "payload-$idx")
+                WebhookEvent(eventId = newEventId(idx), payload = "payload-$idx")
             }
             eventCollection.insertMany(pendingEvents.map { it.toDocument() })
             log.info { "[demo] inserted $DEMO_EVENT_COUNT events" }
