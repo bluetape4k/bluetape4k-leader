@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.ktor
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.SuspendLeaderManagementActionRegistry
@@ -27,11 +28,10 @@ class LeaderManagementShutdownTest {
         val registry = SuspendLeaderManagementActionRegistry()
         val engine = RecordingEngine()
 
-        val failure = runCatching {
+        assertFailsWith<IllegalArgumentException> {
             engine.stopLeaderManagementGracefully(registry, timeoutMillis = 0L)
-        }.exceptionOrNull()
+        }
 
-        (failure is IllegalArgumentException) shouldBeEqualTo true
         engine.stopCalls.get() shouldBeEqualTo 0
         registry.close()
     }
