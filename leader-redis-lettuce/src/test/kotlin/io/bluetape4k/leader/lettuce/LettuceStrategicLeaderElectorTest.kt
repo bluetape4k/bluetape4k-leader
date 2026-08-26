@@ -142,6 +142,55 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
     }
 
     @Test
+    fun `updateResult - Long 2의 53승 초과 카운터도 정밀하게 증가`() {
+        val lockName = randomName()
+        val initial = 9_007_199_254_740_992L
+        node1.registerCandidate(lockName, CandidateInfo("node-1", successCount = initial))
+
+        node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
+
+        val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        updated.successCount shouldBeEqualTo initial + 1
+    }
+
+    @Test
+    fun `updateResult - Long 최대값 증가도 Kotlin overflow 계약을 보존`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1", successCount = Long.MAX_VALUE))
+
+        node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
+
+        val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        updated.successCount shouldBeEqualTo Long.MIN_VALUE
+    }
+
+    @Test
+    fun `updateResult - codec가 거부하는 지수 표기 카운터는 기존 예외를 전파`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        val key = "leader:strategy:candidates:$lockName:node-1"
+        val raw = "node-1|${Instant.now().toEpochMilli()}|||1e3|0|"
+        connection.sync().set(key, raw)
+
+        assertFailsWith<NumberFormatException> {
+            node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
+        }
+    }
+
+    @Test
+    fun `updateResult - 손상된 metadata는 기존 codec 예외를 전파`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        val key = "leader:strategy:candidates:$lockName:node-1"
+        val raw = "node-1|${Instant.now().toEpochMilli()}|||0|0|brokenpair"
+        connection.sync().set(key, raw)
+
+        assertFailsWith<IllegalArgumentException> {
+            node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
+        }
+    }
+
+    @Test
     fun `runIfLeader SUCCESS 후 successCount 자동 증가`() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))

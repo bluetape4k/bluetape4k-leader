@@ -20,6 +20,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
@@ -241,6 +243,41 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         val candidates = node1.listCandidates(lockName)
         candidates.size shouldBeEqualTo 1
         candidates.first().successCount shouldBeEqualTo 10L
+    }
+
+    @Test
+    fun `후보 재등록은 결과 갱신과 동일한 entry lock을 사용`() {
+        val lockName = randomName()
+        val nodeId = "node-1"
+        node1.registerCandidate(lockName, CandidateInfo(nodeId))
+        val cache = redissonClient.getMapCache<String, CandidateInfo>(
+            "leader:strategy:candidates:$lockName",
+        )
+        val entryLock = cache.getLock(nodeId)
+        entryLock.lock(5, TimeUnit.SECONDS)
+
+        val started = CountDownLatch(1)
+        val completed = CountDownLatch(1)
+        val worker = Thread {
+            started.countDown()
+            node1.registerCandidate(
+                lockName,
+                CandidateInfo(nodeId, metadata = mapOf("heartbeat" to "new")),
+                5.seconds,
+            )
+            completed.countDown()
+        }
+        try {
+            worker.start()
+            started.await(1, TimeUnit.SECONDS) shouldBeEqualTo true
+            completed.await(200, TimeUnit.MILLISECONDS) shouldBeEqualTo false
+        } finally {
+            entryLock.unlock()
+        }
+
+        completed.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+        worker.join(2_000)
+        node1.listCandidates(lockName).first().metadata shouldBeEqualTo mapOf("heartbeat" to "new")
     }
 
     @Test

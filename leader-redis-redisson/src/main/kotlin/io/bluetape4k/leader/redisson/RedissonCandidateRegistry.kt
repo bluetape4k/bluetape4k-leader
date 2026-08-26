@@ -41,15 +41,20 @@ internal class RedissonCandidateRegistry(
 
     fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
         val cache = mapCacheFor(lockName)
-        if (ttl == Duration.ZERO) {
-            cache.put(info.nodeId, info)
-        } else {
-            cache.put(info.nodeId, info, ttl.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+        withEntryLock(cache, info.nodeId) {
+            if (ttl == Duration.ZERO) {
+                cache.put(info.nodeId, info)
+            } else {
+                cache.put(info.nodeId, info, ttl.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+            }
         }
     }
 
     fun unregisterCandidate(lockName: String, nodeId: String) {
-        mapCacheFor(lockName).remove(nodeId)
+        val cache = mapCacheFor(lockName)
+        withEntryLock(cache, nodeId) {
+            cache.remove(nodeId)
+        }
     }
 
     fun listCandidates(lockName: String): List<CandidateInfo> =
@@ -60,5 +65,20 @@ internal class RedissonCandidateRegistry(
         // Redisson의 per-entry lock과 server-side fastPutIfExists를 사용해
         // read-modify-write 및 GET/TTL/PUT 사이의 만료 경쟁을 제거한다.
         cache.computeIfPresent(nodeId) { _, current -> current.withResult(result) }
+    }
+
+    /** 등록·해제도 결과 갱신과 Redisson map entry lock을 공유하도록 보장합니다. */
+    private inline fun <T> withEntryLock(
+        cache: org.redisson.api.RMapCache<String, CandidateInfo>,
+        nodeId: String,
+        action: () -> T,
+    ): T {
+        val lock = cache.getLock(nodeId)
+        lock.lock()
+        return try {
+            action()
+        } finally {
+            lock.unlock()
+        }
     }
 }

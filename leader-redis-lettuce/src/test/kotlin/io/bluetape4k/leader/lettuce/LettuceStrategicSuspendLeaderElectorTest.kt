@@ -153,6 +153,18 @@ class LettuceStrategicSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
     }
 
     @Test
+    fun `updateResult - suspend 경로도 Long 2의 53승 초과 카운터를 정밀하게 증가`() = runSuspendIO {
+        val lockName = randomName()
+        val initial = 9_007_199_254_740_992L
+        node1.registerCandidate(lockName, CandidateInfo("node-1", successCount = initial))
+
+        node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
+
+        val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        updated.successCount shouldBeEqualTo initial + 1
+    }
+
+    @Test
     fun `updateResult - TTL 만료 후 호출 시 좀비 항목 생성 없음`() = runSuspendIO {
         val lockName = randomName()
         val ttl = 200.milliseconds

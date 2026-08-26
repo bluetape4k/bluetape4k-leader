@@ -13,11 +13,15 @@
 
 - Lettuce blocking·suspend 경로는 `RedisScriptRunner`와 Redis Lua 스크립트를
   사용해 조회, 카운터 증가, `SET XX KEEPTTL`을 Redis 서버의 한 원자 실행으로
-  묶었습니다.
+  묶었습니다. Lua에서는 `tonumber()`를 사용하지 않고 signed `Long`을
+  문자열로 정규화·증가해 `2^53` 초과 정밀도와 Kotlin overflow 계약을
+  보존하며, codec이 거부하는 카운터와 metadata 형식은 기존 예외로
+  되돌립니다.
 - Redisson blocking·suspend 경로는 기존 `RMapCache.computeIfPresent`를 사용해
   per-entry lock과 server-side `fastPutIfExists`를 재사용했습니다. 이 경로는
   잔여 TTL을 별도로 읽어 다시 쓰지 않으므로 만료 경쟁과 zombie key 생성을
-  피합니다.
+  피합니다. 등록·해제도 같은 `RMapCache.getLock(nodeId)` 경계를 공유해
+  heartbeat 재등록이 진행 중인 결과 갱신을 덮지 않도록 했습니다.
 - 손상된 후보 직렬화는 기존 codec 예외를 유지하고, 없는 키는 갱신하지 않으며,
   suspend async 명령 객체는 `lazy`로 초기화해 조회 전용 mock·호출자의 연결
   초기화 계약을 바꾸지 않았습니다.
@@ -34,9 +38,11 @@ single/group 및 blocking/suspend 네 조합 모두에서 동시 결과 증가�
 - RED: 독립 Lettuce 연결 8개와 Redisson elector 8개, 16 workers × 20 rounds에서
   기대 카운터 160 대신 Lettuce 11–16, Redisson 11–14 수준으로 유실되는 회귀를
   재현했습니다.
-- GREEN: Lettuce strategic single/group blocking/suspend 44·11건과 Redisson
-  34·11건 focused suite가 모두 통과했습니다.
-- 전체 모듈: Lettuce `294/294`, Redisson `280/280`, failures=0, skipped=0.
+- GREEN: Lettuce strategic single/group blocking/suspend 및 Redisson
+  single/group blocking/suspend focused suite와 `Long`·metadata·entry-lock
+  경계 테스트가 모두 통과했습니다.
+- 전체 모듈: Lettuce `299/299`, Redisson `281/281`, failures=0,
+  skipped=0.
 - 정적 분석: 두 변경 모듈 `detekt` 통과.
 - `git diff --check`와 exact-head hosted CI는 PR 단계에서 다시 확인합니다.
 
