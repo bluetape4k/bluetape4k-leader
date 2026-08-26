@@ -43,8 +43,10 @@ class DynamoDbLockClientOwnerIdTest {
         // Then
         ownerIds shouldHaveSize sampleSize
         ownerIds.toSet() shouldHaveSize sampleSize
-        ownerIds.map(UUID::fromString).forEach { ownerId ->
-            ownerId.version() shouldBeEqualTo 4
+        ownerIds.forEach { ownerId ->
+            val parsed = UUID.fromString(ownerId)
+            ownerId shouldBeEqualTo parsed.toString()
+            parsed.version() shouldBeEqualTo 4
         }
     }
 }
