@@ -151,14 +151,8 @@ private val LeaderRouteGuardPlugin = createRouteScopedPlugin(
             return@on
         }
 
-        var downstreamFailure: Throwable? = null
-        try {
+        withLeaderRouteLease(lease, config.leaseMaxDuration) {
             context.proceed()
-        } catch (failure: Throwable) {
-            downstreamFailure = failure
-            throw failure
-        } finally {
-            releaseLease(lease, config.leaseMaxDuration, downstreamFailure)
         }
     }
 }
@@ -257,22 +251,37 @@ private suspend fun acquireLease(
 }
 
 @Suppress("TooGenericExceptionCaught")
-private suspend fun releaseLease(
+internal suspend fun withLeaderRouteLease(
     lease: SuspendLeaderLeaseHandle,
     timeout: Duration,
-    downstreamFailure: Throwable?,
+    downstream: suspend () -> Unit,
 ) {
+    var downstreamFailure: Throwable? = null
     try {
-        withContext(NonCancellable) {
-            withTimeoutOrNull(timeout) {
-                lease.release()
-            }
-        }
+        downstream()
     } catch (failure: Throwable) {
-        LeaderElectionPluginInternals.log.warn {
-            "leader route lease release failed — lockName=${lease.lockName}, " +
-                "causeType=${failure::class.simpleName ?: "Unknown"}, " +
-                "downstreamFailure=${downstreamFailure?.javaClass?.simpleName ?: "none"}"
+        downstreamFailure = failure
+        throw failure
+    } finally {
+        try {
+            val released = withContext(NonCancellable) {
+                withTimeoutOrNull(timeout) {
+                    lease.release()
+                    true
+                }
+            } ?: false
+            if (!released) {
+                LeaderElectionPluginInternals.log.warn {
+                    "leader route lease release timed out — lockName=${lease.lockName}, " +
+                        "timeout=$timeout, downstreamFailure=${downstreamFailure?.javaClass?.simpleName ?: "none"}"
+                }
+            }
+        } catch (failure: Throwable) {
+            LeaderElectionPluginInternals.log.warn {
+                "leader route lease release failed — lockName=${lease.lockName}, " +
+                    "causeType=${failure::class.simpleName ?: "Unknown"}, " +
+                    "downstreamFailure=${downstreamFailure?.javaClass?.simpleName ?: "none"}"
+            }
         }
     }
 }
