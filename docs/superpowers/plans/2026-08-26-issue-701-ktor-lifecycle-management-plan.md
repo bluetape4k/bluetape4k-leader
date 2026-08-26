@@ -169,7 +169,7 @@ ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| re
 - Create: `leader-ktor/src/test/kotlin/io/bluetape4k/leader/ktor/LeaderElectionResourceRegistryTest.kt`
 - Create: `leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionResourceRegistry.kt`
 
-- [ ] **Step 1: 테스트 fixture와 실패 assertion을 먼저 작성한다.**
+- [x] **Step 1: 테스트 fixture와 실패 assertion을 먼저 작성한다.**
 
   테스트 파일에는 `runSuspendIO`, `assertFailsWith`가 필요한 경우의 Bluetape
   assertion, `AtomicInteger`, `CompletableDeferred`, `Job`, `launch`, `delay`,
@@ -278,14 +278,14 @@ ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| re
   assertion에는 `shouldBeEqualTo`/`shouldBeTrue`를 사용한다. 아직
   `LeaderElectionResourceRegistry`가 없으므로 테스트는 컴파일 단계에서 실패한다.
 
-- [ ] **Step 2: KTOR-01 테스트만 실행하여 RED를 확인한다.**
+- [x] **Step 2: KTOR-01 테스트만 실행하여 RED를 확인한다.**
 
   Run: `./gradlew :bluetape4k-leader-ktor:test --tests '*LeaderElectionResourceRegistryTest' --no-daemon --no-build-cache`
 
   Expected: `Unresolved reference: LeaderElectionResourceRegistry` 또는 동일한
   symbol 부재 컴파일 실패. 이 시점에 production 구현을 먼저 추가하지 않는다.
 
-- [ ] **Step 3: 최소 registry 계약을 구현한다.**
+- [x] **Step 3: 최소 registry 계약을 구현한다.**
 
   `LeaderElectionResourceRegistry.kt`에 다음 이름과 책임을 구현한다.
 
@@ -334,14 +334,14 @@ ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| re
   건너뛰지 않고 `failures`/`failureKinds`에 resource kind별로 집계한다.
   `CancellationException`을 cleanup failure로 변환하지 않고 job에 전달한다.
 
-- [ ] **Step 4: registry 테스트를 GREEN으로 실행한다.**
+- [x] **Step 4: registry 테스트를 GREEN으로 실행한다.**
 
   Run: `./gradlew :bluetape4k-leader-ktor:test --tests '*LeaderElectionResourceRegistryTest' --no-daemon --no-build-cache`
 
   Expected: 모든 registry test PASS, report의 `failures`와 `timedOutJobs`가
   테스트 fixture와 일치한다. 실패하면 lock 경계 또는 job timeout만 수정한다.
 
-- [ ] **Step 5: resource race와 failure 집계를 보강하고 commit한다.**
+- [x] **Step 5: resource race와 failure 집계를 보강하고 commit한다.**
 
   close가 resource close 예외를 삼키고 다음 resource를 계속 닫는 fixture를 한 개
   추가하고, registration token을 두 번 닫아도 기록이 한 번인지를 확인한다. 이후
@@ -363,7 +363,7 @@ ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| re
 - Modify: `leader-ktor/src/test/kotlin/io/bluetape4k/leader/ktor/LeaderElectionResourceRegistryTest.kt`
 - Create: `leader-ktor/src/test/kotlin/io/bluetape4k/leader/ktor/LeaderKtorTestDoubles.kt`
 
-- [ ] **Step 1: application stop 회귀 테스트를 RED로 추가한다.**
+- [x] **Step 1: application stop 회귀 테스트를 RED로 추가한다.**
 
   `LeaderElectionPluginTest`에 plugin 설치 후
   `application.leaderElectionResourceRegistryOrNull()`로 얻은 registry에
@@ -436,7 +436,7 @@ ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| re
   }
   ```
 
-- [ ] **Step 2: plugin attribute와 stop hook을 구현한다.**
+- [x] **Step 2: plugin attribute와 stop hook을 구현한다.**
 
   `LeaderElectionPlugin.kt`에 `internal val LeaderElectionResourceRegistryKey`
   (`AttributeKey<LeaderElectionResourceRegistry>`)와
@@ -452,13 +452,13 @@ ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| re
   registry에 자동 등록하지 않는다. stop hook은 registry의 idempotency에 의존하여
   Ktor가 stop event를 중복 전달해도 두 번째 본문이 실행되지 않게 한다.
 
-- [ ] **Step 3: plugin 테스트와 기존 test suite를 GREEN으로 실행한다.**
+- [x] **Step 3: plugin 테스트와 기존 test suite를 GREEN으로 실행한다.**
 
   Run: `./gradlew :bluetape4k-leader-ktor:test --tests '*LeaderElectionPluginTest' --tests '*LeaderElectionResourceRegistryTest' --no-daemon --no-build-cache`
 
   Expected: 새 stop/caller-owned 테스트와 기존 3개 plugin 테스트가 PASS한다.
 
-- [ ] **Step 4: plugin source의 optional import와 shutdown log를 검토하고 commit한다.**
+- [x] **Step 4: plugin source의 optional import와 shutdown log를 검토하고 commit한다.**
 
   `rg -n 'ktor.server.(sse|websocket|plugins.statuspages)' leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionPlugin.kt`가
   결과를 내지 않아야 한다. `git diff --check` 후 다음 Lore commit을 만든다.
@@ -520,7 +520,7 @@ ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| re
   }
   ```
 
-- [ ] **Step 1: scheduler ownership과 immediate cancellation 테스트를 RED로 추가한다.**
+- [x] **Step 1: scheduler ownership과 immediate cancellation 테스트를 RED로 추가한다.**
 
   기존 `Application 종료 시 leaderScheduled job 이 자동 취소된다` 테스트를 먼저
   읽고, 임의의 시간/카운트 polling 대신 `CompletableDeferred` start/stop barrier와
@@ -571,7 +571,7 @@ ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| re
   `LeaderState.empty(lockName)`을 반환한다. RED는 scheduler가 registry extension을
   호출하기 전에는 새 ownership assertion을 만족하지 않아야 한다.
 
-- [ ] **Step 2: Job 생성 직후 registry에 등록하도록 구현한다.**
+- [x] **Step 2: Job 생성 직후 registry에 등록하도록 구현한다.**
 
   `ApplicationExt.leaderScheduled`의 lock name/period validation과 기존
   `managementRegistry.register(lockName)` 호출을 보존한다. `launch { ... }` 결과를
@@ -582,7 +582,7 @@ ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| re
   explicit elector overload는 기존 Application scope만 사용한다. `CancellationException`
   재전파와 일반 exception의 log-and-continue, cycle delay는 변경하지 않는다.
 
-- [ ] **Step 3: scheduler와 plugin 기존 회귀를 GREEN으로 실행한다.**
+- [x] **Step 3: scheduler와 plugin 기존 회귀를 GREEN으로 실행한다.**
 
   Run: `./gradlew :bluetape4k-leader-ktor:test --tests '*ApplicationExtTest' --tests '*LeaderElectionManagementRouteTest' --tests '*LeaderElectionPluginTest' --no-daemon --no-build-cache`
 
@@ -590,7 +590,7 @@ ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| re
   테스트가 PASS한다. action count race가 있으면 polling timeout을 늘리지 말고 Job
   completion과 registry report를 assertion에 사용한다.
 
-- [ ] **Step 4: KTOR-01 lifecycle 문서를 갱신하고 child commit을 만든다.**
+- [x] **Step 4: KTOR-01 lifecycle 문서를 갱신하고 child commit을 만든다.**
 
   `leader-ktor/README.md`와 `.ko.md`에는 `leaderScheduled`가 plugin 설치 시
   application-owned Job으로 취소되며 caller-owned elector/backend는 닫지 않는다는
@@ -614,17 +614,23 @@ ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| re
 
 ### Task 4: KTOR-01 exact-head 증거와 child handoff
 
+**KTOR-01 실행 증거 (2026-08-26):** registry/plugin/scheduler 구현과 문서 갱신을
+`660fc83b52dfb18a39b80f911da1c017ca3b845f`에 고정했다. `leader-ktor` 전체 test는
+45개 PASS했고, `compileKotlin`, `compileTestKotlin`, `jar` 재시도, Korean term audit
+(`findings=[]`), `git diff --check`를 통과했다. 최초 `jar` 실행은 Kotlin Gradle plugin
+cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는 PASS했다.
+
 **Files:**
 - Modify: `docs/superpowers/plans/2026-08-26-issue-701-ktor-lifecycle-management-plan.md` (실행 시 체크박스와 evidence만 갱신)
 - Read-only: GitHub issue #541, local branch/worktree metadata
 
-- [ ] **Step 1: KTOR-01 검증 명령 전체를 순서대로 실행한다.**
+- [x] **Step 1: KTOR-01 검증 명령 전체를 순서대로 실행한다.**
 
   위 공통 명령 6개를 KTOR-01 worktree에서 실행하고, Redisson/Testcontainers
   scheduler 회귀가 있으면 별도 순차 실행한다. 실패한 명령은 통과한 것으로 표시하지
   않고 로그 원인과 재실행 결과를 기록한다.
 
-- [ ] **Step 2: public descriptor와 docs inventory를 확인한다.**
+- [x] **Step 2: public descriptor와 docs inventory를 확인한다.**
 
   `jar tf`와 `javap`로 `LeaderElectionPluginConfig`, error context/code,
   `LeaderRouteGuardConfig`/authority enum, `LeaderRouteGuardKt`의
@@ -636,7 +642,15 @@ ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| re
   mismatch를 고치거나 명시적으로 기록하기 전에는 PR body에 완료로 주장하지
   않는다.
 
-- [ ] **Step 3: exact head를 기록하고 다음 child base를 준비한다.**
+  KTOR-01 scope에서 `leader-ktor/build/libs/bluetape4k-leader-ktor-1.0.0.jar`의
+  `LeaderElectionPluginConfig`, `ApplicationExtKt`, plugin class와 resource registry
+  entries를 `jar tf`/`javap`로 확인했다. `docs/manual/manifest.yaml`은 현재
+  `releaseRef=0.5.0`, `releaseCommit=721a9a3808f67489d2bdb8177734325981c24977`로
+  pinned 상태이며 이 train에서 임의로 승격하지 않는다. KTOR-02~04가 추가하는
+  error/guard/event-stream descriptor와 최종 release inventory는 후속 full-train
+  Task 18에서 다시 검증한다.
+
+- [x] **Step 3: exact head를 기록하고 다음 child base를 준비한다.**
 
   ```bash
   git status --short
