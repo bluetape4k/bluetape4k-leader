@@ -83,7 +83,8 @@ Epic #701의 lifecycle, 오류, route guard, event stream 계약을 고정한다
 internal interface LeaderElectionResourceRegistry : AutoCloseable {
     fun register(resource: AutoCloseable): AutoCloseable
     fun register(job: Job): AutoCloseable
-    override fun close() // idempotent, reverse registration order
+    override fun close() // idempotent claim/schedule, reverse registration order
+    suspend fun awaitClosed(): LeaderElectionShutdownReport
 }
 ```
 
@@ -92,10 +93,16 @@ internal interface LeaderElectionResourceRegistry : AutoCloseable {
 - `register`와 `close`는 같은 atomic state 경계에서 동작한다. stop 경합에서
   먼저 등록된 resource는 역순으로 정리하고, stop 이후 등록된 resource는
   즉시 닫는다.
-- `close()`는 atomic state로 한 번만 본문을 실행하고, 각 close 실패를
-  기록한 뒤 나머지 resource를 계속 정리한다. `Job`은 먼저 cancel하고
-  bounded timeout 안에서 join을 시도하며 timeout과 실패 수를 shutdown
-  관찰 로그에 남긴다.
+- `close()`는 atomic state로 한 번만 cleanup을 claim하고 reverse-order entry를
+  drain한다. lock을 놓은 뒤 `Job.cancel()`을 즉시 실행하고 user resource
+  close/cancel/join은 모두 lock 밖에서 수행한다. 이후
+  `SupervisorJob + Dispatchers.IO.limitedParallelism(1)` registry-owned cleanup
+  scope에 실제 작업을 예약한다. report를 완료한 뒤 cleanup scope를 닫아
+  stop 이후 dispatcher가 남지 않게 한다. `ApplicationStopped` callback의
+  dispatcher에서 `runBlocking`/`join`을 직접 실행하지 않는다. `awaitClosed()`가
+  그 작업의 완료를 기다리며, 각 `Job`은 먼저 cancel한 뒤 유한 timeout 안에서
+  join을 시도한다. timeout·실패 수와 안정적인 resource kind를 shutdown 관찰
+  로그와 report에 남긴다.
 - `leaderScheduled`가 plugin 설정을 통해 실행될 때 반환한 `Job`을 registry에
   등록한다. plugin이 설치되지 않은 명시적 elector 호출은 기존 Application
   scope cancellation만 사용한다.
@@ -124,7 +131,9 @@ KTOR-02는 machine-readable `LeaderElectionErrorCode`와 HTTP status를
 
 `lockName`은 진단에 필요할 때만 opt-in으로 추가하며 기본 응답에는 포함하지
 않는다. backend exception class, message, endpoint, credential, leader
-identity는 응답에 복사하지 않고 application log에 원인과 함께 남긴다.
+identity는 응답에 복사하지 않는다. 로그에는 raw exception/message를 직접
+기록하지 않고 error code, stable resource kind, sanitized cause type 같은
+allow-list 구조화 필드만 남긴다.
 
 기본 매핑은 다음과 같다.
 
@@ -136,6 +145,7 @@ identity는 응답에 복사하지 않고 application log에 원인과 함께 �
 | `BACKEND_UNAVAILABLE` | state/management 조회 backend 실패 | 503 |
 | `CONFIGURATION` | plugin 또는 optional integration 설정 오류 | 500 |
 | `INTERNAL` | allow-list 밖의 처리 오류 | 500 |
+| `INVALID_CURSOR` | SSE/WebSocket cursor 형식 위반 | 400 |
 
 `StatusPages` adapter는 명시적으로 설치할 때만 활성화한다. `StatusPages`가
 없거나 `ContentNegotiation` converter가 없으면 route가
@@ -186,8 +196,9 @@ KTOR-03은 Ktor public `createRouteScopedPlugin` 기반의 `leaderGuard`와
   downstream 실행을 `try/finally`의 idempotent `release()`로 감싼다.
 
 인증과의 순서는 `authenticate { leaderGuard(...) { ... } }`처럼 guard를
-인증된 route 안에 중첩하는 계약으로 고정한다. guard는 Ktor route-scoped
-`onCall` hook에서 동작하며, 미인증·권한 없음 요청에서는 state provider를
+인증된 route 안에 중첩하는 계약으로 고정한다. guard는 Ktor 3.5.2 public
+`AuthenticationChecked` hook에서 동작한다. 인증 전 `onCall`/`Plugins` phase는
+사용하지 않으며, 미인증·권한 없음 요청에서는 state provider나 lease acquirer를
 호출하지 않는다. 이 순서와 state 조회 0회 보장은 test-host 회귀 테스트로
 검증한다.
 
@@ -200,28 +211,35 @@ KTOR-04는 `leaderElection is LeaderElectionEventPublisher`인 경우에만
 - 이벤트마다 monotonic sequence를 부여하고 고정 크기 ring buffer에 저장한다.
   replay capacity는 `0..1024` 범위를 검증하며 unbounded collection을 허용하지 않는다.
 - 새 연결은 lock filter를 검증한 뒤 ring buffer에 저장된 최신 이벤트 목록을 먼저 받고, 이후
-  hub의 live flow를 받는다. append·sequence 할당·replay/live handoff는 하나의
-  동기화 경계에서 수행해 gap과 duplicate를 방지한다. hub와 연결별 buffer
-  모두 bounded 정책을 사용하고 느린 연결은 오래된 이벤트를 버릴 수 있다.
-  SSE는 `Last-Event-ID`, WebSocket은 `afterSequence` query를 지원하며 보존
-  범위를 벗어난 cursor에는 `replay_gap` control event를 보낸다. replay는
-  bounded best-effort이며 durable delivery 또는 exactly-once를 약속하지
+  subscriber별 bounded channel을 받는다. append·sequence 할당·subscriber 등록·replay
+  enqueue·live fan-out은 하나의 동기화 경계에서 수행해 gap과 duplicate를 방지한다.
+  `MutableSharedFlow` 구독 시점에 의존하지 않으며 upstream collector-ready barrier를
+  둔다. hub와 연결별 buffer 모두 bounded 정책을 사용하고 느린 연결은 오래된 이벤트를
+  버릴 수 있다. 총 연결 수는 `eventStreamMaxConnections` admission limit로 제한한다.
+  SSE는 `Last-Event-ID`, WebSocket은 `afterSequence` query를 지원하며 보존 범위를
+  벗어난 cursor에는 `replay_gap` control event를 보낸다. cursor는 non-negative
+  decimal 단일 값만 허용하고 malformed/negative/overflow/duplicate는
+  `INVALID_CURSOR` 400으로 거부한다. 미래 cursor는 replay 없이 이후 live만 받는다.
+  replay는 bounded best-effort이며 durable delivery 또는 exactly-once를 약속하지
   않는다.
 - SSE route와 WebSocket route는 기본 비활성화다. 명시적으로 켠 경우에도
   소비자가 각각 `install(SSE)` 또는 `install(WebSockets)`를 제공해야 하며,
-  누락 시 startup/configuration error를 명확히 낸다.
+  누락 시 startup/configuration error를 명확히 낸다. route는 plugin이 application
+  root에 자동 등록하지 않고 caller가 `authenticate { leaderElectionEventStream() }`
+  처럼 인증·인가 경계 내부에서 registrar를 호출해야 한다. enabled flag인데
+  registrar가 없거나 registrar가 두 번 호출되면 startup/configuration error다.
 - SSE는 `ServerSSESession` scope에서 collector와 heartbeat job을 실행하고
   `finally`에서 close한다. WebSocket은 session scope에서 같은 정리 규칙을
   사용하고 send 실패/peer disconnect를 cancellation으로 처리한다.
 - heartbeat는 `event=heartbeat`의 작은 control payload로 보내며, Ktor
   WebSocket ping 설정과 독립적으로 동작한다. heartbeat·replay·filter는
   connection별 설정 상한을 따른다.
-- event JSON은 기본적으로 `type`, `sequence`, `lockName`만 사용하고 기존
-  `LeaderJsonSupport`의 escaping 규칙을 따른다. `leaderId`와 `leaseExpiry`는
-  `eventStreamExposeLeaderMetadata=true`일 때만 추가한다. `LeaderLease`
-  전체를 직렬화하지 않는다.
-- 기본 event route는 authentication/network boundary가 caller 책임임을
-  문서화한다. all-lock stream은 별도 opt-in 없이는 허용하지 않는다.
+- event JSON은 기본적으로 `type`, `sequence`만 사용하고 기존
+  `LeaderJsonSupport`의 escaping 규칙을 따른다. `lockName`은
+  `eventStreamExposeLockName=true`일 때만 추가한다. `leaderId`와 `leaseExpiry`는
+  `eventStreamExposeLeaderMetadata=true`일 때만 추가한다. `LeaderLease` 전체와
+  backend address는 직렬화하지 않는다. all-lock stream은
+  `eventStreamExposeLockName=true`를 함께 명시해야 한다.
 
 공개 설정 이름과 경로는 기존 `LeaderElectionPluginConfig` 명명 규칙에 맞춰
 다음으로 고정한다.
@@ -232,8 +250,10 @@ eventStreamRoutePath = "/management/leaderElection/events"
 eventStreamSseEnabled = true
 eventStreamWebSocketEnabled = false
 eventStreamAllLocksEnabled = false
+eventStreamExposeLockName = false
 eventStreamExposeLeaderMetadata = false
 eventStreamReplayCapacity = 32
+eventStreamMaxConnections = 128
 eventStreamHeartbeat = 15s
 ```
 
@@ -243,8 +263,10 @@ eventStreamHeartbeat = 15s
 `eventStreamAllLocksEnabled=false`일 때는 이 parameter가 필수다. all-lock
 stream은 별도 opt-in에서만 허용한다. `eventStreamRouteEnabled=true`인데
 두 transport가 모두 꺼져 있으면 configuration error로 시작을 거부한다.
-`eventStreamReplayCapacity`는 `0..1024`, `eventStreamHeartbeat`는 유한한
-양수로 검증하고, 연결별 send buffer에도 같은 bounded 원칙을 적용한다.
+`eventStreamReplayCapacity`는 `0..1024`, `eventStreamMaxConnections`는
+`1..1024`, `eventStreamHeartbeat`는 유한한 양수로 검증하고, 연결별 send buffer에도
+같은 bounded 원칙을 적용한다. replay capacity 0은 replay를 끄고 live만 허용하며,
+유효한 cursor도 `replay_gap` 없이 live-only로 처리한다.
 
 `leaderGuard`의 기본 DSL과 공개 설정은 다음 의미를 고정한다.
 
@@ -293,7 +315,9 @@ cancellation 후 release한다.
   않고 재전파한다. stream disconnect와 application stop 모두에서 같은
   원칙을 지킨다.
 - backend/state 오류는 응답에 원인을 노출하지 않고 stable code/status로
-  정규화한다. 원래 exception은 log와 테스트 assertion에서 보존한다.
+  정규화한다. 원래 exception의 raw message와 stack은 log에 복사하지 않고
+  sanitized cause type과 code만 구조화해 기록하며 테스트 assertion에서는
+  원래 cancellation/failure 우선순위를 보존한다.
 - replay buffer overflow는 오래된 event를 제거하는 bounded 정책으로
   처리한다. persistent replay가 필요하면 별도 durable event issue로
   분리한다.
@@ -402,8 +426,9 @@ release inventory/validator와 `export_manifest.rb --check`는 pinned
 ## 11. Six-lens 검토 결과
 
 설계 초안은 성능, 안정성, 보안, 운영, 개발자/API, 사용자/호출자 관점으로
-독립 검토하고 중복을 합쳤다. 다음 P1 항목은 본문에 반영했으며, 미해결 P0/P1은
-없다.
+독립 검토하고 중복을 합쳤다. subscriber 시작 경계, 연결 수 상한, 인증된
+registrar 소유권, malformed cursor, stop callback 비차단, manifest/base drift와
+재시도 은닉을 계획 단계에서 보완했으며, 미해결 P0/P1은 없다.
 
 | 관점 | 확인한 위험 | 반영한 위치 |
 |---|---|---|
@@ -415,3 +440,7 @@ release inventory/validator와 `export_manifest.rb --check`는 pinned
 | 보안·호출자 | 인증보다 guard가 먼저 실행될 수 있음 | §4.3 `authenticate { leaderGuard { ... } }` 순서와 401/403 test |
 | API·호출자 | 정상 contention과 HTTP `LEADER_LOCKED` 경계가 불명확함 | §4.2 surface별 mapping matrix와 typed override |
 | 운영 | stacked descendant rollback과 공개 API 검증이 부족함 | §6 descendant-first rollback, §7 jar/`javap`/manual 검증 |
+| 성능·안정성 | subscriber가 시작되기 전 replay/live handoff가 유실되거나 연결 수가 무제한이 될 수 있음 | §4.4 collector-start barrier, 같은 mutex의 direct channel handoff, bounded subscriber와 `eventStreamMaxConnections` |
+| 보안·호출자 | enabled flag가 인증 경계 밖 root route를 자동으로 열 수 있음 | §4.4 caller-owned authenticated registrar와 startup exactly-one gate |
+| API·보안 | malformed/negative/overflow/duplicate cursor와 공개 HTTP status가 불명확함 | §4.2 `INVALID_CURSOR` 400, 단일 decimal parser와 status allow-list |
+| 운영·안정성 | stop callback에서 동기 join, 관측 불가능한 timeout, stale manifest/base 또는 retry-only green이 완료로 오인될 수 있음 | §4.1 dedicated cleanup dispatcher/report, §7 pinned manifest/live-base 재확인과 각 CI attempt·terminal job/Kover artifact 기록 |
