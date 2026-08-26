@@ -68,6 +68,13 @@ MONGO_URL=mongodb://localhost:27017 ./gradlew :examples:webhook-poller:run
 
 가짜 이벤트 10건을 collection 에 insert 후 폴러 3개를 동시 실행. 각 이벤트가 정확히 1번만 처리됨을 검증.
 
+### Event ID 형식
+
+데모는 `evt-<sequence>-<UUID v4>` 형식의 event ID를 사용한다. sequence는 예제
+출력을 읽기 쉽게 만들고, `Uuid.V4.nextUUID()`는 매 실행마다 새로운 correlation·dedup
+suffix를 제공한다. 데모는 insert 전에 collection을 비우므로 매번 새로운 suffix를
+생성해도 unique `eventId` index와 충돌하지 않으며 MongoDB document field는 유지된다.
+
 ## Configuration Options
 
 | 파라미터 | 기본값 | 설명 |

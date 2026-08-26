@@ -68,6 +68,14 @@ MONGO_URL=mongodb://localhost:27017 ./gradlew :examples:webhook-poller:run
 
 Inserts 10 fake events into a fresh collection, then runs 3 pollers concurrently. Expected: each event handled exactly once, no duplicates.
 
+### Event ID format
+
+The demo uses `evt-<sequence>-<UUID v4>` event IDs. The sequence keeps the sample
+output readable, while `Uuid.V4.nextUUID()` supplies a fresh correlation and
+deduplication suffix on every run. The demo clears its collections before
+inserting events, and fresh suffixes keep reruns compatible with the unique
+`eventId` index without changing the MongoDB document field.
+
 ## Configuration Options
 
 | Parameter | Default | Description |
