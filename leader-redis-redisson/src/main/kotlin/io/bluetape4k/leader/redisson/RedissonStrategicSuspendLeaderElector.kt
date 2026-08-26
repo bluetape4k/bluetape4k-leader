@@ -46,6 +46,7 @@ class RedissonStrategicSuspendLeaderElector(
     override suspend fun updateResult(lockName: String, nodeId: String, result: CandidateResult) =
         withContext(Dispatchers.IO) { registry.updateResult(lockName, nodeId, result) }
 
+    @Suppress("ReturnCount", "TooGenericExceptionCaught", "ThrowsCount")
     override suspend fun <T> runIfLeader(
         lockName: String,
         strategy: ElectionStrategy,
@@ -57,9 +58,9 @@ class RedissonStrategicSuspendLeaderElector(
             listCandidates(lockName)
         } catch (e: CancellationException) {
             throw e
-        } catch (e: Throwable) {
-            log.warn(e) { "[$lockName] 후보 목록 조회 실패 — 선출 skip" }
-            return null
+        } catch (e: Exception) {
+            log.warn(e) { "[$lockName] 후보 목록 조회 실패 — 선출 중단" }
+            throw e
         }
         val result = strategy.elect(candidates)
         val winner = result.winner ?: return null

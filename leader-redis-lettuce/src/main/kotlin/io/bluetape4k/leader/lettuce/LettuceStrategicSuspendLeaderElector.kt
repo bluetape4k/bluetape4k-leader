@@ -52,6 +52,7 @@ class LettuceStrategicSuspendLeaderElector(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    @Suppress("ReturnCount", "TooGenericExceptionCaught", "ThrowsCount")
     override suspend fun <T> runIfLeader(
         lockName: String,
         strategy: ElectionStrategy,
@@ -64,9 +65,9 @@ class LettuceStrategicSuspendLeaderElector(
             listCandidates(lockName)
         } catch (e: CancellationException) {
             throw e
-        } catch (e: Throwable) {
-            log.warn(e) { "[$lockName] 후보 목록 조회 실패 — 선출 skip" }
-            return null
+        } catch (e: Exception) {
+            log.warn(e) { "[$lockName] 후보 목록 조회 실패 — 선출 중단" }
+            throw e
         }
         val result = strategy.elect(candidates)
         val winner = result.winner ?: return null

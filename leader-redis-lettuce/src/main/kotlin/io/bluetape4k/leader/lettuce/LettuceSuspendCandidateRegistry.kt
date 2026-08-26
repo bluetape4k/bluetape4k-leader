@@ -5,8 +5,6 @@ package io.bluetape4k.leader.lettuce
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.validateLockName
-import io.bluetape4k.logging.KLogging
-import io.bluetape4k.logging.warn
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
@@ -31,7 +29,7 @@ internal class LettuceSuspendCandidateRegistry(
         DEFAULT_KEY_PREFIX,
     )
 
-    companion object: KLogging() {
+    companion object {
         internal const val DEFAULT_KEY_PREFIX = "leader:strategy:candidates"
         internal const val GROUP_KEY_PREFIX = "leader:strategy:group-candidates:lettuce:v1"
     }
@@ -90,9 +88,7 @@ internal class LettuceSuspendCandidateRegistry(
                     kv.key.removePrefix("${indexKey(lockName)}:").takeIf { it.isNotBlank() }?.let(staleNodeIds::add)
                     return@mapNotNull null
                 }
-                runCatching { LettuceCandidateInfoCodec.decode(kv.getValue()) }
-                    .onFailure { log.warn(it) { "[$lockName] CandidateInfo 디코딩 실패 — 항목 skip: key=${kv.key}" } }
-                    .getOrNull()
+                LettuceCandidateInfoCodec.decode(kv.getValue())
             }
             .toList()
             .also {
