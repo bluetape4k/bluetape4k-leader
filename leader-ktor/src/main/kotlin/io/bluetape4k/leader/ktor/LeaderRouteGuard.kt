@@ -145,7 +145,7 @@ private val LeaderRouteGuardPlugin = createRouteScopedPlugin(
         val call = context.call
         if (call.isHandled) return@on
 
-        val lease: SuspendLeaderLeaseHandle? = call.attributes.getOrNull(LeaderLeaseHandleKey)
+        val lease: SuspendLeaderLeaseHandle? = call.attributes.getOrNull(leaderLeaseHandleKey)
         if (lease == null) {
             context.proceed()
             return@on
@@ -157,7 +157,7 @@ private val LeaderRouteGuardPlugin = createRouteScopedPlugin(
     }
 }
 
-private val LeaderLeaseHandleKey = io.ktor.util.AttributeKey<SuspendLeaderLeaseHandle>(
+private val leaderLeaseHandleKey = io.ktor.util.AttributeKey<SuspendLeaderLeaseHandle>(
     "io.bluetape4k.leader.ktor.LeaderRouteGuardLeaseHandle",
 )
 
@@ -246,7 +246,7 @@ private suspend fun acquireLease(
             config = config,
         )
     } else {
-        call.attributes.put(LeaderLeaseHandleKey, lease)
+        call.attributes.put(leaderLeaseHandleKey, lease)
     }
 }
 

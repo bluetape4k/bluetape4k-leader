@@ -11,13 +11,23 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.ApplicationCallPipeline
+import io.ktor.server.application.call
 import io.ktor.server.application.install
+import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.UserIdPrincipal
+import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.basic
 import io.ktor.server.response.respondText
+import io.ktor.server.response.respond
 import io.ktor.server.routing.get
+import io.ktor.server.routing.intercept
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Test
@@ -26,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import java.util.Base64
 
 class LeaderRouteGuardTest {
 
@@ -78,6 +89,7 @@ class LeaderRouteGuardTest {
             val response = client.get("/")
             response shouldHaveStatus HttpStatusCode.ServiceUnavailable
             response.bodyAsText() shouldContain "\"code\":\"NOT_LEADER\""
+            response.bodyAsText().contains("\"lockName\"") shouldBeEqualTo false
         }
 
         downstream.get() shouldBeEqualTo 0
@@ -128,6 +140,21 @@ class LeaderRouteGuardTest {
             response.bodyAsText() shouldContain "\"code\":\"BACKEND_UNAVAILABLE\""
             response.bodyAsText().contains("backend-secret") shouldBeEqualTo false
         }
+    }
+
+    @Test
+    fun `STATE rejection status와 metadata 노출은 명시적으로 설정할 수 있다`() = runSuspendIO {
+        val response = runGuardRequest(
+            elector = FakeSuspendLeaderElector(),
+            guard = {
+                rejectionStatus = HttpStatusCode.Locked
+                exposeMetadata = true
+            },
+        )
+
+        response shouldHaveStatus HttpStatusCode.Locked
+        response.bodyAsText() shouldContain "\"code\":\"NOT_LEADER\""
+        response.bodyAsText() shouldContain "\"lockName\":\"job\""
     }
 
     @Test
@@ -336,6 +363,132 @@ class LeaderRouteGuardTest {
         }
     }
 
+    @Test
+    fun `인증 실패 요청은 state provider를 호출하지 않는다`() = runSuspendIO {
+        val stateReads = AtomicInteger(0)
+
+        testApplication {
+            application {
+                install(Authentication) {
+                    basic("test") {
+                        validate { credentials -> UserIdPrincipal(credentials.name) }
+                    }
+                }
+                install(LeaderElectionPlugin) {
+                    leaderElection = FakeSuspendLeaderElector(stateReads = stateReads)
+                }
+                routing {
+                    authenticate("test") {
+                        leaderGuard("job") {
+                            get { call.respondText("ok") }
+                        }
+                    }
+                }
+            }
+            startApplication()
+
+            client.get("/") shouldHaveStatus HttpStatusCode.Unauthorized
+        }
+
+        stateReads.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `인증된 Empty 요청은 guard rejection을 반환하고 state를 한 번 읽는다`() = runSuspendIO {
+        val stateReads = AtomicInteger(0)
+
+        testApplication {
+            application {
+                install(Authentication) {
+                    basic("test") {
+                        validate { credentials -> UserIdPrincipal(credentials.name) }
+                    }
+                }
+                install(LeaderElectionPlugin) {
+                    leaderElection = FakeSuspendLeaderElector(stateReads = stateReads)
+                }
+                routing {
+                    authenticate("test") {
+                        leaderGuard("job") {
+                            get { call.respondText("ok") }
+                        }
+                    }
+                }
+            }
+            startApplication()
+
+            val response = client.get("/") { testCredentials() }
+            response shouldHaveStatus HttpStatusCode.ServiceUnavailable
+            response.bodyAsText() shouldContain "\"code\":\"NOT_LEADER\""
+        }
+
+        stateReads.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `인증된 Occupied 요청은 downstream을 실행한다`() = runSuspendIO {
+        val downstream = AtomicInteger(0)
+
+        testApplication {
+            application {
+                install(Authentication) {
+                    basic("test") {
+                        validate { credentials -> UserIdPrincipal(credentials.name) }
+                    }
+                }
+                install(LeaderElectionPlugin) {
+                    leaderElection = FakeSuspendLeaderElector(
+                        stateValue = LeaderState.occupied("job", LeaderLease("test-node")),
+                    )
+                }
+                routing {
+                    authenticate("test") {
+                        leaderGuard("job") {
+                            get {
+                                downstream.incrementAndGet()
+                                call.respondText("ok")
+                            }
+                        }
+                    }
+                }
+            }
+            startApplication()
+
+            val response = client.get("/") { testCredentials() }
+            response shouldHaveStatus HttpStatusCode.OK
+            response.bodyAsText() shouldBeEqualTo "ok"
+        }
+
+        downstream.get() shouldBeEqualTo 1
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `상위 authorization rejection은 guard보다 먼저 처리되고 state를 호출하지 않는다`() = runSuspendIO {
+        val stateReads = AtomicInteger(0)
+
+        testApplication {
+            application {
+                install(LeaderElectionPlugin) {
+                    leaderElection = FakeSuspendLeaderElector(stateReads = stateReads)
+                }
+                routing {
+                    intercept(ApplicationCallPipeline.Plugins) {
+                        call.respond(HttpStatusCode.Forbidden)
+                    }
+                    leaderGuard("job") {
+                        get { call.respondText("unreachable") }
+                    }
+                }
+            }
+            startApplication()
+
+            client.get("/") shouldHaveStatus HttpStatusCode.Forbidden
+        }
+
+        stateReads.get() shouldBeEqualTo 0
+    }
+
     private suspend fun runGuardRequest(
         elector: SuspendLeaderElector,
         guard: LeaderRouteGuardConfig.() -> Unit,
@@ -355,6 +508,11 @@ class LeaderRouteGuardTest {
             result = client.get("/")
         }
         return result
+    }
+
+    private fun io.ktor.client.request.HttpRequestBuilder.testCredentials() {
+        val encoded = Base64.getEncoder().encodeToString("admin:secret".toByteArray())
+        header(HttpHeaders.Authorization, "Basic $encoded")
     }
 
     private class UnavailableLeaseElector :
