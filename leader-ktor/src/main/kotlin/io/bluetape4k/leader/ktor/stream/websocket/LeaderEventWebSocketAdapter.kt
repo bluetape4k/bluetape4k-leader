@@ -13,6 +13,8 @@ import io.ktor.server.websocket.webSocket
 import io.ktor.util.AttributeKey
 import io.ktor.websocket.Frame
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -42,6 +44,11 @@ public object LeaderEventWebSocketAdapter {
 
         val streamRoute = route.webSocket(webSocketPath(config.eventStreamRoutePath)) {
             val connection = call.attributes.getOrNull(connectionKey) ?: return@webSocket
+            val handlerJob = kotlin.coroutines.coroutineContext[Job] ?: return@webSocket
+            val disconnectJob = launch {
+                closeReason.await()
+                handlerJob.cancel()
+            }
             val heartbeatJob = launch {
                 while (isActive) {
                     kotlinx.coroutines.delay(config.eventStreamHeartbeat)
@@ -54,6 +61,7 @@ public object LeaderEventWebSocketAdapter {
                 }
             } finally {
                 withContext(NonCancellable) {
+                    disconnectJob.cancelAndJoin()
                     heartbeatJob.cancelAndJoin()
                     hub.releaseConnection(connection)
                 }

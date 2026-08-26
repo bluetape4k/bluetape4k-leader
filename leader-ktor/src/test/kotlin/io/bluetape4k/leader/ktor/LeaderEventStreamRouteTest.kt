@@ -14,6 +14,8 @@ import io.ktor.client.request.header
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
+import io.ktor.client.plugins.websocket.WebSockets as ClientWebSockets
+import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.install
@@ -27,7 +29,11 @@ import io.ktor.server.sse.SSE
 import io.ktor.server.testing.testApplication
 import io.ktor.server.websocket.WebSockets
 import io.ktor.utils.io.readLine
+import io.ktor.websocket.CloseReason
+import io.ktor.websocket.Frame
+import io.ktor.websocket.close
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -35,6 +41,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class LeaderEventStreamRouteTest {
@@ -145,6 +152,40 @@ class LeaderEventStreamRouteTest {
     }
 
     @Test
+    fun `SSE heartbeat와 peer disconnect는 connection lifecycle을 정리한다`() = runSuspendIO {
+        val publisher = PublishingElector()
+        lateinit var hub: LeaderEventStreamHub
+
+        testApplication {
+            application {
+                install(SSE)
+                install(LeaderElectionPlugin) {
+                    leaderElection = publisher
+                    eventStreamRouteEnabled = true
+                    eventStreamReplayCapacity = 0
+                    eventStreamHeartbeat = 25.milliseconds
+                }
+                routing { leaderElectionEventStream() }
+                hub = plugin(LeaderEventStreamRuntimePlugin).hub
+            }
+            startApplication()
+
+            val responseJob = async {
+                client.prepareGet("/management/leaderElection/events?lockName=job").execute { received ->
+                    received.status shouldBeEqualTo HttpStatusCode.OK
+                    readSseFrame(received.bodyAsChannel())
+                }
+            }
+            hub.awaitSubscriberCount(1)
+            val frame = withTimeout(5.seconds) { responseJob.await() }
+            frame shouldContain "event: heartbeat"
+            withTimeout(5.seconds) {
+                while (hub.subscriberCount() != 0) yield()
+            }
+        }
+    }
+
+    @Test
     fun `SSE는 Last-Event-ID 이후 replay와 stale cursor gap을 전달한다`() = runSuspendIO {
         val publisher = PublishingElector()
         lateinit var hub: LeaderEventStreamHub
@@ -163,6 +204,7 @@ class LeaderEventStreamRouteTest {
             startApplication()
             publisher.emit(LeaderElectionEvent.Skipped("job"))
             publisher.emit(LeaderElectionEvent.Revoked("job"))
+            awaitReplaySequence(hub, 2L)
 
             val response = client.prepareGet("/management/leaderElection/events?lockName=job") {
                 header("Last-Event-ID", "1")
@@ -252,7 +294,66 @@ class LeaderEventStreamRouteTest {
             invalidCursor.status shouldBeEqualTo HttpStatusCode.BadRequest
             invalidCursor.bodyAsText() shouldContain "\"code\":\"INVALID_CURSOR\""
 
+            val duplicateCursor = client.prepareGet(
+                "/management/leaderElection/events?lockName=job&afterSequence=1",
+            ) {
+                header("Last-Event-ID", "1")
+            }.execute { received ->
+                received.status shouldBeEqualTo HttpStatusCode.BadRequest
+                received.bodyAsText()
+            }
+            duplicateCursor shouldContain "\"code\":\"INVALID_CURSOR\""
+
             hub.subscriberCount() shouldBeEqualTo 0
+        }
+    }
+
+    @Test
+    fun `SSE admission 상한과 disconnect 이후 permit 반환을 보장한다`() = runSuspendIO {
+        val publisher = PublishingElector()
+        lateinit var hub: LeaderEventStreamHub
+
+        testApplication {
+            application {
+                install(SSE)
+                install(LeaderElectionPlugin) {
+                    leaderElection = publisher
+                    eventStreamRouteEnabled = true
+                    eventStreamMaxConnections = 1
+                    eventStreamHeartbeat = 5.seconds
+                }
+                routing { leaderElectionEventStream() }
+                hub = plugin(LeaderEventStreamRuntimePlugin).hub
+            }
+            startApplication()
+
+            val first = async {
+                client.prepareGet("/management/leaderElection/events?lockName=job").execute { received ->
+                    received.status shouldBeEqualTo HttpStatusCode.OK
+                    received.bodyAsChannel().readLine()
+                }
+            }
+            hub.awaitSubscriberCount(1)
+
+            val rejected = client.get("/management/leaderElection/events?lockName=job")
+            rejected.status shouldBeEqualTo HttpStatusCode.ServiceUnavailable
+            rejected.bodyAsText() shouldContain "\"code\":\"BACKEND_UNAVAILABLE\""
+
+            first.cancelAndJoin()
+            publisher.emit(LeaderElectionEvent.Skipped("job"))
+            withTimeout(5.seconds) {
+                while (hub.subscriberCount() != 0) yield()
+            }
+
+            val second = async {
+                client.prepareGet("/management/leaderElection/events?lockName=job").execute { received ->
+                    received.status shouldBeEqualTo HttpStatusCode.OK
+                    readSseFrame(received.bodyAsChannel())
+                }
+            }
+            hub.awaitSubscriberCount(1)
+            publisher.emit(LeaderElectionEvent.Skipped("job"))
+            second.await() shouldContain "event: Skipped"
         }
     }
 
@@ -287,7 +388,7 @@ class LeaderEventStreamRouteTest {
     }
 
     @Test
-    fun `WebSocket adapter는 optional transport compile과 route registration을 지원한다`() = runSuspendIO {
+    fun `WebSocket는 handshake, filter, cursor replay gap, frame 전송과 disconnect cleanup을 지원한다`() = runSuspendIO {
         val publisher = PublishingElector()
         lateinit var hub: LeaderEventStreamHub
 
@@ -299,12 +400,42 @@ class LeaderEventStreamRouteTest {
                     eventStreamRouteEnabled = true
                     eventStreamSseEnabled = false
                     eventStreamWebSocketEnabled = true
+                    eventStreamExposeLockName = true
+                    eventStreamExposeLeaderMetadata = true
+                    eventStreamReplayCapacity = 2
+                    eventStreamHeartbeat = 5.seconds
                 }
                 routing { leaderElectionEventStream() }
                 hub = plugin(LeaderEventStreamRuntimePlugin).hub
             }
             startApplication()
-            hub.subscriberCount() shouldBeEqualTo 0
+
+            publisher.emit(LeaderElectionEvent.Skipped("old-1"))
+            publisher.emit(LeaderElectionEvent.Skipped("old-2"))
+            publisher.emit(LeaderElectionEvent.Skipped("old-3"))
+            awaitReplaySequence(hub, 3L)
+
+            val wsClient = createClient {
+                install(ClientWebSockets)
+            }
+            wsClient.webSocket("/management/leaderElection/events/ws?lockName=job&afterSequence=0") {
+                hub.awaitSubscriberCount(1)
+                val gap = withTimeout(5.seconds) { (incoming.receive() as Frame.Text).data.decodeToString() }
+                gap shouldBeEqualTo "{\"event\":\"replay_gap\",\"from\":1,\"to\":1}"
+
+                publisher.emit(LeaderElectionEvent.Skipped("other"))
+                publisher.emit(LeaderElectionEvent.Elected("job", leaderId = "node-ws"))
+                val event = withTimeout(5.seconds) { (incoming.receive() as Frame.Text).data.decodeToString() }
+                event shouldContain "\"sequence\":5"
+                event shouldContain "\"lockName\":\"job\""
+                event shouldContain "\"leaderId\":\"node-ws\""
+                close(CloseReason(CloseReason.Codes.NORMAL, "test"))
+            }
+            wsClient.close()
+            publisher.emit(LeaderElectionEvent.Skipped("job"))
+            withTimeout(5.seconds) {
+                while (hub.subscriberCount() != 0) yield()
+            }
         }
     }
 
@@ -338,6 +469,17 @@ class LeaderEventStreamRouteTest {
             lines += line
         }
         return lines.joinToString("\n")
+    }
+
+    private suspend fun awaitReplaySequence(hub: LeaderEventStreamHub, sequence: Long) {
+        withTimeout(5.seconds) {
+            while (hub.replay(afterSequence = null)
+                    .filterIsInstance<LeaderStreamItem.Event>()
+                    .none { it.sequence == sequence }
+            ) {
+                yield()
+            }
+        }
     }
 
     private fun basicAuth(username: String, password: String): String =

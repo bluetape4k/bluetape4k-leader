@@ -5,14 +5,18 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -43,6 +47,8 @@ class LeaderEventStreamHubTest {
         val publisher = FakePublisher()
         val hub = LeaderEventStreamHub(publisher, capacity = 8, scope = backgroundScope)
         hub.awaitStarted()
+        publisher.emit(LeaderElectionEvent.Skipped("job"))
+        runCurrent()
         val observed = mutableListOf<Long>()
         val collector = launch {
             hub.subscribe(lockName = "job", afterSequence = null)
@@ -52,9 +58,7 @@ class LeaderEventStreamHubTest {
         }
         hub.awaitSubscriberCount(1)
 
-        publisher.emit(LeaderElectionEvent.Skipped("job"))
-        publisher.emit(LeaderElectionEvent.Revoked("job"))
-        publisher.emit(LeaderElectionEvent.Skipped("job"))
+        repeat(4) { publisher.emit(LeaderElectionEvent.Skipped("job")) }
         collector.join()
 
         observed shouldBeEqualTo listOf(1L, 2L, 3L)
@@ -136,9 +140,7 @@ class LeaderEventStreamHubTest {
         hub.awaitStarted()
         val connection = hub.acquireConnection(lockName = "job", afterSequence = null)
 
-        publisher.emit(LeaderElectionEvent.Skipped("job"))
-        publisher.emit(LeaderElectionEvent.Revoked("job"))
-        publisher.emit(LeaderElectionEvent.Skipped("job"))
+        repeat(6) { publisher.emit(LeaderElectionEvent.Skipped("job")) }
         runCurrent()
 
         (hub.droppedItemCount > 0L).shouldBeTrue()
@@ -207,6 +209,22 @@ class LeaderEventStreamHubTest {
     }
 
     @Test
+    fun `close는 publisher collector cleanup 완료 뒤에만 closed를 완료한다`() = runTest {
+        val publisher = SlowClosingPublisher()
+        val hub = LeaderEventStreamHub(publisher, capacity = 2, scope = backgroundScope)
+        hub.awaitStarted()
+
+        hub.close()
+        publisher.cleanupStarted.await()
+        val completion = launch { hub.awaitClosed() }
+        runCurrent()
+        completion.isCompleted shouldBeEqualTo false
+
+        publisher.allowCleanup.complete(Unit)
+        completion.join()
+    }
+
+    @Test
     fun `cursor parser는 blank와 non negative decimal만 허용한다`() {
         parseLeaderEventStreamCursor(null) shouldBeEqualTo null
         parseLeaderEventStreamCursor("") shouldBeEqualTo null
@@ -223,6 +241,22 @@ class LeaderEventStreamHubTest {
 
         suspend fun emit(event: LeaderElectionEvent) {
             source.emit(event)
+        }
+    }
+
+    private class SlowClosingPublisher : LeaderElectionEventPublisher {
+        val cleanupStarted = CompletableDeferred<Unit>()
+        val allowCleanup = CompletableDeferred<Unit>()
+
+        override val events: Flow<LeaderElectionEvent> = flow {
+            try {
+                awaitCancellation()
+            } finally {
+                cleanupStarted.complete(Unit)
+                withContext(kotlinx.coroutines.NonCancellable) {
+                    allowCleanup.await()
+                }
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ package io.bluetape4k.leader.ktor.stream
 
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
+import io.bluetape4k.leader.ktor.LeaderElectionCloseAwaiter
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
@@ -11,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -85,7 +87,7 @@ internal class LeaderEventStreamHub(
     scope: CoroutineScope,
     private val maxConnections: Int = DEFAULT_MAX_CONNECTIONS,
     private val allLocksEnabled: Boolean = false,
-) : AutoCloseable {
+) : AutoCloseable, LeaderElectionCloseAwaiter {
 
     internal constructor(
         publisher: LeaderElectionEventPublisher,
@@ -266,7 +268,7 @@ internal class LeaderEventStreamHub(
     }
 
     /** close transaction이 완료될 때까지 기다리는 내부 lifecycle barrier입니다. */
-    internal suspend fun awaitClosed() {
+    override suspend fun awaitClosed() {
         closedCompletion.await()
     }
 
@@ -345,7 +347,7 @@ internal class LeaderEventStreamHub(
             current.forEach { it.close() }
             current
         }
-        collectorJob.cancel()
+        collectorJob.cancelAndJoin()
         if (!closedCompletion.isCompleted) closedCompletion.complete(Unit)
         closeScope.cancel()
     }
@@ -356,8 +358,9 @@ internal class LeaderEventStreamHub(
         subscriberWaiters.removeAll(satisfied.toSet())
     }
 
+    /** Replay gap과 등록 직후 첫 live event가 handoff에서 보존되도록 여유를 둡니다. */
     private val subscriberBufferCapacity: Int
-        get() = if (capacity == 0) 1 else capacity + 1
+        get() = if (capacity == 0) 1 else capacity + HANDOFF_RESERVE
 
     /** A channel and its once-only admission release state. */
     internal class LeaderEventStreamConnection internal constructor(
@@ -418,6 +421,7 @@ internal class LeaderEventStreamHub(
         const val MIN_CONNECTIONS: Int = 1
         const val MAX_CONNECTIONS: Int = 1024
         const val DEFAULT_MAX_CONNECTIONS: Int = 128
+        private const val HANDOFF_RESERVE: Int = 2
     }
 }
 

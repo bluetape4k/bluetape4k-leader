@@ -11,12 +11,14 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LeaderElectionResourceRegistryTest {
 
@@ -150,5 +152,66 @@ class LeaderElectionResourceRegistryTest {
         override fun close() {
             if (once.compareAndSet(false, true)) closed += label
         }
+    }
+
+    @Test
+    fun `비동기 resource는 실제 cleanup 완료 뒤에만 closed로 집계된다`() = runSuspendIO {
+        val closeStarted = CompletableDeferred<Unit>()
+        val allowCompletion = CompletableDeferred<Unit>()
+        val registry = LeaderElectionResourceRegistryImpl(jobJoinTimeout = 1.seconds)
+        val resource = object : AutoCloseable, LeaderElectionCloseAwaiter {
+            override fun close() {
+                closeStarted.complete(Unit)
+            }
+
+            override suspend fun awaitClosed() {
+                allowCompletion.await()
+            }
+        }
+        registry.register(resource)
+
+        registry.close()
+        closeStarted.await()
+        val report = CompletableDeferred<LeaderElectionShutdownReport>()
+        val waiter = launch { report.complete(registry.awaitClosed()) }
+        withTimeoutOrNull(50.milliseconds) { report.await() } shouldBeEqualTo null
+
+        allowCompletion.complete(Unit)
+        report.await() shouldBeEqualTo
+            LeaderElectionShutdownReport(
+                attempted = 1,
+                closed = 1,
+                failures = 0,
+                timedOutJobs = 0,
+                timedOutResources = 0,
+                failureKinds = emptyMap(),
+                timeoutKinds = emptyMap(),
+            )
+        waiter.cancelAndJoin()
+    }
+
+    @Test
+    fun `비동기 resource 완료 대기는 bounded timeout으로 집계된다`() = runSuspendIO {
+        val registry = LeaderElectionResourceRegistryImpl(jobJoinTimeout = 25.milliseconds)
+        val resource = object : AutoCloseable, LeaderElectionCloseAwaiter {
+            override fun close() = Unit
+
+            override suspend fun awaitClosed() {
+                awaitCancellation()
+            }
+        }
+        registry.register(resource)
+
+        registry.close()
+        registry.awaitClosed() shouldBeEqualTo
+            LeaderElectionShutdownReport(
+                attempted = 1,
+                closed = 0,
+                failures = 0,
+                timedOutJobs = 0,
+                timedOutResources = 1,
+                failureKinds = emptyMap(),
+                timeoutKinds = mapOf("resource" to 1),
+            )
     }
 }

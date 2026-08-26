@@ -103,19 +103,17 @@ val LeaderElectionPlugin = createApplicationPlugin(
         }
     }
 
-    on(MonitoringEvent(ApplicationStopped)) { application ->
+    on(MonitoringEvent(ApplicationStopped)) { _ ->
         resourceRegistry.observeShutdown { report ->
             LeaderElectionPluginInternals.log.info {
                 "LeaderElectionPlugin resource shutdown — " +
                     "attempted=${report.attempted}, closed=${report.closed}, " +
                     "failures=${report.failures}, timedOutJobs=${report.timedOutJobs}, " +
+                    "timedOutResources=${report.timedOutResources}, " +
                     "failureKinds=${report.failureKinds}, timeoutKinds=${report.timeoutKinds}"
             }
         }
         resourceRegistry.close()
-        LeaderElectionPluginInternals.log.info {
-            "LeaderElectionPlugin 종료 — application=${application.javaClass.simpleName}"
-        }
     }
 }
 
