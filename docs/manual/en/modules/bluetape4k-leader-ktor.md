@@ -35,23 +35,7 @@ dependencies {
 
 ## Core concepts {#concepts}
 
-The plugin resolves one `SuspendLeaderElector`; scheduled jobs run in an application-owned
-coroutine scope and stop on `ApplicationStopped`. Plugin-owned scheduler Jobs are registered
-for bounded cancellation and join, while the elector and backend client remain caller-owned.
-Normal lock contention returns `null` and skips only that iteration rather than failing the
-server.
-
-## Lifecycle and ownership {#lifecycle}
-
-Installing `LeaderElectionPlugin` creates an application-owned resource boundary. Each
-`leaderScheduled` Job is registered in that boundary. On `ApplicationStopped`, the registry
-marks itself closed, cancels registered Jobs immediately, and performs the bounded join on its
-own cleanup dispatcher without blocking the Ktor stop callback. Closing is idempotent and does
-not close the supplied `SuspendLeaderElector`, Redis/SQL/Mongo client, or another backend that
-the application owns.
-
-When `leaderScheduled` is called with an explicit elector and the plugin is not installed, the
-Job uses the normal Application scope and cancellation remains the caller's responsibility.
+The plugin resolves one `SuspendLeaderElector`; scheduled jobs run in application-owned coroutine scope and stop on shutdown. Contention skips the iteration rather than failing the server.
 
 ## Quick start {#quick-start}
 
@@ -70,9 +54,7 @@ Install the plugin for elector ownership, call `leaderScheduled` for periodic su
 
 ## Recommended patterns {#patterns}
 
-Install once, choose stable lock names, keep actions shorter than the lease or extend safely,
-and make `ApplicationStopped` cancellation part of the job contract. Keep backend client
-lifecycle in application code.
+Install once, choose stable lock names, keep actions shorter than the lease or extend safely, and make shutdown cancellation part of the job contract.
 
 ## Integrations {#integrations}
 
@@ -92,9 +74,7 @@ Measure scheduled attempts, elected runs, skips, failures, duration, and shutdow
 
 ## Testing {#testing}
 
-Use Ktor test application for plugin configuration and schedule lifecycle, plus backend
-integration tests for ownership. Verify deterministic `ApplicationStopped` cancellation during
-acquire and action, and preserve the normal contention-null contract.
+Use Ktor test application for plugin configuration and schedule lifecycle, plus backend integration tests for ownership. Verify shutdown during acquire and action.
 
 ## Workshops and learning path {#workshops}
 
