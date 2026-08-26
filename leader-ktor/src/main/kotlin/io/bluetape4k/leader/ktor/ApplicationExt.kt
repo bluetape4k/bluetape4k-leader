@@ -33,7 +33,7 @@ fun Application.leaderScheduled(
         "leaderScheduled 등록 — lockName=$lockName, period=$period"
     }
 
-    return launch {
+    val job = launch {
         while (isActive) {
             try {
                 leaderElection.runIfLeader(lockName) { action() }
@@ -47,6 +47,11 @@ fun Application.leaderScheduled(
             delay(period)
         }
     }
+
+    // Plugin이 설치된 경우에만 application-owned scheduler Job을 registry에 귀속한다.
+    // 명시적 elector overload는 기존 Application scope 동작을 그대로 사용한다.
+    leaderElectionResourceRegistryOrNull()?.register(job)
+    return job
 }
 
 /**

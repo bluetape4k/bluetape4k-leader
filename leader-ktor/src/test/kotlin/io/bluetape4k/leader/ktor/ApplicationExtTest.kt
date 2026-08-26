@@ -10,8 +10,12 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.ktor.server.application.install
 import io.ktor.server.testing.testApplication
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withTimeout
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.until
@@ -158,29 +162,66 @@ class ApplicationExtTest: AbstractLeaderKtorTest() {
 
     @Test
     fun `Application 종료 시 leaderScheduled job 이 자동 취소된다`() = runSuspendIO {
-        val lockName = randomName()
-        val elector = RedissonSuspendLeaderElector(redissonClient)
-        val counter = AtomicInteger(0)
+        val started = CompletableDeferred<Unit>()
+        lateinit var scheduledJob: Job
+        lateinit var registry: LeaderElectionResourceRegistry
 
         testApplication {
             application {
-                install(LeaderElectionPlugin) { leaderElection = elector }
-                leaderScheduled(lockName, SHORT_PERIOD) {
-                    counter.incrementAndGet()
+                install(LeaderElectionPlugin) { leaderElection = FakeSuspendLeaderElector() }
+                registry = leaderElectionResourceRegistryOrNull()!!
+                scheduledJob = leaderScheduled(randomName(), SHORT_PERIOD) {
+                    started.complete(Unit)
+                    awaitCancellation()
                 }
             }
             startApplication()
 
-            await.atMost(AWAIT_TIMEOUT.toJavaDuration())
-                .withPollInterval(POLL_INTERVAL.toJavaDuration())
-                .until { counter.get() >= 2 }
-        } // testApplication 블록 종료 시 application 종료 + 스코프 취소
+            withTimeout(AWAIT_TIMEOUT) { started.await() }
+        }
+        registry.awaitClosed()
 
-        val countAtStop = counter.get()
-        delay(SHORT_PERIOD * 5)
-        // 종료 후에는 더 이상 실행되지 않아야 한다 — 어느 정도 시간이 지나도 거의 증가하지 않음
-        // 약간의 race 가 있을 수 있으므로 +2 까지 허용
-        (counter.get() <= countAtStop + 2).shouldBeTrue()
+        scheduledJob.isCancelled.shouldBeTrue()
+        scheduledJob.isCompleted.shouldBeTrue()
+    }
+
+    @Test
+    fun `plugin 설치 후 leaderScheduled job은 resource registry에 등록된다`() = runSuspendIO {
+        lateinit var scheduledJob: Job
+        lateinit var registry: LeaderElectionResourceRegistry
+
+        testApplication {
+            application {
+                install(LeaderElectionPlugin) { leaderElection = FakeSuspendLeaderElector() }
+                registry = leaderElectionResourceRegistryOrNull()!!
+                scheduledJob = leaderScheduled("scheduled-job", 10.milliseconds) { }
+            }
+            startApplication()
+        }
+
+        val report = registry.awaitClosed()
+        scheduledJob.isCancelled.shouldBeTrue()
+        scheduledJob.isCompleted.shouldBeTrue()
+        report.attempted shouldBeGreaterOrEqualTo 1
+    }
+
+    @Test
+    fun `plugin 미설치 명시 elector 경로는 registry 없이 Application scope를 사용한다`() = runSuspendIO {
+        lateinit var scheduledJob: Job
+        testApplication {
+            application {
+                scheduledJob = leaderScheduled(
+                    lockName = "explicit-job",
+                    period = 10.milliseconds,
+                    leaderElection = FakeSuspendLeaderElector(),
+                ) { }
+            }
+            startApplication()
+            scheduledJob.cancel()
+            scheduledJob.join()
+        }
+
+        scheduledJob.isCancelled.shouldBeTrue()
     }
 
     @Test

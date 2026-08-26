@@ -14,7 +14,8 @@ Spring `@Scheduled` 스타일의 주기적 리더 전용 작업 헬퍼를 제공
    에 저장하여 확장 함수에서 재사용할 수 있게 합니다.
 2. **`leaderElectionPluginConfig()`** — `Application` 확장 함수. 저장된 설정을 조회합니다.
 3. **`Application.leaderScheduled(...)`** — 주기적으로 리더 전용 suspend 작업을 실행합니다.
-   `Application` 코루틴 스코프에서 `launch` 하여 `ApplicationStopped` 시 자동 취소됩니다.
+   `LeaderElectionPlugin`이 설치되면 반환된 Job을 애플리케이션 소유 resource registry에
+   등록하고 `ApplicationStopped` 시 bounded join과 함께 취소합니다.
 
 ![leader ktor Architecture diagram](../docs/images/readme-diagrams/leader-ktor-architecture-01.png)
 
@@ -25,7 +26,8 @@ Spring `@Scheduled` 스타일의 주기적 리더 전용 작업 헬퍼를 제공
 ## Core Features
 
 - Ktor 3.x 호환, coroutine-native (`SuspendLeaderElector` 기반)
-- `ApplicationStopped` 시 `Application` 코루틴 스코프가 자동 취소 처리
+- Plugin resource registry가 `ApplicationStopped` 시 애플리케이션 소유 scheduler Job을
+  취소하며 caller-owned elector와 backend client는 암묵적으로 닫지 않음
 - cycle 별 예외 격리 — `action` 예외는 로그만 남기고 다음 cycle 진행 (poison-pill 방지)
 - `CancellationException` 은 항상 재전파되어 구조적 동시성 보존
 - 입력 검증: `lockName` 은 blank 금지, `period` 는 양수 필수
@@ -62,6 +64,19 @@ val job = leaderScheduled("inventory-sync", 5.minutes) { syncInventory() }
 // ... 나중에
 job.cancel()
 ```
+
+### Lifecycle 소유권
+
+`LeaderElectionPlugin`은 애플리케이션 소유 resource registry를 하나 만듭니다.
+`leaderScheduled`가 반환한 Job은 여기에 등록되고 `ApplicationStopped`가 관찰되면
+즉시 취소됩니다. 이후 registry-owned cleanup이 bounded join을 수행하며 Ktor stop
+callback을 block하지 않습니다. Resource 정리는 idempotent이고 registry lock 밖에서
+실행됩니다.
+
+Plugin은 전달받은 `SuspendLeaderElector`, Redis/SQL/Mongo client 또는 애플리케이션이
+소유한 다른 backend를 자동으로 닫지 않습니다. Plugin 없이 explicit elector를 전달한
+`leaderScheduled`는 기존 `Application` scope를 사용하며 취소 책임은 caller에게 있습니다.
+정상적인 lock contention은 계속 `null`을 반환하고 scheduler는 다음 cycle을 진행합니다.
 
 플러그인을 우회하여 elector 직접 주입 (advanced):
 

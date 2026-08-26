@@ -25,6 +25,8 @@ val LeaderElectionPlugin = createApplicationPlugin(
 
     // 외부 (예: leaderScheduled 확장) 에서 설정에 접근할 수 있도록 Application attributes 에 저장한다.
     application.attributes.put(LeaderElectionConfigKey, config)
+    val resourceRegistry = LeaderElectionResourceRegistryImpl()
+    application.attributes.put(LeaderElectionResourceRegistryKey, resourceRegistry)
 
     if (config.managementActionRouteEnabled) {
         requireNotNull(config.managementActionRegistry) {
@@ -68,6 +70,15 @@ val LeaderElectionPlugin = createApplicationPlugin(
     }
 
     on(MonitoringEvent(ApplicationStopped)) { application ->
+        resourceRegistry.observeShutdown { report ->
+            LeaderElectionPluginInternals.log.info {
+                "LeaderElectionPlugin resource shutdown — " +
+                    "attempted=${report.attempted}, closed=${report.closed}, " +
+                    "failures=${report.failures}, timedOutJobs=${report.timedOutJobs}, " +
+                    "failureKinds=${report.failureKinds}, timeoutKinds=${report.timeoutKinds}"
+            }
+        }
+        resourceRegistry.close()
         LeaderElectionPluginInternals.log.info {
             "LeaderElectionPlugin 종료 — application=${application.javaClass.simpleName}"
         }
@@ -86,6 +97,18 @@ private fun Any.resolveBackendDiagnosticsProvider(): LeaderBackendDiagnosticsPro
  */
 internal val LeaderElectionConfigKey: AttributeKey<LeaderElectionPluginConfig> =
     AttributeKey("io.bluetape4k.leader.ktor.LeaderElectionPluginConfig")
+
+/**
+ * Plugin이 소유하는 application resource registry attribute입니다.
+ */
+internal val LeaderElectionResourceRegistryKey: AttributeKey<LeaderElectionResourceRegistry> =
+    AttributeKey("io.bluetape4k.leader.ktor.LeaderElectionResourceRegistry")
+
+/**
+ * Application-owned resource registry를 조회합니다. Plugin이 설치되지 않았으면 `null`입니다.
+ */
+internal fun Application.leaderElectionResourceRegistryOrNull(): LeaderElectionResourceRegistry? =
+    attributes.getOrNull(LeaderElectionResourceRegistryKey)
 
 /**
  * `Application` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
