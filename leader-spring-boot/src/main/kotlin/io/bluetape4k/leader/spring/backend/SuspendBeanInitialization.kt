@@ -1,6 +1,13 @@
 package io.bluetape4k.leader.spring.backend
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
@@ -14,14 +21,29 @@ import kotlin.time.Duration.Companion.seconds
  */
 internal fun <T> createSuspendBackendBean(
     timeout: Duration = DEFAULT_SUSPEND_BEAN_INITIALIZATION_TIMEOUT,
+    dispatcher: CoroutineDispatcher = Dispatchers.IO,
     block: suspend () -> T,
 ): T {
     require(timeout.isPositive() && timeout.isFinite()) {
         "suspend backend bean initialization timeout must be positive and finite: $timeout"
     }
-    return runBlocking(Dispatchers.IO) {
-        withTimeout(timeout) {
-            block()
+    return runBlocking {
+        val result = CompletableDeferred<T>()
+        val scope = CoroutineScope(SupervisorJob() + dispatcher)
+        var job: Job? = null
+        try {
+            withTimeout(timeout) {
+                job = scope.launch {
+                    runCatching { block() }.fold(
+                        onSuccess = { result.complete(it) },
+                        onFailure = { result.completeExceptionally(it) },
+                    )
+                }
+                result.await()
+            }
+        } finally {
+            job?.cancel()
+            scope.cancel()
         }
     }
 }
