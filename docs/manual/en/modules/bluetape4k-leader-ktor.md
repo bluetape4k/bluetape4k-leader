@@ -105,4 +105,4 @@ _Release README: [`leader-ktor/README.md`](https://github.com/bluetape4k/bluetap
 
 ## Sources {#sources}
 
-[Plugin](../../../../leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionPlugin.kt) · [Route guard](../../../../leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderRouteGuard.kt) · [Scheduling extension](../../../../leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/ApplicationExt.kt) · [Stable guide](../../../../leader-ktor/README.md)
+[Plugin](../../../../leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionPlugin.kt) · [Scheduling extension](../../../../leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/ApplicationExt.kt) · [Stable guide](../../../../leader-ktor/README.md)
