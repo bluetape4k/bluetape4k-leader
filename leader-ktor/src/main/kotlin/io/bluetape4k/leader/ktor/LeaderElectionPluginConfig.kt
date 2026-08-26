@@ -5,6 +5,7 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderManagementActionRegistry
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `LeaderElectionPluginConfig`는 Ktor integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -60,6 +61,36 @@ class LeaderElectionPluginConfig {
 
     /** write management action route의 canonical base path입니다. */
     var managementActionRoutePath: String? = null
+
+    /** leader event stream route를 설치할지 지정합니다. 기본값은 비활성화입니다. */
+    var eventStreamRouteEnabled: Boolean = false
+
+    /** leader event stream의 SSE canonical path입니다. */
+    var eventStreamRoutePath: String = "/management/leaderElection/events"
+
+    /** leader event stream의 SSE transport를 활성화할지 지정합니다. */
+    var eventStreamSseEnabled: Boolean = true
+
+    /** leader event stream의 WebSocket transport를 활성화할지 지정합니다. */
+    var eventStreamWebSocketEnabled: Boolean = false
+
+    /** lock filter 없이 모든 lock event를 받을지 지정합니다. */
+    var eventStreamAllLocksEnabled: Boolean = false
+
+    /** event payload에 lockName을 포함할지 지정합니다. 기본값은 비노출입니다. */
+    var eventStreamExposeLockName: Boolean = false
+
+    /** event payload에 leaderId와 leaseExpiry를 포함할지 지정합니다. 기본값은 비노출입니다. */
+    var eventStreamExposeLeaderMetadata: Boolean = false
+
+    /** replay ring buffer의 최대 보존 event 수입니다. 0은 live-only입니다. */
+    var eventStreamReplayCapacity: Int = 32
+
+    /** event stream의 동시 connection 상한입니다. */
+    var eventStreamMaxConnections: Int = 128
+
+    /** connection heartbeat 주기입니다. */
+    var eventStreamHeartbeat: Duration = 15.seconds
 
     /** 오류 응답을 typed override로 제한하는 optional policy입니다. */
     internal var errorResponder: LeaderElectionErrorResponder? = null
