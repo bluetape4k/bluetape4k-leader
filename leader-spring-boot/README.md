@@ -383,7 +383,49 @@ The Observation bridge emits standalone terminal observations such as `leader.ao
 
 Dynamic lock names, leader IDs, and exception details are production-sensitive. They can contain tenant, user, job, URL, or credential-like data. Metrics now redact `lock.name` by default; opt into `RAW` only for small static job sets, or use `HASH`/`TRUNCATE` through `bluetape4k.leader.aop.metrics.tags.*` when dashboards need bounded correlation. Current Spring AOP does not synthesize `leader.id` from node IDs or lock names; `include-leader-id=true` emits a value only when the recorder receives `LeaderAopMetricsContext.Identified` from direct or future identity-aware paths.
 
-Lease-extension observations are deferred to issue #559 because `LockExtender` needs a core hook before Spring or Micrometer can observe extension outcomes.
+### Lease-extension observations
+
+> **Unreleased API:** This section describes the current `develop` implementation. The dependency examples above
+> target released `0.4.0`, and the pinned `0.5.0` manual does not include this hook. Keep this integration on a
+> matching develop/snapshot build until the promotion gate in the draft is complete.
+
+When `leader-micrometer` and a non-NOOP `ObservationRegistry` are present, and
+`bluetape4k.leader.observability.enabled=true` (the default),
+`LeaderObservationAutoConfiguration` registers the core lease-extension observer
+when `bluetape4k.leader.observability.tracing.enabled=true` (the default). The
+configuration covers both explicit `LockExtender` calls and
+`LeaderLeaseAutoExtender` watchdog events without adding a Spring-specific
+extension API.
+
+Explicit calls are valid inside a matching active user-owned scope created by
+`@LeaderElection`, `@LeaderGroupElection`, or a direct elector body. `WATCHDOG`
+events come only from a single-leader `autoExtend = true` path; group election
+slots disable group auto-extension.
+
+Issue #529 covers acquire/execution observations; this Issue #559 integration
+covers terminal lease-extension attempts.
+
+Spring manages the registration lifecycle as follows:
+
+- one `MicrometerObservationLeaderLeaseExtensionObserver` is shared per
+  `ObservationRegistry` identity;
+- each application context owns an idempotent handle, and the last context to
+  close removes the core registration;
+- a NOOP registry or disabled tracing creates no lease-extension registration;
+- conflicting `LeaderObservationOptions` for the same registry fail fast rather
+  than silently weakening redaction or duplicating callbacks.
+
+The core event keeps `USER`/`WATCHDOG` source and `BLOCKING`/`SUSPEND` execution
+parity. Micrometer exports the bounded `source`, `execution`, `outcome`, and
+`result` values described above. Lock name and leader ID are opt-in and pass
+through the configured sanitisation policy. `includeExceptionDetails` is also
+opt-in, but it attaches the original backend throwable to `Observation.error(...)`
+without tag sanitisation; keep the default `false` unless downstream observation
+or tracing systems are approved for raw exception messages and stack traces. The observer is
+diagnostic only: it does not alter ownership, deadline updates, cancellation, or
+watchdog retry/stop behavior. See the [unreleased lease-extension observation
+draft](../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
+for the complete contract.
 
 ## Backend Factories
 

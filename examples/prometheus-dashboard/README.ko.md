@@ -91,7 +91,11 @@ bluetape4k:
 
 이 예제는 OpenTelemetry SDK, Micrometer tracing bridge, exporter, collector를 의도적으로 추가하지 않습니다. exported trace가 필요하면 애플리케이션에서 해당 의존성과 설정을 직접 추가하세요. Observation `lock.name`, `leader.id`, exception detail은 tenant, user, job, URL, credential과 비슷한 값을 포함할 수 있어 기본 비활성입니다. 현재 Spring AOP는 `leader.id`를 합성하지 않습니다. direct 호출 또는 future identity-aware 경로가 `LeaderAopMetricsContext.Identified`를 넘길 때만 값이 나타납니다.
 
-`LockExtender`가 core observation/event hook을 제공하기 전까지 lease-extension observation도 이 예제의 범위 밖입니다. 후속 작업은 issue #559에서 추적합니다.
+이 예제의 기본 handler는 lease-extension observation을 로그로 남기지 않습니다. Handler가 `leader.`로 시작하는
+observation name만 받는데 core lease-extension observation의 이름은
+`bluetape4k.leader.lease.extension`이기 때문입니다. Handler를 소유한 애플리케이션은 bounded tag와 privacy
+옵션을 검토한 뒤 정확한 이름을 opt-in할 수 있습니다. 자세한 내용은
+[미배포 lease-extension 관찰 초안](../../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)을 참고하세요.
 
 ## Prometheus/Grafana 실행
 
@@ -145,9 +149,15 @@ alert는 문제가 있는 `instance` label을 보존하려고 의도적으로 ra
 의도적으로 acquire key를 반환하지 않으므로 해당 sink를 제외합니다. 실제 서비스에서는
 JDBC, R2DBC, MongoDB, custom history sink를 recorder로 감싼 뒤 이 alert를 사용하세요.
 
-이 예제는 아직 lease-extension 실패를 직접 관찰하지 못합니다. `LockExtender`가
-core metric이나 observation hook을 제공하지 않기 때문입니다. lease risk rule은
-완료된 실행 시간으로 보는 보수적인 증상 rule일 뿐입니다.
+이 예제의 Prometheus meter는 lease-extension 실패를 노출하지 않습니다. Core는
+`LeaderLeaseExtensionEvent`를 publish하고 Micrometer adapter가
+`bluetape4k.leader.lease.extension` Observation을 생성합니다. 이 demo의 local
+handler는 `leader.`로 시작하는 이름만 받고 애플리케이션도 lease-extension meter를
+등록하지 않습니다. 따라서 lease risk rule은 완료된 실행 시간으로 보는 보수적인
+증상 rule일 뿐입니다. Demo에서 이 신호를 노출하려면
+[미배포 lease-extension 관찰 초안](../../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)을
+검토한 뒤 Micrometer observer를 명시적으로 설정하거나 애플리케이션 소유 handler를
+수정하세요.
 
 ## Prometheus Queries
 

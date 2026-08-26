@@ -655,6 +655,58 @@ GET /actuator/leaderElection
 routes, Micrometer, logging, tracing, and custom dashboards should adapt from this core event stream instead of
 introducing framework-specific event contracts.
 
+### Lease-extension observation
+
+> **Unreleased API:** This section describes the current `develop` implementation. The dependency examples in this
+> README target released `0.4.0`, and the pinned `0.5.0` manual does not include this hook. Keep this integration on a
+> matching develop/snapshot build until the promotion gate in the draft is complete.
+
+`LockExtender` and `LeaderLeaseAutoExtender` publish the same framework-neutral terminal event contract. Register an
+observer only when the application needs lease-extension diagnostics:
+
+```kotlin
+val registration = LeaderLeaseExtensionObservers.addObserver { event ->
+    logger.info {
+        "lease extension source=${event.source} execution=${event.execution} " +
+            "outcome=${event.outcome::class.simpleName}"
+    }
+}
+
+// This blocking example belongs inside a matching active @LeaderElection or @LeaderGroupElection scope; otherwise it
+// returns NotHeld with context = null. The same applies inside a direct elector's active lease body. In a suspend
+// scope, use extendActiveLockDetailedSuspend(60.seconds) inside the suspend function instead.
+try {
+    LockExtender.extendActiveLockDetailed(60.seconds)
+} finally {
+    registration.close()
+}
+```
+
+`#529` continues to cover acquire/execution observations; this `#559` hook covers terminal lease-extension attempts.
+`event.source` distinguishes `USER` calls from the `WATCHDOG`; `event.execution` distinguishes `BLOCKING` from
+`SUSPEND`. `event.outcome` is the existing `ExtendOutcome` (`Extended`, `Rejected`, `NotHeld`, `WrongThread`, or
+`BackendError`), and `elapsedNanos` is the caller-side delegate duration. `Rejected` can mean a watchdog reservation
+failed, a user bounded operation queue was full, or a queued user operation timed out before its command completed;
+that command may still run later. It is a skip signal, not proof that no backend work will occur. The observer registry is process-local and dispatches
+through bounded, non-blocking in-flight admission. A saturated observer increments
+`LeaderLeaseExtensionObservers.droppedCount()` instead of waiting for a permit or callback. Registration count and
+callback fan-out are not bounded by this registry, so applications should keep registrations small and callbacks
+short. `droppedCount()` is therefore separate from `ExtendOutcome.Rejected`: it counts observer-delivery admission drops.
+Close removes only that registration; an already accepted callback may still finish, and callback ordering is
+not guaranteed.
+
+The snippet above closes after one explicit `USER` attempt. To observe `WATCHDOG` ticks, keep the registration open for
+the entire single-leader action or component lifetime with `autoExtend = true`, then close it during shutdown. Group
+elections support explicit `LockExtender` calls inside their active slot bodies, but they do not produce `WATCHDOG`
+events because group auto-extension is disabled.
+
+Callback exceptions do not change the extension result. `CancellationException` and `Error` from the extension path
+are not flattened into an outcome or published as events. `BackendError.cause` remains the original backend `Exception`;
+core does not redact it, so custom observers must sanitise the cause before logging or exporting. `LeaderLeaseExtensionContext.toString()` is redacted, so applications should still
+avoid logging raw `lockName` or `auditLeaderId`. A fail-open `NotHeld` event still carries its lock name in `context` with
+`auditLeaderId = null`; scope-free and named-mismatch events have `context = null`. The [unreleased lease-extension observation draft](docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
+contains the complete contract and the Micrometer/Spring adapters.
+
 ### Audit export to an HTTP/webhook sink
 
 For sanitized history or lifecycle delivery, compose the core

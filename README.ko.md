@@ -656,6 +656,58 @@ GET /actuator/leaderElection
 Actuator, Ktor management route, Micrometer, logging, tracing, custom dashboard는 framework별 event
 contract를 새로 만들지 말고 이 core event stream을 adapter로 사용해야 합니다.
 
+### Lease-extension 관찰
+
+> **미배포 API:** 이 절은 현재 `develop` 구현을 설명합니다. 이 README의 의존성 예제는 배포된 `0.4.0`을 대상으로
+> 하며, 고정한 `0.5.0` 매뉴얼에는 이 hook이 없습니다. 초안의 promotion gate가 끝날 때까지는 일치하는
+> `develop` 브랜치 또는 일치하는 미배포 빌드에서만 이 연동을 사용하세요.
+
+`LockExtender`와 `LeaderLeaseAutoExtender`는 같은 framework-neutral terminal event 계약을 발생시킵니다. lease
+extension 진단이 필요할 때만 observer를 등록하세요.
+
+```kotlin
+val registration = LeaderLeaseExtensionObservers.addObserver { event ->
+    logger.info {
+        "lease extension source=${event.source} execution=${event.execution} " +
+            "outcome=${event.outcome::class.simpleName}"
+    }
+}
+
+// 이 blocking 예제는 일치하는 활성 @LeaderElection 또는 @LeaderGroupElection scope 안에서 호출하세요. 그렇지 않으면
+// context = null인 NotHeld를 반환합니다. 직접 elector의 active lease body 안에서도 같은 규칙이 적용됩니다. Suspend
+// scope에서는 suspend 함수 안에서 extendActiveLockDetailedSuspend(60.seconds)를 사용하세요.
+try {
+    LockExtender.extendActiveLockDetailed(60.seconds)
+} finally {
+    registration.close()
+}
+```
+
+`#529`는 acquire/execution observation을 담당하고, 이 `#559` hook은 terminal lease-extension 시도를 담당합니다.
+`event.source`는 `USER` 호출과 `WATCHDOG` 호출을 구분하고, `event.execution`은 `BLOCKING`과 `SUSPEND`를
+구분합니다. `event.outcome`은 기존 `ExtendOutcome`(`Extended`, `Rejected`, `NotHeld`, `WrongThread`,
+`BackendError`)를 그대로 담고 `elapsedNanos`는 caller 측 delegate 호출 시간입니다. `Rejected`는 watchdog
+reservation 실패, user bounded operation queue 포화, 또는 명령이 완료되기 전에 user 작업이 timeout된 경우일 수
+있으며, timeout된 명령은 이후 실행될 수 있습니다. 따라서 backend 작업이 전혀 없었다는 뜻은 아닙니다. Observer registry는 process-local이며
+bounded non-blocking in-flight admission으로 dispatch합니다. observer가 포화되면 permit이나 callback을 기다리지
+않고 `LeaderLeaseExtensionObservers.droppedCount()`를 증가시킵니다. 이 registry의 registration 수와 callback
+fan-out에는 고정 상한이 없으므로 애플리케이션 등록 수를 작게 유지하고 callback을 짧게 작성하세요. `droppedCount()`는
+`ExtendOutcome.Rejected`와 별도로 observer delivery admission에서 거부된 누적 횟수입니다. `close()`는
+해당 registration만 제거하며 이미 admission된 callback은 계속 실행될 수 있고 callback 순서는 보장하지 않습니다.
+
+위 snippet은 하나의 명시적 `USER` 시도 뒤에 registration을 닫습니다. `WATCHDOG` tick을 관찰하려면
+`autoExtend = true`인 단일 리더 action 또는 component 전체 수명 동안 registration을 유지하고 종료 시 닫으세요.
+Group election은 active slot body 안의 명시적 `LockExtender` 호출은 지원하지만 group auto-extension이 꺼져
+있으므로 `WATCHDOG` event를 만들지 않습니다.
+
+Callback 예외는 extension 결과를 바꾸지 않습니다. extension 경로의 `CancellationException`과 `Error`는 outcome으로
+평탄화하거나 event로 publish하지 않습니다. `BackendError.cause`는 원본 backend `Exception`으로 남으며 core는
+이를 redaction하지 않습니다. Custom observer는 로그나 export 전에 cause를 별도로 sanitise해야 합니다.
+`LeaderLeaseExtensionContext.toString()`은 redaction하므로 애플리케이션도 raw `lockName`이나
+`auditLeaderId`를 로그에 남기지 않아야 합니다. Fail-open `NotHeld` event에는 `context`의 lock name이 남고
+`auditLeaderId = null`입니다. Scope 밖이나 named mismatch event의 `context`는 `null`입니다. 전체 계약과 Micrometer/Spring adapter는
+[미배포 lease-extension 관찰 초안](docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)에서 확인할 수 있습니다.
+
 ### HTTP/webhook sink로 audit export
 
 정제한 history 또는 lifecycle event를 전달할 때는 core의
