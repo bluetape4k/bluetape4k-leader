@@ -13,6 +13,8 @@ import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.redisson.api.RedissonClient
 import kotlin.time.Duration
@@ -55,6 +57,7 @@ class RedissonStrategicSuspendLeaderGroupElector(
         action: suspend () -> T,
     ): T? {
         validateLockName(lockName)
+        currentCoroutineContext().ensureActive()
         val candidates = try {
             listCandidates(lockName)
         } catch (e: CancellationException) {
@@ -86,6 +89,7 @@ class RedissonStrategicSuspendLeaderGroupElector(
 
         return try {
             val value = action()
+            currentCoroutineContext().ensureActive()
             updateStrategicResultPreservingCancellation(
                 lockName = lockName,
                 result = CandidateResult.SUCCESS,
