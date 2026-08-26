@@ -26,6 +26,13 @@ val LeaderElectionPlugin = createApplicationPlugin(
     // 외부 (예: leaderScheduled 확장) 에서 설정에 접근할 수 있도록 Application attributes 에 저장한다.
     application.attributes.put(LeaderElectionConfigKey, config)
 
+    if (config.managementActionRouteEnabled) {
+        requireNotNull(config.managementActionRegistry) {
+            "managementActionRouteEnabled=true 이면 application-owned managementActionRegistry를 설정해야 합니다."
+        }
+        config.managementActionPath()
+    }
+
     if (config.managementRouteEnabled) {
         application.leaderElectionManagementRoute(
             path = config.managementRoutePath,

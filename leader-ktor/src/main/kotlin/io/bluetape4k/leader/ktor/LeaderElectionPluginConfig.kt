@@ -2,6 +2,7 @@ package io.bluetape4k.leader.ktor
 
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderManagementActionRegistry
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import kotlin.time.Duration
 
@@ -50,6 +51,15 @@ class LeaderElectionPluginConfig {
 
     /** Connectivity probe에 전달할 제한 시간입니다. */
     var backendConnectivityCheckTimeout: Duration = LeaderBackendDiagnosticsProvider.DefaultProbeTimeout
+
+    /** write management action route를 명시적으로 설치할 수 있는지 지정합니다. */
+    var managementActionRouteEnabled: Boolean = false
+
+    /** write management action route가 사용할 application-owned registry입니다. */
+    var managementActionRegistry: SuspendLeaderManagementActionRegistry? = null
+
+    /** write management action route의 canonical base path입니다. */
+    var managementActionRoutePath: String? = null
 
     internal val managementRegistry: LeaderElectionManagementRegistry = LeaderElectionManagementRegistry()
 
