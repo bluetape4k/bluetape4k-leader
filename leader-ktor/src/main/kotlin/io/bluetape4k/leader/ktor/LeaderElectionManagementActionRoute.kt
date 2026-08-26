@@ -24,13 +24,11 @@ import kotlin.coroutines.cancellation.CancellationException
  * `authorize` callback으로 애플리케이션 권한을 확인해야 합니다.
  */
 fun Route.leaderElectionManagementActionRoute(
-    path: String? = "${LeaderElectionPluginConfig.DefaultManagementRoutePath}/actions",
+    path: String = "${LeaderElectionPluginConfig.DefaultManagementRoutePath}/actions",
     registry: SuspendLeaderManagementActionRegistry? = null,
     authorize: suspend ApplicationCall.() -> Boolean,
 ) {
-    val routePath = normalizeManagementActionPath(
-        path ?: "${LeaderElectionPluginConfig.DefaultManagementRoutePath}/actions",
-    )
+    val routePath = normalizeManagementActionPath(path)
 
     post("$routePath/{lockName}") {
         val config = call.application.leaderElectionPluginConfig()
@@ -90,7 +88,7 @@ internal fun normalizeManagementActionPath(path: String): String {
 }
 
 /** plugin 설정의 management route를 기준으로 action route 기본 경로를 계산합니다. */
-internal fun LeaderElectionPluginConfig.managementActionPath(): String =
+fun LeaderElectionPluginConfig.managementActionPath(): String =
     normalizeManagementActionPath(managementActionRoutePath ?: "${managementRoutePath.trimEnd('/')}/actions")
 
 /** 인증 callback 실패나 거부 시 고정된 allow-list body만 반환합니다. */

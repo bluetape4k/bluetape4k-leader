@@ -87,6 +87,9 @@ leaderScheduled(
 | `backendDiagnosticsRoutePath` | `String`                | 아니오 | Backend diagnostics route 경로             |
 | `backendConnectivityCheckEnabled` | `Boolean`          | 아니오 | 요청마다 active connectivity probe 한 번 실행 |
 | `backendConnectivityCheckTimeout` | `kotlin.time.Duration` | 아니오 | 양수이면서 유한한 probe 제한 시간, 기본값 `500ms` |
+| `managementActionRouteEnabled` | `Boolean` | 아니오 | 애플리케이션 소유 action registry를 검증하며 route 설치는 별도 명시 |
+| `managementActionRegistry` | `SuspendLeaderManagementActionRegistry?` | 아니오 | 애플리케이션 소유 single-leader action registry |
+| `managementActionRoutePath` | `String?` | 아니오 | action path 명시적 override; route에 전달하지 않으면 `<managementRoutePath>/actions` 기본 규칙 사용 |
 
 `leaderScheduled` 파라미터:
 
@@ -131,6 +134,80 @@ GET /management/leaderElection
 ```
 
 `leaderScheduled()`는 플러그인이 설치되어 있을 때 자신의 lock 이름을 management registry에 기록합니다. 이 route는 JSON text를 직접 응답하므로, 이 endpoint만을 위해 Ktor content negotiation을 추가할 필요는 없습니다.
+
+## Management Action Route (Issue #532, unreleased)
+
+Write route는 별도의 명시적 opt-in입니다. `managementActionRouteEnabled=true`이면
+`LeaderElectionPlugin`이 애플리케이션 소유 `SuspendLeaderManagementActionRegistry`
+존재 여부만 검증하며 POST route를 자동 설치하지 않습니다. 애플리케이션이 소유한
+`authenticate("management")` scope 안에서 route를 설치하세요.
+
+```kotlin
+val actionRegistry = SuspendLeaderManagementActionRegistry()
+
+install(Authentication) {
+    basic("management") {
+        validate { credentials ->
+            if (credentials.name == "admin" && credentials.password == "secret") {
+                UserIdPrincipal(credentials.name)
+            } else {
+                null
+            }
+        }
+    }
+}
+
+install(LeaderElectionPlugin) {
+    leaderElection = redissonElector
+    managementActionRouteEnabled = true
+    managementActionRegistry = actionRegistry
+}
+
+routing {
+    authenticate("management") {
+        leaderElectionManagementActionRoute(
+            registry = actionRegistry,
+            authorize = { principal<UserIdPrincipal>() != null },
+        )
+    }
+}
+```
+
+Canonical path는 `POST /management/leaderElection/actions/{lockName}`입니다.
+`managementRoutePath`를 바꿀 때는 `/internal/leader-status/actions`처럼 `path`를
+명시하세요. Library는 write route를 자동 설치하지 않으므로 경로를 암묵적으로
+추론하지 않습니다. Route는 공통 ASCII lock-name grammar를 사용합니다. encoded 또는
+literal slash는 selector 경계를 넘지 못해 404가 되고, `%`처럼 매칭된 hostile selector는
+`INVALID_LOCK_NAME`과 함께 400을 반환합니다.
+
+Unauthenticated 401과 principal 실패는 Ktor authentication이 소유합니다.
+`authorize` callback이 false이면 403 `AUTHORIZATION_DENIED`, 일반 callback 예외이면
+registry를 호출하지 않고 500 `AUTHORIZATION_FAILED`를 반환하며 예외 원문을 복사하지
+않습니다. 정상 및 typed registry outcome은 공통 HTTP mapping을 사용하고 JSON body에는
+`action`, `outcome`, `mutationAttempted`만 포함합니다. `ACTION_TIMED_OUT`과
+`RELEASE_UNCONFIRMED`를 포함해 자동 retry는 없습니다.
+
+Registry, observer, scope는 애플리케이션이 소유합니다. Engine을 멈추기 전에 다음
+helper로 drain하세요. 이 helper는 suspend-native이며 외부 application scope를
+취소하지 않습니다.
+
+```kotlin
+suspend fun shutdown(
+    engine: ApplicationEngine,
+    actionRegistry: SuspendLeaderManagementActionRegistry,
+) {
+    engine.stopLeaderManagementGracefully(
+        actionRegistry,
+        gracePeriodMillis = 1_000,
+        timeoutMillis = 5_000,
+    )
+}
+```
+
+`closeAndDrain()`은 bounded하게 동작합니다. `false`를 반환해도 helper는 sanitized
+warning을 남기고 engine stop을 계속하며 임의의 lease를 해제하지 않습니다. Single-leader
+lease handle만 명시적으로 등록하세요. `runIfLeader`, group/strategic election,
+`leaderScheduled`, `LeaderRouteLeaseRuntime`은 자동 등록되지 않습니다.
 
 ## Backend Diagnostics Route
 
