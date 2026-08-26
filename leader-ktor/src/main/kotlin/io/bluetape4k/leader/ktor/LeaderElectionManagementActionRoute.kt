@@ -3,6 +3,7 @@ package io.bluetape4k.leader.ktor
 import io.bluetape4k.leader.LeaderManagementAction
 import io.bluetape4k.leader.LeaderManagementActionOutcome
 import io.bluetape4k.leader.LeaderManagementActionResult
+import io.bluetape4k.leader.LeaderManagementActionSurface
 import io.bluetape4k.leader.LeaderManagementHttpContract
 import io.bluetape4k.leader.coroutines.SuspendLeaderManagementActionRegistry
 import io.bluetape4k.leader.isManagementActionLockName
@@ -67,7 +68,7 @@ fun Route.leaderElectionManagementActionRoute(
             return@post
         }
         val result = if (isManagementActionLockName(lockName)) {
-            actionRegistry.release(lockName)
+            actionRegistry.release(lockName, LeaderManagementActionSurface.KTOR)
         } else {
             invalidLockNameResult()
         }

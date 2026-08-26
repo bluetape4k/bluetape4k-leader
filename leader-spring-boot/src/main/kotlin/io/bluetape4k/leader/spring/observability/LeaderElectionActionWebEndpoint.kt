@@ -4,6 +4,7 @@ import io.bluetape4k.leader.LeaderManagementActionRegistry
 import io.bluetape4k.leader.LeaderManagementAction
 import io.bluetape4k.leader.LeaderManagementActionOutcome
 import io.bluetape4k.leader.LeaderManagementActionResult
+import io.bluetape4k.leader.LeaderManagementActionSurface
 import io.bluetape4k.leader.LeaderManagementHttpContract
 import io.bluetape4k.leader.isManagementActionLockName
 import org.springframework.boot.actuate.endpoint.annotation.Selector
@@ -27,7 +28,7 @@ class LeaderElectionActionWebEndpoint(
     @WriteOperation
     fun release(@Selector lockName: String): WebEndpointResponse<LeaderManagementActionHttpResponse> {
         val result = if (isManagementActionLockName(lockName)) {
-            registry.release(lockName)
+            registry.release(lockName, LeaderManagementActionSurface.SPRING)
         } else {
             LeaderManagementActionResult(
                 action = LeaderManagementAction.RELEASE,

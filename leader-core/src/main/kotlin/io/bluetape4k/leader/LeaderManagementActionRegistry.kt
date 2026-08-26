@@ -96,40 +96,50 @@ class LeaderManagementActionRegistry(
      * lock 이름을 정확히 하나의 등록 handle에 선형화한 뒤 bounded worker로 release합니다.
      * 정상 contention과 backend 예외는 sanitized result로 반환하며, [Error]만 재전파합니다.
      */
+    fun release(lockName: String): LeaderManagementActionResult =
+        release(lockName, LeaderManagementActionSurface.CORE)
+
+    /**
+     * framework adapter가 관측 surface를 보존할 수 있도록 지정한 surface로 release합니다.
+     * 기존 one-argument API는 [LeaderManagementActionSurface.CORE]를 사용합니다.
+     */
     @Suppress("ReturnCount")
-    fun release(lockName: String): LeaderManagementActionResult {
+    fun release(
+        lockName: String,
+        surface: LeaderManagementActionSurface,
+    ): LeaderManagementActionResult {
         val deadline = MonotonicDeadline.fromNow(actionTimeout)
         if (!isManagementActionLockName(lockName)) {
-            return immediate(LeaderManagementActionOutcome.INVALID_LOCK_NAME)
+            return immediate(LeaderManagementActionOutcome.INVALID_LOCK_NAME, surface)
         }
 
         when (val selection = store.select(lockName)) {
             LeaderManagementActionStore.Selection.Closed ->
-                return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED)
+                return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
             LeaderManagementActionStore.Selection.NotRegistered ->
-                return immediate(LeaderManagementActionOutcome.NOT_REGISTERED)
+                return immediate(LeaderManagementActionOutcome.NOT_REGISTERED, surface)
 
             LeaderManagementActionStore.Selection.Ambiguous ->
-                return immediate(LeaderManagementActionOutcome.AMBIGUOUS)
+                return immediate(LeaderManagementActionOutcome.AMBIGUOUS, surface)
 
             is LeaderManagementActionStore.Selection.Record -> {
-                val (beginOutcome, action) = store.beginRecord(selection.value)
+                val (beginOutcome, action) = store.beginRecord(selection.value, surface)
                 when (beginOutcome) {
                     LeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED ->
-                        return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED)
+                        return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
                     LeaderManagementActionStore.BeginOutcome.NOT_REGISTERED ->
-                        return immediate(LeaderManagementActionOutcome.NOT_REGISTERED)
+                        return immediate(LeaderManagementActionOutcome.NOT_REGISTERED, surface)
 
                     LeaderManagementActionStore.BeginOutcome.AMBIGUOUS ->
-                        return immediate(LeaderManagementActionOutcome.AMBIGUOUS)
+                        return immediate(LeaderManagementActionOutcome.AMBIGUOUS, surface)
 
                     LeaderManagementActionStore.BeginOutcome.ACTION_IN_PROGRESS ->
-                        return immediate(LeaderManagementActionOutcome.ACTION_IN_PROGRESS)
+                        return immediate(LeaderManagementActionOutcome.ACTION_IN_PROGRESS, surface)
 
                     LeaderManagementActionStore.BeginOutcome.ACTION_ADMISSION_REJECTED ->
-                        return immediate(LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED)
+                        return immediate(LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED, surface)
 
                     LeaderManagementActionStore.BeginOutcome.STARTED -> Unit
                 }
@@ -138,7 +148,7 @@ class LeaderManagementActionRegistry(
                 val future = scheduler.submit { runAction(actionRecord, deadline) }
                 if (future == null) {
                     store.finish(actionRecord)
-                    return immediate(LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED)
+                    return immediate(LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED, surface)
                 }
                 actionRecord.future = future
                 return awaitResult(actionRecord, future, deadline)
@@ -475,7 +485,7 @@ class LeaderManagementActionRegistry(
         try {
             observer?.onResult(
                 LeaderManagementActionObservation(
-                    surface = LeaderManagementActionSurface.CORE,
+                    surface = action.surface,
                     outcome = result.outcome,
                     phase = action.phase.get(),
                     mutationAttempted = result.mutationAttempted,
@@ -496,7 +506,7 @@ class LeaderManagementActionRegistry(
         try {
             observer?.onQuarantineRecovered(
                 LeaderManagementActionObservation(
-                    surface = LeaderManagementActionSurface.CORE,
+                    surface = action.surface,
                     outcome = result.outcome,
                     phase = LeaderManagementActionPhase.QUARANTINED,
                     mutationAttempted = result.mutationAttempted,
@@ -509,7 +519,10 @@ class LeaderManagementActionRegistry(
         }
     }
 
-    private fun immediate(outcome: LeaderManagementActionOutcome): LeaderManagementActionResult {
+    private fun immediate(
+        outcome: LeaderManagementActionOutcome,
+        surface: LeaderManagementActionSurface,
+    ): LeaderManagementActionResult {
         val result = LeaderManagementActionResult(
             action = LeaderManagementAction.RELEASE,
             outcome = outcome,
@@ -519,7 +532,7 @@ class LeaderManagementActionRegistry(
             try {
                 it.onResult(
                     LeaderManagementActionObservation(
-                        surface = LeaderManagementActionSurface.CORE,
+                        surface = surface,
                         outcome = outcome,
                         phase = LeaderManagementActionPhase.TERMINALIZED,
                         mutationAttempted = false,

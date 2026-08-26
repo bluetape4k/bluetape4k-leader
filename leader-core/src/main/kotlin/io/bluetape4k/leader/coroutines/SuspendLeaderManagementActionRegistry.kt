@@ -97,38 +97,48 @@ class SuspendLeaderManagementActionRegistry(
     }
 
     /** caller deadline까지만 결과를 관찰하고, cleanup worker는 registry scope에 남깁니다. */
+    suspend fun release(lockName: String): LeaderManagementActionResult =
+        release(lockName, LeaderManagementActionSurface.CORE)
+
+    /**
+     * framework adapter가 관측 surface를 보존할 수 있도록 지정한 surface로 release합니다.
+     * 기존 one-argument API는 [LeaderManagementActionSurface.CORE]를 사용합니다.
+     */
     @Suppress("ReturnCount")
-    suspend fun release(lockName: String): LeaderManagementActionResult {
+    suspend fun release(
+        lockName: String,
+        surface: LeaderManagementActionSurface,
+    ): LeaderManagementActionResult {
         if (!isManagementActionLockName(lockName)) {
-            return immediate(LeaderManagementActionOutcome.INVALID_LOCK_NAME)
+            return immediate(LeaderManagementActionOutcome.INVALID_LOCK_NAME, surface)
         }
         when (val selection = store.select(lockName)) {
             SuspendLeaderManagementActionStore.Selection.Closed ->
-                return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED)
+                return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
             SuspendLeaderManagementActionStore.Selection.NotRegistered ->
-                return immediate(LeaderManagementActionOutcome.NOT_REGISTERED)
+                return immediate(LeaderManagementActionOutcome.NOT_REGISTERED, surface)
 
             SuspendLeaderManagementActionStore.Selection.Ambiguous ->
-                return immediate(LeaderManagementActionOutcome.AMBIGUOUS)
+                return immediate(LeaderManagementActionOutcome.AMBIGUOUS, surface)
 
             is SuspendLeaderManagementActionStore.Selection.Record -> {
-                val (outcome, action) = store.begin(selection.value)
+                val (outcome, action) = store.begin(selection.value, surface)
                 when (outcome) {
                     SuspendLeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED ->
-                        return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED)
+                        return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
                     SuspendLeaderManagementActionStore.BeginOutcome.NOT_REGISTERED ->
-                        return immediate(LeaderManagementActionOutcome.NOT_REGISTERED)
+                        return immediate(LeaderManagementActionOutcome.NOT_REGISTERED, surface)
 
                     SuspendLeaderManagementActionStore.BeginOutcome.AMBIGUOUS ->
-                        return immediate(LeaderManagementActionOutcome.AMBIGUOUS)
+                        return immediate(LeaderManagementActionOutcome.AMBIGUOUS, surface)
 
                     SuspendLeaderManagementActionStore.BeginOutcome.ACTION_IN_PROGRESS ->
-                        return immediate(LeaderManagementActionOutcome.ACTION_IN_PROGRESS)
+                        return immediate(LeaderManagementActionOutcome.ACTION_IN_PROGRESS, surface)
 
                     SuspendLeaderManagementActionStore.BeginOutcome.ACTION_ADMISSION_REJECTED ->
-                        return immediate(LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED)
+                        return immediate(LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED, surface)
 
                     SuspendLeaderManagementActionStore.BeginOutcome.STARTED -> Unit
                 }
@@ -390,7 +400,7 @@ class SuspendLeaderManagementActionRegistry(
         try {
             observer?.onResult(
                 LeaderManagementActionObservation(
-                    surface = LeaderManagementActionSurface.CORE,
+                    surface = action.surface,
                     outcome = result.outcome,
                     phase = action.phase.get(),
                     mutationAttempted = result.mutationAttempted,
@@ -411,7 +421,7 @@ class SuspendLeaderManagementActionRegistry(
         try {
             observer?.onQuarantineRecovered(
                 LeaderManagementActionObservation(
-                    surface = LeaderManagementActionSurface.CORE,
+                    surface = action.surface,
                     outcome = result.outcome,
                     phase = LeaderManagementActionPhase.QUARANTINED,
                     mutationAttempted = result.mutationAttempted,
@@ -424,12 +434,15 @@ class SuspendLeaderManagementActionRegistry(
         }
     }
 
-    private fun immediate(outcome: LeaderManagementActionOutcome): LeaderManagementActionResult {
+    private fun immediate(
+        outcome: LeaderManagementActionOutcome,
+        surface: LeaderManagementActionSurface,
+    ): LeaderManagementActionResult {
         val result = result(outcome, false)
         try {
             observer?.onResult(
                 LeaderManagementActionObservation(
-                    surface = LeaderManagementActionSurface.CORE,
+                    surface = surface,
                     outcome = outcome,
                     phase = LeaderManagementActionPhase.TERMINALIZED,
                     mutationAttempted = false,
@@ -490,7 +503,10 @@ private class SuspendLeaderManagementActionStore(
         val actionInProgress = AtomicBoolean(false)
     }
 
-    internal class ActionRecord(val registration: RegistrationRecord) {
+    internal class ActionRecord(
+        val registration: RegistrationRecord,
+        val surface: LeaderManagementActionSurface,
+    ) {
         val phase = AtomicReference(LeaderManagementActionPhase.ADMITTED)
         val terminal = AtomicBoolean(false)
         val timedOut = AtomicBoolean(false)
@@ -572,7 +588,10 @@ private class SuspendLeaderManagementActionStore(
         }
     }
 
-    internal fun begin(record: RegistrationRecord): Pair<BeginOutcome, ActionRecord?> = lock.withLock {
+    internal fun begin(
+        record: RegistrationRecord,
+        surface: LeaderManagementActionSurface,
+    ): Pair<BeginOutcome, ActionRecord?> = lock.withLock {
         if (lifecycle != Lifecycle.OPEN) return@withLock BeginOutcome.REGISTRY_CLOSED to null
         if (record.registrationCount <= 0 || byHandle[record.handle] !== record) {
             return@withLock BeginOutcome.NOT_REGISTERED to null
@@ -587,7 +606,7 @@ private class SuspendLeaderManagementActionStore(
             record.actionInProgress.set(false)
             return@withLock BeginOutcome.ACTION_ADMISSION_REJECTED to null
         }
-        ActionRecord(record).also { activeActions[it] = true }.let { BeginOutcome.STARTED to it }
+        ActionRecord(record, surface).also { activeActions[it] = true }.let { BeginOutcome.STARTED to it }
     }
 
     internal fun finish(action: ActionRecord) = lock.withLock {

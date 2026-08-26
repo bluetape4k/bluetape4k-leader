@@ -6,6 +6,9 @@ import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.ktor.testing.shouldHaveStatus
 import io.bluetape4k.leader.ExtendOutcome
+import io.bluetape4k.leader.LeaderManagementActionObservation
+import io.bluetape4k.leader.LeaderManagementActionObserver
+import io.bluetape4k.leader.LeaderManagementActionSurface
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseHandle
@@ -190,6 +193,7 @@ class LeaderElectionManagementActionRouteTest {
             response.bodyAsText() shouldBeEqualTo
                 "{\"action\":\"RELEASE\",\"outcome\":\"RELEASED\",\"mutationAttempted\":true}"
             response.headers[HttpHeaders.ContentType].orEmpty() shouldContain "application/json"
+            registry.observations.single().surface shouldBeEqualTo LeaderManagementActionSurface.KTOR
         }
     }
 
@@ -271,15 +275,19 @@ class LeaderElectionManagementActionRouteTest {
     }
 
     private fun registryWithHandle(): RecordingRegistry {
-        val registry = SuspendLeaderManagementActionRegistry()
+        val observations = mutableListOf<LeaderManagementActionObservation>()
+        val registry = SuspendLeaderManagementActionRegistry(
+            observer = LeaderManagementActionObserver { observations += it },
+        )
         val handle = TestHandle("batch-job")
         registry.register(handle)
-        return RecordingRegistry(registry, handle).also(registries::add)
+        return RecordingRegistry(registry, handle, observations).also(registries::add)
     }
 
     private class RecordingRegistry(
         val delegate: SuspendLeaderManagementActionRegistry,
         private val handle: TestHandle,
+        val observations: List<LeaderManagementActionObservation>,
     ) {
         val releaseCalls: AtomicInteger
             get() = handle.releaseCalls

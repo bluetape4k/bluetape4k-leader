@@ -49,6 +49,26 @@ class SuspendLeaderManagementActionRegistryTest {
     }
 
     @Test
+    fun `adapter surface is propagated to terminal observation`() = runSuspendIO {
+        val observations = mutableListOf<io.bluetape4k.leader.LeaderManagementActionObservation>()
+        val handle = FakeSuspendHandle(
+            lockName = "ktor-surface",
+            statuses = listOf(LeaseOwnershipStatus.HELD, LeaseOwnershipStatus.NOT_HELD),
+        )
+        val registry = SuspendLeaderManagementActionRegistry(
+            observer = io.bluetape4k.leader.LeaderManagementActionObserver { observations += it },
+        )
+        registry.register(handle)
+
+        registry.release(
+            "ktor-surface",
+            io.bluetape4k.leader.LeaderManagementActionSurface.KTOR,
+        ).outcome shouldBeEqualTo LeaderManagementActionOutcome.RELEASED
+        observations.single().surface shouldBeEqualTo io.bluetape4k.leader.LeaderManagementActionSurface.KTOR
+        registry.closeAndDrain().shouldBeTrue()
+    }
+
+    @Test
     fun `registration and selector outcomes match blocking registry`() = runSuspendIO {
         val first = FakeSuspendHandle("same", listOf(LeaseOwnershipStatus.HELD))
         val second = FakeSuspendHandle("same", listOf(LeaseOwnershipStatus.HELD))

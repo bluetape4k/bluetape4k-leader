@@ -3,6 +3,7 @@ package io.bluetape4k.leader.internal
 import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderManagementActionResult
 import io.bluetape4k.leader.LeaderManagementActionPhase
+import io.bluetape4k.leader.LeaderManagementActionSurface
 import io.bluetape4k.leader.LeaderManagementQuarantineReason
 import io.bluetape4k.leader.LeaderManagementRegistrationOutcome
 import java.util.IdentityHashMap
@@ -36,6 +37,7 @@ internal class LeaderManagementActionStore(
 
     internal class ActionRecord(
         val registration: RegistrationRecord,
+        val surface: LeaderManagementActionSurface,
     ) {
         val phase = AtomicReference(LeaderManagementActionPhase.ADMITTED)
         val terminal = AtomicBoolean(false)
@@ -123,7 +125,10 @@ internal class LeaderManagementActionStore(
     }
 
     /** begin과 생성된 ActionRecord를 하나의 선형화 지점에서 반환합니다. */
-    internal fun beginRecord(record: RegistrationRecord): Pair<BeginOutcome, ActionRecord?> = lock.withLock {
+    internal fun beginRecord(
+        record: RegistrationRecord,
+        surface: LeaderManagementActionSurface,
+    ): Pair<BeginOutcome, ActionRecord?> = lock.withLock {
         if (lifecycle != Lifecycle.OPEN) return@withLock BeginOutcome.REGISTRY_CLOSED to null
         if (record.registrationCount <= 0 || byHandle[record.handle] !== record) {
             return@withLock BeginOutcome.NOT_REGISTERED to null
@@ -138,7 +143,7 @@ internal class LeaderManagementActionStore(
             record.actionInProgress.set(false)
             return@withLock BeginOutcome.ACTION_ADMISSION_REJECTED to null
         }
-        val action = ActionRecord(record)
+        val action = ActionRecord(record, surface)
         activeActions[action] = true
         BeginOutcome.STARTED to action
     }

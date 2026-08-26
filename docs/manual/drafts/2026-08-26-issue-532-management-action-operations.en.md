@@ -56,7 +56,7 @@ credential, request ID, token, backend payload, or exception message.
 
 Watch the following signals together:
 
-- action outcome counts by phase and surface;
+- quarantine observations by fixed phase and surface;
 - quarantine counter by fixed reason;
 - active/quarantined gauge returning to zero only after the worker terminates;
 - backend diagnostics and application shutdown/drain result.

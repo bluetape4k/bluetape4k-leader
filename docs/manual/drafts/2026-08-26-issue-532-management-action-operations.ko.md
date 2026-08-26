@@ -55,7 +55,7 @@ request ID, token, backend payload, exception message를 담지 않습니다.
 
 다음 신호를 함께 관찰하세요.
 
-- phase와 surface별 action outcome count
+- 고정된 phase와 surface별 quarantine observation
 - 고정 reason별 quarantine counter
 - worker가 종료된 뒤에만 0으로 돌아오는 active/quarantined gauge
 - backend diagnostics와 application shutdown/drain 결과

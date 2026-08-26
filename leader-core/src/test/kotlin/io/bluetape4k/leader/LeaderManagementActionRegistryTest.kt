@@ -39,6 +39,23 @@ class LeaderManagementActionRegistryTest {
     }
 
     @Test
+    fun `adapter surface is propagated to terminal observation`() {
+        val observations = mutableListOf<LeaderManagementActionObservation>()
+        val handle = FakeHandle("spring-surface") {
+            listOf(LeaseOwnershipStatus.HELD, LeaseOwnershipStatus.NOT_HELD)
+        }
+        val registry = LeaderManagementActionRegistry(
+            observer = LeaderManagementActionObserver { observations += it },
+        )
+        registry.register(handle)
+
+        registry.release("spring-surface", LeaderManagementActionSurface.SPRING).outcome shouldBeEqualTo
+            LeaderManagementActionOutcome.RELEASED
+        observations.single().surface shouldBeEqualTo LeaderManagementActionSurface.SPRING
+        registry.close()
+    }
+
+    @Test
     fun `not held and unknown ownership never call release`() {
         val notHeld = FakeHandle("not-held") { listOf(LeaseOwnershipStatus.NOT_HELD) }
         val unknown = FakeHandle("unknown") { listOf(LeaseOwnershipStatus.UNKNOWN) }
