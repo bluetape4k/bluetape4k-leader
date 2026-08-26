@@ -60,9 +60,9 @@ class LettuceStrategicSuspendLeaderGroupElector(
             listCandidates(lockName)
         } catch (e: CancellationException) {
             throw e
-        } catch (e: Throwable) {
-            log.warn(e) { "[$lockName] 후보 목록 조회 실패 — 전략적 그룹 선출 skip" }
-            return null
+        } catch (e: Exception) {
+            log.warn(e) { "[$lockName] 후보 목록 조회 실패 — 전략적 그룹 선출 중단" }
+            throw e
         }
         val result = strategy.electValidated(candidates, maxLeaders)
         if (result.winners.isEmpty()) return null

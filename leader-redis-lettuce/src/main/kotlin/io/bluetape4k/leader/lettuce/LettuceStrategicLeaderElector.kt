@@ -49,6 +49,7 @@ class LettuceStrategicLeaderElector(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    @Suppress("ReturnCount", "TooGenericExceptionCaught", "ThrowsCount")
     override fun <T> runIfLeader(
         lockName: String,
         strategy: ElectionStrategy,
@@ -57,9 +58,14 @@ class LettuceStrategicLeaderElector(
     ): T? {
         // 정책 위반은 정상 contention이 아니므로 후보 조회 실패 fallback보다 먼저 전파합니다.
         validateLockName(lockName)
-        val candidates = runCatching { listCandidates(lockName) }
-            .onFailure { log.warn(it) { "[$lockName] 후보 목록 조회 실패 — 선출 skip" } }
-            .getOrElse { return null }
+        val candidates = try {
+            listCandidates(lockName)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.warn(e) { "[$lockName] 후보 목록 조회 실패 — 선출 중단" }
+            throw e
+        }
         val result = strategy.elect(candidates)
         val winner = result.winner ?: return null
 
