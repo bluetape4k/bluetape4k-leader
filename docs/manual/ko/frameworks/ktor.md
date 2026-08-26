@@ -17,6 +17,22 @@ releaseCommit: 721a9a3808f67489d2bdb8177734325981c24977
 
 `Application.leaderScheduled(lockName, period) { ... }`는 주기적으로 선출을 시도합니다. 선출된 인스턴스만 본문을 실행하며 `ApplicationStopped`에서 작업을 취소합니다. 취소가 아닌 `Exception`이 발생하면 `WARN` 로그를 남기고 해당 회차만 건너뛴 뒤 다음 주기를 계속합니다. 리스는 정상적인 한 회차보다 길게 잡고, 실행 시간의 편차가 크다면 지원되는 연장 전략을 사용합니다.
 
+## Event stream
+
+Issue #701 event stream은 기본적으로 꺼져 있습니다. elector가
+`LeaderElectionEventPublisher`를 구현할 때 활성화하고
+`leaderElectionEventStream()`을 애플리케이션의 `authenticate { ... }` 또는 동등한
+authorization route 안에서 호출하세요. `SSE`와 `WebSockets` plugin 및 transport
+artifact는 애플리케이션이 직접 설치합니다. Plugin은 공개 root route를 만들지 않습니다.
+
+기본 path는 `/management/leaderElection/events`이고 WebSocket은 `${path}/ws`를 사용합니다.
+각 connection은 명시적으로 all-lock 모드를 켜지 않는 한 `lockName`으로 필터링됩니다.
+이벤트에는 증가하는 sequence id가 붙고 `afterSequence` 또는 SSE의 `Last-Event-ID`로
+replay할 수 있습니다. Replay는 bounded이며 오래된 cursor에는 `replay_gap`이 전달되고,
+capacity `0`은 live-only입니다. 기본 payload는 metadata를 숨기고 heartbeat로 유휴
+connection을 유지합니다. Connection 상한과 drop-oldest channel로 자원을 제한하며 잘못된
+입력과 admission 실패는 안정적인 Ktor 오류 계약을 사용합니다.
+
 ## 애플리케이션 책임
 
 이 도우미는 놓친 실행 시각을 저장하거나 재시도를 순서대로 처리하거나 외부 효과를 멱등하게 만들지 않습니다. 복구해야 하는 실행이라면 영속적인 작업 상태를 기록합니다. 같은 백엔드에 Ktor 애플리케이션 두 개를 연결해 한 인스턴스에서만 실행되는지와 종료할 때 취소되는지를 함께 검증합니다.
