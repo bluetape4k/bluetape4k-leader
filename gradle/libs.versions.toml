@@ -121,5 +121,9 @@ ktor-server-auth = { module = "io.ktor:ktor-server-auth" }
 ktor-server-cio = { module = "io.ktor:ktor-server-cio" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host" }
 ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages" }
+ktor-server-sse = { module = "io.ktor:ktor-server-sse" }
+ktor-server-websockets = { module = "io.ktor:ktor-server-websockets" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio" }
+ktor-client-websockets = { module = "io.ktor:ktor-client-websockets" }
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation" }
 ktor-serialization-jackson = { module = "io.ktor:ktor-serialization-jackson" }
