@@ -54,6 +54,7 @@ internal class LeaderElectionResourceRegistryImpl(
         cleanupSupervisor + Dispatchers.IO.limitedParallelism(1),
     )
     private val closedCompletion = kotlinx.coroutines.CompletableDeferred<LeaderElectionShutdownReport>()
+    private val shutdownObservers = mutableListOf<(LeaderElectionShutdownReport) -> Unit>()
 
     @Volatile
     private var closed = false
@@ -120,7 +121,13 @@ internal class LeaderElectionResourceRegistryImpl(
 
         cleanupScope.launch {
             val report = cleanup(drained)
-            shutdownReport = report
+            val observers = lock.withLock {
+                shutdownReport = report
+                shutdownObservers.toList().also { shutdownObservers.clear() }
+            }
+            observers.forEach { observer ->
+                runCatching { observer(report) }
+            }
             closedCompletion.complete(report)
             // The registry owns this scope; no dispatcher or supervisor survives completion.
             cleanupSupervisor.cancel()
@@ -129,6 +136,16 @@ internal class LeaderElectionResourceRegistryImpl(
 
     override suspend fun awaitClosed(): LeaderElectionShutdownReport =
         closedCompletion.await()
+
+    internal fun observeShutdown(observer: (LeaderElectionShutdownReport) -> Unit) {
+        val completed = lock.withLock {
+            shutdownReport ?: run {
+                shutdownObservers += observer
+                null
+            }
+        }
+        completed?.let(observer)
+    }
 
     private suspend fun cleanup(drained: List<Entry>): LeaderElectionShutdownReport {
         var closedCount = 0

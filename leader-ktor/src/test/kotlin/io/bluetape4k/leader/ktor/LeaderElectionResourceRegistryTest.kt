@@ -3,6 +3,7 @@ package io.bluetape4k.leader.ktor
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
@@ -56,13 +57,16 @@ class LeaderElectionResourceRegistryTest {
     @Test
     fun `job resource는 cancel 후 bounded join하고 timeout을 집계한다`() = runSuspendIO {
         val registry = LeaderElectionResourceRegistryImpl(jobJoinTimeout = 25.milliseconds)
+        val started = CompletableDeferred<Unit>()
         val job = launch {
             try {
+                started.complete(Unit)
                 awaitCancellation()
             } finally {
                 withContext(NonCancellable) { delay(250.milliseconds) }
             }
         }
+        started.await()
         registry.register(job)
 
         registry.close()

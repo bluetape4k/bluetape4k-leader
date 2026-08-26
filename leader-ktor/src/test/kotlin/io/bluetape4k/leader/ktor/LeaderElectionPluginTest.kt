@@ -9,6 +9,7 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.ktor.server.application.install
 import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Test
+import java.util.concurrent.atomic.AtomicInteger
 
 class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
 
@@ -56,5 +57,38 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
                 startApplication()
             }
         }
+    }
+
+    @Test
+    fun `ApplicationStopped에서 plugin-owned resource만 한 번 닫힌다`() = runSuspendIO {
+        val closeCount = AtomicInteger(0)
+        lateinit var resource: AutoCloseable
+        lateinit var registry: LeaderElectionResourceRegistry
+
+        testApplication {
+            application {
+                install(LeaderElectionPlugin) {
+                    leaderElection = FakeSuspendLeaderElector()
+                }
+                resource = AutoCloseable { closeCount.incrementAndGet() }
+                registry = leaderElectionResourceRegistryOrNull()!!
+                registry.register(resource)
+            }
+            startApplication()
+        }
+        registry.awaitClosed()
+
+        closeCount.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `caller-owned AutoCloseable elector는 ApplicationStopped에서 닫지 않는다`() = runSuspendIO {
+        val elector = AutoCloseableFakeSuspendLeaderElector()
+        testApplication {
+            application { install(LeaderElectionPlugin) { leaderElection = elector } }
+            startApplication()
+        }
+
+        elector.closeCount.get() shouldBeEqualTo 0
     }
 }
