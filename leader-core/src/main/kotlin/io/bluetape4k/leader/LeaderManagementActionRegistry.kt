@@ -349,6 +349,7 @@ class LeaderManagementActionRegistry(
                 },
             )
         } finally {
+            notifyQuarantineRecovery(action)
             action.workerFinished.countDown()
             store.finish(action)
         }
@@ -484,6 +485,26 @@ class LeaderManagementActionRegistry(
             )
         } catch (_: Throwable) {
             // observer is application-owned and must not alter action result or cleanup.
+        }
+    }
+
+    private fun notifyQuarantineRecovery(action: LeaderManagementActionStore.ActionRecord) {
+        if (!action.quarantined) return
+        val result = action.result ?: return
+        val reason = action.quarantineReason ?: return
+        try {
+            observer?.onQuarantineRecovered(
+                LeaderManagementActionObservation(
+                    surface = LeaderManagementActionSurface.CORE,
+                    outcome = result.outcome,
+                    phase = LeaderManagementActionPhase.QUARANTINED,
+                    mutationAttempted = result.mutationAttempted,
+                    quarantined = true,
+                    quarantineReason = reason,
+                ),
+            )
+        } catch (_: Throwable) {
+            // recovery observer failure is isolated from worker cleanup.
         }
     }
 

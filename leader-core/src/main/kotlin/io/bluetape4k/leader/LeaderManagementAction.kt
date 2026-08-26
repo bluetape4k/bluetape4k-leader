@@ -131,6 +131,9 @@ data class LeaderManagementActionObservation(
 /** action 결과를 sanitized 형태로 관찰하는 callback입니다. */
 fun interface LeaderManagementActionObserver {
     fun onResult(observation: LeaderManagementActionObservation)
+
+    /** quarantine reservation이 실제 worker 종료로 회복됐음을 알리는 선택적 callback입니다. */
+    fun onQuarantineRecovered(observation: LeaderManagementActionObservation) = Unit
 }
 
 /** 공통 HTTP adapter가 사용할 status/retry 정책입니다. */

@@ -84,6 +84,23 @@ const val OBSERVATION_TAG_EXECUTION_ELAPSED_MS: String = "execution.elapsed.ms"
  */
 internal object MicrometerNames {
 
+    // --- Management action meters ---
+
+    /** management action quarantine 발생 counter입니다. */
+    const val MANAGEMENT_QUARANTINE = "bluetape4k.leader.management.quarantine"
+
+    /** management action의 현재 quarantine reservation gauge입니다. */
+    const val MANAGEMENT_QUARANTINE_ACTIVE = "bluetape4k.leader.management.quarantine.active"
+
+    /** management quarantine reason tag입니다. */
+    const val MANAGEMENT_TAG_REASON = "reason"
+
+    /** management quarantine phase tag입니다. */
+    const val MANAGEMENT_TAG_PHASE = "phase"
+
+    /** management quarantine surface tag입니다. */
+    const val MANAGEMENT_TAG_SURFACE = "surface"
+
     // --- Audit exporter meters ---
 
     /** bounded audit admission 성공 누적 counter입니다. */
