@@ -972,7 +972,7 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
 - Modify: `leader-ktor/src/test/kotlin/io/bluetape4k/leader/ktor/LeaderElectionManagementRouteTest.kt`
 - Modify: `leader-ktor/README.md`, `leader-ktor/README.ko.md`, `docs/manual/en/modules/bluetape4k-leader-ktor.md`, `docs/manual/ko/modules/bluetape4k-leader-ktor.md`
 
-- [ ] **Step 1: invalid lock/backend/cancellation route 테스트를 RED로 추가한다.**
+- [x] **Step 1: invalid lock/backend/cancellation route 테스트를 RED로 추가한다.**
 
   management registry에 공백 또는 허용되지 않은 문자의 lock name을 넣는 경로,
   state provider가 `IllegalStateException`을 던지는 경로, request coroutine이
@@ -980,7 +980,7 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
   backend failure는 503 `BACKEND_UNAVAILABLE`, cancellation은 예외 재전파로
   고정한다. 기존 정상 JSON test는 exact body를 유지한다.
 
-- [ ] **Step 2: register와 route를 core validation/error mapping에 연결한다.**
+- [x] **Step 2: register와 route를 core validation/error mapping에 연결한다.**
 
   `LeaderElectionManagementRegistry.register`는 기존 blank 검증에 더해 core
   `validateLockName`을 호출한다. route handler는 lock별 state 조회를
@@ -992,7 +992,7 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
   응답에는 넣지 않는다. 정상 `LeaderStatus.Empty/Occupied`와 기존
   leaderId/leaseExpiry JSON shape은 바꾸지 않는다.
 
-- [ ] **Step 3: management 및 전체 KTOR-02 테스트를 GREEN으로 실행한다.**
+- [x] **Step 3: management 및 전체 KTOR-02 테스트를 GREEN으로 실행한다.**
 
   Run: `./gradlew :bluetape4k-leader-ktor:test --tests '*LeaderElectionManagementRouteTest' --tests '*LeaderElectionStatusPagesAdapterTest' --no-daemon --no-build-cache`
 
@@ -1001,7 +1001,7 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
   `runIfLeader` contention-null을 바꾸는 core diff가 생기면 즉시 되돌리고
   KTOR-02 범위를 유지한다.
 
-- [ ] **Step 4: 오류 문서와 child commit을 완료한다.**
+- [x] **Step 4: 오류 문서와 child commit을 완료한다.**
 
   README와 manual EN/KO에 code/status 표, converter 없는 fallback, typed
   override allow-list, backend cause 비노출, detached scheduler 예외의
