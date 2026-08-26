@@ -57,13 +57,8 @@ internal class RedissonCandidateRegistry(
 
     fun updateResult(lockName: String, nodeId: String, result: CandidateResult) {
         val cache = mapCacheFor(lockName)
-        val current = cache[nodeId] ?: return
-        val updated = current.withResult(result)
-        val remainMs = cache.remainTimeToLive(nodeId)  // -1 = no TTL, -2 = absent
-        when {
-            remainMs > 0L   -> cache.put(nodeId, updated, remainMs, TimeUnit.MILLISECONDS)
-            remainMs == -1L -> cache.put(nodeId, updated)
-            // remainMs == -2: key expired between GET and TTL check — skip to avoid zombie
-        }
+        // Redisson의 per-entry lock과 server-side fastPutIfExists를 사용해
+        // read-modify-write 및 GET/TTL/PUT 사이의 만료 경쟁을 제거한다.
+        cache.computeIfPresent(nodeId) { _, current -> current.withResult(result) }
     }
 }

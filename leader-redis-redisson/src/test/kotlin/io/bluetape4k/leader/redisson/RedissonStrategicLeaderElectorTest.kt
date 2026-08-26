@@ -11,6 +11,7 @@ import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import org.awaitility.kotlin.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -342,6 +343,37 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
         updated.failureCount shouldBeEqualTo 2L
         updated.successCount shouldBeEqualTo 0L
+    }
+
+    @Test
+    fun `동시 결과 갱신은 성공과 실패 카운터를 모두 보존한다`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        node1.registerCandidate(lockName, CandidateInfo("node-2", successCount = 1, failureCount = 9))
+
+        val electors = (1..8).map { RedissonStrategicLeaderElector(redissonClient, "node-1") }
+        val actions = electors.flatMap { elector ->
+            listOf<() -> Unit>(
+                { elector.updateResult(lockName, "node-1", CandidateResult.SUCCESS) },
+                { elector.updateResult(lockName, "node-1", CandidateResult.FAILURE) },
+            )
+        }
+        val workers = actions.size
+        val rounds = 20
+        MultithreadingTester()
+            .workers(workers)
+            .rounds(rounds)
+            .addAll(actions)
+            .run()
+
+        val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        val expectedEach = (workers * rounds / 2).toLong()
+        updated.successCount shouldBeEqualTo expectedEach
+        updated.failureCount shouldBeEqualTo expectedEach
+        updated.successRate shouldBeEqualTo 0.5
+        ScoredElectionStrategy(SuccessRateScorer)
+            .elect(node1.listCandidates(lockName))
+            .winner?.nodeId shouldBeEqualTo "node-1"
     }
 
     @Test

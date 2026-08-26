@@ -4,14 +4,16 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
+import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.leader.validateLockName
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
-import io.lettuce.core.SetArgs
+import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.coroutines
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.toList
+import java.time.Instant
 import kotlin.time.Duration
 
 /**
@@ -35,6 +37,7 @@ internal class LettuceSuspendCandidateRegistry(
     }
 
     private val cmds: RedisCoroutinesCommands<String, String> = connection.coroutines()
+    private val asyncCommands by lazy { connection.async() }
 
     private fun indexKey(lockName: String) =
         "$keyPrefix:$lockName"
@@ -106,8 +109,13 @@ internal class LettuceSuspendCandidateRegistry(
     suspend fun updateResult(lockName: String, nodeId: String, result: CandidateResult) {
         validateLockName(lockName)
         val key = candidateKey(lockName, nodeId)
-        val current = cmds.get(key)?.let { LettuceCandidateInfoCodec.decode(it) } ?: return
-        val updated = LettuceCandidateInfoCodec.encode(current.withResult(result))
-        cmds.set(key, updated, SetArgs.Builder.xx().keepttl())
+        val reply = RedisScriptRunner.runSuspending<List<Any>>(
+            asyncCommands,
+            LettuceCandidateResultScript.UPDATE,
+            ScriptOutputType.MULTI,
+            arrayOf(key),
+            *LettuceCandidateResultScript.resultArgs(result, Instant.now().toEpochMilli()),
+        )
+        LettuceCandidateResultScript.rethrowMalformed(reply)
     }
 }

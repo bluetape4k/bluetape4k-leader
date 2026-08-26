@@ -16,6 +16,9 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.support.closeSafe
+import io.lettuce.core.codec.StringCodec
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -242,6 +245,42 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
 
         val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
         updated.failureCount shouldBeEqualTo 3L
+    }
+
+    @Test
+    fun `동시 결과 갱신은 성공과 실패 카운터를 모두 보존한다`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        node1.registerCandidate(lockName, CandidateInfo("node-2", successCount = 1, failureCount = 9))
+
+        val connections = (1..8).map { client.connect(StringCodec.UTF8) }
+        try {
+            val electors = connections.map { LettuceStrategicLeaderElector(it, "node-1") }
+            val actions = electors.flatMap { elector ->
+                listOf<() -> Unit>(
+                    { elector.updateResult(lockName, "node-1", CandidateResult.SUCCESS) },
+                    { elector.updateResult(lockName, "node-1", CandidateResult.FAILURE) },
+                )
+            }
+            val workers = actions.size
+            val rounds = 20
+            MultithreadingTester()
+                .workers(workers)
+                .rounds(rounds)
+                .addAll(actions)
+                .run()
+
+            val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+            val expectedEach = (workers * rounds / 2).toLong()
+            updated.successCount shouldBeEqualTo expectedEach
+            updated.failureCount shouldBeEqualTo expectedEach
+            updated.successRate shouldBeEqualTo 0.5
+            ScoredElectionStrategy(SuccessRateScorer)
+                .elect(node1.listCandidates(lockName))
+                .winner?.nodeId shouldBeEqualTo "node-1"
+        } finally {
+            connections.forEach { it.closeSafe() }
+        }
     }
 
     @Test
