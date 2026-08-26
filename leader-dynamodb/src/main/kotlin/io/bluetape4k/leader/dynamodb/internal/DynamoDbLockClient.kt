@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.dynamodb.internal
 
+import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderState
@@ -18,7 +19,6 @@ import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest
 import java.time.Instant
-import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import kotlin.math.ceil
@@ -54,7 +54,7 @@ internal class DynamoDbLockClient(
         private const val TtlAttr = "#ttl"
         private const val BatchGetLimit = 100
 
-        fun newOwnerId(): String = UUID.randomUUID().toString()
+        fun newOwnerId(): String = Uuid.V4.nextUUID().toString()
     }
 
     /**
