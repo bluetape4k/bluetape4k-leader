@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.backend
 
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.requireNotBlank
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,12 +26,14 @@ import kotlin.time.Duration.Companion.seconds
  * 고정하고, 초기화 실패·취소·timeout은 Spring bean 생성 오류로 그대로 전파합니다. timeout
  * 이후에는 자식 작업의 취소와 bounded cleanup join을 수행하여 cooperative 작업의 잔여 실행을
  * 정리합니다. non-cooperative 작업이 cleanup timeout 안에 끝나지 않으면 경고를 남기고 원래
- * 초기화 오류를 유지한 채 반환합니다.
+ * 초기화 오류를 유지한 채 반환합니다. [operationName]은 경고에서 backend bean 초기화
+ * 경계를 식별하는 안정적인 low-cardinality 값입니다.
  */
 internal fun <T> createSuspendBackendBean(
     timeout: Duration = DEFAULT_SUSPEND_BEAN_INITIALIZATION_TIMEOUT,
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
     cleanupTimeout: Duration = DEFAULT_SUSPEND_BEAN_CLEANUP_TIMEOUT,
+    operationName: String = DEFAULT_SUSPEND_BEAN_OPERATION_NAME,
     block: suspend () -> T,
 ): T {
     require(timeout.isPositive() && timeout.isFinite()) {
@@ -39,6 +42,7 @@ internal fun <T> createSuspendBackendBean(
     require(cleanupTimeout.isPositive() && cleanupTimeout.isFinite()) {
         "suspend backend bean cleanup timeout must be positive and finite: $cleanupTimeout"
     }
+    val validOperationName = operationName.requireNotBlank("operationName")
     return runBlocking {
         val scope = CoroutineScope(SupervisorJob() + dispatcher)
         val task = scope.async { block() }
@@ -54,7 +58,8 @@ internal fun <T> createSuspendBackendBean(
                 if (!cleanupCompleted) {
                     SuspendBeanInitializationLogger.log.warn {
                         "Suspend backend bean initialization cleanup did not complete within " +
-                            "$cleanupTimeout; non-cooperative initialization may still be running"
+                            "$cleanupTimeout; operationName=$validOperationName; " +
+                            "non-cooperative initialization may still be running"
                     }
                 }
             }
@@ -63,6 +68,7 @@ internal fun <T> createSuspendBackendBean(
 }
 
 internal val DEFAULT_SUSPEND_BEAN_INITIALIZATION_TIMEOUT: Duration = 10.seconds
+internal const val DEFAULT_SUSPEND_BEAN_OPERATION_NAME: String = "suspend-backend-bean"
 
 /**
  * 초기화 timeout 이후 cooperative cleanup에 허용하는 짧은 grace window입니다.

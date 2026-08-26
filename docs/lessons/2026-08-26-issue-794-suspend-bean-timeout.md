@@ -29,8 +29,10 @@ Spring의 동기 `@Bean` 경계에서 suspend backend 초기화를 실행하는
 `SuspendBeanInitialization.kt`의 `finally`에서 `NonCancellable` context를
 사용해 `task.cancelAndJoin()`을 `withTimeoutOrNull(cleanupTimeout)`으로 감싼다.
 cleanup이 grace window 안에 끝나면 잔여 작업을 정리하고, 끝나지 않으면
-`io.bluetape4k.logging` warning을 남긴 뒤 `scope.cancel()`을 호출한다. 기본
-cleanup grace는 `100.milliseconds`이며, 강제 thread 종료는 사용하지 않는다.
+`io.bluetape4k.logging` warning을 남긴 뒤 `scope.cancel()`을 호출한다. warning은
+`operationName`이라는 안정적인 low-cardinality 식별자를 포함하며, Mongo와 Exposed
+R2DBC의 각 suspend bean 경계가 명시적인 이름을 전달한다. 기본 cleanup grace는
+`100.milliseconds`이며, 강제 thread 종료는 사용하지 않는다.
 
 cleanup 경로가 원래 오류를 가리지 않도록 별도의 예외를 던지지 않는다.
 따라서 초기화 timeout의 `TimeoutCancellationException`, 초기화 block의
@@ -42,8 +44,9 @@ cleanup 경로가 원래 오류를 가리지 않도록 별도의 예외를 던�
 - timeout 이후 cooperative cleanup은 `cancelAndJoin()`으로 완료를 확인한다.
 - non-cooperative cleanup은 `cleanupTimeout`을 넘겨 Spring startup 실패를
   다시 무기한 지연시키지 않는다.
-- grace window를 넘긴 잔여 실행은 warning으로 관측할 수 있고, 원래
-  `TimeoutCancellationException`은 유지된다.
+- grace window를 넘긴 잔여 실행은 `operationName`과 함께 warning으로 관측할 수
+  있고, warning 발생과 원래 `TimeoutCancellationException` 보존을 회귀 테스트로
+  고정했다.
 - dispatcher queue에 작업이 대기 중인 경우에도 초기화 timeout은 queue 대기를
   포함한다. 호출자 thread가 queue 작업의 실행 완료를 무기한 기다리지 않는다.
 
@@ -54,8 +57,8 @@ cleanup 경로가 원래 오류를 가리지 않도록 별도의 예외를 던�
 
 - timeout 뒤 non-cooperative cleanup이 release될 때 bridge가 cleanup 완료까지
   기다린다.
-- cleanup이 release되지 않으면 `50.milliseconds` grace 뒤 bridge가 반환하고
-  원래 `TimeoutCancellationException`을 유지한다.
+- cleanup이 release되지 않으면 `200.milliseconds` grace 뒤 bridge가 반환하고
+  식별자를 포함한 warning과 원래 `TimeoutCancellationException`을 유지한다.
 - dispatcher queue 대기, 일반 timeout, cancellation, Spring startup failure와
   `cleanupTimeout`의 positive finite 검증을 유지한다.
 
@@ -78,10 +81,11 @@ release될 때까지 bridge가 반환되기 전에 이 가정이 틀렸음을 �
 지연되므로, 취소 협조 여부를 호출자가 바꿀 수 없는 작업에 대해서는 잔여
 실행 가능성을 인정하는 bounded 계약이 필요하다.
 
-독립 7-Tier 검토에서는 P0/P1이 없었지만, warning에 backend/bean 식별자가
-없고 warning 발생 자체를 고정한 테스트가 없다는 `WATCH` 관찰사항이 남았다.
-이번 PR에서는 bounded lifecycle 계약을 우선 고정하고, 운영 식별자와 warning
-capture 테스트는 별도 후속 범위로 남긴다.
+독립 7-Tier 검토에서 P0/P1은 없었지만, warning에 backend/bean 식별자가 없고
+warning 발생 자체를 고정한 테스트가 없다는 `WATCH` 관찰사항이 남았다. 후속
+보강에서 `operationName`을 도입하고 Mongo·Exposed R2DBC 호출부에 안정적인 이름을
+전달했으며, Logback `ListAppender` 회귀 테스트로 warning의 발생과 식별자를
+고정했다.
 
 ## 향후 guard
 
@@ -92,5 +96,5 @@ capture 테스트는 별도 후속 범위로 남긴다.
    실행하고, cleanup 예외로 원래 `CancellationException` 계열을 덮지 않는다.
 3. 테스트는 cooperative 작업과 non-cooperative 작업을 모두 명시적으로
    시작시킨 뒤, cleanup 완료 대기와 grace 초과 후 반환을 각각 검증한다.
-4. non-cooperative 잔여 실행을 강제 thread 종료로 해결하지 않는다. warning에
-   low-cardinality backend/bean context를 포함하는 후속 변경을 검토한다.
+4. non-cooperative 잔여 실행을 강제 thread 종료로 해결하지 않는다. warning에는
+   요청별 값이 아닌 low-cardinality backend/bean `operationName`만 포함한다.

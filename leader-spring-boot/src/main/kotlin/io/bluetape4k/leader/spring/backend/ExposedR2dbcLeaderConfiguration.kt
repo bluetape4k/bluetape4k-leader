@@ -31,7 +31,9 @@ class ExposedR2dbcLeaderConfiguration {
         db: R2dbcDatabase,
         props: LeaderProperties,
         recorderProvider: ObjectProvider<SuspendSafeLeaderHistoryRecorder>,
-    ): ExposedR2DbcSuspendLeaderElector = createSuspendBackendBean {
+    ): ExposedR2DbcSuspendLeaderElector = createSuspendBackendBean(
+        operationName = "exposedR2dbcSuspendLeaderElector",
+    ) {
         ExposedR2DbcSuspendLeaderElector(
             db,
             ExposedR2dbcLeaderElectionOptions(leaderOptions = PropertiesAdapter.toCommonElection(props)),
@@ -45,7 +47,9 @@ class ExposedR2dbcLeaderConfiguration {
         db: R2dbcDatabase,
         props: LeaderProperties,
         recorderProvider: ObjectProvider<SuspendSafeLeaderHistoryRecorder>,
-    ): ExposedR2DbcSuspendLeaderGroupElector = createSuspendBackendBean {
+    ): ExposedR2DbcSuspendLeaderGroupElector = createSuspendBackendBean(
+        operationName = "exposedR2dbcSuspendLeaderGroupElector",
+    ) {
         ExposedR2DbcSuspendLeaderGroupElector(
             db,
             ExposedR2dbcLeaderGroupElectionOptions(leaderGroupOptions = PropertiesAdapter.toCommonGroup(props)),
