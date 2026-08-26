@@ -1019,7 +1019,7 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
 **Files:**
 - Read-only: KTOR-02 branch status, exact commit, issue #540
 
-- [ ] **Step 1: 공통 검증 6개와 public descriptor를 순서대로 실행한다.**
+- [x] **Step 1: 공통 검증 6개와 public descriptor를 순서대로 실행한다.**
 
   `:bluetape4k-leader-ktor:test`, compile, jar, detekt, manual inventory,
   `git diff --check`를 실행한다. 공통 `javap` 목록 외에
@@ -1027,7 +1027,7 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
   확인하고 compileOnly adapter가 core API에 dependency를 새로 새지 않는지
   확인한다. 대표 consumer test source를 `compileTestKotlin`으로 다시 컴파일한다.
 
-- [ ] **Step 2: optional artifact 부재 smoke를 실행한다.**
+- [x] **Step 2: optional artifact 부재 smoke를 실행한다.**
 
   Task 6의 `LeaderElectionStatusPagesAdapterTest`에 둔
   `URLClassLoader` smoke를 실행한다. test runtime URL에서
@@ -1038,7 +1038,20 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
   linkage/configuration error가 발생해야 한다. filtered URL 목록과 두 결과를 test assertion/log에
   남긴다.
 
-- [ ] **Step 3: KTOR-02 exact head를 기록하고 KTOR-03 child base를 만든다.**
+**KTOR-02 실행 증거 (2026-08-26):** `leader-ktor` 전체 test는 56개 PASS했고,
+`compileKotlin`/`compileTestKotlin`, `jar`, root `detekt`
+(`--no-configuration-cache` 재실행), `exportManualModuleInventory`,
+`git diff --check`, Korean audit(`findings=[]`)를 통과했다. test runtime dependency는
+`io.ktor:ktor-server-status-pages:3.5.2`로 해석됐다. `jar tf`/`javap`에서
+`LeaderElectionErrorCode`, `LeaderElectionErrorContext`, `LeaderElectionErrorOverride`,
+`LeaderElectionErrorResponder`, `LeaderElectionStatusPagesAdapterKt`의 descriptor를
+확인했고, optional artifact를 제거한 child-first `URLClassLoader`에서 plugin/config는
+로드되고 adapter descriptor는 `LinkageError`로 차단되는 smoke가 PASS했다. 첫 root
+`detekt` 시도는 Kotlin Gradle plugin cache의 `KotlinPluginWrapper` 탐색 오류와
+configuration-cache의 `detektProductionSourceGuard` 오류가 각각 발생했으나, 동일
+명령을 재시도하고 `--no-configuration-cache`로 실행해 최종 PASS했다.
+
+- [x] **Step 3: KTOR-02 exact head를 기록하고 KTOR-03 child base를 만든다.**
 
   ```bash
   REPO_ROOT=/Users/debop/work/bluetape4k/bluetape4k-leader
