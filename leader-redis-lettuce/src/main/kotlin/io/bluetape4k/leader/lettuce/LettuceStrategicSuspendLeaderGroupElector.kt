@@ -16,6 +16,8 @@ import io.bluetape4k.logging.warn
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.api.StatefulRedisConnection
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlin.time.Duration
 
 /**
@@ -56,6 +58,7 @@ class LettuceStrategicSuspendLeaderGroupElector(
         action: suspend () -> T,
     ): T? {
         validateLockName(lockName)
+        currentCoroutineContext().ensureActive()
         val candidates = try {
             listCandidates(lockName)
         } catch (e: CancellationException) {
@@ -87,6 +90,7 @@ class LettuceStrategicSuspendLeaderGroupElector(
 
         return try {
             val value = action()
+            currentCoroutineContext().ensureActive()
             updateStrategicResultPreservingCancellation(
                 lockName = lockName,
                 result = CandidateResult.SUCCESS,

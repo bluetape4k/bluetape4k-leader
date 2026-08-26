@@ -18,6 +18,7 @@ import org.awaitility.kotlin.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -68,6 +69,54 @@ class LettuceStrategicLeaderGroupElectorTest : AbstractLettuceLeaderTest() {
         node1.listCandidates(lockName).size shouldBeEqualTo 1
         await.atMost(2.seconds).withPollInterval(50.milliseconds)
             .until { node1.listCandidates(lockName).isEmpty() }
+    }
+
+    @Test
+    fun `group action CancellationException은 failureCount를 증가시키지 않고 재전파한다`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+        val cancellation = CancellationException("group action cancelled")
+
+        val thrown = assertFailsWith<CancellationException> {
+            node1.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 1) {
+                throw cancellation
+            }
+        }
+
+        thrown.message shouldBeEqualTo cancellation.message
+        val candidate = node1.listCandidates(lockName).single()
+        candidate.failureCount shouldBeEqualTo 0L
+    }
+
+    @Test
+    fun `group action 예외는 failureCount를 증가시키고 예외를 전파한다`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+        val failure = IllegalStateException("group action failed")
+
+        val thrown = assertFailsWith<IllegalStateException> {
+            node1.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 1) {
+                throw failure
+            }
+        }
+
+        thrown.message shouldBeEqualTo failure.message
+        val candidate = node1.listCandidates(lockName).single()
+        candidate.successCount shouldBeEqualTo 0L
+        candidate.failureCount shouldBeEqualTo 1L
+    }
+
+    @Test
+    fun `group action 성공은 successCount를 증가시키고 failureCount를 건드리지 않는다`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+
+        node1.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 1) { "ok" }
+            .shouldBeEqualTo("ok")
+
+        val candidate = node1.listCandidates(lockName).single()
+        candidate.successCount shouldBeEqualTo 1L
+        candidate.failureCount shouldBeEqualTo 0L
     }
 
     @Test

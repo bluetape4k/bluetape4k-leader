@@ -14,10 +14,19 @@ import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredGroupElectionStrategy
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.job
 import org.awaitility.kotlin.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -69,6 +78,73 @@ class RedissonStrategicSuspendLeaderGroupElectorTest : AbstractRedissonLeaderTes
         await.atMost(2.seconds).withPollInterval(50.milliseconds) untilSuspending {
             node1.listCandidates(lockName).isEmpty()
             }
+    }
+
+    @Test
+    fun `실제 Job cancelAndJoin은 group failureCount를 증가시키지 않는다`() = runSuspendIO {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+
+        coroutineScope {
+            val actionStarted = CompletableDeferred<Unit>()
+            val deferred = async {
+                node1.runIfLeader(lockName, FifoGroupElectionStrategy) {
+                    actionStarted.complete(Unit)
+                    awaitCancellation()
+                }
+            }
+            actionStarted.await()
+            deferred.cancelAndJoin()
+            deferred.isCancelled shouldBeEqualTo true
+        }
+
+        val candidate = node1.listCandidates(lockName).single()
+        candidate.failureCount shouldBeEqualTo 0L
+    }
+
+    @Test
+    fun `결과 갱신 직전 Job 취소는 CancellationException을 재전파하고 카운터를 갱신하지 않는다`() = runSuspendIO {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+        val cancellation = CancellationException("cancel before result update")
+
+        coroutineScope {
+            val deferred = async {
+                node1.runIfLeader(lockName, FifoGroupElectionStrategy) {
+                    currentCoroutineContext().job.cancel(cancellation)
+                    "cancelled"
+                }
+            }
+            assertFailsWith<CancellationException> { deferred.await() }
+        }
+
+        val candidate = node1.listCandidates(lockName).single()
+        candidate.successCount shouldBeEqualTo 0L
+        candidate.failureCount shouldBeEqualTo 0L
+    }
+
+    @Test
+    fun `후보 조회 전 Job 취소는 action을 실행하지 않고 CancellationException을 재전파한다`() = runSuspendIO {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+        val actionInvoked = AtomicBoolean(false)
+        val cancellation = CancellationException("cancel before candidate lookup")
+
+        coroutineScope {
+            val deferred = async {
+                currentCoroutineContext().job.cancel(cancellation)
+                node1.runIfLeader(lockName, FifoGroupElectionStrategy) {
+                    actionInvoked.set(true)
+                    "must-not-run"
+                }
+            }
+            assertFailsWith<CancellationException> { deferred.await() }
+        }
+
+        actionInvoked.get() shouldBeEqualTo false
+        val candidate = node1.listCandidates(lockName).single()
+        candidate.successCount shouldBeEqualTo 0L
+        candidate.failureCount shouldBeEqualTo 0L
     }
 
     @Test
@@ -131,5 +207,36 @@ class RedissonStrategicSuspendLeaderGroupElectorTest : AbstractRedissonLeaderTes
         assertFailsWith<IllegalArgumentException> {
             node1.runIfLeader(lockName, invalidStrategy) { error("실행되면 안 됨") }
         }
+    }
+
+    @Test
+    fun `group action 예외는 failureCount를 증가시키고 예외를 전파한다`() = runSuspendIO {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+        val failure = IllegalStateException("group action failed")
+
+        val thrown = assertFailsWith<IllegalStateException> {
+            node1.runIfLeader(lockName, FifoGroupElectionStrategy) {
+                throw failure
+            }
+        }
+
+        thrown.message shouldBeEqualTo failure.message
+        val candidate = node1.listCandidates(lockName).single()
+        candidate.successCount shouldBeEqualTo 0L
+        candidate.failureCount shouldBeEqualTo 1L
+    }
+
+    @Test
+    fun `group action 성공은 successCount를 증가시키고 failureCount를 건드리지 않는다`() = runSuspendIO {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+
+        node1.runIfLeader(lockName, FifoGroupElectionStrategy) { "ok" }
+            .shouldBeEqualTo("ok")
+
+        val candidate = node1.listCandidates(lockName).single()
+        candidate.successCount shouldBeEqualTo 1L
+        candidate.failureCount shouldBeEqualTo 0L
     }
 }
