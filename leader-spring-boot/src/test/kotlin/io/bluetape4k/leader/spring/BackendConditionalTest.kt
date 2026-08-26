@@ -25,14 +25,17 @@ import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderElector
 import io.bluetape4k.leader.lettuce.LettuceLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.leader.mongodb.MongoLeaderElector
+import io.bluetape4k.leader.mongodb.MongoSuspendLeaderElector
 import io.bluetape4k.leader.redisson.RedissonLeaderElector
 import io.bluetape4k.leader.spring.backend.LocalLeaderConfiguration
+import io.bluetape4k.leader.spring.backend.createSuspendBackendBean
 import io.bluetape4k.testcontainers.storage.MongoDBServer
 import io.bluetape4k.testcontainers.storage.RedisServer
 import io.etcd.jetcd.Client
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import io.mockk.mockk
+import org.bson.Document
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.junit.jupiter.api.Test
@@ -200,6 +203,32 @@ class BackendConditionalTest {
             }
     }
 
+    @Test
+    fun `사용자 명명 Mongo suspend 빈은 자동 빈을 override`() {
+        contextRunner
+            .withUserConfiguration(
+                MongoSyncConfig::class.java,
+                MongoCoroutineConfig::class.java,
+                UserOverrideMongoSuspendConfig::class.java,
+            )
+            .run { ctx ->
+                val config = ctx.getBean<UserOverrideMongoSuspendConfig>()
+                (ctx.getBean<MongoSuspendLeaderElector>("mongoSuspendLeaderElector") === config.custom)
+                    .shouldBeTrue()
+            }
+    }
+
+    @Test
+    fun `사용자 명명 ExposedR2dbc suspend 빈은 자동 빈을 override`() {
+        contextRunner
+            .withUserConfiguration(ExposedR2dbcConfig::class.java, UserOverrideExposedR2dbcConfig::class.java)
+            .run { ctx ->
+                val config = ctx.getBean<UserOverrideExposedR2dbcConfig>()
+                (ctx.getBean<ExposedR2DbcSuspendLeaderElector>("exposedR2dbcSuspendLeaderElector") === config.custom)
+                    .shouldBeTrue()
+            }
+    }
+
     // ─────────────── etcd ───────────────
 
     @Test
@@ -361,6 +390,26 @@ class BackendConditionalTest {
         @Bean
         fun coroutineMongoDatabase(): CoroutineMongoDatabase =
             MongoDBServer.Launcher.getCoroutineClient().getDatabase(sharedDbName)
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class UserOverrideMongoSuspendConfig {
+        lateinit var custom: MongoSuspendLeaderElector
+
+        @Bean(name = ["mongoSuspendLeaderElector"])
+        fun customMongoSuspend(coroutineDb: CoroutineMongoDatabase): MongoSuspendLeaderElector =
+            createSuspendBackendBean {
+                MongoSuspendLeaderElector(coroutineDb.getCollection<Document>("custom-suspend-leader"))
+            }.also { custom = it }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class UserOverrideExposedR2dbcConfig {
+        lateinit var custom: ExposedR2DbcSuspendLeaderElector
+
+        @Bean(name = ["exposedR2dbcSuspendLeaderElector"])
+        fun customExposedR2dbc(db: R2dbcDatabase): ExposedR2DbcSuspendLeaderElector =
+            createSuspendBackendBean { ExposedR2DbcSuspendLeaderElector(db) }.also { custom = it }
     }
 
     @Configuration(proxyBeanMethods = false)
