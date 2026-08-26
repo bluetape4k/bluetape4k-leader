@@ -74,6 +74,7 @@ fun Application.leaderElectionManagementRoute(
     }
 }
 
+@Suppress("TooGenericExceptionCaught")
 internal fun LeaderElectionManagementRegistry.toJson(leaderElection: SuspendLeaderElector): String =
     buildString {
         append("{\"locks\":[")

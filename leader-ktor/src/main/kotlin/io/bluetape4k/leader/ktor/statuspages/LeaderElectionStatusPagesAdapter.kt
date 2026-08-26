@@ -28,6 +28,7 @@ public fun StatusPagesConfig.leaderElectionErrors(
 }
 
 /** typed context를 allow-list JSON으로 직접 응답하는 dependency-light fallback입니다. */
+@Suppress("TooGenericExceptionCaught")
 internal suspend fun ApplicationCall.respondLeaderElectionError(
     context: LeaderElectionErrorContext,
     responder: LeaderElectionErrorResponder? = null,
