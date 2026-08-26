@@ -105,6 +105,14 @@ leaderScheduled(
 | `managementActionRouteEnabled` | `Boolean` | 아니오 | 애플리케이션 소유 action registry를 검증하며 route 설치는 별도 명시 |
 | `managementActionRegistry` | `SuspendLeaderManagementActionRegistry?` | 아니오 | 애플리케이션 소유 single-leader action registry |
 | `managementActionRoutePath` | `String?` | 아니오 | action path 명시적 override; route에 전달하지 않으면 `<managementRoutePath>/actions` 기본 규칙 사용 |
+| `eventStreamRouteEnabled` | `Boolean` | 아니오 | caller가 명시적으로 등록하는 leader event stream 활성화(기본 `false`) |
+| `eventStreamRoutePath` | `String` | 아니오 | SSE 경로, 기본 `/management/leaderElection/events` |
+| `eventStreamSseEnabled` / `eventStreamWebSocketEnabled` | `Boolean` | 아니오 | optional SSE와 WebSocket transport 선택 |
+| `eventStreamAllLocksEnabled` | `Boolean` | 아니오 | 모든 lock 구독 허용, lock 이름 노출도 필요 |
+| `eventStreamExposeLockName` / `eventStreamExposeLeaderMetadata` | `Boolean` | 아니오 | payload의 lock/leader metadata 노출 opt-in, 기본 `false` |
+| `eventStreamReplayCapacity` | `Int` | 아니오 | bounded replay ring 크기 `0..1024`, `0`은 live-only |
+| `eventStreamMaxConnections` | `Int` | 아니오 | 동시 connection 상한 `1..1024`, 기본 `128` |
+| `eventStreamHeartbeat` | `kotlin.time.Duration` | 아니오 | 유한한 양수 heartbeat 주기, 기본 `15.seconds` |
 
 `leaderScheduled` 파라미터:
 
@@ -234,6 +242,59 @@ Route guard 오류는 기본적으로 `lockName`과 leader metadata를 숨깁니
 신뢰된 경계에서 의도적으로 필요할 때만 `exposeMetadata = true`를 사용하세요.
 사용자 정의 status/metadata 정책도 typed allow-list인
 `LeaderElectionErrorResponder` 계약을 우회하지 않습니다.
+
+## Leader event stream (Issue #701, unreleased)
+
+Event stream은 기본적으로 비활성화되어 있습니다. 설정한 elector가
+`LeaderElectionEventPublisher`도 구현할 때만 활성화하고, caller가 인증한 route
+경계 안에서 route를 한 번 등록하세요. Plugin은 인증되지 않은 root route를 자동으로
+만들지 않습니다.
+
+```kotlin
+install(SSE)
+install(WebSockets) // WebSocket transport를 켤 때만 필요
+
+install(LeaderElectionPlugin) {
+    leaderElection = listeningElector // SuspendLeaderElector + LeaderElectionEventPublisher
+    eventStreamRouteEnabled = true
+    eventStreamRoutePath = "/management/leaderElection/events"
+    eventStreamSseEnabled = true
+    eventStreamWebSocketEnabled = true
+    eventStreamReplayCapacity = 32
+    eventStreamMaxConnections = 128
+    eventStreamHeartbeat = 15.seconds
+}
+
+routing {
+    authenticate("operations") {
+        leaderElectionEventStream()
+    }
+}
+```
+
+이 모듈에서 `ktor-server-sse`와 `ktor-server-websockets`는 optional
+`compileOnly` dependency입니다. 활성화한 transport에 맞는 Ktor artifact를 애플리케이션이
+직접 제공하고 plugin을 설치해야 합니다. SSE는 설정한 path를 사용하고 WebSocket은 같은
+path 뒤에 `/ws`를 붙입니다. 기본적으로 `lockName` query parameter가 필요합니다.
+`eventStreamAllLocksEnabled = true`이면 모든 lock을 구독할 수 있지만, 이벤트를 구분할
+수 있도록 `eventStreamExposeLockName = true`도 반드시 설정해야 합니다.
+
+각 이벤트에는 증가하는 `sequence`와 `Elected`, `Revoked`, `Skipped` 중 하나의 type이
+붙습니다. SSE frame은 sequence를 event id로 노출합니다. `afterSequence` 또는 SSE의
+`Last-Event-ID`로 보존된 이벤트를 replay할 수 있으며 두 cursor를 함께 보낼 수는 없습니다.
+미래 cursor는 live-only로 시작하고 bounded ring보다 오래된 cursor는 `replay_gap`
+control frame을 먼저 보냅니다. `eventStreamReplayCapacity = 0`은 live-only 모드입니다.
+잘못된 lock 이름이나 cursor는 stable `INVALID_LOCK_NAME`/`INVALID_CURSOR` 400 응답을
+반환합니다.
+
+기본 payload에는 lock 이름, leader id, lease expiry, `LeaderLease`, backend 주소를 넣지
+않습니다. 신뢰된 경계에서만 `eventStreamExposeLockName`과
+`eventStreamExposeLeaderMetadata`를 opt-in하세요. Heartbeat는
+`{"event":"heartbeat"}`입니다. Connection별 channel은 bounded이며 느린 consumer에는
+가장 오래된 item을 버립니다. `eventStreamMaxConnections`(1..1024)가 admission을
+제어하며 초과 connection은 `BACKEND_UNAVAILABLE`(503)을 받습니다. Connection 정리는
+idempotent이고 plugin 소유 hub를 닫아도 caller 소유 elector, publisher, backend는 닫지
+않습니다.
 
 ## Management Action Route (Issue #532, unreleased)
 

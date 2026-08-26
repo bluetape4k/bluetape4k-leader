@@ -23,9 +23,18 @@ internal data class LeaderElectionShutdownReport(
     val closed: Int,
     val failures: Int,
     val timedOutJobs: Int,
+    val timedOutResources: Int = 0,
     val failureKinds: Map<String, Int> = emptyMap(),
     val timeoutKinds: Map<String, Int> = emptyMap(),
 )
+
+/**
+ * `close()`가 비동기 cleanup transaction을 시작하는 plugin-owned resource의 완료 경계입니다.
+ * Registry는 이 계약을 구현한 resource의 실제 정리가 끝난 뒤에만 shutdown report를 확정합니다.
+ */
+internal interface LeaderElectionCloseAwaiter {
+    suspend fun awaitClosed()
+}
 
 /**
  * Application-owned resource의 lifecycle을 Ktor application과 연결하는 internal 계약입니다.
@@ -40,8 +49,9 @@ internal interface LeaderElectionResourceRegistry : AutoCloseable {
 /**
  * Registry의 등록, 종료, registration token을 하나의 linearization 경계로 직렬화합니다.
  *
- * 실제 resource의 `close`, Job cancellation, bounded join은 registry lock 밖의
- * registry-owned cleanup scope에서 수행하여 resource 재진입과 shutdown deadlock을 막습니다.
+ * 실제 resource의 `close`, 비동기 close 완료 대기, Job cancellation, bounded join은 registry
+ * lock 밖의 registry-owned cleanup scope에서 수행하여 resource 재진입과 shutdown deadlock을
+ * 막습니다. 비동기 close awaiter가 있으면 해당 정리가 끝난 뒤에만 report를 확정합니다.
  */
 internal class LeaderElectionResourceRegistryImpl(
     private val jobJoinTimeout: Duration = 2.seconds,
@@ -147,10 +157,12 @@ internal class LeaderElectionResourceRegistryImpl(
         completed?.let(observer)
     }
 
+    @Suppress("LongMethod")
     private suspend fun cleanup(drained: List<Entry>): LeaderElectionShutdownReport {
         var closedCount = 0
         var failures = 0
         var timedOutJobs = 0
+        var timedOutResources = 0
         val failureKinds = mutableMapOf<String, Int>()
         val timeoutKinds = mutableMapOf<String, Int>()
 
@@ -182,8 +194,24 @@ internal class LeaderElectionResourceRegistryImpl(
             }
 
             try {
-                withContext(NonCancellable) { entry.resource!!.close() }
-                closedCount++
+                val resource = entry.resource!!
+                withContext(NonCancellable) { resource.close() }
+                val completed = (resource as? LeaderElectionCloseAwaiter)?.let { awaiter ->
+                    withContext(NonCancellable) {
+                        withTimeoutOrNull(jobJoinTimeout) {
+                            awaiter.awaitClosed()
+                            true
+                        } ?: false
+                    }
+                } ?: true
+                if (completed) {
+                    closedCount++
+                } else {
+                    timedOutResources++
+                    timeoutKinds.increment("resource")
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Throwable) {
                 failures++
                 failureKinds.increment("resource")
@@ -195,6 +223,7 @@ internal class LeaderElectionResourceRegistryImpl(
             closed = closedCount,
             failures = failures,
             timedOutJobs = timedOutJobs,
+            timedOutResources = timedOutResources,
             failureKinds = failureKinds.toMap(),
             timeoutKinds = timeoutKinds.toMap(),
         )

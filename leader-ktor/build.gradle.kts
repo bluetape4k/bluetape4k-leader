@@ -18,6 +18,8 @@ dependencies {
     compileOnly(libs.ktor.server.core)
     compileOnly(libs.ktor.server.auth)
     compileOnly(libs.ktor.server.status.pages)
+    compileOnly(libs.ktor.server.sse)
+    compileOnly(libs.ktor.server.websockets)
 
     // Logging
     implementation(bt4k.bluetape4k.logging)
@@ -26,8 +28,12 @@ dependencies {
     testImplementation(libs.ktor.server.core)
     testImplementation(libs.ktor.server.status.pages)
     testImplementation(libs.ktor.server.auth)
+    testImplementation(libs.ktor.server.sse)
+    testImplementation(libs.ktor.server.websockets)
     testImplementation(libs.ktor.server.cio)
     testImplementation(libs.ktor.server.test.host)
+    testImplementation(libs.ktor.client.cio)
+    testImplementation(libs.ktor.client.websockets)
     testImplementation(bt4k.bluetape4k.ktor.testing)
 
     testImplementation(project(":bluetape4k-leader-redis-redisson"))

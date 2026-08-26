@@ -108,6 +108,14 @@ leaderScheduled(
 | `managementActionRouteEnabled` | `Boolean` | No | Validates an application-owned action registry; route install remains explicit |
 | `managementActionRegistry` | `SuspendLeaderManagementActionRegistry?` | No | Application-owned single-leader action registry |
 | `managementActionRoutePath` | `String?` | No | Explicit action path override; defaults to `<managementRoutePath>/actions` when passed to the route |
+| `eventStreamRouteEnabled` | `Boolean` | No | Enables explicit caller-registered leader event streaming (default `false`) |
+| `eventStreamRoutePath` | `String` | No | SSE path; default `/management/leaderElection/events` |
+| `eventStreamSseEnabled` / `eventStreamWebSocketEnabled` | `Boolean` | No | Selects optional SSE and WebSocket transports |
+| `eventStreamAllLocksEnabled` | `Boolean` | No | Allows an all-lock subscription; requires lock-name exposure |
+| `eventStreamExposeLockName` / `eventStreamExposeLeaderMetadata` | `Boolean` | No | Opts into lock and leader metadata in payloads; both default to `false` |
+| `eventStreamReplayCapacity` | `Int` | No | Bounded replay ring size `0..1024`; `0` is live-only |
+| `eventStreamMaxConnections` | `Int` | No | Bounded concurrent connection limit `1..1024`; default `128` |
+| `eventStreamHeartbeat` | `kotlin.time.Duration` | No | Finite positive heartbeat period; default `15.seconds` |
 
 `leaderScheduled` parameters:
 
@@ -240,6 +248,56 @@ Route-guard errors hide `lockName` and other leader metadata by default. Set
 `exposeMetadata = true` only for a deliberate trusted boundary; any custom
 status or metadata policy still goes through the typed, allow-listed
 `LeaderElectionErrorResponder` contract.
+
+## Leader event stream (Issue #701, unreleased)
+
+The event stream is disabled by default. Enable it only when the configured elector also
+implements `LeaderElectionEventPublisher`, then register the route inside the caller's
+authenticated boundary. The plugin never creates an unauthenticated root route.
+
+```kotlin
+install(SSE)
+install(WebSockets) // optional when WebSocket transport is enabled
+
+install(LeaderElectionPlugin) {
+    leaderElection = listeningElector // SuspendLeaderElector + LeaderElectionEventPublisher
+    eventStreamRouteEnabled = true
+    eventStreamRoutePath = "/management/leaderElection/events"
+    eventStreamSseEnabled = true
+    eventStreamWebSocketEnabled = true
+    eventStreamReplayCapacity = 32
+    eventStreamMaxConnections = 128
+    eventStreamHeartbeat = 15.seconds
+}
+
+routing {
+    authenticate("operations") {
+        leaderElectionEventStream()
+    }
+}
+```
+
+`ktor-server-sse` and `ktor-server-websockets` are optional compile-only dependencies of
+this module. The application supplies matching Ktor artifacts and installs the transport
+plugins it enables. SSE uses the configured path; WebSocket uses the same path with `/ws`
+appended. A `lockName` query parameter is required by default. Set
+`eventStreamAllLocksEnabled = true` to subscribe to every lock; this mode also requires
+`eventStreamExposeLockName = true` so consumers can distinguish events.
+
+Each event receives a monotonic `sequence` and one of `Elected`, `Revoked`, or `Skipped`.
+SSE frames expose the sequence as the event id. `afterSequence` (or SSE `Last-Event-ID`)
+replays retained events; the two cursor inputs cannot be supplied together. A future cursor
+starts live-only, while a cursor older than the bounded ring produces a `replay_gap` control
+frame. Set `eventStreamReplayCapacity = 0` for live-only delivery. Invalid lock names or
+cursors return the stable `INVALID_LOCK_NAME`/`INVALID_CURSOR` 400 response.
+
+Payloads omit lock names, leader ids, lease expiry, `LeaderLease`, and backend addresses by
+default. Opt in to `eventStreamExposeLockName` and
+`eventStreamExposeLeaderMetadata` only at a trusted boundary. Heartbeats use
+`{"event":"heartbeat"}`. Per-connection channels are bounded and drop the oldest item for
+slow consumers; `eventStreamMaxConnections` (1..1024) provides admission control and excess
+connections receive `BACKEND_UNAVAILABLE` (503). Connection cleanup is idempotent, and
+closing the plugin-owned hub never closes the caller-owned elector, publisher, or backend.
 
 ## Management Action Route (Issue #532, unreleased)
 
