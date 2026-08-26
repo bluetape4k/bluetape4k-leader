@@ -14,6 +14,7 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /** blocking management registry의 identity, admission, lifecycle 상태를 소유합니다. */
+@Suppress("TooManyFunctions")
 internal class LeaderManagementActionStore(
     private val maxRegistrations: Int,
     private val maxActionReservations: Int,

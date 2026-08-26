@@ -136,27 +136,37 @@ fun interface LeaderManagementActionObserver {
 /** 공통 HTTP adapter가 사용할 status/retry 정책입니다. */
 object LeaderManagementHttpContract {
 
+    private const val STATUS_OK = 200
+    private const val STATUS_BAD_REQUEST = 400
+    private const val STATUS_NOT_FOUND = 404
+    private const val STATUS_CONFLICT = 409
+    private const val STATUS_TOO_MANY_REQUESTS = 429
+    private const val STATUS_SERVICE_UNAVAILABLE = 503
+    private const val STATUS_GATEWAY_TIMEOUT = 504
+
     /** outcome을 framework-neutral HTTP status code로 변환합니다. */
     fun statusCode(outcome: LeaderManagementActionOutcome): Int = when (outcome) {
-        LeaderManagementActionOutcome.RELEASED -> 200
-        LeaderManagementActionOutcome.INVALID_LOCK_NAME -> 400
-        LeaderManagementActionOutcome.NOT_REGISTERED -> 404
+        LeaderManagementActionOutcome.RELEASED -> STATUS_OK
+        LeaderManagementActionOutcome.INVALID_LOCK_NAME -> STATUS_BAD_REQUEST
+        LeaderManagementActionOutcome.NOT_REGISTERED -> STATUS_NOT_FOUND
         LeaderManagementActionOutcome.AMBIGUOUS,
         LeaderManagementActionOutcome.NOT_HELD,
         LeaderManagementActionOutcome.ACTION_IN_PROGRESS,
-        -> 409
-        LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED -> 429
+        -> STATUS_CONFLICT
+        LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED -> STATUS_TOO_MANY_REQUESTS
         LeaderManagementActionOutcome.OWNERSHIP_UNKNOWN,
         LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
         LeaderManagementActionOutcome.RELEASE_FAILED,
         LeaderManagementActionOutcome.REGISTRY_CLOSED,
-        -> 503
-        LeaderManagementActionOutcome.ACTION_TIMED_OUT -> 504
+        -> STATUS_SERVICE_UNAVAILABLE
+        LeaderManagementActionOutcome.ACTION_TIMED_OUT -> STATUS_GATEWAY_TIMEOUT
     }
 
     /** 이번 action 결과를 자동 재시도해도 안전하다는 보장을 제공하지 않습니다. */
+    @Suppress("FunctionOnlyReturningConstant")
     fun retryAllowed(@Suppress("UNUSED_PARAMETER") outcome: LeaderManagementActionOutcome): Boolean = false
 
     /** timeout의 mutation flag를 포함한 결과에도 동일한 no-retry 정책을 적용합니다. */
+    @Suppress("FunctionOnlyReturningConstant")
     fun retryAllowed(@Suppress("UNUSED_PARAMETER") result: LeaderManagementActionResult): Boolean = false
 }

@@ -22,6 +22,7 @@ import kotlin.time.Duration.Companion.seconds
  * 등록 token과 bounded action worker만 소유하며, release callback은 registry mutex 밖에서
  * 한 번만 실행합니다.
  */
+@Suppress("TooManyFunctions", "TooGenericExceptionCaught")
 class LeaderManagementActionRegistry(
     private val observer: LeaderManagementActionObserver? = null,
     private val actionTimeout: Duration = 5.seconds,
@@ -95,6 +96,7 @@ class LeaderManagementActionRegistry(
      * lock 이름을 정확히 하나의 등록 handle에 선형화한 뒤 bounded worker로 release합니다.
      * 정상 contention과 backend 예외는 sanitized result로 반환하며, [Error]만 재전파합니다.
      */
+    @Suppress("ReturnCount")
     fun release(lockName: String): LeaderManagementActionResult {
         val deadline = MonotonicDeadline.fromNow(actionTimeout)
         if (!isManagementActionLockName(lockName)) {
@@ -151,6 +153,7 @@ class LeaderManagementActionRegistry(
     fun quarantinedCount(): Int = store.quarantinedCount()
 
     /** 신규 admission을 막고 기존 worker를 bounded하게 drain합니다. */
+    @Suppress("ReturnCount")
     fun closeAndDrain(): Boolean {
         if (!store.beginQuiescing()) return true
         val deadline = MonotonicDeadline.fromNow(closeTimeout)
@@ -169,7 +172,7 @@ class LeaderManagementActionRegistry(
         if (!drained) {
             store.activeActionRecords().forEach { action ->
                 action.timedOut.set(true)
-                val mutationAttempted = action.phase.get() >= LeaderManagementActionPhase.RELEASE_STARTED
+                val mutationAttempted = action.mutationAttempted.get()
                 quarantineAndTerminalize(
                     action = action,
                     result = LeaderManagementActionResult(
@@ -193,6 +196,7 @@ class LeaderManagementActionRegistry(
         closeAndDrain()
     }
 
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount", "ThrowsCount")
     private fun runAction(
         action: LeaderManagementActionStore.ActionRecord,
         deadline: MonotonicDeadline,
@@ -350,6 +354,7 @@ class LeaderManagementActionRegistry(
         }
     }
 
+    @Suppress("SwallowedException")
     private fun awaitResult(
         action: LeaderManagementActionStore.ActionRecord,
         future: Future<LeaderManagementActionResult>,
