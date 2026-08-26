@@ -18,6 +18,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.measureTime
 
@@ -116,6 +117,120 @@ class SuspendBeanInitializationTest {
         }
         executor.awaitTermination(1, TimeUnit.SECONDS).shouldBeTrue()
         bodyStarted.get().shouldBeFalse()
+    }
+
+    @Test
+    fun `bounded bridge timeout은 초기화 작업 cleanup 완료까지 기다린다`() {
+        val caller = Executors.newSingleThreadExecutor()
+        val dispatcherExecutor = Executors.newSingleThreadExecutor()
+        val dispatcher = dispatcherExecutor.asCoroutineDispatcher()
+        val started = CountDownLatch(1)
+        val cleanupStarted = CountDownLatch(1)
+        val cleanupRelease = CountDownLatch(1)
+        val bridgeReturned = CountDownLatch(1)
+        val failure = AtomicReference<Throwable?>()
+
+        try {
+            caller.submit {
+                try {
+                    createSuspendBackendBean(
+                        timeout = 20.milliseconds,
+                        dispatcher = dispatcher,
+                        cleanupTimeout = 500.milliseconds,
+                    ) {
+                        started.countDown()
+                        try {
+                            delay(Long.MAX_VALUE)
+                        } finally {
+                            cleanupStarted.countDown()
+                            // coroutine 취소에 응답하지 않는 cleanup을 재현하기 위해
+                            // 의도적으로 blocking latch를 사용합니다.
+                            cleanupRelease.await()
+                        }
+                    }
+                } catch (throwable: Throwable) {
+                    failure.set(throwable)
+                } finally {
+                    bridgeReturned.countDown()
+                }
+            }
+
+            started.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            cleanupStarted.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            bridgeReturned.await(100, TimeUnit.MILLISECONDS).shouldBeFalse()
+
+            cleanupRelease.countDown()
+            bridgeReturned.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            (failure.get() is TimeoutCancellationException).shouldBeTrue()
+        } finally {
+            cleanupRelease.countDown()
+            caller.shutdownNow()
+            dispatcher.close()
+            dispatcherExecutor.shutdownNow()
+        }
+        caller.awaitTermination(1, TimeUnit.SECONDS).shouldBeTrue()
+        dispatcherExecutor.awaitTermination(1, TimeUnit.SECONDS).shouldBeTrue()
+    }
+
+    @Test
+    fun `bounded bridge timeout은 non-cooperative cleanup을 grace timeout으로 제한한다`() {
+        val caller = Executors.newSingleThreadExecutor()
+        val dispatcherExecutor = Executors.newSingleThreadExecutor()
+        val dispatcher = dispatcherExecutor.asCoroutineDispatcher()
+        val started = CountDownLatch(1)
+        val cleanupStarted = CountDownLatch(1)
+        val cleanupRelease = CountDownLatch(1)
+        val bridgeReturned = CountDownLatch(1)
+        val failure = AtomicReference<Throwable?>()
+
+        try {
+            caller.submit {
+                try {
+                    createSuspendBackendBean(
+                        timeout = 20.milliseconds,
+                        dispatcher = dispatcher,
+                        cleanupTimeout = 50.milliseconds,
+                    ) {
+                        started.countDown()
+                        try {
+                            delay(Long.MAX_VALUE)
+                        } finally {
+                            cleanupStarted.countDown()
+                            // coroutine 취소에 응답하지 않는 cleanup을 재현하기 위해
+                            // 의도적으로 blocking latch를 사용합니다.
+                            cleanupRelease.await()
+                        }
+                    }
+                } catch (throwable: Throwable) {
+                    failure.set(throwable)
+                } finally {
+                    bridgeReturned.countDown()
+                }
+            }
+
+            started.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            cleanupStarted.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            bridgeReturned.await(30, TimeUnit.MILLISECONDS).shouldBeFalse()
+            bridgeReturned.await(500, TimeUnit.MILLISECONDS).shouldBeTrue()
+            (failure.get() is TimeoutCancellationException).shouldBeTrue()
+        } finally {
+            cleanupRelease.countDown()
+            caller.shutdownNow()
+            dispatcher.close()
+            dispatcherExecutor.shutdownNow()
+        }
+        caller.awaitTermination(1, TimeUnit.SECONDS).shouldBeTrue()
+        dispatcherExecutor.awaitTermination(1, TimeUnit.SECONDS).shouldBeTrue()
+    }
+
+    @Test
+    fun `bounded bridge는 cleanup timeout을 positive finite으로 검증한다`() {
+        val thrown = assertFailsWith<IllegalArgumentException> {
+            createSuspendBackendBean(cleanupTimeout = 0.milliseconds) { "never" }
+        }
+
+        thrown.message shouldBeEqualTo
+            "suspend backend bean cleanup timeout must be positive and finite: 0s"
     }
 
     private fun startupFailure(configuration: Class<*>): Throwable {
