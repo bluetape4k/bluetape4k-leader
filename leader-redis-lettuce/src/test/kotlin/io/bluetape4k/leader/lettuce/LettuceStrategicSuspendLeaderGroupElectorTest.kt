@@ -7,9 +7,15 @@ import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
+import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.GroupElectionStrategy
 import io.bluetape4k.leader.strategy.StrategicGroupElectionResult
+import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
+import io.bluetape4k.leader.strategy.strategies.ScoredGroupElectionStrategy
+import io.bluetape4k.junit5.coroutines.SuspendedJobTester
+import io.bluetape4k.support.closeSafe
+import io.lettuce.core.codec.StringCodec
 import org.awaitility.kotlin.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -75,6 +81,45 @@ class LettuceStrategicSuspendLeaderGroupElectorTest : AbstractLettuceLeaderTest(
 
         await.atMost(2.seconds).withPollInterval(50.milliseconds) untilSuspending {
             node1.listCandidates(lockName).map { it.nodeId } == listOf("persistent-node")
+        }
+    }
+
+    @Test
+    fun `동시 suspend group 결과 갱신은 성공과 실패 카운터와 winner를 보존한다`() = runSuspendIO {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        node1.registerCandidate(lockName, CandidateInfo("node-2", successCount = 1, failureCount = 9))
+
+        val connections = (1..8).map { client.connect(StringCodec.UTF8) }
+        try {
+            val electors = connections.map { LettuceStrategicSuspendLeaderGroupElector(it, "node-1") }
+            val actions = electors.flatMap { elector ->
+                listOf<suspend () -> Unit>(
+                    { elector.updateResult(lockName, "node-1", CandidateResult.SUCCESS) },
+                    { elector.updateResult(lockName, "node-1", CandidateResult.FAILURE) },
+                )
+            }
+            val workers = actions.size
+            val rounds = 20
+            SuspendedJobTester()
+                .workers(workers)
+                .rounds(rounds)
+                .addAll(actions)
+                .run()
+
+            val candidates = node1.listCandidates(lockName)
+            val updated = candidates.first { it.nodeId == "node-1" }
+            val expectedEach = (workers * rounds / 2).toLong()
+            updated.successCount shouldBeEqualTo expectedEach
+            updated.failureCount shouldBeEqualTo expectedEach
+            updated.successRate shouldBeEqualTo 0.5
+            ScoredGroupElectionStrategy(SuccessRateScorer)
+                .elect(candidates, maxLeaders = 1)
+                .winners
+                .first()
+                .nodeId shouldBeEqualTo "node-1"
+        } finally {
+            connections.forEach { it.closeSafe() }
         }
     }
 

@@ -11,6 +11,7 @@ import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import org.awaitility.kotlin.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -19,6 +20,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
@@ -243,6 +246,41 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
     }
 
     @Test
+    fun `후보 재등록은 결과 갱신과 동일한 entry lock을 사용`() {
+        val lockName = randomName()
+        val nodeId = "node-1"
+        node1.registerCandidate(lockName, CandidateInfo(nodeId))
+        val cache = redissonClient.getMapCache<String, CandidateInfo>(
+            "leader:strategy:candidates:$lockName",
+        )
+        val entryLock = cache.getLock(nodeId)
+        entryLock.lock(5, TimeUnit.SECONDS)
+
+        val started = CountDownLatch(1)
+        val completed = CountDownLatch(1)
+        val worker = Thread {
+            started.countDown()
+            node1.registerCandidate(
+                lockName,
+                CandidateInfo(nodeId, metadata = mapOf("heartbeat" to "new")),
+                5.seconds,
+            )
+            completed.countDown()
+        }
+        try {
+            worker.start()
+            started.await(1, TimeUnit.SECONDS) shouldBeEqualTo true
+            completed.await(200, TimeUnit.MILLISECONDS) shouldBeEqualTo false
+        } finally {
+            entryLock.unlock()
+        }
+
+        completed.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+        worker.join(2_000)
+        node1.listCandidates(lockName).first().metadata shouldBeEqualTo mapOf("heartbeat" to "new")
+    }
+
+    @Test
     fun `서로 다른 lockName은 독립적인 후보 풀`() {
         val lock1 = randomName()
         val lock2 = randomName()
@@ -342,6 +380,37 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
         updated.failureCount shouldBeEqualTo 2L
         updated.successCount shouldBeEqualTo 0L
+    }
+
+    @Test
+    fun `동시 결과 갱신은 성공과 실패 카운터를 모두 보존한다`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        node1.registerCandidate(lockName, CandidateInfo("node-2", successCount = 1, failureCount = 9))
+
+        val electors = (1..8).map { RedissonStrategicLeaderElector(redissonClient, "node-1") }
+        val actions = electors.flatMap { elector ->
+            listOf<() -> Unit>(
+                { elector.updateResult(lockName, "node-1", CandidateResult.SUCCESS) },
+                { elector.updateResult(lockName, "node-1", CandidateResult.FAILURE) },
+            )
+        }
+        val workers = actions.size
+        val rounds = 20
+        MultithreadingTester()
+            .workers(workers)
+            .rounds(rounds)
+            .addAll(actions)
+            .run()
+
+        val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        val expectedEach = (workers * rounds / 2).toLong()
+        updated.successCount shouldBeEqualTo expectedEach
+        updated.failureCount shouldBeEqualTo expectedEach
+        updated.successRate shouldBeEqualTo 0.5
+        ScoredElectionStrategy(SuccessRateScorer)
+            .elect(node1.listCandidates(lockName))
+            .winner?.nodeId shouldBeEqualTo "node-1"
     }
 
     @Test

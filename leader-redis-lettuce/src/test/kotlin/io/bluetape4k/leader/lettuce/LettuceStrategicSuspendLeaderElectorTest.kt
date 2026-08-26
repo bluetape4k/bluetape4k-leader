@@ -2,6 +2,7 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
@@ -23,6 +24,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.support.closeSafe
+import io.lettuce.core.codec.StringCodec
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -147,6 +150,18 @@ class LettuceStrategicSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
 
         val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
         updated.successCount shouldBeEqualTo 1L
+    }
+
+    @Test
+    fun `updateResult - suspend 경로도 Long 2의 53승 초과 카운터를 정밀하게 증가`() = runSuspendIO {
+        val lockName = randomName()
+        val initial = 9_007_199_254_740_992L
+        node1.registerCandidate(lockName, CandidateInfo("node-1", successCount = initial))
+
+        node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
+
+        val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        updated.successCount shouldBeEqualTo initial + 1
     }
 
     @Test
@@ -319,5 +334,41 @@ class LettuceStrategicSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
             ).awaitAll()
         }
         counter.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `동시 suspend 결과 갱신은 성공과 실패 카운터를 모두 보존한다`() = runSuspendIO {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        node1.registerCandidate(lockName, CandidateInfo("node-2", successCount = 1, failureCount = 9))
+
+        val connections = (1..8).map { client.connect(StringCodec.UTF8) }
+        try {
+            val electors = connections.map { LettuceStrategicSuspendLeaderElector(it, "node-1") }
+            val actions = electors.flatMap { elector ->
+                listOf<suspend () -> Unit>(
+                    { elector.updateResult(lockName, "node-1", CandidateResult.SUCCESS) },
+                    { elector.updateResult(lockName, "node-1", CandidateResult.FAILURE) },
+                )
+            }
+            val workers = actions.size
+            val rounds = 20
+            SuspendedJobTester()
+                .workers(workers)
+                .rounds(rounds)
+                .addAll(actions)
+                .run()
+
+            val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+            val expectedEach = (workers * rounds / 2).toLong()
+            updated.successCount shouldBeEqualTo expectedEach
+            updated.failureCount shouldBeEqualTo expectedEach
+            updated.successRate shouldBeEqualTo 0.5
+            ScoredElectionStrategy(SuccessRateScorer)
+                .elect(node1.listCandidates(lockName))
+                .winner?.nodeId shouldBeEqualTo "node-1"
+        } finally {
+            connections.forEach { it.closeSafe() }
+        }
     }
 }

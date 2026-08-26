@@ -5,9 +5,13 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.strategy.CandidateInfo
+import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.GroupElectionStrategy
 import io.bluetape4k.leader.strategy.StrategicGroupElectionResult
+import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
+import io.bluetape4k.leader.strategy.strategies.ScoredGroupElectionStrategy
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import org.awaitility.kotlin.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -85,6 +89,40 @@ class RedissonStrategicLeaderGroupElectorTest : AbstractRedissonLeaderTest() {
             .until {
                 node1.listCandidates(lockName).map { it.nodeId } == listOf("persistent-node")
             }
+    }
+
+    @Test
+    fun `동시 group 결과 갱신은 성공과 실패 카운터와 winner를 보존한다`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        node1.registerCandidate(lockName, CandidateInfo("node-2", successCount = 1, failureCount = 9))
+
+        val electors = (1..8).map { RedissonStrategicLeaderGroupElector(redissonClient, "node-1") }
+        val actions = electors.flatMap { elector ->
+            listOf<() -> Unit>(
+                { elector.updateResult(lockName, "node-1", CandidateResult.SUCCESS) },
+                { elector.updateResult(lockName, "node-1", CandidateResult.FAILURE) },
+            )
+        }
+        val workers = actions.size
+        val rounds = 20
+        MultithreadingTester()
+            .workers(workers)
+            .rounds(rounds)
+            .addAll(actions)
+            .run()
+
+        val candidates = node1.listCandidates(lockName)
+        val updated = candidates.first { it.nodeId == "node-1" }
+        val expectedEach = (workers * rounds / 2).toLong()
+        updated.successCount shouldBeEqualTo expectedEach
+        updated.failureCount shouldBeEqualTo expectedEach
+        updated.successRate shouldBeEqualTo 0.5
+        ScoredGroupElectionStrategy(SuccessRateScorer)
+            .elect(candidates, maxLeaders = 1)
+            .winners
+            .first()
+            .nodeId shouldBeEqualTo "node-1"
     }
 
     @Test

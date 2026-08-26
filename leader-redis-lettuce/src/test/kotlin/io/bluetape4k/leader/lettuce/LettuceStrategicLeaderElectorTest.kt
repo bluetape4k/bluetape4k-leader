@@ -16,6 +16,9 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.support.closeSafe
+import io.lettuce.core.codec.StringCodec
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -139,6 +142,55 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
     }
 
     @Test
+    fun `updateResult - Long 2의 53승 초과 카운터도 정밀하게 증가`() {
+        val lockName = randomName()
+        val initial = 9_007_199_254_740_992L
+        node1.registerCandidate(lockName, CandidateInfo("node-1", successCount = initial))
+
+        node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
+
+        val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        updated.successCount shouldBeEqualTo initial + 1
+    }
+
+    @Test
+    fun `updateResult - Long 최대값 증가도 Kotlin overflow 계약을 보존`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1", successCount = Long.MAX_VALUE))
+
+        node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
+
+        val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        updated.successCount shouldBeEqualTo Long.MIN_VALUE
+    }
+
+    @Test
+    fun `updateResult - codec가 거부하는 지수 표기 카운터는 기존 예외를 전파`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        val key = "leader:strategy:candidates:$lockName:node-1"
+        val raw = "node-1|${Instant.now().toEpochMilli()}|||1e3|0|"
+        connection.sync().set(key, raw)
+
+        assertFailsWith<NumberFormatException> {
+            node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
+        }
+    }
+
+    @Test
+    fun `updateResult - 손상된 metadata는 기존 codec 예외를 전파`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        val key = "leader:strategy:candidates:$lockName:node-1"
+        val raw = "node-1|${Instant.now().toEpochMilli()}|||0|0|brokenpair"
+        connection.sync().set(key, raw)
+
+        assertFailsWith<IllegalArgumentException> {
+            node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
+        }
+    }
+
+    @Test
     fun `runIfLeader SUCCESS 후 successCount 자동 증가`() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
@@ -242,6 +294,42 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
 
         val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
         updated.failureCount shouldBeEqualTo 3L
+    }
+
+    @Test
+    fun `동시 결과 갱신은 성공과 실패 카운터를 모두 보존한다`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        node1.registerCandidate(lockName, CandidateInfo("node-2", successCount = 1, failureCount = 9))
+
+        val connections = (1..8).map { client.connect(StringCodec.UTF8) }
+        try {
+            val electors = connections.map { LettuceStrategicLeaderElector(it, "node-1") }
+            val actions = electors.flatMap { elector ->
+                listOf<() -> Unit>(
+                    { elector.updateResult(lockName, "node-1", CandidateResult.SUCCESS) },
+                    { elector.updateResult(lockName, "node-1", CandidateResult.FAILURE) },
+                )
+            }
+            val workers = actions.size
+            val rounds = 20
+            MultithreadingTester()
+                .workers(workers)
+                .rounds(rounds)
+                .addAll(actions)
+                .run()
+
+            val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+            val expectedEach = (workers * rounds / 2).toLong()
+            updated.successCount shouldBeEqualTo expectedEach
+            updated.failureCount shouldBeEqualTo expectedEach
+            updated.successRate shouldBeEqualTo 0.5
+            ScoredElectionStrategy(SuccessRateScorer)
+                .elect(node1.listCandidates(lockName))
+                .winner?.nodeId shouldBeEqualTo "node-1"
+        } finally {
+            connections.forEach { it.closeSafe() }
+        }
     }
 
     @Test

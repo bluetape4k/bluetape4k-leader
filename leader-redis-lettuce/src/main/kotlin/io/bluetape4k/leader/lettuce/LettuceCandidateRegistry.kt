@@ -1,10 +1,12 @@
 package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.leader.validateLockName
+import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
-import io.lettuce.core.SetArgs
+import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
+import java.time.Instant
 import kotlin.time.Duration
 
 /**
@@ -100,8 +102,13 @@ internal class LettuceCandidateRegistry(
     fun updateResult(lockName: String, nodeId: String, result: CandidateResult) {
         validateLockName(lockName)
         val key = candidateKey(lockName, nodeId)
-        val current = sync.get(key)?.let { LettuceCandidateInfoCodec.decode(it) } ?: return
-        val updated = LettuceCandidateInfoCodec.encode(current.withResult(result))
-        sync.set(key, updated, SetArgs.Builder.xx().keepttl())
+        val reply = RedisScriptRunner.run<List<Any>>(
+            sync,
+            LettuceCandidateResultScript.UPDATE,
+            ScriptOutputType.MULTI,
+            arrayOf(key),
+            *LettuceCandidateResultScript.resultArgs(result, Instant.now().toEpochMilli()),
+        )
+        LettuceCandidateResultScript.rethrowMalformed(reply)
     }
 }
