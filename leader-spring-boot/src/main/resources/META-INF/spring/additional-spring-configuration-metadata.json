@@ -668,6 +668,30 @@
       "defaultValue": false
     },
     {
+      "name": "management.endpoint.leader-election.actions.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable the explicitly protected leaderElectionActions write endpoint. Authentication and web exposure remain application-owned.",
+      "defaultValue": false
+    },
+    {
+      "name": "management.endpoint.leader-election.actions.timeout",
+      "type": "java.time.Duration",
+      "description": "Bounded timeout for one leaderElectionActions release action. The hard maximum is 30 seconds.",
+      "defaultValue": "PT5S"
+    },
+    {
+      "name": "management.endpoint.leaderElection.actions.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Compatibility spelling for the explicitly protected leaderElectionActions write endpoint.",
+      "defaultValue": false
+    },
+    {
+      "name": "management.endpoint.leaderElection.actions.timeout",
+      "type": "java.time.Duration",
+      "description": "Compatibility spelling for the bounded leaderElectionActions release timeout.",
+      "defaultValue": "PT5S"
+    },
+    {
       "name": "management.endpoint.leaderBackendDiagnostics.enabled",
       "type": "java.lang.Boolean",
       "description": "Enable the static leaderBackendDiagnostics Actuator endpoint.",

@@ -62,6 +62,10 @@ class LeaderConfigurationMetadataTest {
             "bluetape4k.leader.consul.key-prefix",
             "bluetape4k.leader.dynamodb.table-name",
             "management.endpoints.web.exposure.include",
+            "management.endpoint.leader-election.actions.enabled",
+            "management.endpoint.leader-election.actions.timeout",
+            "management.endpoint.leaderElection.actions.enabled",
+            "management.endpoint.leaderElection.actions.timeout",
             "management.endpoint.leaderBackendDiagnostics.enabled",
         ).forEach { propertyName ->
             properties.keys shouldContain propertyName
@@ -93,6 +97,10 @@ class LeaderConfigurationMetadataTest {
             "bluetape4k.leader.observability.state-provider-bean" to "",
             "bluetape4k.leader.observability.backend-health.enabled" to "false",
             "bluetape4k.leader.observability.backend-health.timeout" to "PT0.5S",
+            "management.endpoint.leader-election.actions.enabled" to "false",
+            "management.endpoint.leader-election.actions.timeout" to "PT5S",
+            "management.endpoint.leaderElection.actions.enabled" to "false",
+            "management.endpoint.leaderElection.actions.timeout" to "PT5S",
         ).forEach { (propertyName, defaultValue) ->
             properties[propertyName].shouldNotBeNull().defaultValue shouldBeEqualTo defaultValue
         }
