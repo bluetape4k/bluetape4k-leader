@@ -153,6 +153,49 @@ The route is installed on the main Ktor application port and routing pipeline. P
 
 `leaderScheduled()` records its lock name into the management registry when the plugin is installed. The route emits JSON text directly, so applications do not need to install Ktor content negotiation just for this endpoint.
 
+### Stable error responses
+
+Management and adapter failures use a small, stable JSON contract. Normal lock
+contention remains `null`/skip and is not converted to an HTTP error.
+
+| Code | HTTP status | Meaning |
+|---|---:|---|
+| `INVALID_LOCK_NAME` | 400 | The lock name is blank or outside the core ASCII grammar |
+| `NOT_LEADER` | 503 | The current leader state does not allow the request |
+| `LEADER_LOCKED` | 423 | The leader lock is already held |
+| `BACKEND_UNAVAILABLE` | 503 | State/backend access failed |
+| `CONFIGURATION`, `INTERNAL` | 500 | Configuration or unexpected request failure |
+| `INVALID_CURSOR` | 400 | A stream cursor is malformed |
+
+The response contains only `code`, `message`, and numeric `status` by default:
+
+```json
+{"code":"BACKEND_UNAVAILABLE","message":"leader backend is temporarily unavailable","status":503}
+```
+
+Backend exception messages, stack traces, and cause details are never copied to
+the response. `lockName` is omitted unless a typed `LeaderElectionErrorOverride`
+explicitly sets `exposeLockName = true`; status overrides are restricted to the
+same allow-list above. `CancellationException` is rethrown so request
+cancellation is not misclassified as an infrastructure failure.
+
+The management route has a converter-free `respondText` fallback. Applications
+that already use Ktor `StatusPages` may opt in to the adapter (the dependency is
+`compileOnly` in this module):
+
+```kotlin
+import io.bluetape4k.leader.ktor.statuspages.leaderElectionErrors
+import io.ktor.server.plugins.statuspages.StatusPages
+
+install(StatusPages) {
+    leaderElectionErrors()
+}
+```
+
+Detached `leaderScheduled` exceptions stay outside this HTTP mapping: the
+plugin logs the sanitized exception type at `WARN`, skips that iteration, and
+continues with the next schedule.
+
 ## Management Action Route (Issue #532, unreleased)
 
 The write route is a separate, explicit opt-in. `LeaderElectionPlugin` validates that

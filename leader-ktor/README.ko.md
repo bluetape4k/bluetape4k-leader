@@ -150,6 +150,47 @@ GET /management/leaderElection
 
 `leaderScheduled()`는 플러그인이 설치되어 있을 때 자신의 lock 이름을 management registry에 기록합니다. 이 route는 JSON text를 직접 응답하므로, 이 endpoint만을 위해 Ktor content negotiation을 추가할 필요는 없습니다.
 
+### 안정적인 오류 응답
+
+Management와 adapter 오류는 작고 안정적인 JSON 계약을 사용합니다. 정상적인
+lock contention은 기존 `null`/skip으로 남으며 HTTP 오류로 바꾸지 않습니다.
+
+| Code | HTTP status | 의미 |
+|---|---:|---|
+| `INVALID_LOCK_NAME` | 400 | lock name이 비어 있거나 core ASCII 규칙을 벗어남 |
+| `NOT_LEADER` | 503 | 현재 leader 상태가 요청을 허용하지 않음 |
+| `LEADER_LOCKED` | 423 | leader lock을 이미 보유함 |
+| `BACKEND_UNAVAILABLE` | 503 | 상태/backend 조회 실패 |
+| `CONFIGURATION`, `INTERNAL` | 500 | 설정 오류 또는 예상하지 못한 요청 실패 |
+| `INVALID_CURSOR` | 400 | stream cursor가 올바르지 않음 |
+
+응답은 기본적으로 `code`, `message`, 숫자 `status`만 포함합니다.
+
+```json
+{"code":"BACKEND_UNAVAILABLE","message":"leader backend is temporarily unavailable","status":503}
+```
+
+Backend 예외 message, stack trace, cause 상세는 응답에 복사하지 않습니다.
+`lockName`은 typed `LeaderElectionErrorOverride`가 `exposeLockName = true`를
+명시할 때만 포함하며 status override도 위 allow-list 안에서만 허용합니다.
+`CancellationException`은 infrastructure 오류로 잘못 분류하지 않고 다시 던집니다.
+
+Management route에는 converter가 없어도 동작하는 `respondText` fallback이 있습니다.
+Ktor `StatusPages`를 이미 사용하는 애플리케이션은 다음 optional adapter를 명시적으로
+설치할 수 있습니다(이 모듈에서는 dependency가 `compileOnly`입니다).
+
+```kotlin
+import io.bluetape4k.leader.ktor.statuspages.leaderElectionErrors
+import io.ktor.server.plugins.statuspages.StatusPages
+
+install(StatusPages) {
+    leaderElectionErrors()
+}
+```
+
+분리된 `leaderScheduled` 예외는 이 HTTP mapping에 들어오지 않습니다. Plugin이
+정제한 예외 type을 `WARN`으로 기록하고 해당 회차만 건너뛴 뒤 다음 schedule을 계속합니다.
+
 ## Management Action Route (Issue #532, unreleased)
 
 Write route는 별도의 명시적 opt-in입니다. `managementActionRouteEnabled=true`이면

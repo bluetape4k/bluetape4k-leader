@@ -61,6 +61,12 @@ class LeaderElectionPluginConfig {
     /** write management action route의 canonical base path입니다. */
     var managementActionRoutePath: String? = null
 
+    /** 오류 응답을 typed override로 제한하는 optional policy입니다. */
+    internal var errorResponder: LeaderElectionErrorResponder? = null
+
+    /** 오류 code별 status와 lockName 노출을 제한하는 optional policy입니다. */
+    internal var errorOverrides: Map<LeaderElectionErrorCode, LeaderElectionErrorOverride> = emptyMap()
+
     internal val managementRegistry: LeaderElectionManagementRegistry = LeaderElectionManagementRegistry()
 
     /**

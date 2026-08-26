@@ -16,12 +16,14 @@ dependencies {
 
     // Ktor 3.x — application/plugin DSL
     compileOnly(libs.ktor.server.core)
+    compileOnly(libs.ktor.server.status.pages)
 
     // Logging
     implementation(bt4k.bluetape4k.logging)
 
     // Testing
     testImplementation(libs.ktor.server.core)
+    testImplementation(libs.ktor.server.status.pages)
     testImplementation("io.ktor:ktor-server-auth")
     testImplementation(libs.ktor.server.cio)
     testImplementation(libs.ktor.server.test.host)

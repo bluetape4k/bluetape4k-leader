@@ -972,7 +972,7 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
 - Modify: `leader-ktor/src/test/kotlin/io/bluetape4k/leader/ktor/LeaderElectionManagementRouteTest.kt`
 - Modify: `leader-ktor/README.md`, `leader-ktor/README.ko.md`, `docs/manual/en/modules/bluetape4k-leader-ktor.md`, `docs/manual/ko/modules/bluetape4k-leader-ktor.md`
 
-- [ ] **Step 1: invalid lock/backend/cancellation route 테스트를 RED로 추가한다.**
+- [x] **Step 1: invalid lock/backend/cancellation route 테스트를 RED로 추가한다.**
 
   management registry에 공백 또는 허용되지 않은 문자의 lock name을 넣는 경로,
   state provider가 `IllegalStateException`을 던지는 경로, request coroutine이
@@ -980,7 +980,7 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
   backend failure는 503 `BACKEND_UNAVAILABLE`, cancellation은 예외 재전파로
   고정한다. 기존 정상 JSON test는 exact body를 유지한다.
 
-- [ ] **Step 2: register와 route를 core validation/error mapping에 연결한다.**
+- [x] **Step 2: register와 route를 core validation/error mapping에 연결한다.**
 
   `LeaderElectionManagementRegistry.register`는 기존 blank 검증에 더해 core
   `validateLockName`을 호출한다. route handler는 lock별 state 조회를
@@ -992,7 +992,7 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
   응답에는 넣지 않는다. 정상 `LeaderStatus.Empty/Occupied`와 기존
   leaderId/leaseExpiry JSON shape은 바꾸지 않는다.
 
-- [ ] **Step 3: management 및 전체 KTOR-02 테스트를 GREEN으로 실행한다.**
+- [x] **Step 3: management 및 전체 KTOR-02 테스트를 GREEN으로 실행한다.**
 
   Run: `./gradlew :bluetape4k-leader-ktor:test --tests '*LeaderElectionManagementRouteTest' --tests '*LeaderElectionStatusPagesAdapterTest' --no-daemon --no-build-cache`
 
@@ -1001,7 +1001,7 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
   `runIfLeader` contention-null을 바꾸는 core diff가 생기면 즉시 되돌리고
   KTOR-02 범위를 유지한다.
 
-- [ ] **Step 4: 오류 문서와 child commit을 완료한다.**
+- [x] **Step 4: 오류 문서와 child commit을 완료한다.**
 
   README와 manual EN/KO에 code/status 표, converter 없는 fallback, typed
   override allow-list, backend cause 비노출, detached scheduler 예외의
@@ -1019,7 +1019,7 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
 **Files:**
 - Read-only: KTOR-02 branch status, exact commit, issue #540
 
-- [ ] **Step 1: 공통 검증 6개와 public descriptor를 순서대로 실행한다.**
+- [x] **Step 1: 공통 검증 6개와 public descriptor를 순서대로 실행한다.**
 
   `:bluetape4k-leader-ktor:test`, compile, jar, detekt, manual inventory,
   `git diff --check`를 실행한다. 공통 `javap` 목록 외에
@@ -1027,7 +1027,7 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
   확인하고 compileOnly adapter가 core API에 dependency를 새로 새지 않는지
   확인한다. 대표 consumer test source를 `compileTestKotlin`으로 다시 컴파일한다.
 
-- [ ] **Step 2: optional artifact 부재 smoke를 실행한다.**
+- [x] **Step 2: optional artifact 부재 smoke를 실행한다.**
 
   Task 6의 `LeaderElectionStatusPagesAdapterTest`에 둔
   `URLClassLoader` smoke를 실행한다. test runtime URL에서
@@ -1038,7 +1038,20 @@ cache의 `KotlinPluginWrapper` 탐색 실패였으나 동일 명령 재시도는
   linkage/configuration error가 발생해야 한다. filtered URL 목록과 두 결과를 test assertion/log에
   남긴다.
 
-- [ ] **Step 3: KTOR-02 exact head를 기록하고 KTOR-03 child base를 만든다.**
+**KTOR-02 실행 증거 (2026-08-26):** `leader-ktor` 전체 test는 56개 PASS했고,
+`compileKotlin`/`compileTestKotlin`, `jar`, root `detekt`
+(`--no-configuration-cache` 재실행), `exportManualModuleInventory`,
+`git diff --check`, Korean audit(`findings=[]`)를 통과했다. test runtime dependency는
+`io.ktor:ktor-server-status-pages:3.5.2`로 해석됐다. `jar tf`/`javap`에서
+`LeaderElectionErrorCode`, `LeaderElectionErrorContext`, `LeaderElectionErrorOverride`,
+`LeaderElectionErrorResponder`, `LeaderElectionStatusPagesAdapterKt`의 descriptor를
+확인했고, optional artifact를 제거한 child-first `URLClassLoader`에서 plugin/config는
+로드되고 adapter descriptor는 `LinkageError`로 차단되는 smoke가 PASS했다. 첫 root
+`detekt` 시도는 Kotlin Gradle plugin cache의 `KotlinPluginWrapper` 탐색 오류와
+configuration-cache의 `detektProductionSourceGuard` 오류가 각각 발생했으나, 동일
+명령을 재시도하고 `--no-configuration-cache`로 실행해 최종 PASS했다.
+
+- [x] **Step 3: KTOR-02 exact head를 기록하고 KTOR-03 child base를 만든다.**
 
   ```bash
   REPO_ROOT=/Users/debop/work/bluetape4k/bluetape4k-leader

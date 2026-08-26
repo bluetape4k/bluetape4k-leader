@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.ktor
 
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.ktor.statuspages.respondLeaderElectionError
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.support.requireNotBlank
 import io.ktor.http.ContentType
 import io.ktor.server.application.Application
@@ -8,6 +10,7 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import java.util.concurrent.ConcurrentSkipListSet
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * `LeaderElectionManagementRegistry`는 Ktor integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -29,7 +32,7 @@ class LeaderElectionManagementRegistry(
      * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun register(lockName: String) {
-        lockName.requireNotBlank("lockName")
+        validateLockName(lockName)
         lockNames.add(lockName)
     }
 
@@ -57,20 +60,50 @@ fun Application.leaderElectionManagementRoute(
 
     routing {
         get(routePath) {
-            call.respondText(
-                text = registry.toJson(leaderElection),
-                contentType = ContentType.Application.Json,
-            )
+            try {
+                call.respondText(
+                    text = registry.toJson(leaderElection),
+                    contentType = ContentType.Application.Json,
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: LeaderElectionHttpException) {
+                call.respondLeaderElectionError(failure.context)
+            }
         }
     }
 }
 
-private fun LeaderElectionManagementRegistry.toJson(leaderElection: SuspendLeaderElector): String =
+@Suppress("TooGenericExceptionCaught")
+internal fun LeaderElectionManagementRegistry.toJson(leaderElection: SuspendLeaderElector): String =
     buildString {
         append("{\"locks\":[")
         snapshot().forEachIndexed { index, lockName ->
             if (index > 0) append(',')
-            val state = leaderElection.state(lockName)
+            try {
+                validateLockName(lockName)
+            } catch (failure: IllegalArgumentException) {
+                throw LeaderElectionHttpException(
+                    context = toErrorContext(
+                        code = LeaderElectionErrorCode.INVALID_LOCK_NAME,
+                        cause = failure,
+                    ),
+                    cause = failure,
+                )
+            }
+            val state = try {
+                leaderElection.state(lockName)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                throw LeaderElectionHttpException(
+                    context = toErrorContext(
+                        code = LeaderElectionErrorCode.BACKEND_UNAVAILABLE,
+                        cause = failure,
+                    ),
+                    cause = failure,
+                )
+            }
             append('{')
             append("\"name\":\"").append(lockName.jsonEscape()).append("\",")
             append("\"status\":\"").append(state.status.name).append("\",")

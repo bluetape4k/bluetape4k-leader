@@ -119,5 +119,6 @@ testcontainers-toxiproxy = { module = "org.testcontainers:testcontainers-toxipro
 ktor-server-core = { module = "io.ktor:ktor-server-core" }
 ktor-server-cio = { module = "io.ktor:ktor-server-cio" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host" }
+ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages" }
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation" }
 ktor-serialization-jackson = { module = "io.ktor:ktor-serialization-jackson" }
