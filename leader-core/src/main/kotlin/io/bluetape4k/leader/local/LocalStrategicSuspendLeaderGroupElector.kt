@@ -2,6 +2,7 @@ package io.bluetape4k.leader.local
 
 import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.coroutines.StrategicSuspendLeaderGroupElector
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.GroupElectionStrategy
@@ -29,8 +30,10 @@ class LocalStrategicSuspendLeaderGroupElector(
     private val registry = ConcurrentHashMap<String, ConcurrentHashMap<String, CandidateInfo>>()
     private val mutexes = ConcurrentHashMap<String, Mutex>()
 
-    private fun candidatesFor(lockName: String): ConcurrentHashMap<String, CandidateInfo> =
-        registry.computeIfAbsent(lockName) { ConcurrentHashMap() }
+    private fun candidatesFor(lockName: String): ConcurrentHashMap<String, CandidateInfo> {
+        validateLockName(lockName)
+        return registry.computeIfAbsent(lockName) { ConcurrentHashMap() }
+    }
 
     private fun mutexFor(lockName: String): Mutex =
         mutexes.computeIfAbsent(lockName) { Mutex() }
@@ -57,6 +60,7 @@ class LocalStrategicSuspendLeaderGroupElector(
         maxLeaders: Int,
         action: suspend () -> T,
     ): T? {
+        validateLockName(lockName)
         val result = mutexFor(lockName).withLock {
             val snapshot = listCandidates(lockName)
             strategy.electValidated(snapshot, maxLeaders)

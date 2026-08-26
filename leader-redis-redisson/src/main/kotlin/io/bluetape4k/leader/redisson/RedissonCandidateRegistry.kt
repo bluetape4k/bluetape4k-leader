@@ -2,6 +2,7 @@ package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import org.redisson.api.RedissonClient
 import kotlin.time.Duration
@@ -30,7 +31,10 @@ internal class RedissonCandidateRegistry(
         internal const val GROUP_KEY_PREFIX = "leader:strategy:group-candidates:redisson:v1"
     }
 
-    private fun cacheKey(lockName: String) = "$keyPrefix:$lockName"
+    private fun cacheKey(lockName: String): String {
+        validateLockName(lockName)
+        return "$keyPrefix:$lockName"
+    }
 
     private fun mapCacheFor(lockName: String) =
         redissonClient.getMapCache<String, CandidateInfo>(cacheKey(lockName))

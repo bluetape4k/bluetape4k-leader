@@ -2,6 +2,7 @@ package io.bluetape4k.leader.local
 
 import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.StrategicLeaderGroupElector
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.GroupElectionStrategy
@@ -29,8 +30,10 @@ class LocalStrategicLeaderGroupElector(
     private val registry = ConcurrentHashMap<String, ConcurrentHashMap<String, CandidateInfo>>()
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
 
-    private fun candidatesFor(lockName: String): ConcurrentHashMap<String, CandidateInfo> =
-        registry.computeIfAbsent(lockName) { ConcurrentHashMap() }
+    private fun candidatesFor(lockName: String): ConcurrentHashMap<String, CandidateInfo> {
+        validateLockName(lockName)
+        return registry.computeIfAbsent(lockName) { ConcurrentHashMap() }
+    }
 
     private fun lockFor(lockName: String): ReentrantLock =
         locks.computeIfAbsent(lockName) { ReentrantLock() }
@@ -57,6 +60,7 @@ class LocalStrategicLeaderGroupElector(
         maxLeaders: Int,
         action: () -> T,
     ): T? {
+        validateLockName(lockName)
         val result = lockFor(lockName).withLock {
             val snapshot = listCandidates(lockName)
             strategy.electValidated(snapshot, maxLeaders)

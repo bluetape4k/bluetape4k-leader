@@ -6,6 +6,7 @@ import io.bluetape4k.leader.coroutines.StrategicSuspendLeaderElector
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.ElectionStrategy
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
@@ -51,6 +52,7 @@ class RedissonStrategicSuspendLeaderElector(
         options: LeaderElectionOptions,
         action: suspend () -> T,
     ): T? {
+        validateLockName(lockName)
         val candidates = try {
             listCandidates(lockName)
         } catch (e: CancellationException) {
