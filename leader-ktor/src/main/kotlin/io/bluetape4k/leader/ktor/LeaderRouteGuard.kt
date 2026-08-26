@@ -192,6 +192,7 @@ private fun validateGuardConfiguration(
     }
 }
 
+@Suppress("TooGenericExceptionCaught")
 private suspend fun checkState(
     call: ApplicationCall,
     config: LeaderRouteGuardConfig,
@@ -219,6 +220,7 @@ private suspend fun checkState(
     }
 }
 
+@Suppress("TooGenericExceptionCaught")
 private suspend fun acquireLease(
     call: ApplicationCall,
     config: LeaderRouteGuardConfig,
