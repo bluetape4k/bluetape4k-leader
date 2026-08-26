@@ -22,6 +22,7 @@ dependencies {
 
     // Testing
     testImplementation(libs.ktor.server.core)
+    testImplementation("io.ktor:ktor-server-auth")
     testImplementation(libs.ktor.server.cio)
     testImplementation(libs.ktor.server.test.host)
     testImplementation(bt4k.bluetape4k.ktor.testing)

@@ -58,7 +58,7 @@ wrapping the cancellation; `isCancelled()` is not guaranteed). Blocking APIs als
 - `onSkipped(lockName)` when the action is not run because leadership was not acquired
 
 `LeaderElectionEventPublisher.events` exposes the same lifecycle as a hot `Flow<LeaderElectionEvent>`.
-`LeaderElectionEvent.Elected` carries the same optional `LeaderLease` snapshot. `leader.leaseUntil` and
+`LeaderElectionEvent.Elected` carries the same optional `LeaderLease` state. `leader.leaseUntil` and
 `leaseExpiry` are `null` when a backend cannot report a precise expiry; treat them as observability metadata,
 not as an ownership decision.
 
@@ -257,7 +257,56 @@ println(group.maxLeaders)     // maxLeaders from options
 println(group.leaders.map { it.leaderId })
 ```
 
-State inspection is a best-effort snapshot for diagnostics and metrics. It is not a lock acquisition primitive.
+State inspection is best-effort reference data for diagnostics and metrics. It is not a lock acquisition primitive.
+
+## Management Actions (Issue #532, unreleased)
+
+`LeaderManagementActionRegistry` is an explicit, process-local operator surface for
+releasing a registered single-leader lease. It performs an ownership pre-check, one
+conditional release, and a post-check. The result is a sanitized
+`LeaderManagementActionResult`; backend tokens, credentials, lock identities, and
+exception text are never part of the result or observation.
+
+Register the exact `LeaderLeaseHandle` returned by a lease-acquirer and close only the
+registration token when that handle is no longer eligible for management actions:
+
+```kotlin
+val registry = LeaderManagementActionRegistry()
+val handle = elector.tryAcquire("daily-job")
+val registration = handle?.let(registry::register)
+
+try {
+    val result = registry.release("daily-job")
+    println("${result.outcome}, mutation=${result.mutationAttempted}")
+} finally {
+    registration?.close() // idempotent; does not release the lease
+    registry.closeAndDrain()
+}
+```
+
+Registration is identity-based and bounded. Re-registering the same handle adds a
+reference; another handle for the same lock returns `AMBIGUOUS`. `close()` never
+performs backend I/O. `closeAndDrain()` rejects new actions and waits only for
+already-admitted workers; it does not release arbitrary application leases.
+
+The action registry is not connected to `runIfLeader`, group/semaphore election,
+strategic election, `LeaderRouteLeaseRuntime`, or scheduled jobs. Register a handle
+only at the application-owned lease boundary. A timeout before release reports
+`ACTION_TIMED_OUT` with `mutationAttempted=false`; a timeout after release has begun
+reports the same outcome with `mutationAttempted=true` and must not be automatically
+retried. `RELEASE_UNCONFIRMED` and `RELEASE_FAILED` are not success signals.
+
+The HTTP adapters in the Spring and Ktor modules share this mapping:
+
+| Outcome | HTTP | Retry |
+|---|---:|---|
+| `RELEASED` | 200 | No |
+| `INVALID_LOCK_NAME` | 400 | No |
+| `NOT_REGISTERED` | 404 | No |
+| `AMBIGUOUS`, `NOT_HELD`, `ACTION_IN_PROGRESS` | 409 | No |
+| `ACTION_ADMISSION_REJECTED` | 429 | No |
+| ownership/release/registry failures | 503 | No |
+| `ACTION_TIMED_OUT` | 504 | No |
 
 ## Tenant Namespacing
 

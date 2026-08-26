@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import io.bluetape4k.support.requirePositiveNumber
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /** acquire, cleanup, watchdog 인접 연산이 공유하는 bounded executor입니다. */
 class LeaseOperationScheduler(
@@ -88,8 +89,28 @@ class LeaseOperationScheduler(
         return outstanding.get() == 0 && queued == 0
     }
 
-    override fun close() {
+    /**
+     * bounded shutdown 경로입니다. 기존 [close]의 5초 ABI를 보존하면서 registry가
+     * 자신의 drain budget을 전달할 수 있도록 additive internal API로 제공합니다.
+     */
+    internal fun close(timeout: Duration): Boolean {
         executor.shutdown()
-        if (!executor.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) executor.shutdownNow()
+        val timeoutNanos = when {
+            !timeout.isFinite() -> SHUTDOWN_TIMEOUT_SECONDS.seconds.inWholeNanoseconds
+            timeout <= Duration.ZERO -> 0L
+            else -> timeout.inWholeNanoseconds
+        }
+        val terminated = try {
+            executor.awaitTermination(timeoutNanos, TimeUnit.NANOSECONDS)
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+            false
+        }
+        if (!terminated) executor.shutdownNow()
+        return terminated && executor.isTerminated
+    }
+
+    override fun close() {
+        close(SHUTDOWN_TIMEOUT_SECONDS.seconds)
     }
 }

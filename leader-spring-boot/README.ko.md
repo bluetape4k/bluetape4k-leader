@@ -650,6 +650,47 @@ GET /actuator/leaderElection
 
 `acquisitionFailures`는 readiness와 동일한 bounded aggregate입니다. timestamp와 count만 포함하므로 lock name이나 backend exception message를 노출하지 않습니다. read-only endpoint이지만 운영 실패량을 보여 줄 수 있으므로 신뢰할 수 있는 Actuator client에만 노출하세요.
 
+## Management Action Endpoint (Issue #532, unreleased)
+
+Write surface는 read-only `leaderElection` endpoint와 분리되어 있으며, parent
+endpoint와 nested action property를 모두 활성화할 때만 생성됩니다. Spring relaxed
+binding은 `leader-election`과 `leaderElection`을 모두 인식하므로 새 설정에는
+canonical kebab-case를 사용하세요.
+
+```yaml
+management:
+  endpoint:
+    leader-election:
+      enabled: true
+      actions:
+        enabled: true
+        timeout: 5s
+  endpoints:
+    web:
+      exposure:
+        include: health,leaderElection,leaderElectionActions
+```
+
+Endpoint ID가 `leaderElectionActions`인 HTTP 전용 `@WebEndpoint`이며 JMX write
+operation을 추가하지 않습니다. 라이브러리는 `SecurityFilterChain`도 자동 설치하지
+않으므로 Actuator port를 애플리케이션의 기존 인증과 network policy로 보호하세요.
+Release 요청은 다음처럼 보냅니다.
+
+```http
+POST /actuator/leaderElectionActions/{lockName}
+```
+
+JSON body는 `action`, `outcome`, `mutationAttempted` 세 key만 허용합니다. Core 공통
+mapping은 outcome에 따라 200/400/404/409/429/503/504를 반환하고 모든 outcome의
+`retryAllowed`는 `false`입니다. Worker가 terminalize되기 전에 `ACTION_TIMED_OUT`을
+재시도하지 말고, `RELEASE_UNCONFIRMED`/`RELEASE_FAILED`를 성공으로 처리하지 마세요.
+
+애플리케이션 registry bean이 없을 때만 auto-configuration이 기본 5초 timeout(최대
+30초)의 bounded library-owned registry를 만들고 Spring context 종료 전에 drain합니다.
+애플리케이션이 `LeaderManagementActionRegistry` bean을 제공하면 이를 우선하며 이
+모듈은 lifecycle과 observer를 교체하거나 닫지 않습니다. 등록은 lease-handle 경계에서
+명시적으로 수행하고 group/strategic/runtime 작업은 자동 등록하지 않습니다.
+
 ## Backend 진단과 연결 상태 Health
 
 정적 backend diagnostics endpoint는 기본 비활성입니다. 네트워크나 데이터베이스 I/O 없이 선택된 backend descriptor를 반환하므로 연결 상태는 `NOT_CHECKED`입니다.

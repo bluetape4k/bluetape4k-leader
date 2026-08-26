@@ -670,6 +670,49 @@ GET /actuator/leaderElection
 
 `acquisitionFailures` is the same bounded aggregate used by readiness. It contains timestamps and counts only: it never exposes a lock name or backend exception message. The endpoint is read-only but may still reveal operational failure volume, so expose it only to trusted Actuator clients.
 
+## Management Action Endpoint (Issue #532, unreleased)
+
+The write surface is separate from the read-only `leaderElection` endpoint and is
+disabled unless both the parent endpoint and the nested action property are enabled.
+Spring relaxed binding accepts either `leader-election` or `leaderElection`; use the
+canonical kebab-case form in new configuration:
+
+```yaml
+management:
+  endpoint:
+    leader-election:
+      enabled: true
+      actions:
+        enabled: true
+        timeout: 5s
+  endpoints:
+    web:
+      exposure:
+        include: health,leaderElection,leaderElectionActions
+```
+
+The endpoint is an HTTP-only `@WebEndpoint` with the ID `leaderElectionActions`; it
+does not add a JMX write operation and the library does not install a
+`SecurityFilterChain`. Protect the Actuator port with the application's existing
+authentication and network policy. A release request is sent as:
+
+```http
+POST /actuator/leaderElectionActions/{lockName}
+```
+
+The JSON body is limited to `action`, `outcome`, and `mutationAttempted`. The shared
+core mapping returns 200/400/404/409/429/503/504 for the corresponding outcomes, and
+all outcomes have `retryAllowed=false`; in particular, do not retry
+`ACTION_TIMED_OUT` until the worker has terminalized, or promote
+`RELEASE_UNCONFIRMED`/`RELEASE_FAILED` to success.
+
+When no application registry bean exists, the auto-configuration creates a bounded
+library-owned registry using the 5-second default timeout (maximum 30 seconds) and
+drains it before Spring context shutdown. A `LeaderManagementActionRegistry` bean
+provided by the application wins and remains application-owned; its lifecycle and
+observer are not replaced or closed by this module. Registration is still explicit at
+the lease-handle boundary, and group/strategic/runtime jobs are not auto-registered.
+
 ## Backend Diagnostics And Connectivity Health
 
 The static backend diagnostics endpoint is disabled by default. It reports the selected backend descriptor without performing network or database I/O, so its connectivity status is `NOT_CHECKED`.

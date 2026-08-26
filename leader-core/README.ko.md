@@ -56,7 +56,7 @@ async/가상 스레드 API는 예외 완료됩니다(`join()`에서는 cancellat
 - `onSkipped(lockName)`: 리더십을 획득하지 못해 작업을 실행하지 않을 때
 
 `LeaderElectionEventPublisher.events`는 같은 생명주기를 hot `Flow<LeaderElectionEvent>` stream으로 제공합니다.
-`LeaderElectionEvent.Elected`도 같은 선택적 `LeaderLease` snapshot을 포함합니다. Backend가 정확한 만료 시각을
+`LeaderElectionEvent.Elected`도 같은 선택적 `LeaderLease` 기준 데이터를 포함합니다. Backend가 정확한 만료 시각을
 보고할 수 없으면 `leader.leaseUntil`과 `leaseExpiry`는 `null`입니다. 이 값은 관측 metadata이며, 소유권 판단은
 항상 backend의 원자적 acquire path를 사용하세요.
 
@@ -113,7 +113,7 @@ LeaderGroupElectionOptions(
 
 `minLeaseTime`은 lockAtLeastFor 대응 옵션입니다. 로컬 elector는 최소 보유 시간이 지날 때까지 락 또는 슬롯을 유지합니다. 지원되는 분산 backend는 release 시 남은 최소 lease를 storage TTL에 위임합니다.
 
-`autoExtend`는 단일 리더 옵션입니다. 로컬 elector는 JVM lock으로 상호 배제를 유지하고 상태 스냅샷을 갱신하며, 분산 backend는 owner 조건부 lease 갱신을 구현합니다.
+`autoExtend`는 단일 리더 옵션입니다. 로컬 elector는 JVM lock으로 상호 배제를 유지하고 상태 기준 데이터를 갱신하며, 분산 backend는 owner 조건부 lease 갱신을 구현합니다.
 
 ## 시퀀스 다이어그램
 
@@ -255,7 +255,56 @@ println(group.maxLeaders)     // 옵션의 maxLeaders 값
 println(group.leaders.map { it.leaderId })
 ```
 
-상태 조회는 진단과 메트릭을 위한 best-effort 스냅샷입니다. 락 획득을 대체하는 API가 아닙니다.
+상태 조회는 진단과 메트릭을 위한 best-effort 기준 데이터입니다. 락 획득을 대체하는 API가 아닙니다.
+
+## Management Action (Issue #532, unreleased)
+
+`LeaderManagementActionRegistry`는 등록된 single-leader lease를 운영자가 명시적으로
+해제하기 위한 process-local surface입니다. 소유권 pre-check, 조건부 release 한 번,
+post-check 순서로 동작하며 결과는 정제된 `LeaderManagementActionResult`로 반환합니다.
+Backend token, credential, lock identity, exception 원문은 result와 observation에
+포함되지 않습니다.
+
+Lease-acquirer가 반환한 정확한 `LeaderLeaseHandle`만 등록하고, 해당 handle이 더 이상
+관리 대상이 아니면 registration token만 닫으세요:
+
+```kotlin
+val registry = LeaderManagementActionRegistry()
+val handle = elector.tryAcquire("daily-job")
+val registration = handle?.let(registry::register)
+
+try {
+    val result = registry.release("daily-job")
+    println("${result.outcome}, mutation=${result.mutationAttempted}")
+} finally {
+    registration?.close() // idempotent; lease 자체는 해제하지 않음
+    registry.closeAndDrain()
+}
+```
+
+등록은 identity 기준이며 cap이 있습니다. 같은 handle을 다시 등록하면 reference가
+늘고, 같은 lock에 다른 handle이 있으면 `AMBIGUOUS`가 됩니다. `close()`는 backend I/O를
+수행하지 않습니다. `closeAndDrain()`은 새 action을 거부하고 이미 admission된 worker만
+bounded하게 기다리며, 애플리케이션 lease를 임의로 해제하지 않습니다.
+
+Action registry는 `runIfLeader`, group/semaphore election, strategic election,
+`LeaderRouteLeaseRuntime`, scheduled job에 자동 연결되지 않습니다. 애플리케이션이
+소유한 lease 경계에서만 handle을 등록하세요. Release 전 timeout은
+`ACTION_TIMED_OUT`과 `mutationAttempted=false`를 반환하고, release 시작 후 timeout은
+같은 outcome에 `mutationAttempted=true`를 반환하므로 자동 재시도하면 안 됩니다.
+`RELEASE_UNCONFIRMED`와 `RELEASE_FAILED`를 성공으로 승격하지 마세요.
+
+Spring 및 Ktor 모듈의 HTTP adapter는 다음 공통 mapping을 사용합니다.
+
+| Outcome | HTTP | Retry |
+|---|---:|---|
+| `RELEASED` | 200 | No |
+| `INVALID_LOCK_NAME` | 400 | No |
+| `NOT_REGISTERED` | 404 | No |
+| `AMBIGUOUS`, `NOT_HELD`, `ACTION_IN_PROGRESS` | 409 | No |
+| `ACTION_ADMISSION_REJECTED` | 429 | No |
+| ownership/release/registry failure | 503 | No |
+| `ACTION_TIMED_OUT` | 504 | No |
 
 ## 테넌트 네임스페이스
 

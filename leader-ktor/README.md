@@ -91,6 +91,9 @@ leaderScheduled(
 | `backendDiagnosticsRoutePath` | `String`                | No       | Backend diagnostics route path           |
 | `backendConnectivityCheckEnabled` | `Boolean`          | No       | Runs one active connectivity probe per request |
 | `backendConnectivityCheckTimeout` | `kotlin.time.Duration` | No    | Positive, finite probe timeout; defaults to `500ms` |
+| `managementActionRouteEnabled` | `Boolean` | No | Validates an application-owned action registry; route install remains explicit |
+| `managementActionRegistry` | `SuspendLeaderManagementActionRegistry?` | No | Application-owned single-leader action registry |
+| `managementActionRoutePath` | `String?` | No | Explicit action path override; defaults to `<managementRoutePath>/actions` when passed to the route |
 
 `leaderScheduled` parameters:
 
@@ -135,6 +138,81 @@ The route is installed on the main Ktor application port and routing pipeline. P
 ```
 
 `leaderScheduled()` records its lock name into the management registry when the plugin is installed. The route emits JSON text directly, so applications do not need to install Ktor content negotiation just for this endpoint.
+
+## Management Action Route (Issue #532, unreleased)
+
+The write route is a separate, explicit opt-in. `LeaderElectionPlugin` validates that
+an application-owned `SuspendLeaderManagementActionRegistry` is present when
+`managementActionRouteEnabled=true`, but it never installs a POST route. Install the
+route inside the application's own `authenticate("management")` scope:
+
+```kotlin
+val actionRegistry = SuspendLeaderManagementActionRegistry()
+
+install(Authentication) {
+    basic("management") {
+        validate { credentials ->
+            if (credentials.name == "admin" && credentials.password == "secret") {
+                UserIdPrincipal(credentials.name)
+            } else {
+                null
+            }
+        }
+    }
+}
+
+install(LeaderElectionPlugin) {
+    leaderElection = redissonElector
+    managementActionRouteEnabled = true
+    managementActionRegistry = actionRegistry
+}
+
+routing {
+    authenticate("management") {
+        leaderElectionManagementActionRoute(
+            registry = actionRegistry,
+            authorize = { principal<UserIdPrincipal>() != null },
+        )
+    }
+}
+```
+
+The canonical path is `POST /management/leaderElection/actions/{lockName}`. Pass an
+explicit `path` (for example `/internal/leader-status/actions`) when
+`managementRoutePath` is customized; the action path is not inferred by an automatic
+route installation. The route uses the shared ASCII lock-name grammar. An encoded or
+literal slash stays outside the selector boundary and returns 404; a matched hostile
+selector such as `%` returns 400 with `INVALID_LOCK_NAME`.
+
+Ktor authentication owns unauthenticated 401 and principal failures. A false
+`authorize` callback returns 403 `AUTHORIZATION_DENIED`; an ordinary callback exception
+returns 500 `AUTHORIZATION_FAILED` without invoking the registry or copying exception
+text. Successful and typed registry outcomes use the common HTTP mapping and an
+allow-listed JSON body containing only `action`, `outcome`, and `mutationAttempted`.
+There is no automatic retry, including for `ACTION_TIMED_OUT` or
+`RELEASE_UNCONFIRMED`.
+
+The application owns the registry, observer, and scope. Drain it before stopping the
+engine; the helper keeps shutdown suspend-native and never cancels an external
+application scope:
+
+```kotlin
+suspend fun shutdown(
+    engine: ApplicationEngine,
+    actionRegistry: SuspendLeaderManagementActionRegistry,
+) {
+    engine.stopLeaderManagementGracefully(
+        actionRegistry,
+        gracePeriodMillis = 1_000,
+        timeoutMillis = 5_000,
+    )
+}
+```
+
+`closeAndDrain()` is bounded. If it returns `false`, the helper logs a sanitized
+warning and still stops the engine; it does not release arbitrary leases. Register
+only single-leader lease handles explicitly. `runIfLeader`, group/strategic election,
+`leaderScheduled`, and `LeaderRouteLeaseRuntime` are not auto-registered.
 
 ## Backend Diagnostics Route
 
