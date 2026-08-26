@@ -66,7 +66,9 @@ class MongoLeaderConfiguration {
         coroutineDb: CoroutineMongoDatabase,
         props: LeaderProperties,
         recorderProvider: ObjectProvider<SuspendSafeLeaderHistoryRecorder>,
-    ): MongoSuspendLeaderElector = createSuspendBackendBean {
+    ): MongoSuspendLeaderElector = createSuspendBackendBean(
+        operationName = "mongoSuspendLeaderElector",
+    ) {
         MongoSuspendLeaderElector(
             coroutineDb.getCollection<Document>(props.mongo.singleCollection),
             electionOptions(props),
@@ -82,7 +84,9 @@ class MongoLeaderConfiguration {
         coroutineDb: CoroutineMongoDatabase,
         props: LeaderProperties,
         recorderProvider: ObjectProvider<SuspendSafeLeaderHistoryRecorder>,
-    ): MongoSuspendLeaderGroupElector = createSuspendBackendBean {
+    ): MongoSuspendLeaderGroupElector = createSuspendBackendBean(
+        operationName = "mongoSuspendLeaderGroupElector",
+    ) {
         MongoSuspendLeaderGroupElector(
             db.getCollection(props.mongo.groupCollection, Document::class.java),
             coroutineDb.getCollection<Document>(props.mongo.groupCollection),
