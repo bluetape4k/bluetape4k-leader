@@ -118,14 +118,19 @@ class MongoLeaderHistoryIndexer(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
-    override fun close() {
-        runCatching { scope.cancel() }
-        runCatching {
-            runBlocking {
-                withTimeoutOrNull(SHUTDOWN_TIMEOUT_MS) {
-                    indexBuildJob?.join()
-                } ?: log.warn { "MongoLeaderHistoryIndexer: shutdown timed out after ${SHUTDOWN_TIMEOUT_MS}ms" }
-            }
-        }
+    override fun close() = runBlocking { closeSuspend() }
+
+    /**
+     * 코루틴 호출자는 blocking bridge 없이 인덱스 build job의 종료를 기다립니다.
+     *
+     * caller cancellation은 그대로 전파하고, shutdown timeout만 경고 후 반환합니다.
+     *
+     * @param shutdownTimeoutMs 인덱스 build 종료를 기다릴 최대 시간입니다.
+     */
+    internal suspend fun closeSuspend(shutdownTimeoutMs: Long = SHUTDOWN_TIMEOUT_MS) {
+        scope.cancel()
+        withTimeoutOrNull(shutdownTimeoutMs) {
+            indexBuildJob?.join()
+        } ?: log.warn { "MongoLeaderHistoryIndexer: shutdown timed out after ${shutdownTimeoutMs}ms" }
     }
 }
