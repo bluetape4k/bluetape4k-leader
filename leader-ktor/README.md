@@ -16,8 +16,8 @@ within the application coroutine scope.
 2. **`leaderElectionPluginConfig()`** — extension on `Application` to retrieve the
    stored configuration.
 3. **`Application.leaderScheduled(...)`** — schedules a leader-only `suspend` action on
-   a fixed period, launched in the `Application` coroutine scope so it cancels
-   automatically on `ApplicationStopped`.
+   a fixed period. When `LeaderElectionPlugin` is installed, the returned Job is registered
+   as an application-owned resource and cancelled with a bounded join at `ApplicationStopped`.
 
 ![leader ktor Architecture diagram](../docs/images/readme-diagrams/leader-ktor-architecture-01.png)
 
@@ -28,7 +28,8 @@ within the application coroutine scope.
 ## Core Features
 
 - Ktor 3.x compatible, coroutine-native (`SuspendLeaderElector` based)
-- Automatic cancellation on `ApplicationStopped` via `Application` coroutine scope
+- Application-owned scheduler Job cancellation at `ApplicationStopped` through the plugin
+  resource registry; caller-owned electors and backend clients are never closed implicitly
 - Per-cycle exception isolation — `action` exceptions are logged and the next cycle
   continues (poison-pill prevention)
 - `CancellationException` is always re-thrown so structured concurrency works
@@ -66,6 +67,19 @@ val job = leaderScheduled("inventory-sync", 5.minutes) { syncInventory() }
 // ... later
 job.cancel()
 ```
+
+### Lifecycle ownership
+
+`LeaderElectionPlugin` creates one application-owned resource registry. Jobs returned by
+`leaderScheduled` are registered there and are cancelled immediately when
+`ApplicationStopped` is observed; cleanup then performs a bounded join without blocking the
+Ktor stop callback. Resource cleanup is idempotent and runs outside the registry lock.
+
+The plugin does not close the supplied `SuspendLeaderElector`, Redis/SQL/Mongo client, or
+any other backend owned by the application. If `leaderScheduled` receives an explicit elector
+without the plugin, it remains in the normal `Application` scope and the caller owns its
+cancellation. Normal lock contention still returns `null` and the scheduler continues with
+the next cycle.
 
 Bypassing the plugin (advanced — pass the elector explicitly):
 

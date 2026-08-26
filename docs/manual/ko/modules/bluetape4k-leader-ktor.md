@@ -35,7 +35,23 @@ dependencies {
 
 ## 핵심 개념 {#concepts}
 
-Plugin은 `SuspendLeaderElector` 하나를 해석합니다. 예약 작업은 애플리케이션 소유 coroutine scope에서 실행되고 종료 시 취소됩니다. 경쟁에서 밀린 회차는 서버 실패가 아니라 skip입니다.
+Plugin은 `SuspendLeaderElector` 하나를 해석합니다. 예약 작업은 애플리케이션 소유
+coroutine scope에서 실행되고 `ApplicationStopped` 시 멈춥니다. Plugin 소유 scheduler
+Job은 bounded 취소와 join을 위해 등록하지만 elector와 backend client는 caller 소유로
+남깁니다. 정상적인 lock contention은 `null`을 반환해 해당 회차만 skip하며 서버를
+실패시키지 않습니다.
+
+## Lifecycle과 소유권 {#lifecycle}
+
+`LeaderElectionPlugin`을 설치하면 애플리케이션 소유 resource 경계가 생깁니다.
+`leaderScheduled`가 반환한 각 Job은 그 경계에 등록됩니다. `ApplicationStopped`에서
+registry는 닫힘을 표시하고 등록된 Job을 즉시 취소한 뒤 자체 cleanup dispatcher에서
+bounded join을 수행하므로 Ktor stop callback을 block하지 않습니다. 정리는 idempotent이며
+전달받은 `SuspendLeaderElector`, Redis/SQL/Mongo client 또는 애플리케이션이 소유한 다른
+backend를 닫지 않습니다.
+
+Plugin 없이 explicit elector를 전달해 `leaderScheduled`를 호출하면 Job은 기존
+Application scope를 사용하고 취소 책임은 caller에게 있습니다.
 
 ## 빠르게 시작하기 {#quick-start}
 
@@ -54,7 +70,9 @@ plugin으로 elector를 등록하고 `leaderScheduled`로 주기적 suspend 작�
 
 ## 권장 패턴 {#patterns}
 
-plugin은 한 번만 설치하고 lock name을 안정적으로 정합니다. 본문은 lease보다 짧게 끝내거나 안전하게 연장하며 shutdown 취소도 계약에 포함하세요.
+plugin은 한 번만 설치하고 lock name을 안정적으로 정합니다. 본문은 lease보다 짧게
+끝내거나 안전하게 연장하며 `ApplicationStopped` 취소를 Job 계약에 포함하세요. Backend
+client lifecycle은 애플리케이션 코드가 소유합니다.
 
 ## 연동 {#integrations}
 
@@ -74,7 +92,9 @@ plugin은 한 번만 설치하고 lock name을 안정적으로 정합니다. 본
 
 ## 테스트 {#testing}
 
-Ktor test application에서 plugin 설정과 schedule 수명을 검사하고 소유권은 백엔드 통합 테스트로 확인합니다. Acquire와 본문 중 shutdown도 검증하세요.
+Ktor test application에서 plugin 설정과 schedule 수명을 검사하고 소유권은 백엔드 통합
+테스트로 확인합니다. Acquire와 본문 중 deterministic `ApplicationStopped` 취소 및 정상
+contention-null 계약도 검증하세요.
 
 ## 학습 경로와 예제 {#workshops}
 
