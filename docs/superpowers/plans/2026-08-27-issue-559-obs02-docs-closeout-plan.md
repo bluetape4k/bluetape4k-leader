@@ -93,7 +93,7 @@
 
 - [ ] **Step 4: Align the Prometheus dashboard example**
 
-  State that the example's logging handler can show `leader.aop.*`, listener, and lease-extension observations when the Spring observation bridge is active, while the example still does not add an OpenTelemetry SDK, exporter, or collector. Keep default lock/leader/exception detail redaction and the existing localhost/authentication warnings.
+  State that the example's logging handler shows `leader.aop.*` and listener observations, while the current `supportsContext` predicate does not include the `bluetape4k.leader.lease.extension` name. Explain that the Spring bridge still emits lease-extension observations and an application-owned handler can opt into that exact name. Keep the example free of an OpenTelemetry SDK, exporter, or collector, and retain default lock/leader/exception detail redaction plus the existing localhost/authentication warnings.
 
 - [ ] **Step 5: Review the root/core locale pairs**
 
