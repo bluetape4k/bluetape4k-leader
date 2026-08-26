@@ -105,4 +105,4 @@ _배포본 README: [`leader-ktor/README.ko.md`](https://github.com/bluetape4k/bl
 
 ## 근거 자료 {#sources}
 
-[Plugin](../../../../leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionPlugin.kt) · [Scheduling 확장](../../../../leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/ApplicationExt.kt) · [안정판 안내](../../../../leader-ktor/README.ko.md)
+[Plugin](../../../../leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionPlugin.kt) · [Route guard](../../../../leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderRouteGuard.kt) · [Scheduling 확장](../../../../leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/ApplicationExt.kt) · [안정판 안내](../../../../leader-ktor/README.ko.md)
