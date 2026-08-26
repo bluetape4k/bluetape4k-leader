@@ -405,8 +405,9 @@ class SuspendLeaderManagementActionRegistry(
 
     private fun notifyQuarantineRecovery(action: SuspendLeaderManagementActionStore.ActionRecord) {
         if (!action.quarantined) return
-        val result = action.result ?: return
-        val reason = action.quarantineReason ?: return
+        val result = action.result
+        val reason = action.quarantineReason
+        if (result == null || reason == null) return
         try {
             observer?.onQuarantineRecovered(
                 LeaderManagementActionObservation(
