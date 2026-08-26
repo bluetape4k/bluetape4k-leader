@@ -249,6 +249,34 @@ exporter.submit(event)
 exporter.close() // owns and closes delegate exactly once
 ```
 
+The core module supplies the JDK HTTP transport. Compose it with the Micrometer
+decorator when webhook outcomes and queue gauges should be exported together:
+
+```kotlin
+val exporter = MicrometerLeaderAuditExporter(
+    delegate = HttpLeaderAuditExporter(
+        client = HttpClient.newBuilder()
+            .followRedirects(HttpClient.Redirect.NEVER)
+            .build(),
+        endpoint = LeaderAuditTrustedHttpsEndpoint.trusted(
+            URI("https://audit.example.test/v1/leader-events"),
+        ),
+        headers = mapOf("Authorization" to "Bearer ${System.getenv("AUDIT_WEBHOOK_TOKEN")}"),
+        encoder = LeaderAuditPayloadEncoder { event ->
+            LeaderAuditHttpPayload.of("text/plain; charset=utf-8", event.toString().toByteArray())
+        },
+        exportOptions = exportOptions,
+        httpOptions = LeaderAuditHttpOptions.defaults(),
+    ),
+    registry = registry,
+)
+```
+
+`HttpLeaderAuditExporter` accepts only a trusted HTTPS endpoint, disables redirects,
+and discards response bodies. Serialization, endpoint allow-listing, and idempotency
+remain application responsibilities; this module adds metrics but no JSON or
+OpenTelemetry transport.
+
 The decorator publishes one fixed, aggregate metric catalog. It never copies lock
 names, leader IDs, endpoints, error messages, `source`, or `transport` into tags.
 The only tag is `outcome`, with the bounded values shown below. A registry keeps

@@ -249,6 +249,33 @@ exporter.submit(event)
 exporter.close() // delegate를 정확히 한 번 소유하고 닫습니다.
 ```
 
+core 모듈의 JDK HTTP transport와 Micrometer decorator를 조합하면 webhook 결과와
+queue gauge를 함께 export할 수 있습니다.
+
+```kotlin
+val exporter = MicrometerLeaderAuditExporter(
+    delegate = HttpLeaderAuditExporter(
+        client = HttpClient.newBuilder()
+            .followRedirects(HttpClient.Redirect.NEVER)
+            .build(),
+        endpoint = LeaderAuditTrustedHttpsEndpoint.trusted(
+            URI("https://audit.example.test/v1/leader-events"),
+        ),
+        headers = mapOf("Authorization" to "Bearer ${System.getenv("AUDIT_WEBHOOK_TOKEN")}"),
+        encoder = LeaderAuditPayloadEncoder { event ->
+            LeaderAuditHttpPayload.of("text/plain; charset=utf-8", event.toString().toByteArray())
+        },
+        exportOptions = exportOptions,
+        httpOptions = LeaderAuditHttpOptions.defaults(),
+    ),
+    registry = registry,
+)
+```
+
+`HttpLeaderAuditExporter`는 신뢰한 HTTPS endpoint만 받고 redirect를 끄며 응답 body를
+폐기합니다. 직렬화, endpoint allow-list, idempotency는 애플리케이션의 책임입니다.
+이 모듈은 메트릭만 추가하고 JSON 또는 OpenTelemetry transport는 추가하지 않습니다.
+
 decorator는 고정 aggregate metric catalog 하나만 제공합니다. lock name,
 leader ID, endpoint, error message, `source`, `transport`를 tag로 복사하지
 않습니다. 유일한 tag는 아래의 제한된 `outcome` 값입니다. registry는 close 후
@@ -275,13 +302,13 @@ non-owning observation이 필요하면 같은 delegate를 두 번 wrapping하지
 
 dropped meter는 두 개의 outcome-tagged ID를 가지므로 고정 catalog는 총 13개
 meter ID입니다. Counter 값은 detached generation offset과 active delegate
-snapshot을 합산해 replacement 후에도 감소하지 않습니다. close 중 delegate
-close 중 snapshot이 예외를 던지면 마지막으로 신뢰한 offset을 유지하고 source를
-degraded로 표시한 뒤 delegate reference를 분리하고 원래 예외를 전달합니다. snapshot이
+기준 데이터 값을 합산해 replacement 후에도 감소하지 않습니다. close 중 delegate
+기준 데이터를 읽다가 예외가 나면 마지막으로 신뢰한 offset을 유지하고 source를
+degraded로 표시한 뒤 delegate reference를 분리하고 원래 예외를 전달합니다. 기준 데이터가
 더 낮은 cumulative 값을 반환하는 경우에는 trusted baseline을 유지하고 degraded warning만
 기록한 뒤 정상 반환하며, 예외를 새로 만들지 않습니다.
 degraded 경로는 `leader.audit.export.meter-source-degraded` fixed warning을 사용하며
-snapshot payload나 exception message를 로그에 남기지 않습니다.
+응답 payload나 exception message를 로그에 남기지 않습니다.
 고정 catalog를 일부만 등록한 뒤 registration이 실패하면 manager는 이미 등록한 소유
 meter와 identity를 보존합니다. 다음 acquire에서는 누락된 ID만 등록하고 foreign meter는
 제거하지 않습니다. 각 scrape의 cumulative 비교는 scalar 연산으로 수행하므로 hot path에서

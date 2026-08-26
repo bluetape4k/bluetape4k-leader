@@ -91,6 +91,65 @@ election.runIfLeader("nightly-sync") { syncToRemote() }
 handle.close()
 ```
 
+### Audit export and HTTP/webhook delivery
+
+`LeaderAuditExporter` sends already-sanitized history or lifecycle events through a
+bounded, asynchronous pipeline. `submit` only reports admission: `ACCEPTED` does not
+mean that the receiver has accepted the request. Close the exporter before shutting
+down the executor or scheduler supplied in `LeaderAuditExportOptions`.
+
+The JDK adapter keeps serialization in the application and accepts only an explicitly
+trusted HTTPS endpoint. Redirects are disabled, response bodies are discarded, and the
+only request headers allowed by the adapter are `Content-Type` and `Authorization`.
+The endpoint wrapper is a syntax and responsibility boundary; DNS, SSRF, private-network,
+and DNS-rebinding policy remains with the caller or its egress proxy.
+
+```kotlin
+val scheduler = Executors.newSingleThreadScheduledExecutor()
+val executor = Executors.newVirtualThreadPerTaskExecutor()
+val endpoint = LeaderAuditTrustedHttpsEndpoint.trusted(
+    URI("https://audit.example.test/v1/leader-events"),
+)
+val client = HttpClient.newBuilder()
+    .followRedirects(HttpClient.Redirect.NEVER)
+    .build()
+val exporter = HttpLeaderAuditExporter(
+    client = client,
+    endpoint = endpoint,
+    headers = mapOf("Authorization" to "Bearer ${System.getenv("AUDIT_WEBHOOK_TOKEN")}"),
+    encoder = LeaderAuditPayloadEncoder { event ->
+        LeaderAuditHttpPayload.of(
+            contentType = "text/plain; charset=utf-8",
+            body = event.toString().toByteArray(),
+        )
+    },
+    exportOptions = LeaderAuditExportOptions(
+        queueCapacity = 256,
+        maxInFlight = 8,
+        maxAttempts = 3,
+        attemptTimeout = Duration.ofSeconds(5),
+        initialBackoff = Duration.ofMillis(100),
+        maxBackoff = Duration.ofSeconds(5),
+        executor = executor,
+        scheduler = scheduler,
+    ),
+    httpOptions = LeaderAuditHttpOptions.defaults(),
+)
+
+try {
+    exporter.submit(event)
+} finally {
+    exporter.close()
+    executor.close()
+    scheduler.shutdown()
+}
+```
+
+Use a real serializer in the injected `LeaderAuditPayloadEncoder` when the receiver
+expects JSON. JSONL files and OpenTelemetry exporters are separate transports and are
+not added by `leader-core`. A receiver should also provide idempotency for retries and
+should treat delivery attempts as at-least-once.
+
 ### Options
 
 ```kotlin

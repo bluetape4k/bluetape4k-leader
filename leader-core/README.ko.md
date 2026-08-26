@@ -89,6 +89,64 @@ election.runIfLeader("nightly-sync") { syncToRemote() }
 handle.close()
 ```
 
+### Audit export와 HTTP/webhook 전달
+
+`LeaderAuditExporter`는 이미 정제한 history 또는 lifecycle event를 bounded 비동기
+파이프라인으로 전달합니다. `submit`은 admission 결과만 반환하므로 `ACCEPTED`는
+수신 서버가 요청을 받았다는 뜻이 아닙니다. `LeaderAuditExportOptions`에 넘긴 executor와
+scheduler를 종료하기 전에 exporter를 먼저 닫으세요.
+
+JDK adapter는 직렬화를 애플리케이션에 맡기고 명시적으로 신뢰한 HTTPS endpoint만
+받습니다. Redirect는 끄고 응답 body는 폐기하며, 요청 header는 `Content-Type`과
+`Authorization`만 허용합니다. Endpoint wrapper는 URI 문법과 책임 경계를 확인할 뿐이므로
+DNS, SSRF, private-network, DNS rebinding 정책은 호출자나 egress proxy가 소유합니다.
+
+```kotlin
+val scheduler = Executors.newSingleThreadScheduledExecutor()
+val executor = Executors.newVirtualThreadPerTaskExecutor()
+val endpoint = LeaderAuditTrustedHttpsEndpoint.trusted(
+    URI("https://audit.example.test/v1/leader-events"),
+)
+val client = HttpClient.newBuilder()
+    .followRedirects(HttpClient.Redirect.NEVER)
+    .build()
+val exporter = HttpLeaderAuditExporter(
+    client = client,
+    endpoint = endpoint,
+    headers = mapOf("Authorization" to "Bearer ${System.getenv("AUDIT_WEBHOOK_TOKEN")}"),
+    encoder = LeaderAuditPayloadEncoder { event ->
+        LeaderAuditHttpPayload.of(
+            contentType = "text/plain; charset=utf-8",
+            body = event.toString().toByteArray(),
+        )
+    },
+    exportOptions = LeaderAuditExportOptions(
+        queueCapacity = 256,
+        maxInFlight = 8,
+        maxAttempts = 3,
+        attemptTimeout = Duration.ofSeconds(5),
+        initialBackoff = Duration.ofMillis(100),
+        maxBackoff = Duration.ofSeconds(5),
+        executor = executor,
+        scheduler = scheduler,
+    ),
+    httpOptions = LeaderAuditHttpOptions.defaults(),
+)
+
+try {
+    exporter.submit(event)
+} finally {
+    exporter.close()
+    executor.close()
+    scheduler.shutdown()
+}
+```
+
+수신 서버가 JSON을 요구하면 주입한 `LeaderAuditPayloadEncoder`에서 애플리케이션의
+직렬화기를 사용하세요. JSONL 파일과 OpenTelemetry exporter는 별도 transport이며
+`leader-core`가 의존성을 추가하지 않습니다. 재시도는 at-least-once 전달이므로
+수신 서버도 idempotency를 제공해야 합니다.
+
 ### 옵션 클래스
 
 ```kotlin

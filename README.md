@@ -655,6 +655,40 @@ GET /actuator/leaderElection
 routes, Micrometer, logging, tracing, and custom dashboards should adapt from this core event stream instead of
 introducing framework-specific event contracts.
 
+### Audit export to an HTTP/webhook sink
+
+For sanitized history or lifecycle delivery, compose the core
+`HttpLeaderAuditExporter` with an application-owned `LeaderAuditPayloadEncoder`:
+
+```kotlin
+val endpoint = LeaderAuditTrustedHttpsEndpoint.trusted(
+    URI("https://audit.example.test/v1/leader-events"),
+)
+val client = HttpClient.newBuilder()
+    .followRedirects(HttpClient.Redirect.NEVER)
+    .build()
+val exporter = MicrometerLeaderAuditExporter(
+    delegate = HttpLeaderAuditExporter(
+        client = client,
+        endpoint = endpoint,
+        headers = mapOf("Authorization" to "Bearer ${System.getenv("AUDIT_WEBHOOK_TOKEN")}"),
+        encoder = LeaderAuditPayloadEncoder { event ->
+            LeaderAuditHttpPayload.of("text/plain; charset=utf-8", event.toString().toByteArray())
+        },
+        exportOptions = exportOptions,
+        httpOptions = LeaderAuditHttpOptions.defaults(),
+    ),
+    registry = meterRegistry,
+)
+```
+
+The adapter uses `POST`, bounded retries, and `BodyHandlers.discarding()`. Only
+`Content-Type` and `Authorization` headers are accepted; redirects are disabled.
+`LeaderAuditTrustedHttpsEndpoint` validates the HTTPS syntax and records that the
+caller owns endpoint allow-list and DNS/SSRF policy. `submit` returning `ACCEPTED`
+means admission only, so receivers should be idempotent. JSONL and OpenTelemetry
+transports remain separate application choices.
+
 `bluetape4k.leader.observability.lock-names` seeds the JVM-local status registry before the first runtime event. Listener-aware electors can also add names as they observe lifecycle events. The fallback `LeaderElectionEventPublisher` is publisher-only and never becomes a `LeaderElector` candidate, so existing elector injection remains stable.
 
 Spring diagnostics, readiness, and the Actuator endpoint select from both blocking and suspend
