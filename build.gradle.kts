@@ -8,6 +8,7 @@ import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.compile.JavaCompile
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 plugins {
@@ -491,6 +492,17 @@ if (detektRequested) {
     val moduleDetektTasks = subprojects.mapNotNull { subproject ->
         subproject.tasks.findByName("detekt") as? Detekt
     }
+    val productionSourceRoots = subprojects.associate { subproject ->
+        subproject.path to buildList {
+            add(subproject.file("src/main/kotlin").absolutePath)
+            if (subproject.path in reusableTestcontainersExamplePaths) {
+                add(rootProject.file("examples/shared/src/main/kotlin").absolutePath)
+            }
+        }
+    }
+    val productionSourceRootFiles = productionSourceRoots.values
+        .flatten()
+        .map(::File)
     val reportMerge = tasks.register<ReportMergeTask>("reportMerge") {
         val file = layout.buildDirectory.asFile.get().resolve("reports/detekt/merged.xml")
         output.set(file)
@@ -501,28 +513,25 @@ if (detektRequested) {
     val detektProductionSourceGuard = tasks.register("detektProductionSourceGuard") {
         group = "verification"
         description = "Fails when no Kotlin production sources are available for Detekt."
+        inputs.files(productionSourceRootFiles)
         doLast {
-            val sourceModules = subprojects
-                .mapNotNull { subproject ->
-                    val sourceRoots = buildList {
-                        add(subproject.file("src/main/kotlin"))
-                        if (subproject.path in reusableTestcontainersExamplePaths) {
-                            add(rootProject.file("examples/shared/src/main/kotlin"))
+            val task = this
+            val sourceModules = productionSourceRoots.mapNotNull { (modulePath, sourceRootPaths) ->
+                val files = sourceRootPaths
+                    .asSequence()
+                    .map(::File)
+                    .flatMap { sourceRoot ->
+                        sourceRoot.walkTopDown().filter { sourceFile ->
+                            sourceFile.isFile && sourceFile.extension in setOf("kt", "kts")
                         }
-                    }
-                    val files = sourceRoots
-                        .flatMap { sourceRoot ->
-                            subproject.fileTree(sourceRoot) {
-                                include("**/*.kt", "**/*.kts")
-                            }.files
-                        }.toSet()
-                    files.size.takeIf { it > 0 }?.let { count -> subproject.path to count }
-                }
+                    }.toSet()
+                files.size.takeIf { it > 0 }?.let { count -> modulePath to count }
+            }
             val productionSources = sourceModules.sumOf { (_, count) -> count }
             check(productionSources > 0) {
                 "Detekt expected at least one Kotlin production source file, but found none"
             }
-            logger.lifecycle(
+            task.logger.lifecycle(
                 "Detekt production modules: ${sourceModules.joinToString { (path, count) -> "$path=$count" }}",
             )
         }
