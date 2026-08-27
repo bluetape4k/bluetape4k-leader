@@ -96,7 +96,7 @@ val baseVersion = providers.gradleProperty("baseVersion").get()
 val snapshotVersion = providers.gradleProperty("snapshotVersion").get()
 val bluetape4kVirtualThreadJdk25Version = providers
     .gradleProperty("bluetape4kVirtualThreadJdk25Version")
-    .orElse("1.13.0-SNAPSHOT")
+    .orElse("2.0.0-SNAPSHOT")
     .get()
 
 fun Project.isNonPublishedProject(): Boolean =
