@@ -10,6 +10,8 @@ import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.bluetape4k.leader.spring.aop.validator.LeaderAnnotationValidatorBeanPostProcessor
+import io.bluetape4k.leader.spring.LeaderProperties
+import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.leader.spring.scheduling.LeaderScheduledPolicyRegistry
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ObjectProvider
@@ -34,7 +36,7 @@ import org.springframework.core.annotation.Order
 @ConditionalOnClass(name = ["org.aspectj.lang.annotation.Aspect"])
 @ConditionalOnBean(LeaderElectorFactory::class)
 @ConditionalOnProperty(prefix = "bluetape4k.leader.aop", name = ["enabled"], havingValue = "true", matchIfMissing = true)
-@EnableConfigurationProperties(LeaderAopProperties::class)
+@EnableConfigurationProperties(LeaderAopProperties::class, LeaderProperties::class)
 class LeaderAopAutoConfiguration {
 
     @Bean
@@ -122,12 +124,30 @@ class LeaderAopAutoConfiguration {
         spel: SpelExpressionEvaluator,
         lockNameValidator: LockNameValidator,
         recordersProvider: ObjectProvider<LeaderAopMetricsRecorder>,
+        leaderProperties: LeaderProperties,
     ): LeaderGroupElectionAspect = LeaderGroupElectionAspect(
         beanSelector = beanSelector,
         props = props,
         spel = spel,
         lockNameValidator = lockNameValidator,
         recorders = recordersProvider.orderedStream().toList(),
+        groupProperties = leaderProperties.group,
+    )
+
+    /** `useDbTime` 정책 추가 전에 공개된 다섯 인자 factory 메서드 descriptor를 보존합니다. */
+    fun leaderGroupElectionAspect(
+        beanSelector: LeaderBeanSelector,
+        props: LeaderAopProperties,
+        spel: SpelExpressionEvaluator,
+        lockNameValidator: LockNameValidator,
+        recordersProvider: ObjectProvider<LeaderAopMetricsRecorder>,
+    ): LeaderGroupElectionAspect = LeaderGroupElectionAspect(
+        beanSelector = beanSelector,
+        props = props,
+        spel = spel,
+        lockNameValidator = lockNameValidator,
+        recorders = recordersProvider.orderedStream().toList(),
+        groupProperties = LeaderGroupProperties(),
     )
 
     @Bean

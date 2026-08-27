@@ -11,6 +11,7 @@ package io.bluetape4k.leader.annotation
  * @property minLeaseTime 작업이 빨리 끝나더라도 lease를 최소로 유지할 시간입니다.
  * @property bean `bean` 호출 또는 상태 계산에 필요한 값입니다.
  * @property failureMode `failureMode` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property useDbTime Exposed JDBC/R2DBC group ownership에 DB server time을 사용할지 여부입니다.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)
@@ -23,4 +24,5 @@ annotation class LeaderGroupElection(
     val minLeaseTime: String = "PT0S",
     val bean: String = "",
     val failureMode: LeaderAspectFailureMode = LeaderAspectFailureMode.INHERIT,
+    val useDbTime: Boolean = false,
 )

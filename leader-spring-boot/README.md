@@ -57,6 +57,7 @@ bluetape4k:
       max-leaders: 3
       wait-time: 5s
       lease-time: 60s
+      use-db-time: false
     aop:
       enabled: true
       strict: false
@@ -115,6 +116,33 @@ bluetape4k:
 ```
 
 Spring configuration properties use Spring Boot duration binding (`5s`, `60s`, `PT1M`). Core `LeaderElectionOptions` and `LeaderGroupElectionOptions` use `kotlin.time.Duration` in Kotlin code.
+
+### Group database server time policy (0.6.0+ develop)
+
+Spring exposes the Exposed group `useDbTime` policy through both the common
+configuration and `@LeaderGroupElection`:
+
+```yaml
+bluetape4k:
+  leader:
+    group:
+      use-db-time: true
+```
+
+The common property defaults to `false`. An annotation can opt in for one
+method with `@LeaderGroupElection(..., useDbTime = true)`. The effective value
+is the logical OR of the common property and the annotation value: enabling the
+common property enables every group annotation, and the Boolean annotation has
+no per-method `false` override. This policy is consumed by Exposed JDBC and
+Exposed R2DBC group electors only; other group backends ignore it.
+
+When enabled, Exposed ownership and active-slot expiry use the database server
+clock. If the database timestamp cannot be read, Exposed remains fail-closed
+and the group does not claim a slot. For an AOP invocation, the annotation
+`failure-mode` still determines whether a backend error is rethrown, skipped,
+or handled by `FAIL_OPEN_RUN`. Keep all participants on the same authoritative
+database clock and account for provider-specific timestamp precision and the
+additional timestamp query in the JDBC/R2DBC pool budget.
 
 ## Leader-Gated Routes (0.5.0)
 

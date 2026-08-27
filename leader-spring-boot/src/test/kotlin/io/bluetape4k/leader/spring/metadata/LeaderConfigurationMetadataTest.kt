@@ -76,6 +76,7 @@ class LeaderConfigurationMetadataTest {
     fun `configuration metadata defaults match property classes`() {
         mapOf(
             "bluetape4k.leader.group.max-leaders" to "2",
+            "bluetape4k.leader.group.use-db-time" to "false",
             "bluetape4k.leader.mongo.single-collection" to "leader_election",
             "bluetape4k.leader.mongo.group-collection" to "leader_group_election",
             "bluetape4k.leader.dynamodb.retry-delay" to "PT0.05S",

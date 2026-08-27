@@ -29,6 +29,34 @@ Release 0.5.0 uses Freefair post-compile AspectJ weaving. Do not add `@EnableAsp
 
 Use valid SpEL such as `"'prefix-' + #param"`. Invalid expressions and impossible group settings fail validation. Auto-configuration orders elector creation, AOP factories, Micrometer, then aspects so instrumentation sees the same execution boundary.
 
+## Group database server time (0.6.0+ develop)
+
+The current `develop` Spring integration exposes the Exposed group
+`LeaderGroupElectionOptions.useDbTime` policy through the common property and
+the group annotation:
+
+```yaml
+bluetape4k:
+  leader:
+    group:
+      use-db-time: true
+```
+
+The common property defaults to `false`. A method may opt in with
+`@LeaderGroupElection(..., useDbTime = true)`. The effective value is
+`commonProperty || annotationValue`; therefore a common `true` enables every
+group annotation, while the Boolean annotation does not provide a per-method
+`false` override. Only Exposed JDBC and Exposed R2DBC group electors consume
+the flag; other group backends ignore it.
+
+With the flag enabled, Exposed evaluates ownership and active-slot expiry using
+the database server clock. If the timestamp query is unavailable, the Exposed
+path remains fail-closed and does not claim a slot. For AOP calls,
+`failure-mode` still controls backend-error handling (`RETHROW`, `SKIP`, or
+`FAIL_OPEN_RUN`). Route all participants to one authoritative database clock,
+and account for provider-specific timestamp precision plus the extra timestamp
+query in the JDBC/R2DBC pool budget.
+
 ## Readiness and recent acquisition failures
 
 The opt-in `leaderElectionReadiness` contributor reads only the JVM-local lock-name registry. Configure the bounded observation window for backend acquisition failures with:

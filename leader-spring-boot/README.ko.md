@@ -57,6 +57,7 @@ bluetape4k:
       max-leaders: 3
       wait-time: 5s
       lease-time: 60s
+      use-db-time: false
     aop:
       enabled: true
       strict: false
@@ -115,6 +116,33 @@ bluetape4k:
 ```
 
 Spring 설정 속성은 Spring Boot duration binding을 사용하므로 `5s`, `60s`, `PT1M`을 그대로 쓸 수 있습니다. Kotlin 코드의 core `LeaderElectionOptions`, `LeaderGroupElectionOptions`는 `kotlin.time.Duration`을 사용합니다.
+
+### Group DB server time 정책 (0.6.0+ develop)
+
+Spring에서는 공통 설정과 `@LeaderGroupElection` 양쪽으로 Exposed 그룹의
+`useDbTime` 정책을 설정할 수 있습니다.
+
+```yaml
+bluetape4k:
+  leader:
+    group:
+      use-db-time: true
+```
+
+공통 속성의 기본값은 `false`입니다. 특정 메서드만 켜려면
+`@LeaderGroupElection(..., useDbTime = true)`를 사용합니다. 실제 적용값은
+공통 속성과 annotation 값의 논리 OR입니다. 따라서 공통 속성을 켜면 모든
+그룹 annotation이 활성화되고, Boolean annotation만으로 메서드별 `false`
+재정의는 할 수 없습니다. 이 정책은 Exposed JDBC와 Exposed R2DBC 그룹
+elector만 소비하며 다른 그룹 backend는 무시합니다.
+
+활성화하면 Exposed 소유권과 활성 슬롯 만료가 database server clock을
+사용합니다. DB timestamp를 읽지 못하면 Exposed는 계속 fail-closed로
+동작하여 슬롯을 차지하지 않습니다. AOP 호출에서는 annotation의
+`failure-mode`가 backend 오류를 재전파(`RETHROW`), 건너뛰기(`SKIP`) 또는
+`FAIL_OPEN_RUN`으로 처리할지를 결정합니다. 모든 참여자가 동일한 권위 DB
+clock을 사용하도록 라우팅하고, provider별 timestamp 정밀도와 JDBC/R2DBC
+pool에 추가되는 timestamp query 비용을 반영하세요.
 
 ## 리더 전용 Route (0.5.0)
 

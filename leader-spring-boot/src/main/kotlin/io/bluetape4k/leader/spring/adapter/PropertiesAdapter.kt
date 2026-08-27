@@ -33,5 +33,6 @@ internal object PropertiesAdapter {
             maxLeaders = props.group.maxLeaders,
             waitTime = props.group.waitTime.toKotlinDuration(),
             leaseTime = props.group.leaseTime.toKotlinDuration(),
+            useDbTime = props.group.useDbTime,
         )
 }

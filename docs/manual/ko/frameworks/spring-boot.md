@@ -29,6 +29,32 @@ elector를 자동 구성하고 AspectJ compile-time weaving으로 메서드 호�
 
 SpEL은 `"'prefix-' + #param"`처럼 유효한 식으로 작성합니다. 잘못된 식과 성립하지 않는 group 설정은 validation에서 실패합니다. 자동 구성은 elector, AOP factory, Micrometer, aspect 순으로 적용되어 계측과 실행 경계가 일치합니다.
 
+## Group DB server time (0.6.0+ develop)
+
+현재 `develop` Spring 연동은 공통 속성과 그룹 annotation을 통해 Exposed
+그룹의 `LeaderGroupElectionOptions.useDbTime` 정책을 노출합니다.
+
+```yaml
+bluetape4k:
+  leader:
+    group:
+      use-db-time: true
+```
+
+공통 속성의 기본값은 `false`입니다. 메서드별 opt-in은
+`@LeaderGroupElection(..., useDbTime = true)`로 지정합니다. 실제 적용값은
+`commonProperty || annotationValue`이므로 공통 속성이 `true`이면 모든 그룹
+annotation이 활성화되고 Boolean annotation으로 메서드별 `false` 재정의를
+할 수는 없습니다. 이 flag는 Exposed JDBC와 Exposed R2DBC 그룹 elector만
+사용하며 다른 그룹 backend는 무시합니다.
+
+flag를 켜면 Exposed가 소유권과 활성 슬롯 만료를 database server clock으로
+판정합니다. timestamp query를 사용할 수 없으면 Exposed 경로는 fail-closed로
+유지되어 슬롯을 차지하지 않습니다. AOP 호출에서는 `failure-mode`가 backend
+오류 처리(`RETHROW`, `SKIP`, `FAIL_OPEN_RUN`)를 계속 결정합니다. 모든 참여자를
+하나의 권위 DB clock으로 라우팅하고 provider별 timestamp 정밀도와 JDBC/R2DBC
+pool에 추가되는 timestamp query 비용을 고려하세요.
+
 ## Readiness와 최근 획득 실패
 
 opt-in `leaderElectionReadiness` contributor는 JVM-local lock-name registry만 조회합니다. backend 획득 실패를 bounded하게 관찰하려면 다음과 같이 window를 설정합니다.

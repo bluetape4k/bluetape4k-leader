@@ -15,6 +15,7 @@ import io.bluetape4k.leader.spring.observability.LeaderElectionReadinessHealthIn
 import io.bluetape4k.leader.spring.observability.LeaderElectionStatusRegistry
 import io.bluetape4k.leader.spring.observability.LeaderElectionStatusResponse
 import io.bluetape4k.leader.spring.observability.LeaderElectionStatusEndpoint
+import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.leader.spring.properties.LeaderObservabilityHealthProperties
 import io.bluetape4k.leader.spring.route.LeaderRouteGuardConfigurationException
 import java.io.ObjectStreamClass
@@ -38,6 +39,15 @@ class PublicJvmAbiCompatibilityTest {
             LockNameValidator::class.java,
             ObjectProvider::class.java,
         ).returnType shouldBeEqualTo LeaderElectionAspect::class.java
+
+        LeaderAopAutoConfiguration::class.java.getMethod(
+            "leaderGroupElectionAspect",
+            LeaderBeanSelector::class.java,
+            LeaderAopProperties::class.java,
+            SpelExpressionEvaluator::class.java,
+            LockNameValidator::class.java,
+            ObjectProvider::class.java,
+        ).returnType shouldBeEqualTo io.bluetape4k.leader.spring.aop.LeaderGroupElectionAspect::class.java
 
         LeaderElectionActuatorAutoConfiguration::class.java.getMethod(
             "leaderElectionStatusEndpoint",
@@ -100,6 +110,68 @@ class PublicJvmAbiCompatibilityTest {
             as LeaderObservabilityHealthProperties
         health.enabled shouldBeEqualTo false
         health.leaseWarningThreshold shouldBeEqualTo Duration.ofSeconds(10)
+    }
+
+    @Test
+    fun `0_5_0 LeaderGroupProperties의 생성자와 copy descriptor를 유지한다`() {
+        val legacyConstructor = LeaderGroupProperties::class.java.getConstructor(
+            intType,
+            Duration::class.java,
+            Duration::class.java,
+        )
+        val legacy = legacyConstructor.newInstance(
+            4,
+            Duration.ofSeconds(2),
+            Duration.ofSeconds(8),
+        ) as LeaderGroupProperties
+        legacy.useDbTime shouldBeEqualTo false
+
+        val legacySyntheticConstructor = LeaderGroupProperties::class.java.getConstructor(
+            intType,
+            Duration::class.java,
+            Duration::class.java,
+            intType,
+            DefaultConstructorMarker::class.java,
+        )
+        legacySyntheticConstructor.isSynthetic shouldBeEqualTo false
+        val defaults = legacySyntheticConstructor.newInstance(
+            *arrayOf<Any?>(0, Duration.ZERO, Duration.ZERO, 0b111, null),
+        ) as LeaderGroupProperties
+        defaults.maxLeaders shouldBeEqualTo LeaderGroupProperties.DefaultMaxLeaders
+        defaults.waitTime shouldBeEqualTo LeaderGroupProperties.DefaultWaitTime
+        defaults.leaseTime shouldBeEqualTo LeaderGroupProperties.DefaultLeaseTime
+        defaults.useDbTime shouldBeEqualTo false
+
+        val legacyCopy = LeaderGroupProperties::class.java.getMethod(
+            "copy",
+            intType,
+            Duration::class.java,
+            Duration::class.java,
+        )
+        val copied = legacyCopy.invoke(
+            LeaderGroupProperties(useDbTime = true),
+            5,
+            Duration.ofSeconds(3),
+            Duration.ofSeconds(9),
+        ) as LeaderGroupProperties
+        copied.maxLeaders shouldBeEqualTo 5
+        copied.useDbTime shouldBeEqualTo true
+
+        val legacyCopyDefault = LeaderGroupProperties::class.java.getMethod(
+            "copy\$default",
+            LeaderGroupProperties::class.java,
+            intType,
+            Duration::class.java,
+            Duration::class.java,
+            intType,
+            Any::class.java,
+        )
+        val copiedWithDefaults = legacyCopyDefault.invoke(
+            null,
+            *arrayOf<Any?>(LeaderGroupProperties(useDbTime = true), 7, null, null, 0b110, null),
+        ) as LeaderGroupProperties
+        copiedWithDefaults.maxLeaders shouldBeEqualTo 7
+        copiedWithDefaults.useDbTime shouldBeEqualTo true
     }
 
     @Test

@@ -14,6 +14,7 @@ import io.bluetape4k.leader.metrics.SkipReason
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
+import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.logging.KLogging
 import io.mockk.clearMocks
 import io.mockk.every
@@ -33,6 +34,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import java.util.concurrent.CancellationException
 import kotlin.time.Duration.Companion.seconds
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 
 /**
@@ -60,6 +62,7 @@ class LeaderGroupElectionAspectTest {
         fun runWithArg(region: String): String?
         fun runWithMinLease(): String?
         fun runWithDotName(): String?
+        fun runWithDbTime(): String?
     }
 
     private class SampleServiceImpl: SampleService {
@@ -74,6 +77,9 @@ class LeaderGroupElectionAspectTest {
 
         @LeaderGroupElection(name = "ns.subns.group", maxLeaders = 2)
         override fun runWithDotName(): String? = SAMPLE_RESULT
+
+        @LeaderGroupElection(name = "db-time-group-job", maxLeaders = 2, useDbTime = true)
+        override fun runWithDbTime(): String? = SAMPLE_RESULT
     }
 
     // Class-level mocks — reused across all tests, cleared in @BeforeEach
@@ -99,6 +105,7 @@ class LeaderGroupElectionAspectTest {
     private fun newAspect(
         recorders: List<LeaderAopMetricsRecorder> = emptyList(),
         props: LeaderAopProperties = LeaderAopProperties(),
+        groupProperties: LeaderGroupProperties = LeaderGroupProperties(),
     ): LeaderGroupElectionAspect {
         every { factoryMock.create(any()) } returns election
         every { beanSelector.selectGroupElectionFactory(any(), any()) } returns
@@ -110,6 +117,7 @@ class LeaderGroupElectionAspectTest {
             spel = SpelExpressionEvaluator(embeddedValueResolver = { it }, allowMethodInvocation = false),
             lockNameValidator = LockNameValidator(prefix = ""),
             recorders = recorders,
+            groupProperties = groupProperties,
         )
     }
 
@@ -155,6 +163,50 @@ class LeaderGroupElectionAspectTest {
         result shouldBeEqualTo SAMPLE_RESULT
         optionsSlot.captured.leaseTime shouldBeEqualTo 30.seconds
         optionsSlot.captured.minLeaseTime shouldBeEqualTo 10.seconds
+    }
+
+    @Test
+    fun `useDbTime - 어노테이션 opt-in을 group options 로 전달한다`() {
+        val target = SampleServiceImpl()
+        val method = SampleService::class.java.getDeclaredMethod("runWithDbTime")
+        configureJoinPoint(method, target, emptyArray())
+        every { pjp.proceed() } returns SAMPLE_RESULT
+
+        val actionSlot = slot<() -> Any?>()
+        every { election.runIfLeaderResult(any<String>(), capture(actionSlot)) } answers {
+            LeaderRunResult.Elected(actionSlot.captured.invoke())
+        }
+        val aspect = newAspect()
+        val optionsSlot = slot<LeaderGroupElectionOptions>()
+        every { factoryMock.create(capture(optionsSlot)) } returns election
+
+        val result = aspect.aroundLeader(pjp)
+
+        result shouldBeEqualTo SAMPLE_RESULT
+        optionsSlot.captured.useDbTime.shouldBeTrue()
+    }
+
+    @Test
+    fun `useDbTime - 공통 Spring group 속성을 annotation 기본값에 반영한다`() {
+        val target = SampleServiceImpl()
+        val method = SampleService::class.java.getDeclaredMethod("runSync")
+        configureJoinPoint(method, target, emptyArray())
+        every { pjp.proceed() } returns SAMPLE_RESULT
+
+        val actionSlot = slot<() -> Any?>()
+        every { election.runIfLeaderResult(any<String>(), capture(actionSlot)) } answers {
+            LeaderRunResult.Elected(actionSlot.captured.invoke())
+        }
+        val aspect = newAspect(
+            groupProperties = LeaderGroupProperties(useDbTime = true),
+        )
+        val optionsSlot = slot<LeaderGroupElectionOptions>()
+        every { factoryMock.create(capture(optionsSlot)) } returns election
+
+        val result = aspect.aroundLeader(pjp)
+
+        result shouldBeEqualTo SAMPLE_RESULT
+        optionsSlot.captured.useDbTime.shouldBeTrue()
     }
 
     @Test
