@@ -148,6 +148,25 @@ data class LeaderObservabilityProperties(
 
         private const val serialVersionUID = 1L
     }
+
+    /**
+     * `backendHealth` 추가 전 직렬화 스트림을 읽을 때 Java serialization이 Kotlin 기본값을
+     * 호출하지 않는 경계를 복구합니다.
+     */
+    @Suppress("SENSELESS_COMPARISON", "UNNECESSARY_SAFE_CALL")
+    private fun readResolve(): Any =
+        if (backendHealth == null) {
+            LeaderObservabilityProperties(
+                enabled = enabled,
+                lockNames = lockNames,
+                tracing = tracing,
+                health = health,
+                stateProviderBean = stateProviderBean,
+                backendHealth = backendHealth ?: LeaderBackendHealthProperties(),
+            )
+        } else {
+            this
+        }
 }
 
 /**
@@ -250,6 +269,22 @@ data class LeaderObservabilityHealthProperties(
 
         private const val serialVersionUID = 1L
     }
+
+    /**
+     * `acquisitionFailureWindow` 추가 전 직렬화 스트림을 읽을 때 Java serialization이 Kotlin
+     * 기본값을 호출하지 않는 경계를 복구합니다.
+     */
+    @Suppress("SENSELESS_COMPARISON", "UNNECESSARY_SAFE_CALL")
+    private fun readResolve(): Any =
+        if (acquisitionFailureWindow == null) {
+            LeaderObservabilityHealthProperties(
+                enabled = enabled,
+                leaseWarningThreshold = leaseWarningThreshold,
+                acquisitionFailureWindow = Duration.ofMinutes(DefaultAcquisitionFailureWindowMinutes),
+            )
+        } else {
+            this
+        }
 
     init {
         require(!leaseWarningThreshold.isNegative) {
