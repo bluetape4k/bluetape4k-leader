@@ -12,8 +12,9 @@ release gate에서 숨길 수 있다.
 ## 결정
 
 - public bridge member에는 blanket ignore를 적용하지 않는다.
-- 현재 허용하는 synthetic accessor는 `SYNTHETIC`과 `access$`를 모두 포함한
-  member로 제한한다.
+- 현재 허용하는 synthetic accessor는 등록된 클래스의 전체 JVM descriptor가
+  일치하는 경우로만 제한한다. `SYNTHETIC`과 `access$` 문자열만으로는
+  분류하지 않는다.
 - 향후 의도된 compiler-generated bridge를 허용해야 한다면 class와 JVM
   descriptor를 함께 고정한 exact allowlist 또는 실제 published consumer
   linkage fixture를 먼저 추가한다.
