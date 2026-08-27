@@ -44,6 +44,7 @@ class LeaderBackendHealthIndicator(
             builder
                 .withDetail(DETAIL_BACKEND, diagnostics.descriptor.backendId)
                 .withDetail(DETAIL_CONNECTIVITY, connectivity.status.name)
+                .withDetail(DETAIL_REASON, connectivity.reason.name)
             connectivity.checkedAt?.let { builder.withDetail(DETAIL_CHECKED_AT, it) }
             connectivity.latencyMillis?.let { builder.withDetail(DETAIL_LATENCY_MILLIS, it) }
         }
@@ -52,6 +53,7 @@ class LeaderBackendHealthIndicator(
     private companion object : KLogging() {
         const val DETAIL_BACKEND = "backend"
         const val DETAIL_CONNECTIVITY = "connectivity"
+        const val DETAIL_REASON = "reason"
         const val DETAIL_CHECKED_AT = "checkedAt"
         const val DETAIL_LATENCY_MILLIS = "latencyMillis"
     }

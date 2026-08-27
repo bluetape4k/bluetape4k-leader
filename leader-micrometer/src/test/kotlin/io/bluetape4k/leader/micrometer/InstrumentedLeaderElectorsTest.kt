@@ -11,18 +11,25 @@ import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.time.Instant
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class InstrumentedLeaderElectorsTest {
@@ -87,6 +94,231 @@ class InstrumentedLeaderElectorsTest {
             InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
         (wrapperWithoutProvider as? LeaderBackendDiagnosticsAware)
             ?.backendDiagnosticsProvider
+            .shouldBeNull()
+    }
+
+    @Test
+    fun `active diagnostics emits one bounded connectivity counter with sanitized backend tags`() {
+        val provider = RecordingDiagnosticsProvider(
+            connectivity = LeaderBackendConnectivity.up(Instant.EPOCH),
+            backendName = "redis-prod.example:6380/token",
+        )
+        val delegate = object :
+            LeaderElector by StubLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by provider {}
+        val election = InstrumentedLeaderElector(
+            delegate = delegate,
+            registry = registry,
+            tagOptions = LeaderMetricTagOptions(
+                backendName = LeaderMetricTagRule(redactedValue = "redacted-backend"),
+            ),
+        )
+
+        val decorated = (election as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
+            .shouldNotBeNull()
+        decorated.checkConnectivity(100.milliseconds)
+
+        val meter = registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY).counter()
+            .shouldNotBeNull()
+        meter.count() shouldBeEqualTo 1.0
+        meter.id.tags.map { it.key }.toSet() shouldBeEqualTo setOf(
+            LeaderMetricTagOptions.TAG_BACKEND_NAME,
+            MicrometerNames.TAG_BACKEND_STATUS,
+            MicrometerNames.TAG_BACKEND_REASON,
+        )
+        meter.id.getTag(LeaderMetricTagOptions.TAG_BACKEND_NAME) shouldBeEqualTo "redacted-backend"
+        meter.id.getTag(MicrometerNames.TAG_BACKEND_STATUS) shouldBeEqualTo LeaderBackendConnectivityStatus.UP.name
+        meter.id.getTag(MicrometerNames.TAG_BACKEND_REASON) shouldBeEqualTo LeaderBackendConnectivityReason.CONNECTED.name
+    }
+
+    @Test
+    fun `passive diagnostics does not create connectivity counter`() {
+        val provider = RecordingDiagnosticsProvider()
+        val delegate = object :
+            LeaderElector by StubLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by provider {}
+        val election = InstrumentedLeaderElector(delegate, registry)
+
+        (election as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
+            .shouldNotBeNull()
+            .diagnostics()
+
+        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY).meters().isEmpty().shouldBeTrue()
+    }
+
+    @Test
+    fun `active diagnostics records one counter for each execution model`() {
+        val blockingDelegate = object :
+            LeaderElector by StubLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider() {}
+        val groupDelegate = object :
+            LeaderGroupElector by StubLeaderGroupElector(elected = true),
+            LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider() {}
+        val suspendDelegate = object :
+            SuspendLeaderElector by StubSuspendLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider() {}
+        val wrappers = listOf<LeaderBackendDiagnosticsAware>(
+            InstrumentedLeaderElector(blockingDelegate, registry),
+            InstrumentedLeaderGroupElector(groupDelegate, registry),
+            InstrumentedSuspendLeaderElector(suspendDelegate, registry),
+        )
+
+        wrappers.forEach { wrapper ->
+            wrapper.backendDiagnosticsProvider
+                .shouldNotBeNull()
+                .diagnostics(probe = true, timeout = 100.milliseconds)
+        }
+
+        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+            .tag(LeaderMetricTagOptions.TAG_BACKEND_NAME, "test-backend")
+            .tag(MicrometerNames.TAG_BACKEND_STATUS, LeaderBackendConnectivityStatus.UP.name)
+            .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.CONNECTED.name)
+            .counter()
+            .shouldNotBeNull()
+            .count() shouldBeEqualTo 3.0
+    }
+
+    @Test
+    fun `concurrent active diagnostics creates one meter and counts every probe`() {
+        val provider = RecordingDiagnosticsProvider()
+        val delegate = object :
+            LeaderElector by StubLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by provider {}
+        val election = InstrumentedLeaderElector(delegate, registry)
+        val decorated = (election as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
+            .shouldNotBeNull()
+
+        MultithreadingTester()
+            .workers(8)
+            .rounds(25)
+            .add { decorated.checkConnectivity(100.milliseconds) }
+            .run()
+
+        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+            .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.CONNECTED.name)
+            .counter()
+            .shouldNotBeNull()
+            .count() shouldBeEqualTo 200.0
+        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+            .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.CONNECTED.name)
+            .meters()
+            .size shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `decorated provider preserves exception identity and records bounded fallback reason`() {
+        val failure = IllegalStateException("endpoint=https://redis-prod.example token=secret")
+        val provider = RecordingDiagnosticsProvider(failure = failure)
+        val delegate = object :
+            LeaderElector by StubLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by provider {}
+        val decorated = (InstrumentedLeaderElector(delegate, registry) as LeaderBackendDiagnosticsAware)
+            .backendDiagnosticsProvider
+            .shouldNotBeNull()
+
+        val thrown = assertFailsWith<IllegalStateException> {
+            decorated.checkConnectivity(100.milliseconds)
+        }
+
+        thrown shouldBeSameInstanceAs failure
+        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+            .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.PROVIDER_EXCEPTION.name)
+            .counter()
+            .shouldNotBeNull()
+            .count() shouldBeEqualTo 1.0
+    }
+
+    @Test
+    fun `active diagnostics preserves ordinary exception identity and records one fallback`() {
+        val failure = IllegalArgumentException("endpoint=https://redis-prod.example token=secret")
+        val provider = RecordingDiagnosticsProvider(failure = failure)
+        val delegate = object :
+            LeaderElector by StubLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by provider {}
+        val decorated = (InstrumentedLeaderElector(delegate, registry) as LeaderBackendDiagnosticsAware)
+            .backendDiagnosticsProvider
+            .shouldNotBeNull()
+
+        val thrown = assertFailsWith<IllegalArgumentException> {
+            decorated.diagnostics(probe = true, timeout = 100.milliseconds)
+        }
+
+        thrown shouldBeSameInstanceAs failure
+        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+            .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.PROVIDER_EXCEPTION.name)
+            .counter()
+            .shouldNotBeNull()
+            .count() shouldBeEqualTo 1.0
+    }
+
+    @Test
+    fun `interruption and Error are rethrown without fallback metric`() {
+        val failures = listOf<Throwable>(
+            InterruptedException("interrupted"),
+            AssertionError("fatal"),
+        )
+
+        failures.forEach { failure ->
+            val provider = RecordingDiagnosticsProvider(failure = failure)
+            val delegate = object :
+                LeaderElector by StubLeaderElector(elected = true),
+                LeaderBackendDiagnosticsProvider by provider {}
+            val decorated = (InstrumentedLeaderElector(delegate, registry) as LeaderBackendDiagnosticsAware)
+                .backendDiagnosticsProvider
+                .shouldNotBeNull()
+
+            val thrown = assertFailsWith<Throwable> {
+                decorated.checkConnectivity(100.milliseconds)
+            }
+
+            thrown shouldBeSameInstanceAs failure
+        }
+
+        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+            .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.PROVIDER_EXCEPTION.name)
+            .counter()
+            .shouldBeNull()
+    }
+
+    @Test
+    fun `decorating an instrumented provider does not double count`() {
+        val provider = RecordingDiagnosticsProvider()
+        val delegate = object :
+            LeaderElector by StubLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by provider {}
+        val inner = InstrumentedLeaderElector(delegate, registry)
+        val outer = InstrumentedLeaderElector(inner, registry)
+
+        (outer as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
+            .shouldNotBeNull()
+            .checkConnectivity(100.milliseconds)
+
+        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+            .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.CONNECTED.name)
+            .counter()
+            .shouldNotBeNull()
+            .count() shouldBeEqualTo 1.0
+    }
+
+    @Test
+    fun `cancellation is rethrown without synthetic provider exception metric`() {
+        val cancellation = CancellationException("cancelled")
+        val provider = RecordingDiagnosticsProvider(failure = cancellation)
+        val delegate = object :
+            LeaderElector by StubLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by provider {}
+        val decorated = (InstrumentedLeaderElector(delegate, registry) as LeaderBackendDiagnosticsAware)
+            .backendDiagnosticsProvider
+            .shouldNotBeNull()
+
+        val thrown = assertFailsWith<CancellationException> {
+            decorated.checkConnectivity(100.milliseconds)
+        }
+
+        thrown shouldBeSameInstanceAs cancellation
+        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+            .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.PROVIDER_EXCEPTION.name)
+            .counter()
             .shouldBeNull()
     }
 
@@ -304,6 +536,20 @@ class InstrumentedLeaderElectorsTest {
             ?.value() ?: 0.0
 
     private val sameThreadExecutor = Executor { command -> command.run() }
+
+    private class RecordingDiagnosticsProvider(
+        private val connectivity: LeaderBackendConnectivity = LeaderBackendConnectivity.up(Instant.EPOCH),
+        backendName: String = "test-backend",
+        private val failure: Throwable? = null,
+    ) : LeaderBackendDiagnosticsProvider {
+
+        override val backendDescriptor = LocalLeaderBackendDiagnostics.backendDescriptor.copy(backendId = backendName)
+
+        override fun checkConnectivity(timeout: kotlin.time.Duration): LeaderBackendConnectivity {
+            failure?.let { throw it }
+            return connectivity
+        }
+    }
 
     private class StubLeaderElector(
         private val elected: Boolean,
