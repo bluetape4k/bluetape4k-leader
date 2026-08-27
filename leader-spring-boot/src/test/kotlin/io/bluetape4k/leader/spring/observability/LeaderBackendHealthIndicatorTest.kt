@@ -11,6 +11,7 @@ import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
 import io.bluetape4k.leader.diagnostics.LeaderBackendDescriptor
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnostics
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe
@@ -125,6 +126,17 @@ class LeaderBackendHealthIndicatorTest {
             health.status shouldBeEqualTo expectedHealthStatus
             provider.probeCalls.get() shouldBeEqualTo 1
         }
+    }
+
+    @Test
+    fun `성공한 connectivity health detail에는 bounded reason만 포함한다`() {
+        val health = LeaderBackendHealthIndicator(
+            RecordingDiagnosticsElector(LeaderBackendConnectivityStatus.UNKNOWN),
+            100.milliseconds,
+        ).health()
+
+        health.details["reason"] shouldBeEqualTo LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED.name
+        health.details.values.none { it.toString().contains(RAW_PROBE_MESSAGE) }.shouldBeTrue()
     }
 
     @Test

@@ -9,16 +9,22 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnostics
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
 import kotlin.time.TimeSource
 import kotlin.time.toJavaDuration
 
@@ -38,7 +44,7 @@ class InstrumentedLeaderElector private constructor(
 ): LeaderElector by delegate, LeaderLeaseAcquirerSupport, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
-        get() = delegate.resolveBackendDiagnosticsProvider()
+        get() = instrumentedBackendDiagnosticsProvider
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
@@ -54,6 +60,10 @@ class InstrumentedLeaderElector private constructor(
     }
 
     private val metrics = InstrumentedLeaderMetrics(registry)
+
+    private val instrumentedBackendDiagnosticsProvider: LeaderBackendDiagnosticsProvider? by lazy {
+        delegate.resolveBackendDiagnosticsProvider()?.instrumented(registry, tagSanitizer)
+    }
 
     constructor(
         delegate: LeaderElector,
@@ -128,9 +138,13 @@ class InstrumentedLeaderGroupElector private constructor(
 ): LeaderGroupElector by delegate, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
-        get() = delegate.resolveBackendDiagnosticsProvider()
+        get() = instrumentedBackendDiagnosticsProvider
 
     private val metrics = InstrumentedLeaderMetrics(registry)
+
+    private val instrumentedBackendDiagnosticsProvider: LeaderBackendDiagnosticsProvider? by lazy {
+        delegate.resolveBackendDiagnosticsProvider()?.instrumented(registry, tagSanitizer)
+    }
 
     constructor(
         delegate: LeaderGroupElector,
@@ -205,7 +219,7 @@ class InstrumentedSuspendLeaderElector private constructor(
 ): SuspendLeaderElector by delegate, SuspendLeaderLeaseAcquirerSupport, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
-        get() = delegate.resolveBackendDiagnosticsProvider()
+        get() = instrumentedBackendDiagnosticsProvider
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
@@ -221,6 +235,10 @@ class InstrumentedSuspendLeaderElector private constructor(
     }
 
     private val metrics = InstrumentedLeaderMetrics(registry)
+
+    private val instrumentedBackendDiagnosticsProvider: LeaderBackendDiagnosticsProvider? by lazy {
+        delegate.resolveBackendDiagnosticsProvider()?.instrumented(registry, tagSanitizer)
+    }
 
     constructor(
         delegate: SuspendLeaderElector,
@@ -266,6 +284,100 @@ private fun Any.resolveBackendDiagnosticsProvider(): LeaderBackendDiagnosticsPro
         is LeaderBackendDiagnosticsAware -> backendDiagnosticsProvider
         else -> null
     }
+
+private fun LeaderBackendDiagnosticsProvider.instrumented(
+    registry: MeterRegistry,
+    tagSanitizer: LeaderMetricTagSanitizer,
+): LeaderBackendDiagnosticsProvider =
+    if (this is InstrumentedLeaderBackendDiagnosticsProvider) {
+        this
+    } else {
+        InstrumentedLeaderBackendDiagnosticsProvider(this, registry, tagSanitizer)
+    }
+
+private class InstrumentedLeaderBackendDiagnosticsProvider(
+    private val delegate: LeaderBackendDiagnosticsProvider,
+    registry: MeterRegistry,
+    tagSanitizer: LeaderMetricTagSanitizer,
+) : LeaderBackendDiagnosticsProvider {
+
+    private val metrics = BackendConnectivityMetrics(registry, tagSanitizer) {
+        delegate.backendDescriptor.backendId
+    }
+
+    override val backendDescriptor
+        get() = delegate.backendDescriptor
+
+    override fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity = recordActiveProbe(
+        probe = { delegate.checkConnectivity(timeout) },
+        connectivity = { it },
+    )
+
+    override fun diagnostics(probe: Boolean, timeout: Duration): LeaderBackendDiagnostics {
+        if (!probe) {
+            return delegate.diagnostics(probe = false, timeout = timeout)
+        }
+        return recordActiveProbe(
+            probe = { delegate.diagnostics(probe = true, timeout = timeout) },
+            connectivity = { it.connectivity },
+        )
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun <T> recordActiveProbe(
+        probe: () -> T,
+        connectivity: (T) -> LeaderBackendConnectivity,
+    ): T = try {
+        probe().also { metrics.record(connectivity(it)) }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: InterruptedException) {
+        throw e
+    } catch (e: Exception) {
+        metrics.record(
+            status = LeaderBackendConnectivityStatus.UNKNOWN,
+            reason = LeaderBackendConnectivityReason.PROVIDER_EXCEPTION,
+        )
+        throw e
+    }
+}
+
+private class BackendConnectivityMetrics(
+    private val registry: MeterRegistry,
+    private val tagSanitizer: LeaderMetricTagSanitizer,
+    private val backendName: () -> String,
+) {
+
+    private val counters = ConcurrentHashMap<ConnectivityMetricKey, Counter>()
+
+    fun record(connectivity: LeaderBackendConnectivity) {
+        record(connectivity.status, connectivity.reason)
+    }
+
+    fun record(status: LeaderBackendConnectivityStatus, reason: LeaderBackendConnectivityReason) {
+        val key = ConnectivityMetricKey(
+            backendName = tagSanitizer.sanitize(
+                LeaderMetricTagOptions.TAG_BACKEND_NAME,
+                backendName(),
+            ),
+            status = status.name,
+            reason = reason.name,
+        )
+        counters.computeIfAbsent(key) {
+            Counter.builder(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+                .tag(LeaderMetricTagOptions.TAG_BACKEND_NAME, it.backendName)
+                .tag(MicrometerNames.TAG_BACKEND_STATUS, it.status)
+                .tag(MicrometerNames.TAG_BACKEND_REASON, it.reason)
+                .register(registry)
+        }.increment()
+    }
+}
+
+private data class ConnectivityMetricKey(
+    val backendName: String,
+    val status: String,
+    val reason: String,
+)
 
 private class InstrumentedLeaderMetrics(
     private val registry: MeterRegistry,

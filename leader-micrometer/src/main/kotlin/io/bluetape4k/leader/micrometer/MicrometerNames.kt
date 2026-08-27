@@ -202,6 +202,12 @@ internal object MicrometerNames {
      */
     const val TAG_EVENT = "event"
 
+    /** Backend connectivity 상태 tag입니다. */
+    const val TAG_BACKEND_STATUS = "status"
+
+    /** Backend connectivity bounded reason tag입니다. */
+    const val TAG_BACKEND_REASON = "reason"
+
     // --- Sentinel values ---
 
     /**
@@ -235,6 +241,9 @@ internal object MicrometerNames {
      * `METER_LEADER_EVENTS` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
     const val METER_LEADER_EVENTS = "leader.election.events"
+
+    /** Backend connectivity probe 결과를 세는 low-cardinality counter입니다. */
+    const val METER_BACKEND_CONNECTIVITY = "leader.backend.connectivity"
 
     // --- History / Audit meter names ---
 
