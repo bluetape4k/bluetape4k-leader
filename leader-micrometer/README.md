@@ -136,7 +136,65 @@ val election = LocalLeaderElector().apply {
 
 This module emits Micrometer Observations only. It does not add an OpenTelemetry SDK, tracing bridge, exporter, or collector. Applications that want exported traces must add and configure those dependencies themselves.
 
-Lease-extension observations are tracked separately in issue #559 because `LockExtender` needs a core observation/event hook before Micrometer can record extension outcomes consistently.
+### Lease-extension observations
+
+> **Unreleased API:** This section describes the current `develop` implementation. The dependency examples above
+> target released `0.4.0`, and the pinned `0.5.0` manual does not include this hook. Keep this integration on a
+> matching develop/snapshot build until the promotion gate in the draft is complete.
+
+`MicrometerObservationLeaderLeaseExtensionObserver` adapts the core
+`LeaderLeaseExtensionEvent` to a short terminal Observation. Register it with the
+same process-local core registry used by `LockExtender` and `LeaderLeaseAutoExtender`:
+
+```kotlin
+val observer = MicrometerObservationLeaderLeaseExtensionObserver(
+    registry = observationRegistry,
+    options = LeaderObservationOptions(),
+)
+val registration = LeaderLeaseExtensionObservers.addObserver(observer)
+
+// This blocking example belongs inside a matching active @LeaderElection or @LeaderGroupElection scope; otherwise it
+// returns NotHeld. The same applies inside a direct elector's active lease body. In a suspend scope, use
+// extendActiveLockDetailedSuspend(60.seconds) inside the suspend function instead.
+try {
+    LockExtender.extendActiveLockDetailed(60.seconds)
+} finally {
+    registration.close()
+}
+```
+
+The observation name is `bluetape4k.leader.lease.extension`. Its bounded
+low-cardinality tags are `source`, `execution`, `outcome`, and `result`:
+
+| `ExtendOutcome` | `outcome` | `result` |
+|---|---|---|
+| `Extended` | `extended` | `success` |
+| `Rejected` | `rejected` | `skipped` |
+| `NotHeld` | `not_held` | `skipped` |
+| `WrongThread` | `wrong_thread` | `error` |
+| `BackendError` | `backend_error` | `error` |
+
+`elapsedNanos` is not a tag. `includeLockName` and `includeLeaderId` add
+sanitised high-cardinality values only when explicitly enabled, and
+`includeExceptionDetails` attaches the original backend exception through
+`Observation.error(...)` without applying the tag sanitiser. The default
+options keep all three disabled; enable exception details only when downstream
+observation or tracing systems are approved for raw exception messages and stack
+traces. A NOOP
+`ObservationRegistry` produces no Observation. This module emits Micrometer
+Observations only; tracing bridges, exporters, collectors, and OpenTelemetry SDKs
+remain application dependencies.
+Issue #529 covers acquire/execution observations; this Issue #559 adapter covers
+terminal lease-extension attempts. When Spring Boot auto-configuration is enabled,
+do not also call `addObserver` manually; the Spring manager shares one registration
+per registry identity.
+The snippet closes after one explicit `USER` attempt. Keep the registration open
+for the full single-leader action or component lifetime with `autoExtend = true`
+when `WATCHDOG` ticks are needed; group election slots accept explicit
+`LockExtender` calls but disable group auto-extension and therefore do not emit
+`WATCHDOG` events.
+See the [unreleased lease-extension observation draft](../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
+for the full core contract and Spring lifecycle notes.
 
 ## Direct Elector Metrics
 

@@ -462,6 +462,69 @@ suspend fun runSuspend() {
 - 성공 시 `true`, 실패 시 `false` 반환 (활성 scope 없음, fail-open, token mismatch, backend 오류).
 - `lastExtendDeadline` 을 갱신해 watchdog 가 user 가 연장한 lease 를 silently 축소하지 않도록 차단 (R2 mitigation).
 
+### Lease-extension observer
+
+> **미배포 API:** 이 절은 현재 `develop` 구현을 설명합니다. 이 README의 의존성 예제는 배포된 `0.4.0`을 대상으로
+> 하며, 고정한 `0.5.0` 매뉴얼에는 이 hook이 없습니다. 초안의 promotion gate가 끝날 때까지는 일치하는
+> `develop` 브랜치 또는 일치하는 미배포 빌드에서만 이 연동을 사용하세요.
+
+`LeaderLeaseExtensionObservers`는 terminal lease-extension 시도를 관찰하는 framework-neutral hook입니다. 명시적인
+`LockExtender` 호출과 `LeaderLeaseAutoExtender` watchdog tick에서 같은 event 계약을 전달합니다.
+
+```kotlin
+val registration = LeaderLeaseExtensionObservers.addObserver { event ->
+    logger.info {
+        "lease extension source=${event.source} execution=${event.execution} " +
+            "outcome=${event.outcome::class.simpleName}"
+    }
+}
+
+// 이 blocking 예제는 일치하는 활성 @LeaderElection 또는 @LeaderGroupElection scope 안에서 호출하세요. 그렇지 않으면
+// context = null인 NotHeld를 반환합니다. 직접 elector의 active lease body 안에서도 같은 규칙이 적용됩니다. Suspend
+// scope에서는 suspend 함수 안에서 extendActiveLockDetailedSuspend(60.seconds)를 사용하세요.
+try {
+    when (LockExtender.extendActiveLockDetailed(60.seconds)) {
+        is ExtendOutcome.Extended -> processExtended()
+        ExtendOutcome.NotHeld -> rollback()
+        ExtendOutcome.WrongThread -> reportThreadBinding()
+        is ExtendOutcome.BackendError -> retry()
+        ExtendOutcome.Rejected -> recordRejectedExtension()
+    }
+} finally {
+    registration.close()
+}
+```
+
+`LeaderLeaseExtensionEvent.source`는 `LockExtender`의 `USER` 호출과 자동 갱신의 `WATCHDOG` 호출을 구분합니다.
+`execution` 값은 `BLOCKING` 또는 `SUSPEND`입니다. `outcome`은 기존 `ExtendOutcome`을 그대로 사용합니다.
+`Extended`는 관측한 만료 시각을 담고, `Rejected`는 watchdog reservation 실패, user bounded operation queue
+포화, 또는 명령이 완료되기 전에 user 작업이 timeout된 경우를 뜻합니다. Timeout된 명령은 이후 실행될 수
+있으므로 backend 작업이 전혀 없었다는 뜻은 아닙니다. `NotHeld`는 ownership이 없거나 만료된 경우( fail-open 포함),
+`WrongThread`는 thread-bound backend 위반, `BackendError`는 backend 예외를 나타냅니다. `elapsedNanos`는 caller
+측 delegate 호출 시간이며 scope 밖 lookup이나 즉시 queue admission 거부처럼 delegate가 실행되지 않고 호출이
+끝난 경우에만 0입니다.
+
+Registry는 process-local입니다. Delivery는 bounded non-blocking in-flight admission(전체 1024 permit,
+registration별 256 permit)을 사용하며 포화되면 permit이나 callback을 기다리지 않고
+`LeaderLeaseExtensionObservers.droppedCount()`를 증가시킵니다. 이 registry의 registration 수와 callback
+fan-out에는 고정 상한이 없으므로 애플리케이션 등록 수를 작게 유지하고 callback을 짧게 작성하세요.
+`droppedCount()`는 `ExtendOutcome.Rejected`와 별도로 observer delivery admission에서 거부된 누적 횟수입니다.
+`close()`는 idempotent하게 자신의 registration만 제거합니다. 이미 admission된 callback은 `close()` 뒤에도 끝까지
+실행될 수 있고 순서나 drain 완료는 보장하지 않습니다. Callback의 `Exception`은 격리하고 extension 경로의
+`CancellationException`과 `Error`는 `ExtendOutcome`으로 변환하거나 event로 publish하지 않습니다.
+`BackendError.cause`는 원본 backend `Exception`으로 남으며 core는 이를 redaction하지 않습니다. Custom observer는
+로그나 export 전에 cause를 별도로 sanitise해야 합니다.
+
+선택적인 `LeaderLeaseExtensionContext`는 일치하는 user 소유 active scope에서만 전달되고 watchdog event나
+scope 밖·이름 불일치 호출에서는 없습니다.
+`toString()`은 redaction하지만 애플리케이션도 raw `lockName`과 `auditLeaderId`를 로그에 남기지 않아야 합니다.
+Fail-open `NotHeld` event에는 `context`의 lock name이 남고 `auditLeaderId = null`입니다. 위 snippet은 하나의
+명시적 `USER` 시도 뒤에 registration을 닫습니다. `WATCHDOG` tick이 필요하면 `autoExtend = true`인 단일 리더
+action 또는 component 전체 수명 동안 handle을 유지하고 종료 시 닫으세요. Group election slot은 active body
+안의 명시적 `LockExtender` 호출은 지원하지만 group auto-extension이 꺼져 있으므로 `WATCHDOG` event를 만들지
+않습니다. Scope 밖이나 named mismatch event의 `context`는 `null`입니다. Adapter와 lifecycle 지침은
+[미배포 lease-extension 관찰 초안](../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)을 참고하세요.
+
 ### ⚠️ Reactor non-suspend operator 미지원 (R5)
 
 `LockAssert.assertLocked()` / `LockExtender.extendActiveLock()` 를 non-suspend Reactor operator (`.map {}`, `.filter {}`) 안에서 호출하면 실패합니다.

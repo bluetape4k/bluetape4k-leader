@@ -91,7 +91,10 @@ bluetape4k:
 
 This example intentionally does not add an OpenTelemetry SDK, Micrometer tracing bridge, exporter, or collector. Add those dependencies in the application when exported traces are required. Observation `lock.name`, `leader.id`, and exception details are disabled because they can contain tenant, user, job, URL, or credential-like values. Current Spring AOP does not synthesize `leader.id`; that value appears only when a direct or future identity-aware path supplies `LeaderAopMetricsContext.Identified`.
 
-Lease-extension observations are also out of scope for this example until `LockExtender` exposes a core observation/event hook; that follow-up is tracked in issue #559.
+Lease-extension observations are not logged by this example's default handler. The handler accepts observation names
+starting with `leader.`, while the core lease-extension observation is named
+`bluetape4k.leader.lease.extension`. Applications that own the handler can opt in to that exact name after reviewing
+the bounded tags and privacy options in the [unreleased lease-extension observation draft](../../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.en.md).
 
 ## Run With Prometheus And Grafana
 
@@ -148,9 +151,15 @@ rules exclude that no-op sink because it intentionally returns no acquire key.
 In a real service, wire the recorder around the actual JDBC, R2DBC, MongoDB, or
 custom history sink before relying on these alerts.
 
-Lease-extension failure is not directly observable in this example yet because
-`LockExtender` does not publish a core metric or observation hook. The lease
-risk rule uses completed execution duration as a conservative symptom only.
+Lease-extension failure is not exposed by this example's Prometheus meters. The
+core publishes a `LeaderLeaseExtensionEvent`; the Micrometer adapter creates an
+Observation named `bluetape4k.leader.lease.extension`. This demo's local handler
+accepts only names starting with `leader.` and the application does not register
+a lease-extension meter. The lease-risk rule therefore uses completed
+execution duration as a conservative symptom only. Add an explicitly configured
+Micrometer observer or update the app-owned handler after reviewing the
+[unreleased lease-extension observation draft](../../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
+if the demo should surface that signal.
 
 ## Prometheus Queries
 

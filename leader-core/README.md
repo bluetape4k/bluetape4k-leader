@@ -465,6 +465,71 @@ suspend fun runSuspend() {
 - Returns `true` on success, `false` on failure (no active scope, fail-open, token mismatch, backend error).
 - Updates `lastExtendDeadline` on the watchdog delegate to prevent watchdog from silently shrinking the extended lease (R2 mitigation).
 
+### Lease-extension observer
+
+> **Unreleased API:** This section describes the current `develop` implementation. The dependency examples in this
+> README target released `0.4.0`, and the pinned `0.5.0` manual does not include this hook. Keep this integration on a
+> matching develop/snapshot build until the promotion gate in the draft is complete.
+
+`LeaderLeaseExtensionObservers` is the framework-neutral hook for observing terminal lease-extension attempts. It
+receives events from both explicit `LockExtender` calls and `LeaderLeaseAutoExtender` watchdog ticks:
+
+```kotlin
+val registration = LeaderLeaseExtensionObservers.addObserver { event ->
+    logger.info {
+        "lease extension source=${event.source} execution=${event.execution} " +
+            "outcome=${event.outcome::class.simpleName}"
+    }
+}
+
+// This blocking example belongs inside a matching active @LeaderElection or @LeaderGroupElection scope; otherwise it
+// returns NotHeld with context = null. The same applies inside a direct elector's active lease body. In a suspend
+// scope, use extendActiveLockDetailedSuspend(60.seconds) inside the suspend function instead.
+try {
+    when (LockExtender.extendActiveLockDetailed(60.seconds)) {
+        is ExtendOutcome.Extended -> processExtended()
+        ExtendOutcome.NotHeld -> rollback()
+        ExtendOutcome.WrongThread -> reportThreadBinding()
+        is ExtendOutcome.BackendError -> retry()
+        ExtendOutcome.Rejected -> recordRejectedExtension()
+    }
+} finally {
+    registration.close()
+}
+```
+
+`LeaderLeaseExtensionEvent.source` is `USER` for `LockExtender` and `WATCHDOG` for automatic renewal. The
+`execution` value is `BLOCKING` or `SUSPEND`. The `outcome` is the existing `ExtendOutcome`: `Extended` carries the
+observed expiry, `Rejected` means that a watchdog reservation failed, a user bounded operation queue was full, or a
+queued user operation timed out before its command completed; that command may still run later. It is a skip signal,
+not proof that no backend work will occur. `NotHeld` covers an absent or expired ownership (including fail-open),
+`WrongThread` reports a thread-bound backend violation, and `BackendError` contains the backend exception.
+`elapsedNanos` measures the caller-side delegate call; it is zero only when that call returned without running a
+delegate, such as an outside-scope lookup or an immediate queue admission rejection.
+
+The registry is process-local. Delivery uses bounded non-blocking in-flight admission (1024 permits globally and 256
+per registration); saturation increments `LeaderLeaseExtensionObservers.droppedCount()` rather than waiting for a
+permit or callback. Registration count and callback fan-out are not bounded by this registry, so keep application
+registrations small and callbacks short. `droppedCount()` is separate from `ExtendOutcome.Rejected`: it counts only
+observer-delivery admissions rejected by the registry.
+`close()` is idempotent and removes only its registration. A callback already admitted may finish after `close()`, and
+delivery order or drain completion is not guaranteed. A callback `Exception` is isolated; extension
+`CancellationException` and `Error` are not converted into an `ExtendOutcome` or
+published as events.
+`BackendError.cause` remains the original backend `Exception`; core does not redact it, so custom observers must
+sanitise the cause before logging or exporting.
+
+The optional `LeaderLeaseExtensionContext` is supplied for matching user-owned active scopes and is absent for watchdog
+events and scope-free or mismatched named calls. A fail-open `NotHeld` event still carries its lock name in `context`
+with `auditLeaderId = null`.
+Its `toString()` is redacted, but applications should still avoid logging raw `lockName` or `auditLeaderId`. See the
+[unreleased lease-extension observation draft](../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
+for adapter and lifecycle guidance.
+
+The snippet closes after one explicit `USER` attempt. Keep the handle for the full single-leader action or component
+lifetime with `autoExtend = true` when `WATCHDOG` ticks are needed; group election slots accept explicit
+`LockExtender` calls but disable group auto-extension and therefore do not emit `WATCHDOG` events.
+
 ### ⚠️ Reactor non-suspend operator limitation (R5)
 
 Calling `LockAssert.assertLocked()` or `LockExtender.extendActiveLock()` inside non-suspend Reactor operators (`.map {}`, `.filter {}`) will fail — neither ThreadLocal nor `CoroutineContext` is available there.

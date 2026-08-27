@@ -364,7 +364,43 @@ Observation bridge는 `leader.aop.acquire`, `leader.aop.execution`, `leader.elec
 
 동적 lock name, leader ID, exception detail은 운영 환경에서 민감할 수 있습니다. tenant, user, job, URL, credential과 비슷한 값이 들어갈 수 있습니다. 메트릭은 기본적으로 `lock.name`을 redaction합니다. 작고 정적인 job set에만 `RAW`를 사용하고, dashboard에서 제한된 상관관계가 필요하면 `bluetape4k.leader.aop.metrics.tags.*` 아래에서 `HASH` 또는 `TRUNCATE`를 사용하세요. 현재 Spring AOP는 node ID나 lock name으로 `leader.id`를 합성하지 않습니다. `include-leader-id=true`는 direct 호출 또는 future identity-aware 경로에서 `LeaderAopMetricsContext.Identified`가 전달될 때만 값을 내보냅니다.
 
-Lease-extension observation은 issue #559로 미뤘습니다. Spring이나 Micrometer가 extension outcome을 관찰하려면 `LockExtender`에 core hook이 먼저 필요합니다.
+### Lease-extension 관찰
+
+> **미배포 API:** 이 절은 현재 `develop` 구현을 설명합니다. 위 의존성 예제는 배포된 `0.4.0`을 대상으로 하며,
+> 고정한 `0.5.0` 매뉴얼에는 이 hook이 없습니다. 초안의 promotion gate가 끝날 때까지는 일치하는
+> `develop` 브랜치 또는 일치하는 미배포 빌드에서만 이 연동을 사용하세요.
+
+`leader-micrometer`와 non-NOOP `ObservationRegistry`가 있고
+`bluetape4k.leader.observability.enabled=true`,
+`bluetape4k.leader.observability.tracing.enabled=true`(둘 다 기본값)이면
+`LeaderObservationAutoConfiguration`이 core lease-extension observer를 등록합니다.
+명시적인 `LockExtender` 호출과 `LeaderLeaseAutoExtender` watchdog event를 모두
+대상으로 하며 Spring 전용 extension API를 추가하지 않습니다.
+
+명시적인 호출은 `@LeaderElection`, `@LeaderGroupElection` 또는 직접 elector body가 만든 일치하는 user-owned
+active scope 안에서 사용할 수 있습니다. `WATCHDOG` event는 단일 리더의 `autoExtend = true` 경로에서만 발생하며
+group election slot은 group auto-extension을 끕니다. Issue #529는 acquire/execution observation을 담당하고, 이
+Issue #559 integration은 terminal lease-extension 시도를 담당합니다.
+
+Spring은 다음 규칙으로 registration 수명주기를 관리합니다.
+
+- `ObservationRegistry` identity마다 `MicrometerObservationLeaderLeaseExtensionObserver`
+  하나를 공유합니다.
+- 각 application context는 idempotent handle 하나를 소유하고, 마지막 context가
+  닫힐 때 core registration을 제거합니다.
+- NOOP registry이거나 tracing을 끄면 lease-extension registration을 만들지 않습니다.
+- 같은 registry에 서로 다른 `LeaderObservationOptions`가 들어오면 redaction을
+  조용히 약화하거나 callback을 중복 등록하지 않고 즉시 실패합니다.
+
+Core event는 `USER`/`WATCHDOG` source와 `BLOCKING`/`SUSPEND` execution을 그대로
+구분합니다. Micrometer는 앞서 설명한 bounded `source`, `execution`, `outcome`,
+`result` 값만 기본으로 내보냅니다. Lock name과 leader ID는 명시적으로 켰을 때
+설정된 sanitisation 정책을 거쳐 추가하지만, `includeExceptionDetails`는 tag
+sanitisation 없이 원본 backend throwable을 `Observation.error(...)`에 연결합니다.
+기본값 `false`를 유지하고 downstream observation 또는 tracing 시스템이 raw exception
+message와 stack trace를 받아도 되는 경우에만 켜세요. Observer는 진단용이므로 ownership,
+deadline 갱신, cancellation, watchdog retry/stop 동작을 바꾸지 않습니다. 전체 계약은
+[미배포 lease-extension 관찰 초안](../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)에서 확인할 수 있습니다.
 
 ## Backend Factory
 

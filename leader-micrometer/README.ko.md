@@ -136,7 +136,64 @@ val election = LocalLeaderElector().apply {
 
 이 모듈은 Micrometer Observation만 발생시킵니다. OpenTelemetry SDK, tracing bridge, exporter, collector는 추가하지 않습니다. trace export가 필요하다면 애플리케이션이 해당 의존성과 설정을 직접 추가해야 합니다.
 
-Lease-extension observation은 issue #559에서 별도로 추적합니다. `LockExtender`가 먼저 core observation/event hook을 제공해야 Micrometer가 extension outcome을 일관되게 기록할 수 있습니다.
+### Lease-extension 관찰
+
+> **미배포 API:** 이 절은 현재 `develop` 구현을 설명합니다. 위 의존성 예제는 배포된 `0.4.0`을 대상으로 하며,
+> 고정한 `0.5.0` 매뉴얼에는 이 hook이 없습니다. 초안의 promotion gate가 끝날 때까지는 일치하는
+> `develop` 브랜치 또는 일치하는 미배포 빌드에서만 이 연동을 사용하세요.
+
+`MicrometerObservationLeaderLeaseExtensionObserver`는 core의
+`LeaderLeaseExtensionEvent`를 짧은 terminal Observation으로 변환합니다.
+`LockExtender`와 `LeaderLeaseAutoExtender`가 사용하는 process-local core registry에
+등록하세요.
+
+```kotlin
+val observer = MicrometerObservationLeaderLeaseExtensionObserver(
+    registry = observationRegistry,
+    options = LeaderObservationOptions(),
+)
+val registration = LeaderLeaseExtensionObservers.addObserver(observer)
+
+// 이 blocking 예제는 일치하는 활성 @LeaderElection 또는 @LeaderGroupElection scope 안에서 호출하세요. 그렇지 않으면
+// NotHeld를 반환합니다. 직접 elector의 active lease body 안에서도 같은 규칙이 적용됩니다. Suspend scope에서는
+// suspend 함수 안에서 extendActiveLockDetailedSuspend(60.seconds)를 사용하세요.
+try {
+    LockExtender.extendActiveLockDetailed(60.seconds)
+} finally {
+    registration.close()
+}
+```
+
+Observation 이름은 `bluetape4k.leader.lease.extension`입니다. bounded
+low-cardinality tag는 `source`, `execution`, `outcome`, `result`입니다.
+
+| `ExtendOutcome` | `outcome` | `result` |
+|---|---|---|
+| `Extended` | `extended` | `success` |
+| `Rejected` | `rejected` | `skipped` |
+| `NotHeld` | `not_held` | `skipped` |
+| `WrongThread` | `wrong_thread` | `error` |
+| `BackendError` | `backend_error` | `error` |
+
+`elapsedNanos`는 tag로 기록하지 않습니다. `includeLockName`과 `includeLeaderId`는
+명시적으로 켰을 때만 sanitised high-cardinality 값을 추가하고,
+`includeExceptionDetails`는 tag sanitiser를 거치지 않은 원본 backend 예외를
+`Observation.error(...)`로 연결합니다. 기본 옵션에서는 세 값이 모두 꺼져 있습니다.
+Downstream observation 또는 tracing 시스템이 raw exception message와 stack trace를
+받아도 되는 경우에만 exception detail을 켜세요. `NOOP ObservationRegistry`에서는
+Observation을 만들지 않습니다. 이 모듈은 Micrometer Observation만 발생시키며 tracing
+bridge, exporter, collector, OpenTelemetry SDK는 애플리케이션이 추가해야 합니다.
+Issue #529는 acquire/execution observation을 담당하고, 이 Issue #559 adapter는
+terminal lease-extension 시도를 담당합니다. Spring Boot auto-configuration을
+사용하는 경우 `addObserver`를 수동으로 다시 호출하지 마세요. Spring manager가
+registry identity마다 registration 하나를 공유합니다.
+위 snippet은 하나의 명시적 `USER` 시도 뒤에 registration을 닫습니다. `WATCHDOG` tick이 필요하면
+`autoExtend = true`인 단일 리더 action 또는 component 전체 수명 동안 registration을 유지하고 종료 시 닫으세요.
+Group election slot은 active body 안의 명시적 `LockExtender` 호출은 지원하지만 group auto-extension이 꺼져
+있으므로 `WATCHDOG` event를 만들지 않습니다.
+전체 core 계약과 Spring lifecycle은
+[미배포 lease-extension 관찰 초안](../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)에서
+확인할 수 있습니다.
 
 ## 직접 Elector 메트릭
 
