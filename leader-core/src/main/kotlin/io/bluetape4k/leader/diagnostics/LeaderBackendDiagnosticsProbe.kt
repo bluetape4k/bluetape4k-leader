@@ -26,8 +26,34 @@ public object LeaderBackendDiagnosticsProbe {
         timeout: Duration,
         clock: Clock = Clock.systemUTC(),
         probe: (Duration) -> LeaderBackendConnectivityStatus,
+    ): LeaderBackendConnectivity =
+        check(
+            timeout = timeout,
+            clock = clock,
+            unknownReason = LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED,
+            probe = probe,
+        )
+
+    /**
+     * 기존 client 상태를 한 번 확인하고 caller가 지정한 UNKNOWN 원인으로 매핑합니다.
+     *
+     * 기존 3-argument overload를 보존해 source와 JVM 호출자의 호출 순서를 유지합니다.
+     */
+    public fun check(
+        timeout: Duration,
+        clock: Clock = Clock.systemUTC(),
+        unknownReason: LeaderBackendConnectivityReason =
+            LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED,
+        probe: (Duration) -> LeaderBackendConnectivityStatus,
     ): LeaderBackendConnectivity {
         val validTimeout = timeout.requirePositiveFiniteProbeTimeout()
+        require(
+            unknownReason == LeaderBackendConnectivityReason.PROVIDER_UNSUPPORTED ||
+                unknownReason == LeaderBackendConnectivityReason.PROVIDER_EXCEPTION ||
+                unknownReason == LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED,
+        ) {
+            "unknownReason must describe an UNKNOWN connectivity result: $unknownReason"
+        }
         val checkedAt = clock.instant()
         val status = try {
             probe(validTimeout)
@@ -37,13 +63,17 @@ public object LeaderBackendDiagnosticsProbe {
             Thread.currentThread().interrupt()
             throw interrupted
         } catch (_: Exception) {
-            return LeaderBackendConnectivity.unknown(checkedAt)
+            return LeaderBackendConnectivity.unknown(
+                checkedAt,
+                reason = LeaderBackendConnectivityReason.PROVIDER_EXCEPTION,
+            )
         }
 
         return when (status) {
             LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivity.up(checkedAt)
             LeaderBackendConnectivityStatus.DOWN -> LeaderBackendConnectivity.down(checkedAt)
-            LeaderBackendConnectivityStatus.UNKNOWN -> LeaderBackendConnectivity.unknown(checkedAt)
+            LeaderBackendConnectivityStatus.UNKNOWN ->
+                LeaderBackendConnectivity.unknown(checkedAt, reason = unknownReason)
             LeaderBackendConnectivityStatus.NOT_CHECKED -> invalidProbeStatus()
         }
     }

@@ -8,6 +8,7 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
 import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
@@ -47,10 +48,12 @@ class LettuceLeaderBackendDiagnosticsTest {
 
         val unknown = provider.checkConnectivity(100.milliseconds)
         unknown.status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+        unknown.reason shouldBeEqualTo LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED
 
         every { connection.isOpen } returns false
         val down = provider.checkConnectivity(100.milliseconds)
         down.status shouldBeEqualTo LeaderBackendConnectivityStatus.DOWN
+        down.reason shouldBeEqualTo LeaderBackendConnectivityReason.DISCONNECTED
     }
 
     @Test
@@ -58,9 +61,11 @@ class LettuceLeaderBackendDiagnosticsTest {
         val connection = mockk<StatefulRedisConnection<String, String>>()
         every { connection.isOpen } throws IllegalStateException("probe failed")
 
-        LettuceLeaderBackendDiagnostics(connection)
+        val connectivity = LettuceLeaderBackendDiagnostics(connection)
             .checkConnectivity(100.milliseconds)
-            .status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+
+        connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+        connectivity.reason shouldBeEqualTo LeaderBackendConnectivityReason.PROVIDER_EXCEPTION
     }
 
     @Test

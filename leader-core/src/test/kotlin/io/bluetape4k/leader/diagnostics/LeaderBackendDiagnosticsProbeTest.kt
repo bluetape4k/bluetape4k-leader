@@ -67,7 +67,42 @@ class LeaderBackendDiagnosticsProbeTest {
             throw IllegalStateException("provider failure")
         }
 
-        connectivity shouldBeEqualTo LeaderBackendConnectivity.unknown(checkedAt)
+        connectivity shouldBeEqualTo LeaderBackendConnectivity.unknown(
+            checkedAt,
+            reason = LeaderBackendConnectivityReason.PROVIDER_EXCEPTION,
+        )
+    }
+
+    @Test
+    fun `UNKNOWN callback은 caller가 지정한 bounded reason으로 기록한다`() {
+        val connectivity = LeaderBackendDiagnosticsProbe.check(
+            timeout = 100.milliseconds,
+            clock = clock,
+            unknownReason = LeaderBackendConnectivityReason.PROVIDER_UNSUPPORTED,
+        ) {
+            LeaderBackendConnectivityStatus.UNKNOWN
+        }
+
+        connectivity.reason shouldBeEqualTo LeaderBackendConnectivityReason.PROVIDER_UNSUPPORTED
+    }
+
+    @Test
+    fun `unknownReason은 UNKNOWN 전용 reason만 허용한다`() {
+        listOf(
+            LeaderBackendConnectivityReason.NOT_CHECKED,
+            LeaderBackendConnectivityReason.CONNECTED,
+            LeaderBackendConnectivityReason.DISCONNECTED,
+        ).forEach { invalidReason ->
+            assertFailsWith<IllegalArgumentException> {
+                LeaderBackendDiagnosticsProbe.check(
+                    timeout = 100.milliseconds,
+                    clock = clock,
+                    unknownReason = invalidReason,
+                ) {
+                    LeaderBackendConnectivityStatus.UNKNOWN
+                }
+            }
+        }
     }
 
     @Test

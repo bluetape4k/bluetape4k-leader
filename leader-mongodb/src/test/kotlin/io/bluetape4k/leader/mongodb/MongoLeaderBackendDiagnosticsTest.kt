@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
@@ -35,9 +36,11 @@ class MongoLeaderBackendDiagnosticsTest {
 
     @Test
     fun `MongoDB connectivity는 안전한 bounded probe가 없어 UNKNOWN을 반환한다`() {
-        MongoLeaderBackendDiagnostics
+        val connectivity = MongoLeaderBackendDiagnostics
             .checkConnectivity(100.milliseconds)
-            .status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+
+        connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+        connectivity.reason shouldBeEqualTo LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED
     }
 
     @Test

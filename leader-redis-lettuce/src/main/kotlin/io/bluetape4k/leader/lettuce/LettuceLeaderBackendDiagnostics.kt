@@ -4,6 +4,7 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendCapabilities
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
 import io.bluetape4k.leader.diagnostics.LeaderBackendDescriptor
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe
@@ -23,7 +24,10 @@ class LettuceLeaderBackendDiagnostics(
 
     /** 기존 Lettuce connection의 open 상태만 읽어 연결 상태를 확인합니다. */
     override fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity {
-        return LeaderBackendDiagnosticsProbe.check(timeout) {
+        return LeaderBackendDiagnosticsProbe.check(
+            timeout = timeout,
+            unknownReason = LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED,
+        ) {
             if (connection.isOpen) {
                 LeaderBackendConnectivityStatus.UNKNOWN
             } else {

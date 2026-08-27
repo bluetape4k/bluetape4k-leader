@@ -55,6 +55,7 @@ class LocalLeaderBackendDiagnosticsTest {
         val connectivity = LocalLeaderBackendDiagnostics.checkConnectivity(100.milliseconds)
 
         connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.UP
+        connectivity.reason shouldBeEqualTo LeaderBackendConnectivityReason.CONNECTED
         connectivity.checkedAt.shouldNotBeNull()
         connectivity.latencyMillis.shouldBeNull()
     }

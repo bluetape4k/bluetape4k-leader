@@ -85,6 +85,47 @@ class LeaderBackendDiagnosticsTest {
     }
 
     @Test
+    fun `connectivity factory는 status별 bounded reason을 제공한다`() {
+        LeaderBackendConnectivity.notChecked().reason shouldBeEqualTo
+                LeaderBackendConnectivityReason.NOT_CHECKED
+        LeaderBackendConnectivity.up(checkedAt).reason shouldBeEqualTo
+                LeaderBackendConnectivityReason.CONNECTED
+        LeaderBackendConnectivity.down(checkedAt).reason shouldBeEqualTo
+                LeaderBackendConnectivityReason.DISCONNECTED
+        LeaderBackendConnectivity.unknown(checkedAt).reason shouldBeEqualTo
+                LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED
+
+        LeaderBackendConnectivity.unknown(
+            checkedAt = checkedAt,
+            reason = LeaderBackendConnectivityReason.PROVIDER_UNSUPPORTED,
+        ).reason shouldBeEqualTo LeaderBackendConnectivityReason.PROVIDER_UNSUPPORTED
+
+        val preserved = LeaderBackendConnectivity.unknown(
+            checkedAt = checkedAt,
+            reason = LeaderBackendConnectivityReason.PROVIDER_EXCEPTION,
+        )
+        preserved.copy(status = LeaderBackendConnectivityStatus.UNKNOWN).reason shouldBeEqualTo
+                LeaderBackendConnectivityReason.PROVIDER_EXCEPTION
+    }
+
+    @Test
+    fun `connectivity는 NOT_CHECKED reason과 checked status의 reason 혼용을 거부한다`() {
+        assertFailsWith<IllegalArgumentException> {
+            LeaderBackendConnectivity(
+                status = LeaderBackendConnectivityStatus.UP,
+                checkedAt = checkedAt,
+                reason = LeaderBackendConnectivityReason.NOT_CHECKED,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            LeaderBackendConnectivity(
+                status = LeaderBackendConnectivityStatus.NOT_CHECKED,
+                reason = LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED,
+            )
+        }
+    }
+
+    @Test
     fun `default connectivity check는 안전한 UNKNOWN 결과를 반환한다`() {
         val provider = object : LeaderBackendDiagnosticsProvider {
             override val backendDescriptor: LeaderBackendDescriptor = descriptor
@@ -93,6 +134,7 @@ class LeaderBackendDiagnosticsTest {
         val connectivity = provider.checkConnectivity(100.milliseconds)
 
         connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+        connectivity.reason shouldBeEqualTo LeaderBackendConnectivityReason.PROVIDER_UNSUPPORTED
     }
 
     @Test
