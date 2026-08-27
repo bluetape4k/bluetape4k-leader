@@ -21,6 +21,8 @@ import kotlin.time.Duration
  * Leader backend의 정적 capability와 선택적인 connectivity 결과를 JSON route로 노출합니다.
  *
  * [connectivityCheckEnabled]가 `false`이면 외부 backend I/O를 실행하지 않습니다.
+ * connectivity payload에는 상태와 함께 bounded [LeaderBackendConnectivity.reason]을
+ * 포함하며, provider 예외의 HTTP status 처리는 application pipeline이 소유합니다.
  */
 fun Application.leaderBackendDiagnosticsRoute(
     path: String = LeaderElectionPluginConfig.DefaultBackendDiagnosticsRoutePath,
@@ -103,5 +105,6 @@ private fun StringBuilder.appendConnectivity(connectivity: LeaderBackendConnecti
     append("{\"status\":").append(connectivity.status.name.jsonValue())
     append(",\"checkedAt\":").append(connectivity.checkedAt?.toString()?.jsonValue() ?: "null")
     append(",\"latencyMillis\":").append(connectivity.latencyMillis ?: "null")
+    append(",\"reason\":").append(connectivity.reason.name.jsonValue())
     append('}')
 }

@@ -7,6 +7,7 @@ import io.bluetape4k.ktor.testing.shouldHaveStatus
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDescriptor
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnostics
@@ -107,7 +108,55 @@ class LeaderBackendDiagnosticsRouteTest {
             val response = client.get(LeaderElectionPluginConfig.DefaultBackendDiagnosticsRoutePath)
 
             response shouldHaveStatus HttpStatusCode.OK
+            val body = response.bodyAsText()
+            body.contains("\"status\":\"UNKNOWN\"") shouldBeEqualTo true
+            body.contains("\"reason\":\"PROVIDER_EXCEPTION\"") shouldBeEqualTo true
+            body.contains("backend endpoint and credential must not escape") shouldBeEqualTo false
+        }
+    }
+
+    @Test
+    fun `active diagnostics route는 DOWN 상태와 bounded reason을 함께 반환한다`() = runSuspendIO {
+        testApplication {
+            application {
+                install(LeaderElectionPlugin) {
+                    leaderElection = ProbeBackedDiagnosticsElector {
+                        LeaderBackendConnectivityStatus.DOWN
+                    }
+                    backendDiagnosticsRouteEnabled = true
+                    backendConnectivityCheckEnabled = true
+                }
+            }
+            startApplication()
+
+            val response = client.get(LeaderElectionPluginConfig.DefaultBackendDiagnosticsRoutePath)
+
+            response shouldHaveStatus HttpStatusCode.OK
+            response.bodyAsText().contains("\"status\":\"DOWN\"") shouldBeEqualTo true
+            response.bodyAsText().contains("\"reason\":\"DISCONNECTED\"") shouldBeEqualTo true
+        }
+    }
+
+    @Test
+    fun `active diagnostics route는 명시한 UNKNOWN reason을 보존한다`() = runSuspendIO {
+        testApplication {
+            application {
+                install(LeaderElectionPlugin) {
+                    leaderElection = ProbeBackedDiagnosticsElector(
+                        probe = { LeaderBackendConnectivityStatus.UNKNOWN },
+                        unknownReason = LeaderBackendConnectivityReason.PROVIDER_UNSUPPORTED,
+                    )
+                    backendDiagnosticsRouteEnabled = true
+                    backendConnectivityCheckEnabled = true
+                }
+            }
+            startApplication()
+
+            val response = client.get(LeaderElectionPluginConfig.DefaultBackendDiagnosticsRoutePath)
+
+            response shouldHaveStatus HttpStatusCode.OK
             response.bodyAsText().contains("\"status\":\"UNKNOWN\"") shouldBeEqualTo true
+            response.bodyAsText().contains("\"reason\":\"PROVIDER_UNSUPPORTED\"") shouldBeEqualTo true
         }
     }
 
@@ -283,6 +332,8 @@ class LeaderBackendDiagnosticsRouteTest {
     }
 
     private class ProbeBackedDiagnosticsElector(
+        private val unknownReason: LeaderBackendConnectivityReason =
+            LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED,
         private val probe: (Duration) -> LeaderBackendConnectivityStatus,
     ) : SuspendLeaderElector by LocalSuspendLeaderElector(), LeaderBackendDiagnosticsProvider {
 
@@ -292,6 +343,7 @@ class LeaderBackendDiagnosticsRouteTest {
             LeaderBackendDiagnosticsProbe.check(
                 timeout = timeout,
                 clock = Clock.fixed(CheckedAt, java.time.ZoneOffset.UTC),
+                unknownReason = unknownReason,
                 probe = probe,
             )
     }
@@ -330,7 +382,7 @@ class LeaderBackendDiagnosticsRouteTest {
                     "\"leaseExtension\":{\"single\":\"SUPPORTED\",\"group\":\"SUPPORTED\"}," +
                     "\"auditState\":{\"single\":\"SUPPORTED\",\"group\":\"UNSUPPORTED\"}," +
                     "\"clockSource\":\"PROCESS\",\"ttlMode\":\"CLIENT_LEASE\",\"limitations\":[]}}," +
-                    "\"connectivity\":{\"status\":\"NOT_CHECKED\",\"checkedAt\":null,\"latencyMillis\":null}}"
+                    "\"connectivity\":{\"status\":\"NOT_CHECKED\",\"checkedAt\":null,\"latencyMillis\":null,\"reason\":\"NOT_CHECKED\"}}"
 
         const val LocalConnectivityJson: String =
             "{\"descriptor\":{\"backendId\":\"local\",\"displayName\":\"Local\",\"capabilities\":" +
@@ -340,6 +392,6 @@ class LeaderBackendDiagnosticsRouteTest {
                     "\"auditState\":{\"single\":\"SUPPORTED\",\"group\":\"UNSUPPORTED\"}," +
                     "\"clockSource\":\"PROCESS\",\"ttlMode\":\"CLIENT_LEASE\",\"limitations\":[]}}," +
                     "\"connectivity\":{\"status\":\"UP\",\"checkedAt\":\"2026-08-16T00:00:00Z\"," +
-                    "\"latencyMillis\":7}}"
+                    "\"latencyMillis\":7,\"reason\":\"CONNECTED\"}}"
     }
 }
