@@ -121,11 +121,21 @@ class ProviderArtifactContractTest(unittest.TestCase):
 
     def test_rejects_provider_mentioned_only_in_test_script(self) -> None:
         source = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-        source = source.replace(
-            '          LEADER_TEST_DB: "H2"\n\n      - name: Generate Kover XML report',
-            '          echo \'LEADER_TEST_DB: "H2"\'\n\n      - name: Generate Kover XML report',
+        job_start = source.index("  test-exposed-jdbc-h2:")
+        job_end = source.index("  test-exposed-jdbc-postgresql:", job_start)
+        job = source[job_start:job_end]
+        job = job.replace(
+            "          for attempt in 1 2 3 4 5; do",
+            "          echo 'LEADER_TEST_DB: \"H2\"'\n"
+            "          for attempt in 1 2 3 4 5; do",
             1,
         )
+        job = job.replace(
+            '          LEADER_TEST_DB: "H2"\n\n      - name: Generate Kover XML report',
+            '\n      - name: Generate Kover XML report',
+            1,
+        )
+        source = source[:job_start] + job + source[job_end:]
 
         with tempfile.TemporaryDirectory() as directory:
             workflow = Path(directory) / "ci.yml"
