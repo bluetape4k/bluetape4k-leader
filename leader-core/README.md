@@ -371,6 +371,24 @@ The HTTP adapters in the Spring and Ktor modules share this mapping:
 
 `LeaderBackendDiagnosticsProbe.check(timeout, clock, probe)` is the shared synchronous boundary for built-in backend connectivity checks. It accepts only a positive, finite provider-native timeout, reads the supplied clock once before the callback, and never creates I/O, locks, clients, retries, threads, executors, or wall-clock deadlines. Ordinary callback `Exception` values become `UNKNOWN`; `CancellationException`, `InterruptedException` (with the interrupt flag restored), and fatal `Error` values retain identity and propagate. Returning `NOT_CHECKED` from the callback is invalid. Existing custom `checkConnectivity` or `diagnostics` overrides remain source-compatible and bypass this normalization by design.
 
+The `LeaderBackendConnectivityReason` field explains the bounded cause without
+storing exception text, credentials, endpoints, or lock names:
+
+| Status | Reason | Interpretation |
+|---|---|---|
+| `UP` | `CONNECTED` | The client confirmed connectivity at the time of the probe. |
+| `DOWN` | `DISCONNECTED` | The client confirmed that the backend is unavailable. |
+| `UNKNOWN` | `CLIENT_STATE_UNCONFIRMED` | A bounded check could not confirm the client state. |
+| `UNKNOWN` | `PROVIDER_UNSUPPORTED` | The provider intentionally has no active probe. |
+| `UNKNOWN` | `PROVIDER_EXCEPTION` | An ordinary callback exception was normalized. |
+| `NOT_CHECKED` | `NOT_CHECKED` | No probe ran; this is not proof of health or ownership. |
+
+The default provider uses `PROVIDER_UNSUPPORTED` when it cannot offer an active
+probe. Helper-backed providers use `CLIENT_STATE_UNCONFIRMED` when they read
+client state without proving backend connectivity. The reason is descriptive
+metadata: acquiring a lease through `runIfLeader` remains the ownership
+decision, and readiness policy remains application-owned.
+
 ## Tenant Namespacing
 
 Use `TenantLockNamespace` and `forTenant()` when the same logical job must run

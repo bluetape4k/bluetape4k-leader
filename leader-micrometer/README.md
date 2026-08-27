@@ -74,7 +74,7 @@ class ReportJobs {
 
 ### Tag Cardinality Controls
 
-Metrics use `LeaderMetricTagOptions` before exporting tag values. The production default redacts dynamic `lock.name` values to `redacted-lock` and opt-in `leader.id` Observation values to `redacted-leader`; bounded `backend.name` values stay raw when a future or custom meter path emits that tag. Current built-in meter paths do not emit `backend.name`. This keeps Prometheus, Datadog, and OTLP backends from receiving one time series per tenant, request, or job id.
+Metrics use `LeaderMetricTagOptions` before exporting tag values. The production default redacts dynamic `lock.name` values to `redacted-lock` and opt-in `leader.id` Observation values to `redacted-leader`; the active diagnostics meter emits only sanitized, bounded `backend.name` values. Other built-in meter paths do not emit `backend.name`. This keeps Prometheus, Datadog, and OTLP backends from receiving one time series per tenant, request, or job id.
 
 Use Spring properties for application-level policy:
 
@@ -235,6 +235,14 @@ val election = InstrumentedLeaderElector(
 )
 ```
 
+The three instrumented elector decorators also expose the delegate's
+`LeaderBackendDiagnosticsProvider`. Active `checkConnectivity` and
+`diagnostics(probe = true)` calls increment `leader.backend.connectivity` once
+with `backend.name`, `status`, and `reason` tags. Passive `diagnostics()` does
+not create a meter. The decorator records only the bounded enum values and
+rethrows the provider's original exception; it never exports exception text,
+endpoints, credentials, or lock names.
+
 ## Listener Event Metrics
 
 Use `MicrometerLeaderElectionListener` when you need lifecycle counters without wrapping the elector in an instrumented decorator.
@@ -271,6 +279,7 @@ election.runIfLeader("daily-report") {
 | `shedlock.leader.not_acquired` | Counter | `lock.name` | Decorator skips |
 | `shedlock.leader.duration` | Timer | `lock.name` | Decorator body duration |
 | `shedlock.leader.active` | Gauge | `lock.name` | Currently running decorator bodies in this JVM |
+| `leader.backend.connectivity` | Counter | `backend.name`, `status`, `reason` | One sample for each active backend connectivity probe |
 
 ### Listener Event Meters
 

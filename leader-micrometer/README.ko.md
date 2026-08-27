@@ -74,7 +74,7 @@ class ReportJobs {
 
 ### 태그 Cardinality 제어
 
-메트릭은 tag 값을 export하기 전에 `LeaderMetricTagOptions`를 적용합니다. 운영 기본값은 동적 `lock.name`을 `redacted-lock`으로, opt-in `leader.id` Observation 값을 `redacted-leader`로 redaction합니다. future/custom meter path가 `backend.name` tag를 emit할 때는 cardinality가 제한된 backend 값만 raw로 유지합니다. 현재 built-in meter path는 `backend.name`을 emit하지 않습니다. 이렇게 하면 Prometheus, Datadog, OTLP backend에 tenant, request, job id마다 새로운 time series가 생기는 일을 막을 수 있습니다.
+메트릭은 tag 값을 export하기 전에 `LeaderMetricTagOptions`를 적용합니다. 운영 기본값은 동적 `lock.name`을 `redacted-lock`으로, opt-in `leader.id` Observation 값을 `redacted-leader`로 redaction합니다. active diagnostics meter는 정제된 제한 범위의 `backend.name`만 emit합니다. 다른 built-in meter path는 `backend.name`을 emit하지 않습니다. 이렇게 하면 Prometheus, Datadog, OTLP backend에 tenant, request, job id마다 새로운 time series가 생기는 일을 막을 수 있습니다.
 
 애플리케이션 정책은 Spring property로 설정합니다.
 
@@ -234,6 +234,14 @@ val election = InstrumentedLeaderElector(
 )
 ```
 
+세 instrumented elector decorator는 delegate의
+`LeaderBackendDiagnosticsProvider`도 노출합니다. Active
+`checkConnectivity`와 `diagnostics(probe = true)` 호출은
+`backend.name`, `status`, `reason` tag와 함께 `leader.backend.connectivity`를
+호출마다 한 번 증가시킵니다. Passive `diagnostics()`는 meter를 만들지
+않습니다. Decorator는 제한된 enum 값만 기록하고 provider의 원래 예외를
+재전파하며, 예외 원문·endpoint·credential·lock name을 export하지 않습니다.
+
 ## Listener 이벤트 메트릭
 
 elector를 instrumented decorator로 감싸지 않고 생명주기 counter만 기록하려면 `MicrometerLeaderElectionListener`를 사용합니다.
@@ -270,6 +278,7 @@ election.runIfLeader("daily-report") {
 | `shedlock.leader.not_acquired` | Counter | `lock.name` | 데코레이터 skip |
 | `shedlock.leader.duration` | Timer | `lock.name` | 데코레이터 본문 실행 시간 |
 | `shedlock.leader.active` | Gauge | `lock.name` | 현재 JVM에서 실행 중인 데코레이터 본문 수 |
+| `leader.backend.connectivity` | Counter | `backend.name`, `status`, `reason` | active backend connectivity probe마다 한 번 기록 |
 
 ### Listener 이벤트 Meter
 

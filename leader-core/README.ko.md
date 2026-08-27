@@ -368,6 +368,24 @@ Spring 및 Ktor 모듈의 HTTP adapter는 다음 공통 mapping을 사용합니�
 
 `LeaderBackendDiagnosticsProbe.check(timeout, clock, probe)`는 내장 backend connectivity 검사를 위한 공통 동기 경계입니다. 양수이면서 유한한 provider-native timeout만 받고 callback 전에 전달된 clock을 한 번 읽으며, I/O, lock, client, retry, thread, executor, wall-clock deadline을 만들거나 관리하지 않습니다. callback의 일반 `Exception`은 `UNKNOWN`이 되고, `CancellationException`, interrupt flag를 복원하는 `InterruptedException`, 치명적인 `Error`는 동일 인스턴스로 재전파됩니다. callback이 `NOT_CHECKED`를 반환하면 잘못된 결과로 거부합니다. 기존 custom `checkConnectivity` 또는 `diagnostics` override는 source 호환성을 위해 유지되며 의도적으로 이 정규화를 우회합니다.
 
+`LeaderBackendConnectivityReason` field는 예외 원문, credential, endpoint,
+lock name을 저장하지 않고 제한된 원인을 설명합니다.
+
+| 상태 | Reason | 해석 |
+|---|---|---|
+| `UP` | `CONNECTED` | probe 시점에 client가 연결 가능 상태를 확인했습니다. |
+| `DOWN` | `DISCONNECTED` | client가 backend를 사용할 수 없는 상태를 확인했습니다. |
+| `UNKNOWN` | `CLIENT_STATE_UNCONFIRMED` | bounded 검사만으로 client 상태를 확정하지 못했습니다. |
+| `UNKNOWN` | `PROVIDER_UNSUPPORTED` | provider가 의도적으로 active probe를 제공하지 않습니다. |
+| `UNKNOWN` | `PROVIDER_EXCEPTION` | callback의 일반 예외를 정규화했습니다. |
+| `NOT_CHECKED` | `NOT_CHECKED` | probe를 실행하지 않았으며 health나 소유권의 증거가 아닙니다. |
+
+기본 provider는 active probe를 제공할 수 없을 때 `PROVIDER_UNSUPPORTED`를
+사용합니다. Helper-backed provider가 client 상태를 읽었지만 backend 연결을
+증명하지 못하면 `CLIENT_STATE_UNCONFIRMED`를 사용합니다. Reason은 설명용
+metadata이며 소유권 판단은 계속 `runIfLeader`의 원자적 lease 획득이 맡고,
+readiness 정책은 애플리케이션이 소유합니다.
+
 ## 테넌트 네임스페이스
 
 같은 논리 작업을 테넌트별 독립 락으로 실행해야 한다면 backend 설정을 바꾸지
