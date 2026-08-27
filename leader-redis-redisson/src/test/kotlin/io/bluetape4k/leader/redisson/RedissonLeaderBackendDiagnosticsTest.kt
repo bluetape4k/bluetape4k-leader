@@ -8,6 +8,7 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
 import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
@@ -44,14 +45,20 @@ class RedissonLeaderBackendDiagnosticsTest {
         every { client.isShuttingDown } returns false
         val provider = RedissonLeaderBackendDiagnostics(client)
 
-        provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+        val unknown = provider.checkConnectivity(100.milliseconds)
+        unknown.status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+        unknown.reason shouldBeEqualTo LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED
 
         every { client.isShuttingDown } returns true
-        provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.DOWN
+        val shuttingDown = provider.checkConnectivity(100.milliseconds)
+        shuttingDown.status shouldBeEqualTo LeaderBackendConnectivityStatus.DOWN
+        shuttingDown.reason shouldBeEqualTo LeaderBackendConnectivityReason.DISCONNECTED
 
         every { client.isShuttingDown } returns false
         every { client.isShutdown } returns true
-        provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.DOWN
+        val shutdown = provider.checkConnectivity(100.milliseconds)
+        shutdown.status shouldBeEqualTo LeaderBackendConnectivityStatus.DOWN
+        shutdown.reason shouldBeEqualTo LeaderBackendConnectivityReason.DISCONNECTED
     }
 
     @Test
@@ -59,9 +66,11 @@ class RedissonLeaderBackendDiagnosticsTest {
         val client = mockk<RedissonClient>()
         every { client.isShutdown } throws IllegalStateException("probe failed")
 
-        RedissonLeaderBackendDiagnostics(client)
+        val connectivity = RedissonLeaderBackendDiagnostics(client)
             .checkConnectivity(100.milliseconds)
-            .status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+
+        connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+        connectivity.reason shouldBeEqualTo LeaderBackendConnectivityReason.PROVIDER_EXCEPTION
     }
 
     @Test

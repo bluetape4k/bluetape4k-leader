@@ -34,6 +34,27 @@ enum class LeaderBackendConnectivityStatus {
     NOT_CHECKED,
 }
 
+/** Connectivity 상태를 만든 bounded 원인입니다. */
+enum class LeaderBackendConnectivityReason {
+    /** passive diagnostics로 probe를 실행하지 않았습니다. */
+    NOT_CHECKED,
+
+    /** 기존 client가 연결 가능한 상태임을 확인했습니다. */
+    CONNECTED,
+
+    /** 기존 client가 종료됐거나 연결되지 않은 상태임을 확인했습니다. */
+    DISCONNECTED,
+
+    /** provider가 안전한 bounded connectivity probe를 지원하지 않습니다. */
+    PROVIDER_UNSUPPORTED,
+
+    /** provider callback의 일반 예외를 안전한 UNKNOWN으로 정규화했습니다. */
+    PROVIDER_EXCEPTION,
+
+    /** client 상태를 읽었지만 연결을 증명할 수 없습니다. */
+    CLIENT_STATE_UNCONFIRMED,
+}
+
 /** Lease 만료 계산의 기준 clock입니다. */
 enum class LeaderBackendClockSource {
     /** 애플리케이션 process clock을 사용합니다. */
@@ -149,10 +170,11 @@ data class LeaderBackendDescriptor(
  *
  * Raw exception, credential, endpoint, lock name은 이 모델에 저장하지 않습니다.
  */
-data class LeaderBackendConnectivity(
+data class LeaderBackendConnectivity @JvmOverloads constructor(
     val status: LeaderBackendConnectivityStatus,
     val checkedAt: Instant? = null,
     val latencyMillis: Long? = null,
+    val reason: LeaderBackendConnectivityReason = status.defaultReason(),
 ) : Serializable {
 
     init {
@@ -160,11 +182,32 @@ data class LeaderBackendConnectivity(
             require(latency >= 0L) { "latencyMillis must not be negative: $latency" }
         }
         if (status == LeaderBackendConnectivityStatus.NOT_CHECKED) {
+            require(reason == LeaderBackendConnectivityReason.NOT_CHECKED) {
+                "NOT_CHECKED connectivity must use NOT_CHECKED reason"
+            }
             require(checkedAt == null && latencyMillis == null) {
                 "NOT_CHECKED connectivity must not contain checkedAt or latencyMillis"
             }
         } else {
             require(checkedAt != null) { "$status connectivity requires checkedAt" }
+            require(reason != LeaderBackendConnectivityReason.NOT_CHECKED) {
+                "$status connectivity must not use NOT_CHECKED reason"
+            }
+            val allowedReasons = when (status) {
+                LeaderBackendConnectivityStatus.UP ->
+                    setOf(LeaderBackendConnectivityReason.CONNECTED)
+                LeaderBackendConnectivityStatus.DOWN ->
+                    setOf(LeaderBackendConnectivityReason.DISCONNECTED)
+                LeaderBackendConnectivityStatus.UNKNOWN -> setOf(
+                    LeaderBackendConnectivityReason.PROVIDER_UNSUPPORTED,
+                    LeaderBackendConnectivityReason.PROVIDER_EXCEPTION,
+                    LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED,
+                )
+                LeaderBackendConnectivityStatus.NOT_CHECKED -> emptySet()
+            }
+            require(reason in allowedReasons) {
+                "$status connectivity does not support reason $reason"
+            }
         }
     }
 
@@ -177,17 +220,63 @@ data class LeaderBackendConnectivity(
 
         /** 연결된 상태를 생성합니다. */
         fun up(checkedAt: Instant, latencyMillis: Long? = null): LeaderBackendConnectivity =
-            LeaderBackendConnectivity(LeaderBackendConnectivityStatus.UP, checkedAt, latencyMillis)
+            up(checkedAt, latencyMillis, LeaderBackendConnectivityReason.CONNECTED)
+
+        /** 연결된 상태를 bounded 원인과 함께 생성합니다. */
+        fun up(
+            checkedAt: Instant,
+            latencyMillis: Long? = null,
+            reason: LeaderBackendConnectivityReason,
+        ): LeaderBackendConnectivity =
+            LeaderBackendConnectivity(LeaderBackendConnectivityStatus.UP, checkedAt, latencyMillis, reason)
 
         /** 연결되지 않은 상태를 생성합니다. */
         fun down(checkedAt: Instant, latencyMillis: Long? = null): LeaderBackendConnectivity =
-            LeaderBackendConnectivity(LeaderBackendConnectivityStatus.DOWN, checkedAt, latencyMillis)
+            down(checkedAt, latencyMillis, LeaderBackendConnectivityReason.DISCONNECTED)
+
+        /** 연결되지 않은 상태를 bounded 원인과 함께 생성합니다. */
+        fun down(
+            checkedAt: Instant,
+            latencyMillis: Long? = null,
+            reason: LeaderBackendConnectivityReason,
+        ): LeaderBackendConnectivity =
+            LeaderBackendConnectivity(LeaderBackendConnectivityStatus.DOWN, checkedAt, latencyMillis, reason)
 
         /** 안전한 검사로 상태를 확정하지 못한 결과를 생성합니다. */
         fun unknown(checkedAt: Instant, latencyMillis: Long? = null): LeaderBackendConnectivity =
-            LeaderBackendConnectivity(LeaderBackendConnectivityStatus.UNKNOWN, checkedAt, latencyMillis)
+            unknown(checkedAt, latencyMillis, LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED)
+
+        /** 안전한 검사로 상태를 확정하지 못한 결과를 bounded 원인과 함께 생성합니다. */
+        fun unknown(
+            checkedAt: Instant,
+            latencyMillis: Long? = null,
+            reason: LeaderBackendConnectivityReason,
+        ): LeaderBackendConnectivity =
+            LeaderBackendConnectivity(LeaderBackendConnectivityStatus.UNKNOWN, checkedAt, latencyMillis, reason)
     }
+
+    /** 기존 3-field JVM/Kotlin 호출자의 copy descriptor를 보존합니다. */
+    @Suppress("unused")
+    fun copy(
+        status: LeaderBackendConnectivityStatus,
+        checkedAt: Instant?,
+        latencyMillis: Long?,
+    ): LeaderBackendConnectivity =
+        LeaderBackendConnectivity(
+            status = status,
+            checkedAt = checkedAt,
+            latencyMillis = latencyMillis,
+            reason = if (status == this.status) reason else status.defaultReason(),
+        )
 }
+
+private fun LeaderBackendConnectivityStatus.defaultReason(): LeaderBackendConnectivityReason =
+    when (this) {
+        LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivityReason.CONNECTED
+        LeaderBackendConnectivityStatus.DOWN -> LeaderBackendConnectivityReason.DISCONNECTED
+        LeaderBackendConnectivityStatus.UNKNOWN -> LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED
+        LeaderBackendConnectivityStatus.NOT_CHECKED -> LeaderBackendConnectivityReason.NOT_CHECKED
+    }
 
 /** 정적 backend descriptor와 선택적인 connectivity 결과입니다. */
 data class LeaderBackendDiagnostics(
@@ -216,7 +305,10 @@ interface LeaderBackendDiagnosticsProvider {
      * 안전한 bounded 검사를 제공하지 않는 구현은 `UNKNOWN`을 반환합니다.
      */
     fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity {
-        return LeaderBackendDiagnosticsProbe.check(timeout) {
+        return LeaderBackendDiagnosticsProbe.check(
+            timeout = timeout,
+            unknownReason = LeaderBackendConnectivityReason.PROVIDER_UNSUPPORTED,
+        ) {
             LeaderBackendConnectivityStatus.UNKNOWN
         }
     }

@@ -4,6 +4,7 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendCapabilities
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
 import io.bluetape4k.leader.diagnostics.LeaderBackendDescriptor
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe
@@ -46,7 +47,10 @@ object MongoLeaderBackendDiagnostics : LeaderBackendDiagnosticsProvider {
 
     /** lock collection만으로 bounded 연결 성공을 증명하지 않고 UNKNOWN을 반환합니다. */
     override fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity {
-        return LeaderBackendDiagnosticsProbe.check(timeout) {
+        return LeaderBackendDiagnosticsProbe.check(
+            timeout = timeout,
+            unknownReason = LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED,
+        ) {
             LeaderBackendConnectivityStatus.UNKNOWN
         }
     }
