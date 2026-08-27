@@ -7,6 +7,7 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
@@ -44,6 +45,16 @@ class ExposedR2DbcSuspendLeaderGroupElectorFactoryTest : AbstractExposedR2dbcLea
         val elector = factory.create(opts)
         elector.shouldNotBeNull()
         elector.maxLeaders shouldBeEqualTo 5
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `create - useDbTime 옵션을 Exposed R2DBC elector에 전달`(testDB: TestR2dbcDB) = runSuspendIO {
+        val factory = makeFactory(testDB)
+        val elector = factory.create(LeaderGroupElectionOptions(maxLeaders = 3, useDbTime = true))
+            .shouldBeInstanceOf<ExposedR2DbcSuspendLeaderGroupElector>()
+
+        elector.options.leaderGroupOptions.useDbTime.shouldBeTrue()
     }
 
     @ParameterizedTest

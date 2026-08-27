@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.aop
 
 import io.bluetape4k.leader.LeaderGroupElectionException
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
@@ -18,6 +19,8 @@ import io.mockk.verify
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.assertions.assertFailsWith
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -55,6 +58,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         suspend fun runSuspendFailOpen(): String?
         suspend fun runSuspendSkip(): String?
         suspend fun runSuspendInvalidName(): String?
+        suspend fun runSuspendDbTime(): String?
     }
 
     private class SuspendGroupServiceImpl : SuspendGroupService {
@@ -69,6 +73,9 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
         @LeaderGroupElection(name = "ns.subns.group-suspend", maxLeaders = 3)
         override suspend fun runSuspendInvalidName(): String? = SAMPLE_RESULT
+
+        @LeaderGroupElection(name = "g-suspend-db-time", maxLeaders = 3, useDbTime = true)
+        override suspend fun runSuspendDbTime(): String? = SAMPLE_RESULT
     }
 
     // ── Mono 서비스 정의 ────────────────────────────────────────────────────
@@ -77,6 +84,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         fun runMono(): Mono<String>
         fun runMonoFailOpen(): Mono<String>
         fun runMonoInvalidName(): Mono<String>
+        fun runMonoDbTime(): Mono<String>
     }
 
     private class MonoGroupServiceImpl : MonoGroupService {
@@ -88,6 +96,9 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
         @LeaderGroupElection(name = "ns.subns.group-mono", maxLeaders = 3)
         override fun runMonoInvalidName(): Mono<String> = Mono.just(SAMPLE_RESULT)
+
+        @LeaderGroupElection(name = "g-mono-db-time", maxLeaders = 3, useDbTime = true)
+        override fun runMonoDbTime(): Mono<String> = Mono.just(SAMPLE_RESULT)
     }
 
     private interface StreamGroupService {
@@ -127,6 +138,17 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
     private fun fakeGroupFactory(elector: SuspendLeaderGroupElector): SuspendLeaderGroupElectorFactory =
         SuspendLeaderGroupElectorFactory { _ -> elector }
+
+    private class CapturingGroupFactory(
+        private val elector: SuspendLeaderGroupElector,
+    ) : SuspendLeaderGroupElectorFactory {
+        var options: LeaderGroupElectionOptions? = null
+
+        override suspend fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector {
+            this.options = options
+            return elector
+        }
+    }
 
     // ── MockK mocks ─────────────────────────────────────────────────────────
 
@@ -210,6 +232,18 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val result = runSuspendAspect(aspect)
 
         result.shouldBeNull()
+    }
+
+    @Test
+    fun `group suspend useDbTime - annotation 옵션이 factory에 전달`() = runTest {
+        configureSuspendPjp("runSuspendDbTime", SuspendGroupServiceImpl())
+        every { pjp.proceed(any<Array<Any?>>()) } returns SAMPLE_RESULT
+        val factory = CapturingGroupFactory(ElectedGroupElector())
+
+        val result = runSuspendAspect(newAspect(factory))
+
+        result shouldBeEqualTo SAMPLE_RESULT
+        factory.options.shouldNotBeNull().useDbTime.shouldBeTrue()
     }
 
     @Test
@@ -302,6 +336,18 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val result = (aspect.aroundLeader(pjp) as Mono<*>).block()
 
         result.shouldBeNull()
+    }
+
+    @Test
+    fun `group mono useDbTime - annotation 옵션이 factory에 전달`() {
+        configureMonoJoinPoint("runMonoDbTime", MonoGroupServiceImpl())
+        every { pjp.proceed() } returns Mono.just(SAMPLE_RESULT)
+        val factory = CapturingGroupFactory(ElectedGroupElector())
+
+        val result = (newAspect(factory).aroundLeader(pjp) as Mono<*>).block()
+
+        result shouldBeEqualTo SAMPLE_RESULT
+        factory.options.shouldNotBeNull().useDbTime.shouldBeTrue()
     }
 
     @Test

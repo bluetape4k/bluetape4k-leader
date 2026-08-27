@@ -215,6 +215,12 @@
       "defaultValue": "PT1M"
     },
     {
+      "name": "bluetape4k.leader.group.use-db-time",
+      "type": "java.lang.Boolean",
+      "description": "Use database server time for Exposed JDBC/R2DBC group ownership.",
+      "defaultValue": false
+    },
+    {
       "name": "bluetape4k.leader.diagnostics.enabled",
       "type": "java.lang.Boolean",
       "description": "Run leader startup diagnostics after auto-configuration creates leader beans.",

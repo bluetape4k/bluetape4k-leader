@@ -24,6 +24,7 @@ import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.AnnotationLookup
 import io.bluetape4k.leader.spring.aop.util.DurationParser
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
+import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -57,6 +58,7 @@ import kotlin.time.toKotlinDuration
  * @property spel Spring Boot integration 계약에서 사용하는 속성입니다.
  * @property lockNameValidator Spring Boot integration 계약에서 사용하는 속성입니다.
  * @property recorders Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property groupProperties 공통 Spring group 정책과 annotation 정책을 결합하는 설정입니다.
  */
 @Suppress("ReactiveStreamsUnusedPublisher")
 @Aspect
@@ -66,7 +68,17 @@ class LeaderGroupElectionAspect(
     private val spel: SpelExpressionEvaluator,
     private val lockNameValidator: LockNameValidator,
     private val recorders: List<LeaderAopMetricsRecorder>,
+    private val groupProperties: LeaderGroupProperties = LeaderGroupProperties(),
 ): SmartInitializingSingleton {
+
+    /** `useDbTime` 정책 추가 전에 공개된 다섯 인자 생성자 descriptor를 보존합니다. */
+    constructor(
+        beanSelector: LeaderBeanSelector,
+        props: LeaderAopProperties,
+        spel: SpelExpressionEvaluator,
+        lockNameValidator: LockNameValidator,
+        recorders: List<LeaderAopMetricsRecorder>,
+    ) : this(beanSelector, props, spel, lockNameValidator, recorders, LeaderGroupProperties())
 
     private val metadataCache = ConcurrentHashMap<Method, GroupAdviceMetadata>()
     private val factoryCache = ConcurrentHashMap<GroupFactoryCacheKey, LeaderGroupElector>()
@@ -590,6 +602,7 @@ class LeaderGroupElectionAspect(
             waitTime = waitTime,
             leaseTime = leaseTime,
             minLeaseTime = minLeaseTime,
+            useDbTime = groupProperties.useDbTime || ann.useDbTime,
         )
         val selected = beanSelector.selectGroupElectionFactory(ann.bean, method)
         val literal = if (LITERAL_PATTERN.matches(ann.name)) ann.name else null

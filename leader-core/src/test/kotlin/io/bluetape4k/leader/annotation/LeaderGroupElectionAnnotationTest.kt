@@ -2,6 +2,7 @@ package io.bluetape4k.leader.annotation
 
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -24,6 +25,7 @@ class LeaderGroupElectionAnnotationTest {
         minLeaseTime = "PT10S",
         bean = "redissonLeaderGroupElectionFactory",
         failureMode = LeaderAspectFailureMode.RETHROW,
+        useDbTime = true,
     )
     fun fullyAnnotatedMethod() {}
 
@@ -37,6 +39,7 @@ class LeaderGroupElectionAnnotationTest {
         annotation.minLeaseTime shouldBeEqualTo "PT0S"
         annotation.bean shouldBeEqualTo ""
         annotation.failureMode shouldBeEqualTo LeaderAspectFailureMode.INHERIT
+        annotation.useDbTime.shouldBeFalse()
     }
 
     @Test
@@ -49,6 +52,7 @@ class LeaderGroupElectionAnnotationTest {
         annotation.minLeaseTime shouldBeEqualTo "PT10S"
         annotation.bean shouldBeEqualTo "redissonLeaderGroupElectionFactory"
         annotation.failureMode shouldBeEqualTo LeaderAspectFailureMode.RETHROW
+        annotation.useDbTime.shouldBeTrue()
     }
 
     @Test

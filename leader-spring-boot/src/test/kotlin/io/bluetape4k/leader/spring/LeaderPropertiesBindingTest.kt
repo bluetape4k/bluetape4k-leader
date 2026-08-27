@@ -38,6 +38,7 @@ class LeaderPropertiesBindingTest {
                 "bluetape4k.leader.group.max-leaders" to "5",
                 "bluetape4k.leader.group.wait-time" to "3s",
                 "bluetape4k.leader.group.lease-time" to "45s",
+                "bluetape4k.leader.group.use-db-time" to "true",
                 "bluetape4k.leader.mongo.single-collection" to "single_election",
                 "bluetape4k.leader.mongo.group-collection" to "group_election",
                 "bluetape4k.leader.etcd.key-prefix" to "/apps/orders/leader",
@@ -68,6 +69,7 @@ class LeaderPropertiesBindingTest {
         props.group.maxLeaders shouldBeEqualTo 5
         props.group.waitTime shouldBeEqualTo Duration.ofSeconds(3)
         props.group.leaseTime shouldBeEqualTo Duration.ofSeconds(45)
+        props.group.useDbTime.shouldBeTrue()
         props.mongo.singleCollection shouldBeEqualTo "single_election"
         props.mongo.groupCollection shouldBeEqualTo "group_election"
         props.etcd.keyPrefix shouldBeEqualTo "/apps/orders/leader"
@@ -101,6 +103,7 @@ class LeaderPropertiesBindingTest {
         props.waitTime shouldBeEqualTo Duration.ofSeconds(5)
         props.leaseTime shouldBeEqualTo Duration.ofSeconds(60)
         props.group.maxLeaders shouldBeEqualTo 2
+        props.group.useDbTime.shouldBeFalse()
         props.mongo.singleCollection shouldBeEqualTo "leader_election"
         props.mongo.groupCollection shouldBeEqualTo "leader_group_election"
         props.etcd.keyPrefix shouldBeEqualTo "/bluetape4k/leader"
@@ -178,6 +181,7 @@ class LeaderPropertiesBindingTest {
 
         opts.waitTime shouldBeEqualTo 5.seconds
         opts.leaseTime shouldBeEqualTo 60.seconds
+        opts.useDbTime.shouldBeFalse()
     }
 
     @Test
@@ -202,6 +206,7 @@ class LeaderPropertiesBindingTest {
         opts.maxLeaders shouldBeEqualTo 2
         opts.waitTime shouldBeEqualTo 5.seconds
         opts.leaseTime shouldBeEqualTo 60.seconds
+        opts.useDbTime.shouldBeFalse()
     }
 
     @Test
@@ -210,12 +215,14 @@ class LeaderPropertiesBindingTest {
             maxLeaders = 5,
             waitTime = Duration.ofSeconds(3),
             leaseTime = Duration.ofMinutes(1),
+            useDbTime = true,
         )
         val opts = props.toOptions()
 
         opts.maxLeaders shouldBeEqualTo 5
         opts.waitTime shouldBeEqualTo 3.seconds
         opts.leaseTime shouldBeEqualTo 60.seconds
+        opts.useDbTime.shouldBeTrue()
     }
 
     @EnableConfigurationProperties(LeaderProperties::class)

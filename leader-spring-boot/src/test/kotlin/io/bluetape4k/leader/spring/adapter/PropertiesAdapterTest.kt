@@ -30,12 +30,14 @@ class PropertiesAdapterTest {
                 maxLeaders = 4,
                 waitTime = Duration.ofSeconds(2),
                 leaseTime = Duration.ofSeconds(30),
+                useDbTime = true,
             ),
         )
         val options = PropertiesAdapter.toCommonGroup(props)
         options.maxLeaders shouldBeEqualTo 4
         options.waitTime shouldBeEqualTo 2.seconds
         options.leaseTime shouldBeEqualTo 30.seconds
+        options.useDbTime shouldBeEqualTo true
     }
 
     @Test
@@ -49,5 +51,6 @@ class PropertiesAdapterTest {
     fun `default group 옵션은 maxLeaders 2`() {
         val options = PropertiesAdapter.toCommonGroup(LeaderProperties())
         options.maxLeaders shouldBeEqualTo 2
+        options.useDbTime shouldBeEqualTo false
     }
 }
