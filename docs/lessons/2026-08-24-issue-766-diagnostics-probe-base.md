@@ -45,25 +45,25 @@ manual의 `releaseRef`/`releaseCommit`이 가리키는 0.5.0에는 새 public he
 
 ## 검증 증거
 
-- affected XML aggregate: `leader-core` 853, MongoDB 135, Lettuce 232,
-  Redisson diagnostics 7, Hazelcast 119, ZooKeeper 102, Ktor 29, Spring Boot
-  574; 총 2,051 tests, failures 0, errors 0, skipped 0.
-- `detekt`는 core, MongoDB, Lettuce, Redisson, Hazelcast, ZooKeeper, Ktor,
-  Spring Boot 8개 모듈에서 성공했습니다.
+- 현재 `origin/develop`에 rebase한 HEAD에서 targeted diagnostics test는
+  `leader-core` 25, Lettuce 7, Redisson 7, Hazelcast 7, ZooKeeper 7,
+  MongoDB 4, Ktor 12, Spring Boot 16건을 모두 통과했습니다.
+- stale test report를 먼저 제거한 뒤 affected 8개 모듈의 전체 테스트와
+  `detekt`를 `--no-daemon --no-configuration-cache --max-workers=1`로
+  실행했습니다. XML aggregate는 총 2,652 tests, failures 0, errors 0,
+  skipped 0이며 Gradle은 4분 1초 만에 `BUILD SUCCESSFUL`을 반환했습니다.
+- affected 8개 모듈의 `build -x test`도 같은 rebase HEAD에서
+  `BUILD SUCCESSFUL`이었습니다.
 - Kotlin consumer smoke는 `kotlinc`, core jar의 helper class 검색, `javap`의
   singleton `INSTANCE`와 `check-…(long, java.time.Clock, Function1)` ABI 검사를
   통과했습니다. legacy `checkConnectivity`/`diagnostics` override 두 형태도
   외부 consumer source로 컴파일했습니다.
-- `ABI_BASE_VERSION=0.5.0 ABI_CURRENT_VERSION=1.0.0 ... checkBinaryCompatibility`
-  는 feature branch와 clean `develop`에서 모두 실패했습니다. core의 compiler
-  synthetic accessor, Exposed 내부 facade, Spring synthetic/config ABI,
-  ZooKeeper unclassified 항목 등 기준선에 이미 존재하는 차이이며 이번 helper의
-  additive ABI 실패로 단정하지 않습니다.
-- Redisson 전체 suite의
-  `RedissonSuspendLeaderGroupElectorTest.코루틴 취소 + minLeaseTime 보유 - NonCancellable 로 score 갱신 보장()`
-  실패도 feature branch와 clean `develop`에서 동일하게 재현되었습니다. 이
-  baseline blocker 때문에 해당 모듈은 diagnostics 7개 targeted test로 별도
-  검증했으며, 나머지 affected full suite는 모두 성공했습니다.
+- `ABI_BASE_VERSION=0.5.0 ABI_CURRENT_VERSION=1.0.0 ./gradlew --no-daemon
+  --no-configuration-cache --max-workers=1 --console=plain
+  checkBinaryCompatibility`도 현재 rebase HEAD에서 `BUILD SUCCESSFUL`입니다.
+- 과거 pre-rebase/stale report의 ABI 및 Redisson baseline 실패 관찰은 현재
+  검증 결과로 대체되었습니다. 현재 fresh affected suite에서는 해당 실패가
+  재현되지 않았으므로 과거 결과를 이번 변경의 blocker로 사용하지 않습니다.
 
 ## 다음 변경자에게 적용할 규칙
 
