@@ -29,7 +29,7 @@ abstract class AbstractExposedJdbcLeaderTest {
          */
         @JvmStatic
         fun enableDialects(): List<TestDB> {
-            val filter = System.getenv("LEADER_TEST_DB")?.uppercase()
+            val filter = System.getenv("LEADER_TEST_DB")?.trim()?.uppercase()
                 ?: return listOf(TestDB.H2, TestDB.POSTGRESQL, TestDB.MYSQL_V8)
 
             return when (filter) {
