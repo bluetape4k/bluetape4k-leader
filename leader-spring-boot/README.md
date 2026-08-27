@@ -397,7 +397,7 @@ Metrics and Observations are independent:
 | `bluetape4k.leader.aop.metrics.tags.lock-name.mode` | `REDACT` | Export policy for meter `lock.name` tags |
 | `bluetape4k.leader.aop.metrics.tags.lock-name.redacted-value` | `redacted-lock` | Sentinel for redacted lock names |
 | `bluetape4k.leader.aop.metrics.tags.leader-id.mode` | `REDACT` | Export policy for opt-in Observation `leader.id` values |
-| `bluetape4k.leader.aop.metrics.tags.backend-name.mode` | `RAW` | Export policy for bounded backend labels when custom or future meter paths emit `backend.name`; current built-in meters do not emit it |
+| `bluetape4k.leader.aop.metrics.tags.backend-name.mode` | `RAW` | Export policy for bounded backend labels; the active diagnostics meter emits sanitized `backend.name`, while other built-in meters do not |
 | `bluetape4k.leader.observability.enabled` | `true` | Parent switch for leader observability and tracing |
 | `bluetape4k.leader.observability.health.acquisition-failure-window` | `5m` | Bounded window for aggregate AOP backend acquisition failures |
 | `bluetape4k.leader.observability.tracing.enabled` | `true` | Observation recorder and listener |
@@ -814,6 +814,14 @@ bluetape4k:
 ```
 
 `UP` and `DOWN` map directly to Spring health statuses. `UNKNOWN` and `NOT_CHECKED` map to Spring `UNKNOWN`. Both surfaces use the same elector selection as `bluetape4k.leader.observability.state-provider-bean`; when the selected elector does not expose a `LeaderBackendDiagnosticsProvider`, the typed endpoint and health indicator are not registered.
+
+For a successful diagnostics result, the health indicator adds the bounded
+`reason` enum name to its allow-listed details. `CONNECTED` explains `UP`,
+`DISCONNECTED` explains `DOWN`, and `CLIENT_STATE_UNCONFIRMED`,
+`PROVIDER_UNSUPPORTED`, or `PROVIDER_EXCEPTION` explain an `UNKNOWN` result.
+The static endpoint reports `NOT_CHECKED` with the matching reason. This detail
+is not a readiness decision: `LeaderElectionReadinessHealthIndicator` continues
+to own the separate JVM-local lock and lease signal.
 
 If the active backend probe throws an ordinary provider exception, the health indicator reports `UNKNOWN` without copying the `error` key, exception class/message/cause, endpoint, token, or credential into Actuator details. This remains true when `management.endpoint.health.show-details=always`; only the indicator's allow-listed details are returned. Fatal JVM `Error` values are not normalized and are rethrown. Keep the endpoint protected even with sanitized failures because the probe still performs live backend I/O.
 

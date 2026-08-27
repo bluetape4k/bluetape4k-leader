@@ -128,6 +128,9 @@ notification route를 서비스 상황에 맞게 조정하세요.
 |---|---|---|
 | `LeaderElectionNoAcquisitions` | 작업은 계속 시도하지만 어느 instance도 `leader_aop_acquired_total` 증가를 보고하지 않습니다. | Redis 접근성, lock key contention, scheduler 주기, 모든 instance가 같은 backend를 쓰는지 확인합니다. |
 | `LeaderElectionBackendErrors` | AOP 경로가 lock 획득에서 `reason="BACKEND_ERROR"`를 보고합니다. | worker 재시작 전에 `leader backend error` 주변 로그, Redis 상태, network 오류, failure-mode 설정을 확인합니다. |
+| `LeaderBackendConnectivityDown` | active backend probe가 5분 동안 `status="DOWN",reason="DISCONNECTED"`를 보고합니다. 예제 rule은 warning 전용이고 `notification: no-page`입니다. | 기존 client, backend 접근성, provider timeout을 확인합니다. 이 결과를 orphan lock의 증거나 강제 lease 해제 근거로 사용하지 마세요. |
+| `LeaderBackendConnectivityUnknown` | active probe가 10분 동안 `CLIENT_STATE_UNCONFIRMED` 또는 `PROVIDER_UNSUPPORTED` reason의 `UNKNOWN`을 보고합니다. info/no-page 신호이며 `DOWN`이 아닙니다. | Provider capability와 native timeout 설정을 확인하세요. Passive diagnostics는 counter를 만들지 않으므로 `NOT_CHECKED`를 이 alert에 포함하지 않습니다. |
+| `LeaderBackendConnectivityProbeExceptions` | 일반 provider 예외가 `PROVIDER_EXCEPTION` reason의 `UNKNOWN`으로 정규화된 상태가 10분 지속됩니다. 예제 rule은 warning 전용이고 `notification: no-page`입니다. | 보호된 애플리케이션 로그와 provider-native 진단을 확인하되 예외 원문을 label에 복사하지 마세요. Probe 지연이 request budget을 넘으면 active probe를 우회합니다. |
 | `LeaderElectionTaskFailures` | lock 획득 후 elected task 본문에서 예외가 발생했습니다. | `exception` label로 실패 코드 경로를 찾고, 애플리케이션 로그를 확인하며, 수정 중에도 lock backend는 유지합니다. |
 | `LeaderHistorySinkFailures` | 실제 history/audit sink가 leader history 기록 중 예외를 던졌습니다. Demo는 `NoopLeaderHistorySink`를 제외합니다. | sink credential, schema/index 상태, write capacity, retention job을 확인합니다. Leader 실행은 계속될 수 있지만 audit 내구성은 낮아진 상태입니다. |
 | `LeaderHistoryAcquireMissing` | 실제 history sink가 elected work에 대한 acquire key를 반환하지 않았습니다. Demo는 의도적으로 key를 반환하지 않는 `NoopLeaderHistorySink`를 제외합니다. | 중복 record, storage unavailable, sink별 conditional write conflict를 확인합니다. |
@@ -143,6 +146,12 @@ alert는 문제가 있는 `instance` label을 보존하려고 의도적으로 ra
 `exception`은 예외 클래스 이름 tag입니다. Exception별 alert/dashboard view는
 내부용으로 유지하세요. Cardinality나 구현 상세 노출이 문제라면
 `sum by (lock_name)`으로 접으세요.
+
+Backend connectivity counter는 Prometheus 이름 변환 후
+`leader_backend_connectivity_total`입니다. label은 정제된 `backend_name`,
+네 가지 status, 여섯 가지 bounded reason뿐입니다. 위 rule은 `for` 지속 시간과
+`notification: no-page`를 사용합니다. `UNKNOWN`을 `DOWN`으로 다시 쓰지 않으며,
+passive `NOT_CHECKED` diagnostics는 series를 만들지 않습니다.
 
 이 demo는 `MicrometerSafeLeaderHistoryRecorder`를 `NoopLeaderHistorySink`와
 함께 등록해 `leader_history_*` meter가 보이게 합니다. Alert rule은 no-op sink가
@@ -172,6 +181,9 @@ sum by (sink) (rate(leader_history_acquire_missing_total[5m]))
 sum by (lock_name) (rate(leader_aop_execution_duration_seconds_sum[1m]))
   / sum by (lock_name) (rate(leader_aop_execution_duration_seconds_count[1m]))
 max by (lock_name) (leader_aop_active)
+sum by (backend_name, status, reason) (rate(leader_backend_connectivity_total[5m]))
+sum by (backend_name) (rate(leader_backend_connectivity_total{status="DOWN",reason="DISCONNECTED"}[5m]))
+sum by (backend_name, reason) (rate(leader_backend_connectivity_total{status="UNKNOWN"}[5m]))
 ```
 
 `leader_aop_active`는 JVM-local gauge이므로 멀티 인스턴스에서는 `sum` 대신

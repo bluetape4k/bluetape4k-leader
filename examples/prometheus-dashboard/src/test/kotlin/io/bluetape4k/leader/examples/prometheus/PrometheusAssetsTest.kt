@@ -36,6 +36,14 @@ class PrometheusAssetsTest {
         rules.contains("""leader_history_acquire_missing_total{sink!="NoopLeaderHistorySink"}""").shouldBeTrue()
         rules.contains("""leader_aop_active{lock_name="dashboard-job"} > 1""").shouldBeTrue()
         rules.contains("leader_aop_execution_duration_seconds_sum").shouldBeTrue()
+        rules.contains("leader_backend_connectivity_total").shouldBeTrue()
+        rules.contains("""leader_backend_connectivity_total{status="DOWN",reason="DISCONNECTED"}""").shouldBeTrue()
+        rules.contains(
+            """leader_backend_connectivity_total{status="UNKNOWN",reason="PROVIDER_EXCEPTION"}""",
+        ).shouldBeTrue()
+        rules.contains("notification: no-page").shouldBeTrue()
+        rules.contains("for: 5m").shouldBeTrue()
+        rules.contains("for: 10m").shouldBeTrue()
         rules.contains("""absent(up{job="bluetape4k-leader"}) or up{job="bluetape4k-leader"} == 0""")
             .shouldBeTrue()
         rules.contains(
@@ -86,6 +94,11 @@ class PrometheusAssetsTest {
             readme.contains("examples-prometheus-dashboard-alert-runbook-01.png").shouldBeTrue()
             readme.contains("leader-alerts.yml").shouldBeTrue()
             readme.contains("LeaderElectionBackendErrors").shouldBeTrue()
+            readme.contains("LeaderBackendConnectivityDown").shouldBeTrue()
+            readme.contains("LeaderBackendConnectivityUnknown").shouldBeTrue()
+            readme.contains("LeaderBackendConnectivityProbeExceptions").shouldBeTrue()
+            readme.contains("leader_backend_connectivity_total").shouldBeTrue()
+            readme.contains("PROVIDER_EXCEPTION").shouldBeTrue()
             readme.contains("LeaderHistorySinkFailures").shouldBeTrue()
             readme.contains("max by (lock_name) (leader_aop_active)").shouldBeTrue()
         }
@@ -120,6 +133,9 @@ class PrometheusAssetsTest {
             "LeaderActiveGaugeAnomaly",
             "LeaderLeaseRiskHighExecutionTime",
             "LeaderPrometheusScrapeMissing",
+            "LeaderBackendConnectivityDown",
+            "LeaderBackendConnectivityUnknown",
+            "LeaderBackendConnectivityProbeExceptions",
         )
 
         private fun findProjectRoot(start: Path): Path =

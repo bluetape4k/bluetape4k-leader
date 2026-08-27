@@ -378,7 +378,7 @@ Metrics와 Observation은 별도 스위치를 가집니다.
 | `bluetape4k.leader.aop.metrics.tags.lock-name.mode` | `REDACT` | meter `lock.name` tag export 정책 |
 | `bluetape4k.leader.aop.metrics.tags.lock-name.redacted-value` | `redacted-lock` | redaction된 lock name sentinel |
 | `bluetape4k.leader.aop.metrics.tags.leader-id.mode` | `REDACT` | opt-in Observation `leader.id` 값 export 정책 |
-| `bluetape4k.leader.aop.metrics.tags.backend-name.mode` | `RAW` | custom 또는 future meter path가 `backend.name`을 emit할 때 cardinality가 제한된 backend label export 정책; 현재 built-in meter는 emit하지 않음 |
+| `bluetape4k.leader.aop.metrics.tags.backend-name.mode` | `RAW` | bounded backend label의 export 정책; active diagnostics meter는 정제된 `backend.name`을 emit하고 그 밖의 built-in meter는 emit하지 않음 |
 | `bluetape4k.leader.observability.enabled` | `true` | leader observability와 tracing의 parent switch |
 | `bluetape4k.leader.observability.health.acquisition-failure-window` | `5m` | AOP backend 획득 실패 aggregate의 bounded window |
 | `bluetape4k.leader.observability.tracing.enabled` | `true` | Observation recorder/listener |
@@ -786,6 +786,14 @@ bluetape4k:
 ```
 
 `UP`과 `DOWN`은 같은 이름의 Spring health status로 매핑됩니다. `UNKNOWN`과 `NOT_CHECKED`는 Spring `UNKNOWN`으로 매핑됩니다. 두 surface는 `bluetape4k.leader.observability.state-provider-bean`과 같은 elector 선택 규칙을 사용합니다. 선택된 elector가 `LeaderBackendDiagnosticsProvider`를 노출하지 않으면 typed endpoint와 health indicator를 등록하지 않습니다.
+
+Diagnostics 결과가 정상적으로 반환되면 health indicator는 allow-list detail에
+제한된 `reason` enum name을 추가합니다. `CONNECTED`는 `UP`을,
+`DISCONNECTED`는 `DOWN`을 설명하며 `CLIENT_STATE_UNCONFIRMED`,
+`PROVIDER_UNSUPPORTED`, `PROVIDER_EXCEPTION`은 `UNKNOWN`의 원인을
+구분합니다. 정적 endpoint는 `NOT_CHECKED` 상태와 같은 reason을 반환합니다.
+이 detail은 readiness 판단이 아닙니다. 별도의 JVM-local lock·lease 신호는
+계속 `LeaderElectionReadinessHealthIndicator`가 소유합니다.
 
 활성 backend probe가 일반 provider 예외를 던지면 health indicator는 이를 `UNKNOWN`으로 정규화하고 `error` 키, 예외 class/message/cause, endpoint, token, credential을 Actuator detail에 복사하지 않습니다. `management.endpoint.health.show-details=always`여도 이 계약을 유지하며 indicator의 allow-list detail만 반환합니다. 치명적인 JVM `Error`는 정규화하지 않고 재전파합니다. Probe는 실제 backend I/O를 수행하므로 실패 내용을 정제하더라도 endpoint 접근은 계속 보호해야 합니다.
 

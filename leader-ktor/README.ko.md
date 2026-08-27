@@ -398,6 +398,23 @@ install(LeaderElectionPlugin) {
 
 Route는 설정된 제한 시간으로 `Dispatchers.IO`에서 `LeaderBackendDiagnosticsProvider.checkConnectivity()`를 한 번 호출합니다. 지원하지 않거나 판정할 수 없는 검사는 `UNKNOWN`을 반환합니다. Elector는 provider를 직접 노출하거나 `LeaderBackendDiagnosticsAware`를 통해 제공할 수 있습니다. Diagnostics가 활성화됐지만 provider를 찾지 못하면 플러그인 설치 단계에서 명확한 오류와 함께 실패합니다.
 
+JSON payload는 기존 `descriptor`와 connectivity field를 유지하면서 제한된
+`connectivity.reason` field를 추가합니다.
+
+| 상태 | Reason | Route 의미 |
+|---|---|---|
+| `UP` | `CONNECTED` | active probe 시점에 backend 연결 가능 상태를 확인했습니다. |
+| `DOWN` | `DISCONNECTED` | active probe가 backend를 사용할 수 없음을 확인했습니다. |
+| `UNKNOWN` | `CLIENT_STATE_UNCONFIRMED`, `PROVIDER_UNSUPPORTED`, `PROVIDER_EXCEPTION` | 연결을 확정하지 못했으며 자동으로 `DOWN`으로 승격하지 않습니다. |
+| `NOT_CHECKED` | `NOT_CHECKED` | probe 없는 passive diagnostics이며 readiness의 증거가 아닙니다. |
+
+Active diagnostics 결과가 정상적으로 직렬화되면 route는 HTTP 200을 유지하고
+backend 의미를 JSON의 `status`와 `reason`에 담습니다. Custom provider 예외나
+cancellation, interruption, 치명적인 `Error`, 잘못된 `NOT_CHECKED` 결과가 내장
+probe 밖으로 전파되면 HTTP status는 애플리케이션 Ktor pipeline과
+`StatusPages` 정책이 소유합니다. Route가 임의의 synthetic JSON 오류로 바꾸지
+않습니다.
+
 내장 provider는 `LeaderBackendDiagnosticsProbe.check`를 사용합니다. callback의 일반 예외는 `UNKNOWN`인 HTTP 200 응답이 되지만 cancellation, interruption, 치명적인 `Error`, 잘못된 `NOT_CHECKED` 결과는 caller-owned pipeline 실패로 남습니다. Custom provider override는 route가 다시 작성하지 않으며 기존 예외 정책을 유지합니다.
 
 신뢰된 management boundary 밖으로 노출하기 전에 route를 보호하세요. 연결 진단 결과는 현재 프로세스가 leader lease를 보유한다는 증거가 아닙니다.

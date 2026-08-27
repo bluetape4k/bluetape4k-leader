@@ -129,6 +129,9 @@ your production monitoring stack.
 |---|---|---|
 | `LeaderElectionNoAcquisitions` | The job keeps attempting but no instance reports `leader_aop_acquired_total` growth. | Check Redis reachability, lock key contention, scheduler cadence, and whether all instances share the same backend. |
 | `LeaderElectionBackendErrors` | The AOP path reports `reason="BACKEND_ERROR"` for lock acquisition. | Inspect app logs around `leader backend error`, Redis health, network errors, and failure-mode settings before restarting workers. |
+| `LeaderBackendConnectivityDown` | An active backend probe has reported `status="DOWN",reason="DISCONNECTED"` for 5 minutes. The example rule is warning-only and `notification: no-page`. | Check the existing client, backend reachability, and provider timeout. Do not treat this as proof that a lock is orphaned or force-release a lease. |
+| `LeaderBackendConnectivityUnknown` | An active probe has remained `UNKNOWN` with `CLIENT_STATE_UNCONFIRMED` or `PROVIDER_UNSUPPORTED` for 10 minutes. This is an info, no-page signal, not `DOWN`. | Confirm provider capability and native timeout settings. Keep passive `NOT_CHECKED` out of this alert because passive diagnostics emit no counter. |
+| `LeaderBackendConnectivityProbeExceptions` | Ordinary provider exceptions were normalized to `UNKNOWN` with `PROVIDER_EXCEPTION` for 10 minutes. The rule is warning-only and `notification: no-page`. | Inspect protected application logs and provider-native diagnostics without copying exception text into labels. Bypass active probes when their latency exceeds the request budget. |
 | `LeaderElectionTaskFailures` | An elected task body throws after the lock is acquired. | Use the `exception` label to find the failing code path, inspect application logs, and keep the lock backend running while fixing the task. |
 | `LeaderHistorySinkFailures` | A real history/audit sink throws while recording leader history. The demo excludes `NoopLeaderHistorySink`. | Verify sink credentials, schema/index state, write capacity, and retention jobs. Leader execution may still proceed while audit durability is degraded. |
 | `LeaderHistoryAcquireMissing` | A real history sink returned no acquire key for elected work. The demo excludes `NoopLeaderHistorySink`, which intentionally returns no key. | Look for duplicate records, storage unavailability, or sink-specific conditional write conflicts. |
@@ -144,6 +147,12 @@ the firing alert keeps the offending `instance` label.
 `exception` is the exception class name tag. Keep exception-grouped alert and
 dashboard views internal, or collapse them to `sum by (lock_name)` when
 cardinality or implementation-detail exposure matters.
+
+The backend connectivity counter is `leader_backend_connectivity_total` after
+Prometheus naming conversion. Its only labels are the sanitized `backend_name`,
+the four status values, and the six bounded reason values. The rules above use
+`for` windows and `notification: no-page`; `UNKNOWN` is never rewritten as
+`DOWN`, and passive `NOT_CHECKED` diagnostics do not produce a series.
 
 This demo registers `MicrometerSafeLeaderHistoryRecorder` with
 `NoopLeaderHistorySink` so `leader_history_*` meters are visible. The alert
@@ -174,6 +183,9 @@ sum by (sink) (rate(leader_history_acquire_missing_total[5m]))
 sum by (lock_name) (rate(leader_aop_execution_duration_seconds_sum[1m]))
   / sum by (lock_name) (rate(leader_aop_execution_duration_seconds_count[1m]))
 max by (lock_name) (leader_aop_active)
+sum by (backend_name, status, reason) (rate(leader_backend_connectivity_total[5m]))
+sum by (backend_name) (rate(leader_backend_connectivity_total{status="DOWN",reason="DISCONNECTED"}[5m]))
+sum by (backend_name, reason) (rate(leader_backend_connectivity_total{status="UNKNOWN"}[5m]))
 ```
 
 Use `max by (lock_name) (leader_aop_active)` for the active gauge in

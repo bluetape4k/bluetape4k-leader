@@ -30,6 +30,51 @@ groups:
           description: "Lock {{ $labels.lock_name }} is reporting BACKEND_ERROR acquisition outcomes."
           runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"
 
+      - alert: LeaderBackendConnectivityDown
+        expr: |
+          sum by (backend_name) (
+            rate(leader_backend_connectivity_total{status="DOWN",reason="DISCONNECTED"}[5m])
+          ) > 0
+        for: 5m
+        labels:
+          severity: warning
+          notification: no-page
+          component: leader-backend
+        annotations:
+          summary: "A backend connectivity probe is reporting DOWN"
+          description: "Backend {{ $labels.backend_name }} has reported DISCONNECTED for 5 minutes."
+          runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"
+
+      - alert: LeaderBackendConnectivityUnknown
+        expr: |
+          sum by (backend_name, reason) (
+            rate(leader_backend_connectivity_total{status="UNKNOWN",reason=~"CLIENT_STATE_UNCONFIRMED|PROVIDER_UNSUPPORTED"}[5m])
+          ) > 0
+        for: 10m
+        labels:
+          severity: info
+          notification: no-page
+          component: leader-backend
+        annotations:
+          summary: "A backend connectivity probe remains UNKNOWN"
+          description: "Backend {{ $labels.backend_name }} has reason {{ $labels.reason }}; this is not a DOWN signal."
+          runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"
+
+      - alert: LeaderBackendConnectivityProbeExceptions
+        expr: |
+          sum by (backend_name) (
+            rate(leader_backend_connectivity_total{status="UNKNOWN",reason="PROVIDER_EXCEPTION"}[5m])
+          ) > 0
+        for: 10m
+        labels:
+          severity: warning
+          notification: no-page
+          component: leader-backend
+        annotations:
+          summary: "Backend connectivity probes are raising provider exceptions"
+          description: "Backend {{ $labels.backend_name }} has normalized PROVIDER_EXCEPTION results for 10 minutes."
+          runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"
+
       - alert: LeaderElectionTaskFailures
         expr: |
           sum by (lock_name, exception) (rate(leader_aop_task_failed_total[5m])) > 0

@@ -123,6 +123,28 @@ Spring Boot의 정적 `leaderBackendDiagnostics` Actuator endpoint는 명시적�
 Diagnostics 응답에는 backend 종류, capability 제한, connectivity 상태, 검사 시각과 지연 시간이 포함될 수 있습니다. Spring Actuator와 Ktor management route를 인증과 network policy로 보호하세요. 애플리케이션별 정책 없이 diagnostics를 소유권 판단이나 readiness 근거로 사용하면 안 됩니다.
 
 내장 provider는 공개 `LeaderBackendDiagnosticsProbe.check` helper를 사용합니다. 이 helper는 양수이면서 유한한 provider-native timeout을 검증하고, callback 전에 clock을 한 번 읽으며, 일반 `Exception`을 `UNKNOWN`으로 정규화합니다. `CancellationException`, interrupt flag를 복원한 `InterruptedException`, 치명적인 `Error`는 재전파하고 `NOT_CHECKED` callback 결과는 잘못된 결과로 거부합니다. 기존 `checkConnectivity` 또는 `diagnostics` custom override는 호환성을 위한 escape hatch로 유지되며 예외 동작은 해당 provider가 소유합니다.
+
+Connectivity 결과에는 제한된 `LeaderBackendConnectivityReason` 값도 포함됩니다.
+
+| 상태 | Reason | 의미 |
+|---|---|---|
+| `UP` | `CONNECTED` | 기존 client가 probe 시점에 backend 연결 가능 상태를 확인했습니다. |
+| `DOWN` | `DISCONNECTED` | 기존 client가 backend를 사용할 수 없는 상태를 확인했습니다. |
+| `UNKNOWN` | `CLIENT_STATE_UNCONFIRMED` | bounded read-only 검사만으로 연결을 증명하지 못했습니다. |
+| `UNKNOWN` | `PROVIDER_UNSUPPORTED` | provider가 지원하는 active probe를 제공하지 않습니다. |
+| `UNKNOWN` | `PROVIDER_EXCEPTION` | 일반 provider 예외를 원문 없이 정규화했습니다. |
+| `NOT_CHECKED` | `NOT_CHECKED` | active probe를 요청하지 않았으며 health 신호가 아닙니다. |
+
+`leader-micrometer`의 instrumented elector가 active
+`checkConnectivity` 또는 `diagnostics(probe = true)`를 실행하면
+`leader.backend.connectivity` counter가 호출마다 한 번 증가합니다. 태그는
+정제된 `backend.name`, `status`, `reason`뿐이며 passive diagnostics는 series를
+만들지 않습니다. 예외 원문, endpoint, credential, lock name은 export하지
+않습니다. `UNKNOWN`은 dashboard와 warning 신호로만 사용하고 자동으로 `DOWN`이나
+page로 승격하지 마세요.
+
+운영 decision table과 timeout/bypass 런북은 [미배포 observability manual
+초안](docs/manual/drafts/2026-08-28-issue-774-observability.ko.md)에서 확인하세요.
 <!-- LEADER_BACKEND_DIAGNOSTICS:END -->
 
 `@LeaderGroupElection`은 scalar, suspend, `Mono` 결과를 지원하지만 slot별 stream lease extension이 정의되지 않아 `Flux`와 Kotlin `Flow`를 거부합니다. 길거나 무한에 가까운 단일 리더 stream에는 `@LeaderElection(autoExtend = true)`를 사용하세요.
@@ -831,7 +853,7 @@ bluetape4k:
         enabled: false
 ```
 
-Metric tag 값은 export 전에 sanitizer를 거칩니다. 기본값은 동적 `lock.name`을 `redacted-lock`으로, opt-in Observation `leader.id` 값을 `redacted-leader`로 접고, custom 또는 future meter path가 `backend.name`을 emit할 때 cardinality가 제한된 backend label만 raw로 유지합니다. 현재 built-in meter path는 `backend.name`을 emit하지 않습니다. `bluetape4k.leader.aop.metrics.tags.lock-name.mode=RAW`는 작고 정적인 job set에만 사용하세요. 동적 이름을 제한적으로 추적해야 한다면 `HASH` 또는 `TRUNCATE`를 사용합니다.
+Metric tag 값은 export 전에 sanitizer를 거칩니다. 기본값은 동적 `lock.name`을 `redacted-lock`으로, opt-in Observation `leader.id` 값을 `redacted-leader`로 접고, active diagnostics meter는 정제된 bounded `backend.name`만 emit합니다. 그 밖의 built-in meter path는 `backend.name`을 emit하지 않습니다. `bluetape4k.leader.aop.metrics.tags.lock-name.mode=RAW`는 작고 정적인 job set에만 사용하세요. 동적 이름을 제한적으로 추적해야 한다면 `HASH` 또는 `TRUNCATE`를 사용합니다.
 
 ### 메터 카탈로그
 

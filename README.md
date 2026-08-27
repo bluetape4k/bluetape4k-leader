@@ -123,6 +123,28 @@ Spring Boot keeps the static `leaderBackendDiagnostics` Actuator endpoint disabl
 Diagnostics can disclose backend type, capability limits, connectivity status, and check timing. Protect Spring Actuator and Ktor management routes with authentication and network policy, and do not treat diagnostics as an ownership decision or readiness proof without an application-specific policy.
 
 Built-in providers use the public `LeaderBackendDiagnosticsProbe.check` helper. It validates a positive, finite provider-native timeout, reads the clock once before invoking the callback, maps an ordinary `Exception` to `UNKNOWN`, and rethrows `CancellationException`, `InterruptedException` (after restoring the interrupt flag), and fatal `Error` values. A `NOT_CHECKED` callback result is invalid. Providers with an existing custom `checkConnectivity` or `diagnostics` override remain a compatibility escape hatch and own their exception behavior.
+
+Connectivity results also carry the bounded `LeaderBackendConnectivityReason` value:
+
+| Status | Reason | Meaning |
+|---|---|---|
+| `UP` | `CONNECTED` | The existing client confirmed that the backend is reachable at probe time. |
+| `DOWN` | `DISCONNECTED` | The existing client confirmed that the backend is unavailable. |
+| `UNKNOWN` | `CLIENT_STATE_UNCONFIRMED` | A bounded read-only check could not prove connectivity. |
+| `UNKNOWN` | `PROVIDER_UNSUPPORTED` | The provider does not expose a supported active probe. |
+| `UNKNOWN` | `PROVIDER_EXCEPTION` | An ordinary provider exception was normalized without retaining its details. |
+| `NOT_CHECKED` | `NOT_CHECKED` | No active probe was requested; this is not a health signal. |
+
+When an instrumented elector from `leader-micrometer` performs an active
+`checkConnectivity` or `diagnostics(probe = true)` call, it increments the
+`leader.backend.connectivity` counter once. The only tags are the sanitized
+`backend.name`, `status`, and `reason`; passive diagnostics do not create a
+series, and exception text, endpoints, credentials, and lock names are never
+exported. `UNKNOWN` is a dashboard and warning signal, not an automatic
+`DOWN` or page condition.
+
+For the operational decision table and timeout/bypass runbook, see the
+[unreleased observability manual draft](docs/manual/drafts/2026-08-28-issue-774-observability.en.md).
 <!-- LEADER_BACKEND_DIAGNOSTICS:END -->
 
 `@LeaderGroupElection` supports scalar, suspend, and `Mono` results, but rejects `Flux` and Kotlin `Flow` because per-slot stream lease extension is undefined. For long-running or unbounded single-leader streams, use `@LeaderElection(autoExtend = true)`.
@@ -830,7 +852,7 @@ bluetape4k:
         enabled: false
 ```
 
-Metric tag values are sanitized before export. By default, dynamic `lock.name` values are collapsed to `redacted-lock`, opt-in Observation `leader.id` values are collapsed to `redacted-leader`, and bounded backend labels stay raw when custom or future meter paths emit `backend.name`. Current built-in meter paths do not emit `backend.name`. Use `bluetape4k.leader.aop.metrics.tags.lock-name.mode=RAW` only for small static job sets; use `HASH` or `TRUNCATE` when dashboards need bounded correlation for dynamic names.
+Metric tag values are sanitized before export. By default, dynamic `lock.name` values are collapsed to `redacted-lock`, opt-in Observation `leader.id` values are collapsed to `redacted-leader`, and the active diagnostics meter emits only sanitized, bounded `backend.name` values. Other built-in meter paths do not emit `backend.name`. Use `bluetape4k.leader.aop.metrics.tags.lock-name.mode=RAW` only for small static job sets; use `HASH` or `TRUNCATE` when dashboards need bounded correlation for dynamic names.
 
 ### Meter Catalog
 
