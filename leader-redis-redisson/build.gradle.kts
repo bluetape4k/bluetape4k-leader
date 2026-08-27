@@ -16,6 +16,7 @@ dependencies {
     testImplementation(bt4k.bluetape4k.virtualthread.jdk25)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
+    testImplementation(libs.testcontainers.toxiproxy)
 
     // T8 PR 3 — Abstract*ContractTest 사용
     testImplementation(testFixtures(project(":bluetape4k-leader-core")))
