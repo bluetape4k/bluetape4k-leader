@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.audit.http
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LockIdentity
@@ -10,6 +11,9 @@ import io.bluetape4k.leader.audit.LeaderAuditSubmitResult
 import io.bluetape4k.leader.audit.LeaderAuditValueSanitizer
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.Authenticator
@@ -25,6 +29,7 @@ import java.net.http.HttpResponse.PushPromiseHandler
 import java.time.Duration
 import java.util.Optional
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
@@ -32,6 +37,7 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLParameters
+import kotlin.time.Duration.Companion.seconds
 
 class HttpLeaderAuditExporterTest {
 
@@ -61,14 +67,45 @@ class HttpLeaderAuditExporterTest {
     @Test
     fun `close cancels in flight request and late completion cannot schedule retry`() {
         val responseFuture = CompletableFuture<HttpResponse<Void>>()
-        val client = StubHttpClient(responseFuture)
+        val cancellationObserved = CountDownLatch(1)
+        responseFuture.whenComplete { _, failure ->
+            if (failure is CancellationException) cancellationObserved.countDown()
+        }
+        val client = StubHttpClient(responseFuture, blockSendAsyncReturn = true)
         val exporter = exporter(client)
 
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        val submitResult = CompletableFuture<LeaderAuditSubmitResult>()
+        Thread.ofVirtual().start {
+            try {
+                submitResult.complete(exporter.submit(event()))
+            } catch (error: Throwable) {
+                submitResult.completeExceptionally(error)
+            }
+        }
         client.requestReady.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        exporter.close()
+        val closeReturned = CountDownLatch(1)
+        val closeResult = CompletableFuture<Unit>()
+        Thread.ofVirtual().start {
+            try {
+                exporter.close()
+                closeResult.complete(Unit)
+            } catch (error: Throwable) {
+                closeResult.completeExceptionally(error)
+            } finally {
+                closeReturned.countDown()
+            }
+        }
+        try {
+            closeReturned.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        } finally {
+            client.sendAsyncReturnAllowed.countDown()
+        }
+        closeResult.get(5, TimeUnit.SECONDS).shouldBeEqualTo(Unit)
+        submitResult.get(5, TimeUnit.SECONDS).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        cancellationObserved.await(5, TimeUnit.SECONDS).shouldBeTrue()
         responseFuture.isCancelled.shouldBeTrue()
-        responseFuture.complete(response(503))
+        responseFuture.complete(response(503)).shouldBeFalse()
+        awaitCancellationRecorded(exporter)
 
         val snapshot = exporter.snapshot()
         snapshot.closed.shouldBeTrue()
@@ -116,10 +153,20 @@ class HttpLeaderAuditExporterTest {
         }
     }
 
+    private fun awaitCancellationRecorded(exporter: HttpLeaderAuditExporter) {
+        await
+            .atMost(5.seconds)
+            .untilAsserted {
+                exporter.snapshot().cancellations.shouldBeEqualTo(1)
+            }
+    }
+
     private class StubHttpClient(
         private val responseFuture: CompletableFuture<HttpResponse<Void>>,
+        private val blockSendAsyncReturn: Boolean = false,
     ) : HttpClient() {
         val requestReady = CountDownLatch(1)
+        val sendAsyncReturnAllowed = CountDownLatch(1)
         var request: HttpRequest? = null
 
         override fun cookieHandler(): Optional<CookieHandler> = Optional.empty()
@@ -151,6 +198,9 @@ class HttpLeaderAuditExporterTest {
         ): CompletableFuture<HttpResponse<T>> {
             this.request = request
             requestReady.countDown()
+            if (blockSendAsyncReturn) {
+                sendAsyncReturnAllowed.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            }
             return responseFuture as CompletableFuture<HttpResponse<T>>
         }
 
