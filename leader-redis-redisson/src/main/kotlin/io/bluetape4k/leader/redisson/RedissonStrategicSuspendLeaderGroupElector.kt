@@ -12,10 +12,8 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.withContext
 import org.redisson.api.RedissonClient
 import kotlin.time.Duration
 
@@ -38,16 +36,16 @@ class RedissonStrategicSuspendLeaderGroupElector(
     )
 
     override suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
-        withContext(Dispatchers.IO) { registry.registerCandidate(lockName, info, ttl) }
+        registry.registerCandidateSuspending(lockName, info, ttl)
 
     override suspend fun unregisterCandidate(lockName: String, nodeId: String) =
-        withContext(Dispatchers.IO) { registry.unregisterCandidate(lockName, nodeId) }
+        registry.unregisterCandidateSuspending(lockName, nodeId)
 
     override suspend fun listCandidates(lockName: String): List<CandidateInfo> =
-        withContext(Dispatchers.IO) { registry.listCandidates(lockName) }
+        registry.listCandidatesSuspending(lockName)
 
     override suspend fun updateResult(lockName: String, nodeId: String, result: CandidateResult) =
-        withContext(Dispatchers.IO) { registry.updateResult(lockName, nodeId, result) }
+        registry.updateResultSuspending(lockName, nodeId, result)
 
     @Suppress("ReturnCount", "TooGenericExceptionCaught", "ThrowsCount")
     override suspend fun <T> runIfLeader(

@@ -13,6 +13,7 @@ import kotlinx.coroutines.CancellationException
 import org.junit.jupiter.api.Test
 import org.redisson.api.RMapCache
 import org.redisson.api.RedissonClient
+import org.redisson.misc.CompletableFutureWrapper
 import java.util.concurrent.atomic.AtomicBoolean
 
 class RedissonStrategicCandidateLookupFailureTest {
@@ -166,6 +167,7 @@ class RedissonStrategicCandidateLookupFailureTest {
         val cache = mockk<RMapCache<String, CandidateInfo>>()
         every { client.getMapCache<String, CandidateInfo>(any<String>()) } returns cache
         every { cache.readAllValues() } throws failure
+        every { cache.readAllValuesAsync() } returns CompletableFutureWrapper(failure)
         return client
     }
 }
