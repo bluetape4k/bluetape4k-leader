@@ -332,6 +332,7 @@ private class InstrumentedLeaderBackendDiagnosticsProvider(
     } catch (e: CancellationException) {
         throw e
     } catch (e: InterruptedException) {
+        Thread.currentThread().interrupt()
         throw e
     } catch (e: Exception) {
         metrics.record(
