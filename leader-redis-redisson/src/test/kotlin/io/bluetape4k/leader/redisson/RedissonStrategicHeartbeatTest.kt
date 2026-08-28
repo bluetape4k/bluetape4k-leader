@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeAfter
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeEmpty
@@ -164,5 +165,23 @@ class RedissonStrategicHeartbeatTest : AbstractRedissonLeaderTest() {
         cache.remove("node-1")
         elector.refreshCandidate(lockName, stale.copy(metadata = mapOf("source" to "late")), ttl = 2.seconds)
         elector.listCandidates(lockName).shouldBeEmpty()
+    }
+
+    @Test
+    fun `blocking refreshCandidate는 음수 TTL을 거부한다`() {
+        val elector = RedissonStrategicLeaderElector(redissonClient, "node-1")
+
+        assertFailsWith<IllegalArgumentException> {
+            elector.refreshCandidate(randomName(), candidate("node-1", 0L, 0L, "stale"), (-1).milliseconds)
+        }
+    }
+
+    @Test
+    fun `suspend refreshCandidate는 음수 TTL을 거부한다`() = runSuspendIO {
+        val elector = RedissonStrategicSuspendLeaderElector(redissonClient, "node-1")
+
+        assertFailsWith<IllegalArgumentException> {
+            elector.refreshCandidate(randomName(), candidate("node-1", 0L, 0L, "stale"), (-1).milliseconds)
+        }
     }
 }
