@@ -27,14 +27,21 @@ class RedissonCandidateRegistryCancellationTest {
         val nodeId = "node-826-late-acquire"
         val lockRequested = CompletableDeferred<Unit>()
         val unlockRequested = CompletableDeferred<Long>()
-        val acquisition = ControlledRFuture<Void>(ignoreCancellation = true)
+        val acquisition = ControlledRFuture<Boolean>(ignoreCancellation = true)
         val lock = mockk<RLock>()
         val cache = mockk<RMapCache<String, CandidateInfo>>()
         val client = mockk<RedissonClient>()
 
         every { client.getMapCache<String, CandidateInfo>(any<String>()) } returns cache
         every { cache.getLock(nodeId) } returns lock
-        every { lock.lockAsync(any<Long>()) } answers {
+        every {
+            lock.tryLockAsync(
+                any<Long>(),
+                any<Long>(),
+                any<java.util.concurrent.TimeUnit>(),
+                any<Long>(),
+            )
+        } answers {
             lockRequested.complete(Unit)
             acquisition
         }
@@ -59,7 +66,7 @@ class RedissonCandidateRegistryCancellationTest {
             job.join()
 
             // The Redis command may complete after the cancelled coroutine has returned.
-            acquisition.complete(null)
+            acquisition.complete(true)
             withTimeout(1.seconds) {
                 unlockRequested.await() > 0L
             } shouldBeEqualTo true
@@ -70,7 +77,7 @@ class RedissonCandidateRegistryCancellationTest {
     fun `entry lock cancellation does not wait indefinitely for unlock response`() = runSuspendIO {
         val nodeId = "node-826-unlock-timeout"
         val actionStarted = CompletableDeferred<Unit>()
-        val acquisition = completedFuture<Void>()
+        val acquisition = completedFuture(true)
         val action = ControlledRFuture<CandidateInfo>(ignoreCancellation = true)
         val unlock = ControlledRFuture<Void>(ignoreCancellation = true)
         val lock = mockk<RLock>()
@@ -79,7 +86,14 @@ class RedissonCandidateRegistryCancellationTest {
 
         every { client.getMapCache<String, CandidateInfo>(any<String>()) } returns cache
         every { cache.getLock(nodeId) } returns lock
-        every { lock.lockAsync(any<Long>()) } returns acquisition
+        every {
+            lock.tryLockAsync(
+                any<Long>(),
+                any<Long>(),
+                any<java.util.concurrent.TimeUnit>(),
+                any<Long>(),
+            )
+        } returns acquisition
         every { lock.unlockAsync(any<Long>()) } returns unlock
         every { cache.putAsync(nodeId, any<CandidateInfo>()) } answers {
             actionStarted.complete(Unit)

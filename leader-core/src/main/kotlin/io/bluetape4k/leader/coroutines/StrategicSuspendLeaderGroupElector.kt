@@ -25,6 +25,9 @@ interface StrategicSuspendLeaderGroupElector {
     /**
      * heartbeat용 후보 갱신입니다. 기존 결과 카운터와 실행 시각은 보존하고
      * `info.metadata`와 TTL만 갱신합니다.
+     * Redis와 Local 구현은 이 연산을 backend 원자 경계로 처리합니다. 다른 구현은
+     * 호환성을 위해 `listCandidates`와 `registerCandidate` 조합을 기본 동작으로
+     * 사용할 수 있으므로, 동시 결과 갱신이 필요하면 backend 원자 구현을 제공해야 합니다.
      */
     suspend fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration = Duration.ZERO) {
         val current = listCandidates(lockName).firstOrNull { it.nodeId == info.nodeId }

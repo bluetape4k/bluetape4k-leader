@@ -42,6 +42,12 @@ class LocalStrategicSuspendLeaderGroupElector(
         candidatesFor(lockName)[info.nodeId] = info
     }
 
+    override suspend fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
+        candidatesFor(lockName).computeIfPresent(info.nodeId) { _, current ->
+            current.copy(metadata = info.metadata)
+        }
+    }
+
     override suspend fun unregisterCandidate(lockName: String, nodeId: String) {
         candidatesFor(lockName).remove(nodeId)
     }
