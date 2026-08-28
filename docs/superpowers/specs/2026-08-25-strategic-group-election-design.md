@@ -104,6 +104,15 @@ coroutine variant는 같은 인자와 `suspend () -> T` action을 사용한다.
 
 - `registerCandidate`, `unregisterCandidate`, `listCandidates`, `updateResult`는
   기존 `StrategicLeaderElector`와 같은 시그니처와 TTL 전달 규칙을 따른다.
+- `registerCandidate`는 `CandidateInfo` 전체를 교체한다. 실행 중인 후보가 오래된
+  후보 정보로 heartbeat를 보내면 결과 통계가 되돌아갈 수 있으므로, 네 인터페이스는
+  기존 후보의 `metadata`와 TTL만 갱신하는 `refreshCandidate`를 제공한다.
+- `refreshCandidate`는 `registeredAt`, `lastStartTime`, `lastCompletionTime`,
+  `successCount`, `failureCount`를 보존한다. Redis Lettuce와 Redisson은 이 병합을
+  backend 원자 경계에서 수행하며, 이미 만료되었거나 없는 후보를 refresh해 새 후보를
+  만들지 않는다. 최초 등록은 `registerCandidate`로 수행한다.
+- `updateResult`는 현재 TTL을 보존하고, `refreshCandidate(..., Duration.ZERO)`는
+  `Duration.ZERO` 등록 규칙과 같이 만료되지 않는 후보로 저장한다.
 - 현재 `nodeId`가 관찰된 후보 기준 목록의 winner 목록에 없으면 action을 호출하지 않고
   `null`을 반환한다.
 - 현재 `nodeId`가 관찰된 후보 기준 목록의 winner 목록에 있으면 해당 호출에서 action을
@@ -152,7 +161,8 @@ coroutine variant는 같은 인자와 `suspend () -> T` action을 사용한다.
   index set은 후보별 TTL과 독립적으로 유지해 영구 후보와 유한 TTL 후보가 같은
   `lockName`에 함께 등록되어도 유한 후보 만료가 영구 후보를 가리지 않게 한다.
 - `Duration.ZERO`는 만료되지 않는 후보 등록이다. 유한 TTL 후보는 호출자가
-  재등록/heartbeat해야 하며 권장 cadence는 TTL보다 짧게 잡는다. Local은
+  재등록/heartbeat해야 하며 권장 cadence는 TTL보다 짧게 잡는다. heartbeat에는
+  `refreshCandidate`를 사용해야 결과 카운터와 실행 시각을 보존할 수 있다. Local은
   기존 구현과 같이 TTL을 저장하지 않고 프로세스 메모리 수명으로 유지한다.
 - 지원하지 않는 backend에 전략적 group adapter를 추가하는 작업은 별도
   issue로 분리한다.

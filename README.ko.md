@@ -568,6 +568,15 @@ val result = election.runIfLeader(
 ) { processShard() }
 ```
 
+`registerCandidate`는 `CandidateInfo` 전체를 교체하므로 `updateResult` 뒤에 오래된
+후보 정보로 heartbeat를 보내는 용도로 사용하면 결과 카운터와 실행 시각이 되돌아갈 수
+있습니다. 기존 후보의 heartbeat에는 `refreshCandidate`를 사용하세요. 이 메서드는
+`registeredAt`, `lastStartTime`, `lastCompletionTime`, `successCount`, `failureCount`를
+보존하고 `metadata`와 요청한 TTL만 갱신합니다. Redis 구현은 이 병합을 원자적으로
+처리하며, 이미 만료되었거나 없는 Redis 후보를 refresh하면 새 후보를 만들지 않습니다.
+최초 등록에는 `registerCandidate`를 사용하세요. `updateResult`는 현재 TTL을 보존하고,
+`refreshCandidate(..., Duration.ZERO)`는 후보를 영구 저장으로 전환합니다.
+
 `maxLeaders`는 해당 호출이 읽은 후보 기준 목록에 대한 자문형 top-N 한도이며, 전역 분산 동시 실행 상한이 아닙니다. 노드마다 서로 다른 후보 기준 목록을 볼 수 있으므로 합집합은 N을 초과할 수 있습니다. 전역 슬롯 상한이 필요하면 `LeaderGroupElector`를 사용하세요. Redis 전략적 그룹 레지스트리는 전략적 단일 리더와 분리하고, 저장 schema 충돌을 막기 위해 Lettuce는 `leader:strategy:group-candidates:lettuce:v1`, Redisson은 `leader:strategy:group-candidates:redisson:v1` namespace를 사용합니다. 0이 아닌 후보 TTL은 만료 전에 재등록 또는 heartbeat가 필요하고, `Duration.ZERO`는 영구 등록입니다. Local 구현은 프로세스 메모리 수명 동안 후보를 유지하며 TTL을 무시합니다. Lettuce는 후보별 TTL과 index set을 분리하므로, 같은 lockName의 유한 TTL 후보가 만료되어도 영구 후보가 가려지지 않습니다. Custom strategy는 같은 후보 기준 목록의 모든 후보를 winner/elimination으로 중복 없이 완전히 분할해 반환해야 하며, 위반 시 elector가 `IllegalArgumentException`을 즉시 던집니다.
 
 ### 전략적 선출 vs 락 기반 선출

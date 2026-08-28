@@ -56,6 +56,20 @@ internal class LettuceCandidateRegistry(
         sync.persist(indexKey)
     }
 
+    /** 기존 후보의 heartbeat를 원자적으로 갱신하고 결과 통계는 보존합니다. */
+    fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
+        validateLockName(lockName)
+        val reply = RedisScriptRunner.run<List<Any>>(
+            sync,
+            LettuceCandidateRefreshScript.REFRESH,
+            ScriptOutputType.MULTI,
+            arrayOf(candidateKey(lockName, info.nodeId), indexKey(lockName)),
+            LettuceCandidateInfoCodec.encode(info),
+            ttl.inWholeMilliseconds.toString(),
+        )
+        LettuceCandidateRefreshScript.rethrowMalformed(reply)
+    }
+
     /**
      * `unregisterCandidate` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *

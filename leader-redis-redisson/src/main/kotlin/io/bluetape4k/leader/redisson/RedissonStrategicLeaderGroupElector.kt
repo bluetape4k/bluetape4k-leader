@@ -36,6 +36,9 @@ class RedissonStrategicLeaderGroupElector(
     override fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
         registry.registerCandidate(lockName, info, ttl)
 
+    override fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
+        registry.refreshCandidate(lockName, info, ttl)
+
     override fun unregisterCandidate(lockName: String, nodeId: String) =
         registry.unregisterCandidate(lockName, nodeId)
 

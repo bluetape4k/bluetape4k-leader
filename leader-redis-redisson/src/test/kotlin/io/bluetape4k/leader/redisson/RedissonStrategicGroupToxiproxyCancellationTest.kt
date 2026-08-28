@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.parallel.Execution
@@ -27,6 +28,7 @@ import org.testcontainers.containers.Network
 import org.testcontainers.toxiproxy.ToxiproxyContainer
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Redisson strategic group의 Redis 후보 조회·결과 갱신 I/O 대기 중 취소 회귀입니다.
@@ -36,6 +38,54 @@ import java.util.concurrent.TimeUnit
  */
 @Execution(ExecutionMode.SAME_THREAD)
 class RedissonStrategicGroupToxiproxyCancellationTest {
+
+    @Test
+    fun `entry lock waiter cancellation cleans up late acquisition and allows reacquisition`() = runSuspendIO {
+        withRedisProxy { redis, toxiproxy, proxy ->
+            withClients(redis, toxiproxy) { redisson, observerRedisson ->
+                val lockName = randomLockName()
+                val candidateNode = "toxiproxy-entry-lock-node"
+                val elector = RedissonStrategicSuspendLeaderGroupElector(redisson, candidateNode)
+                val cache = observerRedisson.getMapCache<String, CandidateInfo>(
+                    "${RedissonCandidateRegistry.GROUP_KEY_PREFIX}:$lockName",
+                )
+                val entryLock = cache.getLock(candidateNode)
+                entryLock.lockAsync(OWNER_THREAD_ID).await()
+
+                try {
+                    coroutineScope {
+                        val deferred = async(start = CoroutineStart.UNDISPATCHED) {
+                            elector.registerCandidate(lockName, CandidateInfo(candidateNode))
+                        }
+                        delay(CANCEL_SETTLE_MILLIS)
+                        val cancellation = CancellationException("cancel while waiting for entry lock")
+                        deferred.cancel(cancellation)
+                        val thrown = assertFailsWith<CancellationException> { deferred.await() }
+                        thrown.message shouldBeEqualTo cancellation.message
+                    }
+
+                    entryLock.unlockAsync(OWNER_THREAD_ID).await()
+                    val reacquired = kotlinx.coroutines.withTimeout(5.seconds) {
+                        while (true) {
+                            if (entryLock.tryLockAsync(REACQUIRE_THREAD_ID).await()) {
+                                return@withTimeout true
+                            }
+                            delay(50)
+                        }
+                    }
+                    reacquired shouldBeEqualTo true
+                    entryLock.unlockAsync(REACQUIRE_THREAD_ID).await()
+                } finally {
+                    if (entryLock.isHeldByThread(OWNER_THREAD_ID)) {
+                        entryLock.forceUnlock()
+                    }
+                    if (entryLock.isHeldByThread(REACQUIRE_THREAD_ID)) {
+                        entryLock.forceUnlock()
+                    }
+                }
+            }
+        }
+    }
 
     @Test
     fun `후보 조회 응답이 보류된 동안 Job 취소는 action 전에 재전파된다`() = runSuspendIO {
@@ -197,5 +247,7 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
         const val REDISSON_SHUTDOWN_TIMEOUT_SECONDS = 1L
         const val CANCEL_SETTLE_MILLIS = 250L
         const val CANCEL_SETTLE_ROUNDS = 5
+        const val OWNER_THREAD_ID = 826_001L
+        const val REACQUIRE_THREAD_ID = 826_002L
     }
 }
