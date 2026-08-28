@@ -6,6 +6,8 @@ import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -18,6 +20,7 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -42,6 +45,8 @@ internal class RedissonCandidateRegistry(
     companion object: KLogging() {
         internal const val DEFAULT_KEY_PREFIX = "leader:strategy:candidates"
         internal const val GROUP_KEY_PREFIX = "leader:strategy:group-candidates:redisson:v1"
+        private val ENTRY_LOCK_ATTEMPT_TIMEOUT = 500.milliseconds
+        private val ENTRY_LOCK_LEASE_TIMEOUT = 30.seconds
         private val ENTRY_LOCK_CLEANUP_TIMEOUT = 1.seconds
         private val suspendLockThreadIds = AtomicLong()
 
@@ -50,6 +55,7 @@ internal class RedissonCandidateRegistry(
         private const val LOCK_CANCELLED = 2
         private const val LOCK_CLEANUP_SCHEDULED = 3
         private const val LOCK_FAILED = 4
+        private const val LOCK_COMPLETED = 5
     }
 
     private fun cacheKey(lockName: String): String {
@@ -196,31 +202,50 @@ internal class RedissonCandidateRegistry(
     }
 
     /**
-     * Redisson의 `RFuture.await`는 coroutine 취소 시 원본 future까지 취소합니다.
-     * lock 명령은 취소 응답과 서버의 실제 획득 시점이 어긋날 수 있으므로, 원본 future를
-     * 취소하지 않고 late acquisition을 관찰해 반드시 해제하도록 별도 상태 기계를 둡니다.
+     * 무기한 `lockAsync` waiter를 만들지 않도록 finite `tryLockAsync` 시도만 반복합니다.
+     * 각 시도는 bounded wait/lease를 사용하므로 caller가 취소되어도 Redis pub/sub waiter가
+     * 무기한 남지 않습니다. 취소와 실제 획득이 경합하면 late acquisition을 관찰해 해제합니다.
      */
     @Suppress("TooGenericExceptionCaught")
     private suspend fun awaitEntryLock(lock: RLock, threadId: Long) {
-        val state = AtomicInteger(LOCK_WAITING)
-        suspendCancellableCoroutine<Unit> { continuation ->
+        while (true) {
+            if (awaitEntryLockAttempt(lock, threadId)) {
+                return
+            }
+            currentCoroutineContext().ensureActive()
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun awaitEntryLockAttempt(lock: RLock, threadId: Long): Boolean =
+        suspendCancellableCoroutine { continuation ->
+            val state = AtomicInteger(LOCK_WAITING)
             val lockFuture = try {
-                lock.lockAsync(threadId)
+                lock.tryLockAsync(
+                    ENTRY_LOCK_ATTEMPT_TIMEOUT.inWholeMilliseconds,
+                    ENTRY_LOCK_LEASE_TIMEOUT.inWholeMilliseconds,
+                    TimeUnit.MILLISECONDS,
+                    threadId,
+                )
             } catch (failure: Throwable) {
                 state.compareAndSet(LOCK_WAITING, LOCK_FAILED)
                 continuation.resumeWithException(failure)
                 return@suspendCancellableCoroutine
             }
 
-            lockFuture.whenComplete { _, failure ->
-                if (failure == null) {
+            lockFuture.whenComplete { acquired, failure ->
+                if (failure != null) {
+                    if (state.compareAndSet(LOCK_WAITING, LOCK_FAILED)) {
+                        continuation.resumeWithException(failure.unwrapCompletionException())
+                    }
+                } else if (acquired == true) {
                     when {
-                        state.compareAndSet(LOCK_WAITING, LOCK_ACQUIRED) -> continuation.resume(Unit)
+                        state.compareAndSet(LOCK_WAITING, LOCK_ACQUIRED) -> continuation.resume(true)
                         state.compareAndSet(LOCK_CANCELLED, LOCK_CLEANUP_SCHEDULED) ->
                             scheduleLateEntryLockCleanup(lock, threadId)
                     }
-                } else if (state.compareAndSet(LOCK_WAITING, LOCK_FAILED)) {
-                    continuation.resumeWithException(failure.unwrapCompletionException())
+                } else if (state.compareAndSet(LOCK_WAITING, LOCK_COMPLETED)) {
+                    continuation.resume(false)
                 }
             }
 
@@ -239,7 +264,6 @@ internal class RedissonCandidateRegistry(
                 }
             }
         }
-    }
 
     /** 취소되지 않은 정상 경로의 unlock도 backend 응답 지연으로 호출자를 붙잡지 않도록 제한합니다. */
     @Suppress("TooGenericExceptionCaught")

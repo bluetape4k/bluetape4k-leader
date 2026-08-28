@@ -14,7 +14,8 @@
 - `refreshCandidate`는 등록·실행·결과 필드를 보존하고 `metadata`와 요청한 TTL만
   갱신한다.
 - Lettuce는 GET과 갱신을 하나의 Redis script로 묶고, Redisson은 후보별 entry lock을
-  `refreshCandidate`와 `updateResult`가 함께 사용하게 한다.
+  `refreshCandidate`와 `updateResult`가 함께 사용하게 한다. Local 네 구현은
+  `ConcurrentHashMap.computeIfPresent`로 같은 키의 갱신을 원자화한다.
 - 이미 만료된 Redis 후보를 refresh해서 새 후보가 생기지 않도록 한다. 최초 등록은
   `registerCandidate`가 담당한다.
 - `updateResult`는 기존 TTL을 유지하고, heartbeat가 명시한 TTL만 후보 생존 시간을
@@ -31,7 +32,9 @@
 Redis backend에서는 결과 필드 보존을 저장소 원자 경계로 강제했다.
 
 향후 예방 확인: 새 후보 생존 갱신 API를 추가할 때는 blocking·suspend single/group의
-두 호출 순서, TTL 보존·재설정, 만료 후보 no-op, 점수 순서를 함께 검증한다.
+두 호출 순서, TTL 보존·재설정, 만료 후보 no-op, 점수 순서, update/unregister와의
+동시 실행을 함께 검증한다. Local 구현에서 `listCandidates` 후 `registerCandidate`를
+다시 조합하지 말고 후보 키의 `computeIfPresent` 경계를 유지한다.
 
 ## 검증
 

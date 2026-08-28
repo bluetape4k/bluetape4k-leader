@@ -5,7 +5,9 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.strategy.CandidateInfo
+import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.GroupElectionStrategy
 import io.bluetape4k.leader.strategy.StrategicGroupElectionResult
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
@@ -80,6 +82,78 @@ class LocalStrategicLeaderGroupElectorTest {
         node1.listCandidates(lockName)
             .first { it.nodeId == node1.nodeId }
             .failureCount shouldBeEqualTo 1L
+    }
+
+    @Test
+    fun `refreshCandidate - 없는 후보는 새로 등록하지 않는다`() {
+        node1.refreshCandidate(
+            lockName,
+            CandidateInfo("ghost", metadata = mapOf("heartbeat" to "missing")),
+        )
+
+        node1.listCandidates(lockName).isEmpty().shouldBeTrue()
+    }
+
+    @Test
+    fun `refreshCandidate - 결과 통계와 등록 시각을 보존하고 metadata만 갱신한다`() {
+        node1.registerCandidate(
+            lockName,
+            CandidateInfo(
+                nodeId = node1.nodeId,
+                registeredAt = Instant.parse("2026-01-01T00:00:00Z"),
+                successCount = 3,
+                failureCount = 2,
+                metadata = mapOf("version" to "old"),
+            ),
+        )
+        node1.updateResult(lockName, node1.nodeId, io.bluetape4k.leader.strategy.CandidateResult.SUCCESS)
+        val beforeRefresh = node1.listCandidates(lockName).single()
+
+        node1.refreshCandidate(
+            lockName,
+            CandidateInfo(node1.nodeId, metadata = mapOf("version" to "new")),
+        )
+
+        val refreshed = node1.listCandidates(lockName).single()
+        refreshed.registeredAt shouldBeEqualTo beforeRefresh.registeredAt
+        refreshed.lastCompletionTime shouldBeEqualTo beforeRefresh.lastCompletionTime
+        refreshed.successCount shouldBeEqualTo beforeRefresh.successCount
+        refreshed.failureCount shouldBeEqualTo beforeRefresh.failureCount
+        refreshed.metadata shouldBeEqualTo mapOf("version" to "new")
+    }
+
+    @Test
+    fun `refreshCandidate와 updateResult 동시 호출에서도 결과 카운터를 잃지 않는다`() {
+        val workers = 8
+        val rounds = 100
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+
+        MultithreadingTester()
+            .workers(workers)
+            .rounds(rounds)
+            .add {
+                node1.updateResult(lockName, node1.nodeId, CandidateResult.SUCCESS)
+                node1.refreshCandidate(lockName, CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")))
+            }
+            .run()
+
+        node1.listCandidates(lockName).single().successCount shouldBeEqualTo (workers * rounds).toLong()
+    }
+
+    @Test
+    fun `refreshCandidate와 unregisterCandidate 동시 호출에서도 후보를 되살리지 않는다`() {
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+
+        MultithreadingTester()
+            .workers(2)
+            .rounds(100)
+            .addAll(
+                { node1.refreshCandidate(lockName, CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok"))) },
+                { node1.unregisterCandidate(lockName, node1.nodeId) },
+            )
+            .run()
+
+        node1.listCandidates(lockName).isEmpty().shouldBeTrue()
     }
 
     @Test
