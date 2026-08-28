@@ -11,10 +11,13 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
-import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
@@ -56,6 +59,12 @@ internal class ExposedR2dbcGroupLock internal constructor(
     private val lockOwner: String? = null,
     private val useDbTime: Boolean = false,
     private val clock: Clock = Clock.systemUTC(),
+    /**
+     * DB-time availability 상태를 갱신하는 동기 callback입니다.
+     *
+     * callback은 fail-closed 상태 전이의 일부이므로 일반 예외와
+     * [CancellationException]을 삼키지 않고 호출자에게 전파합니다.
+     */
     private val onAvailabilityChanged: (Boolean) -> Unit = {},
 ) {
     /**
@@ -73,14 +82,16 @@ internal class ExposedR2dbcGroupLock internal constructor(
         slot.requireZeroOrPositiveNumber("slot")
     }
 
-    companion object: KLoggingChannel()
+    companion object: KLoggingChannel() {
+        private val AVAILABILITY_CALLBACK_CLEANUP_TIMEOUT = 5.seconds
+    }
 
     private fun markUnavailable() {
-        if (useDbTime) runCatching { onAvailabilityChanged(false) }
+        if (useDbTime) onAvailabilityChanged(false)
     }
 
     private fun markAvailable() {
-        if (useDbTime) runCatching { onAvailabilityChanged(true) }
+        if (useDbTime) onAvailabilityChanged(true)
     }
 
     /**
@@ -105,14 +116,19 @@ internal class ExposedR2dbcGroupLock internal constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
-                markUnavailable()
                 log.warn(e) { "DB 오류로 슬롯 순회 중단: lockName=$lockName, slot=$slot, attempt=$attempt" }
+                markUnavailablePreservingFailure(e)
                 return null
             }
 
-            // A completed DB-time operation is a positive health signal even when the
-            // slot was occupied and acquisition returned false.
-            markAvailable()
+            // 슬롯 경합으로 획득에 실패했더라도 완료된 DB-time 연산은 정상 상태 신호입니다.
+            // callback 실패는 DB 오류가 아니므로 호출자에게 그대로 관찰되어야 합니다.
+            try {
+                markAvailable()
+            } catch (e: Throwable) {
+                cleanupAfterAvailabilityCallbackFailure(acquired, e)
+                throw e
+            }
             if (acquired) {
                 log.debug { "그룹 슬롯 락 획득 성공: lockName=$lockName, slot=$slot, token=${token.take(8)}" }
                 return true
@@ -200,15 +216,16 @@ internal class ExposedR2dbcGroupLock internal constructor(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
-    suspend fun isHeldByCurrentInstance(): Boolean =
-        runR2dbcLockOperationPreservingCancellation(
+    @Suppress("TooGenericExceptionCaught")
+    suspend fun isHeldByCurrentInstance(): Boolean {
+        val held = runR2dbcLockOperationPreservingCancellation(
             onFailure = { e ->
-                markUnavailable()
                 log.warn(e) { "isHeldByCurrentInstance DB 오류 (false 반환): lockName=$lockName, slot=$slot" }
-                false
+                markUnavailablePreservingFailure(e)
+                null
             },
         ) {
-            val held = suspendTransaction(db) {
+            suspendTransaction(db) {
                 val now = currentTime(useDbTime, clock)
                 !LeaderGroupLockTable
                     .selectAll()
@@ -220,9 +237,11 @@ internal class ExposedR2dbcGroupLock internal constructor(
                     }
                     .empty()
             }
-            markAvailable()
-            held
-        }
+        } ?: return false
+        // callback 실패가 DB 오류 fallback 경계에 포함되지 않도록 분리합니다.
+        markAvailable()
+        return held
+    }
 
     /**
      * `unlock` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
@@ -237,9 +256,10 @@ internal class ExposedR2dbcGroupLock internal constructor(
     }
 
     /**
-     * The elector needs to distinguish a confirmed lost token from a database failure before it
-     * evicts its local active-count entry. The public `unlock` keeps its 0.4.0 Unit contract.
+     * 선출기가 로컬 active-count를 제거하기 전에 토큰 소실과 DB 오류를 구분할 수 있도록 합니다.
+     * 공개 `unlock`의 0.4.0 `Unit` 반환 계약은 유지합니다.
      */
+    @Suppress("TooGenericExceptionCaught")
     internal suspend fun unlockAndReport(
         minLeaseTime: Duration = Duration.ZERO,
         acquiredAtNanos: Long = System.nanoTime(),
@@ -249,14 +269,14 @@ internal class ExposedR2dbcGroupLock internal constructor(
         val tokenVal = this@ExposedR2dbcGroupLock.token
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
-        return runR2dbcLockOperationPreservingCancellation(
+        val unlockResult = runR2dbcLockOperationPreservingCancellation(
             onFailure = { e ->
-                markUnavailable()
                 log.warn(e) { "그룹 슬롯 해제 중 DB 오류: lockName=$lockName, slot=$slot" }
-                ExposedR2dbcUnlockOutcome.FAILED
+                markUnavailablePreservingFailure(e)
+                null
             },
         ) {
-            val (matched, timeVerified) = suspendTransaction(db) {
+            suspendTransaction(db) {
                 if (remaining > Duration.ZERO) {
                     val now = currentTime(useDbTime, clock)
                     LeaderGroupLockTable.update(
@@ -277,14 +297,17 @@ internal class ExposedR2dbcGroupLock internal constructor(
                     } to false
                 }
             }
-            if (timeVerified) markAvailable()
-            if (matched == 0) {
-                log.warn { "그룹 슬롯 해제 실패 — 토큰 불일치 또는 이미 만료됨: lockName=$lockName, slot=$slot" }
-                ExposedR2dbcUnlockOutcome.NOT_HELD
-            } else {
-                log.debug { "그룹 슬롯 해제 성공: lockName=$lockName, slot=$slot" }
-                ExposedR2dbcUnlockOutcome.RELEASED
-            }
+        } ?: return ExposedR2dbcUnlockOutcome.FAILED
+        val (matched, timeVerified) = unlockResult
+
+        // callback 실패는 transaction 실패와 구분하여 그대로 전파합니다.
+        if (timeVerified) markAvailable()
+        return if (matched == 0) {
+            log.warn { "그룹 슬롯 해제 실패 — 토큰 불일치 또는 이미 만료됨: lockName=$lockName, slot=$slot" }
+            ExposedR2dbcUnlockOutcome.NOT_HELD
+        } else {
+            log.debug { "그룹 슬롯 해제 성공: lockName=$lockName, slot=$slot" }
+            ExposedR2dbcUnlockOutcome.RELEASED
         }
     }
 
@@ -299,8 +322,14 @@ internal class ExposedR2dbcGroupLock internal constructor(
         val slotVal = this@ExposedR2dbcGroupLock.slot
         val tokenVal = this@ExposedR2dbcGroupLock.token
 
-        return try {
-            val outcome = suspendTransaction(db) {
+        val outcome = runR2dbcLockOperationPreservingCancellation(
+            onFailure = { e ->
+                log.warn(e) { "그룹 슬롯 연장 중 DB 오류: lockName=$lockName, slot=$slot" }
+                markUnavailablePreservingFailure(e)
+                throw e
+            },
+        ) {
+            suspendTransaction(db) {
                 val now = currentTime(useDbTime, clock)
                 val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
                 val updated = LeaderGroupLockTable.update(
@@ -320,13 +349,60 @@ internal class ExposedR2dbcGroupLock internal constructor(
                     ExtendOutcome.NotHeld
                 }
             }
-            markAvailable()
-            outcome
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            markUnavailable()
-            throw e
         }
+        // callback 실패가 DB 오류 fallback 경계에 포함되지 않도록 분리합니다.
+        markAvailable()
+        return outcome
+    }
+
+    /**
+     * DB-time success callback 실패 뒤에 이미 획득한 row가 남지 않도록 보상 해제합니다.
+     * callback 예외를 원인으로 유지하고 보상 해제 실패는 suppressed 예외로만 남깁니다.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun cleanupAfterAvailabilityCallbackFailure(acquired: Boolean, failure: Throwable) {
+        if (!acquired) return
+
+        val outcome = try {
+            withContext(NonCancellable) {
+                withTimeoutOrNull(AVAILABILITY_CALLBACK_CLEANUP_TIMEOUT) {
+                    unlockAndReport()
+                }
+            }
+        } catch (cleanupFailure: Throwable) {
+            failure.addSuppressedSafely(cleanupFailure)
+            return
+        }
+        when (outcome) {
+            ExposedR2dbcUnlockOutcome.FAILED -> failure.addSuppressedSafely(
+                IllegalStateException(
+                    "availability callback 보상 슬롯 해제 실패: " +
+                            "lockName=$lockName, slot=$slot",
+                ),
+            )
+            null -> failure.addSuppressedSafely(
+                IllegalStateException(
+                    "availability callback 보상 슬롯 해제 시간 초과: " +
+                            "lockName=$lockName, slot=$slot",
+                ),
+            )
+            ExposedR2dbcUnlockOutcome.RELEASED,
+            ExposedR2dbcUnlockOutcome.NOT_HELD,
+            -> Unit
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun markUnavailablePreservingFailure(failure: Throwable) {
+        try {
+            markUnavailable()
+        } catch (callbackFailure: Throwable) {
+            callbackFailure.addSuppressedSafely(failure)
+            throw callbackFailure
+        }
+    }
+
+    private fun Throwable.addSuppressedSafely(cause: Throwable) {
+        if (cause !== this && suppressed.none { it === cause }) addSuppressed(cause)
     }
 }

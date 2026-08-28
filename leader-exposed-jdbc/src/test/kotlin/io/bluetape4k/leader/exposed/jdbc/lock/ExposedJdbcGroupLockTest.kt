@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
 import io.bluetape4k.exposed.tests.TestDB
+import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
@@ -215,6 +216,28 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         lock.unlock()
 
         lock.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `unlockAndReport - RELEASED NOT_HELD FAILED를 구분한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        try {
+            val lock = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
+            lock.tryLock(1.seconds, 10.seconds).shouldBeTrue()
+
+            lock.unlockAndReport() shouldBeEqualTo ExposedJdbcUnlockOutcome.RELEASED
+            lock.unlockAndReport() shouldBeEqualTo ExposedJdbcUnlockOutcome.NOT_HELD
+
+            transaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+            ExposedJdbcSchemaInitializer.resetFor(db)
+            val failed = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
+            failed.unlockAndReport() shouldBeEqualTo ExposedJdbcUnlockOutcome.FAILED
+        } finally {
+            ExposedJdbcSchemaInitializer.ensureSchema(db)
+            cleanTables(db)
+        }
     }
 
     @ParameterizedTest
