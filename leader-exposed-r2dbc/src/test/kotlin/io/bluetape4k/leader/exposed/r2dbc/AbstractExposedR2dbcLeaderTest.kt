@@ -48,7 +48,7 @@ abstract class AbstractExposedR2dbcLeaderTest {
          */
         @JvmStatic
         fun enableDialects(): List<TestR2dbcDB> {
-            val filter = System.getenv("LEADER_TEST_DB")?.uppercase()
+            val filter = System.getenv("LEADER_TEST_DB")?.trim()?.uppercase()
                 ?: return listOf(TestR2dbcDB.H2, TestR2dbcDB.POSTGRESQL, TestR2dbcDB.MYSQL_V8)
             return when (filter) {
                 "H2"                -> listOf(TestR2dbcDB.H2)

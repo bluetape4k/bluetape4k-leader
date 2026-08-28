@@ -267,6 +267,43 @@ subprojects {
             }
         }
 
+        if (path == ":bluetape4k-leader-exposed-jdbc" || path == ":bluetape4k-leader-exposed-r2dbc") {
+            val leaderTestDb = providers
+                .environmentVariable("LEADER_TEST_DB")
+                .map { value ->
+                    when (val normalized = value.trim().uppercase()) {
+                        "POSTGRES" -> "POSTGRESQL"
+                        "MYSQL" -> "MYSQL_V8"
+                        else -> normalized
+                    }
+                }
+                .orElse("ALL")
+
+            named("test") {
+                val providerMarker = layout.buildDirectory.file("test-results/test/leader-test-db.txt")
+                inputs.property("leaderTestDb", leaderTestDb)
+                outputs.file(providerMarker)
+                doFirst { providerMarker.get().asFile.delete() }
+                doLast {
+                    val markerFile = providerMarker.get().asFile
+                    markerFile.parentFile.mkdirs()
+                    markerFile.writeText("LEADER_TEST_DB=${leaderTestDb.get()}\n")
+                }
+            }
+
+            matching { it.name == "koverXmlReport" }.configureEach {
+                val providerMarker = layout.buildDirectory.file("reports/kover/leader-test-db.txt")
+                inputs.property("leaderTestDb", leaderTestDb)
+                outputs.file(providerMarker)
+                doFirst { providerMarker.get().asFile.delete() }
+                doLast {
+                    val markerFile = providerMarker.get().asFile
+                    markerFile.parentFile.mkdirs()
+                    markerFile.writeText("LEADER_TEST_DB=${leaderTestDb.get()}\n")
+                }
+            }
+        }
+
         withType<Sign>().configureEach {
             usesService(signingMutex)
         }

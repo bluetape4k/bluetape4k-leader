@@ -309,6 +309,8 @@ jobs:
           python3 scripts/ci/validate_timing_contract_test.py
           python3 scripts/ci/validate_detekt_configuration_cache.py
           python3 scripts/ci/validate_detekt_configuration_cache_test.py
+          python3 scripts/ci/validate_provider_artifacts.py --workflow-contract .github/workflows/ci.yml .github/workflows/nightly-tests.yml
+          python3 scripts/ci/validate_provider_artifacts.py --self-test
           python3 scripts/compatibility/check_binary_api_test.py
 
   # ── 2-B. 매뉴얼/릴리스 provenance 계약 검증 ─────────────────────────────
@@ -676,14 +678,22 @@ jobs:
       - name: Generate Kover XML report
         if: always()
         run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon
+        env:
+          LEADER_TEST_DB: "H2"
         continue-on-error: true
+
+      - name: Verify provider artifact provenance
+        if: always()
+        run: python3 scripts/ci/validate_provider_artifacts.py --root . --module leader-exposed-jdbc --provider H2
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: test-results-exposed-jdbc-h2
-          path: '**/build/test-results/test/*.xml'
+          path: |
+            **/build/test-results/test/*.xml
+            **/build/test-results/test/leader-test-db.txt
           retention-days: 7
 
       - name: Upload coverage report
@@ -691,7 +701,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: coverage-exposed-jdbc-h2
-          path: '**/build/reports/kover/'
+          path: |
+            **/build/reports/kover/
+            **/build/reports/kover/leader-test-db.txt
           retention-days: 7
 
   # ── 8. leader-exposed-jdbc 테스트 (PostgreSQL, Testcontainers) ────────────
@@ -730,14 +742,22 @@ jobs:
       - name: Generate Kover XML report
         if: always()
         run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon
+        env:
+          LEADER_TEST_DB: "POSTGRESQL"
         continue-on-error: true
+
+      - name: Verify provider artifact provenance
+        if: always()
+        run: python3 scripts/ci/validate_provider_artifacts.py --root . --module leader-exposed-jdbc --provider POSTGRESQL
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: test-results-exposed-jdbc-postgresql
-          path: '**/build/test-results/test/*.xml'
+          path: |
+            **/build/test-results/test/*.xml
+            **/build/test-results/test/leader-test-db.txt
           retention-days: 7
 
       - name: Upload coverage report
@@ -745,7 +765,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: coverage-exposed-jdbc-postgresql
-          path: '**/build/reports/kover/'
+          path: |
+            **/build/reports/kover/
+            **/build/reports/kover/leader-test-db.txt
           retention-days: 7
 
   # ── 9. leader-exposed-jdbc 테스트 (MySQL 8, Testcontainers) ──────────────
@@ -784,14 +806,22 @@ jobs:
       - name: Generate Kover XML report
         if: always()
         run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon
+        env:
+          LEADER_TEST_DB: "MYSQL_V8"
         continue-on-error: true
+
+      - name: Verify provider artifact provenance
+        if: always()
+        run: python3 scripts/ci/validate_provider_artifacts.py --root . --module leader-exposed-jdbc --provider MYSQL_V8
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: test-results-exposed-jdbc-mysql
-          path: '**/build/test-results/test/*.xml'
+          path: |
+            **/build/test-results/test/*.xml
+            **/build/test-results/test/leader-test-db.txt
           retention-days: 7
 
       - name: Upload coverage report
@@ -799,7 +829,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: coverage-exposed-jdbc-mysql
-          path: '**/build/reports/kover/'
+          path: |
+            **/build/reports/kover/
+            **/build/reports/kover/leader-test-db.txt
           retention-days: 7
 
 
@@ -833,20 +865,29 @@ jobs:
       - name: Generate Kover XML report
         if: always()
         run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon
+        env:
+          LEADER_TEST_DB: "H2"
         continue-on-error: true
+      - name: Verify provider artifact provenance
+        if: always()
+        run: python3 scripts/ci/validate_provider_artifacts.py --root . --module leader-exposed-r2dbc --provider H2
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: test-results-exposed-r2dbc-h2
-          path: '**/build/test-results/test/*.xml'
+          path: |
+            **/build/test-results/test/*.xml
+            **/build/test-results/test/leader-test-db.txt
           retention-days: 7
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: coverage-exposed-r2dbc-h2
-          path: '**/build/reports/kover/'
+          path: |
+            **/build/reports/kover/
+            **/build/reports/kover/leader-test-db.txt
           retention-days: 7
 
   # ── 11. leader-exposed-r2dbc 테스트 (PostgreSQL, Testcontainers) ──────────
@@ -881,20 +922,29 @@ jobs:
       - name: Generate Kover XML report
         if: always()
         run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon
+        env:
+          LEADER_TEST_DB: "POSTGRESQL"
         continue-on-error: true
+      - name: Verify provider artifact provenance
+        if: always()
+        run: python3 scripts/ci/validate_provider_artifacts.py --root . --module leader-exposed-r2dbc --provider POSTGRESQL
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: test-results-exposed-r2dbc-postgresql
-          path: '**/build/test-results/test/*.xml'
+          path: |
+            **/build/test-results/test/*.xml
+            **/build/test-results/test/leader-test-db.txt
           retention-days: 7
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: coverage-exposed-r2dbc-postgresql
-          path: '**/build/reports/kover/'
+          path: |
+            **/build/reports/kover/
+            **/build/reports/kover/leader-test-db.txt
           retention-days: 7
 
   # ── 12. leader-exposed-r2dbc 테스트 (MySQL 8, Testcontainers) ─────────────
@@ -929,20 +979,29 @@ jobs:
       - name: Generate Kover XML report
         if: always()
         run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon
+        env:
+          LEADER_TEST_DB: "MYSQL_V8"
         continue-on-error: true
+      - name: Verify provider artifact provenance
+        if: always()
+        run: python3 scripts/ci/validate_provider_artifacts.py --root . --module leader-exposed-r2dbc --provider MYSQL_V8
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: test-results-exposed-r2dbc-mysql
-          path: '**/build/test-results/test/*.xml'
+          path: |
+            **/build/test-results/test/*.xml
+            **/build/test-results/test/leader-test-db.txt
           retention-days: 7
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: coverage-exposed-r2dbc-mysql
-          path: '**/build/reports/kover/'
+          path: |
+            **/build/reports/kover/
+            **/build/reports/kover/leader-test-db.txt
           retention-days: 7
 
   # ── examples-migration-gate (Testcontainers PostgreSQL + H2) ────────────────
