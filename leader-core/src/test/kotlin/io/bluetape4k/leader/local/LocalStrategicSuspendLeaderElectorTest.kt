@@ -2,6 +2,7 @@ package io.bluetape4k.leader.local
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
@@ -78,7 +79,7 @@ class LocalStrategicSuspendLeaderElectorTest {
             CandidateInfo("ghost", metadata = mapOf("heartbeat" to "missing")),
         )
 
-        node1.listCandidates(lockName).isEmpty().shouldBeTrue()
+        node1.listCandidates(lockName).shouldBeEmpty()
     }
 
     @Test
@@ -151,7 +152,7 @@ class LocalStrategicSuspendLeaderElectorTest {
             ).joinAll()
         }
 
-        node1.listCandidates(lockName).isEmpty().shouldBeTrue()
+        node1.listCandidates(lockName).shouldBeEmpty()
     }
 
     @Test
@@ -164,7 +165,7 @@ class LocalStrategicSuspendLeaderElectorTest {
     fun `unregisterCandidate - 등록 해제 후 목록에서 제거`() = runTest {
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
         node1.unregisterCandidate(lockName, "node-1")
-        node1.listCandidates(lockName).isEmpty().shouldBeTrue()
+        node1.listCandidates(lockName).shouldBeEmpty()
     }
 
     @Test

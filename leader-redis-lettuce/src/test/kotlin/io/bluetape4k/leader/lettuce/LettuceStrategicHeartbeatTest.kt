@@ -1,7 +1,11 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.assertions.shouldBeAfter
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeEmpty
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
@@ -42,7 +46,7 @@ class LettuceStrategicHeartbeatTest : AbstractLettuceLeaderTest() {
     ) {
         candidate.registeredAt shouldBeEqualTo registeredAt
         candidate.lastStartTime shouldBeEqualTo lastStartTime
-        (candidate.lastCompletionTime?.isAfter(staleCompletion) == true).shouldBeTrue()
+        candidate.lastCompletionTime.shouldNotBeNull() shouldBeAfter staleCompletion
         candidate.successCount shouldBeEqualTo expectedSuccessCount
         candidate.failureCount shouldBeEqualTo expectedFailureCount
         candidate.metadata shouldBeEqualTo mapOf("source" to expectedMetadata)
@@ -147,14 +151,16 @@ class LettuceStrategicHeartbeatTest : AbstractLettuceLeaderTest() {
         val beforeUpdate = connection.sync().pttl(key)
         elector.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
         val afterUpdate = connection.sync().pttl(key)
-        (beforeUpdate > 0L && afterUpdate > 0L && afterUpdate <= beforeUpdate + 50L).shouldBeTrue()
+        beforeUpdate shouldBeGreaterThan 0L
+        afterUpdate shouldBeGreaterThan 0L
+        afterUpdate shouldBeLessOrEqualTo beforeUpdate + 50L
 
         elector.refreshCandidate(lockName, stale.copy(metadata = mapOf("source" to "fresh")), ttl = 2.seconds)
         val afterRefresh = connection.sync().pttl(key)
-        (afterRefresh > afterUpdate).shouldBeTrue()
+        afterRefresh shouldBeGreaterThan afterUpdate
 
         connection.sync().del(key)
         elector.refreshCandidate(lockName, stale.copy(metadata = mapOf("source" to "late")), ttl = 2.seconds)
-        elector.listCandidates(lockName).isEmpty().shouldBeTrue()
+        elector.listCandidates(lockName).shouldBeEmpty()
     }
 }

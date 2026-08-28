@@ -2,8 +2,8 @@ package io.bluetape4k.leader.local
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
@@ -98,7 +98,7 @@ class LocalStrategicLeaderElectorTest {
             CandidateInfo("ghost", metadata = mapOf("heartbeat" to "missing")),
         )
 
-        node1.listCandidates(lockName).isEmpty().shouldBeTrue()
+        node1.listCandidates(lockName).shouldBeEmpty()
     }
 
     @Test
@@ -160,7 +160,7 @@ class LocalStrategicLeaderElectorTest {
             )
             .run()
 
-        node1.listCandidates(lockName).isEmpty().shouldBeTrue()
+        node1.listCandidates(lockName).shouldBeEmpty()
     }
 
     @Test
@@ -220,7 +220,7 @@ class LocalStrategicLeaderElectorTest {
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
         node1.unregisterCandidate(lockName, "node-1")
 
-        node1.listCandidates(lockName).isEmpty().shouldBeTrue()
+        node1.listCandidates(lockName).shouldBeEmpty()
     }
 
     @Test
