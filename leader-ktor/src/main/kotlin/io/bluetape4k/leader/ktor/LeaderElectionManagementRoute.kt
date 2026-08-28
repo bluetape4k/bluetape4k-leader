@@ -3,7 +3,6 @@ package io.bluetape4k.leader.ktor
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.ktor.statuspages.respondLeaderElectionError
 import io.bluetape4k.leader.validateLockName
-import io.bluetape4k.support.requireNotBlank
 import io.ktor.http.ContentType
 import io.ktor.server.application.Application
 import io.ktor.server.response.respondText
@@ -55,8 +54,7 @@ fun Application.leaderElectionManagementRoute(
     leaderElection: SuspendLeaderElector = resolveLeaderElection(),
     registry: LeaderElectionManagementRegistry = leaderElectionPluginConfig().managementRegistry,
 ) {
-    path.requireNotBlank("path")
-    val routePath = if (path.startsWith("/")) path else "/$path"
+    val routePath = normalizeLeaderRoutePath(path)
 
     routing {
         get(routePath) {
