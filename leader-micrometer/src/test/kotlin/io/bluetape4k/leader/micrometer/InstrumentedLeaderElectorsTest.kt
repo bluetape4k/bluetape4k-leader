@@ -281,6 +281,37 @@ class InstrumentedLeaderElectorsTest {
     }
 
     @Test
+    fun `active connectivity probes restore interrupt flag and preserve exception identity`() {
+        val interrupted = InterruptedException("probe interrupted")
+        val operations: List<(LeaderBackendDiagnosticsProvider) -> Unit> = listOf(
+            { provider -> provider.checkConnectivity(100.milliseconds) },
+            { provider -> provider.diagnostics(probe = true, timeout = 100.milliseconds) },
+        )
+
+        try {
+            operations.forEach { operation ->
+                Thread.interrupted()
+                val provider = RecordingDiagnosticsProvider(failure = interrupted)
+                val delegate = object :
+                    LeaderElector by StubLeaderElector(elected = true),
+                    LeaderBackendDiagnosticsProvider by provider {}
+                val decorated = (InstrumentedLeaderElector(delegate, registry) as LeaderBackendDiagnosticsAware)
+                    .backendDiagnosticsProvider
+                    .shouldNotBeNull()
+
+                val thrown = assertFailsWith<InterruptedException> {
+                    operation(decorated)
+                }
+
+                thrown shouldBeSameInstanceAs interrupted
+                Thread.currentThread().isInterrupted.shouldBeTrue()
+            }
+        } finally {
+            Thread.interrupted()
+        }
+    }
+
+    @Test
     fun `decorating an instrumented provider does not double count`() {
         val provider = RecordingDiagnosticsProvider()
         val delegate = object :
