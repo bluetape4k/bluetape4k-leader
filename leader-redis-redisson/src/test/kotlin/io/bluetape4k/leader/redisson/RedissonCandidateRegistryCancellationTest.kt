@@ -2,6 +2,7 @@ package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeLessThan
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.mockk.every
@@ -29,6 +30,7 @@ class RedissonCandidateRegistryCancellationTest {
         val nodeId = "node-826-late-acquire"
         val lockRequested = CompletableDeferred<Unit>()
         val lockLease = CompletableDeferred<Long>()
+        val lockOwnerId = CompletableDeferred<Long>()
         val sourceCancellationRequested = CompletableDeferred<Unit>()
         val unlockRequested = CompletableDeferred<Long>()
         val acquisition = ControlledRFuture<Boolean>(ignoreCancellation = true) {
@@ -50,6 +52,7 @@ class RedissonCandidateRegistryCancellationTest {
         } answers {
             lockRequested.complete(Unit)
             lockLease.complete(secondArg())
+            lockOwnerId.complete(invocation.args[3] as Long)
             acquisition
         }
         every { lock.unlockAsync(any<Long>()) } answers {
@@ -70,17 +73,16 @@ class RedissonCandidateRegistryCancellationTest {
 
             lockRequested.await()
             lockLease.await() shouldBeEqualTo -1L
+            lockOwnerId.await() shouldBeLessThan 0L
             val cancellation = CancellationException("caller cancelled while waiting for entry lock")
             job.cancel(cancellation)
             val thrown = assertFailsWith<CancellationException> { job.await() }
             thrown.message shouldBeEqualTo cancellation.message
             withTimeout(1.seconds) { sourceCancellationRequested.await() }
 
-            // The Redis command may complete after the cancelled coroutine has returned.
+            // Redis 명령은 취소된 coroutine이 반환된 뒤 완료될 수 있다.
             acquisition.complete(true)
-            withTimeout(1.seconds) {
-                unlockRequested.await() > 0L
-            } shouldBeEqualTo true
+            withTimeout(1.seconds) { unlockRequested.await() } shouldBeLessThan 0L
         }
     }
 
