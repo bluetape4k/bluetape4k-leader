@@ -22,6 +22,15 @@ interface StrategicLeaderGroupElector {
     /** 후보를 등록하고 backend가 지원하는 경우 TTL을 적용합니다. */
     fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration = Duration.ZERO)
 
+    /**
+     * heartbeat용 후보 갱신입니다. 기존 결과 카운터와 실행 시각은 보존하고
+     * `info.metadata`와 TTL만 갱신합니다.
+     */
+    fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration = Duration.ZERO) {
+        val current = listCandidates(lockName).firstOrNull { it.nodeId == info.nodeId }
+        registerCandidate(lockName, current?.copy(metadata = info.metadata) ?: info, ttl)
+    }
+
     /** 후보를 등록 해제합니다. */
     fun unregisterCandidate(lockName: String, nodeId: String)
 

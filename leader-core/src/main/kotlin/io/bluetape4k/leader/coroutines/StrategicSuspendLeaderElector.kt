@@ -32,6 +32,18 @@ interface StrategicSuspendLeaderElector {
     suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration = Duration.ZERO)
 
     /**
+     * heartbeat용 후보 갱신입니다. 기존 결과 카운터와 실행 시각은 보존하고
+     * `info.metadata`와 TTL만 갱신합니다.
+     *
+     * Redis 구현은 이 연산을 backend 원자 경계로 처리합니다. 다른 구현은
+     * `listCandidates`와 `registerCandidate` 조합을 기본 동작으로 사용합니다.
+     */
+    suspend fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration = Duration.ZERO) {
+        val current = listCandidates(lockName).firstOrNull { it.nodeId == info.nodeId }
+        registerCandidate(lockName, current?.copy(metadata = info.metadata) ?: info, ttl)
+    }
+
+    /**
      * `unregisterCandidate` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
      * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.

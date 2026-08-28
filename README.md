@@ -567,6 +567,15 @@ val result = election.runIfLeader(
 ) { processShard() }
 ```
 
+`registerCandidate` replaces the complete `CandidateInfo` record, so do not use it as a
+heartbeat after `updateResult`: a stale candidate record can roll back the result counters and
+timestamps. Use `refreshCandidate` for an existing candidate instead. It preserves
+`registeredAt`, `lastStartTime`, `lastCompletionTime`, `successCount`, and `failureCount`,
+while replacing `metadata` and applying the requested TTL. Redis implementations perform
+this merge atomically; a refresh for an expired or missing Redis candidate is a no-op, so
+call `registerCandidate` for initial enrollment. `updateResult` keeps the current TTL,
+whereas `refreshCandidate(..., Duration.ZERO)` makes the candidate persistent.
+
 `maxLeaders` is an advisory top-N limit for the candidate list read by that invocation; it is not a global distributed concurrency cap. Different nodes can observe different candidate lists and their union can exceed N. Use `LeaderGroupElector` when a hard global slot limit is required. Redis strategic group registries use separate backend-qualified namespaces (`leader:strategy:group-candidates:lettuce:v1` and `leader:strategy:group-candidates:redisson:v1`) from strategic single-leader registries. A non-zero candidate TTL requires re-registration or heartbeat before expiry; `Duration.ZERO` is persistent, while the Local implementation keeps candidates for the process lifetime and ignores TTL. Lettuce keeps the candidate index independent from per-candidate TTLs, so an expiring candidate cannot hide a persistent candidate with the same lock name. Custom strategies must return a complete, non-overlapping winner/elimination partition of the same candidate list, or the elector fails fast with `IllegalArgumentException`.
 
 ### Strategic election vs lock-based election

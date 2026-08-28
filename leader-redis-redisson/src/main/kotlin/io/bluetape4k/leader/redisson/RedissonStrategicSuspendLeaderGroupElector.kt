@@ -38,6 +38,9 @@ class RedissonStrategicSuspendLeaderGroupElector(
     override suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
         registry.registerCandidateSuspending(lockName, info, ttl)
 
+    override suspend fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
+        registry.refreshCandidateSuspending(lockName, info, ttl)
+
     override suspend fun unregisterCandidate(lockName: String, nodeId: String) =
         registry.unregisterCandidateSuspending(lockName, nodeId)
 
