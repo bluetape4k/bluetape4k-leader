@@ -128,6 +128,12 @@ internal class RedissonCandidateRegistry(
         """
     }
 
+    private class RefreshScriptMapKey(val value: String)
+
+    private class RefreshScriptMapValue(val value: CandidateInfo)
+
+    private class RefreshScriptTtl(val value: Long)
+
     private fun cacheKey(lockName: String): String {
         validateLockName(lockName)
         return "$keyPrefix:$lockName"
@@ -148,6 +154,7 @@ internal class RedissonCandidateRegistry(
     }
 
     fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
+        requireRefreshTtl(ttl)
         val cache = mapCacheFor(lockName)
         withEntryLock(cache, info.nodeId) {
             val current = cache.get(info.nodeId) ?: return@withEntryLock
@@ -191,6 +198,7 @@ internal class RedissonCandidateRegistry(
     }
 
     suspend fun refreshCandidateSuspending(lockName: String, info: CandidateInfo, ttl: Duration) {
+        requireRefreshTtl(ttl)
         val cache = mapCacheFor(lockName)
         withEntryLockSuspending(cache, info.nodeId) {
             val current = cache.getAsync(info.nodeId).await() ?: return@withEntryLockSuspending
@@ -210,10 +218,10 @@ internal class RedissonCandidateRegistry(
             REFRESH_CANDIDATE_SCRIPT,
             RScript.ReturnType.LONG,
             mapCacheScriptKeys(cache),
-            current.nodeId,
-            current,
-            refreshed,
-            ttl.inWholeMilliseconds,
+            RefreshScriptMapKey(current.nodeId),
+            RefreshScriptMapValue(current),
+            RefreshScriptMapValue(refreshed),
+            RefreshScriptTtl(ttl.inWholeMilliseconds),
         )
         return result == 1L
     }
@@ -231,30 +239,38 @@ internal class RedissonCandidateRegistry(
                 REFRESH_CANDIDATE_SCRIPT,
                 RScript.ReturnType.LONG,
                 mapCacheScriptKeys(cache),
-                current.nodeId,
-                current,
-                refreshed,
-                ttl.inWholeMilliseconds,
+                RefreshScriptMapKey(current.nodeId),
+                RefreshScriptMapValue(current),
+                RefreshScriptMapValue(refreshed),
+                RefreshScriptTtl(ttl.inWholeMilliseconds),
             )
             .toCompletableFuture()
             .await()
         return result == 1L
     }
 
-    /** RScript는 모든 ARGV를 codec으로 직렬화하므로 Lua가 숫자를 읽도록 TTL만 평문으로 인코딩합니다. */
+    /**
+     * RScript는 모든 ARGV를 value encoder 하나로 직렬화하므로 RMapCache의 map key/value
+     * encoder와 Lua가 읽는 TTL encoder를 인자별 marker로 선택합니다.
+     */
     private fun refreshScriptCodec(cache: RMapCache<String, CandidateInfo>): Codec {
         val delegate = cache.codec
         return object : Codec by delegate {
             private val valueEncoder = Encoder { value ->
-                if (value is Number) {
-                    StringCodec.INSTANCE.valueEncoder.encode(value.toString())
-                } else {
-                    delegate.valueEncoder.encode(value)
+                when (value) {
+                    is RefreshScriptMapKey -> delegate.mapKeyEncoder.encode(value.value)
+                    is RefreshScriptMapValue -> delegate.mapValueEncoder.encode(value.value)
+                    is RefreshScriptTtl -> StringCodec.INSTANCE.valueEncoder.encode(value.value.toString())
+                    else -> error("지원하지 않는 refresh script 인자입니다: ${value::class.qualifiedName}")
                 }
             }
 
             override fun getValueEncoder(): Encoder = valueEncoder
         }
+    }
+
+    private fun requireRefreshTtl(ttl: Duration) {
+        require(!ttl.isNegative()) { "refresh ttl은 음수가 될 수 없습니다: $ttl" }
     }
 
     private fun mapCacheScriptKeys(cache: RMapCache<String, CandidateInfo>): List<Any> {
