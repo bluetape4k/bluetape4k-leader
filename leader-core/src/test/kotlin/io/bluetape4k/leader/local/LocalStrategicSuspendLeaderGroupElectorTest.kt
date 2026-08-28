@@ -2,6 +2,7 @@ package io.bluetape4k.leader.local
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
@@ -84,7 +85,7 @@ class LocalStrategicSuspendLeaderGroupElectorTest {
             CandidateInfo("ghost", metadata = mapOf("heartbeat" to "missing")),
         )
 
-        node1.listCandidates(lockName).isEmpty().shouldBeTrue()
+        node1.listCandidates(lockName).shouldBeEmpty()
     }
 
     @Test
@@ -164,7 +165,7 @@ class LocalStrategicSuspendLeaderGroupElectorTest {
             ).joinAll()
         }
 
-        node1.listCandidates(lockName).isEmpty().shouldBeTrue()
+        node1.listCandidates(lockName).shouldBeEmpty()
     }
 
     @Test
