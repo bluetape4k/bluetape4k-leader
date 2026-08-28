@@ -9,6 +9,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
@@ -143,7 +144,7 @@ class InstrumentedLeaderElectorsTest {
             .shouldNotBeNull()
             .diagnostics()
 
-        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY).meters().isEmpty().shouldBeTrue()
+        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY).meters().shouldBeEmpty()
     }
 
     @Test

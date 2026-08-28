@@ -12,9 +12,15 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
+import org.redisson.RedissonObject
 import org.redisson.api.RedissonClient
 import org.redisson.api.RLock
 import org.redisson.api.RMapCache
+import org.redisson.api.RScript
+import org.redisson.client.codec.Codec
+import org.redisson.client.codec.StringCodec
+import org.redisson.client.protocol.Encoder
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -60,6 +66,79 @@ internal class RedissonCandidateRegistry(
         private const val LOCK_CLEANUP_SCHEDULED = 3
         private const val LOCK_FAILED = 4
         private const val LOCK_COMPLETED = 5
+
+        /**
+         * RMapCache의 live entry 확인과 metadata/TTL 갱신을 하나의 Redis 연산으로 묶습니다.
+         * GET 후 PUT을 분리하면 두 명령 사이에 timeout zset이 만료되어 PUT이 후보를 부활시킬 수 있습니다.
+         */
+        private const val REFRESH_CANDIDATE_SCRIPT = """
+            local mapKey = ARGV[1]
+            local currentTime = redis.call('time')
+            local currentTimeMillis = tonumber(currentTime[1]) * 1000 + math.floor(tonumber(currentTime[2]) / 1000)
+            local packedValue = redis.call('hget', KEYS[1], mapKey)
+            if packedValue == false then
+                return 0
+            end
+
+            local idleDelta, oldValue = struct.unpack('dLc0', packedValue)
+            if oldValue ~= ARGV[2] then
+                return 0
+            end
+            local expireDate = 92233720368547758
+            local expireDateScore = redis.call('zscore', KEYS[2], mapKey)
+            if expireDateScore ~= false then
+                expireDate = tonumber(expireDateScore)
+            end
+            if idleDelta ~= 0 then
+                local expireIdle = redis.call('zscore', KEYS[3], mapKey)
+                if expireIdle ~= false then
+                    expireDate = math.min(expireDate, tonumber(expireIdle))
+                end
+            end
+            if expireDate <= currentTimeMillis then
+                redis.call('hdel', KEYS[1], mapKey)
+                redis.call('zrem', KEYS[2], mapKey)
+                redis.call('zrem', KEYS[3], mapKey)
+                redis.call('zrem', KEYS[4], mapKey)
+                return 0
+            end
+
+            local ttl = tonumber(ARGV[4])
+            if ttl > 0 then
+                redis.call('zadd', KEYS[2], currentTimeMillis + ttl, mapKey)
+            else
+                redis.call('zrem', KEYS[2], mapKey)
+            end
+            redis.call('zrem', KEYS[3], mapKey)
+
+            local refreshedValue = struct.pack('dLc0', 0, string.len(ARGV[3]), ARGV[3])
+            redis.call('hset', KEYS[1], mapKey, refreshedValue)
+
+            local maxSize = tonumber(redis.call('hget', KEYS[5], 'max-size'))
+            if maxSize ~= nil and maxSize ~= 0 then
+                local mode = redis.call('hget', KEYS[5], 'mode')
+                if mode == false or mode == 'LRU' then
+                    redis.call('zadd', KEYS[4], currentTimeMillis, mapKey)
+                else
+                    redis.call('zincrby', KEYS[4], 1, mapKey)
+                end
+            end
+
+            local hasListeners = redis.call('hget', KEYS[5], 'has-listeners')
+            if hasListeners ~= false then
+                local message = struct.pack(
+                    'Lc0Lc0Lc0',
+                    string.len(mapKey),
+                    mapKey,
+                    string.len(ARGV[3]),
+                    ARGV[3],
+                    string.len(oldValue),
+                    oldValue
+                )
+                redis.call('PUBLISH', KEYS[6], message)
+            end
+            return 1
+        """
     }
 
     private fun cacheKey(lockName: String): String {
@@ -85,12 +164,7 @@ internal class RedissonCandidateRegistry(
         val cache = mapCacheFor(lockName)
         withEntryLock(cache, info.nodeId) {
             val current = cache.get(info.nodeId) ?: return@withEntryLock
-            val refreshed = current.copy(metadata = info.metadata)
-            if (ttl == Duration.ZERO) {
-                cache.put(info.nodeId, refreshed)
-            } else {
-                cache.put(info.nodeId, refreshed, ttl.inWholeMilliseconds, TimeUnit.MILLISECONDS)
-            }
+            refreshCandidateAtomically(cache, current, current.copy(metadata = info.metadata), ttl)
         }
     }
 
@@ -133,18 +207,77 @@ internal class RedissonCandidateRegistry(
         val cache = mapCacheFor(lockName)
         withEntryLockSuspending(cache, info.nodeId) {
             val current = cache.getAsync(info.nodeId).await() ?: return@withEntryLockSuspending
-            val refreshed = current.copy(metadata = info.metadata)
-            if (ttl == Duration.ZERO) {
-                cache.putAsync(info.nodeId, refreshed).await()
-            } else {
-                cache.putAsync(
-                    info.nodeId,
-                    refreshed,
-                    ttl.inWholeMilliseconds,
-                    TimeUnit.MILLISECONDS,
-                ).await()
-            }
+            refreshCandidateAtomicallySuspending(cache, current, current.copy(metadata = info.metadata), ttl)
         }
+    }
+
+    private fun refreshCandidateAtomically(
+        cache: RMapCache<String, CandidateInfo>,
+        current: CandidateInfo,
+        refreshed: CandidateInfo,
+        ttl: Duration,
+    ): Boolean {
+        val result = redissonClient.getScript(refreshScriptCodec(cache)).eval<Long>(
+            RScript.Mode.READ_WRITE,
+            REFRESH_CANDIDATE_SCRIPT,
+            RScript.ReturnType.LONG,
+            mapCacheScriptKeys(cache),
+            current.nodeId,
+            current,
+            refreshed,
+            ttl.inWholeMilliseconds,
+        )
+        return result == 1L
+    }
+
+    private suspend fun refreshCandidateAtomicallySuspending(
+        cache: RMapCache<String, CandidateInfo>,
+        current: CandidateInfo,
+        refreshed: CandidateInfo,
+        ttl: Duration,
+    ): Boolean {
+        val result = redissonClient.getScript(refreshScriptCodec(cache))
+            .evalAsync<Long>(
+                RScript.Mode.READ_WRITE,
+                REFRESH_CANDIDATE_SCRIPT,
+                RScript.ReturnType.LONG,
+                mapCacheScriptKeys(cache),
+                current.nodeId,
+                current,
+                refreshed,
+                ttl.inWholeMilliseconds,
+            )
+            .toCompletableFuture()
+            .await()
+        return result == 1L
+    }
+
+    /** RScript는 모든 ARGV를 codec으로 직렬화하므로 Lua가 숫자를 읽도록 TTL만 평문으로 인코딩합니다. */
+    private fun refreshScriptCodec(cache: RMapCache<String, CandidateInfo>): Codec {
+        val delegate = cache.codec
+        return object : Codec by delegate {
+            private val valueEncoder = Encoder { value ->
+                if (value is Number) {
+                    StringCodec.INSTANCE.valueEncoder.encode(value.toString())
+                } else {
+                    delegate.valueEncoder.encode(value)
+                }
+            }
+
+            override fun getValueEncoder(): Encoder = valueEncoder
+        }
+    }
+
+    private fun mapCacheScriptKeys(cache: RMapCache<String, CandidateInfo>): List<Any> {
+        val name = (cache as RedissonObject).rawName
+        return listOf(
+            name,
+            RedissonObject.prefixName("redisson__timeout__set", name),
+            RedissonObject.prefixName("redisson__idle__set", name),
+            RedissonObject.prefixName("redisson__map_cache__last_access__set", name),
+            RedissonObject.suffixName(name, "redisson_options"),
+            RedissonObject.prefixName("redisson_map_cache_updated", name),
+        ).map { it.toByteArray(StandardCharsets.UTF_8) }
     }
 
     /** Redisson `RFuture` 기반 후보 해제입니다. */

@@ -23,8 +23,8 @@ class RedissonCandidateRegistryContentionTest : AbstractRedissonLeaderTest() {
             "${RedissonCandidateRegistry.DEFAULT_KEY_PREFIX}:$lockName",
         )
         val entryLock = cache.getLock(nodeId)
-        val blockingThreadId = Thread.currentThread().threadId()
-        entryLock.lockAsync(blockingThreadId).await()
+        val blockingOwnerId = 1L
+        entryLock.lockAsync(blockingOwnerId).await()
 
         val registry = RedissonCandidateRegistry(redissonClient)
         val waiting = async(start = CoroutineStart.UNDISPATCHED) {
@@ -39,11 +39,11 @@ class RedissonCandidateRegistryContentionTest : AbstractRedissonLeaderTest() {
             delay(100)
             waiting.isCompleted.shouldBeFalse()
 
-            entryLock.unlockAsync(blockingThreadId).await()
+            entryLock.unlockAsync(blockingOwnerId).await()
             withTimeout(5.seconds) { waiting.await() }
         } finally {
             waiting.cancelAndJoin()
-            if (entryLock.isHeldByThread(blockingThreadId)) {
+            if (entryLock.isHeldByThread(blockingOwnerId)) {
                 entryLock.forceUnlock()
             }
             cache.removeAsync(nodeId).await()

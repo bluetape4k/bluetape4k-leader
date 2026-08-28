@@ -4,7 +4,6 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.strategy.CandidateInfo
@@ -170,7 +169,7 @@ class LocalStrategicLeaderGroupElectorTest {
         val candidate = node1.listCandidates(lockName).single()
         candidate.successCount shouldBeEqualTo 0L
         candidate.failureCount shouldBeEqualTo 0L
-        (candidate.lastCompletionTime == null).shouldBeTrue()
+        candidate.lastCompletionTime.shouldBeNull()
     }
 
     @Test
