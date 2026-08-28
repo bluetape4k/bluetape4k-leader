@@ -10,6 +10,8 @@ import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -34,6 +36,8 @@ import kotlin.time.Duration.Companion.seconds
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
 
@@ -158,33 +162,319 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
             )
         }
 
-        val tryLockSignals = mutableListOf<Boolean>()
-        dropSchema()
-        val failedTryLock = newLock(tryLockSignals)
-        failedTryLock.tryLock(Duration.ZERO, 1.seconds).shouldBeNull()
-        tryLockSignals shouldBeEqualTo listOf(false)
-        restoreSchema()
-        failedTryLock.unlockAndReport() shouldBeEqualTo ExposedR2dbcUnlockOutcome.NOT_HELD
-        // CURRENT_TIMESTAMP 없이 성공한 DELETE는 DB-time admission을 다시 열면 안 됩니다.
-        tryLockSignals shouldBeEqualTo listOf(false)
+        try {
+            val tryLockSignals = mutableListOf<Boolean>()
+            dropSchema()
+            val failedTryLock = newLock(tryLockSignals)
+            failedTryLock.tryLock(Duration.ZERO, 1.seconds).shouldBeNull()
+            tryLockSignals shouldBeEqualTo listOf(false)
+            restoreSchema()
+            failedTryLock.unlockAndReport() shouldBeEqualTo ExposedR2dbcUnlockOutcome.NOT_HELD
+            // CURRENT_TIMESTAMP 없이 성공한 DELETE는 DB-time admission을 다시 열면 안 됩니다.
+            tryLockSignals shouldBeEqualTo listOf(false)
 
-        val heldSignals = mutableListOf<Boolean>()
-        dropSchema()
-        newLock(heldSignals).isHeldByCurrentInstance().shouldBeFalse()
-        heldSignals shouldBeEqualTo listOf(false)
-        restoreSchema()
+            val heldSignals = mutableListOf<Boolean>()
+            dropSchema()
+            newLock(heldSignals).isHeldByCurrentInstance().shouldBeFalse()
+            heldSignals shouldBeEqualTo listOf(false)
+            restoreSchema()
 
-        val unlockSignals = mutableListOf<Boolean>()
-        dropSchema()
-        newLock(unlockSignals).unlockAndReport() shouldBeEqualTo ExposedR2dbcUnlockOutcome.FAILED
-        unlockSignals shouldBeEqualTo listOf(false)
-        restoreSchema()
+            val unlockSignals = mutableListOf<Boolean>()
+            dropSchema()
+            newLock(unlockSignals).unlockAndReport() shouldBeEqualTo ExposedR2dbcUnlockOutcome.FAILED
+            unlockSignals shouldBeEqualTo listOf(false)
+            restoreSchema()
 
-        val extendSignals = mutableListOf<Boolean>()
-        dropSchema()
-        assertFailsWith<Exception> { newLock(extendSignals).extendDetailed(1.seconds) }
-        extendSignals shouldBeEqualTo listOf(false)
-        restoreSchema()
+            val extendSignals = mutableListOf<Boolean>()
+            dropSchema()
+            assertFailsWith<Exception> { newLock(extendSignals).extendDetailed(1.seconds) }
+            extendSignals shouldBeEqualTo listOf(false)
+            restoreSchema()
+        } finally {
+            restoreSchema()
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `DB 오류 시 availability callback 예외는 전파되고 unavailable 신호를 보존한다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        try {
+            suspendTransaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+            ExposedR2dbcSchemaInitializer.resetFor(db)
+
+            val signals = mutableListOf<Boolean>()
+            val callbackFailure = IllegalStateException("availability callback failed")
+            val lock = ExposedR2dbcGroupLock(
+                db,
+                randomName(),
+                slot = 0,
+                retryStrategy = RetryStrategy.Jitter(),
+                useDbTime = true,
+                onAvailabilityChanged = { available ->
+                    signals += available
+                    if (!available) throw callbackFailure
+                },
+            )
+
+            val thrown = assertFailsWith<IllegalStateException> {
+                lock.tryLock(Duration.ZERO, 1.seconds)
+            }
+
+            thrown shouldBeEqualTo callbackFailure
+            signals shouldBeEqualTo listOf(false)
+            thrown.suppressed.size shouldBeEqualTo 1
+            (thrown.suppressed.single() === thrown).shouldBeFalse()
+        } finally {
+            ExposedR2dbcSchemaInitializer.ensureSchema(db)
+            cleanTables(db)
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `DB 오류 시 availability callback CancellationException은 전파되고 unavailable 신호를 보존한다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        try {
+            suspendTransaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+            ExposedR2dbcSchemaInitializer.resetFor(db)
+
+            val signals = mutableListOf<Boolean>()
+            val cancellation = CancellationException("availability callback cancelled")
+            val lock = ExposedR2dbcGroupLock(
+                db,
+                randomName(),
+                slot = 0,
+                retryStrategy = RetryStrategy.Jitter(),
+                useDbTime = true,
+                onAvailabilityChanged = { available ->
+                    signals += available
+                    if (!available) throw cancellation
+                },
+            )
+
+            val thrown = assertFailsWith<CancellationException> {
+                lock.tryLock(Duration.ZERO, 1.seconds)
+            }
+
+            thrown shouldBeEqualTo cancellation
+            signals shouldBeEqualTo listOf(false)
+            thrown.suppressed.size shouldBeEqualTo 1
+            (thrown.suppressed.single() === thrown).shouldBeFalse()
+        } finally {
+            ExposedR2dbcSchemaInitializer.ensureSchema(db)
+            cleanTables(db)
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `정상 DB 연산 시 availability callback 예외도 전파된다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+
+        val signals = mutableListOf<Boolean>()
+        val callbackFailure = IllegalStateException("availability recovery callback failed")
+        val lock = ExposedR2dbcGroupLock(
+            db,
+            randomName(),
+            slot = 0,
+            retryStrategy = RetryStrategy.Jitter(),
+            useDbTime = true,
+            onAvailabilityChanged = { available ->
+                signals += available
+                if (available) throw callbackFailure
+            },
+        )
+
+        val thrown = assertFailsWith<IllegalStateException> {
+            lock.tryLock(Duration.ZERO, 1.seconds)
+        }
+
+        thrown shouldBeEqualTo callbackFailure
+        signals shouldBeEqualTo listOf(true)
+        lock.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `isHeldByCurrentInstance - availability callback 예외는 DB 오류로 변환되지 않는다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val callbackFailure = IllegalStateException("availability callback failed while checking ownership")
+        val lock = ExposedR2dbcGroupLock(
+            db,
+            randomName(),
+            slot = 0,
+            retryStrategy = RetryStrategy.Jitter(),
+            useDbTime = true,
+            onAvailabilityChanged = { available ->
+                if (available) throw callbackFailure
+            },
+        )
+
+        val thrown = assertFailsWith<IllegalStateException> {
+            lock.isHeldByCurrentInstance()
+        }
+
+        thrown shouldBeEqualTo callbackFailure
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `unlockAndReport - min lease availability callback 예외는 DB 오류로 변환되지 않는다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val callbackFailure = IllegalStateException("availability callback failed while unlocking")
+        var failCallback = false
+        val lock = ExposedR2dbcGroupLock(
+            db,
+            lockName,
+            slot = 0,
+            retryStrategy = RetryStrategy.Jitter(),
+            useDbTime = true,
+            onAvailabilityChanged = { available ->
+                if (available && failCallback) throw callbackFailure
+            },
+        )
+        lock.tryLock(Duration.ZERO, 1.seconds).shouldNotBeNull().shouldBeTrue()
+        failCallback = true
+
+        try {
+            val thrown = assertFailsWith<IllegalStateException> {
+                lock.unlockAndReport(1.seconds)
+            }
+
+            thrown shouldBeEqualTo callbackFailure
+        } finally {
+            lock.unlock()
+            cleanTables(db)
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `tryLock - availability callback 예외 시 획득한 row를 정리하고 예외를 전파한다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val callbackFailure = IllegalStateException("availability callback failed after acquire")
+        val lock = ExposedR2dbcGroupLock(
+            db,
+            lockName,
+            slot = 0,
+            retryStrategy = RetryStrategy.Jitter(),
+            useDbTime = true,
+            onAvailabilityChanged = { available ->
+                if (available) throw callbackFailure
+            },
+        )
+
+        try {
+            val thrown = assertFailsWith<IllegalStateException> {
+                lock.tryLock(Duration.ZERO, 1.seconds)
+            }
+            thrown shouldBeEqualTo callbackFailure
+
+            val recovered = ExposedR2dbcGroupLock(
+                db,
+                lockName,
+                slot = 0,
+                retryStrategy = RetryStrategy.Jitter(),
+                useDbTime = true,
+            )
+            recovered.tryLock(Duration.ZERO, 1.seconds).shouldNotBeNull().shouldBeTrue()
+            recovered.unlock()
+        } finally {
+            cleanTables(db)
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `tryLock - availability callback CancellationException 시 획득한 row를 정리하고 취소를 전파한다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val cancellation = CancellationException("availability callback cancelled after acquire")
+        val lock = ExposedR2dbcGroupLock(
+            db,
+            lockName,
+            slot = 0,
+            retryStrategy = RetryStrategy.Jitter(),
+            useDbTime = true,
+            onAvailabilityChanged = { available ->
+                if (available) throw cancellation
+            },
+        )
+
+        try {
+            val thrown = assertFailsWith<CancellationException> {
+                lock.tryLock(Duration.ZERO, 1.seconds)
+            }
+            thrown shouldBeEqualTo cancellation
+
+            val recovered = ExposedR2dbcGroupLock(
+                db,
+                lockName,
+                slot = 0,
+                retryStrategy = RetryStrategy.Jitter(),
+                useDbTime = true,
+            )
+            recovered.tryLock(Duration.ZERO, 1.seconds).shouldNotBeNull().shouldBeTrue()
+            recovered.unlock()
+        } finally {
+            cleanTables(db)
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `tryLock - callback 실패 보상 해제의 DB 오류를 suppressed 결과로 보존한다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val callbackEntered = CountDownLatch(1)
+        val tableDropped = CountDownLatch(1)
+        val callbackFailure = IllegalStateException("availability callback failed before compensation")
+        val dropper = async(Dispatchers.IO) {
+            callbackEntered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            suspendTransaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+            ExposedR2dbcSchemaInitializer.resetFor(db)
+            tableDropped.countDown()
+        }
+        val lock = ExposedR2dbcGroupLock(
+            db,
+            randomName(),
+            slot = 0,
+            retryStrategy = RetryStrategy.Jitter(),
+            useDbTime = true,
+            onAvailabilityChanged = { available ->
+                if (available) {
+                    callbackEntered.countDown()
+                    tableDropped.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    throw callbackFailure
+                }
+            },
+        )
+
+        try {
+            val thrown = assertFailsWith<IllegalStateException> {
+                lock.tryLock(Duration.ZERO, 1.seconds)
+            }
+            dropper.await()
+
+            thrown shouldBeEqualTo callbackFailure
+            thrown.suppressed
+                .any { it.message?.contains("보상 슬롯 해제 실패") == true }
+                .shouldBeTrue()
+        } finally {
+            dropper.cancel()
+            ExposedR2dbcSchemaInitializer.ensureSchema(db)
+            cleanTables(db)
+        }
     }
 
     @ParameterizedTest

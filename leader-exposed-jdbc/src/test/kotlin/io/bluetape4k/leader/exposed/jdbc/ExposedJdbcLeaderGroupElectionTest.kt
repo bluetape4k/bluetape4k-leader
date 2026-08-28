@@ -13,6 +13,7 @@ import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
 import io.bluetape4k.leader.exposed.jdbc.history.ExposedLeaderHistorySink
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -33,8 +34,10 @@ import org.junit.jupiter.params.provider.MethodSource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import java.time.Instant
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.CancellationException as FutureCancellationException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -350,6 +353,44 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
+    fun `runAsyncIfLeader - terminal cleanup 완료 후 결과를 반환한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val cleanupStarted = CountDownLatch(1)
+        val cleanupAllowed = CountDownLatch(1)
+        val recorder = object: SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db)) {
+            override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
+                cleanupStarted.countDown()
+                check(cleanupAllowed.await(5, TimeUnit.SECONDS)) { "terminal cleanup 대기 시간이 초과되었습니다." }
+                super.recordCompleted(key, finishedAt, durationMs)
+            }
+        }
+        val election = ExposedJdbcLeaderGroupElector(db, makeOptions(maxLeaders = 1), recorder)
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = java.util.concurrent.CompletableFuture<String>()
+        val completionExecutor = Executors.newSingleThreadExecutor()
+
+        try {
+            val resultFuture = election.runAsyncIfLeader(randomName(), VirtualThreadExecutor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+
+            actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            completionExecutor.submit { actionFuture.complete("async cleanup 완료") }
+            cleanupStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            resultFuture.isDone.shouldBeFalse()
+
+            cleanupAllowed.countDown()
+            resultFuture.get(5, TimeUnit.SECONDS) shouldBeEqualTo "async cleanup 완료"
+        } finally {
+            cleanupAllowed.countDown()
+            completionExecutor.shutdownNow()
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
     fun `runAsyncIfLeader - action 동기 throw 후 슬롯이 반환되어 다음 호출이 성공한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
@@ -384,6 +425,108 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `runAsyncIfLeader - action future 취소 후 FAILED 이력을 기록하고 슬롯을 반환한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val recorder = SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db))
+        val election = ExposedJdbcLeaderGroupElector(
+            db,
+            makeOptions(maxLeaders = 1),
+            recorder,
+        )
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = java.util.concurrent.CompletableFuture<String>()
+
+        val resultFuture = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+            actionStarted.countDown()
+            actionFuture
+        }
+
+        actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        actionFuture.cancel(false).shouldBeTrue()
+
+        val thrown = assertFailsWith<CompletionException> { resultFuture.join() }
+        thrown.cause.shouldNotBeNull()
+        (thrown.cause is FutureCancellationException).shouldBeTrue()
+        val history = transaction(db) {
+            LeaderLockHistoryTable.selectAll()
+                .where { LeaderLockHistoryTable.lockName eq lockName }
+                .single()
+        }
+        history[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED.name
+        history[LeaderLockHistoryTable.finishedAt].shouldNotBeNull()
+        history[LeaderLockHistoryTable.durationMs].shouldNotBeNull() shouldBeGreaterOrEqualTo 0L
+        election.runIfLeader(lockName) { "async-group-recovered-after-cancel" } shouldBeEqualTo "async-group-recovered-after-cancel"
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `runAsyncIfLeader - 반환 future 취소를 action에 전파하고 FAILED 이력과 슬롯 반환을 보장한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val recorder = SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db))
+        val election = ExposedJdbcLeaderGroupElector(
+            db,
+            makeOptions(maxLeaders = 1),
+            recorder,
+        )
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = java.util.concurrent.CompletableFuture<String>()
+
+        val resultFuture = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+            actionStarted.countDown()
+            actionFuture
+        }
+
+        actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        resultFuture.cancel(false).shouldBeTrue()
+        assertFailsWith<FutureCancellationException> { resultFuture.join() }
+        actionFuture.isCancelled.shouldBeTrue()
+
+        val history = transaction(db) {
+            LeaderLockHistoryTable.selectAll()
+                .where { LeaderLockHistoryTable.lockName eq lockName }
+                .single()
+        }
+        history[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED.name
+        history[LeaderLockHistoryTable.finishedAt].shouldNotBeNull()
+        history[LeaderLockHistoryTable.durationMs].shouldNotBeNull() shouldBeGreaterOrEqualTo 0L
+        election.runIfLeader(lockName) { "async-group-recovered-after-result-cancel" } shouldBeEqualTo
+            "async-group-recovered-after-result-cancel"
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `runAsyncIfLeader - 반환 future 취소 시 슬롯 획득 대기를 중단한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val holder = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(10L))
+        holder.tryLock(Duration.ZERO, 30.seconds).shouldBeTrue()
+        val election = ExposedJdbcLeaderGroupElector(db, makeOptions(maxLeaders = 1, waitSec = 10))
+        val executor = Executors.newSingleThreadExecutor()
+        val actionInvocations = AtomicInteger()
+
+        try {
+            val resultFuture = election.runAsyncIfLeader(lockName, executor) {
+                actionInvocations.incrementAndGet()
+                java.util.concurrent.CompletableFuture.completedFuture("실행되면 안 됨")
+            }
+
+            resultFuture.cancel(false).shouldBeTrue()
+            assertFailsWith<FutureCancellationException> { resultFuture.join() }
+            executor.submit { }.get(3, TimeUnit.SECONDS)
+            actionInvocations.get() shouldBeEqualTo 0
+        } finally {
+            executor.shutdownNow()
+            holder.unlock()
+        }
     }
 
     @ParameterizedTest

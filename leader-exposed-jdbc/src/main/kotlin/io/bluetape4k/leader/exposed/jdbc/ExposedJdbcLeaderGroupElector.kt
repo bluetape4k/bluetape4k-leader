@@ -11,6 +11,7 @@ import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcBackendErrorClassif
 import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcSlotExtendDelegate
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcGroupLock
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
+import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcUnlockOutcome
 import io.bluetape4k.leader.exposed.jdbc.lock.currentTime
 import io.bluetape4k.leader.exposed.jdbc.lock.validateExposedLockName
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
@@ -34,6 +35,8 @@ import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
 
 /**
@@ -218,13 +221,13 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     actionSucceeded -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
                     capturedError != null -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, capturedError) }
                 }
-                try {
-                    lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
-                    log.debug { "그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+                when (lock.unlockAndReport(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)) {
+                    ExposedJdbcUnlockOutcome.RELEASED ->
+                        log.debug { "그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
+                    ExposedJdbcUnlockOutcome.NOT_HELD ->
+                        log.warn { "그룹 슬롯 반납 대상이 없습니다. lockName=$lockName, slot=$slot" }
+                    ExposedJdbcUnlockOutcome.FAILED ->
+                        log.warn { "그룹 슬롯 해제 실패(DB 오류). lockName=$lockName, slot=$slot" }
                 }
             }
         }
@@ -249,9 +252,12 @@ class ExposedJdbcLeaderGroupElector private constructor(
         val perSlotWait = (options.leaderGroupOptions.waitTime / maxLeaders).coerceAtLeast(1.milliseconds)
         val start = Random.nextInt(maxLeaders)
 
-        return CompletableFuture.supplyAsync({
+        val resultFuture = CompletableFuture<T?>()
+        val actionFutureRef = AtomicReference<CompletableFuture<*>?>()
+        val pipelineFuture = CompletableFuture.supplyAsync({
             var acquired: Pair<ExposedJdbcGroupLock, Int>? = null
             for (i in 0 until maxLeaders) {
+                if (resultFuture.isCancelled) return@supplyAsync null
                 val slot = (start + i) % maxLeaders
                 val lock = ExposedJdbcGroupLock(
                     db,
@@ -261,7 +267,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     options.lockOwner,
                     options.leaderGroupOptions.useDbTime,
                 )
-                when (lock.tryLock(perSlotWait, leaseTime)) {
+                when (lock.tryLock(perSlotWait, leaseTime) { resultFuture.isCancelled }) {
                     true -> { acquired = lock to slot; break }
                     false -> continue
                     null -> {
@@ -277,6 +283,19 @@ class ExposedJdbcLeaderGroupElector private constructor(
                 CompletableFuture.completedFuture(null)
             } else {
                 val (lock, slot) = acquired
+                if (resultFuture.isCancelled) {
+                    when (lock.unlockAndReport()) {
+                        ExposedJdbcUnlockOutcome.RELEASED ->
+                            log.debug { "외부 취소 후 획득한 슬롯을 즉시 반납했습니다. lockName=$lockName, slot=$slot" }
+                        ExposedJdbcUnlockOutcome.NOT_HELD ->
+                            log.warn { "외부 취소 후 반납할 슬롯이 없습니다. lockName=$lockName, slot=$slot" }
+                        ExposedJdbcUnlockOutcome.FAILED ->
+                            log.warn { "외부 취소 후 슬롯 해제에 실패했습니다(DB 오류). lockName=$lockName, slot=$slot" }
+                    }
+                    return@thenComposeAsync CompletableFuture.failedFuture<T?>(
+                        java.util.concurrent.CancellationException("runAsyncIfLeader result was cancelled"),
+                    )
+                }
                 log.debug { "그룹 슬롯 비동기 작업 수행. lockName=$lockName, slot=$slot" }
 
                 val startedAt = Instant.now()
@@ -305,45 +324,57 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     delegate,
                     ERROR_CLASSIFIER,
                 )
-
-                val actionFuture = runCatching { action() }
-                    .getOrElse { e ->
+                val terminal = AtomicBoolean()
+                val finishAction: (Throwable?) -> Unit = { throwable ->
+                    if (terminal.compareAndSet(false, true)) {
                         watchdog.close()
                         val finishedAt = Instant.now()
                         val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-                        effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
-                        try {
-                            lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
-                        } catch (ex: CancellationException) {
-                            throw ex
-                        } catch (ex: Exception) {
-                            log.warn(ex) { "슬롯 해제 실패 (action 오류 경로). slot=$slot" }
+                        when {
+                            throwable == null -> effectiveKey?.let {
+                                historyRecorder?.recordCompleted(it, finishedAt, durationMs)
+                            }
+                            else -> effectiveKey?.let {
+                                historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable)
+                            }
                         }
+                        when (lock.unlockAndReport(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)) {
+                            ExposedJdbcUnlockOutcome.RELEASED ->
+                                log.debug { "비동기 그룹 슬롯 반납. lockName=$lockName, slot=$slot" }
+                            ExposedJdbcUnlockOutcome.NOT_HELD ->
+                                log.warn { "비동기 그룹 슬롯 반납 대상이 없습니다. lockName=$lockName, slot=$slot" }
+                            ExposedJdbcUnlockOutcome.FAILED ->
+                                log.warn { "비동기 그룹 슬롯 해제 실패(DB 오류). lockName=$lockName, slot=$slot" }
+                        }
+                    }
+                }
+
+                val actionFuture = runCatching { action() }
+                    .getOrElse { e ->
+                        finishAction(e)
                         return@thenComposeAsync CompletableFuture.failedFuture(e)
                     }
 
-                actionFuture.whenComplete { _, throwable ->
-                    watchdog.close()
-                    val finishedAt = Instant.now()
-                    val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-                    when {
-                        throwable == null -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
-                        // 취소(코루틴/CompletableFuture)는 FAILED로 기록하지 않음
-                        throwable is java.util.concurrent.CancellationException -> { /* skip */ }
-                        throwable is CancellationException -> { /* skip */ }
-                        else -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable) }
-                    }
-                    try {
-                        lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
-                        log.debug { "비동기 그룹 슬롯 반납. lockName=$lockName, slot=$slot" }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        log.warn(e) { "비동기 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
-                    }
+                val terminalFuture = actionFuture.whenComplete { _, throwable ->
+                    finishAction(throwable)
                 }
+                actionFutureRef.set(actionFuture)
+                if (resultFuture.isCancelled) actionFuture.cancel(false)
+                terminalFuture
             }
         }, executor)
+
+        resultFuture.whenComplete { _, _ ->
+            if (resultFuture.isCancelled) actionFutureRef.get()?.cancel(false)
+        }
+        pipelineFuture.whenComplete { value, throwable ->
+            if (throwable == null) {
+                resultFuture.complete(value)
+            } else {
+                resultFuture.completeExceptionally(throwable)
+            }
+        }
+        return resultFuture
     }
 
 }

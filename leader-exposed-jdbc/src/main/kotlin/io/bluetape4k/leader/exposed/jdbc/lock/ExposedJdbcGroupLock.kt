@@ -27,6 +27,13 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.time.Clock
 
+/** 해제 결과를 DB 반영 성공, 미소유, DB 오류로 구분합니다. */
+internal enum class ExposedJdbcUnlockOutcome {
+    RELEASED,
+    NOT_HELD,
+    FAILED,
+}
+
 /**
  * `ExposedJdbcGroupLock`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
@@ -77,12 +84,23 @@ internal class ExposedJdbcGroupLock internal constructor(
      */
     // The retry loop must distinguish cancellation, interruption, transient database errors,
     // and the sleep interruption path to preserve the blocking API contract.
+    fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean? =
+        tryLock(waitTime, leaseTime) { false }
+
     @Suppress("ThrowsCount", "ReturnCount")
-    fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean? {
+    internal fun tryLock(
+        waitTime: Duration,
+        leaseTime: Duration,
+        isCancelled: () -> Boolean,
+    ): Boolean? {
         val deadline = MonotonicDeadline.fromNow(waitTime)
         var attempt = 0
 
         do {
+            if (isCancelled()) {
+                log.debug { "그룹 슬롯 락 획득 취소: lockName=$lockName, slot=$slot" }
+                return false
+            }
             val acquired = try {
                 tryAcquireOnce(leaseTime)
             } catch (e: CancellationException) {
@@ -98,6 +116,10 @@ internal class ExposedJdbcGroupLock internal constructor(
             if (acquired) {
                 log.debug { "그룹 슬롯 락 획득 성공: lockName=$lockName, slot=$slot, token=${token.take(8)}" }
                 return true
+            }
+            if (isCancelled()) {
+                log.debug { "그룹 슬롯 락 재시도 취소: lockName=$lockName, slot=$slot" }
+                return false
             }
 
             val remaining = deadline.remainingMillisForSleep()
@@ -212,12 +234,25 @@ internal class ExposedJdbcGroupLock internal constructor(
         minLeaseTime: Duration = Duration.ZERO,
         acquiredAtNanos: Long = System.nanoTime(),
     ) {
+        unlockAndReport(minLeaseTime, acquiredAtNanos)
+    }
+
+    /**
+     * 해제 결과를 DB 성공, 미소유, DB 오류로 구분합니다.
+     *
+     * 기존 `unlock`의 Unit 반환 계약은 유지하되, 그룹 선출기는 DB 오류를
+     * 정상 해제와 혼동하지 않도록 이 결과를 사용합니다.
+     */
+    internal fun unlockAndReport(
+        minLeaseTime: Duration = Duration.ZERO,
+        acquiredAtNanos: Long = System.nanoTime(),
+    ): ExposedJdbcUnlockOutcome {
         val lockNameVal = this@ExposedJdbcGroupLock.lockName
         val slotVal = this@ExposedJdbcGroupLock.slot
         val tokenVal = this@ExposedJdbcGroupLock.token
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
-        try {
+        return try {
             val matched = transaction(db) {
                 if (remaining > Duration.ZERO) {
                     val now = currentTime(useDbTime, clock)
@@ -241,13 +276,16 @@ internal class ExposedJdbcGroupLock internal constructor(
             }
             if (matched == 0) {
                 log.warn { "그룹 슬롯 해제 실패 — 토큰 불일치 또는 이미 만료됨: lockName=$lockName, slot=$slot" }
+                ExposedJdbcUnlockOutcome.NOT_HELD
             } else {
                 log.debug { "그룹 슬롯 해제 성공: lockName=$lockName, slot=$slot" }
+                ExposedJdbcUnlockOutcome.RELEASED
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             log.warn(e) { "그룹 슬롯 해제 중 DB 오류: lockName=$lockName, slot=$slot" }
+            ExposedJdbcUnlockOutcome.FAILED
         }
     }
 
