@@ -6,6 +6,8 @@ import eu.rekawek.toxiproxy.model.Toxic
 import eu.rekawek.toxiproxy.model.ToxicDirection
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
@@ -19,6 +21,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.yield
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
@@ -28,6 +34,7 @@ import org.testcontainers.containers.Network
 import org.testcontainers.toxiproxy.ToxiproxyContainer
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -51,6 +58,11 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
                 )
                 val entryLock = cache.getLock(candidateNode)
                 entryLock.lockAsync(OWNER_THREAD_ID).await()
+                val toxic = proxy.toxics().latency(
+                    "delay-entry-lock-owner-command",
+                    ToxicDirection.UPSTREAM,
+                    LATE_ACQUISITION_COMMAND_DELAY_MILLIS,
+                )
 
                 try {
                     coroutineScope {
@@ -68,6 +80,17 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
                     // 취소된 Redisson waiter가 늦게 획득하더라도 반드시 자체 unlock되어야 한다.
                     delay(LATE_ACQUISITION_RACE_DELAY_MILLIS)
                     entryLock.unlockAsync(OWNER_THREAD_ID).await()
+                    // Upstream latency로 취소된 acquire 명령이 owner 해제 뒤 Redis에 도착하게
+                    // 한다. 지연된 cleanup이 늦은 owner를 충분히 관찰 가능하게 만든다.
+                    await.atMost(2.seconds).withPollInterval(20.milliseconds).untilAsserted {
+                        entryLock.isLocked().shouldBeTrue()
+                    }
+
+                    removeToxic(toxic)
+                    await.atMost(2.seconds).withPollInterval(20.milliseconds).untilAsserted {
+                        entryLock.isLocked().shouldBeFalse()
+                    }
+
                     val reacquired = kotlinx.coroutines.withTimeout(1.seconds) {
                         entryLock.tryLockAsync(
                             REACQUIRE_WAIT_MILLIS,
@@ -76,9 +99,10 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
                             REACQUIRE_THREAD_ID,
                         ).await()
                     }
-                    reacquired shouldBeEqualTo true
+                    reacquired.shouldBeTrue()
                     entryLock.unlockAsync(REACQUIRE_THREAD_ID).await()
                 } finally {
+                    removeToxic(toxic)
                     if (entryLock.isHeldByThread(OWNER_THREAD_ID)) {
                         entryLock.forceUnlock()
                     }
@@ -118,7 +142,7 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
                         assertFailsWith<CancellationException> { deferred.await() }
                     }
 
-                    actionInvoked.isCompleted shouldBeEqualTo false
+                    actionInvoked.isCompleted.shouldBeFalse()
                 } finally {
                     removeToxic(toxic)
                 }
@@ -250,6 +274,7 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
         const val REDISSON_SHUTDOWN_TIMEOUT_SECONDS = 1L
         const val CANCEL_SETTLE_MILLIS = 250L
         const val CANCEL_SETTLE_ROUNDS = 5
+        const val LATE_ACQUISITION_COMMAND_DELAY_MILLIS = 500L
         const val LATE_ACQUISITION_RACE_DELAY_MILLIS = 50L
         const val REACQUIRE_WAIT_MILLIS = 100L
         const val REACQUIRE_LEASE_MILLIS = 30_000L

@@ -49,7 +49,10 @@ internal class RedissonCandidateRegistry(
         private val ENTRY_LOCK_ATTEMPT_TIMEOUT = 500.milliseconds
         private val ENTRY_LOCK_SOURCE_DEADLINE = 2.seconds
         private val ENTRY_LOCK_CLEANUP_TIMEOUT = 1.seconds
-        private val suspendLockThreadIds = AtomicLong()
+        // Redisson은 owner ID를 lock hash의 `clientId:threadId`로 저장한다.
+        // Blocking 경로는 JVM thread ID(양수)를 사용하므로 같은 client에서도
+        // coroutine entry lock은 충돌하지 않는 음수 namespace를 사용한다.
+        private val suspendLockThreadIds = AtomicLong(Long.MIN_VALUE)
 
         private const val LOCK_WAITING = 0
         private const val LOCK_ACQUIRED = 1
@@ -186,10 +189,11 @@ internal class RedissonCandidateRegistry(
         crossinline action: suspend () -> T,
     ): T {
         val lock = cache.getLock(nodeId)
-        // Redisson lock ownership is thread-id based. A dispatcher thread may
-        // host multiple suspended coroutines, so allocate one id per logical
-        // lock hold instead of reusing the physical thread id.
-        val threadId = suspendLockThreadIds.incrementAndGet()
+        // Redisson lock ownership은 thread ID 기반이다. dispatcher thread 하나가 여러
+        // suspend coroutine을 실행할 수 있으므로 physical thread ID를 재사용하지 않고
+        // logical lock hold마다 ID를 할당한다. 음수 namespace는 blocking JVM thread ID와
+        // 충돌하지 않는다.
+        val threadId = suspendLockThreadIds.getAndIncrement()
         var acquired = false
         return try {
             awaitEntryLock(lock, threadId)
