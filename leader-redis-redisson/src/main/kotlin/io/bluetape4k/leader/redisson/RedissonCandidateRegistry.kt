@@ -124,19 +124,6 @@ internal class RedissonCandidateRegistry(
                 end
             end
 
-            local hasListeners = redis.call('hget', KEYS[5], 'has-listeners')
-            if hasListeners ~= false then
-                local message = struct.pack(
-                    'Lc0Lc0Lc0',
-                    string.len(mapKey),
-                    mapKey,
-                    string.len(ARGV[3]),
-                    ARGV[3],
-                    string.len(oldValue),
-                    oldValue
-                )
-                redis.call('PUBLISH', KEYS[6], message)
-            end
             return 1
         """
     }
@@ -218,6 +205,7 @@ internal class RedissonCandidateRegistry(
         ttl: Duration,
     ): Boolean {
         val result = redissonClient.getScript(refreshScriptCodec(cache)).eval<Long>(
+            cache.name,
             RScript.Mode.READ_WRITE,
             REFRESH_CANDIDATE_SCRIPT,
             RScript.ReturnType.LONG,
@@ -238,6 +226,7 @@ internal class RedissonCandidateRegistry(
     ): Boolean {
         val result = redissonClient.getScript(refreshScriptCodec(cache))
             .evalAsync<Long>(
+                cache.name,
                 RScript.Mode.READ_WRITE,
                 REFRESH_CANDIDATE_SCRIPT,
                 RScript.ReturnType.LONG,
@@ -276,7 +265,6 @@ internal class RedissonCandidateRegistry(
             RedissonObject.prefixName("redisson__idle__set", name),
             RedissonObject.prefixName("redisson__map_cache__last_access__set", name),
             RedissonObject.suffixName(name, "redisson_options"),
-            RedissonObject.prefixName("redisson_map_cache_updated", name),
         ).map { it.toByteArray(StandardCharsets.UTF_8) }
     }
 
