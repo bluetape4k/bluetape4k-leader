@@ -10,6 +10,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 import org.redisson.api.RedissonClient
 import org.redisson.api.RLock
@@ -46,7 +47,7 @@ internal class RedissonCandidateRegistry(
         internal const val DEFAULT_KEY_PREFIX = "leader:strategy:candidates"
         internal const val GROUP_KEY_PREFIX = "leader:strategy:group-candidates:redisson:v1"
         private val ENTRY_LOCK_ATTEMPT_TIMEOUT = 500.milliseconds
-        private val ENTRY_LOCK_LEASE_TIMEOUT = 30.seconds
+        private val ENTRY_LOCK_SOURCE_DEADLINE = 2.seconds
         private val ENTRY_LOCK_CLEANUP_TIMEOUT = 1.seconds
         private val suspendLockThreadIds = AtomicLong()
 
@@ -203,8 +204,9 @@ internal class RedissonCandidateRegistry(
 
     /**
      * 무기한 `lockAsync` waiter를 만들지 않도록 finite `tryLockAsync` 시도만 반복합니다.
-     * 각 시도는 bounded wait/lease를 사용하므로 caller가 취소되어도 Redis pub/sub waiter가
-     * 무기한 남지 않습니다. 취소와 실제 획득이 경합하면 late acquisition을 관찰해 해제합니다.
+     * 시도 자체는 500ms로 제한하고, 성공한 entry lock은 `leaseTime=-1`로 Redisson watchdog
+     * 갱신을 유지합니다. source future가 backend 지연으로 deadline을 넘기면 source를 취소하고,
+     * 취소와 실제 획득이 경합하면 late acquisition을 관찰해 해제합니다.
      */
     @Suppress("TooGenericExceptionCaught")
     private suspend fun awaitEntryLock(lock: RLock, threadId: Long) {
@@ -218,48 +220,51 @@ internal class RedissonCandidateRegistry(
 
     @Suppress("TooGenericExceptionCaught")
     private suspend fun awaitEntryLockAttempt(lock: RLock, threadId: Long): Boolean =
-        suspendCancellableCoroutine { continuation ->
-            val state = AtomicInteger(LOCK_WAITING)
-            val lockFuture = try {
-                lock.tryLockAsync(
-                    ENTRY_LOCK_ATTEMPT_TIMEOUT.inWholeMilliseconds,
-                    ENTRY_LOCK_LEASE_TIMEOUT.inWholeMilliseconds,
-                    TimeUnit.MILLISECONDS,
-                    threadId,
-                )
-            } catch (failure: Throwable) {
-                state.compareAndSet(LOCK_WAITING, LOCK_FAILED)
-                continuation.resumeWithException(failure)
-                return@suspendCancellableCoroutine
-            }
-
-            lockFuture.whenComplete { acquired, failure ->
-                if (failure != null) {
-                    if (state.compareAndSet(LOCK_WAITING, LOCK_FAILED)) {
-                        continuation.resumeWithException(failure.unwrapCompletionException())
-                    }
-                } else if (acquired == true) {
-                    when {
-                        state.compareAndSet(LOCK_WAITING, LOCK_ACQUIRED) -> continuation.resume(true)
-                        state.compareAndSet(LOCK_CANCELLED, LOCK_CLEANUP_SCHEDULED) ->
-                            scheduleLateEntryLockCleanup(lock, threadId)
-                    }
-                } else if (state.compareAndSet(LOCK_WAITING, LOCK_COMPLETED)) {
-                    continuation.resume(false)
+        withTimeout(ENTRY_LOCK_SOURCE_DEADLINE) {
+            suspendCancellableCoroutine { continuation ->
+                val state = AtomicInteger(LOCK_WAITING)
+                val lockFuture = try {
+                    lock.tryLockAsync(
+                        ENTRY_LOCK_ATTEMPT_TIMEOUT.inWholeMilliseconds,
+                        -1L,
+                        TimeUnit.MILLISECONDS,
+                        threadId,
+                    )
+                } catch (failure: Throwable) {
+                    state.compareAndSet(LOCK_WAITING, LOCK_FAILED)
+                    continuation.resumeWithException(failure)
+                    return@suspendCancellableCoroutine
                 }
-            }
 
-            continuation.invokeOnCancellation {
-                while (true) {
-                    when (state.get()) {
-                        LOCK_WAITING -> if (state.compareAndSet(LOCK_WAITING, LOCK_CANCELLED)) {
-                            return@invokeOnCancellation
+                lockFuture.whenComplete { acquired, failure ->
+                    if (failure != null) {
+                        if (state.compareAndSet(LOCK_WAITING, LOCK_FAILED)) {
+                            continuation.resumeWithException(failure.unwrapCompletionException())
                         }
-                        LOCK_ACQUIRED -> if (state.compareAndSet(LOCK_ACQUIRED, LOCK_CLEANUP_SCHEDULED)) {
-                            scheduleLateEntryLockCleanup(lock, threadId)
-                            return@invokeOnCancellation
+                    } else if (acquired == true) {
+                        when {
+                            state.compareAndSet(LOCK_WAITING, LOCK_ACQUIRED) -> continuation.resume(true)
+                            state.compareAndSet(LOCK_CANCELLED, LOCK_CLEANUP_SCHEDULED) ->
+                                scheduleLateEntryLockCleanup(lock, threadId)
                         }
-                        else -> return@invokeOnCancellation
+                    } else if (state.compareAndSet(LOCK_WAITING, LOCK_COMPLETED)) {
+                        continuation.resume(false)
+                    }
+                }
+
+                continuation.invokeOnCancellation {
+                    while (true) {
+                        when (state.get()) {
+                            LOCK_WAITING -> if (state.compareAndSet(LOCK_WAITING, LOCK_CANCELLED)) {
+                                lockFuture.cancel(false)
+                                return@invokeOnCancellation
+                            }
+                            LOCK_ACQUIRED -> if (state.compareAndSet(LOCK_ACQUIRED, LOCK_CLEANUP_SCHEDULED)) {
+                                scheduleLateEntryLockCleanup(lock, threadId)
+                                return@invokeOnCancellation
+                            }
+                            else -> return@invokeOnCancellation
+                        }
                     }
                 }
             }
@@ -315,7 +320,7 @@ internal class RedissonCandidateRegistry(
         }
     }
 
-    /** Source future를 취소하지 않는 await입니다. cancellation handler가 원본 명령을 보존해야 합니다. */
+    /** Unlock 응답은 취소하지 않고 관찰하여 backend의 늦은 정리를 보존합니다. */
     private suspend fun <T> org.redisson.api.RFuture<T>.awaitWithoutCancellingSource(): T =
         suspendCancellableCoroutine { continuation ->
             whenComplete { value, failure ->

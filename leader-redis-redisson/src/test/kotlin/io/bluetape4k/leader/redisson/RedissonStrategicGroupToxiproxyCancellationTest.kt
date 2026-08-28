@@ -64,9 +64,9 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
                         thrown.message shouldBeEqualTo cancellation.message
                     }
 
-                    // owner를 bounded attempt window보다 오래 유지하므로, 취소된 waiter가
-                    // owner 해제 시점에 서버 측 대기 요청을 남기지 않았는지 확인한다.
-                    delay(ENTRY_LOCK_ATTEMPT_SETTLE_MILLIS)
+                    // bounded attempt window 안에 owner를 해제해 실제 late acquisition 경합을 만든다.
+                    // 취소된 Redisson waiter가 늦게 획득하더라도 반드시 자체 unlock되어야 한다.
+                    delay(LATE_ACQUISITION_RACE_DELAY_MILLIS)
                     entryLock.unlockAsync(OWNER_THREAD_ID).await()
                     val reacquired = kotlinx.coroutines.withTimeout(1.seconds) {
                         entryLock.tryLockAsync(
@@ -250,7 +250,7 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
         const val REDISSON_SHUTDOWN_TIMEOUT_SECONDS = 1L
         const val CANCEL_SETTLE_MILLIS = 250L
         const val CANCEL_SETTLE_ROUNDS = 5
-        const val ENTRY_LOCK_ATTEMPT_SETTLE_MILLIS = 1_000L
+        const val LATE_ACQUISITION_RACE_DELAY_MILLIS = 50L
         const val REACQUIRE_WAIT_MILLIS = 100L
         const val REACQUIRE_LEASE_MILLIS = 30_000L
         const val OWNER_THREAD_ID = 826_001L
