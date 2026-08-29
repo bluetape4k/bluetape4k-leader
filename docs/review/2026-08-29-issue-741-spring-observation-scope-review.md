@@ -2,12 +2,11 @@
 
 ## 범위와 판정
 
-- 대상 diff: `origin/develop@4c0d1156c268cde6191f6901c933b60ae6b92cff...575cccdc505284528eea5bcf645d0b2e8b62124b`
+- 대상 diff: `origin/develop@a08e015898ba3ac51b38a085c4dc845dc90c30c2...e756da7a39f81223fe23d9dd067ef8dc06cd9e94`
 - 범위: core scope/dispatch, USER/WATCHDOG producer, virtual/coroutine adapter, Spring registry manager/owner, single/group AOP, auto-configuration, tests, README/manual, benchmark
-- 자체 검토: **PASS (P0=0, P1=0, P2=0)**
+- inline 독립 검토: **PASS (P0=0, P1=0, P2=0)**
 - 자동 검증: **PASS**
-- 독립 검토: **PENDING** — native `code-reviewer`/`verifier` lane을 네 차례 bounded 실행했지만 각 lane이 90초 이상 결과 없이 정체되어 회수됐다.
-- merge gate: exact-head CI와 독립 human/code review를 확인하고 fresh 승인을 받기 전에는 병합하지 않는다.
+- merge gate: 사용자 승인 후 exact-head CI, unresolved thread, mergeability를 다시 확인하고 병합한다.
 
 ## 계약별 검토
 
@@ -27,6 +26,7 @@
 1. scope가 없는 suspend advice에도 `withContext(EmptyCoroutineContext)`를 적용하면 기존 exception identity/wrapping이 달라지는 회귀가 발생했다. scope가 없을 때는 원래 suspend lambda를 직접 실행하도록 수정했고 full Spring suite로 회귀를 닫았다.
 2. 원래 `suspendBlock` 변수명을 `executeSuspend`로 바꾸자 Kotlin compiler-generated `WhenMappings` 이름이 달라져 ABI gate가 두 synthetic removal을 보고했다. 변수명을 보존해 `unknown=0`으로 복구했다.
 3. USER benchmark가 active leader handle 없이 `LockExtender`를 호출해 WARN과 logging allocation을 측정하던 결함을 발견했다. 실제 `LocalLeaderElector`/`LocalSuspendLeaderElector` 실행 안에서 extension을 호출하도록 수정하고 exact baseline/candidate SHA의 3-fork 결과를 다시 기록했다.
+4. inline 독립 검토에서 서로 다른 registry의 기본 `NotHeld/context=null` 격리 테스트만 있고, spec이 요구한 identity·raw exception opt-in과 양쪽 close 순서 조합이 빠진 P1 검증 공백을 발견했다. source registry의 raw identity/error만 기록되고 닫힌 scope는 재전달되지 않는 양방향 회귀 테스트를 추가했다.
 
 ## 검증 증거
 
@@ -38,8 +38,9 @@
 - JMH 3 forks: throughput `1.335%` 개선, average-time regression `0.023%`, 15% gate PASS
 - manual inventory/validation: PASS
 - Ruby manual suite: `37 runs, 392 assertions, 0 failures, 0 errors, 0 skips`
+- inline review 회귀 묶음: `78 tests`, failures `0`, errors `0`, skipped `0`
 - `git diff --check`: PASS
 
 ## 남은 gate
 
-독립 review artifact가 아직 없다. PR 생성과 hosted CI는 진행할 수 있지만 merge는 독립 검토 결과, unresolved thread, exact-head checks, mergeability를 다시 확인하고 사용자에게 fresh 승인을 받은 뒤에만 수행한다.
+inline 독립 검토와 발견 항목 보완은 끝났다. 새 exact head를 push한 뒤 hosted CI, unresolved thread, mergeability를 다시 확인해야 한다.
