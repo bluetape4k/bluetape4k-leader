@@ -728,6 +728,14 @@ short. `droppedCount()` is therefore separate from `ExtendOutcome.Rejected`: it 
 Close removes only that registration; an already accepted callback may still finish, and callback ordering is
 not guaranteed.
 
+`addObserver` remains a process-wide wildcard API. Spring's automatic Micrometer adapter is narrower: each
+`ObservationRegistry` identity owns an opaque execution scope, so two application contexts with different registries
+receive only their own AOP-attributed `USER` and `WATCHDOG` events. Parent and child contexts that intentionally share
+one registry share one telemetry domain. Calls made outside `@LeaderElection`/`@LeaderGroupElection`, including direct
+elector calls and Reactor callbacks outside the aspect-owned coroutine bridge, fail closed for automatic Spring
+telemetry but still reach explicit global observers. Do not register the same Micrometer observer both globally and
+automatically, because that produces duplicate observations.
+
 The snippet above closes after one explicit `USER` attempt. To observe `WATCHDOG` ticks, keep the registration open for
 the entire single-leader action or component lifetime with `autoExtend = true`, then close it during shutdown. Group
 elections support explicit `LockExtender` calls inside their active slot bodies, but they do not produce `WATCHDOG`

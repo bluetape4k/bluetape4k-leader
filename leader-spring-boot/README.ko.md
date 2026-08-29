@@ -420,6 +420,27 @@ Spring은 다음 규칙으로 registration 수명주기를 관리합니다.
 - 같은 registry에 서로 다른 `LeaderObservationOptions`가 들어오면 redaction을
   조용히 약화하거나 callback을 중복 등록하지 않고 즉시 실패합니다.
 
+자동 lease-extension 전달은 각 local application context가 선택한 registry에 귀속됩니다. 같은 registry를 공유하는
+parent/child context는 scope와 callback 하나를 공유하고, 서로 다른 registry는 상대 event나 opt-in identity를 받지
+않습니다. 귀속 경계는 aspect가 소유한 실행 구간입니다.
+
+| Aspect | Sync | Suspend | `Mono` | `Flux` | Kotlin `Flow` |
+|---|---:|---:|---:|---:|---:|
+| `@LeaderElection` | 지원 | 지원 | 지원 | 지원 | 지원 |
+| `@LeaderGroupElection` | 지원 | 지원 | 지원 | 거부 | 거부 |
+
+이 aspect 밖의 직접 elector 호출과 aspect가 소유한 coroutine bridge 밖의 Reactor callback에서 실행한 직접
+`LockExtender` 호출은 Spring 자동 lease-extension observation을 만들지 않습니다. 다만 명시적으로 등록한
+process-global `LeaderLeaseExtensionObservers.addObserver`에는 계속 전달됩니다. 자동 귀속이 필요하면 annotation
+경계 안으로 옮기거나 명시적인 global observer 하나를 애플리케이션이 소유하고 종료 시 닫으세요. 같은 Micrometer
+adapter에 두 방식을 함께 사용하지 마세요.
+
+Canary에서는 registry A/B를 함께 실행해 자기 identity `1건`, 상대 identity `0건`, 예상 밖 `droppedCount()` delta
+없음을 확인합니다. `bluetape4k.leader.observability.tracing.enabled=false`는 startup-only rollback switch이므로
+context/process 재시작이 필요합니다. 재시작 뒤 automatic `0건`, explicit global `1건`을 확인하세요. 종료 순서는
+AOP traffic 중단, context registration close, registry/exporter grace period, exporter 종료입니다. Registration close는
+이미 accepted된 callback의 drain을 기다리지 않고 새 scoped admission만 막습니다.
+
 Core event는 `USER`/`WATCHDOG` source와 `BLOCKING`/`SUSPEND` execution을 그대로
 구분합니다. Micrometer는 앞서 설명한 bounded `source`, `execution`, `outcome`,
 `result` 값만 기본으로 내보냅니다. Lock name과 leader ID는 명시적으로 켰을 때
