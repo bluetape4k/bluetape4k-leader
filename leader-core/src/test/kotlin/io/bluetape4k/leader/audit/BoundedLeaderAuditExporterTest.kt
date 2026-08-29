@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.audit
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.LockIdentity
@@ -11,13 +12,13 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.time.Instant
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
-import java.util.concurrent.CancellationException
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -288,7 +289,6 @@ class BoundedLeaderAuditExporterTest {
     @Test
     fun `executor rejection releases all permits and later submissions recover`() {
         val rejectFirst = AtomicBoolean(true)
-        val rejected = CountDownLatch(1)
         val recovered = CountDownLatch(1)
         val deliveryFuture = CompletableFuture<LeaderAuditDeliveryResult>()
         val executor = Executor { command ->
@@ -302,12 +302,12 @@ class BoundedLeaderAuditExporterTest {
                 deliveryFuture
             },
             executor = executor,
-            onObservation = { if (it == LeaderAuditExportObservation.EXECUTOR_REJECTED) rejected.countDown() },
         )
 
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        rejected.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        awaitAdmissionReleased(exporter)
         exporter.snapshot().admitted.shouldBeEqualTo(0)
+        exporter.snapshot().executorRejections.shouldBeEqualTo(1)
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
         recovered.await(5, TimeUnit.SECONDS).shouldBeTrue()
         deliveryFuture.complete(LeaderAuditDeliveryResult.SUCCESS).shouldBeTrue()
@@ -574,6 +574,144 @@ class BoundedLeaderAuditExporterTest {
         exporter.close()
     }
 
+    @Test
+    fun `closing observer drops queued callbacks and allows a replacement observer to re-admit`() {
+        val firstStarted = CountDownLatch(1)
+        val releaseFirst = CountDownLatch(1)
+        val originalCalls = AtomicInteger()
+        val replacementCalls = AtomicInteger()
+        val exporter = exporter(
+            queueCapacity = 2,
+            registerObserver = false,
+        )
+        val registration = exporter.observe(LeaderAuditExportObserver {
+            if (originalCalls.incrementAndGet() == 1) {
+                firstStarted.countDown()
+                releaseFirst.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            }
+        })
+
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        firstStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        registration.close()
+        diagnosticsQueued(exporter).shouldBeEqualTo(0)
+        releaseFirst.countDown()
+
+        val replacementStarted = CountDownLatch(1)
+        val releaseReplacement = CountDownLatch(1)
+        val replacement = exporter.observe(LeaderAuditExportObserver {
+            if (replacementCalls.incrementAndGet() == 1) {
+                replacementStarted.countDown()
+                releaseReplacement.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            }
+        })
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        replacementStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        releaseReplacement.countDown()
+        awaitValue(replacementCalls, 2)
+
+        originalCalls.get().shouldBeEqualTo(1)
+        replacement.close()
+        exporter.close()
+    }
+
+    @Test
+    fun `close prevents queued observer callback from starting after close returns`() {
+        val firstStarted = CountDownLatch(1)
+        val releaseFirst = CountDownLatch(1)
+        val calls = AtomicInteger()
+        val exporter = exporter(
+            queueCapacity = 2,
+            registerObserver = false,
+        )
+        exporter.observe(LeaderAuditExportObserver {
+            if (calls.incrementAndGet() == 1) {
+                firstStarted.countDown()
+                releaseFirst.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            }
+        })
+
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        firstStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        exporter.close()
+        diagnosticsQueued(exporter).shouldBeEqualTo(0)
+        releaseFirst.countDown()
+
+        awaitValue(calls, 1)
+        calls.get().shouldBeEqualTo(1)
+        exporter.snapshot().diagnosticsClosed.shouldBeTrue()
+    }
+
+    @Test
+    fun `observer Error closes diagnostics and drops queued callbacks`() {
+        val firstStarted = CountDownLatch(1)
+        val releaseFirst = CountDownLatch(1)
+        val secondStarted = CountDownLatch(1)
+        val uncaught = CountDownLatch(1)
+        val calls = AtomicInteger()
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { _, error ->
+            if (error is AssertionError) uncaught.countDown()
+        }
+        try {
+            val exporter = exporter(
+                queueCapacity = 2,
+                registerObserver = false,
+            )
+            exporter.observe(LeaderAuditExportObserver {
+                if (calls.incrementAndGet() == 1) {
+                    firstStarted.countDown()
+                    releaseFirst.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    throw AssertionError("observer-failed")
+                } else {
+                    secondStarted.countDown()
+                }
+            })
+
+            exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+            firstStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+            releaseFirst.countDown()
+
+            uncaught.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            diagnosticsQueued(exporter).shouldBeEqualTo(0)
+            secondStarted.await(200, TimeUnit.MILLISECONDS).shouldBeFalse()
+            exporter.snapshot().diagnosticsClosed.shouldBeTrue()
+            exporter.snapshot().diagnosticsFatalErrors.shouldBeEqualTo(1)
+            exporter.close()
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler(previous)
+        }
+    }
+
+    @Test
+    fun `observer close waits for diagnostics poll and reservation gate`() {
+        val polled = CountDownLatch(1)
+        val releasePoll = CountDownLatch(1)
+        val closeReturned = CountDownLatch(1)
+        val exporter = exporter(
+            queueCapacity = 1,
+            registerObserver = false,
+        )
+        val registration = exporter.observe(LeaderAuditExportObserver { })
+        replaceDiagnosticsQueue(exporter, BlockingDiagnosticsQueue(polled, releasePoll))
+
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        polled.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        Thread.ofVirtual().start {
+            registration.close()
+            closeReturned.countDown()
+        }
+
+        closeReturned.await(200, TimeUnit.MILLISECONDS).shouldBeFalse()
+        releasePoll.countDown()
+        closeReturned.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        exporter.close()
+    }
+
     private fun exporter(
         delivery: LeaderAuditDelivery = LeaderAuditDelivery {
             CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS)
@@ -626,5 +764,41 @@ class BoundedLeaderAuditExporterTest {
         while (exporter.snapshot().admitted != 0 && System.nanoTime() < deadline) {
             Thread.onSpinWait()
         }
+    }
+
+    private fun replaceDiagnosticsQueue(
+        exporter: BoundedLeaderAuditExporter,
+        queue: ConcurrentLinkedQueue<Any>,
+    ) {
+        exporter.javaClass.getDeclaredField("diagnostics").apply {
+            isAccessible = true
+            set(exporter, queue)
+        }
+    }
+
+    private fun diagnosticsQueued(exporter: BoundedLeaderAuditExporter): Int =
+        (exporter.javaClass.getDeclaredField("diagnosticsQueued").apply { isAccessible = true }
+            .get(exporter) as AtomicInteger).get()
+
+    private class BlockingDiagnosticsQueue(
+        private val polled: CountDownLatch,
+        private val release: CountDownLatch,
+    ) : ConcurrentLinkedQueue<Any>() {
+        override fun poll(): Any? {
+            val item = super.poll()
+            if (item != null) {
+                polled.countDown()
+                release.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            }
+            return item
+        }
+    }
+
+    private fun awaitValue(value: AtomicInteger, expected: Int) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (value.get() != expected && System.nanoTime() < deadline) {
+            Thread.onSpinWait()
+        }
+        value.get().shouldBeEqualTo(expected)
     }
 }
