@@ -287,7 +287,7 @@ class LeaderElectionAspect(
         val start = System.nanoTime()
         val method = (pjp.signature as MethodSignature).method
 
-        val executeSuspend: suspend () -> Any? = {
+        val suspendBlock: suspend () -> Any? = {
             var lockName: String? = null
             var resolvedIdentity: LockIdentity? = null
 
@@ -428,12 +428,12 @@ class LeaderElectionAspect(
             }
         }
         val scope = observationScopeOwner?.current()
-        val suspendBlock: suspend () -> Any? = if (scope == null) {
-            executeSuspend
+        val scopedSuspendBlock: suspend () -> Any? = if (scope == null) {
+            suspendBlock
         } else {
-            { withContext(scope.asContextElement()) { executeSuspend() } }
+            { withContext(scope.asContextElement()) { suspendBlock() } }
         }
-        return suspendBlock.startCoroutineUninterceptedOrReturn(continuation)
+        return scopedSuspendBlock.startCoroutineUninterceptedOrReturn(continuation)
     }
 
     /**
