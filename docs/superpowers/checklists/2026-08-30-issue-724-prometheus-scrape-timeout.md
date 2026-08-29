@@ -1,0 +1,285 @@
+# Issue #724 Prometheus scrape timeout checklist
+
+- 이슈: [#724](https://github.com/bluetape4k/bluetape4k-leader/issues/724)
+- 분류: Type C bugfix (`bluetape-bugfix`)
+- 기준 브랜치: `develop`
+- 작업 브랜치: `fix/issue-724-prometheus-scrape-timeout`
+- 승인: 현재 사용자 요청이 로컬 cleanup과 #724 작업을 명시함
+- 대상: `examples/prometheus-dashboard` test/readiness/fixture 경계
+- 원칙: Core API·dependency·unrelated CI 변경은 범위 밖
+
+## Applicability
+
+- Required: CL-01~08, C-01~09, CG-01~18, KT-01~05, KT-TEST-01~05,
+  KT-SPR-01~05, KT-FIN-01~11.
+- Conditional N/A 후보: Exposed rows (Exposed 미변경), HTTP/HC5 adapter lifecycle
+  rows (endpoint 구현 미변경 시), diagram/release/publish rows (범위 밖).
+- `CG-14` human-review subgate는 single-developer lane 근거를 확보한 경우에만 N/A.
+
+## Checklist state
+
+- [x] **CL-01 — Create before mutation**
+  - **Action:** router/common/leaf 항목을 첫 코드 변경 전에 생성한다.
+  - **Evidence:** 본 checklist와 plan을 isolated worktree에 코드 변경 전에 생성했다.
+  - **Failure:** 코드 변경을 중지하고 checklist를 복구한다.
+- [x] **CL-02 — Classify every item**
+  - **Action:** 모든 항목을 required, conditional 또는 N/A 후보로 분류한다.
+  - **Evidence:** 위 Applicability에 Type C/Common/Kotlin 및 조건부 표면을 기록했다.
+  - **Failure:** 미분류 항목은 required 미검증으로 유지한다.
+- [x] **CL-03 — Respect dependency order**
+  - **Action:** preflight→진단→RED→fix→GREEN→pre-PR→PR 순서를 지킨다.
+  - **Evidence:** preflight→diagnosis→RED→fix→GREEN→static→full 순으로 실행했고 flow receipt sequence 4~15에 lane/topology/check/completion을 기록했다.
+  - **Failure:** 영향받은 downstream proof를 repair 후 재실행한다.
+- [x] **CL-04 — Record evidence immediately**
+  - **Action:** 각 row 확인 즉시 command/file/URL/count를 기록한다.
+  - **Evidence:** targeted/module/related/full/static 결과와 JUnit counts를 아래 C/KT rows 및 lesson에 즉시 반영했다.
+  - **Failure:** evidence 없는 row는 unchecked로 둔다.
+- [x] **CL-05 — Fail closed**
+  - **Action:** PENDING/FAIL row의 dependent 작업을 진행하지 않는다.
+  - **Evidence:** 첫 full-run의 unrelated core flake를 #724 증거와 분리하고, PR/merge gate는 실행하지 않은 상태로 유지했다.
+  - **Failure:** 잘못 진행한 증명을 폐기하고 재검증한다.
+- [x] **CL-06 — Repair skipped or reordered work**
+  - **Action:** 누락·순서 위반 gate와 영향받은 dependent proof를 repair한다.
+  - **Evidence:** scheduler readiness를 명시 호출로 repair한 뒤 targeted 3/3, module 15/15, full rerun 451 suites/4173 tests를 재검증했다.
+  - **Failure:** 최종 상태를 BLOCKED로 남긴다.
+- [x] **CL-07 — Refresh irreversible holds**
+  - **Action:** PR/merge/삭제 직전 authority·target·head를 다시 읽는다.
+  - **Evidence:** live #724 metadata와 milestone 1.0.0을 재확인했으며, PR/merge/삭제 side effect는 scope 밖으로 보류했다.
+  - **Failure:** side effect를 실행하지 않는다.
+- [x] **CL-08 — Count before completion**
+  - **Action:** 최종 `Required checks: X/Y; N/A: N; Blocked: N`을 계산한다.
+  - **Evidence:** 아래 Final reconciliation에서 Required/N/A/PENDING row를 분리해 집계한다.
+  - **Failure:** completion claim을 금지한다.
+
+## Type C bugfix lifecycle
+
+- [x] **C-01 — Prove the defect and root cause**
+  - **Action:** exact head에서 flaky scrape를 재현하고 scheduler/HTTP/metric/fixture 경계를 추적한다.
+  - **Evidence:** `ConditionTimeoutException`(30s, line 46)와 module/full 차이를 확인했고, scheduler 첫 callback 지연이 body-only readiness 추정의 단일 root-cause hypothesis임을 lesson에 기록했다.
+  - **Failure:** root cause 전에는 편집하지 않는다.
+- [x] **C-02 — Confirm scope and issue gate**
+  - **Action:** live #724 metadata와 예제 전용 surgical scope를 확인한다.
+  - **Evidence:** live #724 `OPEN`, assignee `debop`, labels `bug/ci/test/example`, milestone `1.0.0`; 예제 test/readiness 경계만 변경했다.
+  - **Failure:** 중복 issue·unrelated cleanup을 분리한다.
+- [x] **C-03 — Lock the regression RED**
+  - **Action:** root cause를 겨냥한 최소 회귀 테스트를 먼저 추가한다.
+  - **Evidence:** `PrometheusScrapeContractTest` 2건이 status/body 및 누락 metric 진단 부재를 먼저 실패했다.
+  - **Failure:** compile/fixture 오류는 RED로 인정하지 않는다.
+- [x] **C-04 — Apply the surgical fix**
+  - **Action:** 기존 Spring/Micrometer/Testcontainers 패턴으로 최소 수정한다.
+  - **Evidence:** scheduler/probe delay와 명시 callback, status/body·missing-series helper만 추가했으며 production API/dependency/CI는 변경하지 않았다.
+  - **Failure:** unrelated refactor를 제거하고 재분류한다.
+- [x] **C-05 — Prove GREEN and blast radius**
+  - **Action:** regression→module→related modules→static→full 순으로 검증한다.
+  - **Evidence:** targeted 3/3, module 15/15, micrometer 132/132, lettuce 318/318, full rerun 451 suites/4173 tests 모두 `skipped=0`, failures/errors 0; Detekt 통과.
+  - **Failure:** diagnosis/fix로 돌아가 전체 sequence를 재실행한다.
+- [x] **C-06 — Capture reusable learning when applicable**
+  - **Action:** 재사용 가능한 flaky/readiness 규칙이면 lesson과 GNO index를 작성한다.
+  - **Evidence:** `docs/lessons/2026-08-30-issue-724-prometheus-scrape-timeout.md`에 재사용 규칙과 첫 full-run unrelated flake 분리 근거를 기록했다. GNO push/index는 이번 로컬 변경 scope 밖이다.
+  - **Failure:** unexplained N/A를 허용하지 않는다.
+- [ ] **C-07 — Complete authorized PR delivery through live CI and review**
+  - **Action:** exact head PR, Korean body, metadata, review, CI를 수렴한다.
+  - **Evidence:** N/A — 이번 요청은 로컬 cleanup과 이슈 구현까지이며 PR 생성 권한/요청이 별도로 주어지지 않았다.
+  - **Failure:** stale/missing evidence를 repair한다.
+- [x] **C-08 — Report merge readiness or no-delivery completion**
+  - **Action:** C/Common/Kotlin rows와 count를 reconcile하고 merge-ready에서 멈춘다.
+  - **Evidence:** PR 없는 no-delivery completion으로 정리하며, merge rows는 PENDING으로 별도 집계한다.
+  - **Failure:** merge-ready/DONE을 과장하지 않는다.
+- [ ] **C-09 — Close out only after fresh merge approval**
+  - **Action:** fresh exact-head approval 후 merge/sync/cleanup한다.
+  - **Evidence:** PENDING — merge approval/merge는 요청·실행하지 않았다.
+  - **Failure:** approval 전 merge/삭제하지 않는다.
+
+## Common gates
+
+- [x] **CG-01 — Re-read authority**
+  - **Action:** user/workspace/repository AGENTS와 selected skills/status/plan을 읽는다.
+  - **Evidence:** `/Users/debop/.codex/AGENTS.md`, workspace/repo `AGENTS.md`, workflow/bugfix/Kotlin/TDD/systematic-debugging refs를 확인했다.
+  - **Failure:** 편집을 중지한다.
+- [x] **CG-02 — Query historical/current evidence**
+  - **Action:** GNO와 live `gh` issue/PR/release/worktree evidence를 조회한다.
+  - **Evidence:** GNO #724 hit, `gh issue view 724`, `gh release list`, `gh pr list`, source/history 조회.
+  - **Failure:** current-state 의존 결정을 중지한다.
+- [x] **CG-03 — Protect user work and boundaries**
+  - **Action:** canonical dirty state를 보존하고 isolated semantic branch에서만 구현한다.
+  - **Evidence:** root pre-existing `.flow-inputs/`와 다른 worktree/branch를 보존했고, `fix/issue-724-prometheus-scrape-timeout` isolated worktree에서만 scoped paths를 변경했다.
+  - **Failure:** default branch를 편집하지 않는다.
+- [x] **CG-04 — Apply policy and audience boundaries**
+  - **Action:** Korean docs/commit/PR, Kotlin/test/Spring/Testcontainers rules를 적용한다.
+  - **Evidence:** Kotlin test idiom과 한국어 plan/lesson을 적용했고, code/API/command tokens는 그대로 보존했다.
+  - **Failure:** drift를 repair한다.
+- [x] **CG-05 — Reuse ecosystem patterns**
+  - **Action:** existing assertions, Awaitility, RedisServer launcher, Spring test patterns를 조사·재사용한다.
+  - **Evidence:** 기존 Awaitility, `io.bluetape4k.assertions`, Redis fixture, Spring bean wiring을 재사용했으며 새 dependency/production abstraction은 추가하지 않았다.
+  - **Failure:** 새 abstraction/dependency를 중지한다.
+- [x] **CG-06 — Prove public and documentation contracts**
+  - **Action:** test/config/docs 변경이 metric/readiness 계약과 일치하는지 검증한다.
+  - **Evidence:** endpoint 구현·public API·README는 미변경(N/A), test helper/lesson이 status/body/missing metric 계약을 명시한다.
+  - **Failure:** undocumented behavior를 block한다.
+- [x] **CG-07 — Lock behavior and run targeted proof**
+  - **Action:** RED/GREEN과 smallest diagnostics/compile/test를 실행한다.
+  - **Evidence:** contract RED 2 failures 후 GREEN 2/2, integration targeted 3/3을 fresh no-cache로 통과했다.
+  - **Failure:** 구현/진단으로 돌아간다.
+- [x] **CG-08 — Serialize heavyweight checks**
+  - **Action:** Testcontainers/전체 저장소 실행을 직렬화한다.
+  - **Evidence:** heavy Gradle runs를 targeted→module→related→detekt→full 순서로 직렬 실행했고 terminal counts를 수집했다.
+  - **Failure:** ambiguous parallel evidence를 폐기한다.
+- [x] **CG-09 — Evaluate the lesson gate**
+  - **Action:** reusable failure rule 여부를 판정하고 lesson/index 또는 N/A 근거를 남긴다.
+  - **Evidence:** 재사용 가능한 scheduler readiness 규칙으로 lesson을 작성했고, GNO 인덱싱은 로컬 scope 밖임을 기록했다.
+  - **Failure:** pre-PR를 block한다.
+- [x] **CG-10 — Converge the final pre-PR proof**
+  - **Action:** final diff/review, P0/P1, checks, commit SHA를 수렴한다.
+  - **Evidence:** final scoped diff review에서 P0/P1=0; flow completion checksum `722875991558b51e235ad3a93e115087f8d3d8dd0be6a1aad59d4bf425e015f2`와 fresh test/static 증거를 수렴했다.
+  - **Failure:** PR 생성을 block한다.
+- [ ] **CG-11 — Verify PR delivery authority**
+  - **Action:** current request/approved plan에서 repo/base/head/PR authority를 확인한다.
+  - **Evidence:** PENDING/N/A — PR 생성을 요청받지 않아 external delivery authority를 행사하지 않았다.
+  - **Failure:** authority 전 PR을 만들지 않는다.
+- [ ] **CG-12 — Publish the exact head branch**
+  - **Action:** converged head를 force 없이 push하고 remote SHA를 읽는다.
+  - **Evidence:** PENDING/N/A — push하지 않았다.
+  - **Failure:** mismatch를 repair한다.
+- [ ] **CG-12A — Refresh guidance before PR creation**
+  - **Action:** PR 직전 AGENTS/leaf/common/template/issue metadata를 다시 읽는다.
+  - **Evidence:** PENDING/N/A — PR 생성 단계에 진입하지 않았다.
+  - **Failure:** PR create/update를 중지한다.
+- [ ] **CG-13 — Create and verify the PR**
+  - **Action:** Korean issue-linked PR을 생성·assign·label·milestone·DoD로 검증한다.
+  - **Evidence:** PENDING/N/A — PR 생성 없음.
+  - **Failure:** live PR을 repair한다.
+- [ ] **CG-14 — Pass CI and live human review**
+  - **Action:** exact-head CI, review/thread와 적용 artifact를 확인한다.
+  - **Evidence:** PENDING — live PR CI/review가 아직 없다. 로컬 full verification은 별도로 통과했다.
+  - **Failure:** PENDING은 기다리고 FAIL은 repair한다.
+- [ ] **CG-15 — Report merge-ready**
+  - **Action:** count와 exact PR/head를 user-visible report로 수렴한다.
+  - **Evidence:** PENDING — PR/head가 없어 merge-ready 보고를 하지 않는다.
+  - **Failure:** merge approval을 선행하지 않는다.
+- [ ] **CG-16 — Obtain fresh merge approval**
+  - **Action:** CG-15 이후 exact PR/head merge approval을 기다린다.
+  - **Evidence:** fresh approval와 refreshed hold.
+  - **Failure:** PENDING으로 유지한다.
+- [ ] **CG-17 — Execute and verify the merge**
+  - **Action:** 승인된 strategy로 merge하고 live SHA를 확인한다.
+  - **Evidence:** merged state/SHA.
+  - **Failure:** 중지하고 diagnose한다.
+- [ ] **CG-18 — Synchronize and clean up**
+  - **Action:** canonical sync와 proven merged worktree cleanup을 수행한다.
+  - **Evidence:** 부분 완료 — #732 merged worktree만 proven clean target로 제거했고 branch/다른 worktree/root `.flow-inputs/`는 보존했다. #724 worktree cleanup은 PR/merge 이후 PENDING이다.
+  - **Failure:** ambiguous target을 보존한다.
+
+## Kotlin triggered gates
+
+- [x] **KT-01 — Load triggered Kotlin guidance**
+  - **Action:** testing, Spring Boot, final checklist와 domain refs를 적용한다.
+  - **Evidence:** Kotlin patterns checklist/testing/Spring Boot refs를 읽고 test fixture·scheduler·Awaitility trigger에 적용했다.
+  - **Failure:** unclassified trigger는 block한다.
+- [x] **KT-02 — Inspect impact and reuse**
+  - **Action:** source, callers, tests, docs, helpers를 편집 전 조사한다.
+  - **Evidence:** `PrometheusScrapeTest`, `PrometheusDashboardApp`, connectivity probe/recorder와 Redis fixture 호출 순서를 편집 전 조사했다.
+  - **Failure:** memory-only implementation을 금지한다.
+- [x] **KT-03 — Enforce Kotlin contracts**
+  - **Action:** assertions, lifecycle, timeout, cancellation/blocking, docs 규칙을 점검한다.
+  - **Evidence:** `shouldBeTrue/False` 없이 의미 있는 matcher/helper를 사용하고 timeout/status/body/metric 계약을 명시했다. P0/P1=0.
+  - **Failure:** P0/P1은 block한다.
+- [x] **KT-04 — Prove behavior with Kotlin validation**
+  - **Action:** diagnostics, compile, test, Detekt, diff-check를 실행한다.
+  - **Evidence:** targeted/module/related/full test, Detekt, `git diff --check` fresh 결과를 수집했다.
+  - **Failure:** stale/partial proof를 거부한다.
+- [x] **KT-05 — Render the final Kotlin checklist**
+  - **Action:** references/checklist rows와 severity convergence를 완료한다.
+  - **Evidence:** 적용 row와 N/A/PENDING row를 아래 reconciliation에서 분리하고 P0=0/P1=0으로 확인했다.
+  - **Failure:** unchecked row와 repair를 보고한다.
+- [x] **KT-TEST-01 — Use project test idioms**
+  - **Action:** JUnit 5, bluetape assertions, descriptive tests, Awaitility를 사용한다.
+  - **Evidence:** JUnit 5, `assertFailsWith`, Awaitility alias/poll interval, descriptive test names를 사용했다.
+  - **Failure:** incompatible assertions를 교체한다.
+- [x] **KT-TEST-02 — Prove concurrency and cancellation**
+  - **Action:** scheduler/fixture lifecycle risk를 검증하고 ad hoc stress 필요성을 판정한다.
+  - **Evidence:** scheduler/probe 첫 callback 지연 위험은 명시 callback과 직렬 3회 반복으로 검증했고, cancellation/production concurrency API는 미변경이라 risk-based N/A다.
+  - **Failure:** fake cancellation proof를 인정하지 않는다.
+- [x] **KT-TEST-03 — Reuse safe infrastructure fixtures**
+  - **Action:** RedisServer launcher와 순차 Testcontainers 실행을 사용한다.
+  - **Evidence:** 기존 Redis/Testcontainers fixture를 재사용하고 모듈 15/15 및 related tests를 fresh 실행했다.
+  - **Failure:** raw duplicate container를 제거한다.
+- [x] **KT-TEST-04 — Cover HTTP lifecycle contracts**
+  - **Action:** endpoint 구현을 바꾸지 않으면 concrete N/A, 바꾸면 status/body/timeout/cleanup을 검증한다.
+  - **Evidence:** endpoint 구현은 미변경이지만 scrape client가 status/body/IOException과 missing metric 진단을 계약 테스트로 검증했다.
+  - **Failure:** exposed lifecycle contract를 누락하지 않는다.
+- [x] **KT-TEST-05 — Run fresh targeted then module validation**
+  - **Action:** smallest test→compile/module→broader test 순으로 실행한다.
+  - **Evidence:** targeted 1/1×3, module 15/15, all skipped=0; full 451 suites/4173 tests skipped=0.
+  - **Failure:** stale cache output을 거부한다.
+- [x] **KT-SPR-01 — Guard optional types and phases**
+  - **Action:** touched Spring phases의 optional type/property 조건을 점검한다.
+  - **Evidence:** test property override만 조정했고 optional type/eager linkage 변경은 없어 concrete N/A다.
+  - **Failure:** eager linkage를 block한다.
+- [x] **KT-SPR-02 — Prove registration and ordering**
+  - **Action:** scheduler/bean registration과 ordering을 검증한다.
+  - **Evidence:** AOP proxy를 확인하고 job/probe를 명시 호출해 scheduler startup order를 readiness 계약에서 분리했다.
+  - **Failure:** ordering assumption을 repair한다.
+- [x] **KT-SPR-03 — Preserve configuration semantics**
+  - **Action:** timeout/fixed-delay defaults와 overrides를 검증한다.
+  - **Evidence:** 테스트 전용 fixed delay/initial delay만 60s로 늘리고 probe timeout 의미는 유지했으며 Prometheus targeted/module 통과를 확인했다.
+  - **Failure:** ambiguous defaults를 repair한다.
+- [x] **KT-SPR-04 — Isolate library tests**
+  - **Action:** example application scope가 library test boundary를 침범하지 않는지 확인한다.
+  - **Evidence:** 변경은 `examples/prometheus-dashboard` test scope에 한정되고 library production source/context scan은 미변경이다.
+  - **Failure:** broad scan drift를 repair한다.
+- [x] **KT-SPR-05 — Verify weaving and lifecycle**
+  - **Action:** AOP proxy, scheduler, Redis/provider lifecycle을 검증한다.
+  - **Evidence:** `AopUtils.isAopProxy(leaderScheduledJob)`와 explicit dispatch/probe, repeated scrape test가 weaving/lifecycle 경계를 확인한다.
+  - **Failure:** lifecycle/cancellation issue를 repair한다.
+- [x] **KT-FIN-01 — Inspect the current surface**
+  - **Action:** final source/test/config/README/lesson을 read-back한다.
+  - **Evidence:** final read-back으로 helper 계약, `PrometheusScrapeTest`, plan/checklist/lesson을 확인했다.
+  - **Failure:** discovery를 재개한다.
+- [x] **KT-FIN-02 — Preserve validation contracts**
+  - **Action:** timeout/config validation과 exception contract를 확인한다.
+  - **Evidence:** HTTP 200/body 및 required series 계약과 30s bounded Awaitility를 유지·강화했다.
+  - **Failure:** contract drift를 repair한다.
+- [x] **KT-FIN-03 — Exclude unsafe Kotlin constructs**
+  - **Action:** 신규 `!!`, `runCatching`, swallowed cancellation, unsafe blocking을 검색한다.
+  - **Evidence:** 변경 diff에서 신규 `!!`, `runCatching`, swallowed cancellation, unsafe blocking 및 `shouldBeTrue/False`가 없다.
+  - **Failure:** construct를 제거한다.
+- [x] **KT-FIN-04 — Prove lifecycle ownership**
+  - **Action:** HTTP client, Spring context, Redis, scheduler ownership/cleanup을 검증한다.
+  - **Evidence:** 기존 Spring/Redis/HTTP client ownership을 유지하고 test가 explicit callback 후 scrape readiness만 관찰한다.
+  - **Failure:** ownership proof를 추가한다.
+- [x] **KT-FIN-05 — Verify Exposed boundaries**
+  - **Action:** Exposed 변경 여부를 판정하고 미변경이면 N/A 근거를 남긴다.
+  - **Evidence:** Exposed 파일·symbol 변경이 없는 scope-based N/A다.
+  - **Failure:** Exposed touch 시 검증한다.
+- [x] **KT-FIN-06 — Apply triggered references**
+  - **Action:** testing/Spring/Testcontainers/HTTP refs를 모두 완료한다.
+  - **Evidence:** Kotlin testing/Spring/Testcontainers/HTTP refs를 모두 checklist에 반영하고 fresh validation으로 확인했다.
+  - **Failure:** partial reference 적용을 block한다.
+- [x] **KT-FIN-07 — Prove named test behavior**
+  - **Action:** test가 readiness/metric contract 없이 통과할 수 없는지 확인한다.
+  - **Evidence:** contract helper와 explicit job/probe 호출 없이는 readiness 계약을 만족할 수 없도록 assertion을 분리했으며 targeted 3/3 통과했다.
+  - **Failure:** test를 강화한다.
+- [x] **KT-FIN-08 — Synchronize public documentation**
+  - **Action:** README/config/metric contract parity와 diagram scope를 확인한다.
+  - **Evidence:** public README/API/diagram은 미변경(N/A); 변경된 재사용 규칙은 한국어 lesson에 기록했다.
+  - **Failure:** drift를 repair한다.
+- [x] **KT-FIN-09 — Clear diagnostics**
+  - **Action:** compile/import/deprecation/Detekt diagnostics를 확인한다.
+  - **Evidence:** full Detekt와 `git diff --check` 통과, compile/test diagnostics에 unresolved error 없음.
+  - **Failure:** unresolved diagnostics를 남기지 않는다.
+- [x] **KT-FIN-10 — Run fresh validation**
+  - **Action:** targeted/module/full validation과 `git diff --check`를 실행한다.
+  - **Evidence:** no-cache targeted/module/related/full 및 Detekt 결과를 lesson/flow evidence에 기록했다.
+  - **Failure:** exact gap을 기록한다.
+- [x] **KT-FIN-11 — Converge final scope**
+  - **Action:** final commit/PR scope와 P0/P1 findings를 확인한다.
+  - **Evidence:** 변경 파일은 3개 test/2개 workflow doc/1개 lesson으로 제한되고 P0=0/P1=0이다. PR/merge rows는 별도 PENDING이다.
+
+## Final reconciliation
+
+- 적용 완료: `CL-01~08` 8/8, `C-01~06` 6/6, `C-08` 1/1, `CG-01~10` 10/10, `KT-01~05` 5/5, `KT-TEST-01~05` 5/5, `KT-SPR-01~05` 5/5, `KT-FIN-01~11` 11/11.
+- N/A: `C-07` (이번 요청에 PR 생성 권한 없음), `C-09` (merge approval 전), `KT-FIN-05` (Exposed 미변경), public API/README/diagram rows (범위 밖).
+- PENDING: `CG-11`, `CG-12`, `CG-12A`, `CG-13`, `CG-14`, `CG-15`, `CG-16`, `CG-17`, `CG-18` (PR/CI/review/merge 단계 미실행).
+- Verification: flow run `20260829T174146Z-6eef951d`, terminal checksum `722875991558b51e235ad3a93e115087f8d3d8dd0be6a1aad59d4bf425e015f2`, `completion-check complete=true`.
+- Final state: `DONE` for authorized local implementation/verification; `PENDING` for PR/merge delivery gates.
+  - **Failure:** split/repair한다.
