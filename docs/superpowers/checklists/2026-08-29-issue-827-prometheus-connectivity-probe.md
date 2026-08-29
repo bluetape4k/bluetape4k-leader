@@ -36,7 +36,7 @@
   - **Failure:** 최종 상태를 BLOCKED로 남긴다.
 - [x] **CL-07 — Refresh irreversible holds**
   - **Action:** PR 생성·merge 같은 외부 side effect 직전에 authority와 target을 다시 읽는다.
-  - **Evidence:** PR 생성 직전 live issue #827, repository `bluetape4k/bluetape4k-leader`, base `develop`, head `fix/issue-827-prometheus-connectivity-probe`, local implementation head `07d8fec4bd0555a41b0bf8810a5dfbbff5132e8a`를 재확인했다. PR #836 생성 후 follow-up checklist head `e60875e9268991caeee3890713c4fda7de1352d3`와 metadata/exact-head hosted CI를 다시 read-back했다.
+  - **Evidence:** PR 생성 직전 live issue #827, repository `bluetape4k/bluetape4k-leader`, base `develop`, head `fix/issue-827-prometheus-connectivity-probe`를 재확인했다. PR #836 생성 후 매 push마다 local `HEAD`와 remote branch SHA, PR metadata, terminal hosted CI를 다시 read-back한다.
   - **Failure:** side effect를 실행하지 않는다.
 - [x] **CL-08 — Count before completion**
   - **Action:** 최종 보고 전에 `Required checks: X/Y; N/A: N; Blocked: N`을 계산한다.
@@ -71,7 +71,7 @@
   - **Failure:** reusable rule을 누락하지 않는다.
 - [x] **C-07 — Complete authorized PR delivery through live CI and review**
   - **Action:** exact head를 publish하고 Korean PR, live metadata, review/thread, exact-head CI를 수렴한다.
-  - **Evidence:** [PR #836](https://github.com/bluetape4k/bluetape4k-leader/pull/836)가 `develop` base와 semantic head로 생성되었고 `debop`, `bug/integration/test/example`, milestone `1.0.0`을 확인했다. 독립 리뷰 APPROVE(P0/P1/P2/P3=0)와 final hosted CI run `33241472298`(11 success, 37 intended skip, failed/cancelled 0)을 read-back했다.
+  - **Evidence:** [PR #836](https://github.com/bluetape4k/bluetape4k-leader/pull/836)가 `develop` base와 semantic head로 생성되었고 `debop`, `bug/integration/test/example`, milestone `1.0.0`을 확인했다. 독립 리뷰 APPROVE(P0/P1/P2/P3=0)와 최종 remote head의 terminal hosted CI(실행 job success, path-filter intended skip, failed/cancelled 0)를 read-back했다.
   - **Failure:** stale/missing evidence를 repair하고 merge gate로 가지 않는다.
 - [x] **C-08 — Report merge readiness or no-delivery completion**
   - **Action:** Type C row와 CG-11~15를 재확인하고 merge-ready report를 작성한 뒤 CG-16에서 멈춘다.
@@ -142,11 +142,11 @@
   - **Failure:** live PR을 repair한다.
 - [x] **CG-14 — Pass CI and live human review**
   - **Action:** exact-head required CI, review/thread, independent review와 적용 artifact를 확인한다.
-  - **Evidence:** PR #836 final head `e60875e9268991caeee3890713c4fda7de1352d3`의 run `33241472298`에서 11개 실행 job이 성공하고 37개 path-filter intended skip, failed/cancelled 0이었다. 독립 review artifact는 APPROVE(P0/P1/P2/P3=0), unresolved blocker 0이며, GitHub human review는 single-developer lane으로 N/A 처리한다.
+  - **Evidence:** PR #836 최종 remote head의 hosted CI에서 11개 실행 job이 성공하고 37개 path-filter intended skip, failed/cancelled 0이었다. 독립 review artifact는 APPROVE(P0/P1/P2/P3=0), unresolved blocker 0이며, GitHub human review는 single-developer lane으로 N/A 처리한다.
   - **Failure:** PENDING은 기다리고 FAIL은 repair한다.
 - [x] **CG-15 — Report merge-ready**
   - **Action:** 모든 row와 count를 재확인하고 exact PR/head merge-ready report를 낸다.
-  - **Evidence:** PR #836, final head `e60875e9…`, CI/review evidence와 `Required checks: 45/49; N/A: 2; Blocked: 0`을 user-visible report로 수렴했다. `C-09`, `CG-16`~`CG-18`은 fresh merge approval 대기다.
+  - **Evidence:** PR #836의 최종 remote head, CI/review evidence와 `Required checks: 45/49; N/A: 2; Blocked: 0`을 user-visible report로 수렴했다. `C-09`, `CG-16`~`CG-18`은 fresh merge approval 대기다.
   - **Failure:** merge approval을 요청하지 않고 누락을 repair한다.
 - [ ] **CG-16 — Obtain fresh merge approval**
   - **Action:** CG-15 이후 exact PR/head에 대한 fresh merge approval을 기다린다.
