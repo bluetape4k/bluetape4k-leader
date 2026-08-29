@@ -194,6 +194,22 @@ MongoSuspendLeaderGroupElector(
 )
 ```
 
+## History index lifecycle observability
+
+`MongoLeaderHistoryIndexer.indexLifecycleState` exposes the history index build lifecycle. The existing
+`indexState` property and `leader.history.mongodb.index.state` gauge use the same stable numeric codes.
+
+| State | Code | Meaning |
+|-------|------|---------|
+| `BUILDING` | `0` | Index creation is still running. |
+| `READY` | `1` | All configured history indexes are ready. |
+| `FAILED` | `-1` | Index creation exhausted its retry budget. |
+| `SHUTDOWN_TIMEOUT` | `-2` | `closeSuspend()` reached its bounded wait limit before the index job stopped. |
+
+`SHUTDOWN_TIMEOUT` is terminal for that indexer instance. A delayed non-cancellable index operation cannot
+overwrite it with `READY` or `FAILED`. A newly created indexer starts from `BUILDING` and tracks its own build.
+Caller cancellation still propagates and is not reported as a shutdown timeout.
+
 ## Notes
 
 - For single-leader elections, `autoExtend=true` can renew `expireAt` while the action runs. Group elections still require `leaseTime` to cover the expected action duration.

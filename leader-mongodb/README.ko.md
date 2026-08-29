@@ -194,6 +194,22 @@ MongoSuspendLeaderGroupElector(
 )
 ```
 
+## History 인덱스 빌드 상태 관측
+
+`MongoLeaderHistoryIndexer.indexLifecycleState`로 history 인덱스 빌드의 수명 주기를 확인할 수 있습니다.
+기존 `indexState` 속성과 `leader.history.mongodb.index.state` 게이지도 같은 고정 숫자 코드를 사용합니다.
+
+| 상태 | 코드 | 의미 |
+|------|------|------|
+| `BUILDING` | `0` | 인덱스 생성 작업이 실행 중입니다. |
+| `READY` | `1` | 설정된 history 인덱스가 모두 준비됐습니다. |
+| `FAILED` | `-1` | 인덱스 생성 재시도가 모두 실패했습니다. |
+| `SHUTDOWN_TIMEOUT` | `-2` | `closeSuspend()`가 제한 시간 안에 인덱스 작업 종료를 확인하지 못했습니다. |
+
+`SHUTDOWN_TIMEOUT`은 해당 indexer 인스턴스의 종료 상태입니다. `NonCancellable` 구간에서 늦게 끝난
+인덱스 작업이 이 상태를 `READY`나 `FAILED`로 덮어쓰지 않습니다. 새 indexer는 `BUILDING`에서 시작해
+자체 빌드 상태를 추적합니다. 호출자 취소는 계속 전파하며 shutdown timeout으로 기록하지 않습니다.
+
 ## 주의사항
 
 - 단일 리더 선출은 `autoExtend=true`로 action 실행 중 `expireAt`을 갱신할 수 있습니다. 그룹 선출은 여전히 `leaseTime`이 예상 action 시간을 충분히 덮어야 합니다.
