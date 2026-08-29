@@ -321,6 +321,8 @@ class LeaseExtensionObservationScopeBenchmark {
     @Param("no-observer", "global", "scoped-match", "scoped-mismatch")
     lateinit var observationMode: String
 
+    private lateinit var userElector: LeaderElector
+    private lateinit var suspendUserElector: SuspendLeaderElector
     private lateinit var watchdogElector: LeaderElector
     private var globalRegistration: AutoCloseable? = null
     private var scope: LeaderLeaseExtensionObservationScope? = null
@@ -335,12 +337,14 @@ class LeaseExtensionObservationScopeBenchmark {
             }
             else -> error("Unsupported observation mode: $observationMode")
         }
+        val userOptions = LeaderElectionOptions(waitTime = 0.milliseconds, leaseTime = 30.seconds)
+        userElector = LocalLeaderElector(userOptions)
+        suspendUserElector = LocalSuspendLeaderElector(userOptions)
         watchdogElector = LocalLeaderElector(
-            LeaderElectionOptions(
-                waitTime = 0.milliseconds,
+            userOptions.copy(
                 leaseTime = 90.milliseconds,
                 autoExtend = true,
-            ),
+            )
         )
     }
 
@@ -352,19 +356,31 @@ class LeaseExtensionObservationScopeBenchmark {
 
     @Benchmark
     fun userBlocking(blackhole: Blackhole) {
-        blackhole.consume(withObservationScope { LockExtender.extendActiveLockDetailed(1.seconds) })
+        blackhole.consume(
+            withObservationScope {
+                userElector.runIfLeader("issue741-user") {
+                    LockExtender.extendActiveLockDetailed(1.seconds)
+                }
+            },
+        )
     }
 
     @Benchmark
     fun userSuspend(blackhole: Blackhole) = runBlocking(observationContext()) {
-        blackhole.consume(LockExtender.extendActiveLockDetailedSuspend(1.seconds))
+        blackhole.consume(
+            suspendUserElector.runIfLeader("issue741-user-suspend") {
+                LockExtender.extendActiveLockDetailedSuspend(1.seconds)
+            },
+        )
     }
 
     @Benchmark
     fun userMono(blackhole: Blackhole) {
         blackhole.consume(
             mono(context = observationContext()) {
-                LockExtender.extendActiveLockDetailedSuspend(1.seconds)
+                suspendUserElector.runIfLeader("issue741-user-mono") {
+                    LockExtender.extendActiveLockDetailedSuspend(1.seconds)
+                }
             }.block(),
         )
     }
@@ -373,7 +389,11 @@ class LeaseExtensionObservationScopeBenchmark {
     fun userFlux(blackhole: Blackhole) {
         blackhole.consume(
             flux(context = observationContext()) {
-                send(LockExtender.extendActiveLockDetailedSuspend(1.seconds))
+                send(
+                    suspendUserElector.runIfLeader("issue741-user-flux") {
+                        LockExtender.extendActiveLockDetailedSuspend(1.seconds)
+                    },
+                )
             }.blockLast(),
         )
     }
@@ -382,7 +402,11 @@ class LeaseExtensionObservationScopeBenchmark {
     fun userFlow(blackhole: Blackhole) = runBlocking {
         blackhole.consume(
             flow {
-                emit(LockExtender.extendActiveLockDetailedSuspend(1.seconds))
+                emit(
+                    suspendUserElector.runIfLeader("issue741-user-flow") {
+                        LockExtender.extendActiveLockDetailedSuspend(1.seconds)
+                    },
+                )
             }.flowOn(observationContext()).single(),
         )
     }
