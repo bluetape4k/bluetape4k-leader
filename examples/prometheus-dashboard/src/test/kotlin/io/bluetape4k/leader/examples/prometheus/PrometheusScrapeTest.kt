@@ -1,13 +1,16 @@
 package io.bluetape4k.leader.examples.prometheus
 
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.leader.micrometer.LeaderMetricTagOptions
 import io.bluetape4k.testcontainers.storage.RedisServer
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withAlias
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.aop.support.AopUtils
@@ -16,19 +19,20 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import java.io.IOException
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.Duration
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = [
-        "demo.job.fixed-delay-ms=200",
-        "demo.job.initial-delay-ms=0",
-        "demo.backend-probe.fixed-delay-ms=200",
-        "demo.backend-probe.initial-delay-ms=0",
+        // 아래에서 두 예약 컴포넌트를 명시적으로 실행해 scrape readiness가 scheduler 시작 순서에 의존하지 않게 한다.
+        "demo.job.fixed-delay-ms=60000",
+        "demo.job.initial-delay-ms=60000",
+        "demo.backend-probe.fixed-delay-ms=60000",
+        "demo.backend-probe.initial-delay-ms=60000",
         "demo.backend-probe.timeout-ms=500",
     ],
 )
@@ -41,54 +45,84 @@ class PrometheusScrapeTest {
     @Autowired
     private lateinit var leaderScheduledJob: LeaderScheduledJob
 
+    @Autowired
+    private lateinit var backendConnectivityProbe: PrometheusBackendConnectivityProbe
+
     @Test
     fun `actuator prometheus exposes leader AOP metrics`() {
-        AopUtils.isAopProxy(leaderScheduledJob).shouldBeTrue()
+        AopUtils.isAopProxy(leaderScheduledJob) shouldBeEqualTo true
+        leaderScheduledJob.dispatchBatch()
+        backendConnectivityProbe.probe()
+        backendConnectivityProbe.probe()
 
-        await.atMost(Duration.ofSeconds(30))
+        await
+            .withAlias("Prometheus endpoint and explicitly triggered leader metrics readiness")
+            .atMost(Duration.ofSeconds(30))
+            .withPollInterval(Duration.ofMillis(100))
             .untilAsserted {
-                val scrape = scrapePrometheus()
-
-                scrape.hasLockNameSeries("leader_aop_attempts_total").shouldBeTrue()
-                scrape.hasLockNameSeries("leader_aop_acquired_total").shouldBeTrue()
-                scrape.hasLockNameSeries("leader_aop_active").shouldBeTrue()
-                scrape.contains("""lock_name="${LeaderScheduledJob.LOCK_NAME}"""").shouldBeFalse()
-                scrape.contains("""leader_history_sink_failures_total{sink="NoopLeaderHistorySink"}""")
-                    .shouldBeTrue()
-                scrape.contains("""leader_history_acquire_missing_total{sink="NoopLeaderHistorySink"}""")
-                    .shouldBeTrue()
-                scrape.hasConnectivitySeries(
-                    backendName = "redis-lettuce",
-                    status = "UNKNOWN",
-                    reason = "CLIENT_STATE_UNCONFIRMED",
-                ).shouldBeTrue()
-                scrape.connectivitySampleValue(
-                    backendName = "redis-lettuce",
-                    status = "UNKNOWN",
-                    reason = "CLIENT_STATE_UNCONFIRMED",
-                ) shouldBeGreaterThan 1.0
-
-                val attempts = scrape.sampleValue("leader_aop_attempts_total")
-                val acquired = scrape.sampleValue("leader_aop_acquired_total")
-
-                attempts shouldBeGreaterThan 0.0
-                acquired shouldBeGreaterThan 0.0
+                val scrape = scrapePrometheus().requireSuccessful()
+                leaderScheduledJob.executionCount() shouldBeGreaterThan 0L
+                scrape.assertMetricContract()
             }
     }
 
-    private fun scrapePrometheus(): String {
+    private fun scrapePrometheus(): PrometheusScrapeResponse {
         val request = HttpRequest.newBuilder()
             .uri(URI.create("http://localhost:$port/actuator/prometheus"))
             .timeout(Duration.ofSeconds(5))
             .GET()
             .build()
 
-        return httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body()
+        return try {
+            val response = httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString())
+            PrometheusScrapeResponse(
+                statusCode = response.statusCode(),
+                body = response.body(),
+            )
+        } catch (e: IOException) {
+            throw AssertionError("Prometheus scrape request failed: ${e.message}", e)
+        }
     }
 
-    private fun String.hasLockNameSeries(metricName: String): Boolean {
+    private fun String.assertMetricContract() {
+        requireMetrics(
+            listOf(
+                "leader_aop_attempts_total",
+                "leader_aop_acquired_total",
+                "leader_aop_active",
+                "leader_history_sink_failures_total{sink=\"NoopLeaderHistorySink\"}",
+                "leader_history_acquire_missing_total{sink=\"NoopLeaderHistorySink\"}",
+                "leader_backend_connectivity_total",
+            ),
+        )
+        requireLockNameSeries("leader_aop_attempts_total")
+        requireLockNameSeries("leader_aop_acquired_total")
+        requireLockNameSeries("leader_aop_active")
+        this shouldNotContain """lock_name="${LeaderScheduledJob.LOCK_NAME}""""
+        this shouldContain """leader_history_sink_failures_total{sink="NoopLeaderHistorySink"}"""
+        this shouldContain """leader_history_acquire_missing_total{sink="NoopLeaderHistorySink"}"""
+        requireConnectivitySeries(
+            backendName = "redis-lettuce",
+            status = "UNKNOWN",
+            reason = "CLIENT_STATE_UNCONFIRMED",
+        )
+        connectivitySampleValue(
+            backendName = "redis-lettuce",
+            status = "UNKNOWN",
+            reason = "CLIENT_STATE_UNCONFIRMED",
+        ) shouldBeGreaterThan 1.0
+
+        sampleValue("leader_aop_attempts_total") shouldBeGreaterThan 0.0
+        sampleValue("leader_aop_acquired_total") shouldBeGreaterThan 0.0
+    }
+
+    private fun String.requireLockNameSeries(metricName: String) {
         val lockNameTag = Regex.escape("""lock_name="$EXPORTED_LOCK_NAME"""")
-        return Regex("""$metricName\{[^}]*$lockNameTag[^}]*}\s+[0-9.Ee+-]+""").containsMatchIn(this)
+        if (!Regex("""$metricName\{[^}]*$lockNameTag[^}]*}\s+[0-9.Ee+-]+""").containsMatchIn(this)) {
+            throw AssertionError(
+                "Prometheus scrape is missing $metricName for lock=$EXPORTED_LOCK_NAME\nbody=$this",
+            )
+        }
     }
 
     private fun String.sampleValue(metricName: String): Double {
@@ -98,18 +132,23 @@ class PrometheusScrapeTest {
         }.groupValues[1].toDouble()
     }
 
-    private fun String.hasConnectivitySeries(
+    private fun String.requireConnectivitySeries(
         backendName: String,
         status: String,
         reason: String,
-    ): Boolean {
+    ) {
         val labels = listOf(
             """backend_name="$backendName"""",
             """status="$status"""",
             """reason="$reason"""",
         ).joinToString(separator = "") { "(?=[^}]*${Regex.escape(it)})" }
-        return Regex("""leader_backend_connectivity_total\{${labels}[^}]*}\s+[0-9.Ee+-]+""")
-            .containsMatchIn(this)
+        if (!Regex("""leader_backend_connectivity_total\{${labels}[^}]*}\s+[0-9.Ee+-]+""")
+                .containsMatchIn(this)
+        ) {
+            throw AssertionError(
+                "Prometheus scrape is missing connectivity series for $backendName/$status/$reason\nbody=$this",
+            )
+        }
     }
 
     private fun String.connectivitySampleValue(
