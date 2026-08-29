@@ -34,13 +34,14 @@ import kotlin.time.toJavaDuration
  * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  * @property delegate Micrometer observability 계약에서 사용하는 속성입니다.
  * @property lockName Micrometer observability 계약에서 사용하는 속성입니다.
- * @property tagSanitizer Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property tagOptions Micrometer observability 계약에서 registry와 tag policy를 비교하는 속성입니다.
  */
 class InstrumentedLeaderElector private constructor(
     private val delegate: LeaderElector,
     registry: MeterRegistry,
-    private val lockName: String? = null,
+    private val lockName: String?,
     private val tagSanitizer: LeaderMetricTagSanitizer,
+    private val tagOptions: LeaderMetricTagOptions,
 ): LeaderElector by delegate, LeaderLeaseAcquirerSupport, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
@@ -62,27 +63,27 @@ class InstrumentedLeaderElector private constructor(
     private val metrics = InstrumentedLeaderMetrics(registry)
 
     private val instrumentedBackendDiagnosticsProvider: LeaderBackendDiagnosticsProvider? by lazy {
-        delegate.resolveBackendDiagnosticsProvider()?.instrumented(registry, tagSanitizer)
+        delegate.resolveBackendDiagnosticsProvider()?.instrumented(registry, tagOptions)
     }
 
     constructor(
         delegate: LeaderElector,
         registry: MeterRegistry,
         lockName: String? = null,
-    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.Default)
+    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.Default, LeaderMetricTagOptions.Default)
 
     constructor(
         delegate: LeaderElector,
         registry: MeterRegistry,
         tagOptions: LeaderMetricTagOptions,
-    ): this(delegate, registry, null, LeaderMetricTagSanitizer.from(tagOptions))
+    ): this(delegate, registry, null, LeaderMetricTagSanitizer.from(tagOptions), tagOptions)
 
     constructor(
         delegate: LeaderElector,
         registry: MeterRegistry,
         lockName: String?,
         tagOptions: LeaderMetricTagOptions,
-    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.from(tagOptions))
+    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.from(tagOptions), tagOptions)
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         val metricLockName = metricLockName(lockName)
@@ -128,13 +129,14 @@ class InstrumentedLeaderElector private constructor(
  * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  * @property delegate Micrometer observability 계약에서 사용하는 속성입니다.
  * @property lockName Micrometer observability 계약에서 사용하는 속성입니다.
- * @property tagSanitizer Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property tagOptions Micrometer observability 계약에서 registry와 tag policy를 비교하는 속성입니다.
  */
 class InstrumentedLeaderGroupElector private constructor(
     private val delegate: LeaderGroupElector,
     registry: MeterRegistry,
-    private val lockName: String? = null,
+    private val lockName: String?,
     private val tagSanitizer: LeaderMetricTagSanitizer,
+    private val tagOptions: LeaderMetricTagOptions,
 ): LeaderGroupElector by delegate, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
@@ -143,27 +145,27 @@ class InstrumentedLeaderGroupElector private constructor(
     private val metrics = InstrumentedLeaderMetrics(registry)
 
     private val instrumentedBackendDiagnosticsProvider: LeaderBackendDiagnosticsProvider? by lazy {
-        delegate.resolveBackendDiagnosticsProvider()?.instrumented(registry, tagSanitizer)
+        delegate.resolveBackendDiagnosticsProvider()?.instrumented(registry, tagOptions)
     }
 
     constructor(
         delegate: LeaderGroupElector,
         registry: MeterRegistry,
         lockName: String? = null,
-    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.Default)
+    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.Default, LeaderMetricTagOptions.Default)
 
     constructor(
         delegate: LeaderGroupElector,
         registry: MeterRegistry,
         tagOptions: LeaderMetricTagOptions,
-    ): this(delegate, registry, null, LeaderMetricTagSanitizer.from(tagOptions))
+    ): this(delegate, registry, null, LeaderMetricTagSanitizer.from(tagOptions), tagOptions)
 
     constructor(
         delegate: LeaderGroupElector,
         registry: MeterRegistry,
         lockName: String?,
         tagOptions: LeaderMetricTagOptions,
-    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.from(tagOptions))
+    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.from(tagOptions), tagOptions)
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         val metricLockName = metricLockName(lockName)
@@ -209,13 +211,14 @@ class InstrumentedLeaderGroupElector private constructor(
  * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  * @property delegate Micrometer observability 계약에서 사용하는 속성입니다.
  * @property lockName Micrometer observability 계약에서 사용하는 속성입니다.
- * @property tagSanitizer Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property tagOptions Micrometer observability 계약에서 registry와 tag policy를 비교하는 속성입니다.
  */
 class InstrumentedSuspendLeaderElector private constructor(
     private val delegate: SuspendLeaderElector,
     registry: MeterRegistry,
-    private val lockName: String? = null,
+    private val lockName: String?,
     private val tagSanitizer: LeaderMetricTagSanitizer,
+    private val tagOptions: LeaderMetricTagOptions,
 ): SuspendLeaderElector by delegate, SuspendLeaderLeaseAcquirerSupport, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
@@ -237,27 +240,27 @@ class InstrumentedSuspendLeaderElector private constructor(
     private val metrics = InstrumentedLeaderMetrics(registry)
 
     private val instrumentedBackendDiagnosticsProvider: LeaderBackendDiagnosticsProvider? by lazy {
-        delegate.resolveBackendDiagnosticsProvider()?.instrumented(registry, tagSanitizer)
+        delegate.resolveBackendDiagnosticsProvider()?.instrumented(registry, tagOptions)
     }
 
     constructor(
         delegate: SuspendLeaderElector,
         registry: MeterRegistry,
         lockName: String? = null,
-    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.Default)
+    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.Default, LeaderMetricTagOptions.Default)
 
     constructor(
         delegate: SuspendLeaderElector,
         registry: MeterRegistry,
         tagOptions: LeaderMetricTagOptions,
-    ): this(delegate, registry, null, LeaderMetricTagSanitizer.from(tagOptions))
+    ): this(delegate, registry, null, LeaderMetricTagSanitizer.from(tagOptions), tagOptions)
 
     constructor(
         delegate: SuspendLeaderElector,
         registry: MeterRegistry,
         lockName: String?,
         tagOptions: LeaderMetricTagOptions,
-    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.from(tagOptions))
+    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.from(tagOptions), tagOptions)
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         val metricLockName = metricLockName(lockName)
@@ -287,20 +290,35 @@ private fun Any.resolveBackendDiagnosticsProvider(): LeaderBackendDiagnosticsPro
 
 private fun LeaderBackendDiagnosticsProvider.instrumented(
     registry: MeterRegistry,
-    tagSanitizer: LeaderMetricTagSanitizer,
+    tagOptions: LeaderMetricTagOptions,
 ): LeaderBackendDiagnosticsProvider =
-    if (this is InstrumentedLeaderBackendDiagnosticsProvider) {
+    if (this is InstrumentedLeaderBackendDiagnosticsProvider &&
+        this.registry === registry &&
+        this.tagOptions == tagOptions
+    ) {
         this
     } else {
-        InstrumentedLeaderBackendDiagnosticsProvider(this, registry, tagSanitizer)
+        InstrumentedLeaderBackendDiagnosticsProvider(
+            delegate = unwrapInstrumented(),
+            registry = registry,
+            tagOptions = tagOptions,
+        )
+    }
+
+private fun LeaderBackendDiagnosticsProvider.unwrapInstrumented(): LeaderBackendDiagnosticsProvider =
+    if (this is InstrumentedLeaderBackendDiagnosticsProvider) {
+        delegate.unwrapInstrumented()
+    } else {
+        this
     }
 
 private class InstrumentedLeaderBackendDiagnosticsProvider(
-    private val delegate: LeaderBackendDiagnosticsProvider,
-    registry: MeterRegistry,
-    tagSanitizer: LeaderMetricTagSanitizer,
+    val delegate: LeaderBackendDiagnosticsProvider,
+    val registry: MeterRegistry,
+    val tagOptions: LeaderMetricTagOptions,
 ) : LeaderBackendDiagnosticsProvider {
 
+    private val tagSanitizer = LeaderMetricTagSanitizer.from(tagOptions)
     private val metrics = BackendConnectivityMetrics(registry, tagSanitizer) {
         delegate.backendDescriptor.backendId
     }

@@ -242,6 +242,12 @@ val election = InstrumentedLeaderElector(
 않습니다. Decorator는 제한된 enum 값만 기록하고 provider의 원래 예외를
 재전파하며, 예외 원문·endpoint·credential·lock name을 export하지 않습니다.
 
+Instrumented decorator를 중첩하면 두 decorator가 같은 `MeterRegistry`
+인스턴스를 참조하고 `LeaderMetricTagOptions`가 같을 때만 기존 diagnostics
+provider를 재사용합니다. 둘 중 하나라도 다르면 바깥 decorator가 요청한
+registry와 tag policy로 underlying provider를 다시 계측합니다. 따라서 같은
+설정은 중복 기록하지 않으면서 registry와 tag policy의 경계를 보존합니다.
+
 ## Listener 이벤트 메트릭
 
 elector를 instrumented decorator로 감싸지 않고 생명주기 counter만 기록하려면 `MicrometerLeaderElectionListener`를 사용합니다.

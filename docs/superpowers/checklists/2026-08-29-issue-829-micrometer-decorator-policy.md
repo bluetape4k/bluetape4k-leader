@@ -1,0 +1,304 @@
+# Issue #829 Micrometer decorator policy 체크리스트
+
+## Context
+
+- Work type: Type-C bugfix
+- Repository: `bluetape4k/bluetape4k-leader`
+- Base: `origin/develop` at `4c0d1156c268cde6191f6901c933b60ae6b92cff`
+- Head: `fix/issue-829-micrometer-decorator-policy`
+- Issue: https://github.com/bluetape4k/bluetape4k-leader/issues/829
+- Scope: `leader-micrometer` nested decorator registry/tag policy behavior and
+  its regression proof; no unrelated backend or public API change
+- Lane: one root lane, heavy-command limit one sequential command at a time
+- Stop condition: unresolved P0/P1, unproven root cause, or a broader API
+  decision outside the approved issue scope
+
+## Router
+
+- [x] **WF-00 — AGENTS.md 계층 읽기**
+  - **Action:** 사용자·workspace·repository 범위의 현재 `AGENTS.md`를 순서대로 읽는다.
+  - **Evidence:** `/Users/debop/.codex/AGENTS.md`, `/Users/debop/work/bluetape4k/.github/docs/workspace/AGENTS.md`, `/Users/debop/work/bluetape4k/bluetape4k-leader/AGENTS.md`를 읽었고 SHA-256을 기록했다.
+  - **Failure:** 필요한 기준 정보가 없거나 읽히지 않으면 분류를 중단한다.
+- [x] **WF-01 — Type-C 분류**
+  - **Action:** live issue와 현재 구현을 읽고 실행 유형을 분류한다.
+  - **Evidence:** Issue #829의 재현 가능한 Micrometer decorator 동작 결함이므로 Type-C bugfix로 분류했다.
+  - **Failure:** 유형이 모호하면 실행 lane을 시작하지 않는다.
+- [x] **WF-02 — 첫 구체 계획 작성**
+  - **Action:** 모든 단계에 `Action`과 `Expected DoD`를 포함한 계획을 사용자에게 제시한다.
+  - **Evidence:** active thread에 격리 worktree, RED/GREEN, 최소 수정, 문서/lesson, 검증/PR 계획을 제시했다.
+  - **Failure:** 계획 승인 전 mutation을 수행하지 않는다.
+- [x] **WF-03 — 첫 계획 승인**
+  - **Action:** 첫 구체 계획에 대한 명시적 승인을 받는다.
+  - **Evidence:** 사용자가 `승인`이라고 응답했다.
+  - **Failure:** 승인 전에는 read-only 상태를 유지한다.
+- [x] **WF-04 — 실행 계약 로드**
+  - **Action:** selected leaf, common gates, Kotlin pattern/testing, systematic debugging, TDD, worktree 계약을 읽는다.
+  - **Evidence:** `bluetape-bugfix`, `bluetape-kotlin-patterns`, `common-gates.md`, `checklist-contract.md`, `systematic-debugging`, `test-driven-development`, `using-git-worktrees`를 읽었다.
+  - **Failure:** 누락된 계약이 있으면 편집을 중단한다.
+- [x] **WF-04A — machine-readable evidence 초기화**
+  - **Action:** 설치된 `bluetape-flow.py`로 현재 session과 Type-C run을 초기화한다.
+  - **Evidence:** `/Users/debop/.codex/skills/bluetape-workflow/scripts/bluetape-flow.py`; run `20260829T021042Z-97aa564d`; state root `.bluetape`; component `leader-micrometer`.
+  - **Failure:** helper가 없으면 문서 checklist 경로로 남기고 runtime 부재를 보고한다.
+- [x] **WF-05 — 의존성 순서로 gate 실행**
+  - **Action:** 아래 checklist를 물리적 순서대로 실행하고 각 증거를 즉시 기록한다.
+  - **Evidence:** sequence 8 RED, 9 GREEN, 10 static 순으로 runtime gate를 기록했고, 독립 review와 PR/CI gate만 남겼다.
+  - **Failure:** 순서를 어기거나 증거가 약하면 해당 gate부터 다시 실행한다.
+- [x] **WF-06 — 약한 gate 복구**
+  - **Action:** 누락되거나 재정렬된 gate가 발견되면 checklist와 영향받은 검증을 복구한다.
+  - **Evidence:** sequence 8→11이 순서대로 기록되었고 약한 gate/실패 결과가 없어 복구 대상이 없었다.
+  - **Failure:** 복구 전에는 dependent gate를 완료하지 않는다.
+
+## Checklist Contract
+
+- [x] **CL-01 — mutation 전에 checklist 생성**
+  - **Action:** router, common, leaf, Kotlin, writer 항목을 첫 mutation 전에 인스턴스화한다.
+  - **Evidence:** 이 파일이 첫 source/docs mutation 전에 생성되며 모든 적용/비적용 ID를 기록한다.
+  - **Failure:** checklist를 재구성하기 전에는 추가 mutation을 중단한다.
+- [x] **CL-02 — 모든 항목 분류**
+  - **Action:** 각 항목을 required, conditional, 또는 N/A로 분류한다.
+  - **Evidence:** PR delivery는 required, release/publish와 Exposed/HTTP/container 항목은 아래에 구체적 N/A 근거를 둔다.
+  - **Failure:** 분류되지 않은 항목은 required unchecked로 취급한다.
+- [x] **CL-03 — dependency order 준수**
+  - **Action:** 이전 항목의 fresh evidence 이후에만 dependent 항목을 실행한다.
+  - **Evidence:** run receipt sequence 8(RED) → 9(GREEN) → 10(static)과 targeted → module → Detekt → ABI 순서를 대조했다.
+  - **Failure:** 영향받은 downstream proof를 수리 후 다시 실행한다.
+- [x] **CL-04 — 증거 즉시 기록**
+  - **Action:** 각 항목을 확인하는 즉시 명령, 파일, URL, count를 기록한다.
+  - **Evidence:** 각 RED/GREEN/static 결과를 즉시 `.flow-inputs/*-evidence.json`과 이 checklist에 기록했다.
+  - **Failure:** 늦게 재구성한 증거는 repair로 취급한다.
+- [x] **CL-05 — fail closed**
+  - **Action:** pending/failed 항목은 unchecked로 두고 dependent branch를 멈춘다.
+  - **Evidence:** review/PR/CI/merge rows는 증거 전까지 unchecked로 유지하고, merge approval·merge·cleanup은 의도적으로 pending이다.
+  - **Failure:** pending gate를 우회한 작업은 무효이며 재검증한다.
+- [x] **CL-06 — 누락/재정렬 repair**
+  - **Action:** 누락 또는 순서 오류가 발견되면 해당 항목과 모든 영향받은 proof를 다시 실행한다.
+  - **Evidence:** RED→GREEN→static→review 순서가 유지되어 repair가 필요하지 않았다.
+  - **Failure:** 복구 불가능한 경우에만 BLOCKED로 종료한다.
+- [x] **CL-07 — irreversible hold 새로 고침**
+  - **Action:** PR 생성·push·merge 직전에 target, authority, head를 다시 읽는다.
+  - **Evidence:** PR 직전 current guidance·template·issue metadata와 local/remote exact head를 다시 읽도록 hold를 유지한다. 현재 PR side effect는 아직 실행하지 않았다.
+  - **Failure:** hold가 stale이면 외부 side effect를 수행하지 않는다.
+- [x] **CL-08 — 완료 전 count 계산**
+  - **Action:** `Required checks: X/Y; N/A: N; Blocked: N`과 모든 unchecked ID를 보고한다.
+  - **Evidence:** 최종 단계에서 checklist checked/N/A/blocked를 재계산하고 runtime completion-check와 대조한다.
+  - **Failure:** count가 맞지 않으면 완료를 주장하지 않는다.
+
+## Common Gates
+
+- [x] **CG-01 — 기준 정보 재확인**
+  - **Action:** 승인 후 현재 `AGENTS.md`, selected skills, status/diff, 승인 계획을 다시 읽는다.
+  - **Evidence:** 세 guidance SHA-256, clean base 상태, 승인 계획, Type-C 분류를 재확인했다.
+  - **Failure:** 기준 정보 drift가 있으면 편집을 중단하고 재계획한다.
+- [x] **CG-02 — historical/current evidence 조회**
+  - **Action:** GNO에서 관련 issue/PR 기록을 조회하고 live GitHub로 검증한다.
+  - **Evidence:** `bluetape4k-github`, `bluetape4k-docs`, `bluetape4k-wiki`를 조회했고 `gh issue view 829`로 OPEN/assignee/labels/milestone을 확인했다.
+  - **Failure:** 현재 상태를 확인하지 못한 결정은 중단한다.
+- [x] **CG-03 — 사용자 작업과 경계 보호**
+  - **Action:** default branch와 기존 worktree를 보존하고 semantic prefix의 isolated worktree를 사용한다.
+  - **Evidence:** `.worktrees/fix/issue-829-micrometer-decorator-policy`가 `origin/develop` exact SHA에서 생성됐고 기존 worktree는 변경하지 않았다.
+  - **Failure:** unrelated dirty state를 삭제하거나 default branch를 수정하지 않는다.
+- [x] **CG-04 — 정책·언어·대상 경계 적용**
+  - **Action:** Kotlin 소스, Korean user-facing docs, managed/runtime surfaces의 범위를 유지한다.
+  - **Evidence:** production scope는 `leader-micrometer`; README/lesson/checklist는 Korean 정책; `.bluetape`는 helper 소유로 유지한다.
+  - **Failure:** 승인 범위를 벗어난 표면은 변경하지 않는다.
+- [x] **CG-05 — ecosystem pattern 재사용**
+  - **Action:** 기존 instrumentation wrapper, `LeaderMetricTagOptions`, `LeaderMetricTagSanitizer`, project assertion helper를 우선 재사용한다.
+  - **Evidence:** 기존 `LeaderMetricTagOptions`, `LeaderMetricTagSanitizer.from(...)`, `InstrumentedLeaderBackendDiagnosticsProvider`, project `shouldBeSameInstanceAs`를 재사용했고 새 dependency/abstraction은 없다. Source anchors: `InstrumentedLeaderElectors.kt:291-322`, `InstrumentedLeaderElectorsTest.kt:343-442`.
+  - **Failure:** 새 dependency/abstraction을 추가하지 않고 설계를 다시 좁힌다.
+- [x] **CG-06 — public/documentation contract 증명**
+  - **Action:** public constructors/ABI, metric names, bounded tags, EN/KO README 계약을 검증한다.
+  - **Evidence:** public constructor signatures와 metric behavior는 유지했고 `checkBinaryCompatibility`에서 `leader-micrometer` `No changes`; EN/KO README와 source claim을 대조했다.
+  - **Failure:** 문서/ABI drift를 수리하기 전 PR 단계로 진행하지 않는다.
+- [x] **CG-07 — RED/GREEN targeted proof**
+  - **Action:** 의도된 registry/tag policy 결함을 RED로 고정한 뒤 최소 수정 후 GREEN을 실행한다.
+  - **Evidence:** targeted RED에서 outer registry `0.0`, stale inner policy `2.0`; fix 후 targeted GREEN `31 passing`, full module `132 passing`, `skipped=0`.
+  - **Failure:** compile/fixture 실패이면 재현부터 수리한다.
+- [x] **CG-08 — heavyweight check 직렬화**
+  - **Action:** Testcontainers/real DB/native checks가 적용되면 한 번에 하나씩 실행한다.
+  - **Evidence:** 이번 범위는 `SimpleMeterRegistry`와 in-memory delegate만 사용하므로 container/DB/native 검사는 N/A이며 적용 가능한 Gradle checks는 순차 실행했다.
+  - **Failure:** 적용되는 heavyweight 검사를 병렬 실행하지 않는다.
+- [x] **CG-09 — lesson gate 평가**
+  - **Action:** nested decorator policy 경계가 재사용 가능한 규칙인지 평가하고 필요하면 Korean lesson을 작성·index한다.
+  - **Evidence:** `docs/lessons/2026-08-29-issue-829-micrometer-decorator-policy.md`를 작성하고 temporary GNO collection `bluetape4k-leader-issue829`에 update/embed/search하여 URI hit을 확인했다.
+  - **Failure:** 재사용 규칙을 남기지 않은 채 pre-PR로 진행하지 않는다.
+- [x] **CG-10 — pre-PR proof 수렴**
+  - **Action:** leaf rows와 final scoped review를 완료하고 P0/P1을 0으로 만든 뒤 commit한다.
+  - **Evidence:** independent code-reviewer APPROVE(P0/P1/P2/P3=0), final scoped diff, targeted/module check, Detekt, ABI, terminology audit, `git diff --check`가 수렴되었고 commit 직전 상태를 확인했다.
+  - **Failure:** P0/P1 또는 unrelated diff가 있으면 PR 생성을 멈춘다.
+- [x] **CG-11 — PR delivery authority 확인**
+  - **Action:** 승인 계획의 repo/base/head와 CG-01~10 완료를 확인한다.
+  - **Evidence:** 승인된 target은 `bluetape4k/bluetape4k-leader`, base는 `develop`, head는 `fix/issue-829-micrometer-decorator-policy`이며 CG-01~10 완료를 확인했다.
+  - **Failure:** target/ref/authority가 다르면 PR을 생성하지 않는다.
+- [x] **CG-12 — exact head publish**
+  - **Action:** converged head를 force 없이 push하고 remote SHA를 읽는다.
+  - **Evidence:** force 없는 push가 성공했고 local/remote/PR head가 `702294526b3d48accf7dc663259f21b7b5cd6928`로 일치한다.
+  - **Failure:** mismatch 또는 remote drift이면 push/PR을 중단한다.
+- [x] **CG-12A — PR 직전 guidance refresh**
+  - **Action:** PR 직전에 guidance, selected skill, common gates, PR template, issue metadata를 다시 읽는다.
+  - **Evidence:** PR 직전 AGENTS/워크플로/선택 skill/common gates/template hash를 refresh하고 no-drift를 확인했다.
+  - **Failure:** drift를 해소하기 전 PR을 생성하지 않는다.
+- [x] **CG-13 — PR 생성·검증**
+  - **Action:** `Fixes #829`, assignee `debop`, issue labels/milestone을 반영하고 `## DoD Status`로 끝나는 Korean body를 작성한다.
+  - **Evidence:** [PR #834](https://github.com/bluetape4k/bluetape4k-leader/pull/834)가 생성되었고 `Closes #829`, assignee `debop`, labels `bug/integration/test/maintenance`, milestone `1.0.0`, final `## DoD Status`, head SHA를 live read-back했다.
+  - **Failure:** live PR metadata가 틀리면 CI 단계로 진행하지 않는다.
+- [x] **CG-14 — exact-head CI·review**
+  - **Action:** required CI와 최신 review/thread를 exact head에서 확인하고 P0/P1을 수렴한다.
+  - **Evidence:** [CI run 33230456248](https://github.com/bluetape4k/bluetape4k-leader/actions/runs/33230456248)가 exact head에서 `success`; `leader-micrometer` 132 passing, `examples-prometheus-dashboard` 6 passing, `leader-spring-boot (Testcontainers)` 625+7 passing, `Coverage Report`/`CI Status` success. path-filtered jobs는 N/A로 분류했으며 independent review P0/P1/P2/P3=0, unresolved thread 없음.
+  - **Failure:** 실패/새 review feedback은 수정 후 affected proof를 다시 연다.
+- [x] **CG-15 — merge-ready 보고**
+  - **Action:** 모든 rows와 count를 재확인하고 exact PR/head merge-ready report를 작성한다.
+  - **Evidence:** PR #834, exact head, CI/review/lesson evidence와 `Required checks: 55/59; N/A: 7; Blocked: 0`을 재확인했고 `CG-16`~`CG-18` 및 `C-09`는 새 merge 승인 전 unchecked로 유지한다.
+  - **Failure:** 누락된 증거가 있으면 merge approval을 요청하지 않는다.
+- [ ] **CG-16 — fresh merge approval**
+  - **Action:** CG-15 보고 후 exact head에 대한 새 merge 승인을 받는다.
+  - **Evidence:** active thread의 승인 시각/대상 head.
+  - **Failure:** 승인이 없으면 정상적인 PENDING으로 대기한다.
+- [ ] **CG-17 — merge 실행·검증**
+  - **Action:** CG-16 승인 후 지정 전략으로 merge하고 live merge SHA를 확인한다.
+  - **Evidence:** merge URL/strategy/state/SHA.
+  - **Failure:** merge 실패 시 repair로 돌아가며 auto-merge를 사용하지 않는다.
+- [ ] **CG-18 — canonical sync·cleanup**
+  - **Action:** merge 후 canonical checkout을 sync하고 proven merged worktree만 정리한다.
+  - **Evidence:** local/upstream SHA, 보존/정리 목록, clean state.
+  - **Failure:** ambiguous worktree/branch는 삭제하지 않는다.
+- [x] **CG-X01 — release/publish 외부 side effect**
+  - **Action:** tag/publish/release/dispatch 여부를 판정한다.
+  - **Evidence:** 이번 이슈는 코드/테스트/문서 PR만 대상으로 하며 release/publish/dispatch가 없다. N/A.
+  - **Failure:** 범위가 release로 넓어지면 별도 Type-P gate를 연다.
+
+## Type-C Bugfix
+
+- [x] **C-01 — 결함과 root cause 증명**
+  - **Action:** 최소 재현과 impacted symbol/caller를 읽고 첫 잘못된 가정을 추적한다.
+  - **Evidence:** `InstrumentedLeaderElectors.instrumented()`가 기존 provider를 registry/tag sanitizer 비교 없이 반환하고, 기존 테스트가 동일 registry 중복만 검증하는 source/test evidence를 확보했다. 승인 전 기준선: `./gradlew :bluetape4k-leader-micrometer:test --no-daemon --rerun-tasks` → `128 passing`, `BUILD SUCCESSFUL`.
+  - **Failure:** root cause가 설명되지 않으면 production code를 수정하지 않는다.
+- [x] **C-02 — scope와 issue gate 확인**
+  - **Action:** surgical fix/regression shape와 live issue metadata를 고정한다.
+  - **Evidence:** Issue #829 OPEN, assignee `debop`, labels `bug/integration/test/maintenance`, milestone `1.0.0`; scope는 Micrometer nested decorator로 제한했다.
+  - **Failure:** unrelated feature/cleanup을 이 branch에 섞지 않는다.
+- [x] **C-03 — regression RED 고정**
+  - **Action:** project helper와 기존 API로 registry/policy drift를 재현하는 최소 테스트를 추가한다.
+  - **Evidence:** `./gradlew :bluetape4k-leader-micrometer:test --tests 'io.bluetape4k.leader.micrometer.InstrumentedLeaderElectorsTest' --no-daemon --rerun-tasks`에서 compilation/fixture는 통과하고, outer registry 기대 `1.0`이 `0.0`, shared registry outer policy 기대 `1.0`이 `0.0`, inner policy가 `2.0`으로 관찰되는 의도된 RED를 확인했다.
+  - **Failure:** compilation/fixture 오류이면 RED를 인정하지 않는다.
+- [x] **C-04 — surgical fix 적용**
+  - **Action:** registry identity와 semantic tag options가 같은 경우만 reuse하고, 다르면 요청 설정으로 새 provider를 만든다.
+  - **Evidence:** `InstrumentedLeaderElectors.kt:291-322`에서 registry identity와 structural options equality만 reuse하고, 다르면 `unwrapInstrumented()` 후 새 provider를 만든다. `git diff --check`, Detekt, ABI가 통과했다.
+  - **Failure:** unrelated refactor/dependency/API decision이 생기면 scope를 재분류한다.
+- [x] **C-05 — GREEN과 blast radius 증명**
+  - **Action:** regression, affected module, compile/lint/static, broader proportional checks를 dependency order로 실행한다.
+  - **Evidence:** fresh targeted `31`, module `132` (`skipped=0`, failures/errors `0`), Detekt 성공, ABI `No changes`; 기존 cancellation/interrupt/exception 및 blocking/group/suspend 경로 테스트를 포함해 통과했다.
+  - **Failure:** retry-only pass나 stale cache는 proof로 인정하지 않는다.
+- [x] **C-06 — reusable learning 기록**
+  - **Action:** decorator가 registry와 tag policy를 함께 경계로 보존해야 하는 재사용 규칙을 lesson으로 작성·index한다.
+  - **Evidence:** `docs/lessons/2026-08-29-issue-829-micrometer-decorator-policy.md`와 GNO index/search 결과를 확보했다.
+  - **Failure:** lesson evidence 없이 pre-PR을 완료하지 않는다.
+- [x] **C-07 — authorized PR delivery**
+  - **Action:** CG-11~14를 완료하고 exact head CI/review를 수렴한다.
+  - **Evidence:** PR #834가 승인된 target/base/head로 생성되었고 final `## DoD Status`, exact-head CI와 독립 review가 수렴되었다.
+  - **Failure:** stale/missing/skipped evidence는 PASS가 아니다.
+- [x] **C-08 — merge readiness 또는 no-delivery 완료 보고**
+  - **Action:** phase-aware count, reproduction/root cause, RED/GREEN, files/commit, validation, lesson, exact PR/head를 보고한다.
+  - **Evidence:** `Required checks: 55/59; N/A: 7; Blocked: 0`; PR #834가 `MERGEABLE/CLEAN`이며 CG-16~18과 C-09를 unchecked로 유지했다.
+  - **Failure:** merge-ready 또는 DONE을 증거 없이 주장하지 않는다.
+- [ ] **C-09 — fresh merge approval 이후 closeout**
+  - **Action:** CG-16 승인 후 merge, live verification, canonical sync, cleanup을 실행한다.
+  - **Evidence:** exact-head fresh approval, merge SHA, sync/cleanup result.
+  - **Failure:** 승인 전 merge/cleanup을 실행하지 않는다.
+
+## Kotlin Final and Testing
+
+- [x] **KT-FIN-01 — current surface 확인**
+  - **Action:** source, callers, tests, public README를 다시 읽는다.
+  - **Evidence:** `InstrumentedLeaderElectors.kt:39-322`, `InstrumentedLeaderElectorsTest.kt:315-442`, `LeaderMetricTagOptions.kt`, EN/KO README의 nested decorator 설명을 다시 읽었다.
+  - **Failure:** 영향 범위가 불명확하면 discovery로 돌아간다.
+- [x] **KT-FIN-02 — validation contract 보존**
+  - **Action:** touched validation이 bluetape4k helper와 기존 exception contract를 유지하는지 확인한다.
+  - **Evidence:** 이번 변경에 caller validation/API exception 변경이 없고 기존 `requireNotNull`/exception contract를 건드리지 않았다. N/A.
+  - **Failure:** contract drift가 발견되면 수정 전 완료하지 않는다.
+- [x] **KT-FIN-03 — unsafe Kotlin construct 배제**
+  - **Action:** 새 `!!`, suspend `runCatching`, cancellation swallow, blocking event-loop call, monitor를 검색한다.
+  - **Evidence:** touched source/test에서 새 `!!`, `runCatching`, `assertThrows`, `shouldThrow`가 없고 기존 cancellation/interrupt lifecycle tests가 통과했다. 직접 Boolean property에 남은 `shouldBeTrue()`는 변경 대상이 아니다.
+  - **Failure:** 발견 즉시 제거하고 affected proof를 다시 실행한다.
+- [x] **KT-FIN-04 — lifecycle ownership 증명**
+  - **Action:** instrumentation delegate와 metric registry ownership/cleanup/failure path를 확인한다.
+  - **Evidence:** 동일 설정은 provider instance를 재사용하고 설정 차이는 raw underlying delegate에서 새 wrapper를 만들며, cancellation rethrow·interrupt restore·provider exception 기록 경로가 full module test에서 유지됐다.
+  - **Failure:** ownership이 불명확하면 production fix를 수렴하지 않는다.
+- [x] **KT-FIN-05 — Exposed boundary 확인**
+  - **Action:** Exposed operator/transaction/DDL 경계를 판정한다.
+  - **Evidence:** 이 issue는 `leader-micrometer`만 수정하므로 Exposed surface가 없다. N/A.
+  - **Failure:** Exposed 파일이 scope에 들어오면 별도 검증을 추가한다.
+- [x] **KT-FIN-06 — triggered reference 적용**
+  - **Action:** Kotlin testing과 Micrometer 관련 triggered reference를 적용한다.
+  - **Evidence:** Kotlin checklist/testing reference를 읽었고 Testcontainers/HTTP/Exposed는 scope N/A 근거를 기록했다.
+  - **Failure:** partial reference 상태이면 Kotlin verdict를 보류한다.
+- [x] **KT-FIN-07 — named test behavior 증명**
+  - **Action:** touched tests가 bluetape4k assertions로 named behavior를 실제로 증명하는지 읽는다.
+  - **Evidence:** 새 4개 backtick test가 `shouldBe`, `shouldBeSameInstanceAs`, `shouldBeEmpty`, `shouldNotBeNull` 등 직접 의도 matcher를 사용하고 targeted `31 passing`이다.
+  - **Failure:** assertion이 동작을 증명하지 못하면 테스트를 강화한다.
+- [x] **KT-FIN-08 — public documentation 동기화**
+  - **Action:** EN/KO README와 변경 의미가 일치하는지 확인한다.
+  - **Evidence:** EN/KO README에 동일한 registry identity/equal options reuse와 outer policy fallback 계약을 반영하고 read-back했다.
+  - **Failure:** 문서 drift를 수리한다.
+- [x] **KT-FIN-09 — diagnostics 정리**
+  - **Action:** imports/deprecations/IDE diagnostics를 정리하고 compile fallback을 실행한다.
+  - **Evidence:** final targeted/module compile output에 불필요한 cast warning이 없고 Detekt가 `BUILD SUCCESSFUL`이다.
+  - **Failure:** touched-code diagnostics가 남으면 완료하지 않는다.
+- [x] **KT-FIN-10 — fresh validation**
+  - **Action:** targeted compile/tests와 `git diff --check`를 실행한다.
+  - **Evidence:** targeted/module Gradle test, Detekt, ABI, `git diff --check`를 `--rerun-tasks` 기준으로 fresh 실행했다.
+  - **Failure:** 정확한 gap을 기록하고 completion을 보류한다.
+- [x] **KT-FIN-11 — final scope 수렴**
+  - **Action:** final commit/PR scope와 review finding을 검사한다.
+  - **Evidence:** 변경 범위는 승인된 6개 파일과 checklist로 제한되고 independent review가 P0=0/P1=0을 확인했다. `.flow-inputs/`는 runtime 산출물로 commit에서 제외한다.
+  - **Failure:** scope를 분리하거나 finding을 수리한다.
+- [x] **KT-TEST-01 — project test idiom 적용**
+  - **Action:** JUnit 5, descriptive backtick names, bluetape4k assertions, suspend-aware APIs를 사용한다.
+  - **Evidence:** JUnit 5 backtick names, `io.bluetape4k.assertions.*`, suspend-aware APIs와 기존 fixture를 사용했고 금지된 exception assertion을 추가하지 않았다.
+  - **Failure:** generic equality 또는 금지된 exception assertion을 교체한다.
+- [x] **KT-TEST-02 — concurrency/cancellation 적용성 판정**
+  - **Action:** concurrency/cancellation 위험과 적합한 tester 필요성을 판정한다.
+  - **Evidence:** 이번 변경은 decorator configuration selection만 바꾸고 cancellation/locking lifecycle은 유지하므로 별도 stress tester는 N/A이다. 기존 suspend/exception tests는 affected module에서 재실행한다.
+  - **Failure:** lifecycle behavior가 바뀌면 적합한 tester를 추가한다.
+- [x] **KT-TEST-03 — infrastructure fixture 적용성 판정**
+  - **Action:** Testcontainers launcher와 container residue 필요성을 판정한다.
+  - **Evidence:** `SimpleMeterRegistry`/in-memory delegate만 사용하므로 container fixture는 N/A이다.
+  - **Failure:** real backend가 추가되면 sequential fixture proof를 추가한다.
+- [x] **KT-TEST-04 — HTTP lifecycle 적용성 판정**
+  - **Action:** HTTP/HC5 adapter contract 적용성을 판정한다.
+  - **Evidence:** Micrometer decorator는 HTTP adapter가 아니므로 N/A이다.
+  - **Failure:** HTTP surface가 추가되면 conformance matrix를 연다.
+- [x] **KT-TEST-05 — fresh targeted/module validation**
+  - **Action:** smallest regression, affected compile/tests, full module test 순서로 실행한다.
+  - **Evidence:** targeted `31 passing`; full module `132 tests, skipped=0, failures=0, errors=0`, 모두 fresh rerun이다.
+  - **Failure:** stale cache output은 인정하지 않고 fresh rerun한다.
+
+## Writer Gate for Lesson/Docs
+
+- [x] **SPW-01 — audience/purpose/evidence 고정**
+  - **Action:** lesson과 README의 독자, 목적, source paths, identifiers, unknowns를 고정한다.
+  - **Evidence:** lesson/README가 Micrometer decorator 사용자와 유지보수자를 대상으로 하며 source paths, issue URL, registry/options identifiers를 보존한다.
+  - **Failure:** 근거 없는 claim은 쓰지 않는다.
+- [x] **SPW-02 — artifact contract 충족**
+  - **Action:** lesson에는 context, decision, outcome, verification, miss, future guard를 포함한다.
+  - **Evidence:** lesson에 Context/Root Cause/Decision/Verification/Miss or Surprise/Future Guard가 있고 README에 nested decorator 계약이 있다.
+  - **Failure:** 누락된 artifact를 먼저 보완한다.
+- [x] **SPW-03 — Korean technical register 적용**
+  - **Action:** Korean naturalness checklist로 번역체·모호한 표현·용어 drift를 검사한다.
+  - **Evidence:** `audit-korean-terms.mjs`가 lesson 및 `README.ko.md`에서 `findings=0`을 반환했다.
+  - **Failure:** 사실과 technical token을 보존하며 다시 작성한다.
+- [x] **SPW-04 — technical traceability 검증**
+  - **Action:** finished docs를 current source/test/issue와 대조한다.
+  - **Evidence:** source helper/test line anchors와 README/lesson claims를 대조했고 RED/GREEN 수치를 일치시켰다.
+  - **Failure:** drift가 있으면 문서와 dependent gate를 다시 연다.
+- [x] **SPW-05 — read-back과 writer DoD 기록**
+  - **Action:** rendered Markdown을 읽고 headings/links/code tokens/locale parity를 확인한다.
+  - **Evidence:** EN/KO README와 lesson/checklist를 read-back했으며 headings, links, code tokens, locale parity를 확인했다.
+  - **Failure:** writer gate를 unchecked로 유지한다.
+
+## Current Status
+
+- Baseline: `leader-micrometer` `128 passing`, `BUILD SUCCESSFUL` on fresh rerun.
+- Current implementation: registry identity와 semantic `LeaderMetricTagOptions` 비교를 통한 provider 경계 수정과 4개 regression test(leader async/group async 경로 포함)가 적용되었고 RED/GREEN/static/review evidence가 기록되었다.
+- Current mutation lane: isolated worktree and flow receipt active.
+- PR/merge: PR #834 is open and `MERGEABLE/CLEAN` at exact head `702294526b3d48accf7dc663259f21b7b5cd6928`; merge still requires a fresh approval.
+- Required checks at this stage: `55/59`; `N/A: 7`; `Blocked: 0`. Only fresh merge approval, merge, canonical sync/cleanup rows remain pending.

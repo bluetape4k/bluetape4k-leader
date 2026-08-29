@@ -243,6 +243,13 @@ not create a meter. The decorator records only the bounded enum values and
 rethrows the provider's original exception; it never exports exception text,
 endpoints, credentials, or lock names.
 
+When instrumented decorators are nested, the existing diagnostics provider is
+reused only when both decorators reference the same `MeterRegistry` instance
+and equal `LeaderMetricTagOptions`. If either setting differs, the outer
+decorator instruments the underlying provider with its requested registry and
+tag policy. This keeps registry and tag-policy boundaries explicit without
+double-counting equal configurations.
+
 ## Listener Event Metrics
 
 Use `MicrometerLeaderElectionListener` when you need lifecycle counters without wrapping the elector in an instrumented decorator.
