@@ -6,6 +6,7 @@ import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireGe
 import io.bluetape4k.support.requireNotBlank
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
@@ -100,7 +101,9 @@ object LeaderLeaseExtensionObservers {
     private const val MAX_IN_FLIGHT_PER_OBSERVER = 256
     private const val WARNING_INTERVAL_NANOS = 1_000_000_000L
 
-    private val registrations = CopyOnWriteArrayList<Registration>()
+    private val wildcardRegistrations = CopyOnWriteArrayList<Registration>()
+    private val scopedRegistrations =
+        ConcurrentHashMap<LeaderLeaseExtensionObservationScope, CopyOnWriteArrayList<Registration>>()
     private val globalInFlight = Semaphore(MAX_IN_FLIGHT)
     private val dropped = AtomicLong(0L)
 
@@ -108,19 +111,37 @@ object LeaderLeaseExtensionObservers {
     @JvmStatic
     fun addObserver(observer: LeaderLeaseExtensionObserver): AutoCloseable {
         val registration = Registration(observer)
-        registrations.add(registration)
+        wildcardRegistrations.add(registration)
         return AutoCloseable {
             if (registration.closed.compareAndSet(false, true)) {
-                registrations.remove(registration)
+                wildcardRegistrations.remove(registration)
             }
         }
+    }
+
+    /**
+     * caller-owned observer와 불투명 scope를 함께 등록합니다.
+     *
+     * 반환 scope는 이 observer만 선택하며 Spring registry 귀속을 뜻하지 않습니다.
+     * 사용이 끝나면 반드시 닫아야 합니다.
+     */
+    @JvmSynthetic
+    fun addScopedObserver(observer: LeaderLeaseExtensionObserver): LeaderLeaseExtensionObservationScope {
+        lateinit var registration: Registration
+        val scope = LeaderLeaseExtensionObservationScope.create(observer) { closedScope ->
+            scopedRegistrations.remove(closedScope)?.clear()
+            registration.closed.set(true)
+        }
+        registration = Registration(observer, scope)
+        scopedRegistrations[scope] = CopyOnWriteArrayList<Registration>().apply { add(registration) }
+        return scope
     }
 
     /** 동일 object identity의 registration을 모두 제거합니다. */
     @JvmStatic
     fun removeObserver(observer: LeaderLeaseExtensionObserver): Boolean {
         val removed = AtomicBoolean(false)
-        registrations.removeIf { registration ->
+        wildcardRegistrations.removeIf { registration ->
             if (registration.observer === observer) {
                 registration.closed.set(true)
                 removed.set(true)
@@ -129,6 +150,16 @@ object LeaderLeaseExtensionObservers {
                 false
             }
         }
+        scopedRegistrations.values
+            .asSequence()
+            .flatMap { it.asSequence() }
+            .filter { it.observer === observer }
+            .mapNotNull { it.scope }
+            .toList()
+            .forEach { scope ->
+                removed.set(true)
+                scope.close()
+            }
         return removed.get()
     }
 
@@ -138,13 +169,41 @@ object LeaderLeaseExtensionObservers {
 
     /** event/context allocation 전에 observer 존재 여부를 확인하는 internal bridge입니다. */
     @JvmSynthetic
-    internal fun hasObservers(): Boolean = registrations.isNotEmpty()
+    internal fun hasObservers(): Boolean = wildcardRegistrations.isNotEmpty()
+
+    /** global observer 또는 일치하는 active scope observer 존재 여부를 확인합니다. */
+    @JvmSynthetic
+    fun hasObservers(scope: LeaderLeaseExtensionObservationScope?): Boolean =
+        wildcardRegistrations.isNotEmpty() ||
+            (scope?.takeIf { it.isActive() }?.let(scopedRegistrations::get)?.isNotEmpty() == true)
 
     /** caller가 만든 terminal event를 bounded virtual-thread dispatcher에 제출합니다. */
     @JvmSynthetic
     @Suppress("TooGenericExceptionCaught")
     internal fun publish(event: LeaderLeaseExtensionEvent) {
-        val snapshot = registrations.toTypedArray()
+        publishSelected(event, wildcardRegistrations.toTypedArray())
+    }
+
+    /** global observer와 일치하는 active scope bucket에만 event를 제출합니다. */
+    @JvmSynthetic
+    fun publish(event: LeaderLeaseExtensionEvent, scope: LeaderLeaseExtensionObservationScope?) {
+        val wildcardSnapshot = wildcardRegistrations.toTypedArray()
+        val scopedSnapshot = scope
+            ?.takeIf { it.isActive() }
+            ?.let(scopedRegistrations::get)
+            ?.toTypedArray()
+            ?: emptyArray()
+        if (wildcardSnapshot.isEmpty()) {
+            publishSelected(event, scopedSnapshot)
+        } else if (scopedSnapshot.isEmpty()) {
+            publishSelected(event, wildcardSnapshot)
+        } else {
+            publishSelected(event, wildcardSnapshot + scopedSnapshot)
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun publishSelected(event: LeaderLeaseExtensionEvent, snapshot: Array<Registration>) {
         if (snapshot.isEmpty()) return
 
         var index = 0
@@ -221,6 +280,7 @@ object LeaderLeaseExtensionObservers {
 
     private class Registration(
         val observer: LeaderLeaseExtensionObserver,
+        val scope: LeaderLeaseExtensionObservationScope? = null,
     ) {
         val closed = AtomicBoolean(false)
         val inFlight = Semaphore(MAX_IN_FLIGHT_PER_OBSERVER)

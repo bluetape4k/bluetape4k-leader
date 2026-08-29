@@ -215,6 +215,152 @@ class LeaderLeaseExtensionObserversTest {
     }
 
     @Test
+    fun `scoped observers receive only their capability and wildcard receives all`() {
+        withManualDispatcher { submitted ->
+            val globalCalls = AtomicInteger()
+            val aCalls = AtomicInteger()
+            val bCalls = AtomicInteger()
+            val global = LeaderLeaseExtensionObservers.addObserver { globalCalls.incrementAndGet() }
+            val a = LeaderLeaseExtensionObservers.addScopedObserver { aCalls.incrementAndGet() }
+            val b = LeaderLeaseExtensionObservers.addScopedObserver { bCalls.incrementAndGet() }
+
+            try {
+                LeaderLeaseExtensionObservers.publish(testEvent(), a)
+                submitted.size shouldBeEqualTo 2
+                submitted.forEach(Runnable::run)
+
+                globalCalls.get() shouldBeEqualTo 1
+                aCalls.get() shouldBeEqualTo 1
+                bCalls.get() shouldBeEqualTo 0
+            } finally {
+                global.close()
+                a.close()
+                b.close()
+            }
+        }
+    }
+
+    @Test
+    fun `accepted scoped callback may finish after close but later publish is rejected`() {
+        withManualDispatcher { submitted ->
+            val calls = AtomicInteger()
+            val scope = LeaderLeaseExtensionObservers.addScopedObserver { calls.incrementAndGet() }
+
+            LeaderLeaseExtensionObservers.publish(testEvent(), scope)
+            submitted.size shouldBeEqualTo 1
+            scope.close()
+            submitted.single().run()
+
+            calls.get() shouldBeEqualTo 1
+            LeaderLeaseExtensionObservers.publish(testEvent(), scope)
+            submitted.size shouldBeEqualTo 1
+            calls.get() shouldBeEqualTo 1
+        }
+    }
+
+    @Test
+    fun `saturated admission counts only wildcard and matching scoped observers as drops`() {
+        val entered = CountDownLatch(1024)
+        val completed = CountDownLatch(1024)
+        val release = CountDownLatch(1)
+        val wildcardRegistrations = (1..4).map {
+            LeaderLeaseExtensionObservers.addObserver {
+                entered.countDown()
+                try {
+                    release.await(5, TimeUnit.SECONDS)
+                } finally {
+                    completed.countDown()
+                }
+            }
+        }
+        val aCalls = AtomicInteger()
+        val bCalls = AtomicInteger()
+        val a = LeaderLeaseExtensionObservers.addScopedObserver { aCalls.incrementAndGet() }
+        val b = LeaderLeaseExtensionObservers.addScopedObserver { bCalls.incrementAndGet() }
+
+        try {
+            repeat(256) { LeaderLeaseExtensionObservers.publish(testEvent()) }
+            entered.await(10, TimeUnit.SECONDS).shouldBeTrue()
+
+            val droppedBefore = LeaderLeaseExtensionObservers.droppedCount()
+            LeaderLeaseExtensionObservers.publish(testEvent(), a)
+            await
+                .atMost(5.seconds)
+                .withPollInterval(25.milliseconds)
+                .untilAsserted {
+                    LeaderLeaseExtensionObservers.droppedCount() shouldBeEqualTo droppedBefore + 5
+                }
+            aCalls.get() shouldBeEqualTo 0
+            bCalls.get() shouldBeEqualTo 0
+        } finally {
+            release.countDown()
+            val drained = try {
+                completed.await(10, TimeUnit.SECONDS)
+            } finally {
+                wildcardRegistrations.forEach(AutoCloseable::close)
+                a.close()
+                b.close()
+            }
+            drained.shouldBeTrue()
+        }
+    }
+
+    @Test
+    fun `closed scoped capability is not reused by a replacement registration`() {
+        withManualDispatcher { submitted ->
+            val staleCalls = AtomicInteger()
+            val replacementCalls = AtomicInteger()
+            val stale = LeaderLeaseExtensionObservers.addScopedObserver { staleCalls.incrementAndGet() }
+            stale.close()
+            val replacement = LeaderLeaseExtensionObservers.addScopedObserver { replacementCalls.incrementAndGet() }
+
+            try {
+                LeaderLeaseExtensionObservers.publish(testEvent(), stale)
+                submitted.size shouldBeEqualTo 0
+                LeaderLeaseExtensionObservers.publish(testEvent(), replacement)
+                submitted.size shouldBeEqualTo 1
+                submitted.single().run()
+
+                staleCalls.get() shouldBeEqualTo 0
+                replacementCalls.get() shouldBeEqualTo 1
+            } finally {
+                replacement.close()
+            }
+        }
+    }
+
+    @Test
+    fun `scoped hasObservers ignores mismatched and revoked capabilities`() {
+        val a = LeaderLeaseExtensionObservers.addScopedObserver { }
+        val b = LeaderLeaseExtensionObservers.addScopedObserver { }
+
+        try {
+            LeaderLeaseExtensionObservers.hasObservers(a).shouldBeTrue()
+            LeaderLeaseExtensionObservers.hasObservers(b).shouldBeTrue()
+            a.close()
+            LeaderLeaseExtensionObservers.hasObservers(a).shouldBeFalse()
+            LeaderLeaseExtensionObservers.hasObservers(b).shouldBeTrue()
+        } finally {
+            a.close()
+            b.close()
+        }
+    }
+
+    @Test
+    fun `removeObserver revokes its scoped capability`() {
+        val observer = LeaderLeaseExtensionObserver { }
+        val scope = LeaderLeaseExtensionObservers.addScopedObserver(observer)
+
+        try {
+            LeaderLeaseExtensionObservers.removeObserver(observer).shouldBeTrue()
+            scope.isActive().shouldBeFalse()
+            LeaderLeaseExtensionObservers.hasObservers(scope).shouldBeFalse()
+        } finally {
+            scope.close()
+        }
+    }
+
+    @Test
     fun `Java fixture can construct and register through the public facade`() {
         val event = LeaderLeaseExtensionJavaApiFixture.event()
 
