@@ -34,13 +34,13 @@
   - **Action:** 누락·순서 위반을 repair하고 영향받은 dependent proof를 다시 실행한다.
   - **Evidence:** 첫 regex escaping 오류를 production 변경으로 오인하지 않고 helper를 repair한 뒤 scrape RED를 다시 확인하고 GREEN/전체 테스트를 재실행했다.
   - **Failure:** 최종 상태를 BLOCKED로 남긴다.
-- [ ] **CL-07 — Refresh irreversible holds**
+- [x] **CL-07 — Refresh irreversible holds**
   - **Action:** PR 생성·merge 같은 외부 side effect 직전에 authority와 target을 다시 읽는다.
-  - **Evidence:** fresh issue/branch/head/CI/review read-back.
+  - **Evidence:** PR 생성 직전 live issue #827, repository `bluetape4k/bluetape4k-leader`, base `develop`, head `fix/issue-827-prometheus-connectivity-probe`, local head `07d8fec4bd0555a41b0bf8810a5dfbbff5132e8a`를 재확인했다. PR #836 생성 후 metadata와 exact-head hosted CI를 read-back했다.
   - **Failure:** side effect를 실행하지 않는다.
-- [ ] **CL-08 — Count before completion**
+- [x] **CL-08 — Count before completion**
   - **Action:** 최종 보고 전에 `Required checks: X/Y; N/A: N; Blocked: N`을 계산한다.
-  - **Evidence:** 이 파일의 최종 count와 unchecked ID 목록.
+  - **Evidence:** 현재 PR delivery gate 기준 `Required checks: 45/49; N/A: 2; Blocked: 0`으로 계산했다. 미완료 required ID는 `C-09`, `CG-16`, `CG-17`, `CG-18`이며 모두 fresh merge approval 이후 단계다.
   - **Failure:** completion claim을 금지한다.
 
 ## Type C bugfix lifecycle
@@ -69,13 +69,13 @@
   - **Action:** dead alert와 active producer 계약에서 재사용 가능한 운영 규칙을 lesson으로 기록하고 GNO를 갱신한다.
   - **Evidence:** `docs/lessons/2026-08-29-issue-827-prometheus-connectivity-probe.md`를 작성했고 temporary GNO collection `bluetape4k-leader-issue827`에서 `gno update`, `gno embed --collection bluetape4k-leader-issue827`, representative search hit `#0602cb75`를 확인한 뒤 collection을 제거했다.
   - **Failure:** reusable rule을 누락하지 않는다.
-- [ ] **C-07 — Complete authorized PR delivery through live CI and review**
+- [x] **C-07 — Complete authorized PR delivery through live CI and review**
   - **Action:** exact head를 publish하고 Korean PR, live metadata, review/thread, exact-head CI를 수렴한다.
-  - **Evidence:** PR URL/metadata, P0/P1=0, required checks, review artifact.
+  - **Evidence:** [PR #836](https://github.com/bluetape4k/bluetape4k-leader/pull/836)가 `develop` base와 semantic head로 생성되었고 `debop`, `bug/integration/test/example`, milestone `1.0.0`을 확인했다. 독립 리뷰 APPROVE(P0/P1/P2/P3=0)와 hosted CI run `33241153760`(11 success, 37 intended skip, failed/cancelled 0)을 read-back했다.
   - **Failure:** stale/missing evidence를 repair하고 merge gate로 가지 않는다.
-- [ ] **C-08 — Report merge readiness or no-delivery completion**
+- [x] **C-08 — Report merge readiness or no-delivery completion**
   - **Action:** Type C row와 CG-11~15를 재확인하고 merge-ready report를 작성한 뒤 CG-16에서 멈춘다.
-  - **Evidence:** exact PR/head와 reconciled count.
+  - **Evidence:** PR #836 exact head/CI/review와 `Required checks: 45/49; N/A: 2; Blocked: 0`을 reconciled했으며, merge는 CG-16 fresh approval 전까지 보류한다.
   - **Failure:** merge-ready 또는 DONE을 주장하지 않고 누락 row를 repair한다.
 - [ ] **C-09 — Close out only after fresh merge approval**
   - **Action:** exact PR/head에 대한 fresh approval 후 merge, sync, cleanup을 수행한다.
@@ -124,29 +124,29 @@
   - **Action:** Kotlin final checklist와 final diff/review를 수렴하고 commit한다.
   - **Evidence:** 최신 staged diff에 대한 독립 재리뷰가 APPROVE(P0=0/P1=0/P2=0/P3=0)였고, `PrometheusScrapeTest`의 fixed-delay cadence 보강 후 example 전체 13 tests와 Detekt, `git diff --cached --check`가 fresh 통과했다. 커밋은 다음 gate에서 생성한다.
   - **Failure:** PR 생성 전 repair한다.
-- [ ] **CG-11 — Verify PR delivery authority**
+- [x] **CG-11 — Verify PR delivery authority**
   - **Action:** 승인된 계획의 repo/base/head와 CG-01~10 PASS를 확인한다.
-  - **Evidence:** repository `bluetape4k/bluetape4k-leader`, base `develop`, head branch.
+  - **Evidence:** repository `bluetape4k/bluetape4k-leader`, base `develop`, head `fix/issue-827-prometheus-connectivity-probe`, CG-01~10 pre-PR gate와 승인 계획을 확인했다.
   - **Failure:** PR 생성 전에 authority를 repair한다.
-- [ ] **CG-12 — Publish the exact head branch**
+- [x] **CG-12 — Publish the exact head branch**
   - **Action:** converged feature head를 force 없이 push하고 remote SHA를 읽는다.
-  - **Evidence:** local/remote matching SHA.
+  - **Evidence:** `git push --set-upstream origin fix/issue-827-prometheus-connectivity-probe`를 force 없이 실행했고 초기 implementation head `07d8fec4bd0555a41b0bf8810a5dfbbff5132e8a`의 local/remote 일치를 확인했다.
   - **Failure:** mismatch를 repair한다.
-- [ ] **CG-12A — Refresh guidance before PR creation**
+- [x] **CG-12A — Refresh guidance before PR creation**
   - **Action:** PR 직전에 AGENTS/leaf/common/PR template/issue metadata를 다시 읽는다.
-  - **Evidence:** no-drift 또는 affected gate 재검증 결과.
+  - **Evidence:** PR 직전 authority/leaf/common guidance, PR template 부재, issue #827 metadata, clean worktree와 branch/head를 read-back했으며 drift가 없었다.
   - **Failure:** PR create/update를 중지한다.
-- [ ] **CG-13 — Create and verify the PR**
+- [x] **CG-13 — Create and verify the PR**
   - **Action:** issue-linked Korean PR을 만들고 `debop`, milestone, labels, final `## DoD Status`를 검증한다.
-  - **Evidence:** live PR URL/number, head SHA, metadata, final heading.
+  - **Evidence:** [PR #836](https://github.com/bluetape4k/bluetape4k-leader/pull/836), Korean body의 `## DoD Status`, base/head, assignee `debop`, labels `bug/integration/test/example`, milestone `1.0.0`을 live read-back했다.
   - **Failure:** live PR을 repair한다.
-- [ ] **CG-14 — Pass CI and live human review**
+- [x] **CG-14 — Pass CI and live human review**
   - **Action:** exact-head required CI, review/thread, independent review와 적용 artifact를 확인한다.
-  - **Evidence:** green required checks, P0/P1=0, unresolved blocker 0; human-review N/A면 solo-lane 근거.
+  - **Evidence:** PR #836 exact implementation head의 run `33241153760`에서 11개 실행 job이 성공하고 37개 path-filter intended skip, failed/cancelled 0이었다. 독립 review artifact는 APPROVE(P0/P1/P2/P3=0), unresolved blocker 0이며, GitHub human review는 single-developer lane으로 N/A 처리한다.
   - **Failure:** PENDING은 기다리고 FAIL은 repair한다.
-- [ ] **CG-15 — Report merge-ready**
+- [x] **CG-15 — Report merge-ready**
   - **Action:** 모든 row와 count를 재확인하고 exact PR/head merge-ready report를 낸다.
-  - **Evidence:** user-visible report와 `Required checks: X/Y; N/A: N; Blocked: 0`.
+  - **Evidence:** PR #836, implementation head `07d8fec4…`, CI/review evidence와 `Required checks: 45/49; N/A: 2; Blocked: 0`을 user-visible report로 수렴했다. `C-09`, `CG-16`~`CG-18`은 fresh merge approval 대기다.
   - **Failure:** merge approval을 요청하지 않고 누락을 repair한다.
 - [ ] **CG-16 — Obtain fresh merge approval**
   - **Action:** CG-15 이후 exact PR/head에 대한 fresh merge approval을 기다린다.
@@ -232,5 +232,5 @@
 
 - Required: 모든 Type C, Common, Kotlin 항목. `CG-14` human-review subgate는 single-developer lane 근거가 확인될 때만 N/A.
 - Conditional N/A 후보: `KT-TEST-04` (HTTP endpoint 변경 없음), `KT-FIN-05` (Exposed 변경 없음), diagram artifact rows (diagram 변경 없음), release/tag/publish branch (사용자 요청 범위 밖).
-- `X/Y`와 N/A count는 모든 applicable row의 fresh evidence를 기록한 뒤 계산한다.
-- 최종 unchecked IDs: 아직 계산하지 않음.
+- `Required checks: 45/49; N/A: 2; Blocked: 0`으로 계산했다. N/A는 `KT-TEST-04`, `KT-FIN-05`이고, human-review subgate는 `CG-14` evidence에서 solo-developer lane으로 별도 N/A 처리했다.
+- 최종 unchecked IDs: `C-09`, `CG-16`, `CG-17`, `CG-18` (fresh merge approval 및 이후 merge/sync/cleanup).
