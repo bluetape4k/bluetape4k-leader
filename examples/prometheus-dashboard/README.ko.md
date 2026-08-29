@@ -37,6 +37,9 @@ scrape하고 Grafana가 사전 provision된 dashboard를 렌더링합니다.
 - `@Scheduled` trigger가 `dashboard-job` 이름의 proxied `@LeaderElection` 작업을 호출
 - Lettuce Redis backend, `bootRun` 시 Testcontainers Redis 자동 fallback
 - Spring Boot Actuator를 통한 Micrometer leader AOP 메트릭 노출
+- 기존 Redis diagnostics provider를 bounded timeout으로 호출해
+  `leader_backend_connectivity_total`을 기록하는 주기적
+  `PrometheusBackendConnectivityProbe`
 - leader Micrometer Observation을 확인하는 로컬 demo `ObservationHandler`
 - Prometheus scrape 설정과 직접 작성한 Grafana dashboard
 - 예제 범위의 Prometheus alert rule과 runbook 안내
@@ -153,6 +156,13 @@ Backend connectivity counter는 Prometheus 이름 변환 후
 `notification: no-page`를 사용합니다. `UNKNOWN`을 `DOWN`으로 다시 쓰지 않으며,
 passive `NOT_CHECKED` diagnostics는 series를 만들지 않습니다.
 
+`PrometheusBackendConnectivityProbe`가 이 counter를 생성합니다. 별도 Redis
+client를 만들지 않고 기존 Lettuce connection의 diagnostics provider를 재사용하며,
+설정한 fixed delay마다 `DEMO_BACKEND_PROBE_TIMEOUT_MS`를 bounded probe budget으로
+전달합니다. 현재 Lettuce provider는 backend round trip 없이 open client state만
+확인하므로 `CLIENT_STATE_UNCONFIRMED` reason의 `UNKNOWN`을 반환하며 `UP`이라고
+단정하지 않습니다. 닫힌 client state는 `DISCONNECTED` reason의 `DOWN`을 보고합니다.
+
 이 demo는 `MicrometerSafeLeaderHistoryRecorder`를 `NoopLeaderHistorySink`와
 함께 등록해 `leader_history_*` meter가 보이게 합니다. Alert rule은 no-op sink가
 의도적으로 acquire key를 반환하지 않으므로 해당 sink를 제외합니다. 실제 서비스에서는
@@ -196,6 +206,9 @@ sum by (backend_name, reason) (rate(leader_backend_connectivity_total{status="UN
 | `DEMO_REDIS_URL` / `demo.redis.url` | Testcontainers Redis | Lettuce가 사용할 Redis URI |
 | `DEMO_JOB_FIXED_DELAY_MS` / `demo.job.fixed-delay-ms` | `5000` | Scheduler fixed delay |
 | `DEMO_JOB_INITIAL_DELAY_MS` / `demo.job.initial-delay-ms` | `1000` | Scheduler initial delay |
+| `DEMO_BACKEND_PROBE_FIXED_DELAY_MS` / `demo.backend-probe.fixed-delay-ms` | `5000` | Connectivity probe fixed delay |
+| `DEMO_BACKEND_PROBE_INITIAL_DELAY_MS` / `demo.backend-probe.initial-delay-ms` | `1000` | Initial connectivity probe delay |
+| `DEMO_BACKEND_PROBE_TIMEOUT_MS` / `demo.backend-probe.timeout-ms` | `500` | 기존 diagnostics provider에 전달하는 양수 timeout |
 | `DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED` / `demo.observation.logging-handler-enabled` | `true` | 로컬 demo Observation handler 활성화 |
 | `bluetape4k.leader.aop.metrics.tags.lock-name.mode` | `RAW` | 정적 `dashboard-job` label을 Prometheus에서 보여주기 위한 demo 전용 opt-in |
 | `SERVER_PORT` | `8080` | HTTP port |
@@ -235,4 +248,7 @@ AOT 태스크도 `bootRun`과 같은 Testcontainers Redis fallback을 사용하�
 
 테스트는 Spring Boot를 random port로 시작하고, `RedisServer.Launcher.redis`
 Testcontainers singleton을 사용해 `/actuator/prometheus`에 `dashboard-job`의
-`leader_aop_*` 메트릭이 노출되는지 검증합니다.
+`leader_aop_*` 메트릭과 `PrometheusBackendConnectivityProbe`가 생성한
+`UNKNOWN`/`CLIENT_STATE_UNCONFIRMED` connectivity series가 노출되는지 검증합니다.
+단위 테스트는 별도 Redis client를 만들지 않고 `UP`, `DOWN`,
+`PROVIDER_EXCEPTION` label도 확인합니다.

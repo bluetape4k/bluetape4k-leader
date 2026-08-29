@@ -1,0 +1,236 @@
+# Issue #827 Prometheus connectivity probe checklist
+
+- 이슈: [#827](https://github.com/bluetape4k/bluetape4k-leader/issues/827)
+- 분류: Type C bugfix (`bluetape-bugfix`)
+- 범위: `examples/prometheus-dashboard`와 기존 Micrometer diagnostics 연결
+- 기준 브랜치: `develop`
+- 작업 브랜치: `fix/issue-827-prometheus-connectivity-probe`
+- 승인: 사용자가 2026-08-29에 구체 계획을 승인함
+- 원칙: Core API 변경과 unrelated cleanup은 범위 밖
+
+## Checklist state
+
+- [x] **CL-01 — Create before mutation**
+  - **Action:** 이 router/common/leaf checklist를 첫 코드 변경 전에 생성한다.
+  - **Evidence:** 이 파일을 코드 변경 전에 생성했다.
+  - **Failure:** 코드 변경을 중지하고 checklist를 복구한다.
+- [x] **CL-02 — Classify every item**
+  - **Action:** 모든 leaf/common/Kotlin 항목을 required, conditional 또는 N/A로 분류한다.
+  - **Evidence:** 모든 Type C/Common/Kotlin row와 conditional N/A 후보를 아래 적용성 표에 기록했다.
+  - **Failure:** 미분류 항목을 required 미검증으로 유지한다.
+- [x] **CL-03 — Respect dependency order**
+  - **Action:** 행을 위에서 아래 순서로 실행하고 RED 후 GREEN, pre-PR 후 PR 순서를 지킨다.
+  - **Evidence:** RED scrape/unit 재현 후 producer 구현, targeted GREEN, `promtool` rule-engine 평가와 실제 Lettuce 장애 fixture, full example, Micrometer/Lettuce, Detekt 순서로 fresh 검증했다.
+  - **Failure:** 영향을 받은 이후 증명을 재실행한다.
+- [x] **CL-04 — Record evidence immediately**
+  - **Action:** 각 항목을 확인하는 즉시 명령·파일·URL·count를 기록한다.
+  - **Evidence:** RED/GREEN, GNO, test XML count와 static command 결과를 각 gate Evidence 필드에 기록했다.
+  - **Failure:** evidence가 없는 row는 unchecked로 둔다.
+- [x] **CL-05 — Fail closed**
+  - **Action:** PENDING/FAIL 항목의 downstream 작업을 진행하지 않는다.
+  - **Evidence:** PR/merge 관련 row는 exact-head 외부 증거 전까지 unchecked로 유지하고, RED escaping 오류는 수정 후 재실행했다.
+  - **Failure:** 잘못 진행한 downstream 증명을 폐기하고 재검증한다.
+- [x] **CL-06 — Repair skipped or reordered work**
+  - **Action:** 누락·순서 위반을 repair하고 영향받은 dependent proof를 다시 실행한다.
+  - **Evidence:** 첫 regex escaping 오류를 production 변경으로 오인하지 않고 helper를 repair한 뒤 scrape RED를 다시 확인하고 GREEN/전체 테스트를 재실행했다.
+  - **Failure:** 최종 상태를 BLOCKED로 남긴다.
+- [x] **CL-07 — Refresh irreversible holds**
+  - **Action:** PR 생성·merge 같은 외부 side effect 직전에 authority와 target을 다시 읽는다.
+  - **Evidence:** PR 생성 직전 live issue #827, repository `bluetape4k/bluetape4k-leader`, base `develop`, head `fix/issue-827-prometheus-connectivity-probe`를 재확인했다. PR #836 생성 후 매 push마다 local `HEAD`와 remote branch SHA, PR metadata, terminal hosted CI를 다시 read-back한다.
+  - **Failure:** side effect를 실행하지 않는다.
+- [x] **CL-08 — Count before completion**
+  - **Action:** 최종 보고 전에 `Required checks: X/Y; N/A: N; Blocked: N`을 계산한다.
+  - **Evidence:** 현재 PR delivery gate 기준 `Required checks: 45/49; N/A: 2; Blocked: 0`으로 계산했다. 미완료 required ID는 `C-09`, `CG-16`, `CG-17`, `CG-18`이며 모두 fresh merge approval 이후 단계다.
+  - **Failure:** completion claim을 금지한다.
+
+## Type C bugfix lifecycle
+
+- [x] **C-01 — Prove the defect and root cause**
+  - **Action:** 현재 HEAD에서 connectivity series 부재를 재현하고 provider·decorator·scrape 경계를 추적한다.
+  - **Evidence:** alert rules와 active probe recorder 경계를 대조해 예제의 active diagnostics 호출 부재를 확인했다. RED test는 PrometheusScrapeTest의 connectivity series assertion에서 missing series로 실패했다. Root cause는 producer 부재이며, 추가 `promtool` 평가로 rule expression 자체도 실행 검증했다.
+  - **Failure:** 재현 또는 원인이 불충분하면 편집하지 않고 진단을 계속한다.
+- [x] **C-02 — Confirm scope and issue gate**
+  - **Action:** #827의 live metadata와 예제 전용 surgical fix 범위를 확인한다.
+  - **Evidence:** issue URL, OPEN state, assignee `debop`, labels `bug/integration/test/example`, milestone `1.0.0`.
+  - **Failure:** 범위를 넓히거나 중복 issue/PR을 만들지 않는다.
+- [x] **C-03 — Lock the regression RED**
+  - **Action:** active probe producer와 상태별 metric 계약을 검증하는 최소 테스트를 먼저 추가한다.
+  - **Evidence:** 구현 전에 redis-lettuce/UNKNOWN/CLIENT_STATE_UNCONFIRMED series assertion을 추가했다. regex escaping 오류를 수정한 뒤 재실행해 의도한 missing-series assertion RED를 확인했고, rule-engine/실제 Lettuce DOWN·PROVIDER_EXCEPTION fixture를 추가해 상태 경계를 고정했다.
+  - **Failure:** compilation/fixture 실패를 RED로 인정하지 않는다.
+- [x] **C-04 — Apply the surgical fix**
+  - **Action:** 기존 `LeaderBackendDiagnosticsProvider`와 `InstrumentedLeaderElector`를 재사용해 예제 producer만 연결한다.
+  - **Evidence:** `PrometheusBackendConnectivityProbe`가 기존 `lettuceLeaderElector`의 diagnostics provider를 `InstrumentedLeaderElector`로 감싸고 bounded timeout을 전달한다. `application.yml`, EN/KO README, 회귀 테스트만 추가했으며 dependency/API 변경은 없다.
+  - **Failure:** unrelated refactor를 제거하고 범위를 재분류한다.
+- [x] **C-05 — Prove GREEN and blast radius**
+  - **Action:** regression, example AOT/test, 관련 Micrometer test, lint/static/broader proof를 순서대로 실행한다.
+  - **Evidence:** example 전체 13 tests (`skipped=0`, failures/errors=0), `leader-micrometer` 132 tests, `leader-redis-lettuce` 318 tests, targeted Detekt와 `git diff --check`가 모두 통과했다. `PrometheusScrapeTest`는 fixed delay 200ms/initial delay 0인 Spring scheduler의 connectivity counter가 실제 scrape에서 `> 1.0`으로 누적되는 cadence를 확인했다. `promtool` v2.55.1이 production alert rule의 DOWN/UNKNOWN/PROVIDER_EXCEPTION firing과 runbook annotation을 평가했고, Testcontainers Redis의 실제 Lettuce closed connection/예외 정규화도 검증했다.
+  - **Failure:** diagnosis로 돌아가 전체 proof sequence를 다시 실행한다.
+- [x] **C-06 — Capture reusable learning when applicable**
+  - **Action:** dead alert와 active producer 계약에서 재사용 가능한 운영 규칙을 lesson으로 기록하고 GNO를 갱신한다.
+  - **Evidence:** `docs/lessons/2026-08-29-issue-827-prometheus-connectivity-probe.md`를 작성했고 temporary GNO collection `bluetape4k-leader-issue827`에서 `gno update`, `gno embed --collection bluetape4k-leader-issue827`, representative search hit `#0602cb75`를 확인한 뒤 collection을 제거했다.
+  - **Failure:** reusable rule을 누락하지 않는다.
+- [x] **C-07 — Complete authorized PR delivery through live CI and review**
+  - **Action:** exact head를 publish하고 Korean PR, live metadata, review/thread, exact-head CI를 수렴한다.
+  - **Evidence:** [PR #836](https://github.com/bluetape4k/bluetape4k-leader/pull/836)가 `develop` base와 semantic head로 생성되었고 `debop`, `bug/integration/test/example`, milestone `1.0.0`을 확인했다. 독립 리뷰 APPROVE(P0/P1/P2/P3=0)와 최종 remote head의 terminal hosted CI(실행 job success, path-filter intended skip, failed/cancelled 0)를 read-back했다.
+  - **Failure:** stale/missing evidence를 repair하고 merge gate로 가지 않는다.
+- [x] **C-08 — Report merge readiness or no-delivery completion**
+  - **Action:** Type C row와 CG-11~15를 재확인하고 merge-ready report를 작성한 뒤 CG-16에서 멈춘다.
+  - **Evidence:** PR #836 exact head/CI/review와 `Required checks: 45/49; N/A: 2; Blocked: 0`을 reconciled했으며, merge는 CG-16 fresh approval 전까지 보류한다.
+  - **Failure:** merge-ready 또는 DONE을 주장하지 않고 누락 row를 repair한다.
+- [ ] **C-09 — Close out only after fresh merge approval**
+  - **Action:** exact PR/head에 대한 fresh approval 후 merge, sync, cleanup을 수행한다.
+  - **Evidence:** approval, merge SHA, canonical sync, cleanup 결과.
+  - **Failure:** approval 전 merge/삭제를 하지 않는다.
+
+## Common gates
+
+- [x] **CG-01 — Re-read authority**
+  - **Action:** user/workspace/repository `AGENTS.md`, leaf skills, status/diff, approved plan을 다시 읽는다.
+  - **Evidence:** user/workspace/repository authority와 workflow, bugfix, Kotlin pattern skill, 승인 계획을 다시 확인했다. Canonical develop은 712d760cd55e8fbec875d2daff3e47d4d73ab9c0이며 pre-existing .flow-inputs/만 있다.
+  - **Failure:** 편집을 중지한다.
+- [x] **CG-02 — Query historical/current evidence**
+  - **Action:** GNO discovery와 live `gh` issue/PR/worktree evidence를 기록한다.
+  - **Evidence:** GNO bluetape4k-github 검색과 gh issue view 827에서 #827 historical/live metadata를 확인했다. gh pr list --search 827 결과는 빈 목록이었다.
+  - **Failure:** current-state 의존 결정을 중지한다.
+- [x] **CG-03 — Protect user work and boundaries**
+  - **Action:** canonical dirty state를 보존하고 isolated worktree/semantic branch에서만 구현한다.
+  - **Evidence:** canonical `develop` status와 feature worktree/head.
+  - **Failure:** default branch를 편집하지 않는다.
+- [x] **CG-04 — Apply policy and audience boundaries**
+  - **Action:** Korean user-facing docs, Kotlin rules, example scope와 permission boundaries를 적용한다.
+  - **Evidence:** Kotlin source/test와 EN/KO example README만 scope에 포함하며 기존 API·metric token과 한국어 user-facing prose 규칙을 유지한다.
+  - **Failure:** 언어·범위 drift를 repair한다.
+- [x] **CG-05 — Reuse ecosystem patterns**
+  - **Action:** 기존 diagnostics/decorator/Testcontainers/assertion 패턴을 조사하고 재사용한다.
+  - **Evidence:** existing diagnostics provider, instrumented elector, Lettuce backend, RedisServer/PrometheusServer launcher, `promtool`, bluetape assertions를 재사용하고 dependency를 추가하지 않는다.
+  - **Failure:** 새 abstraction/dependency를 중지한다.
+- [x] **CG-06 — Prove public and documentation contracts**
+  - **Action:** producer 설정·runbook·EN/KO README와 asset test를 정렬한다.
+  - **Evidence:** 기존 metric name/status/reason schema와 public API를 유지하고, `PrometheusAssetsTest` 5 tests가 alert rule, config, EN/KO README와 producer/token parity를 통과했다.
+  - **Failure:** 문서화되지 않은 동작을 PR에 넣지 않는다.
+- [x] **CG-07 — Lock behavior and run targeted proof**
+  - **Action:** TDD RED/GREEN 후 최소 diagnostics/compile/lint/test를 실행한다.
+  - **Evidence:** RED scrape XML `tests=1 failures=1`, unit compile RED 후 implementation, unit 4 tests, rule-engine 1 test, actual Lettuce 2 tests, scrape 1 test GREEN을 `--rerun-tasks`로 재실행했다.
+  - **Failure:** 구현으로 돌아가 repair한다.
+- [x] **CG-08 — Serialize heavyweight checks**
+  - **Action:** Testcontainers/실제 Redis 검증을 다른 heavyweight check와 겹치지 않게 순차 실행한다.
+  - **Evidence:** full example → Micrometer → Lettuce를 겹치지 않게 순차 실행했고 각각 XML 결과를 읽었다. example은 Testcontainers Redis scrape를 포함한다.
+  - **Failure:** ambiguous evidence를 폐기하고 재실행한다.
+- [x] **CG-09 — Evaluate the lesson gate**
+  - **Action:** dead alert 재발 방지 규칙을 lesson으로 남기고 GNO에 인덱싱한다.
+  - **Evidence:** lesson path와 temporary collection의 `gno update`/`gno embed`/search hit을 확인했으며 wiki canonical status는 변경 없이 보존됐다.
+  - **Failure:** lesson evidence 없이는 pre-PR로 진행하지 않는다.
+- [x] **CG-10 — Converge the final pre-PR proof**
+  - **Action:** Kotlin final checklist와 final diff/review를 수렴하고 commit한다.
+  - **Evidence:** 최신 staged diff에 대한 독립 재리뷰가 APPROVE(P0=0/P1=0/P2=0/P3=0)였고, `PrometheusScrapeTest`의 fixed-delay cadence 보강 후 example 전체 13 tests와 Detekt, `git diff --cached --check`가 fresh 통과했다. 커밋은 다음 gate에서 생성한다.
+  - **Failure:** PR 생성 전 repair한다.
+- [x] **CG-11 — Verify PR delivery authority**
+  - **Action:** 승인된 계획의 repo/base/head와 CG-01~10 PASS를 확인한다.
+  - **Evidence:** repository `bluetape4k/bluetape4k-leader`, base `develop`, head `fix/issue-827-prometheus-connectivity-probe`, CG-01~10 pre-PR gate와 승인 계획을 확인했다.
+  - **Failure:** PR 생성 전에 authority를 repair한다.
+- [x] **CG-12 — Publish the exact head branch**
+  - **Action:** converged feature head를 force 없이 push하고 remote SHA를 읽는다.
+  - **Evidence:** `git push --set-upstream origin fix/issue-827-prometheus-connectivity-probe`를 force 없이 실행했고 초기 implementation head `07d8fec4bd0555a41b0bf8810a5dfbbff5132e8a`의 local/remote 일치를 확인했다.
+  - **Failure:** mismatch를 repair한다.
+- [x] **CG-12A — Refresh guidance before PR creation**
+  - **Action:** PR 직전에 AGENTS/leaf/common/PR template/issue metadata를 다시 읽는다.
+  - **Evidence:** PR 직전 authority/leaf/common guidance, PR template 부재, issue #827 metadata, clean worktree와 branch/head를 read-back했으며 drift가 없었다.
+  - **Failure:** PR create/update를 중지한다.
+- [x] **CG-13 — Create and verify the PR**
+  - **Action:** issue-linked Korean PR을 만들고 `debop`, milestone, labels, final `## DoD Status`를 검증한다.
+  - **Evidence:** [PR #836](https://github.com/bluetape4k/bluetape4k-leader/pull/836), Korean body의 `## DoD Status`, base/head, assignee `debop`, labels `bug/integration/test/example`, milestone `1.0.0`을 live read-back했다.
+  - **Failure:** live PR을 repair한다.
+- [x] **CG-14 — Pass CI and live human review**
+  - **Action:** exact-head required CI, review/thread, independent review와 적용 artifact를 확인한다.
+  - **Evidence:** PR #836 최종 remote head의 hosted CI에서 11개 실행 job이 성공하고 37개 path-filter intended skip, failed/cancelled 0이었다. 독립 review artifact는 APPROVE(P0/P1/P2/P3=0), unresolved blocker 0이며, GitHub human review는 single-developer lane으로 N/A 처리한다.
+  - **Failure:** PENDING은 기다리고 FAIL은 repair한다.
+- [x] **CG-15 — Report merge-ready**
+  - **Action:** 모든 row와 count를 재확인하고 exact PR/head merge-ready report를 낸다.
+  - **Evidence:** PR #836의 최종 remote head, CI/review evidence와 `Required checks: 45/49; N/A: 2; Blocked: 0`을 user-visible report로 수렴했다. `C-09`, `CG-16`~`CG-18`은 fresh merge approval 대기다.
+  - **Failure:** merge approval을 요청하지 않고 누락을 repair한다.
+- [ ] **CG-16 — Obtain fresh merge approval**
+  - **Action:** CG-15 이후 exact PR/head에 대한 fresh merge approval을 기다린다.
+  - **Evidence:** approval message와 refreshed hold.
+  - **Failure:** PENDING으로 유지하고 merge하지 않는다.
+- [ ] **CG-17 — Execute and verify the merge**
+  - **Action:** 승인된 merge strategy로 merge하고 live merged state/SHA를 검증한다.
+  - **Evidence:** merge URL, strategy, merged state, SHA.
+  - **Failure:** 중지하고 diagnose한다.
+- [ ] **CG-18 — Synchronize and clean up**
+  - **Action:** canonical checkout을 merged SHA로 sync하고 proven merged worktree만 정리한다.
+  - **Evidence:** local/upstream SHA, preserved dirty state, cleanup list.
+  - **Failure:** ambiguous target은 보존하고 PENDING으로 보고한다.
+
+## Kotlin triggered checks
+
+- [x] **KT-TEST-01 — Use project test idioms**
+  - **Action:** JUnit 5, `io.bluetape4k.assertions`, descriptive backtick tests와 기존 fixtures를 사용한다.
+  - **Evidence:** JUnit 5 descriptive backtick tests와 `io.bluetape4k.assertions`의 `assertFailsWith`, `shouldBeEqualTo`, `shouldBeSameInstanceAs`, `shouldBeTrue`, `shouldBeFalse`, `shouldBeGreaterThan`, `shouldNotBeNull`을 사용했다.
+  - **Failure:** incompatible assertion을 교체한다.
+- [x] **KT-TEST-02 — Prove concurrency and cancellation**
+  - **Action:** scheduler/probe lifecycle risk를 검증하고 ad hoc stress가 필요하면 근거를 기록한다.
+  - **Evidence:** 새 코드는 Spring scheduled blocking probe이며 coroutine/cancellation/lock lifecycle API를 변경하지 않는다. provider exception rethrow와 기존 Micrometer cancellation/interrupt 계약은 `leader-micrometer` 전체 132 tests에서 재검증했다. 별도 stress/cancellation fixture는 N/A.
+  - **Failure:** fake cancellation proof를 인정하지 않는다.
+- [x] **KT-TEST-03 — Reuse safe infrastructure fixtures**
+  - **Action:** `RedisServer.Launcher`와 순차 Testcontainers 실행을 사용한다.
+  - **Evidence:** Spring scrape와 Lettuce 장애 fixture는 기존 `RedisServer.Launcher.redis` singleton을 사용했고, Prometheus rule-engine과 real Redis Testcontainers 검증을 Micrometer/Lettuce와 직렬화했다. full example 13 tests와 Lettuce 318 tests가 통과했다.
+  - **Failure:** raw duplicate container 또는 retry-only pass를 조사한다.
+- [x] **KT-TEST-04 — Cover HTTP lifecycle contracts**
+  - **Action:** HTTP endpoint를 변경하지 않으면 N/A 근거를 기록한다.
+  - **Evidence:** HTTP endpoint/controller 계약은 변경하지 않았고 기존 `/actuator/prometheus` scrape만 integration assertion으로 소비하므로 별도 HTTP adapter lifecycle은 N/A이다.
+  - **Failure:** endpoint behavior를 누락한 채 진행하지 않는다.
+- [x] **KT-TEST-05 — Run fresh targeted then module validation**
+  - **Action:** smallest test, affected compile/test, full module test와 report-only coverage를 순서대로 실행한다.
+  - **Evidence:** targeted unit 4, rule-engine 1, actual Lettuce 2, scrape 1, assets 5 후 example 전체 13; `leader-micrometer` 132와 `leader-redis-lettuce` 318을 모두 `--rerun-tasks`로 실행하고 skipped/failures/errors 모두 0을 확인했다.
+  - **Failure:** stale cache evidence를 거부한다.
+- [x] **KT-FIN-01 — Inspect the current surface**
+  - **Action:** source, callers, tests, README와 alert assets를 최종 재검토한다.
+  - **Evidence:** `PrometheusDashboardApp.kt`, `PrometheusBackendConnectivityProbe.kt`, `application.yml`, `PrometheusScrapeTest.kt`, `PrometheusAssetsTest.kt`, `PrometheusAlertRulesTest.kt`, `PrometheusLettuceConnectivityProbeTest.kt`, rule fixture, EN/KO README, alert rule과 existing diagnostics/decorator source를 최종 read-back했다.
+  - **Failure:** discovery를 재개한다.
+- [x] **KT-FIN-02 — Preserve validation contracts**
+  - **Action:** touched timeout/config validation이 project helpers와 호환 exception을 사용하는지 확인한다.
+  - **Evidence:** probe timeout은 기존 `requirePositiveNumber` helper로 양수를 강제하고 0 입력 회귀 테스트가 `IllegalArgumentException`을 확인한다. backend diagnostic status/reason contract는 변경하지 않았다.
+  - **Failure:** contract drift를 repair한다.
+- [x] **KT-FIN-03 — Exclude unsafe Kotlin constructs**
+  - **Action:** 새 production `!!`, suspend `runCatching`, swallowed cancellation, event-loop blocking을 검색한다.
+  - **Evidence:** 신규 production source에서 `!!`, `runCatching`, cancellation swallow, event-loop blocking을 사용하지 않는다. `git diff`와 targeted Detekt가 통과했고 ordinary exception은 instrumentation contract대로 rethrow한다.
+  - **Failure:** unsafe construct를 제거한다.
+- [x] **KT-FIN-04 — Prove lifecycle ownership**
+  - **Action:** Redis connection/provider/probe scheduler의 ownership·timeout·exception 경로를 검증한다.
+  - **Evidence:** probe는 기존 `lettuceLeaderElector`와 connection을 소유하지 않고 provider만 참조하며, timeout을 호출 단위로 전달한다. Redis client/connection destroy method는 기존 App bean이 소유하고 scheduler는 provider exception을 숨기지 않는다.
+  - **Failure:** 명시적 ownership proof를 추가한다.
+- [x] **KT-FIN-05 — Verify Exposed boundaries**
+  - **Action:** Exposed를 변경하지 않으면 scope 기반 N/A를 기록한다.
+  - **Evidence:** 변경 경로는 `examples/prometheus-dashboard`와 lesson/checklist이며 Exposed 모듈/API/transaction을 건드리지 않는다. N/A.
+  - **Failure:** Exposed boundary가 있으면 검증한다.
+- [x] **KT-FIN-06 — Apply triggered references**
+  - **Action:** Spring Boot, testing, Testcontainers reference checklist를 모두 완료한다.
+  - **Evidence:** Kotlin pattern/testing, Spring Boot scheduling/qualifier, Micrometer instrumentation, Testcontainers fixture reference를 적용했고 example/Micrometer/Lettuce 검증을 완료했다. HTTP/Exposed는 scope N/A로 기록했다.
+  - **Failure:** partial reference 적용을 차단한다.
+- [x] **KT-FIN-07 — Prove named test behavior**
+  - **Action:** 새 테스트가 producer/status/passive contract 없이는 통과할 수 없는지 확인한다.
+  - **Evidence:** producer 부재 RED, 구현 후 status별 metric scrape, 두 번의 unit probe와 Spring fixed-delay scrape에서 `> 1.0` cadence counter 증가, passive diagnostics 무계측, 실제 Lettuce DOWN/PROVIDER_EXCEPTION, `promtool` firing/runbook annotation 및 exception identity/timeout validation GREEN을 확인했다. 예외 test도 `PROVIDER_EXCEPTION` scrape series를 직접 검사한다.
+  - **Failure:** test를 강화한다.
+- [x] **KT-FIN-08 — Synchronize public documentation**
+  - **Action:** producer config/runbook과 EN/KO README를 정렬하고 diagram scope를 판정한다.
+  - **Evidence:** source producer, application properties, alert rule/runbook, EN/KO README, asset test가 동일한 metric/status/reason/timeout 계약을 사용한다. diagram 파일은 변경하지 않아 N/A이다.
+  - **Failure:** drift를 repair한다.
+- [x] **KT-FIN-09 — Clear diagnostics**
+  - **Action:** compile/import/deprecation/IDE fallback diagnostics를 확인한다.
+  - **Evidence:** example compile/test와 targeted Detekt가 `BUILD SUCCESSFUL`; 신규 rule-engine/실제 Lettuce 테스트 compile을 포함해 deprecation/unresolved diagnostics가 없었다.
+  - **Failure:** touched-code unresolved diagnostics를 남기지 않는다.
+- [x] **KT-FIN-10 — Run fresh validation**
+  - **Action:** targeted compile/tests와 `git diff --check`를 fresh 상태로 실행한다.
+  - **Evidence:** example 13, Micrometer 132, Lettuce 318 tests, targeted scrape/unit/rule-engine/actual-Lettuce/assets rerun, Detekt와 `git diff --check`가 fresh 성공했다.
+  - **Failure:** exact gap을 기록하고 completion을 막는다.
+- [x] **KT-FIN-11 — Converge final scope**
+  - **Action:** final commit/PR scope와 parent findings를 확인한다.
+  - **Evidence:** staged scope는 예제 production/test/config/README와 lesson/checklist로 제한되고 unrelated change가 없다. 독립 최종 리뷰가 P0=0/P1=0/P2=0/P3=0으로 APPROVE했으며, 이전 P2(cadence)도 `> 1.0` Spring scrape assertion으로 해소했다.
+  - **Failure:** scope를 분리하거나 findings를 repair한다.
+
+## Applicability and count
+
+- Required: 모든 Type C, Common, Kotlin 항목. `CG-14` human-review subgate는 single-developer lane 근거가 확인될 때만 N/A.
+- Conditional N/A 후보: `KT-TEST-04` (HTTP endpoint 변경 없음), `KT-FIN-05` (Exposed 변경 없음), diagram artifact rows (diagram 변경 없음), release/tag/publish branch (사용자 요청 범위 밖).
+- `Required checks: 45/49; N/A: 2; Blocked: 0`으로 계산했다. N/A는 `KT-TEST-04`, `KT-FIN-05`이고, human-review subgate는 `CG-14` evidence에서 solo-developer lane으로 별도 N/A 처리했다.
+- 최종 unchecked IDs: `C-09`, `CG-16`, `CG-17`, `CG-18` (fresh merge approval 및 이후 merge/sync/cleanup).

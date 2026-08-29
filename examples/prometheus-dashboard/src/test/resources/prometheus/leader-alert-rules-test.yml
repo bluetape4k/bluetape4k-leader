@@ -1,0 +1,53 @@
+rule_files:
+  - /tmp/leader-alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: connectivity probe statuses fire the matching alert rules
+    interval: 1m
+    input_series:
+      - series: 'leader_backend_connectivity_total{backend_name="redis-lettuce",status="DOWN",reason="DISCONNECTED"}'
+        values: '0 1 2 3 4 5 6 7 8 9 10 11 12'
+      - series: 'leader_backend_connectivity_total{backend_name="redis-lettuce",status="UNKNOWN",reason="CLIENT_STATE_UNCONFIRMED"}'
+        values: '0 1 2 3 4 5 6 7 8 9 10 11 12'
+      - series: 'leader_backend_connectivity_total{backend_name="redis-lettuce",status="UNKNOWN",reason="PROVIDER_EXCEPTION"}'
+        values: '0 1 2 3 4 5 6 7 8 9 10 11 12'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: LeaderBackendConnectivityDown
+        exp_alerts:
+          - exp_labels:
+              backend_name: redis-lettuce
+              severity: warning
+              notification: no-page
+              component: leader-backend
+            exp_annotations:
+              summary: "A backend connectivity probe is reporting DOWN"
+              description: "Backend redis-lettuce has reported DISCONNECTED for 5 minutes."
+              runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"
+      - eval_time: 12m
+        alertname: LeaderBackendConnectivityUnknown
+        exp_alerts:
+          - exp_labels:
+              backend_name: redis-lettuce
+              reason: CLIENT_STATE_UNCONFIRMED
+              severity: info
+              notification: no-page
+              component: leader-backend
+            exp_annotations:
+              summary: "A backend connectivity probe remains UNKNOWN"
+              description: "Backend redis-lettuce has reason CLIENT_STATE_UNCONFIRMED; this is not a DOWN signal."
+              runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"
+      - eval_time: 12m
+        alertname: LeaderBackendConnectivityProbeExceptions
+        exp_alerts:
+          - exp_labels:
+              backend_name: redis-lettuce
+              severity: warning
+              notification: no-page
+              component: leader-backend
+            exp_annotations:
+              summary: "Backend connectivity probes are raising provider exceptions"
+              description: "Backend redis-lettuce has normalized PROVIDER_EXCEPTION results for 10 minutes."
+              runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"

@@ -1,8 +1,12 @@
 package io.bluetape4k.leader.examples.prometheus
 
 import io.bluetape4k.leader.annotation.LeaderElection
+import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.leader.history.NoopLeaderHistorySink
+import io.bluetape4k.leader.micrometer.InstrumentedLeaderElector
+import io.bluetape4k.leader.micrometer.LeaderMetricTagOptions
 import io.bluetape4k.leader.micrometer.LeaderMetricTagSanitizer
 import io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder
 import io.bluetape4k.leader.micrometer.history.MicrometerSafeLeaderHistoryRecorder
@@ -15,6 +19,7 @@ import io.lettuce.core.codec.StringCodec
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationHandler
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -48,6 +53,22 @@ class PrometheusDashboardApp {
     @Bean(destroyMethod = "close")
     fun redisConnection(client: RedisClient): StatefulRedisConnection<String, String> =
         client.connect(StringCodec.UTF8)
+
+    @Bean
+    @ConditionalOnMissingBean(name = ["prometheusBackendDiagnosticsProvider"])
+    fun prometheusBackendDiagnosticsProvider(
+        @Qualifier("lettuceLeaderElector") delegate: LeaderElector,
+        registry: MeterRegistry,
+    ): LeaderBackendDiagnosticsProvider =
+        checkNotNull(
+            InstrumentedLeaderElector(
+                delegate = delegate,
+                registry = registry,
+                tagOptions = LeaderMetricTagOptions.Default,
+            ).backendDiagnosticsProvider,
+        ) {
+            "Redis diagnostics provider must be available for the Prometheus example"
+        }
 
     // Keep the recorder explicit so pre-registration works in normal and AOT test contexts.
     @Bean

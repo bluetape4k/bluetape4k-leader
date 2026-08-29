@@ -24,6 +24,10 @@ demo:
     initial-delay-ms: ${DEMO_JOB_INITIAL_DELAY_MS:1000}
   redis:
     url: ${DEMO_REDIS_URL:}
+  backend-probe:
+    fixed-delay-ms: ${DEMO_BACKEND_PROBE_FIXED_DELAY_MS:5000}
+    initial-delay-ms: ${DEMO_BACKEND_PROBE_INITIAL_DELAY_MS:1000}
+    timeout-ms: ${DEMO_BACKEND_PROBE_TIMEOUT_MS:500}
   observation:
     logging-handler-enabled: ${DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED:true}
 

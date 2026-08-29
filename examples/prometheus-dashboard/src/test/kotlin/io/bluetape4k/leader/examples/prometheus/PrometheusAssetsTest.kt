@@ -39,6 +39,9 @@ class PrometheusAssetsTest {
         rules.contains("leader_backend_connectivity_total").shouldBeTrue()
         rules.contains("""leader_backend_connectivity_total{status="DOWN",reason="DISCONNECTED"}""").shouldBeTrue()
         rules.contains(
+            """leader_backend_connectivity_total{status="UNKNOWN",reason=~"CLIENT_STATE_UNCONFIRMED|PROVIDER_UNSUPPORTED"}""",
+        ).shouldBeTrue()
+        rules.contains(
             """leader_backend_connectivity_total{status="UNKNOWN",reason="PROVIDER_EXCEPTION"}""",
         ).shouldBeTrue()
         rules.contains("notification: no-page").shouldBeTrue()
@@ -78,6 +81,10 @@ class PrometheusAssetsTest {
         config.contains("mode: REDACT").shouldBeTrue()
         config.contains("redacted-value: redacted-lock").shouldBeTrue()
         config.contains("mode: RAW").shouldBeFalse()
+        config.contains("backend-probe:").shouldBeTrue()
+        config.contains("DEMO_BACKEND_PROBE_FIXED_DELAY_MS").shouldBeTrue()
+        config.contains("DEMO_BACKEND_PROBE_INITIAL_DELAY_MS").shouldBeTrue()
+        config.contains("DEMO_BACKEND_PROBE_TIMEOUT_MS").shouldBeTrue()
     }
 
     @Test
@@ -98,6 +105,8 @@ class PrometheusAssetsTest {
             readme.contains("LeaderBackendConnectivityUnknown").shouldBeTrue()
             readme.contains("LeaderBackendConnectivityProbeExceptions").shouldBeTrue()
             readme.contains("leader_backend_connectivity_total").shouldBeTrue()
+            readme.contains("PrometheusBackendConnectivityProbe").shouldBeTrue()
+            readme.contains("DEMO_BACKEND_PROBE_TIMEOUT_MS").shouldBeTrue()
             readme.contains("PROVIDER_EXCEPTION").shouldBeTrue()
             readme.contains("LeaderHistorySinkFailures").shouldBeTrue()
             readme.contains("max by (lock_name) (leader_aop_active)").shouldBeTrue()
