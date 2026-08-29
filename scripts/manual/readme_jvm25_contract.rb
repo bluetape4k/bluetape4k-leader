@@ -12,6 +12,7 @@ module ReadmeJvm25Contract
   OVERVIEW_SVG = "docs/images/readme-diagrams/root-readme-overview-01.svg"
   OVERVIEW_PNG = "docs/images/readme-diagrams/root-readme-overview-01.png"
   OVERVIEW_REFERENCE = "docs/images/readme-diagrams/root-readme-overview-01.png"
+  GRADLE_PROPERTIES = "gradle.properties"
 
   module_function
 
@@ -104,6 +105,9 @@ module ReadmeJvm25Contract
         return
       end
 
+      base_version = read_base_version(failures)
+      check_readme_release_boundary(failures, release_ref, base_version) if base_version
+
       MANUAL_PAGES.each do |relative|
         path = resolve(relative)
         unless path.file?
@@ -119,6 +123,49 @@ module ReadmeJvm25Contract
       end
     rescue Psych::SyntaxError => error
       failures << "manual manifest YAML is invalid: #{error.message.lines.first.to_s.strip}"
+    end
+
+    def read_base_version(failures)
+      path = resolve(GRADLE_PROPERTIES)
+      unless path.file?
+        failures << "Gradle properties are missing: #{GRADLE_PROPERTIES}"
+        return nil
+      end
+
+      match = path.read.match(/^baseVersion=(\S+)$/)
+      unless match
+        failures << "#{GRADLE_PROPERTIES} must define baseVersion"
+        return nil
+      end
+      match[1]
+    end
+
+    def check_readme_release_boundary(failures, release_ref, base_version)
+      expectations = {
+        "README.md" => {
+          stable: "Current stable version: `#{release_ref}`",
+          manual: "[Leader #{release_ref} manual](docs/manual/en/index.md)",
+          development: "Current development line: `#{base_version}-SNAPSHOT`",
+          api: "`#{base_version}+` development line",
+        },
+        "README.ko.md" => {
+          stable: "현재 안정 버전: `#{release_ref}`",
+          manual: "[Leader #{release_ref} 매뉴얼](docs/manual/ko/index.md)",
+          development: "현재 개발 버전: `#{base_version}-SNAPSHOT`",
+          api: "`#{base_version}+` 개발선",
+        },
+      }
+
+      expectations.each do |relative, expected|
+        path = resolve(relative)
+        next unless path.file?
+
+        content = path.read
+        failures << "#{relative} must advertise stable version #{release_ref}" unless content.include?(expected[:stable])
+        failures << "#{relative} must link the Leader #{release_ref} manual" unless content.include?(expected[:manual])
+        failures << "#{relative} must identify development line #{base_version}-SNAPSHOT" unless content.include?(expected[:development])
+        failures << "#{relative} must describe development APIs as #{base_version}+" unless content.include?(expected[:api])
+      end
     end
 
     def resolve(relative)

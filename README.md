@@ -8,7 +8,9 @@ English | [한국어](README.ko.md)
 [![JVM](https://img.shields.io/badge/JVM-25-ED8B00?logo=openjdk)](https://openjdk.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Current stable version: `0.4.0`
+Current stable version: `0.5.0`
+
+Current development line: `1.0.0-SNAPSHOT`
 
 ![Bluetape4k leader election workbench](./docs/assets/leader-election-workbench.png)
 
@@ -40,7 +42,7 @@ Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 
 ## Manual
 
-The [Leader 0.4 manual](docs/manual/en/index.md) is the source of truth for release behavior. It covers model and backend selection, result and cancellation semantics, Spring Boot and Ktor integration, operations, and a progressive path through all 17 runnable examples. README files remain concise entry points; detailed guidance belongs in `docs/manual/`.
+The [Leader 0.5.0 manual](docs/manual/en/index.md) is the source of truth for release behavior. It covers model and backend selection, result and cancellation semantics, Spring Boot and Ktor integration, operations, and a progressive path through all 17 runnable examples. README files remain concise entry points; detailed guidance belongs in `docs/manual/`.
 
 ## Benchmarks
 
@@ -233,7 +235,7 @@ import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElector
 val options = ExposedJdbcLeaderGroupElectionOptions(
     leaderGroupOptions = LeaderGroupElectionOptions(
         maxLeaders = 3,
-        useDbTime = true, // 0.6.0+ develop: use database server time for group ownership
+        useDbTime = true, // 1.0.0+ develop: use database server time for group ownership
     ),
 )
 val groupElection = ExposedJdbcLeaderGroupElector(db, options)
@@ -249,10 +251,10 @@ transaction, so JVM clock skew does not change the lease boundary. It defaults
 to `false`; when database time is unavailable, group state is reported
 conservatively and `runIfLeader` skips rather than claiming ownership.
 
-The option is available on the `0.6.0+` development line. The versioned manual
+The option is available on the `1.0.0+` development line. The versioned manual
 pages remain pinned to the `0.5.0` release provenance.
 
-### Exposed R2DBC group (coroutine-native, 0.6.0+ develop)
+### Exposed R2DBC group (coroutine-native, 1.0.0+ develop)
 
 ```kotlin
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -617,7 +619,7 @@ Stream return rules:
 - Use `streamBounded = true` only when the stream is known to finish within the lease window.
 - Unsafe `Flux` / `Flow` signatures fail fast in the validator and at subscription/collection time.
 - `@LeaderGroupElection` supports `T?`, `suspend T?`, and `Mono<T>`.
-- `@LeaderGroupElection` `Flux<T>` / `Flow<T>` streams are out of scope for 0.4.0. They are rejected in startup validation and again at subscription/collection time because group lease extension is not defined per slot.
+- `@LeaderGroupElection` `Flux<T>` / `Flow<T>` streams remain unsupported on the `1.0.0+` development line. They are rejected in startup validation and again at subscription/collection time because group lease extension is not defined per slot.
 
 ### `failureMode`
 
@@ -691,7 +693,7 @@ introducing framework-specific event contracts.
 ### Lease-extension observation
 
 > **Unreleased API:** This section describes the current `develop` implementation. The dependency examples in this
-> README target released `0.4.0`, and the pinned `0.5.0` manual does not include this hook. Keep this integration on a
+> README target released `0.5.0`, and the manual pinned to that release does not include this hook. Keep this integration on a
 > matching develop/snapshot build until the promotion gate in the draft is complete.
 
 `LockExtender` and `LeaderLeaseAutoExtender` publish the same framework-neutral terminal event contract. Register an
