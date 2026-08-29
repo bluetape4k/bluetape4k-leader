@@ -59,6 +59,7 @@ class LeaderObservationAutoConfigurationTest {
         runner
             .withUserConfiguration(ObservationRegistryConfig::class.java)
             .run { ctx ->
+                ctx.containsBean(LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME).shouldBeTrue()
                 ctx.containsBean("leaseExtensionObserverRegistration").shouldBeTrue()
                 ctx.getBean("leaseExtensionObserverRegistration")
                     .shouldBeInstanceOf<AutoCloseable>()
@@ -73,6 +74,10 @@ class LeaderObservationAutoConfigurationTest {
         runner
             .withUserConfiguration(NoopObservationRegistryConfig::class.java)
             .run { ctx ->
+                ctx.getBean(
+                    LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME,
+                    LeaseExtensionObservationScopeOwner::class.java,
+                ).current() shouldBeEqualTo null
                 ctx.containsBean("leaseExtensionObserverRegistration").shouldBeFalse()
                 LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 0
             }
@@ -131,6 +136,7 @@ class LeaderObservationAutoConfigurationTest {
             .withUserConfiguration(ObservationRegistryConfig::class.java)
             .withPropertyValues("bluetape4k.leader.observability.tracing.enabled=false")
             .run { ctx ->
+                ctx.containsBean(LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME).shouldBeFalse()
                 ctx.getBeansOfType<MicrometerObservationLeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
                 ctx.getBeansOfType<MicrometerObservationLeaderElectionListener>().isEmpty().shouldBeTrue()
             }

@@ -22,6 +22,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.condition.SearchStrategy
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Role
@@ -40,13 +41,13 @@ import org.springframework.core.annotation.Order
 class LeaderAopAutoConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(search = SearchStrategy.CURRENT)
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     fun leaderBeanSelector(beanFactory: BeanFactory): LeaderBeanSelector =
         LeaderBeanSelector(beanFactory)
 
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(search = SearchStrategy.CURRENT)
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     fun leaderAopSpelExpressionEvaluator(
         beanFactory: ConfigurableBeanFactory,
@@ -57,7 +58,7 @@ class LeaderAopAutoConfiguration {
     )
 
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(search = SearchStrategy.CURRENT)
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     fun leaderLockNameValidator(
         beanFactory: ConfigurableBeanFactory,
@@ -81,7 +82,7 @@ class LeaderAopAutoConfiguration {
     @Bean
     @Order(LeaderAspectOrder.AOP_ORDER)
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(search = SearchStrategy.CURRENT)
     fun leaderElectionAspect(
         beanSelector: LeaderBeanSelector,
         props: LeaderAopProperties,
@@ -96,7 +97,7 @@ class LeaderAopAutoConfiguration {
         lockNameValidator = lockNameValidator,
         recorders = recordersProvider.orderedStream().toList(),
         scheduledPolicyRegistry = scheduledPolicyRegistryProvider.getIfAvailable(),
-    )
+    ).apply { observationScopeOwner = beanSelector.observationScopeOwner() }
 
     /** `0.5.0`에서 공개된 scheduled-policy 이전의 JVM factory descriptor를 보존합니다. */
     fun leaderElectionAspect(
@@ -112,12 +113,12 @@ class LeaderAopAutoConfiguration {
         lockNameValidator = lockNameValidator,
         recorders = recordersProvider.orderedStream().toList(),
         scheduledPolicyRegistry = null,
-    )
+    ).apply { observationScopeOwner = beanSelector.observationScopeOwner() }
 
     @Bean
     @Order(LeaderAspectOrder.AOP_ORDER)
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(search = SearchStrategy.CURRENT)
     fun leaderGroupElectionAspect(
         beanSelector: LeaderBeanSelector,
         props: LeaderAopProperties,
@@ -132,7 +133,7 @@ class LeaderAopAutoConfiguration {
         lockNameValidator = lockNameValidator,
         recorders = recordersProvider.orderedStream().toList(),
         groupProperties = leaderProperties.group,
-    )
+    ).apply { observationScopeOwner = beanSelector.observationScopeOwner() }
 
     /** `useDbTime` 정책 추가 전에 공개된 다섯 인자 factory 메서드 descriptor를 보존합니다. */
     fun leaderGroupElectionAspect(
@@ -148,7 +149,7 @@ class LeaderAopAutoConfiguration {
         lockNameValidator = lockNameValidator,
         recorders = recordersProvider.orderedStream().toList(),
         groupProperties = LeaderGroupProperties(),
-    )
+    ).apply { observationScopeOwner = beanSelector.observationScopeOwner() }
 
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)

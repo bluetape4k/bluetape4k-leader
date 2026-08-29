@@ -19,6 +19,7 @@ import io.bluetape4k.leader.spring.aop.cache.GroupFactoryCacheKey
 import io.bluetape4k.leader.spring.aop.internal.AdviceBranch
 import io.bluetape4k.leader.spring.aop.internal.BodyThrownMarker
 import io.bluetape4k.leader.spring.aop.internal.InvalidLockNameException
+import io.bluetape4k.leader.spring.metrics.LeaseExtensionObservationScopeOwner
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.AnnotationLookup
@@ -44,6 +45,8 @@ import reactor.core.publisher.Mono
 import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.Continuation
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.time.Duration.Companion.nanoseconds
@@ -60,7 +63,7 @@ import kotlin.time.toKotlinDuration
  * @property recorders Spring Boot integration 계약에서 사용하는 속성입니다.
  * @property groupProperties 공통 Spring group 정책과 annotation 정책을 결합하는 설정입니다.
  */
-@Suppress("ReactiveStreamsUnusedPublisher")
+@Suppress("ReactiveStreamsUnusedPublisher", "TooManyFunctions")
 @Aspect
 class LeaderGroupElectionAspect(
     private val beanSelector: LeaderBeanSelector,
@@ -85,8 +88,16 @@ class LeaderGroupElectionAspect(
     private val suspendElectorCache = ConcurrentHashMap<GroupFactoryCacheKey, SuspendLeaderGroupElector>()
     private val hasRecorders = recorders.isNotEmpty()
 
+    internal var observationScopeOwner: LeaseExtensionObservationScopeOwner? = null
+
     @Around("@annotation(io.bluetape4k.leader.annotation.LeaderGroupElection)")
     fun aroundLeader(pjp: ProceedingJoinPoint): Any? {
+        val scope = observationScopeOwner?.current() ?: return aroundLeaderInternal(pjp)
+        return scope.withScope { aroundLeaderInternal(pjp) }
+    }
+
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount", "ThrowsCount")
+    private fun aroundLeaderInternal(pjp: ProceedingJoinPoint): Any? {
         val method = (pjp.signature as MethodSignature).method
         val target = pjp.target
         val args = pjp.args
@@ -252,7 +263,7 @@ class LeaderGroupElectionAspect(
         val method = (pjp.signature as MethodSignature).method
         val coreOpts = meta.options.toCoreOptions()
 
-        val suspendBlock: suspend () -> Any? = {
+        val executeSuspend: suspend () -> Any? = {
             var lockName: String? = null
             var resolvedIdentity: LockIdentity? = null
 
@@ -392,6 +403,12 @@ class LeaderGroupElectionAspect(
                 }
             }
         }
+        val scope = observationScopeOwner?.current()
+        val suspendBlock: suspend () -> Any? = if (scope == null) {
+            executeSuspend
+        } else {
+            { withContext(scope.asContextElement()) { executeSuspend() } }
+        }
         return suspendBlock.startCoroutineUninterceptedOrReturn(continuation)
     }
 
@@ -406,7 +423,7 @@ class LeaderGroupElectionAspect(
 
         return Mono.defer {
             val start = System.nanoTime()
-            mono {
+            mono(context = observationCoroutineContext()) {
                 var lockName: String? = null
                 var resolvedIdentity: LockIdentity? = null
 
@@ -551,6 +568,9 @@ class LeaderGroupElectionAspect(
             }
         }
     }
+
+    private fun observationCoroutineContext(): CoroutineContext =
+        observationScopeOwner?.current()?.asContextElement() ?: EmptyCoroutineContext
 
     private fun executeBody(pjp: ProceedingJoinPoint, lockName: String, start: Long): Any? {
         return try {

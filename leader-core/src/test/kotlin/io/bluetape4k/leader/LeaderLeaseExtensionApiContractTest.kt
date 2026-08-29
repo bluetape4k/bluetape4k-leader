@@ -79,6 +79,7 @@ class LeaderLeaseExtensionApiContractTest {
         scopeClass.declaredMethods.single { it.name == "withScope" && it.parameterCount == 1 }
             .isSynthetic.shouldBeTrue()
         scopeClass.getDeclaredMethod("asContextElement").isSynthetic.shouldBeTrue()
+        scopeClass.getDeclaredMethod("isActive").isSynthetic.shouldBeTrue()
         scopeClass.declaredMethods
             .any { Modifier.isPublic(it.modifiers) && it.name.startsWith("current") }
             .shouldBeFalse()
@@ -104,6 +105,7 @@ class LeaderLeaseExtensionApiContractTest {
                         LeaderLeaseExtensionObservers.INSTANCE.addScopedObserver(ignored -> {});
                     scope.withScope(() -> null);
                     scope.asContextElement();
+                    scope.isActive();
                     LeaderLeaseExtensionObservers.INSTANCE.hasObservers(scope);
                     LeaderLeaseExtensionObservers.INSTANCE.publish(event, scope);
                 }

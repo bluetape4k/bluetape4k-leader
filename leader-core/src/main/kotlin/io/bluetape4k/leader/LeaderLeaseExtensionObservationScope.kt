@@ -54,7 +54,7 @@ class LeaderLeaseExtensionObservationScope private constructor(
     }
 
     @JvmSynthetic
-    internal fun isActive(): Boolean = active.get()
+    fun isActive(): Boolean = active.get()
 
     override fun toString(): String = "LeaderLeaseExtensionObservationScope(<opaque>)"
 

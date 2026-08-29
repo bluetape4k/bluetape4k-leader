@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.metrics
 
 import io.bluetape4k.leader.LeaderLeaseExtensionObservers
+import io.bluetape4k.leader.LeaderLeaseExtensionObservationScope
 import io.bluetape4k.leader.micrometer.LeaderObservationOptions
 import io.bluetape4k.leader.micrometer.MicrometerObservationLeaderLeaseExtensionObserver
 import io.micrometer.observation.ObservationRegistry
@@ -18,27 +19,32 @@ import kotlin.concurrent.withLock
  */
 internal object LeaseExtensionObservationRegistrationManager {
 
+    internal data class ManagedRegistration(
+        val scope: LeaderLeaseExtensionObservationScope,
+        private val closeHandle: AutoCloseable,
+    ) : AutoCloseable by closeHandle
+
     private val lock = ReentrantLock()
     private val entries = IdentityHashMap<ObservationRegistry, Entry>()
 
     fun acquire(
         registry: ObservationRegistry,
         options: LeaderObservationOptions,
-    ): AutoCloseable = lock.withLock {
+    ): ManagedRegistration = lock.withLock {
         val existing = entries[registry]
         if (existing != null) {
             check(existing.options == options) {
                 "ObservationRegistry is already registered with different LeaderObservationOptions"
             }
             existing.referenceCount++
-            return@withLock RegistrationHandle(registry, existing)
+            return@withLock ManagedRegistration(existing.scope, RegistrationHandle(registry, existing))
         }
 
         val observer = MicrometerObservationLeaderLeaseExtensionObserver(registry, options)
-        val coreRegistration = LeaderLeaseExtensionObservers.addObserver(observer)
-        val entry = Entry(options, coreRegistration)
+        val scope = LeaderLeaseExtensionObservers.addScopedObserver(observer)
+        val entry = Entry(options, scope)
         entries[registry] = entry
-        RegistrationHandle(registry, entry)
+        ManagedRegistration(scope, RegistrationHandle(registry, entry))
     }
 
     internal fun registryCount(): Int = lock.withLock { entries.size }
@@ -57,14 +63,14 @@ internal object LeaseExtensionObservationRegistrationManager {
             entry.referenceCount--
             if (entry.referenceCount == 0) {
                 entries.remove(registry)
-                entry.coreRegistration.close()
+                entry.scope.close()
             }
         }
     }
 
     private class Entry(
         val options: LeaderObservationOptions,
-        val coreRegistration: AutoCloseable,
+        val scope: LeaderLeaseExtensionObservationScope,
         var referenceCount: Int = 1,
     )
 
