@@ -5,8 +5,15 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.ExtendOutcome
+import io.bluetape4k.leader.LeaderLeaseExtensionContext
+import io.bluetape4k.leader.LeaderLeaseExtensionEvent
+import io.bluetape4k.leader.LeaderLeaseExtensionExecution
+import io.bluetape4k.leader.LeaderLeaseExtensionObservers
+import io.bluetape4k.leader.LeaderLeaseExtensionSource
 import io.bluetape4k.leader.LockExtender
+import io.bluetape4k.leader.micrometer.LeaderMetricTagOptions
 import io.bluetape4k.leader.micrometer.LeaderObservationOptions
+import io.bluetape4k.leader.micrometer.TAG_LEADER_ID
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationHandler
 import io.micrometer.observation.ObservationRegistry
@@ -173,6 +180,13 @@ class LeaseExtensionObservationRegistrationManagerTest {
     }
 
     @Test
+    fun `different registries isolate opted-in identity and raw error in both close orders`() {
+        listOf(CloseOrder.FIRST_THEN_SECOND, CloseOrder.SECOND_THEN_FIRST).forEach { closeOrder ->
+            verifyOptedInIsolation(closeOrder)
+        }
+    }
+
+    @Test
     fun `conflicting options fail fast without adding a second observer`() {
         val registry = ObservationRegistry.create()
         val first = LeaseExtensionObservationRegistrationManager.acquire(registry, LeaderObservationOptions())
@@ -297,14 +311,139 @@ class LeaseExtensionObservationRegistrationManagerTest {
     }
 
     private class CollectingObservationHandler : ObservationHandler<Observation.Context> {
-        val stopped = CopyOnWriteArrayList<String>()
+        val stopped = CopyOnWriteArrayList<ObservationSnapshot>()
 
         override fun onStop(context: Observation.Context) {
-            stopped += context.name.orEmpty()
+            stopped += ObservationSnapshot(
+                name = context.name.orEmpty(),
+                low = context.lowCardinalityKeyValues.associate { it.key to it.value },
+                high = context.highCardinalityKeyValues.associate { it.key to it.value },
+                error = context.error,
+            )
         }
 
         override fun supportsContext(context: Observation.Context): Boolean = true
     }
+
+    private fun verifyOptedInIsolation(closeOrder: CloseOrder) {
+        val firstHandler = CollectingObservationHandler()
+        val secondHandler = CollectingObservationHandler()
+        val firstRegistry = ObservationRegistry.create().apply {
+            observationConfig().observationHandler(firstHandler)
+        }
+        val secondRegistry = ObservationRegistry.create().apply {
+            observationConfig().observationHandler(secondHandler)
+        }
+        val options = LeaderObservationOptions(
+            includeLockName = true,
+            includeLeaderId = true,
+            includeExceptionDetails = true,
+            tagOptions = LeaderMetricTagOptions.Raw,
+        )
+        val first = LeaseExtensionObservationRegistrationManager.acquire(firstRegistry, options)
+        val second = LeaseExtensionObservationRegistrationManager.acquire(secondRegistry, options)
+        val firstFailure = IllegalStateException("jdbc:password=first-secret")
+        val secondFailure = IllegalArgumentException("token=second-secret")
+
+        try {
+            LeaderLeaseExtensionObservers.publish(
+                extensionErrorEvent("first-lock", "first-leader", firstFailure),
+                first.scope,
+            )
+            await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+                firstHandler.stopped.size shouldBeEqualTo 1
+                secondHandler.stopped.size shouldBeEqualTo 0
+            }
+            assertOwnIdentity(firstHandler.stopped.single(), "first-lock", "first-leader", firstFailure)
+
+            LeaderLeaseExtensionObservers.publish(
+                extensionErrorEvent("second-lock", "second-leader", secondFailure),
+                second.scope,
+            )
+            await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+                firstHandler.stopped.size shouldBeEqualTo 1
+                secondHandler.stopped.size shouldBeEqualTo 1
+            }
+            assertOwnIdentity(secondHandler.stopped.single(), "second-lock", "second-leader", secondFailure)
+
+            val closed = if (closeOrder == CloseOrder.FIRST_THEN_SECOND) first else second
+            val remaining = if (closeOrder == CloseOrder.FIRST_THEN_SECOND) second else first
+            val closedHandler = if (closeOrder == CloseOrder.FIRST_THEN_SECOND) firstHandler else secondHandler
+            val remainingHandler = if (closeOrder == CloseOrder.FIRST_THEN_SECOND) secondHandler else firstHandler
+            val closedCount = closedHandler.stopped.size
+            val remainingCount = remainingHandler.stopped.size
+            closed.close()
+
+            LeaderLeaseExtensionObservers.publish(
+                extensionErrorEvent("closed-lock", "closed-leader", IllegalStateException("closed-secret")),
+                closed.scope,
+            )
+            val remainingFailure = IllegalStateException("remaining-secret")
+            LeaderLeaseExtensionObservers.publish(
+                extensionErrorEvent("remaining-lock", "remaining-leader", remainingFailure),
+                remaining.scope,
+            )
+            await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+                closedHandler.stopped.size shouldBeEqualTo closedCount
+                remainingHandler.stopped.size shouldBeEqualTo remainingCount + 1
+            }
+            assertOwnIdentity(
+                remainingHandler.stopped.last(),
+                "remaining-lock",
+                "remaining-leader",
+                remainingFailure,
+            )
+        } finally {
+            first.close()
+            second.close()
+        }
+
+        LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 0
+    }
+
+    private fun extensionErrorEvent(
+        lockName: String,
+        leaderId: String,
+        failure: Exception,
+    ): LeaderLeaseExtensionEvent = LeaderLeaseExtensionEvent(
+        source = LeaderLeaseExtensionSource.USER,
+        execution = LeaderLeaseExtensionExecution.BLOCKING,
+        outcome = ExtendOutcome.BackendError(failure),
+        elapsedNanos = 1L,
+        context = LeaderLeaseExtensionContext(lockName, leaderId),
+    )
+
+    private fun assertOwnIdentity(
+        snapshot: ObservationSnapshot,
+        lockName: String,
+        leaderId: String,
+        failure: Throwable,
+    ) {
+        snapshot.name shouldBeEqualTo "bluetape4k.leader.lease.extension"
+        snapshot.low shouldBeEqualTo mapOf(
+            "source" to "user",
+            "execution" to "blocking",
+            "outcome" to "backend_error",
+            "result" to "error",
+        )
+        snapshot.high shouldBeEqualTo mapOf(
+            "lock.name" to lockName,
+            TAG_LEADER_ID to leaderId,
+        )
+        snapshot.error shouldBeSameInstanceAs failure
+    }
+
+    private enum class CloseOrder {
+        FIRST_THEN_SECOND,
+        SECOND_THEN_FIRST,
+    }
+
+    private data class ObservationSnapshot(
+        val name: String,
+        val low: Map<String, String>,
+        val high: Map<String, String>,
+        val error: Throwable?,
+    )
 
     private fun nonNoopRegistry(): ObservationRegistry = ObservationRegistry.create().apply {
         observationConfig().observationHandler(NonNoopObservationHandler)
