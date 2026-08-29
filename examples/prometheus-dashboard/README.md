@@ -37,6 +37,8 @@ the app while Grafana renders the pre-provisioned dashboard.
 - `@Scheduled` trigger that calls a proxied `@LeaderElection` job named `dashboard-job`
 - Lettuce Redis backend with a local Testcontainers fallback for `bootRun`
 - Micrometer leader AOP metrics exposed through Spring Boot Actuator
+- Scheduled `PrometheusBackendConnectivityProbe` that records the existing Redis diagnostics provider
+  as `leader_backend_connectivity_total` with a bounded timeout
 - Local demo `ObservationHandler` for leader Micrometer Observations
 - Prometheus scrape config and a hand-authored Grafana dashboard
 - Example-scoped Prometheus alert rules and runbook guidance
@@ -154,6 +156,13 @@ the four status values, and the six bounded reason values. The rules above use
 `for` windows and `notification: no-page`; `UNKNOWN` is never rewritten as
 `DOWN`, and passive `NOT_CHECKED` diagnostics do not produce a series.
 
+`PrometheusBackendConnectivityProbe` is the producer for this counter. It reuses
+the existing Lettuce connection through its diagnostics provider, runs on the
+configured fixed delay, and passes `DEMO_BACKEND_PROBE_TIMEOUT_MS` as a bounded
+probe budget. The current Lettuce provider reports an open client state as
+`UNKNOWN` with `CLIENT_STATE_UNCONFIRMED`; it does not claim `UP` without a
+backend round trip. Closed client state reports `DOWN` with `DISCONNECTED`.
+
 This demo registers `MicrometerSafeLeaderHistoryRecorder` with
 `NoopLeaderHistorySink` so `leader_history_*` meters are visible. The alert
 rules exclude that no-op sink because it intentionally returns no acquire key.
@@ -198,6 +207,9 @@ multi-instance deployments. The gauge is JVM-local, so `sum` can over-count.
 | `DEMO_REDIS_URL` / `demo.redis.url` | Testcontainers Redis | Redis URI used by Lettuce |
 | `DEMO_JOB_FIXED_DELAY_MS` / `demo.job.fixed-delay-ms` | `5000` | Scheduler fixed delay |
 | `DEMO_JOB_INITIAL_DELAY_MS` / `demo.job.initial-delay-ms` | `1000` | Initial scheduler delay |
+| `DEMO_BACKEND_PROBE_FIXED_DELAY_MS` / `demo.backend-probe.fixed-delay-ms` | `5000` | Connectivity probe fixed delay |
+| `DEMO_BACKEND_PROBE_INITIAL_DELAY_MS` / `demo.backend-probe.initial-delay-ms` | `1000` | Initial connectivity probe delay |
+| `DEMO_BACKEND_PROBE_TIMEOUT_MS` / `demo.backend-probe.timeout-ms` | `500` | Positive timeout passed to the existing diagnostics provider |
 | `DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED` / `demo.observation.logging-handler-enabled` | `true` | Enables the local demo Observation handler |
 | `bluetape4k.leader.aop.metrics.tags.lock-name.mode` | `RAW` | Demo-only opt-in so the static `dashboard-job` label is visible in Prometheus |
 | `SERVER_PORT` | `8080` | HTTP port |
@@ -237,6 +249,9 @@ set.
   :examples:prometheus-dashboard:test
 ```
 
-The test starts Spring Boot on a random port, uses the shared
-`RedisServer.Launcher.redis` Testcontainers singleton, and verifies the
-Prometheus scrape contains `leader_aop_*` metrics for `dashboard-job`.
+The tests start Spring Boot on a random port, use the shared
+`RedisServer.Launcher.redis` Testcontainers singleton, and verify the
+Prometheus scrape contains `leader_aop_*` metrics for `dashboard-job` plus the
+`UNKNOWN`/`CLIENT_STATE_UNCONFIRMED` connectivity series emitted by
+`PrometheusBackendConnectivityProbe`. Unit coverage also exercises `UP`,
+`DOWN`, and `PROVIDER_EXCEPTION` labels without creating another Redis client.

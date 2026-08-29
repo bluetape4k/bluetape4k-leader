@@ -27,6 +27,9 @@ import java.time.Duration
     properties = [
         "demo.job.fixed-delay-ms=200",
         "demo.job.initial-delay-ms=0",
+        "demo.backend-probe.fixed-delay-ms=200",
+        "demo.backend-probe.initial-delay-ms=0",
+        "demo.backend-probe.timeout-ms=500",
     ],
 )
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -54,6 +57,16 @@ class PrometheusScrapeTest {
                     .shouldBeTrue()
                 scrape.contains("""leader_history_acquire_missing_total{sink="NoopLeaderHistorySink"}""")
                     .shouldBeTrue()
+                scrape.hasConnectivitySeries(
+                    backendName = "redis-lettuce",
+                    status = "UNKNOWN",
+                    reason = "CLIENT_STATE_UNCONFIRMED",
+                ).shouldBeTrue()
+                scrape.connectivitySampleValue(
+                    backendName = "redis-lettuce",
+                    status = "UNKNOWN",
+                    reason = "CLIENT_STATE_UNCONFIRMED",
+                ) shouldBeGreaterThan 1.0
 
                 val attempts = scrape.sampleValue("leader_aop_attempts_total")
                 val acquired = scrape.sampleValue("leader_aop_acquired_total")
@@ -82,6 +95,38 @@ class PrometheusScrapeTest {
         val regex = Regex("""$metricName\{[^}]*lock_name="$EXPORTED_LOCK_NAME"[^}]*}\s+([0-9.Ee+-]+)""")
         return requireNotNull(regex.find(this)) {
             "$metricName for $EXPORTED_LOCK_NAME not found in scrape"
+        }.groupValues[1].toDouble()
+    }
+
+    private fun String.hasConnectivitySeries(
+        backendName: String,
+        status: String,
+        reason: String,
+    ): Boolean {
+        val labels = listOf(
+            """backend_name="$backendName"""",
+            """status="$status"""",
+            """reason="$reason"""",
+        ).joinToString(separator = "") { "(?=[^}]*${Regex.escape(it)})" }
+        return Regex("""leader_backend_connectivity_total\{${labels}[^}]*}\s+[0-9.Ee+-]+""")
+            .containsMatchIn(this)
+    }
+
+    private fun String.connectivitySampleValue(
+        backendName: String,
+        status: String,
+        reason: String,
+    ): Double {
+        val labels = listOf(
+            "backend_name=\"$backendName\"",
+            "status=\"$status\"",
+            "reason=\"$reason\"",
+        ).joinToString(separator = "") { "(?=[^}]*${Regex.escape(it)})" }
+        return requireNotNull(
+            Regex("""leader_backend_connectivity_total\{${labels}[^}]*}\s+([0-9.Ee+-]+)""")
+                .find(this),
+        ) {
+            "connectivity sample is missing for $backendName/$status/$reason"
         }.groupValues[1].toDouble()
     }
 
