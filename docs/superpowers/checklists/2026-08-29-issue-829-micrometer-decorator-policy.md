@@ -125,29 +125,29 @@
   - **Action:** leaf rows와 final scoped review를 완료하고 P0/P1을 0으로 만든 뒤 commit한다.
   - **Evidence:** independent code-reviewer APPROVE(P0/P1/P2/P3=0), final scoped diff, targeted/module check, Detekt, ABI, terminology audit, `git diff --check`가 수렴되었고 commit 직전 상태를 확인했다.
   - **Failure:** P0/P1 또는 unrelated diff가 있으면 PR 생성을 멈춘다.
-- [ ] **CG-11 — PR delivery authority 확인**
+- [x] **CG-11 — PR delivery authority 확인**
   - **Action:** 승인 계획의 repo/base/head와 CG-01~10 완료를 확인한다.
-  - **Evidence:** `bluetape4k/bluetape4k-leader`, `develop`, `fix/issue-829-micrometer-decorator-policy`를 기록한다.
+  - **Evidence:** 승인된 target은 `bluetape4k/bluetape4k-leader`, base는 `develop`, head는 `fix/issue-829-micrometer-decorator-policy`이며 CG-01~10 완료를 확인했다.
   - **Failure:** target/ref/authority가 다르면 PR을 생성하지 않는다.
-- [ ] **CG-12 — exact head publish**
+- [x] **CG-12 — exact head publish**
   - **Action:** converged head를 force 없이 push하고 remote SHA를 읽는다.
-  - **Evidence:** local/remote SHA 일치와 push 결과.
+  - **Evidence:** force 없는 push가 성공했고 local/remote/PR head가 `702294526b3d48accf7dc663259f21b7b5cd6928`로 일치한다.
   - **Failure:** mismatch 또는 remote drift이면 push/PR을 중단한다.
-- [ ] **CG-12A — PR 직전 guidance refresh**
+- [x] **CG-12A — PR 직전 guidance refresh**
   - **Action:** PR 직전에 guidance, selected skill, common gates, PR template, issue metadata를 다시 읽는다.
-  - **Evidence:** current hashes/timestamps와 no-drift 또는 영향 gate 재검증 결과.
+  - **Evidence:** PR 직전 AGENTS/워크플로/선택 skill/common gates/template hash를 refresh하고 no-drift를 확인했다.
   - **Failure:** drift를 해소하기 전 PR을 생성하지 않는다.
-- [ ] **CG-13 — PR 생성·검증**
+- [x] **CG-13 — PR 생성·검증**
   - **Action:** `Fixes #829`, assignee `debop`, issue labels/milestone을 반영하고 `## DoD Status`로 끝나는 Korean body를 작성한다.
-  - **Evidence:** live PR URL/number, metadata, body final heading, head SHA.
+  - **Evidence:** [PR #834](https://github.com/bluetape4k/bluetape4k-leader/pull/834)가 생성되었고 `Closes #829`, assignee `debop`, labels `bug/integration/test/maintenance`, milestone `1.0.0`, final `## DoD Status`, head SHA를 live read-back했다.
   - **Failure:** live PR metadata가 틀리면 CI 단계로 진행하지 않는다.
-- [ ] **CG-14 — exact-head CI·review**
+- [x] **CG-14 — exact-head CI·review**
   - **Action:** required CI와 최신 review/thread를 exact head에서 확인하고 P0/P1을 수렴한다.
-  - **Evidence:** CI result, review result, unresolved blocker 없음.
+  - **Evidence:** [CI run 33230456248](https://github.com/bluetape4k/bluetape4k-leader/actions/runs/33230456248)가 exact head에서 `success`; `leader-micrometer` 132 passing, `examples-prometheus-dashboard` 6 passing, `leader-spring-boot (Testcontainers)` 625+7 passing, `Coverage Report`/`CI Status` success. path-filtered jobs는 N/A로 분류했으며 independent review P0/P1/P2/P3=0, unresolved thread 없음.
   - **Failure:** 실패/새 review feedback은 수정 후 affected proof를 다시 연다.
-- [ ] **CG-15 — merge-ready 보고**
+- [x] **CG-15 — merge-ready 보고**
   - **Action:** 모든 rows와 count를 재확인하고 exact PR/head merge-ready report를 작성한다.
-  - **Evidence:** PR/head, CI/review/lesson evidence, `CG-16`~`CG-18` unchecked.
+  - **Evidence:** PR #834, exact head, CI/review/lesson evidence와 `Required checks: 55/59; N/A: 7; Blocked: 0`을 재확인했고 `CG-16`~`CG-18` 및 `C-09`는 새 merge 승인 전 unchecked로 유지한다.
   - **Failure:** 누락된 증거가 있으면 merge approval을 요청하지 않는다.
 - [ ] **CG-16 — fresh merge approval**
   - **Action:** CG-15 보고 후 exact head에 대한 새 merge 승인을 받는다.
@@ -192,13 +192,13 @@
   - **Action:** decorator가 registry와 tag policy를 함께 경계로 보존해야 하는 재사용 규칙을 lesson으로 작성·index한다.
   - **Evidence:** `docs/lessons/2026-08-29-issue-829-micrometer-decorator-policy.md`와 GNO index/search 결과를 확보했다.
   - **Failure:** lesson evidence 없이 pre-PR을 완료하지 않는다.
-- [ ] **C-07 — authorized PR delivery**
+- [x] **C-07 — authorized PR delivery**
   - **Action:** CG-11~14를 완료하고 exact head CI/review를 수렴한다.
-  - **Evidence:** live PR metadata, final `## DoD Status`, CI/review/P0/P1 evidence.
+  - **Evidence:** PR #834가 승인된 target/base/head로 생성되었고 final `## DoD Status`, exact-head CI와 독립 review가 수렴되었다.
   - **Failure:** stale/missing/skipped evidence는 PASS가 아니다.
-- [ ] **C-08 — merge readiness 또는 no-delivery 완료 보고**
+- [x] **C-08 — merge readiness 또는 no-delivery 완료 보고**
   - **Action:** phase-aware count, reproduction/root cause, RED/GREEN, files/commit, validation, lesson, exact PR/head를 보고한다.
-  - **Evidence:** `Required checks: X/Y; N/A: N; Blocked: 0`; PR이 있으면 CG-16~18을 unchecked로 둔다.
+  - **Evidence:** `Required checks: 55/59; N/A: 7; Blocked: 0`; PR #834가 `MERGEABLE/CLEAN`이며 CG-16~18과 C-09를 unchecked로 유지했다.
   - **Failure:** merge-ready 또는 DONE을 증거 없이 주장하지 않는다.
 - [ ] **C-09 — fresh merge approval 이후 closeout**
   - **Action:** CG-16 승인 후 merge, live verification, canonical sync, cleanup을 실행한다.
@@ -300,5 +300,5 @@
 - Baseline: `leader-micrometer` `128 passing`, `BUILD SUCCESSFUL` on fresh rerun.
 - Current implementation: registry identity와 semantic `LeaderMetricTagOptions` 비교를 통한 provider 경계 수정과 4개 regression test(leader async/group async 경로 포함)가 적용되었고 RED/GREEN/static/review evidence가 기록되었다.
 - Current mutation lane: isolated worktree and flow receipt active.
-- PR/merge: not started; merge requires a fresh approval after merge-ready report.
-- Required checks at this stage: local implementation/docs gates are checked; independent review, commit, PR/CI, merge, sync/cleanup rows remain pending until their evidence exists.
+- PR/merge: PR #834 is open and `MERGEABLE/CLEAN` at exact head `702294526b3d48accf7dc663259f21b7b5cd6928`; merge still requires a fresh approval.
+- Required checks at this stage: `55/59`; `N/A: 7`; `Blocked: 0`. Only fresh merge approval, merge, canonical sync/cleanup rows remain pending.
