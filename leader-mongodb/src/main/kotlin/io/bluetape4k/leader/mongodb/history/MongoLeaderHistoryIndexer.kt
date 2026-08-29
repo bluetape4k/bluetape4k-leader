@@ -8,6 +8,7 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
 import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.requirePositiveNumber
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
 import kotlinx.coroutines.CancellationException
@@ -21,7 +22,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+
+private const val SHUTDOWN_TIMEOUT_METRIC_VALUE = -2
+
+/** MongoDB history 인덱스 빌드의 수명 주기 상태입니다. */
+enum class MongoLeaderHistoryIndexState(val metricValue: Int) {
+    BUILDING(0),
+    READY(1),
+    FAILED(-1),
+    SHUTDOWN_TIMEOUT(SHUTDOWN_TIMEOUT_METRIC_VALUE),
+}
 
 /**
  * `MongoLeaderHistoryIndexer`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -48,19 +59,24 @@ class MongoLeaderHistoryIndexer(
         private const val INDEX_TTL_STARTED = "startedAt_1"
     }
 
-    /**
-     * `_indexState` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-     */
-    private val _indexState = AtomicInteger(0)
-    val indexState: Int get() = _indexState.get()
+    private val state = AtomicReference(MongoLeaderHistoryIndexState.BUILDING)
+
+    /** 현재 MongoDB history 인덱스 빌드의 수명 주기 상태입니다. */
+    val indexLifecycleState: MongoLeaderHistoryIndexState get() = state.get()
+
+    /** 기존 메트릭 상태 코드와 호환되는 수명 주기 상태 값입니다. */
+    val indexState: Int get() = indexLifecycleState.metricValue
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var indexBuildJob: Job? = null
 
     init {
         registry?.let { reg ->
-            Gauge.builder(GAUGE_INDEX_STATE) { _indexState.get().toDouble() }
-                .description("MongoDB leader history index build state: -1=failed, 0=building, 1=ready")
+            Gauge.builder(GAUGE_INDEX_STATE) { indexState.toDouble() }
+                .description(
+                    "MongoDB leader history index build state: " +
+                        "-2=shutdown-timeout, -1=failed, 0=building, 1=ready",
+                )
                 .register(reg)
         }
         indexBuildJob = scope.launch { buildIndexesWithRetry() }
@@ -94,8 +110,14 @@ class MongoLeaderHistoryIndexer(
                     log.info { "MongoDB history TTL index created: ttlDays=${config.ttlDays}" }
                 }
 
-                _indexState.set(1)
-                log.info { "MongoDB history indexes ready" }
+                if (state.compareAndSet(MongoLeaderHistoryIndexState.BUILDING, MongoLeaderHistoryIndexState.READY)) {
+                    log.info { "MongoDB history indexes ready" }
+                } else {
+                    log.debug {
+                        "MongoDB history index build completed after terminal lifecycle state; " +
+                            "state=${indexLifecycleState.name}"
+                    }
+                }
                 return
             } catch (e: CancellationException) {
                 throw e
@@ -103,8 +125,18 @@ class MongoLeaderHistoryIndexer(
                 attempt++
                 val delayMs = BASE_DELAY_MS * (1L shl (attempt - 1))
                 if (attempt >= MAX_RETRIES) {
-                    _indexState.set(-1)
-                    log.error(e) { "MongoDB history index build failed after $MAX_RETRIES attempts" }
+                    val failed = state.compareAndSet(
+                        MongoLeaderHistoryIndexState.BUILDING,
+                        MongoLeaderHistoryIndexState.FAILED,
+                    )
+                    log.error(e) {
+                        if (failed) {
+                            "MongoDB history index build failed after $MAX_RETRIES attempts"
+                        } else {
+                            "MongoDB history index build failed after terminal lifecycle state; " +
+                                "state=${indexLifecycleState.name}"
+                        }
+                    }
                 } else {
                     log.warn(e) { "MongoDB history index build attempt $attempt failed, retrying in ${delayMs}ms" }
                     delay(delayMs)
@@ -125,12 +157,22 @@ class MongoLeaderHistoryIndexer(
      *
      * caller cancellation은 그대로 전파하고, shutdown timeout만 경고 후 반환합니다.
      *
-     * @param shutdownTimeoutMs 인덱스 build 종료를 기다릴 최대 시간입니다.
+     * @param shutdownTimeoutMs 인덱스 build 종료를 기다릴 양수 밀리초입니다.
      */
     internal suspend fun closeSuspend(shutdownTimeoutMs: Long = SHUTDOWN_TIMEOUT_MS) {
+        val validShutdownTimeoutMs = shutdownTimeoutMs.requirePositiveNumber("shutdownTimeoutMs")
         scope.cancel()
-        withTimeoutOrNull(shutdownTimeoutMs) {
+        val stopped = withTimeoutOrNull(validShutdownTimeoutMs) {
             indexBuildJob?.join()
-        } ?: log.warn { "MongoLeaderHistoryIndexer: shutdown timed out after ${shutdownTimeoutMs}ms" }
+            true
+        } ?: false
+
+        if (!stopped) {
+            state.set(MongoLeaderHistoryIndexState.SHUTDOWN_TIMEOUT)
+            log.warn {
+                "MongoLeaderHistoryIndexer: shutdown timed out after ${validShutdownTimeoutMs}ms; " +
+                    "state=${indexLifecycleState.name}"
+            }
+        }
     }
 }
