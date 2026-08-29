@@ -333,6 +333,130 @@ class InstrumentedLeaderElectorsTest {
     }
 
     @Test
+    fun `nested decorators use the outer registry for active diagnostics`() {
+        val innerRegistry = SimpleMeterRegistry()
+        val outerRegistry = SimpleMeterRegistry()
+        val provider = RecordingDiagnosticsProvider(backendName = "redis-prod.example:6380/token")
+        val delegate = object :
+            LeaderElector by StubLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by provider {}
+        val inner = InstrumentedLeaderElector(delegate, innerRegistry, LeaderMetricTagOptions.Raw)
+        val outer = InstrumentedLeaderElector(inner, outerRegistry, LeaderMetricTagOptions.Raw)
+
+        (outer as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
+            .shouldNotBeNull()
+            .checkConnectivity(100.milliseconds)
+
+        connectivityCount(outerRegistry, "redis-prod.example:6380/token") shouldBeEqualTo 1.0
+        outerRegistry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+            .meters()
+            .size shouldBeEqualTo 1
+        innerRegistry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+            .meters()
+            .shouldBeEmpty()
+    }
+
+    @Test
+    fun `nested decorators use the outer tag policy when registry is shared`() {
+        val innerOptions = LeaderMetricTagOptions(
+            backendName = LeaderMetricTagRule(redactedValue = "inner-backend"),
+        )
+        val outerOptions = LeaderMetricTagOptions(
+            backendName = LeaderMetricTagRule(redactedValue = "outer-backend"),
+        )
+        val provider = RecordingDiagnosticsProvider(backendName = "redis-prod.example:6380/token")
+        val delegate = object :
+            LeaderElector by StubLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by provider {}
+        val inner = InstrumentedLeaderElector(delegate, registry, innerOptions)
+        (inner as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
+            .shouldNotBeNull()
+            .checkConnectivity(100.milliseconds)
+        val outer = InstrumentedLeaderElector(inner, registry, outerOptions)
+
+        (outer as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
+            .shouldNotBeNull()
+            .checkConnectivity(100.milliseconds)
+
+        connectivityCount(registry, "inner-backend") shouldBeEqualTo 1.0
+        connectivityCount(registry, "outer-backend") shouldBeEqualTo 1.0
+    }
+
+    @Test
+    fun `nested decorators reuse provider for equal tag policies`() {
+        val options = LeaderMetricTagOptions(
+            backendName = LeaderMetricTagRule(redactedValue = "shared-backend"),
+        )
+        val provider = RecordingDiagnosticsProvider(backendName = "redis-prod.example:6380/token")
+        val delegate = object :
+            LeaderElector by StubLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by provider {}
+        val inner = InstrumentedLeaderElector(delegate, registry, options)
+        val innerProvider = (inner as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
+            .shouldNotBeNull()
+        val outer = InstrumentedLeaderElector(inner, registry, options.copy())
+        val outerProvider = (outer as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
+            .shouldNotBeNull()
+
+        outerProvider shouldBeSameInstanceAs innerProvider
+    }
+
+    @Test
+    fun `nested decorators preserve diagnostics policy across blocking group and suspend wrappers`() = runSuspendIO {
+        val innerRegistry = SimpleMeterRegistry()
+        val outerRegistry = SimpleMeterRegistry()
+        val options = LeaderMetricTagOptions.Raw
+        val blockingDelegate = object :
+            LeaderElector by StubLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider(backendName = "blocking") {}
+        val groupDelegate = object :
+            LeaderGroupElector by StubLeaderGroupElector(elected = true),
+            LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider(backendName = "group") {}
+        val suspendDelegate = object :
+            SuspendLeaderElector by StubSuspendLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider(backendName = "suspend") {}
+
+        val blocking = InstrumentedLeaderElector(
+            InstrumentedLeaderElector(blockingDelegate, innerRegistry, options),
+            outerRegistry,
+            options,
+        )
+        val group = InstrumentedLeaderGroupElector(
+            InstrumentedLeaderGroupElector(groupDelegate, innerRegistry, options),
+            outerRegistry,
+            options,
+        )
+        val suspend = InstrumentedSuspendLeaderElector(
+            InstrumentedSuspendLeaderElector(suspendDelegate, innerRegistry, options),
+            outerRegistry,
+            options,
+        )
+
+        blocking.runIfLeader("blocking-lock") { "done" }
+        blocking.runAsyncIfLeader("blocking-async-lock", sameThreadExecutor) {
+            CompletableFuture.completedFuture("done")
+        }.join()
+        group.runIfLeader("group-lock") { "done" }
+        group.runAsyncIfLeader("group-async-lock", sameThreadExecutor) {
+            CompletableFuture.completedFuture("done")
+        }.join()
+        suspend.runIfLeader("suspend-lock") { "done" }
+
+        listOf(blocking, group, suspend).forEach { wrapper ->
+            wrapper.backendDiagnosticsProvider
+                .shouldNotBeNull()
+                .checkConnectivity(100.milliseconds)
+        }
+
+        listOf("blocking", "group", "suspend").forEach { backendName ->
+            connectivityCount(outerRegistry, backendName) shouldBeEqualTo 1.0
+        }
+        innerRegistry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+            .meters()
+            .shouldBeEmpty()
+    }
+
+    @Test
     fun `cancellation is rethrown without synthetic provider exception metric`() {
         val cancellation = CancellationException("cancelled")
         val provider = RecordingDiagnosticsProvider(failure = cancellation)
@@ -566,6 +690,14 @@ class InstrumentedLeaderElectorsTest {
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .gauge()
             ?.value() ?: 0.0
+
+    private fun connectivityCount(registry: SimpleMeterRegistry, backendName: String): Double =
+        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+            .tag(LeaderMetricTagOptions.TAG_BACKEND_NAME, backendName)
+            .tag(MicrometerNames.TAG_BACKEND_STATUS, LeaderBackendConnectivityStatus.UP.name)
+            .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.CONNECTED.name)
+            .counter()
+            ?.count() ?: 0.0
 
     private val sameThreadExecutor = Executor { command -> command.run() }
 
