@@ -2,7 +2,7 @@
 
 ## 범위와 판정
 
-- 대상 diff: `origin/develop@f44b7c69440f8ce5156185ce63209f523b2051fd...77b37f8d50dd97e946deb4927c7924550b698d76`
+- 대상 diff: `origin/develop@4c0d1156c268cde6191f6901c933b60ae6b92cff...575cccdc505284528eea5bcf645d0b2e8b62124b`
 - 범위: core scope/dispatch, USER/WATCHDOG producer, virtual/coroutine adapter, Spring registry manager/owner, single/group AOP, auto-configuration, tests, README/manual, benchmark
 - 자체 검토: **PASS (P0=0, P1=0, P2=0)**
 - 자동 검증: **PASS**
@@ -26,16 +26,16 @@
 
 1. scope가 없는 suspend advice에도 `withContext(EmptyCoroutineContext)`를 적용하면 기존 exception identity/wrapping이 달라지는 회귀가 발생했다. scope가 없을 때는 원래 suspend lambda를 직접 실행하도록 수정했고 full Spring suite로 회귀를 닫았다.
 2. 원래 `suspendBlock` 변수명을 `executeSuspend`로 바꾸자 Kotlin compiler-generated `WhenMappings` 이름이 달라져 ABI gate가 두 synthetic removal을 보고했다. 변수명을 보존해 `unknown=0`으로 복구했다.
-3. candidate-only 성능 수치 대신 exact baseline/candidate SHA를 분리한 3-fork throughput/average-time과 USER/WATCHDOG allocation을 기록했다.
+3. USER benchmark가 active leader handle 없이 `LockExtender`를 호출해 WARN과 logging allocation을 측정하던 결함을 발견했다. 실제 `LocalLeaderElector`/`LocalSuspendLeaderElector` 실행 안에서 extension을 호출하도록 수정하고 exact baseline/candidate SHA의 3-fork 결과를 다시 기록했다.
 
 ## 검증 증거
 
-- core full: `973 tests`, failures `0`, errors `0`, skipped `0`
+- rebased core full: `989 tests`, failures `0`, errors `0`, skipped `0`
 - Spring full exact implementation head: `628 tests`, failures `0`, errors `0`, skipped `0`
 - `./gradlew detekt`: PASS
 - `./gradlew checkBinaryCompatibility`: `artifacts=16 ignored=10 unknown=0`, PASS
 - benchmark compile: PASS
-- JMH 3 forks: throughput regression `1.546%`, average-time regression `0.179%`, 15% gate PASS
+- JMH 3 forks: throughput `1.335%` 개선, average-time regression `0.023%`, 15% gate PASS
 - manual inventory/validation: PASS
 - Ruby manual suite: `37 runs, 392 assertions, 0 failures, 0 errors, 0 skips`
 - `git diff --check`: PASS

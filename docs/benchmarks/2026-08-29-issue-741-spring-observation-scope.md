@@ -4,11 +4,11 @@
 
 ## 판정
 
-- 기존 `SpringLeaderAdviceBenchmark.adviceSyncStaticName` 대비 처리량 중앙값 저하는 **1.546%**였다.
-- 같은 행의 평균 시간 중앙값 증가는 **0.179%**였다.
+- 기존 `SpringLeaderAdviceBenchmark.adviceSyncStaticName` 대비 처리량 중앙값은 **1.335% 개선**됐다.
+- 같은 행의 평균 시간 중앙값 증가는 **0.023%**였다.
 - 둘 다 승인된 회귀 한도 **15% 이하**이므로 `PASS`다.
-- `USER` scoped mismatch의 `gc.alloc.rate.norm` 점수 차이는 `+8.011 B/op`이며 no-observer 결과의 JMH 오차 구간 안이다.
-- 실제 watchdog scoped mismatch는 no-observer보다 `-13.729 B/op`로 측정됐다. mismatch 때문에 event/context/timer allocation이 추가됐다는 증거는 없었다.
+- 실제 USER extension scoped mismatch는 no-observer보다 `-8.683 B/op`로 측정됐다.
+- 실제 watchdog scoped mismatch는 no-observer보다 `-15.533 B/op`로 측정됐다. mismatch 때문에 event/context/timer allocation이 추가됐다는 증거는 없었다.
 
 ## 환경
 
@@ -25,23 +25,23 @@
 | 워밍업 | fork별 2회, 각 1초 |
 | 측정 | fork별 3회, 각 1초 |
 | Fork | 3 |
-| 측정 직후 load average | 3.25 / 3.21 / 3.37 |
+| 측정 직후 load average | 3.47 / 3.75 / 3.77 |
 
 ## 비교 대상
 
 | 구분 | Git SHA | 설명 |
 |---|---|---|
-| baseline | `f44b7c69440f8ce5156185ce63209f523b2051fd` | `origin/develop`의 이슈 #741 변경 전 기준 |
-| candidate | `dda4b43d22a8a583524b92b562b02c470b9b95ab` | 구현·문서·benchmark code를 포함한 측정 대상 |
+| baseline | `4c0d1156c268cde6191f6901c933b60ae6b92cff` | PR 생성 직전 `origin/develop` 기준 |
+| candidate | `575cccdc505284528eea5bcf645d0b2e8b62124b` | 구현·문서와 정상 active USER benchmark를 포함한 측정 대상 |
 
-최종 delivery head는 이 결과 문서를 추가한 candidate의 descendant다. 실행 코드는 `dda4b43d22a8a583524b92b562b02c470b9b95ab`와 동일하다.
+최종 delivery head는 이 결과 문서를 갱신한 candidate의 descendant다. 측정한 실행 코드는 `575cccdc505284528eea5bcf645d0b2e8b62124b`와 동일하다.
 
 ## 명령
 
 baseline과 candidate의 각 worktree에서 benchmark JAR를 만든 뒤 다음 행을 같은 옵션으로 실행했다.
 
 ```bash
-./gradlew :benchmark:benchmarkBenchmark --no-daemon --no-configuration-cache --rerun-tasks
+./gradlew :benchmark:benchmarkBenchmarkJar --no-daemon --no-configuration-cache --rerun-tasks
 
 java -jar benchmark/build/benchmarks/benchmark/jars/benchmark-benchmark-jmh-1.0.0-JMH.jar \
   'io.bluetape4k.leader.benchmark.SpringLeaderAdviceBenchmark.adviceSyncStaticName' \
@@ -56,16 +56,16 @@ java -jar benchmark/build/benchmarks/benchmark/jars/benchmark-benchmark-jmh-1.0.
 java -jar benchmark/build/benchmarks/benchmark/jars/benchmark-benchmark-jmh-1.0.0-JMH.jar \
   'io.bluetape4k.leader.benchmark.LeaseExtensionObservationScopeBenchmark.(userBlocking|watchdogBlocking)' \
   -p observationMode=no-observer,scoped-mismatch -bm thrpt -f 3 -wi 2 -i 3 -w 1s -r 1s -prof gc \
-  -rf json -rff benchmark/build/reports/benchmarks/issue741/candidate-dda4b43-scope-allocation.json
+  -rf json -rff benchmark/build/reports/benchmarks/issue741/candidate-575ccdc-scope-allocation.json
 ```
 
 로컬 원본 JSON:
 
-- `benchmark/build/reports/benchmarks/issue741/baseline-f44b7c6-throughput.json`
-- `benchmark/build/reports/benchmarks/issue741/baseline-f44b7c6-average-time.json`
-- `benchmark/build/reports/benchmarks/issue741/candidate-dda4b43-throughput.json`
-- `benchmark/build/reports/benchmarks/issue741/candidate-dda4b43-average-time.json`
-- `benchmark/build/reports/benchmarks/issue741/candidate-dda4b43-scope-allocation.json`
+- baseline worktree `benchmark/build/reports/benchmarks/issue741/baseline-4c0d115-throughput.json`
+- baseline worktree `benchmark/build/reports/benchmarks/issue741/baseline-4c0d115-average-time.json`
+- candidate worktree `benchmark/build/reports/benchmarks/issue741/candidate-575ccdc-throughput.json`
+- candidate worktree `benchmark/build/reports/benchmarks/issue741/candidate-575ccdc-average-time.json`
+- candidate worktree `benchmark/build/reports/benchmarks/issue741/candidate-575ccdc-scope-allocation.json`
 
 JSON은 Gradle build output으로 보존되며 커밋하지 않는다. 위 명령과 exact SHA가 재생성 기준이다.
 
@@ -75,17 +75,17 @@ JSON은 Gradle build output으로 보존되며 커밋하지 않는다. 위 명�
 
 | 모드 | baseline 중앙값 | candidate 중앙값 | 회귀율 | 한도 | 판정 |
 |---|---:|---:|---:|---:|---|
-| Throughput | 1,570,574.272 ops/s | 1,546,292.620 ops/s | 1.546% | 15% | PASS |
-| Average time | 0.642208 us/op | 0.643356 us/op | 0.179% | 15% | PASS |
+| Throughput | 1,538,565.461 ops/s | 1,559,104.688 ops/s | -1.335% (개선) | 15% | PASS |
+| Average time | 0.645029 us/op | 0.645176 us/op | 0.023% | 15% | PASS |
 
-참고로 전체 9회 측정에서 계산된 JMH score와 99.9% 신뢰 오차는 throughput baseline `1,561,708.040 ± 28,898.393 ops/s`, candidate `1,548,839.914 ± 17,888.932 ops/s`; average time baseline `0.641733 ± 0.007320 us/op`, candidate `0.643375 ± 0.006187 us/op`이었다.
+참고로 전체 9회 측정에서 계산된 JMH score와 99.9% 신뢰 오차는 throughput baseline `1,541,977.343 ± 23,227.277 ops/s`, candidate `1,558,809.965 ± 16,710.785 ops/s`; average time baseline `0.644943 ± 0.012040 us/op`, candidate `0.645219 ± 0.003962 us/op`이었다.
 
 ## Scope mismatch allocation
 
 | 경로 | no-observer | scoped-mismatch | 차이 | 해석 |
 |---|---:|---:|---:|---|
-| `USER blocking` | 2,568.489 ± 20.153 B/op | 2,576.500 ± 0.012 B/op | +8.011 B/op | no-observer 오차 구간과 겹침 |
-| `WATCHDOG blocking` | 1,959.735 ± 26.572 B/op | 1,946.006 ± 6.154 B/op | -13.729 B/op | mismatch 추가 할당 없음 |
+| `USER blocking` | 1,031.566 ± 15.531 B/op | 1,022.882 ± 17.417 B/op | -8.683 B/op | mismatch 추가 할당 없음 |
+| `WATCHDOG blocking` | 1,963.116 ± 28.137 B/op | 1,947.582 ± 10.947 B/op | -15.533 B/op | mismatch 추가 할당 없음 |
 
 `scoped-mismatch`는 일치하는 observer가 없을 때 `hasObservers(scope)`에서 빠져나가므로 lease-extension event, 관측 context, timer를 만들지 않는다. 이 표의 총 `B/op`는 benchmark harness와 실제 lease/watchdog 실행 비용까지 포함하며, 오차 구간 밖의 양의 증분은 관찰되지 않았다.
 

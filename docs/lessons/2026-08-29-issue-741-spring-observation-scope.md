@@ -22,10 +22,10 @@ suspend advice에 scope가 없을 때도 `withContext(EmptyCoroutineContext)`를
 
 ## 결과
 
-- core 973 tests와 Spring 628 tests가 failures/errors/skips 없이 통과했다.
+- 최신 `develop` rebase 뒤 core 989 tests와 Spring 628 tests가 failures/errors/skips 없이 통과했다.
 - `detekt`와 `checkBinaryCompatibility`가 통과했고 ABI inventory는 `unknown=0`이었다.
-- 기존 Spring advice의 3-fork 중앙값 회귀는 throughput 1.546%, average time 0.179%로 15% 한도 안이었다.
-- USER scope mismatch allocation 차이는 no-observer JMH 오차 구간 안이었고 WATCHDOG mismatch는 no-observer보다 낮았다.
+- 기존 Spring advice의 3-fork 중앙값은 throughput 1.335% 개선, average time 0.023% 회귀로 15% 한도 안이었다.
+- 실제 active USER와 WATCHDOG scope mismatch allocation은 모두 no-observer보다 낮았다.
 - 영문·국문 README와 manual draft에 global/automatic 경계, direct-call 제외, rollout/rollback/shutdown 절차를 고정했다.
 
 ## 퓨쳐 가드
