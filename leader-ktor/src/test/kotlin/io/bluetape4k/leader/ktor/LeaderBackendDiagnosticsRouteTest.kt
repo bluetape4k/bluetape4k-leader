@@ -2,6 +2,7 @@ package io.bluetape4k.leader.ktor
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.ktor.testing.shouldHaveStatus
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
@@ -27,6 +28,7 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LeaderBackendDiagnosticsRouteTest {
 
@@ -89,6 +91,35 @@ class LeaderBackendDiagnosticsRouteTest {
             elector.probeCalls.get() shouldBeEqualTo 1
             elector.lastTimeout shouldBeEqualTo 275.milliseconds
         }
+    }
+
+    @Test
+    fun `direct diagnostics route는 양수이면서 유한한 probe timeout만 허용한다`() = runSuspendIO {
+        listOf(Duration.ZERO, (-1).milliseconds, Duration.INFINITE).forEach { timeout ->
+            val error = assertFailsWith<IllegalArgumentException> {
+                testApplication {
+                    application {
+                        leaderBackendDiagnosticsRoute(
+                            provider = RecordingDiagnosticsElector(),
+                            connectivityCheckEnabled = true,
+                            connectivityCheckTimeout = timeout,
+                        )
+                    }
+                    startApplication()
+                }
+            }
+
+            error.message.orEmpty() shouldContain "connectivityCheckTimeout은 양수이면서 유한해야 합니다"
+        }
+    }
+
+    @Test
+    fun `NaN probe timeout은 Kotlin Duration 경계에서 생성되지 않는다`() {
+        val error = assertFailsWith<IllegalArgumentException> {
+            Double.NaN.seconds
+        }
+
+        error.message.orEmpty() shouldContain "Duration value cannot be NaN"
     }
 
     @Test
@@ -274,6 +305,33 @@ class LeaderBackendDiagnosticsRouteTest {
             val response = client.get("/internal/leader-backend")
 
             response shouldHaveStatus HttpStatusCode.OK
+        }
+    }
+
+    @Test
+    fun `management와 diagnostics route가 정규화 후 같으면 plugin 설치에 실패한다`() = runSuspendIO {
+        listOf(
+            "/internal/leader" to "/internal/leader",
+            "internal/leader" to "/internal/leader",
+            "/internal/leader" to "internal/leader",
+        ).forEach { (managementPath, diagnosticsPath) ->
+            val error = assertFailsWith<IllegalArgumentException> {
+                testApplication {
+                    application {
+                        install(LeaderElectionPlugin) {
+                            leaderElection = RecordingDiagnosticsElector()
+                            managementRouteEnabled = true
+                            managementRoutePath = managementPath
+                            backendDiagnosticsRouteEnabled = true
+                            backendDiagnosticsRoutePath = diagnosticsPath
+                        }
+                    }
+                    startApplication()
+                }
+            }
+
+            error.message.orEmpty() shouldContain
+                    "managementRoutePath와 backendDiagnosticsRoutePath는 서로 다른 route여야 합니다"
         }
     }
 

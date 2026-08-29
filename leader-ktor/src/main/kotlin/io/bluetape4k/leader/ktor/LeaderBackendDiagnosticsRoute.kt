@@ -7,7 +7,6 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnostics
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
-import io.bluetape4k.support.requireNotBlank
 import io.ktor.http.ContentType
 import io.ktor.server.application.Application
 import io.ktor.server.response.respondText
@@ -30,8 +29,13 @@ fun Application.leaderBackendDiagnosticsRoute(
     connectivityCheckEnabled: Boolean = false,
     connectivityCheckTimeout: Duration = LeaderBackendDiagnosticsProvider.DefaultProbeTimeout,
 ) {
-    path.requireNotBlank("path")
-    val routePath = if (path.startsWith("/")) path else "/$path"
+    val routePath = normalizeLeaderRoutePath(path)
+    if (connectivityCheckEnabled) {
+        validateBackendConnectivityCheckTimeout(
+            timeout = connectivityCheckTimeout,
+            propertyName = "connectivityCheckTimeout",
+        )
+    }
 
     routing {
         get(routePath) {
@@ -47,6 +51,13 @@ fun Application.leaderBackendDiagnosticsRoute(
                 contentType = ContentType.Application.Json,
             )
         }
+    }
+}
+
+/** Connectivity probe timeout의 public route 계약을 검증합니다. */
+internal fun validateBackendConnectivityCheckTimeout(timeout: Duration, propertyName: String) {
+    require(timeout.isFinite() && timeout.isPositive()) {
+        "${propertyName}은 양수이면서 유한해야 합니다: $timeout"
     }
 }
 

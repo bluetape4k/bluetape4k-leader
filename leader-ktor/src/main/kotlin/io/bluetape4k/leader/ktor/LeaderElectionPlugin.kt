@@ -27,6 +27,7 @@ val LeaderElectionPlugin = createApplicationPlugin(
     val leaderElection = requireNotNull(config.leaderElection) {
         "LeaderElectionPlugin 설치 전 leaderElection 을 반드시 설정해야 합니다."
     }
+    validateManagementDiagnosticsRoutePathCollision(config)
 
     // 외부 (예: leaderScheduled 확장) 에서 설정에 접근할 수 있도록 Application attributes 에 저장한다.
     application.attributes.put(LeaderElectionConfigKey, config)
@@ -74,11 +75,10 @@ val LeaderElectionPlugin = createApplicationPlugin(
             "backendDiagnosticsRouteEnabled=true 이면 leaderElection 이 backend diagnostics provider를 제공해야 합니다."
         }
         if (config.backendConnectivityCheckEnabled) {
-            val timeout = config.backendConnectivityCheckTimeout
-            require(timeout.isFinite() && timeout.isPositive()) {
-                "backendConnectivityCheckTimeout은 양수이면서 유한해야 합니다: " +
-                        timeout
-            }
+            validateBackendConnectivityCheckTimeout(
+                timeout = config.backendConnectivityCheckTimeout,
+                propertyName = "backendConnectivityCheckTimeout",
+            )
         }
         application.leaderBackendDiagnosticsRoute(
             path = config.backendDiagnosticsRoutePath,
@@ -114,6 +114,16 @@ val LeaderElectionPlugin = createApplicationPlugin(
             }
         }
         resourceRegistry.close()
+    }
+}
+
+private fun validateManagementDiagnosticsRoutePathCollision(config: LeaderElectionPluginConfig) {
+    if (!config.managementRouteEnabled || !config.backendDiagnosticsRouteEnabled) return
+
+    val managementPath = normalizeLeaderRoutePath(config.managementRoutePath)
+    val diagnosticsPath = normalizeLeaderRoutePath(config.backendDiagnosticsRoutePath)
+    require(managementPath != diagnosticsPath) {
+        "managementRoutePath와 backendDiagnosticsRoutePath는 서로 다른 route여야 합니다: $managementPath"
     }
 }
 
