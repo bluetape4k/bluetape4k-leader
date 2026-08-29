@@ -17,7 +17,8 @@ import java.time.Instant
  *
  * delegate 호출이 먼저 실행되고 exporter의 `ACCEPTED` 또는 `DROPPED_*` 결과는 history
  * 저장 결과로 변환되지 않습니다. exporter는 best-effort 부가 경로이며, caller가 executor와
- * scheduler를 소유하는 경우 이 wrapper를 닫기 전에 exporter를 먼저 닫아야 합니다.
+ * scheduler를 소유하는 경우 이 wrapper를 닫기 전에 exporter를 먼저 닫아야 합니다. terminal
+ * delegate 실패에서도 pending context는 `finally`에서 제거됩니다.
  */
 class ExportingLeaderHistorySink private constructor(
     private val delegate: LeaderHistorySink,
@@ -51,17 +52,23 @@ class ExportingLeaderHistorySink private constructor(
     }
 
     override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
-        delegate.recordCompleted(key, finishedAt, durationMs)
-        val context = contexts.remove(key)
-        submitSafely(
-            historyEvent(
-                key = key,
-                context = context,
-                finishedAt = finishedAt,
-                durationMs = durationMs,
-                status = LeaderHistoryStatus.COMPLETED,
-            ),
-        )
+        var contextRemoved = false
+        try {
+            delegate.recordCompleted(key, finishedAt, durationMs)
+            val context = contexts.remove(key)
+            contextRemoved = true
+            submitSafely(
+                historyEvent(
+                    key = key,
+                    context = context,
+                    finishedAt = finishedAt,
+                    durationMs = durationMs,
+                    status = LeaderHistoryStatus.COMPLETED,
+                ),
+            )
+        } finally {
+            if (!contextRemoved) contexts.remove(key)
+        }
     }
 
     override fun recordFailed(
@@ -71,19 +78,25 @@ class ExportingLeaderHistorySink private constructor(
         errorType: String?,
         errorMessage: String?,
     ) {
-        delegate.recordFailed(key, finishedAt, durationMs, errorType, errorMessage)
-        val context = contexts.remove(key)
-        submitSafely(
-            historyEvent(
-                key = key,
-                context = context,
-                finishedAt = finishedAt,
-                durationMs = durationMs,
-                status = LeaderHistoryStatus.FAILED,
-                errorType = errorType,
-                errorMessage = errorMessage,
-            ),
-        )
+        var contextRemoved = false
+        try {
+            delegate.recordFailed(key, finishedAt, durationMs, errorType, errorMessage)
+            val context = contexts.remove(key)
+            contextRemoved = true
+            submitSafely(
+                historyEvent(
+                    key = key,
+                    context = context,
+                    finishedAt = finishedAt,
+                    durationMs = durationMs,
+                    status = LeaderHistoryStatus.FAILED,
+                    errorType = errorType,
+                    errorMessage = errorMessage,
+                ),
+            )
+        } finally {
+            if (!contextRemoved) contexts.remove(key)
+        }
     }
 
     override fun deleteOlderThan(cutoff: Instant, limit: Int): Int = delegate.deleteOlderThan(cutoff, limit)

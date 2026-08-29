@@ -38,6 +38,54 @@ class ExportingLeaderHistorySinkTest {
     }
 
     @Test
+    fun `blocking delegate completion failure clears pending context`() {
+        val exporter = RecordingExporter()
+        val key = LeaderHistoryKey(lockName = "job", token = "secret")
+        val delegate = RecordingSink(
+            key = key,
+            completedFailure = IllegalStateException("completed-failure"),
+        )
+        val sink = ExportingLeaderHistorySink(
+            delegate,
+            exporter,
+            LeaderAuditValueSanitizer.Truncate(maxBytes = 64),
+        )
+
+        sink.recordAcquired(record()) shouldBeEqualTo key
+        assertFailsWith<IllegalStateException> {
+            sink.recordCompleted(key, FINISHED_AT, 42)
+        }
+
+        sink.recordFailed(key, FINISHED_AT, 43, "failed", "fallback")
+        (exporter.events.last() as LeaderAuditExportEvent.History)
+            .attributes["audit_context"] shouldBeEqualTo "missing"
+    }
+
+    @Test
+    fun `blocking delegate failure clears pending context`() {
+        val exporter = RecordingExporter()
+        val key = LeaderHistoryKey(lockName = "job", token = "secret")
+        val delegate = RecordingSink(
+            key = key,
+            failedFailure = IllegalArgumentException("failed-failure"),
+        )
+        val sink = ExportingLeaderHistorySink(
+            delegate,
+            exporter,
+            LeaderAuditValueSanitizer.Truncate(maxBytes = 64),
+        )
+
+        sink.recordAcquired(record()) shouldBeEqualTo key
+        assertFailsWith<IllegalArgumentException> {
+            sink.recordFailed(key, FINISHED_AT, 42, "failed", "failure")
+        }
+
+        sink.recordCompleted(key, FINISHED_AT, 43)
+        (exporter.events.last() as LeaderAuditExportEvent.History)
+            .attributes["audit_context"] shouldBeEqualTo "missing"
+    }
+
+    @Test
     fun `exporter drop does not change delegate result and missing context is bounded`() {
         val exporter = RecordingExporter(LeaderAuditSubmitResult.DROPPED_QUEUE_FULL)
         val key = LeaderHistoryKey(lockName = "job", token = "secret")
@@ -144,6 +192,62 @@ class ExportingLeaderHistorySinkTest {
     }
 
     @Test
+    fun `suspend terminal cancellation after delegate clears pending context`() = runTest {
+        val exporter = RecordingExporter()
+        val key = LeaderHistoryKey(lockName = "job", token = "secret")
+        var cancelCompleted = true
+        var cancelFailed = true
+        val sink = ExportingSuspendLeaderHistorySink(
+            delegate = object : io.bluetape4k.leader.history.SuspendLeaderHistorySink {
+                override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? = key
+
+                override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
+                    if (cancelCompleted) {
+                        cancelCompleted = false
+                        currentCoroutineContext()[Job]?.cancel()
+                    }
+                }
+
+                override suspend fun recordFailed(
+                    key: LeaderHistoryKey,
+                    finishedAt: Instant,
+                    durationMs: Long,
+                    errorType: String?,
+                    errorMessage: String?,
+                ) {
+                    if (cancelFailed) {
+                        cancelFailed = false
+                        currentCoroutineContext()[Job]?.cancel()
+                    }
+                }
+            },
+            exporter = exporter,
+            sanitizer = LeaderAuditValueSanitizer.Truncate(maxBytes = 64),
+        )
+
+        sink.recordAcquired(record()) shouldBeEqualTo key
+        assertFailsWith<CancellationException> {
+            withContext(Job()) {
+                sink.recordCompleted(key, FINISHED_AT, 42)
+            }
+        }
+        sink.recordCompleted(key, FINISHED_AT, 43)
+        (exporter.events.last() as LeaderAuditExportEvent.History)
+            .attributes["audit_context"] shouldBeEqualTo "missing"
+
+        sink.recordAcquired(record()) shouldBeEqualTo key
+        assertFailsWith<CancellationException> {
+            withContext(Job()) {
+                sink.recordFailed(key, FINISHED_AT, 44, "failed", "cancelled")
+            }
+        }
+
+        sink.recordCompleted(key, FINISHED_AT, 45)
+        (exporter.events.last() as LeaderAuditExportEvent.History)
+            .attributes["audit_context"] shouldBeEqualTo "missing"
+    }
+
+    @Test
     fun `suspend deleteOlderThan rechecks cancellation after delegate`() = runTest {
         val sink = ExportingSuspendLeaderHistorySink(
             delegate = object : io.bluetape4k.leader.history.SuspendLeaderHistorySink {
@@ -174,9 +278,15 @@ class ExportingLeaderHistorySinkTest {
         }
     }
 
-    private class RecordingSink(private val key: LeaderHistoryKey) : LeaderHistorySink {
+    private class RecordingSink(
+        private val key: LeaderHistoryKey,
+        completedFailure: Throwable? = null,
+        failedFailure: Throwable? = null,
+    ) : LeaderHistorySink {
         var acquired = 0
         var completed = 0
+        private var completedFailure: Throwable? = completedFailure
+        private var failedFailure: Throwable? = failedFailure
 
         override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
             acquired++
@@ -185,6 +295,10 @@ class ExportingLeaderHistorySinkTest {
 
         override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
             completed++
+            completedFailure?.let { failure ->
+                completedFailure = null
+                throw failure
+            }
         }
 
         override fun recordFailed(
@@ -193,7 +307,12 @@ class ExportingLeaderHistorySinkTest {
             durationMs: Long,
             errorType: String?,
             errorMessage: String?,
-        ) = Unit
+        ) {
+            failedFailure?.let { failure ->
+                failedFailure = null
+                throw failure
+            }
+        }
     }
 
     private class RecordingExporter(
