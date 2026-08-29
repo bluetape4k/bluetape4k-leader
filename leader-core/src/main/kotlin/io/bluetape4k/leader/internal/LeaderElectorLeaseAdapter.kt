@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAcquirer
 import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderLeaseDefaults
+import io.bluetape4k.leader.LeaderLeaseExtensionObservationScope
 import io.bluetape4k.leader.LeaderLeaseWatchdogAdmission
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderSlot
@@ -43,27 +44,35 @@ class LeaderElectorLeaseAdapter(
         val session = SyncSession(slot, configuredOptions.leaseTime)
         val elected = CompletableFuture<SyncSession?>()
         val admission = LeaderLeaseWatchdogAdmission.current()
+        val observationScope = LeaderLeaseExtensionObservationScope.currentOrNull()
         val owner = Thread.startVirtualThread {
-            LeaderLeaseWatchdogAdmission.withOptionalProvider(admission) {
-                try {
-                    electorProvider().runIfLeader(slot) {
-                        val captured = AopScopeAccess.peekSyncMatching(slot.lockName)
-                        session.install(captured)
-                        if (captured !is LeaderLockHandle.Real || session.cancelled.get()) {
-                            session.cancelled.set(true)
-                            session.requestRelease()
-                        } else {
-                            elected.complete(session)
-                            session.awaitRelease()
+            val runElection = {
+                LeaderLeaseWatchdogAdmission.withOptionalProvider(admission) {
+                    try {
+                        electorProvider().runIfLeader(slot) {
+                            val captured = AopScopeAccess.peekSyncMatching(slot.lockName)
+                            session.install(captured)
+                            if (captured !is LeaderLockHandle.Real || session.cancelled.get()) {
+                                session.cancelled.set(true)
+                                session.requestRelease()
+                            } else {
+                                elected.complete(session)
+                                session.awaitRelease()
+                            }
+                            Unit
                         }
-                        Unit
+                        if (!elected.isDone) elected.complete(null)
+                        session.completed.complete(Unit)
+                    } catch (failure: Throwable) {
+                        if (!elected.isDone) elected.completeExceptionally(failure)
+                        session.completed.completeExceptionally(failure)
                     }
-                    if (!elected.isDone) elected.complete(null)
-                    session.completed.complete(Unit)
-                } catch (failure: Throwable) {
-                    if (!elected.isDone) elected.completeExceptionally(failure)
-                    session.completed.completeExceptionally(failure)
                 }
+            }
+            if (observationScope == null) {
+                runElection()
+            } else {
+                observationScope.withScope(runElection)
             }
         }
 

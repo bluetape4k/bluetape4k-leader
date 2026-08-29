@@ -153,7 +153,8 @@ object LockExtender : KLogging() {
 
     @Suppress("TooGenericExceptionCaught")
     private fun extendDetailedInternal(handle: LeaderLockHandle, lockAtMostFor: Duration): ExtendOutcome {
-        val observing = LeaderLeaseExtensionObservers.hasObservers()
+        val observationScope = LeaderLeaseExtensionObservationScope.currentOrNull()
+        val observing = LeaderLeaseExtensionObservers.hasObservers(observationScope)
         val context = if (observing) extensionContext(handle) else null
 
         if (handle is LeaderLockHandle.FailOpen) {
@@ -161,6 +162,7 @@ object LockExtender : KLogging() {
             val outcome = ExtendOutcome.NotHeld
             publishUserEvent(
                 observing,
+                observationScope,
                 LeaderLeaseExtensionExecution.BLOCKING,
                 outcome,
                 context,
@@ -180,6 +182,7 @@ object LockExtender : KLogging() {
             }
             publishUserEvent(
                 observing,
+                observationScope,
                 LeaderLeaseExtensionExecution.BLOCKING,
                 outcome,
                 context,
@@ -191,6 +194,7 @@ object LockExtender : KLogging() {
         } catch (ex: Exception) {
             publishUserEvent(
                 observing,
+                observationScope,
                 LeaderLeaseExtensionExecution.BLOCKING,
                 ExtendOutcome.BackendError(ex),
                 context,
@@ -205,7 +209,8 @@ object LockExtender : KLogging() {
         handle: LeaderLockHandle,
         lockAtMostFor: Duration,
     ): ExtendOutcome {
-        val observing = LeaderLeaseExtensionObservers.hasObservers()
+        val observationScope = LeaderLeaseExtensionObservationScope.currentOrNull()
+        val observing = LeaderLeaseExtensionObservers.hasObservers(observationScope)
         val context = if (observing) extensionContext(handle) else null
 
         if (handle is LeaderLockHandle.FailOpen) {
@@ -213,6 +218,7 @@ object LockExtender : KLogging() {
             val outcome = ExtendOutcome.NotHeld
             publishUserEvent(
                 observing,
+                observationScope,
                 LeaderLeaseExtensionExecution.SUSPEND,
                 outcome,
                 context,
@@ -232,6 +238,7 @@ object LockExtender : KLogging() {
             }
             publishUserEvent(
                 observing,
+                observationScope,
                 LeaderLeaseExtensionExecution.SUSPEND,
                 outcome,
                 context,
@@ -243,6 +250,7 @@ object LockExtender : KLogging() {
         } catch (ex: Exception) {
             publishUserEvent(
                 observing,
+                observationScope,
                 LeaderLeaseExtensionExecution.SUSPEND,
                 ExtendOutcome.BackendError(ex),
                 context,
@@ -258,7 +266,8 @@ object LockExtender : KLogging() {
     private fun outsideScope(execution: LeaderLeaseExtensionExecution): ExtendOutcome {
         log.warn { "LockExtender called outside an active @LeaderElection scope — returning NotHeld" }
         val outcome = ExtendOutcome.NotHeld
-        if (LeaderLeaseExtensionObservers.hasObservers()) {
+        val observationScope = LeaderLeaseExtensionObservationScope.currentOrNull()
+        if (LeaderLeaseExtensionObservers.hasObservers(observationScope)) {
             LeaderLeaseExtensionObservers.publish(
                 LeaderLeaseExtensionEvent(
                     source = LeaderLeaseExtensionSource.USER,
@@ -267,6 +276,7 @@ object LockExtender : KLogging() {
                     elapsedNanos = 0L,
                     context = null,
                 ),
+                observationScope,
             )
         }
         return outcome
@@ -279,6 +289,7 @@ object LockExtender : KLogging() {
 
     private fun publishUserEvent(
         observing: Boolean,
+        observationScope: LeaderLeaseExtensionObservationScope?,
         execution: LeaderLeaseExtensionExecution,
         outcome: ExtendOutcome,
         context: LeaderLeaseExtensionContext?,
@@ -293,6 +304,7 @@ object LockExtender : KLogging() {
                 elapsedNanos = elapsedNanos,
                 context = context,
             ),
+            observationScope,
         )
     }
 

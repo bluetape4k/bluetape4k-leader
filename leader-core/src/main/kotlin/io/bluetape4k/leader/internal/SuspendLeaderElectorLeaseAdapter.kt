@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.LeaderLeaseWatchdogAdmission
 import io.bluetape4k.leader.LeaderLeaseDefaults
+import io.bluetape4k.leader.LeaderLeaseExtensionObservationScope
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
@@ -56,7 +57,11 @@ class SuspendLeaderElectorLeaseAdapter(
         val published = CompletableDeferred<SuspendSession?>()
         val admission = LeaderLeaseWatchdogAdmission.current()
         val admissionContext = admission?.let(LeaderLeaseWatchdogAdmission::asContextElement)
-        val job = scope.launch(admissionContext ?: EmptyCoroutineContext) {
+        val observationScope = LeaderLeaseExtensionObservationScope.currentOrNull()
+        val observationContext = observationScope?.asContextElement()
+        val propagationContext =
+            (admissionContext ?: EmptyCoroutineContext) + (observationContext ?: EmptyCoroutineContext)
+        val job = scope.launch(propagationContext) {
             try {
                 electorProvider().runIfLeader(slot) {
                     val captured = captureSuspendHandle()
