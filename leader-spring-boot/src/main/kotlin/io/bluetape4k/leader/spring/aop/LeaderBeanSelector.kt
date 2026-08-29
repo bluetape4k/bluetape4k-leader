@@ -6,7 +6,10 @@ import io.bluetape4k.leader.annotation.LeaderElectionBackend
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.spring.aop.util.findMergedAnnotationOrNull
+import io.bluetape4k.leader.spring.metrics.LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME
+import io.bluetape4k.leader.spring.metrics.LeaseExtensionObservationScopeOwner
 import org.springframework.beans.factory.BeanFactory
+import org.springframework.beans.factory.HierarchicalBeanFactory
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException
@@ -21,6 +24,16 @@ import java.lang.reflect.Method
 class LeaderBeanSelector(
     private val beanFactory: BeanFactory,
 ) {
+
+    internal fun observationScopeOwner(): LeaseExtensionObservationScopeOwner? =
+        (beanFactory as? HierarchicalBeanFactory)
+            ?.takeIf { it.containsLocalBean(LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME) }
+            ?.let {
+                beanFactory.getBean(
+                    LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME,
+                    LeaseExtensionObservationScopeOwner::class.java,
+                )
+            }
 
     /**
      * `selectElectionFactory` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.

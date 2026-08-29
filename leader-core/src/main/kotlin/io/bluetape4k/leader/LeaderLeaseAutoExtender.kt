@@ -32,6 +32,7 @@ import io.bluetape4k.support.requirePositiveNumber
 
 private fun publishLeaderLeaseWatchdogEvent(
     observing: Boolean,
+    observationScope: LeaderLeaseExtensionObservationScope?,
     execution: LeaderLeaseExtensionExecution,
     outcome: ExtendOutcome,
     elapsedNanos: Long,
@@ -45,6 +46,7 @@ private fun publishLeaderLeaseWatchdogEvent(
             elapsedNanos = elapsedNanos,
             context = null,
         ),
+        observationScope,
     )
 }
 
@@ -170,6 +172,7 @@ object LeaderLeaseAutoExtender : KLogging() {
         val capturedAsyncExtend = asyncExtendEnabled
         val extendInFlight = AtomicBoolean(false)
         val admission = LeaderLeaseWatchdogAdmission.current()
+        val observationScope = LeaderLeaseExtensionObservationScope.currentOrNull()
 
         val doTick: () -> Unit = doTick@{
             if (closed.get()) {
@@ -183,7 +186,7 @@ object LeaderLeaseAutoExtender : KLogging() {
                 return@doTick
             }
 
-            val observing = LeaderLeaseExtensionObservers.hasObservers()
+            val observing = LeaderLeaseExtensionObservers.hasObservers(observationScope)
             val delegateStartedAtNanos = if (observing) System.nanoTime() else 0L
             var delegateRejected = false
             var delegateElapsedNanos = 0L
@@ -191,6 +194,7 @@ object LeaderLeaseAutoExtender : KLogging() {
             if (admission != null && watchdogReservation == null) {
                 publishLeaderLeaseWatchdogEvent(
                     observing,
+                    observationScope,
                     LeaderLeaseExtensionExecution.BLOCKING,
                     ExtendOutcome.Rejected,
                     0L,
@@ -232,6 +236,7 @@ object LeaderLeaseAutoExtender : KLogging() {
 
             publishLeaderLeaseWatchdogEvent(
                 observing,
+                observationScope,
                 LeaderLeaseExtensionExecution.BLOCKING,
                 outcome,
                 delegateElapsedNanos,
@@ -311,6 +316,7 @@ object LeaderLeaseAutoExtender : KLogging() {
         val extendInFlight = AtomicBoolean(false)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val admission = LeaderLeaseWatchdogAdmission.current()
+        val observationScope = LeaderLeaseExtensionObservationScope.currentOrNull()
 
         fun cancelScopeIfIdle() {
             if (closed.get() && !extendInFlight.get()) {
@@ -330,7 +336,7 @@ object LeaderLeaseAutoExtender : KLogging() {
                 return
             }
 
-            val observing = LeaderLeaseExtensionObservers.hasObservers()
+            val observing = LeaderLeaseExtensionObservers.hasObservers(observationScope)
             val delegateStartedAtNanos = if (observing) System.nanoTime() else 0L
             var delegateRejected = false
             var delegateElapsedNanos = 0L
@@ -338,6 +344,7 @@ object LeaderLeaseAutoExtender : KLogging() {
             if (admission != null && watchdogReservation == null) {
                 publishLeaderLeaseWatchdogEvent(
                     observing,
+                    observationScope,
                     LeaderLeaseExtensionExecution.SUSPEND,
                     ExtendOutcome.Rejected,
                     0L,
@@ -377,6 +384,7 @@ object LeaderLeaseAutoExtender : KLogging() {
 
             publishLeaderLeaseWatchdogEvent(
                 observing,
+                observationScope,
                 LeaderLeaseExtensionExecution.SUSPEND,
                 outcome,
                 delegateElapsedNanos,

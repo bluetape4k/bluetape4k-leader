@@ -207,9 +207,47 @@ closes. If the same registry is requested with different
 `LeaderObservationOptions`, acquisition fails fast rather than duplicating the
 callback or silently weakening redaction.
 
+Issue #741 narrows only the Spring automatic adapter. Each registry identity
+owns an opaque execution scope. Distinct registries receive only events
+attributed to their own local AOP context, while parent and child contexts that
+share one registry share one telemetry domain and callback. The process-global
+`LeaderLeaseExtensionObservers.addObserver` contract remains a wildcard.
+
+| Call boundary | Automatic Spring observer | Explicit global observer |
+|---|---|---|
+| `@LeaderElection` sync/suspend/`Mono`/`Flux`/`Flow` | selected registry only | yes |
+| `@LeaderGroupElection` sync/suspend/`Mono` | selected registry only | yes |
+| Direct elector call outside AOP | no, fail closed | yes |
+| Reactor callback outside the aspect-owned coroutine bridge | no, fail closed | yes |
+
+Caller-owned Kotlin scope registration reaches only the observer registered
+with that scope. It is not associated with a Spring registry, cannot discover
+or replace a Spring-owned scope, and must be closed by its owner. These scoped
+bridges are `@JvmSynthetic`, so Java source continues to use the explicit
+global API. Do not register the same Micrometer observer both manually and
+automatically, because each event would be recorded twice.
+
 The Spring integration does not add `@EnableAspectJAutoProxy`, a new extension
 API, or an exporter. It only owns lifecycle and option wiring around the core
 observer.
+
+For rollout, start registry A and B in one canary process. Require one own
+identity observation and zero cross-registry identities in both directions,
+and record the `droppedCount()` delta. If cross-delivery, option conflict, or
+duplication appears, set
+`bluetape4k.leader.observability.tracing.enabled=false` in that context's
+startup configuration and restart the context or process. This is not a
+runtime refresh switch. After restart, require no local automatic scope,
+automatic count `0`, and explicit global count `1`. Close any explicit global
+registration separately.
+
+A binary rollback restores the older global-broadcast meaning for Spring
+automatic registrations. Keep tracing disabled during rollback if registry
+isolation is required. Graceful shutdown order is: stop new AOP traffic, close
+the context registration, allow the registry/exporter grace period, and then
+stop the exporter. Registration close does not wait for internal callback
+drain; it prevents new scoped admission, while a callback accepted earlier may
+finish if the exporter remains available.
 
 ## Privacy, shutdown, and diagnosis
 
@@ -228,6 +266,12 @@ reduce callback work or registration/fan-out, or use application-side sampling
 or aggregation. The Prometheus dashboard example does not expose this counter.
 The core admission limits are fixed; do not add waiting to the lease operation
 itself.
+
+A scope-excluded direct call is not a drop and does not increment
+`droppedCount()`. Diagnose it with a short-lived explicit global observer: an
+event present globally but absent automatically is intentional scope exclusion;
+absence in both places points to a producer/no-observer path; a rising drop
+delta indicates admission saturation.
 
 The core does not redact `BackendError.cause`. Custom observers must sanitise
 exception messages and stack traces before logging or exporting them.

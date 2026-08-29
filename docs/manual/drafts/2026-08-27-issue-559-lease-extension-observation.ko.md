@@ -198,8 +198,43 @@ Micrometer observer 하나를 공유합니다. 각 application context는 idempo
 서로 다른 `LeaderObservationOptions`를 요청하면 callback을 중복 등록하거나
 redaction을 조용히 약화하지 않고 즉시 실패합니다.
 
+Issue #741은 Spring 자동 adapter의 범위만 좁힙니다. 각 registry identity가 불투명
+실행 scope를 소유합니다. 서로 다른 registry는 자기 local AOP context에 귀속된 event만
+받고, 같은 registry를 공유하는 parent/child context는 하나의 telemetry domain과
+callback을 공유합니다. Process-global `LeaderLeaseExtensionObservers.addObserver`
+계약은 wildcard로 유지됩니다.
+
+| 호출 경계 | Spring 자동 observer | 명시적 global observer |
+|---|---|---|
+| `@LeaderElection` sync/suspend/`Mono`/`Flux`/`Flow` | 선택한 registry만 | 전달 |
+| `@LeaderGroupElection` sync/suspend/`Mono` | 선택한 registry만 | 전달 |
+| AOP 밖의 직접 elector 호출 | fail-closed, 미전달 | 전달 |
+| aspect 소유 coroutine bridge 밖의 Reactor callback | fail-closed, 미전달 | 전달 |
+
+Caller-owned Kotlin scope registration은 그 scope와 함께 등록한 observer에만
+전달됩니다. Spring registry와 연결되지 않고 Spring 소유 scope를 찾거나 바꿀 수
+없으며 caller가 반드시 닫아야 합니다. Scoped bridge는 `@JvmSynthetic`이므로 Java
+source는 기존 명시적 global API를 사용합니다. 같은 Micrometer observer를 manual과
+automatic 양쪽에 등록하면 event마다 두 번 기록되므로 함께 사용하지 마세요.
+
 Spring integration은 `@EnableAspectJAutoProxy`, 새 extension API, exporter를 추가하지
 않습니다. Core observer의 lifecycle과 option wiring만 소유합니다.
+
+Rollout 시 registry A/B를 한 canary process에서 함께 실행합니다. 양방향으로 자기
+identity observation `1건`, 상대 registry identity `0건`을 요구하고
+`droppedCount()` delta를 기록하세요. 교차 전달, option conflict, 중복 observation이
+나타나면 해당 context의 startup 설정에
+`bluetape4k.leader.observability.tracing.enabled=false`를 두고 context/process를
+재시작합니다. Runtime refresh switch가 아닙니다. 재시작 뒤 local automatic scope
+없음, automatic `0건`, explicit global `1건`을 확인하고 명시적 global registration은
+별도로 닫으세요.
+
+Binary rollback은 이전 Spring automatic registration의 global-broadcast 의미를
+복원합니다. Registry 격리가 필요하면 rollback 동안 tracing을 disabled로 유지하세요.
+Graceful shutdown 순서는 새 AOP traffic 중단, context registration close,
+registry/exporter grace period, exporter 종료입니다. Registration close는 내부 callback
+drain을 기다리지 않고 새 scoped admission만 막습니다. 이전에 accepted된 callback은
+exporter가 살아 있으면 끝날 수 있습니다.
 
 ## Privacy·종료·진단
 
@@ -217,6 +252,11 @@ observer는 짧은 late-delivery window를 안전하게 처리해야 합니다.
 registration/fan-out을 줄이고 필요하면 application-side sampling 또는 aggregation을
 사용하세요. Prometheus dashboard example은 이 counter를 노출하지 않습니다. Core
 admission 한도는 고정되어 있으므로 lease operation 자체에 대기 시간을 추가하지 않습니다.
+
+Scope에서 제외된 직접 호출은 drop이 아니며 `droppedCount()`를 증가시키지 않습니다.
+짧게 유지하는 명시적 global observer로 진단하세요. Global에는 있고 automatic에는
+없으면 의도한 scope 제외이고, 양쪽 모두 없으면 producer/no-observer 경로이며, drop
+delta가 증가하면 admission 포화입니다.
 
 Core는 `BackendError.cause` 원본 예외를 redaction하지 않습니다. Custom observer가
 로그나 export 전에 민감한 message와 stack trace를 별도로 sanitise해야 합니다.

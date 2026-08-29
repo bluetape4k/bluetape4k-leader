@@ -38,6 +38,126 @@ import kotlin.time.toJavaDuration
 class LeaderLeaseExtensionBoundaryContractTest {
 
     @Test
+    fun `blocking and suspend user events stay in the installed observation scope`() = runSuspendIO {
+        val previous = leaderLeaseExtensionDispatcher
+        val globalEvents = CopyOnWriteArrayList<LeaderLeaseExtensionEvent>()
+        val aEvents = CopyOnWriteArrayList<LeaderLeaseExtensionEvent>()
+        val bEvents = CopyOnWriteArrayList<LeaderLeaseExtensionEvent>()
+        leaderLeaseExtensionDispatcher = Executor { runnable -> runnable.run() }
+        val global = LeaderLeaseExtensionObservers.addObserver(globalEvents::add)
+        val a = LeaderLeaseExtensionObservers.addScopedObserver(aEvents::add)
+        val b = LeaderLeaseExtensionObservers.addScopedObserver(bEvents::add)
+
+        try {
+            a.withScope {
+                LockStateHolder.withPushed(realHandle(RecordingDelegate { ExtendOutcome.NotHeld })) {
+                    LockExtender.extendActiveLockDetailed(30.seconds)
+                }
+            }
+            withContext(a.asContextElement() + LockHandleElement(realHandle(RecordingSuspendDelegate {
+                ExtendOutcome.NotHeld
+            }))) {
+                LockExtender.extendActiveLockDetailedSuspend(30.seconds)
+            }
+
+            globalEvents.size shouldBeEqualTo 2
+            aEvents.size shouldBeEqualTo 2
+            bEvents.size shouldBeEqualTo 0
+        } finally {
+            global.close()
+            a.close()
+            b.close()
+            leaderLeaseExtensionDispatcher = previous
+        }
+    }
+
+    @Test
+    fun `blocking and suspend watchdog capture the scope installed at start`() {
+        val previous = leaderLeaseExtensionDispatcher
+        val globalEvents = CopyOnWriteArrayList<LeaderLeaseExtensionEvent>()
+        val aEvents = CopyOnWriteArrayList<LeaderLeaseExtensionEvent>()
+        val bEvents = CopyOnWriteArrayList<LeaderLeaseExtensionEvent>()
+        leaderLeaseExtensionDispatcher = Executor { runnable -> runnable.run() }
+        val global = LeaderLeaseExtensionObservers.addObserver(globalEvents::add)
+        val a = LeaderLeaseExtensionObservers.addScopedObserver(aEvents::add)
+        val b = LeaderLeaseExtensionObservers.addScopedObserver(bEvents::add)
+        val blocking = a.withScope {
+            LeaderLeaseAutoExtender.start(
+                enabled = true,
+                leaseTime = 75.milliseconds,
+                delegate = RecordingDelegate { ExtendOutcome.NotHeld },
+            )
+        }
+        val suspend = a.withScope {
+            LeaderLeaseAutoExtender.start(
+                enabled = true,
+                leaseTime = 75.milliseconds,
+                delegate = RecordingSuspendDelegate { ExtendOutcome.NotHeld },
+            )
+        }
+
+        try {
+            await.atMost(5.seconds).untilAsserted {
+                globalEvents.count { it.source == LeaderLeaseExtensionSource.WATCHDOG } shouldBeEqualTo 2
+                aEvents.count { it.source == LeaderLeaseExtensionSource.WATCHDOG } shouldBeEqualTo 2
+            }
+            bEvents.size shouldBeEqualTo 0
+        } finally {
+            blocking.close()
+            suspend.close()
+            global.close()
+            a.close()
+            b.close()
+            leaderLeaseExtensionDispatcher = previous
+        }
+    }
+
+    @Test
+    fun `revoked scope from an in-flight user extension cannot target a replacement scope`() {
+        val previous = leaderLeaseExtensionDispatcher
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val globalEvents = CopyOnWriteArrayList<LeaderLeaseExtensionEvent>()
+        val replacementEvents = CopyOnWriteArrayList<LeaderLeaseExtensionEvent>()
+        val failure = AtomicReference<Throwable>()
+        leaderLeaseExtensionDispatcher = Executor { runnable -> runnable.run() }
+        val global = LeaderLeaseExtensionObservers.addObserver(globalEvents::add)
+        val stale = LeaderLeaseExtensionObservers.addScopedObserver { }
+        val owner = Thread.startVirtualThread {
+            try {
+                stale.withScope {
+                    LockStateHolder.withPushed(realHandle(RecordingDelegate {
+                        entered.countDown()
+                        release.await(5, TimeUnit.SECONDS)
+                        ExtendOutcome.NotHeld
+                    })) {
+                        LockExtender.extendActiveLockDetailed(30.seconds)
+                    }
+                }
+            } catch (ex: Throwable) {
+                failure.set(ex)
+            }
+        }
+
+        entered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        stale.close()
+        val replacement = LeaderLeaseExtensionObservers.addScopedObserver(replacementEvents::add)
+        try {
+            release.countDown()
+            owner.join(5_000)
+            failure.get() shouldBeEqualTo null
+            globalEvents.size shouldBeEqualTo 1
+            replacementEvents.size shouldBeEqualTo 0
+        } finally {
+            release.countDown()
+            global.close()
+            stale.close()
+            replacement.close()
+            leaderLeaseExtensionDispatcher = previous
+        }
+    }
+
+    @Test
     fun `blocking detailed extension publishes one user event after deadline update`() {
         withManualDispatcher { submitted, events ->
             val expireAt = Instant.now().plusSeconds(30)

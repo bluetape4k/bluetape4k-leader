@@ -18,6 +18,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.condition.SearchStrategy
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Conditional
@@ -47,6 +48,24 @@ import kotlin.concurrent.withLock
 )
 @EnableConfigurationProperties(LeaderProperties::class, LeaderAopProperties::class)
 class LeaderObservationAutoConfiguration {
+
+    @Bean(name = [LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME])
+    @ConditionalOnBean(ObservationRegistry::class)
+    @Conditional(ObservationRegistryNotNoopCondition::class)
+    @ConditionalOnMissingBean(
+        value = [LeaseExtensionObservationScopeOwner::class],
+        search = SearchStrategy.CURRENT,
+    )
+    @ConditionalOnProperty(
+        prefix = "bluetape4k.leader.observability.tracing",
+        name = ["enabled"],
+        havingValue = "true",
+        matchIfMissing = true,
+    )
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+    internal fun leaseExtensionObservationScopeOwner(
+        registry: ObservationRegistry,
+    ): LeaseExtensionObservationScopeOwner = LeaseExtensionObservationScopeOwner(registry)
 
     /**
      * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
@@ -125,16 +144,19 @@ internal class ObservationRegistryLeaseExtensionCoordinator(
 ) : SmartInitializingSingleton, DisposableBean {
 
     private val lock = ReentrantLock()
-    private var registration: AutoCloseable? = null
+    private var registration: LeaseExtensionObservationRegistrationManager.ManagedRegistration? = null
+    private var owner: LeaseExtensionObservationScopeOwner? = null
 
     override fun afterSingletonsInstantiated() {
-        beanFactory
-            .getBeanProvider(ObservationRegistry::class.java)
-            .getIfAvailable()
-            ?.let(::register)
+        if (!beanFactory.containsLocalBean(LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME)) return
+        beanFactory.getBean(
+            LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME,
+            LeaseExtensionObservationScopeOwner::class.java,
+        ).let(::register)
     }
 
-    private fun register(registry: ObservationRegistry) {
+    private fun register(owner: LeaseExtensionObservationScopeOwner) {
+        val registry = owner.registry
         if (registry.isNoop) return
 
         lock.withLock {
@@ -142,9 +164,12 @@ internal class ObservationRegistryLeaseExtensionCoordinator(
 
             val handle = LeaseExtensionObservationRegistrationManager.acquire(registry, options)
             try {
+                owner.activate(handle.scope)
                 beanFactory.registerSingleton(LEASE_EXTENSION_REGISTRATION_BEAN_NAME, handle)
                 registration = handle
+                this.owner = owner
             } catch (ex: IllegalStateException) {
+                owner.clear(handle.scope)
                 handle.close()
                 throw ex
             }
@@ -153,8 +178,13 @@ internal class ObservationRegistryLeaseExtensionCoordinator(
 
     override fun destroy() {
         lock.withLock {
-            registration?.close()
+            val handle = registration
+            if (handle != null) {
+                owner?.clear(handle.scope)
+                handle.close()
+            }
             registration = null
+            owner = null
         }
     }
 

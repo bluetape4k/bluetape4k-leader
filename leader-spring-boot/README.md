@@ -443,6 +443,27 @@ Spring manages the registration lifecycle as follows:
 - conflicting `LeaderObservationOptions` for the same registry fail fast rather
   than silently weakening redaction or duplicating callbacks.
 
+Automatic lease-extension delivery is scoped to the registry selected by each local application context. Parent and
+child contexts that share the same registry share one scope and one callback; distinct registries never receive each
+other's events or opted-in identities. The attribution boundary is the aspect-owned execution:
+
+| Aspect | Sync | Suspend | `Mono` | `Flux` | Kotlin `Flow` |
+|---|---:|---:|---:|---:|---:|
+| `@LeaderElection` | yes | yes | yes | yes | yes |
+| `@LeaderGroupElection` | yes | yes | yes | rejected | rejected |
+
+Direct elector calls outside these aspects and direct `LockExtender` calls from Reactor callbacks outside the
+aspect-owned coroutine bridge produce no automatic Spring lease-extension observation. They still reach an explicitly
+registered process-global `LeaderLeaseExtensionObservers.addObserver`. Move code that needs automatic attribution into
+an annotation boundary, or own and close one explicit global observer; do not combine both for the same Micrometer
+adapter.
+
+For a canary, run registry A and B together and require own identity count `1`, cross identity count `0`, and no
+unexpected `droppedCount()` delta. `bluetape4k.leader.observability.tracing.enabled=false` is a startup-only rollback
+switch: restart the context/process, then verify automatic count `0` and explicit global count `1`. Shutdown order is
+stop AOP traffic, close the context registration, allow the registry/exporter grace period, then stop the exporter.
+Registration close does not wait for accepted callbacks to drain; it only prevents new scoped admission.
+
 The core event keeps `USER`/`WATCHDOG` source and `BLOCKING`/`SUSPEND` execution
 parity. Micrometer exports the bounded `source`, `execution`, `outcome`, and
 `result` values described above. Lock name and leader ID are opt-in and pass

@@ -728,6 +728,14 @@ fan-out에는 고정 상한이 없으므로 애플리케이션 등록 수를 작
 `ExtendOutcome.Rejected`와 별도로 observer delivery admission에서 거부된 누적 횟수입니다. `close()`는
 해당 registration만 제거하며 이미 admission된 callback은 계속 실행될 수 있고 callback 순서는 보장하지 않습니다.
 
+`addObserver`는 process 전체 event를 받는 wildcard API로 유지됩니다. Spring 자동 Micrometer adapter는 더 좁은
+경계를 사용합니다. 각 `ObservationRegistry` identity가 불투명 실행 scope를 소유하므로 서로 다른 registry를 쓰는
+두 application context는 자기 AOP 경계의 `USER`/`WATCHDOG` event만 받습니다. 같은 registry를 의도적으로 공유하는
+parent/child context는 하나의 telemetry domain을 공유합니다. `@LeaderElection`/`@LeaderGroupElection` 밖의 직접
+elector 호출과 aspect가 소유한 coroutine bridge 밖의 Reactor callback은 Spring 자동 telemetry에서 fail-closed로
+제외되지만 명시적인 global observer에는 계속 전달됩니다. 같은 Micrometer observer를 global과 automatic 양쪽에
+등록하면 observation이 중복되므로 한 방식만 사용하세요.
+
 위 snippet은 하나의 명시적 `USER` 시도 뒤에 registration을 닫습니다. `WATCHDOG` tick을 관찰하려면
 `autoExtend = true`인 단일 리더 action 또는 component 전체 수명 동안 registration을 유지하고 종료 시 닫으세요.
 Group election은 active slot body 안의 명시적 `LockExtender` 호출은 지원하지만 group auto-extension이 꺼져

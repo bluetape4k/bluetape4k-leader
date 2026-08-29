@@ -20,6 +20,7 @@ import io.bluetape4k.leader.spring.aop.internal.AdviceBranch
 import io.bluetape4k.leader.spring.aop.internal.AdviceMetadata
 import io.bluetape4k.leader.spring.aop.internal.BodyThrownMarker
 import io.bluetape4k.leader.spring.aop.internal.InvalidLockNameException
+import io.bluetape4k.leader.spring.metrics.LeaseExtensionObservationScopeOwner
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.AnnotationLookup
@@ -37,6 +38,7 @@ import kotlinx.coroutines.reactive.asFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
@@ -50,6 +52,8 @@ import java.lang.reflect.Method
 import kotlinx.coroutines.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.Continuation
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.time.Duration.Companion.nanoseconds
@@ -90,6 +94,8 @@ class LeaderElectionAspect(
     private val suspendElectorCache = ConcurrentHashMap<FactoryCacheKey, SuspendLeaderElector>()
     private val hasRecorders = recorders.isNotEmpty()
 
+    internal var observationScopeOwner: LeaseExtensionObservationScopeOwner? = null
+
     @Around(
         "execution(* *(..)) && (" +
             "@annotation(io.bluetape4k.leader.annotation.LeaderElection) || " +
@@ -98,6 +104,12 @@ class LeaderElectionAspect(
     )
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount", "ThrowsCount")
     fun aroundLeader(pjp: ProceedingJoinPoint): Any? {
+        val scope = observationScopeOwner?.current() ?: return aroundLeaderInternal(pjp)
+        return scope.withScope { aroundLeaderInternal(pjp) }
+    }
+
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount", "ThrowsCount")
+    private fun aroundLeaderInternal(pjp: ProceedingJoinPoint): Any? {
         val method = (pjp.signature as MethodSignature).method
         val target = pjp.target
         val args = pjp.args
@@ -415,7 +427,13 @@ class LeaderElectionAspect(
                 }
             }
         }
-        return suspendBlock.startCoroutineUninterceptedOrReturn(continuation)
+        val scope = observationScopeOwner?.current()
+        val scopedSuspendBlock: suspend () -> Any? = if (scope == null) {
+            suspendBlock
+        } else {
+            { withContext(scope.asContextElement()) { suspendBlock() } }
+        }
+        return scopedSuspendBlock.startCoroutineUninterceptedOrReturn(continuation)
     }
 
     /**
@@ -431,7 +449,7 @@ class LeaderElectionAspect(
                 return@defer Flux.error(streamConfigurationException(method, meta, "Flux"))
             }
 
-            flux<Any> {
+            flux<Any>(context = observationCoroutineContext()) {
                 val start = System.nanoTime()
                 var lockName: String? = null
                 var resolvedIdentity: LockIdentity? = null
@@ -705,7 +723,7 @@ class LeaderElectionAspect(
                     }
                 }
             }
-        }.buffer(Channel.RENDEZVOUS)
+        }.flowOn(observationCoroutineContext()).buffer(Channel.RENDEZVOUS)
 
     /**
      * `aroundLeaderMono` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
@@ -717,7 +735,7 @@ class LeaderElectionAspect(
 
         return Mono.defer {
             val start = System.nanoTime()
-            mono {
+            mono(context = observationCoroutineContext()) {
                 var lockName: String? = null
                 var resolvedIdentity: LockIdentity? = null
 
@@ -837,6 +855,9 @@ class LeaderElectionAspect(
             }
         }
     }
+
+    private fun observationCoroutineContext(): CoroutineContext =
+        observationScopeOwner?.current()?.asContextElement() ?: EmptyCoroutineContext
 
     private fun executeBody(pjp: ProceedingJoinPoint, lockName: String, start: Long): Any? {
         return try {

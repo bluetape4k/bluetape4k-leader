@@ -3,6 +3,9 @@ package io.bluetape4k.leader.benchmark
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectorFactory
+import io.bluetape4k.leader.LeaderLeaseExtensionObservationScope
+import io.bluetape4k.leader.LeaderLeaseExtensionObservers
+import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.leader.annotation.LeaderElection
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
@@ -16,6 +19,11 @@ import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.single
+import kotlinx.coroutines.reactor.flux
+import kotlinx.coroutines.reactor.mono
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.Signature
 import org.aspectj.lang.reflect.MethodSignature
@@ -25,12 +33,14 @@ import org.openjdk.jmh.annotations.Param
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 import org.springframework.beans.factory.support.StaticListableBeanFactory
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.milliseconds
@@ -301,5 +311,133 @@ class SpringLeaderAdviceBenchmark {
                     handler(method, args)
                 }
             )
+    }
+}
+
+/** Issue #741의 no-observer fast path와 scoped dispatch 비용을 같은 process-local API에서 비교합니다. */
+@State(Scope.Benchmark)
+class LeaseExtensionObservationScopeBenchmark {
+
+    @Param("no-observer", "global", "scoped-match", "scoped-mismatch")
+    lateinit var observationMode: String
+
+    private lateinit var userElector: LeaderElector
+    private lateinit var suspendUserElector: SuspendLeaderElector
+    private lateinit var watchdogElector: LeaderElector
+    private var globalRegistration: AutoCloseable? = null
+    private var scope: LeaderLeaseExtensionObservationScope? = null
+
+    @Setup
+    fun setup() {
+        when (observationMode) {
+            "no-observer" -> Unit
+            "global" -> globalRegistration = LeaderLeaseExtensionObservers.addObserver { }
+            "scoped-match", "scoped-mismatch" -> {
+                scope = LeaderLeaseExtensionObservers.addScopedObserver { }
+            }
+            else -> error("Unsupported observation mode: $observationMode")
+        }
+        val userOptions = LeaderElectionOptions(waitTime = 0.milliseconds, leaseTime = 30.seconds)
+        userElector = LocalLeaderElector(userOptions)
+        suspendUserElector = LocalSuspendLeaderElector(userOptions)
+        watchdogElector = LocalLeaderElector(
+            userOptions.copy(
+                leaseTime = 90.milliseconds,
+                autoExtend = true,
+            )
+        )
+    }
+
+    @TearDown
+    fun tearDown() {
+        globalRegistration?.close()
+        scope?.close()
+    }
+
+    @Benchmark
+    fun userBlocking(blackhole: Blackhole) {
+        blackhole.consume(
+            withObservationScope {
+                userElector.runIfLeader("issue741-user") {
+                    LockExtender.extendActiveLockDetailed(1.seconds)
+                }
+            },
+        )
+    }
+
+    @Benchmark
+    fun userSuspend(blackhole: Blackhole) = runBlocking(observationContext()) {
+        blackhole.consume(
+            suspendUserElector.runIfLeader("issue741-user-suspend") {
+                LockExtender.extendActiveLockDetailedSuspend(1.seconds)
+            },
+        )
+    }
+
+    @Benchmark
+    fun userMono(blackhole: Blackhole) {
+        blackhole.consume(
+            mono(context = observationContext()) {
+                suspendUserElector.runIfLeader("issue741-user-mono") {
+                    LockExtender.extendActiveLockDetailedSuspend(1.seconds)
+                }
+            }.block(),
+        )
+    }
+
+    @Benchmark
+    fun userFlux(blackhole: Blackhole) {
+        blackhole.consume(
+            flux(context = observationContext()) {
+                send(
+                    suspendUserElector.runIfLeader("issue741-user-flux") {
+                        LockExtender.extendActiveLockDetailedSuspend(1.seconds)
+                    },
+                )
+            }.blockLast(),
+        )
+    }
+
+    @Benchmark
+    fun userFlow(blackhole: Blackhole) = runBlocking {
+        blackhole.consume(
+            flow {
+                emit(
+                    suspendUserElector.runIfLeader("issue741-user-flow") {
+                        LockExtender.extendActiveLockDetailedSuspend(1.seconds)
+                    },
+                )
+            }.flowOn(observationContext()).single(),
+        )
+    }
+
+    @Benchmark
+    fun watchdogBlocking(blackhole: Blackhole) {
+        blackhole.consume(
+            withObservationScope {
+                watchdogElector.runIfLeader("issue741-watchdog") {
+                    Thread.sleep(WATCHDOG_ACTION_MILLIS)
+                    1
+                }
+            },
+        )
+    }
+
+    private fun observationContext(): CoroutineContext =
+        if (observationMode == "scoped-match") {
+            scope!!.asContextElement()
+        } else {
+            EmptyCoroutineContext
+        }
+
+    private fun <T> withObservationScope(block: () -> T): T =
+        if (observationMode == "scoped-match") {
+            scope!!.withScope(block)
+        } else {
+            block()
+        }
+
+    private companion object {
+        private const val WATCHDOG_ACTION_MILLIS = 40L
     }
 }
