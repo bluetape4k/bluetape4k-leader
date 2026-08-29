@@ -7,7 +7,9 @@
 [![JVM](https://img.shields.io/badge/JVM-25-ED8B00?logo=openjdk)](https://openjdk.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-현재 안정 버전: `0.4.0`
+현재 안정 버전: `0.5.0`
+
+현재 개발 버전: `1.0.0-SNAPSHOT`
 
 ![bluetape4k 리더 선출 작업대 일러스트](./docs/assets/leader-election-workbench.png)
 
@@ -39,7 +41,7 @@ Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 
 ## 매뉴얼
 
-[Leader 0.4 매뉴얼](docs/manual/ko/index.md)은 안정판 동작을 설명하는 기준 문서입니다. 선출 모델과 백엔드 선택, 실행 결과와 취소 규칙, Spring Boot·Ktor 연동, 운영 방법, 17개 실행 예제를 따라가는 학습 경로를 함께 다룹니다. README는 빠른 안내만 맡고, 상세한 사용법은 `docs/manual/`에서 관리합니다.
+[Leader 0.5.0 매뉴얼](docs/manual/ko/index.md)은 안정판 동작을 설명하는 기준 문서입니다. 선출 모델과 백엔드 선택, 실행 결과와 취소 규칙, Spring Boot·Ktor 연동, 운영 방법, 17개 실행 예제를 따라가는 학습 경로를 함께 다룹니다. README는 빠른 안내만 맡고, 상세한 사용법은 `docs/manual/`에서 관리합니다.
 
 ## 벤치마크
 
@@ -232,7 +234,7 @@ import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElector
 val options = ExposedJdbcLeaderGroupElectionOptions(
     leaderGroupOptions = LeaderGroupElectionOptions(
         maxLeaders = 3,
-        useDbTime = true, // 0.6.0+ develop: 그룹 소유권 판정에 DB server time 사용
+        useDbTime = true, // 1.0.0+ develop: 그룹 소유권 판정에 DB server time 사용
     ),
 )
 val groupElection = ExposedJdbcLeaderGroupElector(db, options)
@@ -248,10 +250,10 @@ val result = groupElection.runIfLeader("parallel-batch") {
 DB time을 사용할 수 없으면 그룹 상태를 보수적으로 보고하고
 `runIfLeader`는 소유권을 주장하지 않고 건너뜁니다.
 
-이 옵션은 `0.6.0+` develop 라인에서 제공됩니다. 버전 매뉴얼은 `0.5.0`
+이 옵션은 `1.0.0+` 개발선에서 제공됩니다. 버전 매뉴얼은 `0.5.0`
 release provenance에 계속 고정되어 있습니다.
 
-### Exposed R2DBC 그룹 (coroutine-native, 0.6.0+ develop)
+### Exposed R2DBC 그룹 (coroutine-native, 1.0.0+ develop)
 
 ```kotlin
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -618,7 +620,7 @@ Stream 반환 규칙:
 - lease window 안에 끝나는 것이 확실한 stream에만 `streamBounded = true`를 사용하세요.
 - 안전하지 않은 `Flux` / `Flow` 시그니처는 validator와 subscription/collection 시점에 빠르게 실패합니다.
 - `@LeaderGroupElection`은 `T?`, `suspend T?`, `Mono<T>`를 지원합니다.
-- `@LeaderGroupElection` `Flux<T>` / `Flow<T>` stream은 0.4.0 범위 밖입니다. slot별 group lease extension 의미가 정의되지 않았으므로 startup validation과 subscription/collection 시점에 다시 거부됩니다.
+- `@LeaderGroupElection` `Flux<T>` / `Flow<T>` stream은 `1.0.0+` 개발선에서도 지원하지 않습니다. slot별 group lease extension 의미가 정의되지 않았으므로 startup validation과 subscription/collection 시점에 다시 거부됩니다.
 
 ### `failureMode`
 
@@ -691,8 +693,8 @@ contract를 새로 만들지 말고 이 core event stream을 adapter로 사용�
 
 ### Lease-extension 관찰
 
-> **미배포 API:** 이 절은 현재 `develop` 구현을 설명합니다. 이 README의 의존성 예제는 배포된 `0.4.0`을 대상으로
-> 하며, 고정한 `0.5.0` 매뉴얼에는 이 hook이 없습니다. 초안의 promotion gate가 끝날 때까지는 일치하는
+> **미배포 API:** 이 절은 현재 `develop` 구현을 설명합니다. 이 README의 의존성 예제는 배포된 `0.5.0`을 대상으로
+> 하며, 같은 release에 고정한 매뉴얼에는 이 hook이 없습니다. 초안의 promotion gate가 끝날 때까지는 일치하는
 > `develop` 브랜치 또는 일치하는 미배포 빌드에서만 이 연동을 사용하세요.
 
 `LockExtender`와 `LeaderLeaseAutoExtender`는 같은 framework-neutral terminal event 계약을 발생시킵니다. lease
