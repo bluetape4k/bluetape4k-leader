@@ -165,7 +165,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-java@v5.7.0
+      - uses: actions/setup-java@v6.0.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
