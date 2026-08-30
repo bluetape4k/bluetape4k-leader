@@ -98,7 +98,7 @@ bluetape4k:
 observation name만 받는데 core lease-extension observation의 이름은
 `bluetape4k.leader.lease.extension`이기 때문입니다. Handler를 소유한 애플리케이션은 bounded tag와 privacy
 옵션을 검토한 뒤 정확한 이름을 opt-in할 수 있습니다. 자세한 내용은
-[미배포 lease-extension 관찰 초안](../../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)을 참고하세요.
+[미배포 lease-extension 관찰 초안](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)을 참고하세요.
 
 ## Prometheus/Grafana 실행
 
@@ -174,7 +174,7 @@ JDBC, R2DBC, MongoDB, custom history sink를 recorder로 감싼 뒤 이 alert를
 handler는 `leader.`로 시작하는 이름만 받고 애플리케이션도 lease-extension meter를
 등록하지 않습니다. 따라서 lease risk rule은 완료된 실행 시간으로 보는 보수적인
 증상 rule일 뿐입니다. Demo에서 이 신호를 노출하려면
-[미배포 lease-extension 관찰 초안](../../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)을
+[미배포 lease-extension 관찰 초안](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)을
 검토한 뒤 Micrometer observer를 명시적으로 설정하거나 애플리케이션 소유 handler를
 수정하세요.
 

@@ -545,7 +545,7 @@ Fail-open `NotHeld` event에는 `context`의 lock name이 남고 `auditLeaderId 
 action 또는 component 전체 수명 동안 handle을 유지하고 종료 시 닫으세요. Group election slot은 active body
 안의 명시적 `LockExtender` 호출은 지원하지만 group auto-extension이 꺼져 있으므로 `WATCHDOG` event를 만들지
 않습니다. Scope 밖이나 named mismatch event의 `context`는 `null`입니다. Adapter와 lifecycle 지침은
-[미배포 lease-extension 관찰 초안](../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)을 참고하세요.
+[미배포 lease-extension 관찰 초안](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)을 참고하세요.
 
 ### ⚠️ Reactor non-suspend operator 미지원 (R5)
 

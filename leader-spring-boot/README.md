@@ -473,7 +473,7 @@ without tag sanitisation; keep the default `false` unless downstream observation
 or tracing systems are approved for raw exception messages and stack traces. The observer is
 diagnostic only: it does not alter ownership, deadline updates, cancellation, or
 watchdog retry/stop behavior. See the [unreleased lease-extension observation
-draft](../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
+draft](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
 for the complete contract.
 
 ## Backend Factories

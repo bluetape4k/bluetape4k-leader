@@ -193,7 +193,7 @@ for the full single-leader action or component lifetime with `autoExtend = true`
 when `WATCHDOG` ticks are needed; group election slots accept explicit
 `LockExtender` calls but disable group auto-extension and therefore do not emit
 `WATCHDOG` events.
-See the [unreleased lease-extension observation draft](../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
+See the [unreleased lease-extension observation draft](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
 for the full core contract and Spring lifecycle notes.
 
 ## Direct Elector Metrics

@@ -192,7 +192,7 @@ registry identity마다 registration 하나를 공유합니다.
 Group election slot은 active body 안의 명시적 `LockExtender` 호출은 지원하지만 group auto-extension이 꺼져
 있으므로 `WATCHDOG` event를 만들지 않습니다.
 전체 core 계약과 Spring lifecycle은
-[미배포 lease-extension 관찰 초안](../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)에서
+[미배포 lease-extension 관찰 초안](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)에서
 확인할 수 있습니다.
 
 ## 직접 Elector 메트릭

@@ -124,7 +124,6 @@ jobs:
             manual-contract:
               - '**.md'
               - 'docs/**'
-              - 'scripts/manual/**'
               - 'scripts/ci/**'
               - 'README*'
               - 'WIP.md'
@@ -324,6 +323,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - name: Checkout central manual site
+        uses: actions/checkout@v7
+        with:
+          repository: bluetape4k/bluetape4k.github.io
+          ref: develop
+          path: .manual-site
+          fetch-depth: 1
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
@@ -340,6 +346,9 @@ jobs:
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
           MANUAL_CONTRACT_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
           MANUAL_CONTRACT_HEAD_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+          MANUAL_CODE_ROOT: ${{ github.workspace }}
+          MANUAL_SITE_ROOT: ${{ github.workspace }}/.manual-site
+          MANUAL_ROOT: ${{ github.workspace }}/.manual-site/docs/manual/bluetape4k-leader
         run: python3 scripts/ci/validate_manual_contract.py
 
   # ── 3. 전체 빌드 (테스트 제외) ───────────────────────────────────────────

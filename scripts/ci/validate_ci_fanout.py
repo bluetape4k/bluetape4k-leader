@@ -164,7 +164,7 @@ def static_errors(workflow: str) -> list[str]:
             )
 
     manual_filter_paths = section_paths(workflow, MANUAL_CONTRACT_OUTPUT)
-    required_manual_paths = {"**.md", "docs/**", "scripts/manual/**"}
+    required_manual_paths = {"**.md", "docs/**", "scripts/ci/**"}
     missing_manual_paths = required_manual_paths - manual_filter_paths
     if missing_manual_paths:
         errors.append(

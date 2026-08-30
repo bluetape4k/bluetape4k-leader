@@ -449,7 +449,7 @@ sanitisation 없이 원본 backend throwable을 `Observation.error(...)`에 연�
 기본값 `false`를 유지하고 downstream observation 또는 tracing 시스템이 raw exception
 message와 stack trace를 받아도 되는 경우에만 켜세요. Observer는 진단용이므로 ownership,
 deadline 갱신, cancellation, watchdog retry/stop 동작을 바꾸지 않습니다. 전체 계약은
-[미배포 lease-extension 관찰 초안](../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)에서 확인할 수 있습니다.
+[미배포 lease-extension 관찰 초안](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)에서 확인할 수 있습니다.
 
 ## Backend Factory
 
