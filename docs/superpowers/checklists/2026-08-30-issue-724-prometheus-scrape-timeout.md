@@ -79,11 +79,11 @@
   - **Failure:** unexplained N/A를 허용하지 않는다.
 - [ ] **C-07 — Complete authorized PR delivery through live CI and review**
   - **Action:** exact head PR, Korean body, metadata, review, CI를 수렴한다.
-  - **Evidence:** N/A — 이번 요청은 로컬 cleanup과 이슈 구현까지이며 PR 생성 권한/요청이 별도로 주어지지 않았다.
+  - **Evidence:** 현재 요청의 다음 단계 진행 권한으로 `bluetape4k/bluetape4k-leader`의 `develop` 대상 `fix/issue-724-prometheus-scrape-timeout` PR delivery를 시작했다. exact head publish는 완료했고 live PR/CI/review 수렴은 진행 중이다.
   - **Failure:** stale/missing evidence를 repair한다.
-- [x] **C-08 — Report merge readiness or no-delivery completion**
+- [ ] **C-08 — Report merge readiness or no-delivery completion**
   - **Action:** C/Common/Kotlin rows와 count를 reconcile하고 merge-ready에서 멈춘다.
-  - **Evidence:** PR 없는 no-delivery completion으로 정리하며, merge rows는 PENDING으로 별도 집계한다.
+  - **Evidence:** PR delivery가 시작되어 no-delivery 경로는 종료되었다. live CI/review 후 exact-head merge-ready report를 작성한다.
   - **Failure:** merge-ready/DONE을 과장하지 않는다.
 - [ ] **C-09 — Close out only after fresh merge approval**
   - **Action:** fresh exact-head approval 후 merge/sync/cleanup한다.
@@ -132,17 +132,17 @@
   - **Action:** final diff/review, P0/P1, checks, commit SHA를 수렴한다.
   - **Evidence:** final scoped diff review에서 P0/P1=0; flow completion checksum `722875991558b51e235ad3a93e115087f8d3d8dd0be6a1aad59d4bf425e015f2`와 fresh test/static 증거를 수렴했다.
   - **Failure:** PR 생성을 block한다.
-- [ ] **CG-11 — Verify PR delivery authority**
+- [x] **CG-11 — Verify PR delivery authority**
   - **Action:** current request/approved plan에서 repo/base/head/PR authority를 확인한다.
-  - **Evidence:** PENDING/N/A — PR 생성을 요청받지 않아 external delivery authority를 행사하지 않았다.
+  - **Evidence:** 현재 사용자 요청 `다음단계 진행해`와 승인된 #724 작업 plan을 근거로 `bluetape4k/bluetape4k-leader`, base `develop`, head `fix/issue-724-prometheus-scrape-timeout`의 PR delivery authority를 확인했다.
   - **Failure:** authority 전 PR을 만들지 않는다.
-- [ ] **CG-12 — Publish the exact head branch**
+- [x] **CG-12 — Publish the exact head branch**
   - **Action:** converged head를 force 없이 push하고 remote SHA를 읽는다.
-  - **Evidence:** PENDING/N/A — push하지 않았다.
+  - **Evidence:** force 없는 `git push --set-upstream` 성공; local/remote head `aed74cd79628dcfe1f5d3503b8281c6363585274` 일치.
   - **Failure:** mismatch를 repair한다.
-- [ ] **CG-12A — Refresh guidance before PR creation**
+- [x] **CG-12A — Refresh guidance before PR creation**
   - **Action:** PR 직전 AGENTS/leaf/common/template/issue metadata를 다시 읽는다.
-  - **Evidence:** PENDING/N/A — PR 생성 단계에 진입하지 않았다.
+  - **Evidence:** `/Users/debop/.codex/AGENTS.md`, workspace/repo `AGENTS.md`, `bluetape-bugfix`, `bluetape-writer`, common gates, PR template를 PR 직전에 재독하고 SHA를 기록했다. Issue #724 live metadata는 `OPEN`, assignee `debop`, labels `bug/ci/test/example`, milestone `1.0.0`으로 drift가 없었다.
   - **Failure:** PR create/update를 중지한다.
 - [ ] **CG-13 — Create and verify the PR**
   - **Action:** Korean issue-linked PR을 생성·assign·label·milestone·DoD로 검증한다.
@@ -277,9 +277,9 @@
 
 ## Final reconciliation
 
-- 적용 완료: `CL-01~08` 8/8, `C-01~06` 6/6, `C-08` 1/1, `CG-01~10` 10/10, `KT-01~05` 5/5, `KT-TEST-01~05` 5/5, `KT-SPR-01~05` 5/5, `KT-FIN-01~11` 11/11.
-- N/A: `C-07` (이번 요청에 PR 생성 권한 없음), `C-09` (merge approval 전), `KT-FIN-05` (Exposed 미변경), public API/README/diagram rows (범위 밖).
-- PENDING: `CG-11`, `CG-12`, `CG-12A`, `CG-13`, `CG-14`, `CG-15`, `CG-16`, `CG-17`, `CG-18` (PR/CI/review/merge 단계 미실행).
+- 적용 완료: `CL-01~08` 8/8, `C-01~06` 6/6, `CG-01~10` 10/10, `KT-01~05` 5/5, `KT-TEST-01~05` 5/5, `KT-SPR-01~05` 5/5, `KT-FIN-01~11` 11/11.
+- N/A: `KT-FIN-05` (Exposed 미변경), public API/README/diagram rows (범위 밖).
+- PENDING: `C-07`, `C-08`, `C-09`, `CG-13`, `CG-14`, `CG-15`, `CG-16`, `CG-17`, `CG-18` (PR 생성 후 CI/review/merge 단계 진행 중).
 - Verification: flow run `20260829T174146Z-6eef951d`, terminal checksum `722875991558b51e235ad3a93e115087f8d3d8dd0be6a1aad59d4bf425e015f2`, `completion-check complete=true`.
-- Final state: `DONE` for authorized local implementation/verification; `PENDING` for PR/merge delivery gates.
+- Final state: local implementation/verification은 `DONE`; PR/CI/review/merge delivery gates는 `PENDING`.
   - **Failure:** split/repair한다.
