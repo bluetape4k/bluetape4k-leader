@@ -43,6 +43,15 @@ Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 
 [Leader 0.5.0 매뉴얼](docs/manual/ko/index.md)은 안정판 동작을 설명하는 기준 문서입니다. 선출 모델과 백엔드 선택, 실행 결과와 취소 규칙, Spring Boot·Ktor 연동, 운영 방법, 17개 실행 예제를 따라가는 학습 경로를 함께 다룹니다. README는 빠른 안내만 맡고, 상세한 사용법은 `docs/manual/`에서 관리합니다.
 
+## 개발 상태
+
+`0.5.0`이 최신 안정 릴리스이며 `develop`은 아직 배포하지 않은
+`1.0.0-SNAPSHOT` 개발선을 추적합니다. [`WIP.md`](./WIP.md)에서 기준일의
+프로젝트 상태와 milestone·release 경계를 확인하고, [`CHANGELOG.md`](./CHANGELOG.md)에서
+미배포 변경을 확인하세요. 버전 매뉴얼은 `0.5.0` release commit에 계속
+고정되어 있으므로, 개발선 전용 diagnostics·observability 안내는 해당
+release train이 승격될 때까지 `docs/manual/drafts/`에서 관리합니다.
+
 ## 벤치마크
 
 non-published [`benchmark`](./benchmark) 모듈은 leader election backend를
@@ -165,7 +174,7 @@ page로 승격하지 마세요.
 | [`examples/cache-warmer`](./examples/cache-warmer) | Hazelcast | 파티션별 독립 leader-election — 파티션당 정확히 1 인스턴스 워밍 |
 | [`examples/tenant-aggregator`](./examples/tenant-aggregator) | Exposed R2DBC | 코루틴 네이티브 멀티 테넌트 집계 — 테넌트별 독립 리더 |
 | [`examples/ktor-app`](./examples/ktor-app) | Ktor 3.x + Lettuce Redis | `LeaderElectionPlugin` + `Application.leaderScheduled()` 사용 Ktor 앱 |
-| [`examples/prometheus-dashboard`](./examples/prometheus-dashboard) | Spring Boot + Lettuce Redis | leader AOP 메트릭 Prometheus/Grafana dashboard |
+| [`examples/prometheus-dashboard`](./examples/prometheus-dashboard) | Spring Boot + Lettuce Redis | leader AOP 메트릭·backend connectivity·scrape readiness를 확인하는 Prometheus/Grafana dashboard |
 | [`examples/etcd-reconciler`](./examples/etcd-reconciler) | etcd v3 | 한 control-plane 노드만 desired state를 적용하는 reconciler |
 | [`examples/consul-maintenance`](./examples/consul-maintenance) | Consul | 한 service instance만 maintenance/drain 작업을 수행하는 workflow |
 | [`examples/dynamodb-export`](./examples/dynamodb-export) | DynamoDB Local / AWS DynamoDB | scheduled export 또는 billing job에서 리더만 export record를 기록 |

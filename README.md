@@ -44,6 +44,15 @@ Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 
 The [Leader 0.5.0 manual](docs/manual/en/index.md) is the source of truth for release behavior. It covers model and backend selection, result and cancellation semantics, Spring Boot and Ktor integration, operations, and a progressive path through all 17 runnable examples. README files remain concise entry points; detailed guidance belongs in `docs/manual/`.
 
+## Development status
+
+`0.5.0` is the latest stable release, while `develop` tracks the unreleased
+`1.0.0-SNAPSHOT` development line. [`WIP.md`](./WIP.md) records the dated
+project snapshot, milestone, and release boundary; [`CHANGELOG.md`](./CHANGELOG.md) lists the
+unreleased changes. The versioned manual remains pinned to the `0.5.0` release
+commit, so development-only diagnostics and observability guidance stays in
+`docs/manual/drafts/` until the corresponding release train is promoted.
+
 ## Benchmarks
 
 The non-published [`benchmark`](./benchmark) module publishes comparable
@@ -165,7 +174,7 @@ Runnable example modules under `examples/` demonstrate production scenarios acro
 | [`examples/cache-warmer`](./examples/cache-warmer) | Hazelcast | Per-partition leader election — exactly one instance warms each partition |
 | [`examples/tenant-aggregator`](./examples/tenant-aggregator) | Exposed R2DBC | Coroutine-native multi-tenant aggregation — independent leader per tenant |
 | [`examples/ktor-app`](./examples/ktor-app) | Ktor 3.x + Lettuce Redis | Ktor application using `LeaderElectionPlugin` and `Application.leaderScheduled()` |
-| [`examples/prometheus-dashboard`](./examples/prometheus-dashboard) | Spring Boot + Lettuce Redis | Prometheus and Grafana dashboard for leader AOP metrics |
+| [`examples/prometheus-dashboard`](./examples/prometheus-dashboard) | Spring Boot + Lettuce Redis | Prometheus/Grafana dashboard for leader AOP metrics, backend connectivity, and scrape readiness |
 | [`examples/etcd-reconciler`](./examples/etcd-reconciler) | etcd v3 | Control-plane reconciler where one node applies desired state |
 | [`examples/consul-maintenance`](./examples/consul-maintenance) | Consul | Service maintenance/drain workflow where one instance performs the action |
 | [`examples/dynamodb-export`](./examples/dynamodb-export) | DynamoDB Local / AWS DynamoDB | Scheduled export or billing job where only the leader writes export records |
