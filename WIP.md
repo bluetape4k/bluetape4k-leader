@@ -1,8 +1,9 @@
 # WIP - bluetape4k-leader
 
-기준일: 2026-08-30 KST. `develop`의 현재 head는
-`957b1fd165e541117bd67bcb8bca04a32f6902e9`이며, Prometheus scrape readiness
-테스트의 간헐 timeout과 실행 순서 의존성을 다룬 [PR #840](https://github.com/bluetape4k/bluetape4k-leader/pull/840)이
+기준일: 2026-08-30 KST. 이 문서는 [PR #841](https://github.com/bluetape4k/bluetape4k-leader/pull/841)의
+merge commit `e46216f5e2a4bcd8103310d1493245f9f3e2e7c7` 직후 확인한
+`develop` 상태를 기록하며, Prometheus scrape readiness 테스트의 간헐 timeout과
+실행 순서 의존성을 다룬 [PR #840](https://github.com/bluetape4k/bluetape4k-leader/pull/840)이
 병합되었습니다. `0.5.0`은 tag, GitHub Release, Maven Central publication이
 완료된 안정 릴리스이고, `1.0.0-SNAPSHOT`은 아직 배포하지 않은 개발선입니다.
 이 문서는 기준일의 GitHub 상태와 release-pinned manual의 범위를 분리해 기록합니다.
