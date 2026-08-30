@@ -208,8 +208,15 @@ still run the Code Review pass before merging.
 
 ## Manual Ownership
 
-- `docs/manual/` is the source of truth for user-facing release documentation. README files are concise entry points and must link into the manual instead of duplicating it.
-- Versioned manuals are written against the pinned `releaseRef` and `releaseCommit` in `docs/manual/manifest.yaml`. Authoring may happen on `develop`, but API claims and repository links must remain valid at that release commit.
+- The central site owns user-facing release documentation under
+  `bluetape4k.github.io/docs/manual/bluetape4k-leader`; this repository must not
+  recreate a second `docs/manual/` tree. README files are concise entry points
+  and must link into the central manual instead of duplicating it.
+- Versioned manuals are written against the pinned `releaseRef` and
+  `releaseCommit` in the central site's
+  `docs/manual/bluetape4k-leader/manifest.yaml`. Authoring may happen on
+  `develop`, but API claims and repository links must remain valid at that
+  release commit.
 - Applications select only `io.github.bluetape4k:bluetape4k-dependencies`; do not teach users to coordinate a separate Leader BOM or per-module version.
 - Keep English and Korean paths aligned. Korean prose should read as native technical writing, not as a literal translation.
 - Treat every `examples/*` project as a workshop: document prerequisites, execution, observable results, diagnosis, and the next learning step.
@@ -219,9 +226,12 @@ Manual validation sequence:
 
 ```bash
 ./gradlew exportManualModuleInventory
-ruby scripts/manual/release_inventory.rb 0.4.0 17ab7f872c1f96318c73d3580729cac20a67e017 build/manual/module-inventory.json build/manual/release-module-inventory.json 35
-ruby scripts/manual/validate_manuals.rb build/manual/release-module-inventory.json
-ruby scripts/manual/validate_release_manuals.rb 0.4.0 17ab7f872c1f96318c73d3580729cac20a67e017
-ruby scripts/manual/export_manifest.rb --check
-ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
+MANUAL_SITE_ROOT=${MANUAL_SITE_ROOT:-../bluetape4k.github.io}
+TOOL_ROOT="$MANUAL_SITE_ROOT/scripts/manual/repositories/bluetape4k-leader"
+MANUAL_ROOT="$MANUAL_SITE_ROOT/docs/manual/bluetape4k-leader"
+ruby "$TOOL_ROOT/release_inventory.rb" 0.4.0 17ab7f872c1f96318c73d3580729cac20a67e017 build/manual/module-inventory.json build/manual/release-module-inventory.json 35
+ruby "$TOOL_ROOT/validate_manuals.rb" --code-root "$PWD" --manual-root "$MANUAL_ROOT" --manifest "$MANUAL_ROOT/manifest.yaml" --inventory build/manual/release-module-inventory.json
+ruby "$TOOL_ROOT/validate_release_manuals.rb" 0.4.0 17ab7f872c1f96318c73d3580729cac20a67e017
+ruby "$TOOL_ROOT/export_manifest.rb" --check "$MANUAL_ROOT/manifest.yaml" "$MANUAL_ROOT/generated/manifest.json"
+TOOL_ROOT="$TOOL_ROOT" ruby -I "$TOOL_ROOT" -e 'Dir[File.join(ENV.fetch("TOOL_ROOT"), "*_test.rb")].sort.each { |file| require File.expand_path(file) }'
 ```
