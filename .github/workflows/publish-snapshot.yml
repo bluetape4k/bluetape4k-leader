@@ -23,6 +23,7 @@ jobs:
   publish:
     name: Publish SNAPSHOT to Maven Central
     runs-on: ubuntu-latest
+    environment: maven-central-release
     # workflow_run: Nightly 성공 시에만 실행. 수동 dispatch는 항상 실행.
     if: |
       github.event_name == 'workflow_dispatch' ||
