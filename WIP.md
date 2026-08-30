@@ -1,53 +1,34 @@
 # WIP - bluetape4k-leader
 
-스냅샷: 2026-08-15 KST. `develop`의 현재 head는
-`4b99338a1079ccf5d792b930238cf2f56f8f1929`이며, 선행 계약 train PR #663이
+기준일: 2026-08-30 KST. `develop`의 현재 head는
+`957b1fd165e541117bd67bcb8bca04a32f6902e9`이며, Prometheus scrape readiness
+테스트의 간헐 timeout과 실행 순서 의존성을 다룬 [PR #840](https://github.com/bluetape4k/bluetape4k-leader/pull/840)이
 병합되었습니다. `0.5.0`은 tag, GitHub Release, Maven Central publication이
-완료된 안정 릴리스입니다. 이 문서는 게시 후 현재 상태와 과거 `as-of`
-스냅샷을 분리하여 기록합니다.
+완료된 안정 릴리스이고, `1.0.0-SNAPSHOT`은 아직 배포하지 않은 개발선입니다.
+이 문서는 기준일의 GitHub 상태와 release-pinned manual의 범위를 분리해 기록합니다.
 
 ## 현재 방향
 
-0.5.0 release-readiness, 문서/KDoc localization train, release-facing 문서
-정합성 작업(PR #650), 게시 작업이 완료되었습니다. 현재 작업은 게시 기록을
-변경하지 않고, `0.5.0` provenance를 독자용 문서와 생성 자산에 반영하는
-후속 이슈 [#662](https://github.com/bluetape4k/bluetape4k-leader/issues/662)입니다.
+`1.0.0` milestone은 open 상태지만 열린 이슈 0개, 닫힌 이슈 190개입니다.
+현재 열린 PR도 0개입니다. `1.0.0-post` milestone의 유일한 열린
+이슈인 [#774](https://github.com/bluetape4k/bluetape4k-leader/issues/774)의
+observability 운영 정책·경보·runbook은 완료되었고, `1.0.0` release train 이후
+새 API를 포함한 versioned manual을 승격하는 작업만 남았습니다. 따라서 현재
+manual pin은 변경하지 않습니다.
 
-## 0.5.0 release-readiness 완료 (history)
+`1.1.0` milestone은 생성되어 있지만 열린 이슈가 없습니다. `1.0.0` release/tag,
+Maven publication, versioned manual 승격은 별도 release 승인과 candidate 검증이
+필요합니다.
 
-| 범위 | 현재 증거 |
+## 최근 반영
+
+| 영역 | 현재 증거 |
 |---|---|
-| 구현/회귀 이슈 | [#637–#646](https://github.com/bluetape4k/bluetape4k-leader/milestone/0.5.0) 및 Epic [#647](https://github.com/bluetape4k/bluetape4k-leader/issues/647) 모두 closed |
-| 구현 PR | [PR #648](https://github.com/bluetape4k/bluetape4k-leader/pull/648) merged; source `e4dc2dbb…`, merge `7268feff…` |
-| PR CI | [run #30691084868](https://github.com/bluetape4k/bluetape4k-leader/actions/runs/30691084868) success |
-| post-merge `develop` CI | [run #30691656980](https://github.com/bluetape4k/bluetape4k-leader/actions/runs/30691656980) success |
-| Java/Kotlin·Actions CodeQL | 수동 [run #30692366188](https://github.com/bluetape4k/bluetape4k-leader/actions/runs/30692366188) success; merge head exact |
-| release-facing 문서 정합성 | [PR #650](https://github.com/bluetape4k/bluetape4k-leader/pull/650) merged at `3a0cd0e4…`; issue [#649](https://github.com/bluetape4k/bluetape4k-leader/issues/649) closed; [submit-gradle run #30694254927](https://github.com/bluetape4k/bluetape4k-leader/actions/runs/30694254927) success |
-| 0.5.0 milestone | open issues `0`; milestone 자체는 publication 승인 없이 유지 |
-
-주요 수정에는 R2DBC group state 격리, blocking interruption 보존, Spring
-operational surface 정합성, JVM-global lease extender ownership, full-suite
-timing 안정화가 포함됩니다. Detekt production coverage, ABI gate와 catalog-aware
-CodeQL workflow도 함께 검증되었습니다.
-
-## 0.5.0 문서/KDoc localization 완료
-
-- Epic [#617](https://github.com/bluetape4k/bluetape4k-leader/issues/617)과 자식 이슈 [#618–#624](https://github.com/bluetape4k/bluetape4k-leader/milestone/0.5.0)는 모두 closed입니다.
-- localization PR [#625](https://github.com/bluetape4k/bluetape4k-leader/pull/625)–[#631](https://github.com/bluetape4k/bluetape4k-leader/pull/631)과 proofreading PR [#632](https://github.com/bluetape4k/bluetape4k-leader/pull/632)는 merged입니다.
-- bilingual visual companion Epic [#633](https://github.com/bluetape4k/bluetape4k-leader/issues/633)과 후속 PR [#636](https://github.com/bluetape4k/bluetape4k-leader/pull/636)도 closed/merged 상태입니다.
-
-## 다음 마이너 라인 후보
-
-`0.6.0` milestone은 open 상태이며 현재 open issue는 32개입니다. 아래 목록은
-그 milestone에 배정된 다음 라인의 범위입니다.
-
-- Core/observability: [#463](https://github.com/bluetape4k/bluetape4k-leader/issues/463), [#533](https://github.com/bluetape4k/bluetape4k-leader/issues/533), [#535](https://github.com/bluetape4k/bluetape4k-leader/issues/535), [#559](https://github.com/bluetape4k/bluetape4k-leader/issues/559)
-- Ktor: [#539](https://github.com/bluetape4k/bluetape4k-leader/issues/539), [#540](https://github.com/bluetape4k/bluetape4k-leader/issues/540), [#541](https://github.com/bluetape4k/bluetape4k-leader/issues/541), [#542](https://github.com/bluetape4k/bluetape4k-leader/issues/542)
-- Spring/management: [#532](https://github.com/bluetape4k/bluetape4k-leader/issues/532), [#602](https://github.com/bluetape4k/bluetape4k-leader/issues/602), [#603](https://github.com/bluetape4k/bluetape4k-leader/issues/603), [#606](https://github.com/bluetape4k/bluetape4k-leader/issues/606), [#607](https://github.com/bluetape4k/bluetape4k-leader/issues/607)
-
-## Open PRs
-
-이 스냅샷 작성 시점에 공개된 open PR은 없었습니다.
+| Backend diagnostics | [Issue #766](https://github.com/bluetape4k/bluetape4k-leader/issues/766)의 공통 probe 계약과 built-in backend·Ktor·Spring 적용이 [PR #812](https://github.com/bluetape4k/bluetape4k-leader/pull/812), [PR #813](https://github.com/bluetape4k/bluetape4k-leader/pull/813), [PR #814](https://github.com/bluetape4k/bluetape4k-leader/pull/814), [PR #816](https://github.com/bluetape4k/bluetape4k-leader/pull/816), [PR #817](https://github.com/bluetape4k/bluetape4k-leader/pull/817)로 반영되었습니다. |
+| Observability policy | `UNKNOWN` bounded reason, active probe, Micrometer·Spring health 연결, Ktor route, Prometheus alert/runbook을 [PR #819](https://github.com/bluetape4k/bluetape4k-leader/pull/819), [PR #820](https://github.com/bluetape4k/bluetape4k-leader/pull/820), [PR #822](https://github.com/bluetape4k/bluetape4k-leader/pull/822), [PR #823](https://github.com/bluetape4k/bluetape4k-leader/pull/823)로 고정했습니다. 운영 정책은 완료되었고 versioned manual 승격은 [#774](https://github.com/bluetape4k/bluetape4k-leader/issues/774)가 소유합니다. |
+| Strategic election | Redis 후보 heartbeat 재등록과 결과 카운터·취소·interrupt 경계를 [Issue #804](https://github.com/bluetape4k/bluetape4k-leader/issues/804), [PR #802](https://github.com/bluetape4k/bluetape4k-leader/pull/802), [PR #830](https://github.com/bluetape4k/bluetape4k-leader/pull/830)으로 닫았습니다. |
+| Prometheus example | [Issue #724](https://github.com/bluetape4k/bluetape4k-leader/issues/724)의 scheduler 시작 순서와 scrape readiness 분리를 [PR #840](https://github.com/bluetape4k/bluetape4k-leader/pull/840)으로 병합했습니다. HTTP status/body와 누락 metric 이름을 readiness 진단에 보존합니다. |
+| Release-facing README | [Issue #753](https://github.com/bluetape4k/bluetape4k-leader/issues/753)와 [PR #838](https://github.com/bluetape4k/bluetape4k-leader/pull/838)에서 `0.5.0` stable·`1.0.0-SNAPSHOT` development·manual pin 경계를 정렬했습니다. |
 
 ## 현재 Release boundary
 
@@ -57,11 +38,15 @@ CodeQL workflow도 함께 검증되었습니다.
   2026-08-06에 게시되었습니다.
 - [Maven Central BOM 0.5.0](https://central.sonatype.com/artifact/io.github.bluetape4k.leader/bluetape4k-leader-bom/0.5.0)
   및 publishable module POM이 확인되었습니다.
-- 버전 매뉴얼 manifest는 `0.5.0`과 위 release commit에 고정되어 있습니다.
-- 다음 개발 범위는 open `0.6.0` milestone에서 관리합니다.
+- `docs/manual/manifest.yaml`은 `releaseRef: 0.5.0`과 위 release commit에
+  고정되어 있습니다. 현재 `develop` 전용 diagnostics·observability 내용은
+  `docs/manual/drafts/`에서 관리합니다.
+- `1.0.0` tag/release/publication은 아직 없으며, `1.0.0-post`의 [#774](https://github.com/bluetape4k/bluetape4k-leader/issues/774)는
+  새 API를 포함하는 versioned release train에서 manual pin을 갱신한 뒤 닫습니다.
 
-## Historical release boundary (2026-08-01 KST as-of)
+## 이전 기준일 (2026-08-15 KST)
 
-- 최신 안정 버전은 `0.4.0`이며 release commit은 `17ab7f872c1f96318c73d3580729cac20a67e017`입니다.
-- `CHANGELOG.md`와 [release preflight](docs/release/0.5.0-release-preflight.md)는 `0.5.0`을 unpublished 상태로 유지합니다.
-- tag/release/publication은 별도 승인과 정확한 candidate ref 검증 없이는 생성하지 않습니다.
+- 당시 `develop` head는 `4b99338a1079ccf5d792b930238cf2f56f8f1929`였고,
+  `0.5.0` release-readiness와 localization train이 완료된 상태였습니다.
+- 당시 문서가 다음 개발선으로 기록한 `0.6.0`은 현재 milestone 정책으로
+  대체되었습니다. 현재 개발선은 `1.0.0-SNAPSHOT`입니다.

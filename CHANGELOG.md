@@ -8,6 +8,22 @@
 
 ## [미공개]
 
+### 추가
+
+- `LeaderBackendDiagnosticsProbe` 공통 계약과 `UNKNOWN` 원인(`CLIENT_STATE_UNCONFIRMED`, `PROVIDER_UNSUPPORTED`, `PROVIDER_EXCEPTION`)을 built-in backend, Ktor, Spring, Micrometer 경로에 연결했습니다([Issue #766](https://github.com/bluetape4k/bluetape4k-leader/issues/766), [PR #812](https://github.com/bluetape4k/bluetape4k-leader/pull/812), [PR #813](https://github.com/bluetape4k/bluetape4k-leader/pull/813), [PR #814](https://github.com/bluetape4k/bluetape4k-leader/pull/814), [PR #816](https://github.com/bluetape4k/bluetape4k-leader/pull/816), [PR #819](https://github.com/bluetape4k/bluetape4k-leader/pull/819), [PR #820](https://github.com/bluetape4k/bluetape4k-leader/pull/820)).
+- Prometheus dashboard 예제에 active connectivity probe, bounded reason metric/alert, HTTP scrape readiness 계약을 추가했습니다([PR #823](https://github.com/bluetape4k/bluetape4k-leader/pull/823), [PR #836](https://github.com/bluetape4k/bluetape4k-leader/pull/836), [PR #840](https://github.com/bluetape4k/bluetape4k-leader/pull/840)).
+
+### 변경
+
+- Kotlin 2.4, JDK 25, Gradle 9.7 기준의 `1.0.0-SNAPSHOT` 개발선을 유지하고, 공개 README의 `0.5.0` stable·`1.0.0-SNAPSHOT` development·manual pin 경계를 정렬했습니다([Issue #666](https://github.com/bluetape4k/bluetape4k-leader/issues/666), [Issue #753](https://github.com/bluetape4k/bluetape4k-leader/issues/753), [PR #838](https://github.com/bluetape4k/bluetape4k-leader/pull/838)).
+- `UNKNOWN` reason, active probe, Micrometer counter, Spring health, Ktor route, Prometheus alert/runbook을 운영 해석이 가능한 bounded contract로 연결했습니다([PR #819](https://github.com/bluetape4k/bluetape4k-leader/pull/819), [PR #820](https://github.com/bluetape4k/bluetape4k-leader/pull/820), [PR #822](https://github.com/bluetape4k/bluetape4k-leader/pull/822), [PR #823](https://github.com/bluetape4k/bluetape4k-leader/pull/823)).
+- Spring lease-extension 관측 범위를 `ObservationRegistry` identity별 execution scope로 격리해 여러 application context의 telemetry가 섞이지 않도록 했습니다([PR #835](https://github.com/bluetape4k/bluetape4k-leader/pull/835)).
+
+### 버그 수정
+
+- Prometheus scrape 테스트가 첫 scheduled callback을 readiness 신호로 추정하지 않고 대상 job과 connectivity probe를 명시적으로 실행하도록 수정했습니다. 실패 시 HTTP status/body와 누락 metric 이름을 진단 메시지에 남깁니다([Issue #724](https://github.com/bluetape4k/bluetape4k-leader/issues/724), [PR #840](https://github.com/bluetape4k/bluetape4k-leader/pull/840)).
+- Redis strategic 후보 heartbeat 재등록이 결과 카운터와 `lastCompletionTime`을 되돌리지 않도록 하고, Redisson entry-lock 취소·late-acquisition·unlock cleanup과 Micrometer probe interrupt flag 보존을 같은 lifecycle 계약으로 닫았습니다([Issue #804](https://github.com/bluetape4k/bluetape4k-leader/issues/804), [Issue #826](https://github.com/bluetape4k/bluetape4k-leader/issues/826), [Issue #828](https://github.com/bluetape4k/bluetape4k-leader/issues/828), [PR #830](https://github.com/bluetape4k/bluetape4k-leader/pull/830)).
+
 ## [0.5.0] — 2026-08-06
 
 ### 추가됨
