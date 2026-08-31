@@ -17,6 +17,7 @@ import kotlin.time.Duration
  * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  * @property connection Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+@Suppress("TooManyFunctions")
 internal class LettuceCandidateRegistry(
     private val connection: StatefulRedisConnection<String, String>,
     private val keyPrefix: String = DEFAULT_KEY_PREFIX,
@@ -97,6 +98,7 @@ internal class LettuceCandidateRegistry(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    @Suppress("CyclomaticComplexMethod")
     fun listCandidates(lockName: String): List<CandidateInfo> {
         validateLockName(lockName)
         val currentIndexKey = indexKey(lockName)
@@ -105,18 +107,19 @@ internal class LettuceCandidateRegistry(
         if (currentNodeIds.isEmpty() && legacyNodeIds.isEmpty()) return emptyList()
 
         val candidates = linkedMapOf<String, CandidateInfo>()
-        val staleCurrentNodeIds = mutableListOf<String>()
+        val missingCurrentNodeIds = mutableListOf<String>()
+        val mismatchedCurrentNodeIds = mutableListOf<String>()
         val currentKeys = currentNodeIds.associateBy { nodeId -> candidateKey(lockName, nodeId) }
         if (currentKeys.isNotEmpty()) {
             sync.mget(*currentKeys.keys.toTypedArray()).forEach { kv ->
                 val nodeId = currentKeys[kv.key] ?: return@forEach
                 if (!kv.hasValue()) {
-                    staleCurrentNodeIds += nodeId
+                    missingCurrentNodeIds += nodeId
                     return@forEach
                 }
                 val candidate = LettuceCandidateInfoCodec.decode(kv.value)
                 if (candidate.nodeId == nodeId) candidates[nodeId] = candidate
-                else staleCurrentNodeIds += nodeId
+                else mismatchedCurrentNodeIds += nodeId
             }
         }
 
@@ -132,11 +135,21 @@ internal class LettuceCandidateRegistry(
                 return@forEach
             }
             migrateLegacyCandidate(lockName, nodeId)
-            candidates[nodeId] = legacyCandidate
+            val currentCandidate = readCurrentCandidate(lockName, nodeId)
+            if (currentCandidate != null) {
+                sync.sadd(currentIndexKey, nodeId)
+                sync.persist(currentIndexKey)
+                candidates[nodeId] = currentCandidate
+            } else {
+                candidates[nodeId] = legacyCandidate
+            }
         }
 
-        if (staleCurrentNodeIds.isNotEmpty()) {
-            sync.srem(currentIndexKey, *staleCurrentNodeIds.toTypedArray())
+        if (mismatchedCurrentNodeIds.isNotEmpty()) {
+            sync.srem(currentIndexKey, *mismatchedCurrentNodeIds.toTypedArray())
+        }
+        if (missingCurrentNodeIds.isNotEmpty()) {
+            removeMissingCurrentIndexMembers(lockName, currentIndexKey, missingCurrentNodeIds)
         }
         if (staleLegacyNodeIds.isNotEmpty()) {
             removeLegacyIndexMembers(lockName, staleLegacyNodeIds)
@@ -181,6 +194,11 @@ internal class LettuceCandidateRegistry(
         return raw?.let(LettuceCandidateInfoCodec::decode)?.takeIf { it.nodeId == expectedNodeId }
     }
 
+    private fun readCurrentCandidate(lockName: String, expectedNodeId: String): CandidateInfo? {
+        val raw = sync.get(candidateKey(lockName, expectedNodeId)) ?: return null
+        return LettuceCandidateInfoCodec.decode(raw).takeIf { it.nodeId == expectedNodeId }
+    }
+
     private fun migrateLegacyCandidate(lockName: String, nodeId: String): Boolean {
         val legacyKey = LettuceCandidateKeyCodec.legacyCandidateKey(keyPrefix, lockName, nodeId)
         val candidate = readLegacyCandidate(legacyKey, nodeId) ?: return false
@@ -197,6 +215,17 @@ internal class LettuceCandidateRegistry(
             sync.persist(indexKey(lockName))
         }
         return migrated
+    }
+
+    private fun removeMissingCurrentIndexMembers(lockName: String, indexKey: String, nodeIds: List<String>) {
+        val keys = arrayOf(indexKey) + nodeIds.map { candidateKey(lockName, it) }
+        RedisScriptRunner.run<Long>(
+            sync,
+            LettuceCandidateIndexCleanupScript.REMOVE_MISSING,
+            ScriptOutputType.INTEGER,
+            keys,
+            *nodeIds.toTypedArray(),
+        )
     }
 
     private fun removeLegacyIndexMembers(lockName: String, nodeIds: List<String>) {

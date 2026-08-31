@@ -176,6 +176,64 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
         connection.sync().get(versionedCandidateKey(lockName, nodeId)).shouldNotBeNull()
     }
 
+    @Test
+    fun `blocking list keeps a migrated candidate in the v2 index after stale cleanup`() {
+        val lockName = "issue-845-stale-migration-${System.nanoTime()}"
+        val nodeId = "hostname:pid"
+        seedLegacy(lockName, CandidateInfo(nodeId, metadata = mapOf("source" to "legacy")))
+        connection.sync().sadd(versionedIndexKey(lockName), nodeId)
+
+        LettuceStrategicLeaderElector(connection, "observer").listCandidates(lockName)
+
+        connection.sync().smembers(versionedIndexKey(lockName)) shouldBeEqualTo setOf(nodeId)
+        connection.sync().get(versionedCandidateKey(lockName, nodeId)).shouldNotBeNull()
+    }
+
+    @Test
+    fun `suspend list keeps a migrated candidate in the v2 index after stale cleanup`() = runSuspendIO {
+        val lockName = "issue-845-suspend-stale-migration-${System.nanoTime()}"
+        val nodeId = "hostname:pid"
+        seedLegacy(lockName, CandidateInfo(nodeId, metadata = mapOf("source" to "legacy")))
+        connection.sync().sadd(versionedIndexKey(lockName), nodeId)
+
+        LettuceStrategicSuspendLeaderElector(connection, "observer").listCandidates(lockName)
+
+        connection.sync().smembers(versionedIndexKey(lockName)) shouldBeEqualTo setOf(nodeId)
+        connection.sync().get(versionedCandidateKey(lockName, nodeId)).shouldNotBeNull()
+    }
+
+    @Test
+    fun `blocking list prefers an existing v2 value when legacy migration cannot claim it`() {
+        val lockName = "issue-845-v2-precedence-${System.nanoTime()}"
+        val nodeId = "hostname:pid"
+        seedLegacy(lockName, CandidateInfo(nodeId, metadata = mapOf("source" to "legacy")))
+        connection.sync().set(
+            versionedCandidateKey(lockName, nodeId),
+            LettuceCandidateInfoCodec.encode(CandidateInfo(nodeId, metadata = mapOf("source" to "v2"))),
+        )
+
+        val listed = LettuceStrategicLeaderElector(connection, "observer").listCandidates(lockName)
+
+        listed.single().metadata shouldBeEqualTo mapOf("source" to "v2")
+        connection.sync().smembers(versionedIndexKey(lockName)) shouldBeEqualTo setOf(nodeId)
+    }
+
+    @Test
+    fun `suspend list prefers an existing v2 value when legacy migration cannot claim it`() = runSuspendIO {
+        val lockName = "issue-845-suspend-v2-precedence-${System.nanoTime()}"
+        val nodeId = "hostname:pid"
+        seedLegacy(lockName, CandidateInfo(nodeId, metadata = mapOf("source" to "legacy")))
+        connection.sync().set(
+            versionedCandidateKey(lockName, nodeId),
+            LettuceCandidateInfoCodec.encode(CandidateInfo(nodeId, metadata = mapOf("source" to "v2"))),
+        )
+
+        val listed = LettuceStrategicSuspendLeaderElector(connection, "observer").listCandidates(lockName)
+
+        listed.single().metadata shouldBeEqualTo mapOf("source" to "v2")
+        connection.sync().smembers(versionedIndexKey(lockName)) shouldBeEqualTo setOf(nodeId)
+    }
+
     private fun collisionPair(): CollisionPair {
         val suffix = System.nanoTime().toString()
         val lockName = "issue-845-$suffix"
@@ -206,6 +264,9 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
         fun part(value: String) = "${value.toByteArray(Charsets.UTF_8).size}:$value"
         return "${LettuceCandidateRegistry.DEFAULT_KEY_PREFIX}|v2|c|${part(lockName)}${part(nodeId)}"
     }
+
+    private fun versionedIndexKey(lockName: String) =
+        "${LettuceCandidateRegistry.DEFAULT_KEY_PREFIX}|v2|i|${lockName.toByteArray(Charsets.UTF_8).size}:$lockName"
 
     private data class CollisionPair(
         val lockName: String,
