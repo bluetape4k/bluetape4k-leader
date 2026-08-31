@@ -24,6 +24,8 @@ import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * `ExposedJdbcLeaderElector`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -161,6 +163,7 @@ class ExposedJdbcLeaderElector private constructor(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "TooGenericExceptionCaught")
     override fun <T> runAsyncIfLeader(
         lockName: String,
         executor: Executor,
@@ -176,68 +179,144 @@ class ExposedJdbcLeaderElector private constructor(
             useDbTime = options.leaderOptions.useDbTime,
         )
 
-        return CompletableFuture
-            .supplyAsync({ lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime) }, executor)
+        val resultFuture = CompletableFuture<T?>()
+        val actionFutureRef = AtomicReference<CompletableFuture<*>?>()
+        val pipelineFuture = CompletableFuture
+            .supplyAsync(
+                {
+                    lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime) {
+                        resultFuture.isCancelled
+                    }
+                },
+                executor,
+            )
             .thenComposeAsync({ acquired ->
                 if (!acquired) {
                     log.debug { "리더 승격 실패 (비동기). lockName=$lockName" }
                     CompletableFuture.completedFuture(null)
                 } else {
-                    log.debug { "리더로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
                     val startedAt = Instant.now()
                     val acquiredAtNanos = System.nanoTime()
-                    val delegate = ExposedJdbcLockExtendDelegate(lock)
-                    val watchdog = LeaderLeaseAutoExtender.start(
-                        options.leaderOptions.autoExtend,
-                        options.leaderOptions.leaseTime,
-                        delegate,
-                        ERROR_CLASSIFIER,
-                    )
+                    val terminal = AtomicBoolean()
+                    var watchdog: AutoCloseable = AutoCloseable { }
+                    var effectiveKey: LeaderHistoryKey? = null
+                    val finishAction: (Throwable?) -> Throwable? = { throwable ->
+                        if (!terminal.compareAndSet(false, true)) {
+                            null
+                        } else {
+                            var cleanupFailure: Throwable? = null
 
-                    val record = historyRecorder?.let {
-                        LeaderLockHistoryRecord(
-                            lockName = lockName,
-                            token = lock.token,
-                            kind = LockIdentity.AnnotationKind.SINGLE,
-                            acquiredAt = startedAt,
-                            lockedUntil = startedAt.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds),
-                            nodeId = options.lockOwner,
-                        )
+                            runCatching { watchdog.close() }
+                                .onFailure { e ->
+                                    cleanupFailure = e
+                                    log.warn(e) { "비동기 watchdog 종료 실패. lockName=$lockName" }
+                                }
+
+                            runCatching {
+                                val finishedAt = Instant.now()
+                                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
+                                when {
+                                    throwable == null -> effectiveKey?.let {
+                                        historyRecorder?.recordCompleted(it, finishedAt, durationMs)
+                                    }
+                                    else -> effectiveKey?.let {
+                                        historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable)
+                                    }
+                                }
+                            }.onFailure { e ->
+                                cleanupFailure = cleanupFailure?.also { it.addSuppressed(e) } ?: e
+                                log.warn(e) { "비동기 history 기록 실패. lockName=$lockName" }
+                            }
+
+                            runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
+                                .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
+                                .onFailure { e ->
+                                    cleanupFailure = cleanupFailure?.also { it.addSuppressed(e) } ?: e
+                                    log.warn(e) { "비동기 락 해제 실패. lockName=$lockName" }
+                                }
+
+                            if (throwable != null) {
+                                cleanupFailure?.let { throwable.addSuppressed(it) }
+                                null
+                            } else {
+                                cleanupFailure
+                            }
+                        }
                     }
-                    val key = record?.let { historyRecorder.recordAcquired(it) }
-                    val effectiveKey: LeaderHistoryKey? =
-                        key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token) }
+
+                    if (resultFuture.isCancelled) {
+                        val cancellation = java.util.concurrent.CancellationException(
+                            "runAsyncIfLeader result was cancelled",
+                        )
+                        finishAction(cancellation)
+                        return@thenComposeAsync CompletableFuture.failedFuture(cancellation)
+                    }
+
+                    log.debug { "리더로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
+                    val delegate = ExposedJdbcLockExtendDelegate(lock)
+
+                    try {
+                        watchdog = LeaderLeaseAutoExtender.start(
+                            options.leaderOptions.autoExtend,
+                            options.leaderOptions.leaseTime,
+                            delegate,
+                            ERROR_CLASSIFIER,
+                        )
+                        val record = historyRecorder?.let {
+                            LeaderLockHistoryRecord(
+                                lockName = lockName,
+                                token = lock.token,
+                                kind = LockIdentity.AnnotationKind.SINGLE,
+                                acquiredAt = startedAt,
+                                lockedUntil = startedAt.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds),
+                                nodeId = options.lockOwner,
+                            )
+                        }
+                        val fallbackKey = record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token) }
+                        effectiveKey = fallbackKey
+                        val key = record?.let { historyRecorder.recordAcquired(it) }
+                        effectiveKey = key ?: fallbackKey
+                    } catch (e: Throwable) {
+                        finishAction(e)
+                        return@thenComposeAsync CompletableFuture.failedFuture(e)
+                    }
+
+                    if (resultFuture.isCancelled) {
+                        val cancellation = java.util.concurrent.CancellationException(
+                            "runAsyncIfLeader result was cancelled before action",
+                        )
+                        finishAction(cancellation)
+                        return@thenComposeAsync CompletableFuture.failedFuture(cancellation)
+                    }
 
                     val actionFuture = runCatching { action() }
                         .getOrElse { e ->
-                            watchdog.close()
-                            val finishedAt = Instant.now()
-                            val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-                            effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
-                            runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
-                                .onFailure { ex -> log.warn(ex) { "락 해제 실패 (action 오류 경로). lockName=$lockName" } }
+                            finishAction(e)
                             return@thenComposeAsync CompletableFuture.failedFuture(e)
                         }
 
-                    actionFuture.whenComplete { _, throwable ->
-                        watchdog.close()
-                        val finishedAt = Instant.now()
-                        val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-                        when {
-                            throwable == null -> effectiveKey?.let {
-                                historyRecorder?.recordCompleted(it, finishedAt, durationMs)
-                            }
-                            throwable is java.util.concurrent.CancellationException -> { /* cancelled — no audit */ }
-                            throwable is CancellationException -> { /* cancelled — no audit */ }
-                            else -> effectiveKey?.let {
-                                historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable)
-                            }
+                    val terminalFuture = actionFuture.whenComplete { _, throwable ->
+                        val cleanupFailure = finishAction(throwable)
+                        if (throwable == null && cleanupFailure != null) {
+                            throw cleanupFailure
                         }
-                        runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
-                            .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
-                            .onFailure { e -> log.warn(e) { "비동기 락 해제 실패. lockName=$lockName" } }
                     }
+                    actionFutureRef.set(actionFuture)
+                    if (resultFuture.isCancelled) actionFuture.cancel(false)
+                    terminalFuture
                 }
             }, executor)
+
+        resultFuture.whenComplete { _, _ ->
+            if (resultFuture.isCancelled) actionFutureRef.get()?.cancel(false)
+        }
+        pipelineFuture.whenComplete { value, throwable ->
+            if (throwable == null) {
+                resultFuture.complete(value)
+            } else {
+                resultFuture.completeExceptionally(throwable)
+            }
+        }
+        return resultFuture
     }
 }
