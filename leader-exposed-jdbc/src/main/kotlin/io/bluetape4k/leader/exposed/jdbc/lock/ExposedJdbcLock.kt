@@ -63,12 +63,23 @@ internal class ExposedJdbcLock internal constructor(
      */
     // The retry loop must distinguish cancellation, interruption, transient database errors,
     // and the sleep interruption path to preserve the blocking API contract.
-    @Suppress("ThrowsCount")
-    fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
+    fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean =
+        tryLock(waitTime, leaseTime) { false }
+
+    @Suppress("ThrowsCount", "ReturnCount")
+    internal fun tryLock(
+        waitTime: Duration,
+        leaseTime: Duration,
+        isCancelled: () -> Boolean,
+    ): Boolean {
         val deadline = MonotonicDeadline.fromNow(waitTime)
         var attempt = 0
 
         do {
+            if (isCancelled()) {
+                log.debug { "락 획득 취소: lockName=$lockName" }
+                return false
+            }
             val acquired = try {
                 tryAcquireOnce(leaseTime)
             } catch (e: CancellationException) {
@@ -84,6 +95,11 @@ internal class ExposedJdbcLock internal constructor(
             if (acquired) {
                 log.debug { "락 획득 성공: lockName=$lockName, token=${token.take(8)}" }
                 return true
+            }
+
+            if (isCancelled()) {
+                log.debug { "락 재시도 취소: lockName=$lockName" }
+                return false
             }
 
             val remaining = deadline.remainingMillisForSleep()
