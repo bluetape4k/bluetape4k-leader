@@ -545,7 +545,7 @@ The optional `LeaderLeaseExtensionContext` is supplied for matching user-owned a
 events and scope-free or mismatched named calls. A fail-open `NotHeld` event still carries its lock name in `context`
 with `auditLeaderId = null`.
 Its `toString()` is redacted, but applications should still avoid logging raw `lockName` or `auditLeaderId`. See the
-[unreleased lease-extension observation draft](../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
+[unreleased lease-extension observation draft](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
 for adapter and lifecycle guidance.
 
 The snippet closes after one explicit `USER` attempt. Keep the handle for the full single-leader action or component

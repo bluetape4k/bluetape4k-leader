@@ -96,7 +96,7 @@ This example intentionally does not add an OpenTelemetry SDK, Micrometer tracing
 Lease-extension observations are not logged by this example's default handler. The handler accepts observation names
 starting with `leader.`, while the core lease-extension observation is named
 `bluetape4k.leader.lease.extension`. Applications that own the handler can opt in to that exact name after reviewing
-the bounded tags and privacy options in the [unreleased lease-extension observation draft](../../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.en.md).
+the bounded tags and privacy options in the [unreleased lease-extension observation draft](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.en.md).
 
 ## Run With Prometheus And Grafana
 
@@ -176,7 +176,7 @@ accepts only names starting with `leader.` and the application does not register
 a lease-extension meter. The lease-risk rule therefore uses completed
 execution duration as a conservative symptom only. Add an explicitly configured
 Micrometer observer or update the app-owned handler after reviewing the
-[unreleased lease-extension observation draft](../../docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
+[unreleased lease-extension observation draft](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
 if the demo should surface that signal.
 
 ## Prometheus Queries

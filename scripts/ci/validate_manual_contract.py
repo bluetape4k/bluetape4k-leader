@@ -10,10 +10,15 @@ import sys
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(os.environ.get("MANUAL_CODE_ROOT", Path(__file__).resolve().parents[2])).resolve()
+MANUAL_SITE_ROOT = Path(os.environ.get("MANUAL_SITE_ROOT", ROOT)).resolve()
+MANUAL_ROOT = Path(
+    os.environ.get("MANUAL_ROOT", MANUAL_SITE_ROOT / "docs/manual/bluetape4k-leader")
+).resolve()
+TOOL_ROOT = MANUAL_SITE_ROOT / "scripts/manual/repositories/bluetape4k-leader"
 INVENTORY = ROOT / "build/manual/module-inventory.json"
 RELEASE_INVENTORY = ROOT / "build/manual/release-module-inventory.json"
-MANIFEST = ROOT / "docs/manual/manifest.yaml"
+MANIFEST = MANUAL_ROOT / "manifest.yaml"
 RELEASE_COUNT = int(os.environ.get("MANUAL_RELEASE_EXPECTED_COUNT", "35"))
 
 
@@ -51,16 +56,16 @@ def main() -> int:
             "[manual-contract] release provenance target: "
             f"{release_ref} ({release_commit})"
         )
-        run(["python3", "scripts/ci/validate_ci_fanout.py", "--static"])
+        run(["python3", str(ROOT / "scripts/ci/validate_ci_fanout.py"), "--static"])
         run(["./gradlew", "exportManualModuleInventory", "--no-daemon", "--no-configuration-cache"])
         run(
             [
                 "ruby",
-                "scripts/manual/release_inventory.rb",
+                str(TOOL_ROOT / "release_inventory.rb"),
                 release_ref,
                 release_commit,
-                str(INVENTORY.relative_to(ROOT)),
-                str(RELEASE_INVENTORY.relative_to(ROOT)),
+                str(INVENTORY),
+                str(RELEASE_INVENTORY),
                 str(RELEASE_COUNT),
             ]
         )
@@ -74,28 +79,80 @@ def main() -> int:
         run(
             [
                 "ruby",
-                "scripts/manual/validate_manuals.rb",
-                str(RELEASE_INVENTORY.relative_to(ROOT)),
-                str(MANIFEST.relative_to(ROOT)),
+                str(TOOL_ROOT / "validate_manuals.rb"),
+                "--code-root",
+                str(ROOT),
+                "--manual-root",
+                str(MANUAL_ROOT),
+                "--inventory",
+                str(RELEASE_INVENTORY),
+                "--manifest",
+                str(MANIFEST),
             ],
             env=validation_env,
         )
-        run(["ruby", "scripts/manual/validate_release_manuals.rb", release_ref, release_commit])
-        run(["ruby", "scripts/manual/export_manifest.rb", "--check"])
+        run(
+            [
+                "ruby",
+                str(TOOL_ROOT / "validate_release_manuals.rb"),
+                "--code-root",
+                str(ROOT),
+                "--manual-root",
+                str(MANUAL_ROOT),
+                "--manifest",
+                str(MANIFEST),
+                "--inventory",
+                str(RELEASE_INVENTORY),
+                "--tag",
+                release_ref,
+                "--sha",
+                release_commit,
+            ]
+        )
+        run(["ruby", str(TOOL_ROOT / "export_manifest.rb"), "--check", str(MANIFEST), str(MANUAL_ROOT / "generated/manifest.json")])
         run(
             [
                 "ruby",
                 "-I",
-                "scripts/manual",
+                str(TOOL_ROOT),
                 "-e",
-                'Dir["scripts/manual/*_test.rb"].sort.each { |file| require File.expand_path(file) }',
+                'Dir[File.join(ARGV.fetch(0), "*_test.rb")].sort.each { |file| require File.expand_path(file) }',
+                str(TOOL_ROOT),
             ]
         )
-        run(["ruby", "scripts/manual/validate_diagrams.rb"])
-        run(["ruby", "scripts/manual/readme_jvm25_contract.rb"])
-        run(["ruby", "scripts/manual/sync_release_diagrams.rb", "--check"])
+        run(
+            [
+                "ruby",
+                str(TOOL_ROOT / "validate_diagrams.rb"),
+                "--root",
+                str(MANUAL_SITE_ROOT),
+                "--manual-root",
+                str(MANUAL_ROOT),
+            ]
+        )
+        run(
+            [
+                "ruby",
+                str(TOOL_ROOT / "readme_jvm25_contract.rb"),
+                "--root",
+                str(ROOT),
+                "--manual-root",
+                str(MANUAL_ROOT),
+            ]
+        )
+        run(
+            [
+                "ruby",
+                str(TOOL_ROOT / "sync_release_diagrams.rb"),
+                "--check",
+                "--root",
+                str(ROOT),
+                "--manual-root",
+                str(MANUAL_ROOT),
+            ]
+        )
 
-        diagram_command = ["python3", "scripts/ci/validate_diagram_contract.py"]
+        diagram_command = ["python3", str(ROOT / "scripts/ci/validate_diagram_contract.py")]
         base_ref = os.environ.get("MANUAL_CONTRACT_BASE_REF", "").strip()
         head_ref = os.environ.get("MANUAL_CONTRACT_HEAD_REF", "").strip()
         if base_ref and head_ref and not re.fullmatch(r"0+", base_ref):
