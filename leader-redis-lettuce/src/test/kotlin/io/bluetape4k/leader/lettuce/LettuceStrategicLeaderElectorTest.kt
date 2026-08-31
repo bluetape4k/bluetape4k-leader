@@ -168,7 +168,11 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
     fun `updateResult - codec가 거부하는 지수 표기 카운터는 기존 예외를 전파`() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
-        val key = "leader:strategy:candidates:$lockName:node-1"
+        val key = LettuceCandidateKeyCodec.candidateKey(
+            LettuceCandidateRegistry.DEFAULT_KEY_PREFIX,
+            lockName,
+            "node-1",
+        )
         val raw = "node-1|${Instant.now().toEpochMilli()}|||1e3|0|"
         connection.sync().set(key, raw)
 
@@ -181,7 +185,11 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
     fun `updateResult - 손상된 metadata는 기존 codec 예외를 전파`() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
-        val key = "leader:strategy:candidates:$lockName:node-1"
+        val key = LettuceCandidateKeyCodec.candidateKey(
+            LettuceCandidateRegistry.DEFAULT_KEY_PREFIX,
+            lockName,
+            "node-1",
+        )
         val raw = "node-1|${Instant.now().toEpochMilli()}|||0|0|brokenpair"
         connection.sync().set(key, raw)
 

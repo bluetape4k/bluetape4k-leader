@@ -89,6 +89,9 @@ KNOWN_SYNTHETIC_ACCESSORS: dict[str, frozenset[str]] = {
     ),
     "io.bluetape4k.leader.lettuce.LettuceSuspendCandidateRegistry": frozenset(
         {
+            "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) java.lang.String "
+            + "access$indexKey(io.bluetape4k.leader.lettuce.LettuceSuspendCandidateRegistry, "
+            + "java.lang.String)",
             "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) java.lang.Object "
             + "access$scanKeys(io.bluetape4k.leader.lettuce.LettuceSuspendCandidateRegistry, "
             + "java.lang.String, kotlin.coroutines.Continuation)"
