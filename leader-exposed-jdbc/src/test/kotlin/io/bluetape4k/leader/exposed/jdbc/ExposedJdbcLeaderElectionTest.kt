@@ -33,6 +33,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -468,6 +469,82 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             recordAllowed.countDown()
             worker.shutdownNow()
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `runAsyncIfLeader - recordAcquired 인터럽트 후 watchdog과 락을 정리한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val recorder = object : SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db)) {
+            override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
+                throw InterruptedException("acquire history interrupted")
+            }
+        }
+        val options = ExposedJdbcLeaderElectionOptions(
+            leaderOptions = LeaderElectionOptions(
+                waitTime = 100.milliseconds,
+                leaseTime = 30.seconds,
+                autoExtend = true,
+            ),
+        )
+        val election = ExposedJdbcLeaderElector(db, options, recorder)
+
+        val resultFuture = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+            CompletableFuture.completedFuture("실행되면 안 됨")
+        }
+
+        val failure = assertFailsWith<CompletionException> { resultFuture.join() }
+        failure.cause.shouldBeInstanceOf(InterruptedException::class)
+        ExposedJdbcLeaderElector(db, options).runIfLeader(lockName) { "복구 성공" } shouldBeEqualTo "복구 성공"
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `runAsyncIfLeader - finishAction history 예외 후 원 결과와 락 정리를 보장한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val options = ExposedJdbcLeaderElectionOptions(
+            leaderOptions = LeaderElectionOptions(
+                waitTime = 100.milliseconds,
+                leaseTime = 30.seconds,
+                autoExtend = true,
+            ),
+        )
+        val actionFailure = IllegalStateException("action 실패")
+        val recorder = object : SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db)) {
+            override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
+                throw InterruptedException("completed history interrupted")
+            }
+
+            override fun recordFailed(
+                key: LeaderHistoryKey,
+                finishedAt: Instant,
+                durationMs: Long,
+                error: Throwable?,
+            ) {
+                throw InterruptedException("failed history interrupted")
+            }
+        }
+        val election = ExposedJdbcLeaderElector(db, options, recorder)
+
+        val completedLockName = randomName()
+        val completedFuture = election.runAsyncIfLeader(completedLockName, VirtualThreadExecutor) {
+            CompletableFuture.completedFuture("완료")
+        }
+        val completedFailure = assertFailsWith<CompletionException> { completedFuture.join() }
+        completedFailure.cause.shouldBeInstanceOf(InterruptedException::class)
+        ExposedJdbcLeaderElector(db, options).runIfLeader(completedLockName) { "완료 복구" } shouldBeEqualTo "완료 복구"
+
+        val failedLockName = randomName()
+        val failedFuture = election.runAsyncIfLeader<Int>(failedLockName, VirtualThreadExecutor) {
+            CompletableFuture.failedFuture(actionFailure)
+        }
+
+        val failedCompletion = assertFailsWith<CompletionException> { failedFuture.join() }
+        failedCompletion.cause shouldBeEqualTo actionFailure
+        ExposedJdbcLeaderElector(db, options).runIfLeader(failedLockName) { "실패 복구" } shouldBeEqualTo "실패 복구"
     }
 
     @ParameterizedTest
