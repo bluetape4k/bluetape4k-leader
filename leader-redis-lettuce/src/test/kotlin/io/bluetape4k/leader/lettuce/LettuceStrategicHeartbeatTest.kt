@@ -145,7 +145,11 @@ class LettuceStrategicHeartbeatTest : AbstractLettuceLeaderTest() {
         val lockName = randomName()
         val elector = LettuceStrategicLeaderElector(connection, "node-1")
         val stale = candidate("node-1", successCount = 1, failureCount = 0, metadata = "stale")
-        val key = "${LettuceCandidateRegistry.DEFAULT_KEY_PREFIX}:$lockName:node-1"
+        val key = LettuceCandidateKeyCodec.candidateKey(
+            LettuceCandidateRegistry.DEFAULT_KEY_PREFIX,
+            lockName,
+            "node-1",
+        )
 
         elector.registerCandidate(lockName, stale, ttl = 800.milliseconds)
         val beforeUpdate = connection.sync().pttl(key)

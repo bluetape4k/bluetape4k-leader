@@ -174,7 +174,16 @@ class LettuceStrategicCandidateLookupFailureTest {
         val commands = mockk<RedisCommands<String, String>>()
         every { connection.sync() } returns commands
         every { commands.smembers(any()) } returns setOf("node-1")
-        every { commands.mget(any<String>()) } returns listOf(KeyValue.just("ignored", "malformed"))
+        every { commands.mget(any<String>()) } returns listOf(
+            KeyValue.just(
+                LettuceCandidateKeyCodec.candidateKey(
+                    LettuceCandidateRegistry.DEFAULT_KEY_PREFIX,
+                    "issue-785-codec",
+                    "node-1",
+                ),
+                "malformed",
+            ),
+        )
         return connection
     }
 
@@ -191,7 +200,16 @@ class LettuceStrategicCandidateLookupFailureTest {
         val reactive = mockk<RedisReactiveCommands<String, String>>()
         every { connection.reactive() } returns reactive
         every { reactive.smembers(any()) } returns Flux.just("node-1")
-        every { reactive.mget(any<String>()) } returns Flux.just(KeyValue.just("ignored", "malformed"))
+        every { reactive.mget(any<String>()) } returns Flux.just(
+            KeyValue.just(
+                LettuceCandidateKeyCodec.candidateKey(
+                    LettuceSuspendCandidateRegistry.GROUP_KEY_PREFIX,
+                    "issue-785-codec-group",
+                    "node-1",
+                ),
+                "malformed",
+            ),
+        )
         return connection
     }
 }
