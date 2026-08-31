@@ -80,7 +80,13 @@ def main() -> int:
             [
                 "ruby",
                 str(TOOL_ROOT / "validate_manuals.rb"),
+                "--code-root",
+                str(ROOT),
+                "--manual-root",
+                str(MANUAL_ROOT),
+                "--inventory",
                 str(RELEASE_INVENTORY),
+                "--manifest",
                 str(MANIFEST),
             ],
             env=validation_env,
