@@ -10,7 +10,7 @@ English | [한국어](README.ko.md)
 
 Current stable version: `1.0.0`
 
-Current development line: post-`1.0.0` maintenance on `develop`
+Current development line: `1.1.0`
 
 ![Bluetape4k leader election workbench](./docs/assets/leader-election-workbench.png)
 
@@ -46,8 +46,8 @@ The [Leader 1.0.0 manual](https://bluetape4k.github.io/manual/bluetape4k-leader/
 
 ## Development status
 
-`1.0.0` is the latest stable release, while `develop` tracks post-release
-maintenance. [`WIP.md`](./WIP.md) records the dated project snapshot and
+`1.0.0` is the latest stable release, while `develop` tracks the
+`1.1.0-SNAPSHOT` build on the `1.1.0+` development line. [`WIP.md`](./WIP.md) records the dated project snapshot and
 release boundary; [`CHANGELOG.md`](./CHANGELOG.md) lists released and upcoming
 changes. The versioned manual is pinned to the exact `1.0.0` release commit.
 
