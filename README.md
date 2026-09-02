@@ -8,9 +8,9 @@ English | [한국어](README.ko.md)
 [![JVM](https://img.shields.io/badge/JVM-25-ED8B00?logo=openjdk)](https://openjdk.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Current stable version: `0.5.0`
+Current stable version: `1.0.0`
 
-Current development line: `1.0.0-SNAPSHOT`
+Current development line: post-`1.0.0` maintenance on `develop`
 
 ![Bluetape4k leader election workbench](./docs/assets/leader-election-workbench.png)
 
@@ -42,16 +42,14 @@ Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 
 ## Manual
 
-The [Leader 0.5.0 manual](https://bluetape4k.github.io/manual/bluetape4k-leader/0.5/) is the source of truth for release behavior. It covers model and backend selection, result and cancellation semantics, Spring Boot and Ktor integration, operations, and a progressive path through all 17 runnable examples. README files remain concise entry points; detailed guidance belongs in `central manual`.
+The [Leader 1.0.0 manual](https://bluetape4k.github.io/manual/bluetape4k-leader/1.0/) is the source of truth for release behavior. It covers model and backend selection, result and cancellation semantics, Spring Boot and Ktor integration, operations, and a progressive path through all runnable examples. README files remain concise entry points; detailed guidance belongs in the central manual.
 
 ## Development status
 
-`0.5.0` is the latest stable release, while `develop` tracks the unreleased
-`1.0.0-SNAPSHOT` development line. [`WIP.md`](./WIP.md) records the dated
-project snapshot, milestone, and release boundary; [`CHANGELOG.md`](./CHANGELOG.md) lists the
-unreleased changes. The versioned manual remains pinned to the `0.5.0` release
-commit, so development-only diagnostics and observability guidance stays in
-`central manual drafts/` until the corresponding release train is promoted.
+`1.0.0` is the latest stable release, while `develop` tracks post-release
+maintenance. [`WIP.md`](./WIP.md) records the dated project snapshot and
+release boundary; [`CHANGELOG.md`](./CHANGELOG.md) lists released and upcoming
+changes. The versioned manual is pinned to the exact `1.0.0` release commit.
 
 ## Benchmarks
 
@@ -155,12 +153,12 @@ exported. `UNKNOWN` is a dashboard and warning signal, not an automatic
 `DOWN` or page condition.
 
 For the operational decision table and timeout/bypass runbook, see the
-[unreleased observability manual draft](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-28-issue-774-observability.en.md).
+[backend connectivity observability guide](https://bluetape4k.github.io/manual/bluetape4k-leader/1.0/guides/backend-connectivity-observability/).
 <!-- LEADER_BACKEND_DIAGNOSTICS:END -->
 
 `@LeaderGroupElection` supports scalar, suspend, and `Mono` results, but rejects `Flux` and Kotlin `Flow` because per-slot stream lease extension is undefined. For long-running or unbounded single-leader streams, use `@LeaderElection(autoExtend = true)`.
 
-For selection guidance, see [backend selection](https://bluetape4k.github.io/manual/bluetape4k-leader/0.5/guides/backend-selection/), [execution model selection](https://bluetape4k.github.io/manual/bluetape4k-leader/0.5/guides/execution-model-selection/), and [lease extension](https://bluetape4k.github.io/manual/bluetape4k-leader/0.5/core/lease-extension/). The runnable paths are indexed in [Examples](#examples).
+For selection guidance, see [backend selection](https://bluetape4k.github.io/manual/bluetape4k-leader/1.0/guides/backend-selection/), [execution model selection](https://bluetape4k.github.io/manual/bluetape4k-leader/1.0/guides/execution-model-selection/), and [lease extension](https://bluetape4k.github.io/manual/bluetape4k-leader/1.0/core/lease-extension/). The runnable paths are indexed in [Examples](#examples).
 
 ## Examples
 
@@ -244,7 +242,7 @@ import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElector
 val options = ExposedJdbcLeaderGroupElectionOptions(
     leaderGroupOptions = LeaderGroupElectionOptions(
         maxLeaders = 3,
-        useDbTime = true, // 1.0.0+ develop: use database server time for group ownership
+        useDbTime = true, // use database server time for group ownership
     ),
 )
 val groupElection = ExposedJdbcLeaderGroupElector(db, options)
@@ -260,10 +258,10 @@ transaction, so JVM clock skew does not change the lease boundary. It defaults
 to `false`; when database time is unavailable, group state is reported
 conservatively and `runIfLeader` skips rather than claiming ownership.
 
-The option is available on the `1.0.0+` development line. The versioned manual
-pages remain pinned to the `0.5.0` release provenance.
+The option is available in `1.0.0`. The versioned manual pages are pinned to
+that release provenance.
 
-### Exposed R2DBC group (coroutine-native, 1.0.0+ develop)
+### Exposed R2DBC group (coroutine-native, 1.0.0+)
 
 ```kotlin
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -337,7 +335,7 @@ val election = RedissonLeaderElector(client, options)
 
 `minLeaseTime` is the `lockAtLeastFor` equivalent. Local electors wait before releasing; supported distributed backends delegate the remaining minimum lease to storage TTL so callers can return immediately.
 
-`autoExtend` semantics vary by backend. Use the [backend capability matrix](#backend-capability-matrix) and [lease extension guide](https://bluetape4k.github.io/manual/bluetape4k-leader/0.5/core/lease-extension/) as the source of truth. `@LeaderGroupElection` does not support auto-extension.
+`autoExtend` semantics vary by backend. Use the [backend capability matrix](#backend-capability-matrix) and [lease extension guide](https://bluetape4k.github.io/manual/bluetape4k-leader/1.0/core/lease-extension/) as the source of truth. `@LeaderGroupElection` does not support auto-extension.
 
 ### State snapshots
 
@@ -701,9 +699,8 @@ introducing framework-specific event contracts.
 
 ### Lease-extension observation
 
-> **Unreleased API:** This section describes the current `develop` implementation. The dependency examples in this
-> README target released `0.5.0`, and the manual pinned to that release does not include this hook. Keep this integration on a
-> matching develop/snapshot build until the promotion gate in the draft is complete.
+This API is included in `1.0.0`; use the release-pinned manual for the complete
+contract and adapter guidance.
 
 `LockExtender` and `LeaderLeaseAutoExtender` publish the same framework-neutral terminal event contract. Register an
 observer only when the application needs lease-extension diagnostics:
@@ -756,8 +753,8 @@ Callback exceptions do not change the extension result. `CancellationException` 
 are not flattened into an outcome or published as events. `BackendError.cause` remains the original backend `Exception`;
 core does not redact it, so custom observers must sanitise the cause before logging or exporting. `LeaderLeaseExtensionContext.toString()` is redacted, so applications should still
 avoid logging raw `lockName` or `auditLeaderId`. A fail-open `NotHeld` event still carries its lock name in `context` with
-`auditLeaderId = null`; scope-free and named-mismatch events have `context = null`. The [unreleased lease-extension observation draft](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
-contains the complete contract and the Micrometer/Spring adapters.
+`auditLeaderId = null`; scope-free and named-mismatch events have `context = null`. The [lease extension guide](https://bluetape4k.github.io/manual/bluetape4k-leader/1.0/core/lease-extension/)
+contains the complete contract and adapter guidance.
 
 ### Audit export to an HTTP/webhook sink
 
