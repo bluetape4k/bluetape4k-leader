@@ -9,7 +9,7 @@
 
 현재 안정 버전: `1.0.0`
 
-현재 개발선: `develop`의 `1.1.0-SNAPSHOT`
+현재 개발 버전: `1.1.0`
 
 ![bluetape4k 리더 선출 작업대 일러스트](./docs/assets/leader-election-workbench.png)
 
@@ -45,7 +45,7 @@ Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 
 ## 개발 상태
 
-`1.0.0`이 최신 안정 릴리스이며 `develop`은 `1.1.0-SNAPSHOT` 개발선을 추적합니다.
+`1.0.0`이 최신 안정 릴리스이며 `develop`은 `1.1.0-SNAPSHOT` 빌드가 속한 `1.1.0+` 개발선을 추적합니다.
 [`WIP.md`](./WIP.md)에서 기준일의 프로젝트 상태와 release 경계를 확인하고,
 [`CHANGELOG.md`](./CHANGELOG.md)에서 배포 내역과 다음 변경을 확인하세요. 버전
 매뉴얼은 exact `1.0.0` release commit에 고정되어 있습니다.
