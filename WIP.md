@@ -1,17 +1,15 @@
 # WIP - bluetape4k-leader
 
-기준일: 2026-08-30 KST. 이 문서는 [PR #841](https://github.com/bluetape4k/bluetape4k-leader/pull/841)의
-merge commit `e46216f5e2a4bcd8103310d1493245f9f3e2e7c7` 직후 확인한
-`develop` 상태를 기록하며, Prometheus scrape readiness 테스트의 간헐 timeout과
-실행 순서 의존성을 다룬 [PR #840](https://github.com/bluetape4k/bluetape4k-leader/pull/840)이
-병합되었습니다. `0.5.0`은 tag, GitHub Release, Maven Central publication이
-완료된 안정 릴리스이고, `1.0.0-SNAPSHOT`은 아직 배포하지 않은 개발선입니다.
-이 문서는 기준일의 GitHub 상태와 release-pinned manual의 범위를 분리해 기록합니다.
+기준일: 2026-09-02 KST. `0.5.0`은 tag, GitHub Release, Maven Central publication이
+완료된 최신 안정 릴리스이며, 현재 `develop`은 1.0.0 release-prep #860을 수행합니다.
+중앙 catalog는 Projects/Exposed 안정 버전이 승격된 immutable SHA
+`8efed120b91c4e1b1cfbfe1269321df325b08aef`를 사용합니다. release-pinned manual은
+1.0.0 배포 이후 #774에서 별도로 승격합니다.
 
 ## 현재 방향
 
-`1.0.0` milestone은 open 상태지만 열린 이슈 0개, 닫힌 이슈 190개입니다.
-현재 열린 PR도 0개입니다. `1.0.0-post` milestone의 유일한 열린
+`1.0.0` milestone은 open 상태이며 release-prep #860 한 건이 열려 있고 200건이
+닫혔습니다. PR 생성 전 열린 PR은 0개입니다. `1.0.0-post` milestone의 유일한 열린
 이슈인 [#774](https://github.com/bluetape4k/bluetape4k-leader/issues/774)의
 observability 운영 정책·경보·runbook은 완료되었고, `1.0.0` release train 이후
 새 API를 포함한 versioned manual을 승격하는 작업만 남았습니다. 따라서 현재
@@ -42,6 +40,8 @@ Maven publication, versioned manual 승격은 별도 release 승인과 candidate
 - `docs/manual/manifest.yaml`은 `releaseRef: 0.5.0`과 위 release commit에
   고정되어 있습니다. 현재 `develop` 전용 diagnostics·observability 내용은
   `docs/manual/drafts/`에서 관리합니다.
+- 1.0.0 release-prep #860은 `baseVersion=1.0.0`, 빈 `snapshotVersion`, 중앙
+  catalog exact SHA `8efed120b91c4e1b1cfbfe1269321df325b08aef`를 사용합니다.
 - `1.0.0` tag/release/publication은 아직 없으며, `1.0.0-post`의 [#774](https://github.com/bluetape4k/bluetape4k-leader/issues/774)는
   새 API를 포함하는 versioned release train에서 manual pin을 갱신한 뒤 닫습니다.
 

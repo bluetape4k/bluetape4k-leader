@@ -8,6 +8,8 @@
 
 ## [미공개]
 
+## [1.0.0] — 2026-09-02
+
 ### 추가
 
 - `LeaderBackendDiagnosticsProbe` 공통 계약과 `UNKNOWN` 원인(`CLIENT_STATE_UNCONFIRMED`, `PROVIDER_UNSUPPORTED`, `PROVIDER_EXCEPTION`)을 built-in backend, Ktor, Spring, Micrometer 경로에 연결했습니다([Issue #766](https://github.com/bluetape4k/bluetape4k-leader/issues/766), [PR #812](https://github.com/bluetape4k/bluetape4k-leader/pull/812), [PR #813](https://github.com/bluetape4k/bluetape4k-leader/pull/813), [PR #814](https://github.com/bluetape4k/bluetape4k-leader/pull/814), [PR #816](https://github.com/bluetape4k/bluetape4k-leader/pull/816), [PR #819](https://github.com/bluetape4k/bluetape4k-leader/pull/819), [PR #820](https://github.com/bluetape4k/bluetape4k-leader/pull/820)).
@@ -15,7 +17,9 @@
 
 ### 변경
 
-- Kotlin 2.4, JDK 25, Gradle 9.7 기준의 `1.0.0-SNAPSHOT` 개발선을 유지하고, 공개 README의 `0.5.0` stable·`1.0.0-SNAPSHOT` development·manual pin 경계를 정렬했습니다([Issue #666](https://github.com/bluetape4k/bluetape4k-leader/issues/666), [Issue #753](https://github.com/bluetape4k/bluetape4k-leader/issues/753), [PR #838](https://github.com/bluetape4k/bluetape4k-leader/pull/838)).
+- Kotlin 2.4, JDK 25, Gradle 9.7 기준의 1.0.0 개발선을 완료하고, 중앙 catalog ref를
+  `8efed120b91c4e1b1cfbfe1269321df325b08aef`로 고정해 Projects/Exposed 안정
+  버전을 사용하는 배포 경계를 확정했습니다([Issue #666](https://github.com/bluetape4k/bluetape4k-leader/issues/666), [Issue #753](https://github.com/bluetape4k/bluetape4k-leader/issues/753), [Issue #860](https://github.com/bluetape4k/bluetape4k-leader/issues/860), [PR #838](https://github.com/bluetape4k/bluetape4k-leader/pull/838)).
 - `UNKNOWN` reason, active probe, Micrometer counter, Spring health, Ktor route, Prometheus alert/runbook을 운영 해석이 가능한 bounded contract로 연결했습니다([PR #819](https://github.com/bluetape4k/bluetape4k-leader/pull/819), [PR #820](https://github.com/bluetape4k/bluetape4k-leader/pull/820), [PR #822](https://github.com/bluetape4k/bluetape4k-leader/pull/822), [PR #823](https://github.com/bluetape4k/bluetape4k-leader/pull/823)).
 - Spring lease-extension 관측 범위를 `ObservationRegistry` identity별 execution scope로 격리해 여러 application context의 telemetry가 섞이지 않도록 했습니다([PR #835](https://github.com/bluetape4k/bluetape4k-leader/pull/835)).
 
