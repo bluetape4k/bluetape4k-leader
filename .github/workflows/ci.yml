@@ -33,7 +33,7 @@ env:
   JAVA_VERSION: '25'
   JAVA_DISTRIBUTION: 'temurin'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  BLUETAPE4K_DEPENDENCIES_CATALOG_REF: '8efed120b91c4e1b1cfbfe1269321df325b08aef'
+  BLUETAPE4K_DEPENDENCIES_CATALOG_REF: '3c203aa9f8ba80685aac766c5fb8f24e23d0058e'
 
 jobs:
   # ── 0. 시크릿 스캔 ────────────────────────────────────────────────────────
