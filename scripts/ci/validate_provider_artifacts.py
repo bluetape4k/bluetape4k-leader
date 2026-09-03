@@ -162,7 +162,8 @@ def validate_workflow(path: Path) -> list[str]:
 
         kover = _step_block(block, "Generate Kover XML report")
         if kover is None:
-            violations.append(f"{path}: {job_id}에 Kover report step이 없습니다")
+            if test_step is None or "koverXmlReport" not in test_step:
+                violations.append(f"{path}: {job_id} test step에 Kover report task가 없습니다")
         elif not _has_env_provider(kover, provider):
             violations.append(
                 f"{path}: {job_id} Kover report env에 LEADER_TEST_DB={provider}가 없습니다"

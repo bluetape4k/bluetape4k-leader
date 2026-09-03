@@ -293,6 +293,10 @@ jobs:
           python3 scripts/ci/validate_detekt_configuration_cache_test.py
           python3 scripts/ci/validate_provider_artifacts.py --workflow-contract .github/workflows/ci.yml .github/workflows/nightly-tests.yml
           python3 scripts/ci/validate_provider_artifacts.py --self-test
+          python3 scripts/ci/validate_kover_contract.py --static
+          python3 scripts/ci/validate_kover_contract_test.py
+          python3 scripts/ci/validate_release_provenance.py
+          python3 scripts/ci/validate_release_provenance_test.py
           python3 scripts/compatibility/check_binary_api_test.py
 
   # ── 2-B. 매뉴얼/릴리스 provenance 계약 검증 ─────────────────────────────
@@ -457,17 +461,12 @@ jobs:
       - name: Test leader-core
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-core:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-core:test :bluetape4k-leader-core:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
-
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-core:koverXmlReport --no-configuration-cache --no-daemon -x test
-        continue-on-error: true
 
       - name: Upload test results
         if: always()
@@ -481,6 +480,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-core
           path: '**/build/reports/kover/'
           retention-days: 7
@@ -505,16 +505,12 @@ jobs:
       - name: Test leader-micrometer
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-micrometer:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-micrometer:test :bluetape4k-leader-micrometer:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-micrometer:koverXmlReport --no-configuration-cache --no-daemon -x test
-        continue-on-error: true
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -526,6 +522,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-micrometer
           path: '**/build/reports/kover/'
           retention-days: 7
@@ -553,7 +550,7 @@ jobs:
       - name: Test leader-redis-lettuce
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-redis-lettuce:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-redis-lettuce:test :bluetape4k-leader-redis-lettuce:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -561,11 +558,6 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
           DOCKER_HOST: "unix:///var/run/docker.sock"
-
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-redis-lettuce:koverXmlReport --no-configuration-cache --no-daemon -x test
-        continue-on-error: true
 
       - name: Upload test results
         if: always()
@@ -579,6 +571,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-redis-lettuce
           path: '**/build/reports/kover/'
           retention-days: 7
@@ -606,7 +599,7 @@ jobs:
       - name: Test leader-redis-redisson
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-redis-redisson:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-redis-redisson:test :bluetape4k-leader-redis-redisson:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -614,11 +607,6 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
           DOCKER_HOST: "unix:///var/run/docker.sock"
-
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-redis-redisson:koverXmlReport --no-configuration-cache --no-daemon -x test
-        continue-on-error: true
 
       - name: Upload test results
         if: always()
@@ -632,6 +620,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-redis-redisson
           path: '**/build/reports/kover/'
           retention-days: 7
@@ -659,20 +648,13 @@ jobs:
       - name: Test leader-exposed-jdbc (H2)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-exposed-jdbc:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-exposed-jdbc:test :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
           LEADER_TEST_DB: "H2"
-
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon -x test
-        env:
-          LEADER_TEST_DB: "H2"
-        continue-on-error: true
 
       - name: Verify provider artifact provenance
         if: always()
@@ -692,6 +674,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-exposed-jdbc-h2
           path: |
             **/build/reports/kover/
@@ -721,7 +704,7 @@ jobs:
       - name: Test leader-exposed-jdbc (PostgreSQL)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-exposed-jdbc:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-exposed-jdbc:test :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -730,13 +713,6 @@ jobs:
           TESTCONTAINERS_RYUK_DISABLED: "true"
           DOCKER_HOST: "unix:///var/run/docker.sock"
           LEADER_TEST_DB: "POSTGRESQL"
-
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon -x test
-        env:
-          LEADER_TEST_DB: "POSTGRESQL"
-        continue-on-error: true
 
       - name: Verify provider artifact provenance
         if: always()
@@ -756,6 +732,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-exposed-jdbc-postgresql
           path: |
             **/build/reports/kover/
@@ -785,7 +762,7 @@ jobs:
       - name: Test leader-exposed-jdbc (MySQL 8)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-exposed-jdbc:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-exposed-jdbc:test :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -794,13 +771,6 @@ jobs:
           TESTCONTAINERS_RYUK_DISABLED: "true"
           DOCKER_HOST: "unix:///var/run/docker.sock"
           LEADER_TEST_DB: "MYSQL_V8"
-
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon -x test
-        env:
-          LEADER_TEST_DB: "MYSQL_V8"
-        continue-on-error: true
 
       - name: Verify provider artifact provenance
         if: always()
@@ -820,6 +790,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-exposed-jdbc-mysql
           path: |
             **/build/reports/kover/
@@ -847,19 +818,13 @@ jobs:
       - name: Test leader-exposed-r2dbc (H2)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-exposed-r2dbc:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-exposed-r2dbc:test :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
           LEADER_TEST_DB: "H2"
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon -x test
-        env:
-          LEADER_TEST_DB: "H2"
-        continue-on-error: true
       - name: Verify provider artifact provenance
         if: always()
         run: python3 scripts/ci/validate_provider_artifacts.py --root . --module leader-exposed-r2dbc --provider H2
@@ -876,6 +841,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-exposed-r2dbc-h2
           path: |
             **/build/reports/kover/
@@ -902,7 +868,7 @@ jobs:
       - name: Test leader-exposed-r2dbc (PostgreSQL)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-exposed-r2dbc:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-exposed-r2dbc:test :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -911,12 +877,6 @@ jobs:
           TESTCONTAINERS_RYUK_DISABLED: "true"
           DOCKER_HOST: "unix:///var/run/docker.sock"
           LEADER_TEST_DB: "POSTGRESQL"
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon -x test
-        env:
-          LEADER_TEST_DB: "POSTGRESQL"
-        continue-on-error: true
       - name: Verify provider artifact provenance
         if: always()
         run: python3 scripts/ci/validate_provider_artifacts.py --root . --module leader-exposed-r2dbc --provider POSTGRESQL
@@ -933,6 +893,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-exposed-r2dbc-postgresql
           path: |
             **/build/reports/kover/
@@ -959,7 +920,7 @@ jobs:
       - name: Test leader-exposed-r2dbc (MySQL 8)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-exposed-r2dbc:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-exposed-r2dbc:test :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -968,12 +929,6 @@ jobs:
           TESTCONTAINERS_RYUK_DISABLED: "true"
           DOCKER_HOST: "unix:///var/run/docker.sock"
           LEADER_TEST_DB: "MYSQL_V8"
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon -x test
-        env:
-          LEADER_TEST_DB: "MYSQL_V8"
-        continue-on-error: true
       - name: Verify provider artifact provenance
         if: always()
         run: python3 scripts/ci/validate_provider_artifacts.py --root . --module leader-exposed-r2dbc --provider MYSQL_V8
@@ -990,6 +945,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-exposed-r2dbc-mysql
           path: |
             **/build/reports/kover/
@@ -1620,7 +1576,7 @@ jobs:
       - name: Test leader-spring-boot
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-spring-boot:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-spring-boot:test :bluetape4k-leader-spring-boot:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -1628,10 +1584,6 @@ jobs:
           GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false'
           TESTCONTAINERS_RYUK_DISABLED: 'true'
           DOCKER_HOST: 'unix:///var/run/docker.sock'
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-spring-boot:koverXmlReport --no-configuration-cache --no-daemon -x test
-        continue-on-error: true
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -1643,6 +1595,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-spring-boot
           path: '**/build/reports/kover/'
           retention-days: 7
@@ -1667,7 +1620,7 @@ jobs:
       - name: Test leader-ktor
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-ktor:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-ktor:test :bluetape4k-leader-ktor:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -1675,10 +1628,6 @@ jobs:
           GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false'
           TESTCONTAINERS_RYUK_DISABLED: 'true'
           DOCKER_HOST: 'unix:///var/run/docker.sock'
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-ktor:koverXmlReport --no-configuration-cache --no-daemon -x test
-        continue-on-error: true
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -1690,6 +1639,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-leader-ktor
           path: '**/build/reports/kover/'
           retention-days: 7
@@ -1714,7 +1664,7 @@ jobs:
       - name: Test leader-mongodb
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-mongodb:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-mongodb:test :bluetape4k-leader-mongodb:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -1722,10 +1672,6 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
           DOCKER_HOST: "unix:///var/run/docker.sock"
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-mongodb:koverXmlReport --no-configuration-cache --no-daemon -x test
-        continue-on-error: true
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -1737,6 +1683,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-mongodb
           path: '**/build/reports/kover/'
           retention-days: 7
@@ -1761,7 +1708,7 @@ jobs:
       - name: Test leader-dynamodb
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-dynamodb:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-dynamodb:test :bluetape4k-leader-dynamodb:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -1769,10 +1716,6 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
           DOCKER_HOST: "unix:///var/run/docker.sock"
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-dynamodb:koverXmlReport --no-configuration-cache --no-daemon -x test
-        continue-on-error: true
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -1784,6 +1727,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-leader-dynamodb
           path: '**/build/reports/kover/'
           retention-days: 7
@@ -1808,7 +1752,7 @@ jobs:
       - name: Test leader-etcd
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-etcd:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-etcd:test :bluetape4k-leader-etcd:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -1816,10 +1760,6 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
           DOCKER_HOST: "unix:///var/run/docker.sock"
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-etcd:koverXmlReport --no-configuration-cache --no-daemon -x test
-        continue-on-error: true
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -1831,6 +1771,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-leader-etcd
           path: '**/build/reports/kover/'
           retention-days: 7
@@ -1855,7 +1796,7 @@ jobs:
       - name: Test leader-consul
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-consul:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-consul:test :bluetape4k-leader-consul:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -1863,10 +1804,6 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
           DOCKER_HOST: "unix:///var/run/docker.sock"
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-consul:koverXmlReport --no-configuration-cache --no-daemon -x test
-        continue-on-error: true
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -1878,6 +1815,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-leader-consul
           path: '**/build/reports/kover/'
           retention-days: 7
@@ -1940,7 +1878,7 @@ jobs:
       - name: Test leader-hazelcast
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-hazelcast:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-hazelcast:test :bluetape4k-leader-hazelcast:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -1948,10 +1886,6 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
           DOCKER_HOST: "unix:///var/run/docker.sock"
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-hazelcast:koverXmlReport --no-configuration-cache --no-daemon -x test
-        continue-on-error: true
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -1963,6 +1897,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-hazelcast
           path: '**/build/reports/kover/'
           retention-days: 7
@@ -1987,7 +1922,7 @@ jobs:
       - name: Test leader-zookeeper
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-zookeeper:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-zookeeper:test :bluetape4k-leader-zookeeper:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -1995,10 +1930,6 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
           DOCKER_HOST: "unix:///var/run/docker.sock"
-      - name: Generate Kover XML report
-        if: always()
-        run: ./gradlew :bluetape4k-leader-zookeeper:koverXmlReport --no-configuration-cache --no-daemon -x test
-        continue-on-error: true
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -2010,6 +1941,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: error
           name: coverage-zookeeper
           path: '**/build/reports/kover/'
           retention-days: 7
@@ -2068,7 +2000,6 @@ jobs:
           pattern: coverage-*
           path: coverage-artifacts
           merge-multiple: false
-        continue-on-error: true
       - name: Aggregate Kover coverage summary
         if: always()
         run: python3 .github/scripts/aggregate-kover-coverage.py coverage-artifacts

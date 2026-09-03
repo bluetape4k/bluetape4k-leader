@@ -104,8 +104,8 @@ class ProviderArtifactContractTest(unittest.TestCase):
     def test_rejects_provider_removed_from_test_step(self) -> None:
         source = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         source = source.replace(
-            '          LEADER_TEST_DB: "H2"\n\n      - name: Generate Kover XML report',
-            '          LEADER_TEST_DB: "BROKEN"\n\n      - name: Generate Kover XML report',
+            '          LEADER_TEST_DB: "H2"\n\n      - name: Verify provider artifact provenance',
+            '          LEADER_TEST_DB: "BROKEN"\n\n      - name: Verify provider artifact provenance',
             1,
         )
 
@@ -131,8 +131,8 @@ class ProviderArtifactContractTest(unittest.TestCase):
             1,
         )
         job = job.replace(
-            '          LEADER_TEST_DB: "H2"\n\n      - name: Generate Kover XML report',
-            '\n      - name: Generate Kover XML report',
+            '          LEADER_TEST_DB: "H2"\n\n      - name: Verify provider artifact provenance',
+            '\n      - name: Verify provider artifact provenance',
             1,
         )
         source = source[:job_start] + job + source[job_end:]

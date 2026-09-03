@@ -39,12 +39,16 @@ jobs:
       contents: read
     outputs:
       version: ${{ steps.resolve.outputs.version }}
-      ref: ${{ steps.resolve.outputs.ref }}
+      source_sha: ${{ steps.resolve.outputs.source_sha }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
       - id: resolve
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
+          GITHUB_SHA: ${{ github.sha }}
           TAG_NAME: ${{ github.ref_name }}
           INPUT_VERSION: ${{ inputs.version }}
         run: |
@@ -58,9 +62,17 @@ jobs:
             echo "::error::Invalid version format: $VERSION"
             exit 1
           fi
+          if ! SOURCE_SHA="$(git rev-parse --verify "refs/tags/$VERSION^{commit}")"; then
+            echo "::error::Release tag does not exist: $VERSION"
+            exit 1
+          fi
+          if [[ "$EVENT_NAME" == "push" && "$SOURCE_SHA" != "$GITHUB_SHA" ]]; then
+            echo "::error::Tag commit ($SOURCE_SHA) does not match the triggering commit ($GITHUB_SHA)"
+            exit 1
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "ref=refs/tags/$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Resolved version=$VERSION"
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "Resolved version=$VERSION source_sha=$SOURCE_SHA"
 
   publish:
     name: Publish RELEASE to Maven Central Portal
@@ -72,8 +84,27 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.resolve-version.outputs.ref }}
+          ref: ${{ needs.resolve-version.outputs.source_sha }}
           fetch-depth: 0
+
+      - name: Verify immutable release source
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ needs.resolve-version.outputs.source_sha }}
+          VERSION: ${{ needs.resolve-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          TAG_SHA="$(git rev-parse --verify "refs/tags/$VERSION^{commit}")"
+          if [[ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "::error::Checked out HEAD ($ACTUAL_SHA) does not match resolved source SHA ($EXPECTED_SHA)"
+            exit 1
+          fi
+          if [[ "$TAG_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "::error::Tag $VERSION resolves to $TAG_SHA, expected $EXPECTED_SHA"
+            exit 1
+          fi
+          echo "Verified immutable release source: version=$VERSION sha=$EXPECTED_SHA"
 
       - name: Resolve dependencies catalog ref
         id: catalog
@@ -259,8 +290,27 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.resolve-version.outputs.ref }}
+          ref: ${{ needs.resolve-version.outputs.source_sha }}
           fetch-depth: 0
+
+      - name: Verify immutable release source
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ needs.resolve-version.outputs.source_sha }}
+          VERSION: ${{ needs.resolve-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          TAG_SHA="$(git rev-parse --verify "refs/tags/$VERSION^{commit}")"
+          if [[ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "::error::Checked out HEAD ($ACTUAL_SHA) does not match resolved source SHA ($EXPECTED_SHA)"
+            exit 1
+          fi
+          if [[ "$TAG_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "::error::Tag $VERSION resolves to $TAG_SHA, expected $EXPECTED_SHA"
+            exit 1
+          fi
+          echo "Verified immutable release source: version=$VERSION sha=$EXPECTED_SHA"
 
       - name: Resolve previous tag
         id: prev_tag
