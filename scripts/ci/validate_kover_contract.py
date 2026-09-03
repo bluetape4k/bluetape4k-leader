@@ -89,6 +89,13 @@ def validate_workflow(path: Path) -> list[str]:
 
     coverage_report = _job_block(source, "coverage-report")
     if coverage_report is not None:
+        if _job_block(source, "changes") is not None:
+            if "- changes" not in coverage_report:
+                violations.append(f"{path}: coverage-report는 changes job에 의존해야 합니다")
+            if "needs.changes.outputs" not in coverage_report or "workflow_dispatch" not in coverage_report:
+                violations.append(
+                    f"{path}: coverage-report는 영향받은 coverage job 또는 workflow_dispatch일 때만 실행되어야 합니다"
+                )
         download = _step_block(coverage_report, "Download all coverage artifacts")
         if download is None:
             violations.append(f"{path}: coverage-report에 artifact download step이 없습니다")

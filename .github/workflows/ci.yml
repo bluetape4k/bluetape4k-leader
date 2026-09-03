@@ -1952,6 +1952,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs:
+      - changes
       - test-core
       - test-micrometer
       - test-redis-lettuce
@@ -1988,7 +1989,22 @@ jobs:
       - test-examples-tenant-aggregator
       - test-examples-ktor-app
       - test-examples-prometheus-dashboard
-    if: always()
+    if: >-
+      always() && (
+        github.event_name == 'workflow_dispatch' ||
+        needs.changes.outputs['dependency-graph'] == 'true' ||
+        needs.changes.outputs['leader-core'] == 'true' ||
+        needs.changes.outputs['leader-redis'] == 'true' ||
+        needs.changes.outputs['leader-exposed'] == 'true' ||
+        needs.changes.outputs['leader-spring-boot'] == 'true' ||
+        needs.changes.outputs['leader-ktor'] == 'true' ||
+        needs.changes.outputs['leader-mongodb'] == 'true' ||
+        needs.changes.outputs['leader-dynamodb'] == 'true' ||
+        needs.changes.outputs['leader-etcd'] == 'true' ||
+        needs.changes.outputs['leader-consul'] == 'true' ||
+        needs.changes.outputs['leader-hazelcast'] == 'true' ||
+        needs.changes.outputs['leader-zookeeper'] == 'true'
+      )
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
