@@ -6,6 +6,7 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.VirtualThreadLeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 
 /**
@@ -33,9 +34,9 @@ class DynamoDbVirtualThreadLeaderElector(
         slot: LeaderSlot,
         action: () -> T,
     ): VirtualFuture<LeaderRunResult<T>> =
-        virtualFuture {
+        LeaderFutureBridge.propagateCancellation(virtualFuture {
             delegate.runIfLeaderResult(slot, action)
-    }
+        })
 }
 
 /**

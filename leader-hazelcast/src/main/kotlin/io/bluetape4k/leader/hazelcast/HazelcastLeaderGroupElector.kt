@@ -21,6 +21,9 @@ import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * `HazelcastLeaderGroupElector`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -132,6 +135,7 @@ class HazelcastLeaderGroupElector private constructor(
         }
     }
 
+    @Suppress("LongMethod", "TooGenericExceptionCaught")
     override fun <T> runAsyncIfLeader(
         lockName: String,
         executor: Executor,
@@ -141,40 +145,76 @@ class HazelcastLeaderGroupElector private constructor(
 
         val slotWaitTime = waitTime / maxLeaders
 
-        return CompletableFuture.supplyAsync({
+        val acquiredRef = AtomicReference<Pair<HazelcastLock, Int>?>(null)
+        val acquiredAtNanosRef = AtomicLong()
+        val lifecycleStarted = AtomicBoolean()
+        val rejectionCleanupClaimed = AtomicBoolean()
+        val releaseIfUnclaimed: () -> Unit = {
+            val acquired = acquiredRef.get()
+            if (acquired != null && !lifecycleStarted.get() && rejectionCleanupClaimed.compareAndSet(false, true)) {
+                runCatching { acquired.first.unlock(minLeaseTime, acquiredAtNanosRef.get()) }
+                    .onSuccess { log.debug { "executor 거부 후 비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=${acquired.second}" } }
+                    .onFailure { e -> log.error(e) { "Fail to release group slot after executor rejection. lockName=$lockName, slot=${acquired.second}" } }
+            }
+        }
+        val acquisitionFuture = CompletableFuture.supplyAsync({
             (0 until maxLeaders)
                 .asSequence()
                 .map { slot ->
                     HazelcastLock(lockMap, slotKey(lockName, slot), LOCK_MAP_NAME, hazelcast::newTransactionContext) to slot
                 }
-                .firstOrNull { (lock, _) -> lock.tryLock(slotWaitTime, leaseTime) }
-        }, executor).thenComposeAsync({ acquired ->
-            if (acquired == null) {
-                log.debug { "리더 그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
-                CompletableFuture.completedFuture(null)
-            } else {
-                val (lock, slot) = acquired
-                val acquiredAtNanos = System.nanoTime()
-                log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName, slot=$slot" }
-                val delegate = HazelcastSlotExtendDelegate(lock)
-                // Group elector: watchdog disabled (autoExtend 옵션 부재)
-                val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
-                // async path 는 handle push 미수행 (AOP scope sync/suspend 만 지원)
-                val actionFuture = runCatching { action() }
-                    .getOrElse { e ->
+                .firstOrNull { (lock, slot) ->
+                    lock.tryLock(slotWaitTime, leaseTime).also { acquired ->
+                        if (acquired) {
+                            acquiredAtNanosRef.set(System.nanoTime())
+                            acquiredRef.set(lock to slot)
+                        }
+                    }
+                }
+        }, executor)
+        val pipelineFuture: CompletableFuture<T?> = try {
+            acquisitionFuture.thenComposeAsync({ acquired ->
+                if (acquired == null) {
+                    log.debug { "리더 그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
+                    CompletableFuture.completedFuture(null)
+                } else {
+                    val (lock, slot) = acquired
+                    val acquiredAtNanos = acquiredAtNanosRef.get()
+                    log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName, slot=$slot" }
+                    val delegate = HazelcastSlotExtendDelegate(lock)
+                    // Group elector: watchdog disabled (autoExtend 옵션 부재)
+                    val watchdog = try {
+                        LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
+                    } catch (error: Throwable) {
+                        return@thenComposeAsync CompletableFuture.failedFuture(error)
+                    }
+                    // async path 는 handle push 미수행 (AOP scope sync/suspend 만 지원)
+                    val actionFuture = runCatching { action() }
+                        .getOrElse { error ->
+                            watchdog.close()
+                            releaseIfUnclaimed()
+                            return@thenComposeAsync CompletableFuture.failedFuture(error)
+                        }
+                    lifecycleStarted.set(true)
+                    actionFuture.whenComplete { _, _ ->
                         watchdog.close()
                         runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
-                            .onFailure { ex -> log.error(ex) { "Fail to release group slot on action error (async). lockName=$lockName, slot=$slot" } }
-                        return@thenComposeAsync CompletableFuture.failedFuture(e)
+                            .onSuccess { log.debug { "비동기 리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
+                            .onFailure { e -> log.error(e) { "Fail to release group slot (async). lockName=$lockName, slot=$slot" } }
                     }
-                actionFuture.whenComplete { _, _ ->
-                    watchdog.close()
-                    runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
-                        .onSuccess { log.debug { "비동기 리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
-                        .onFailure { e -> log.error(e) { "Fail to release group slot (async). lockName=$lockName, slot=$slot" } }
+                    actionFuture
                 }
+            }, executor)
+        } catch (error: Throwable) {
+            acquisitionFuture.whenComplete { acquired, _ ->
+                if (acquired != null) releaseIfUnclaimed()
             }
-        }, executor)
+            CompletableFuture.failedFuture(error)
+        }
+        pipelineFuture.whenComplete { _, failure ->
+            if (failure != null) releaseIfUnclaimed()
+        }
+        return pipelineFuture
     }
 }
 

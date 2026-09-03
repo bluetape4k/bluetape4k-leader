@@ -11,6 +11,7 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseGroupAcquisitionDeadline
@@ -25,6 +26,8 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -109,10 +112,10 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         var elected = false
-        return runAsyncWithGroupSlot(slot.lockName, slot.leaderId, executor) {
+        return LeaderFutureBridge.map(runAsyncWithGroupSlot(slot.lockName, slot.leaderId, executor) {
             elected = true
             action()
-        }.handle { value, failure ->
+        }) { value, failure ->
             val cause = failure.unwrapCompletionException()
             when {
                 cause is CancellationException -> throw cause
@@ -151,21 +154,55 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun <T> runAsyncWithGroupSlot(
         lockName: String,
         auditLeaderId: String?,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T?> =
-        CompletableFuture.supplyAsync({ acquire(lockName, auditLeaderId) }, executor)
-            .thenComposeAsync({ acquired ->
+    ): CompletableFuture<T?> {
+        val acquiredRef = AtomicReference<AcquiredSlot?>()
+        val lifecycleStarted = AtomicBoolean()
+        val rejectionCleanupClaimed = AtomicBoolean()
+        val releaseIfUnclaimed: () -> Unit = {
+            val acquired = acquiredRef.get()
+            if (acquired != null && !lifecycleStarted.get() && rejectionCleanupClaimed.compareAndSet(false, true)) {
+                release(acquired.lock, acquired.acquiredAtNanos, lockName, acquired.slot)
+            }
+        }
+        val acquisitionFuture = CompletableFuture.supplyAsync({
+            acquire(lockName, auditLeaderId).also { acquired ->
+                if (acquired != null) acquiredRef.set(acquired)
+            }
+        }, executor)
+        val pipelineFuture: CompletableFuture<T?> = try {
+            acquisitionFuture.thenComposeAsync({ acquired ->
                 if (acquired == null) {
                     CompletableFuture.completedFuture(null)
                 } else {
-                    runAcquiredAsync(lockName, acquired, auditLeaderId, executor, action)
+                    lifecycleStarted.set(true)
+                    try {
+                        runAcquiredAsync(lockName, acquired, auditLeaderId, executor, action)
+                    } catch (error: Throwable) {
+                        lifecycleStarted.set(false)
+                        releaseIfUnclaimed()
+                        CompletableFuture.failedFuture(error)
+                    }
                 }
             }, executor)
+        } catch (error: Throwable) {
+            acquisitionFuture.whenComplete { acquired, _ ->
+                if (acquired != null) releaseIfUnclaimed()
+            }
+            CompletableFuture.failedFuture(error)
+        }
+        pipelineFuture.whenComplete { _, failure ->
+            if (failure != null) releaseIfUnclaimed()
+        }
+        return pipelineFuture
+    }
 
+    @Suppress("ReturnCount", "TooGenericExceptionCaught")
     private fun <T> runAcquiredAsync(
         lockName: String,
         acquired: AcquiredSlot,
@@ -175,16 +212,21 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
     ): CompletableFuture<T?> {
         val lock = acquired.lock
         val delegate = KubernetesLeaseLockExtendDelegate(lock)
-        val watchdog = LeaderLeaseAutoExtender.start(
-            enabled = false,
-            leaseTime = options.leaderGroupOptions.leaseTime,
-            delegate = delegate,
-            classifier = KubernetesLeaseLeaderElector.ERROR_CLASSIFIER,
-        )
+        val watchdog = try {
+            LeaderLeaseAutoExtender.start(
+                enabled = false,
+                leaseTime = options.leaderGroupOptions.leaseTime,
+                delegate = delegate,
+                classifier = KubernetesLeaseLeaderElector.ERROR_CLASSIFIER,
+            )
+        } catch (e: Throwable) {
+            release(lock, acquired.acquiredAtNanos, lockName, acquired.slot)
+            return CompletableFuture.failedFuture(e)
+        }
         val actionFuture = try {
             val handle = handle(lockName, lock, acquired.slot, acquired.acquiredAtNanos, delegate, auditLeaderId)
             AopScopeAccess.withPushedSync(handle) { action() }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             watchdog.close()
             release(lock, acquired.acquiredAtNanos, lockName, acquired.slot)
             return CompletableFuture.failedFuture(e)

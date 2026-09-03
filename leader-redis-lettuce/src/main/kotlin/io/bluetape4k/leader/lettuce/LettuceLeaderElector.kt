@@ -12,6 +12,7 @@ import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceLockExtendDelegate
 import io.bluetape4k.leader.lettuce.lock.LettuceLock
@@ -179,10 +180,10 @@ class LettuceLeaderElector @JvmOverloads constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         val elected = AtomicBoolean(false)
-        return runAsyncIfLeader(slot, executor) {
+        return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
             elected.set(true)
             action()
-        }.handle { value, failure ->
+        }) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()

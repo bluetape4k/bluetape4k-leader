@@ -2,6 +2,7 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
@@ -64,10 +65,10 @@ interface AsyncLeaderElector: LeaderElectionState {
     ): CompletableFuture<LeaderRunResult<T>> {
         LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         val elected = AtomicBoolean(false)
-        return runAsyncIfLeader(slot.lockName, executor) {
+        return LeaderFutureBridge.map(runAsyncIfLeader(slot.lockName, executor) {
             elected.set(true)
             action()
-        }.handle { value, failure ->
+        }) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()

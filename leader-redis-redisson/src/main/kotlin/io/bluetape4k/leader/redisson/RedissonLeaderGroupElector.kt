@@ -12,6 +12,7 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonSemaphoreExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
@@ -226,10 +227,10 @@ class RedissonLeaderGroupElector private constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         val elected = AtomicBoolean(false)
-        return runAsyncIfLeader(slot, executor) {
+        return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
             elected.set(true)
             action()
-        }.handle { value, failure ->
+        }) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()

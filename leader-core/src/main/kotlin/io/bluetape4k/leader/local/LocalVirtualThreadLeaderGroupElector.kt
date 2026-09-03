@@ -6,6 +6,7 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.VirtualThreadLeaderGroupElector
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.CancellationException
@@ -93,16 +94,14 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
                 action()
             }
         }
-        val mapped: java.util.concurrent.CompletableFuture<LeaderRunResult<T>> =
-            source.toCompletableFuture().handle { value, failure ->
-                when {
-                    failure != null && elected.get() -> failure.toActionFailedResult()
-                    failure != null -> throw failure.asCompletionException()
-                    elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId) as LeaderRunResult<T>
-                    else -> LeaderRunResult.Skipped as LeaderRunResult<T>
-                }
+        return LeaderFutureBridge.map(source) { value, failure ->
+            when {
+                failure != null && elected.get() -> failure.toActionFailedResult()
+                failure != null -> throw failure.asCompletionException()
+                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId) as LeaderRunResult<T>
+                else -> LeaderRunResult.Skipped as LeaderRunResult<T>
             }
-        return VirtualFuture(mapped)
+        }
     }
 
     private fun Throwable.unwrapCompletionCause(): Throwable =

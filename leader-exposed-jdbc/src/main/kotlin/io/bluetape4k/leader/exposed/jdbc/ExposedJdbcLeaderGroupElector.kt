@@ -254,7 +254,23 @@ class ExposedJdbcLeaderGroupElector private constructor(
 
         val resultFuture = CompletableFuture<T?>()
         val actionFutureRef = AtomicReference<CompletableFuture<*>?>()
-        val pipelineFuture = CompletableFuture.supplyAsync({
+        val acquiredSlotRef = AtomicReference<Pair<ExposedJdbcGroupLock, Int>?>(null)
+        val lifecycleStarted = AtomicBoolean()
+        val rejectionCleanupClaimed = AtomicBoolean()
+        val releaseIfUnclaimed: () -> Unit = {
+            val acquired = acquiredSlotRef.get()
+            if (acquired != null && !lifecycleStarted.get() && rejectionCleanupClaimed.compareAndSet(false, true)) {
+                when (acquired.first.unlockAndReport()) {
+                    ExposedJdbcUnlockOutcome.RELEASED ->
+                        log.debug { "executor 거부 후 비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=${acquired.second}" }
+                    ExposedJdbcUnlockOutcome.NOT_HELD ->
+                        log.warn { "executor 거부 후 반납할 그룹 슬롯이 없습니다. lockName=$lockName, slot=${acquired.second}" }
+                    ExposedJdbcUnlockOutcome.FAILED ->
+                        log.warn { "executor 거부 후 그룹 슬롯 해제에 실패했습니다. lockName=$lockName, slot=${acquired.second}" }
+                }
+            }
+        }
+        val acquisitionFuture = CompletableFuture.supplyAsync({
             var acquired: Pair<ExposedJdbcGroupLock, Int>? = null
             for (i in 0 until maxLeaders) {
                 if (resultFuture.isCancelled) return@supplyAsync null
@@ -276,12 +292,16 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     }
                 }
             }
+            acquired?.also { acquiredSlotRef.set(it) }
             acquired
-        }, executor).thenComposeAsync({ acquired ->
+        }, executor)
+        val pipelineFuture: CompletableFuture<T?> = try {
+            acquisitionFuture.thenComposeAsync({ acquired ->
             if (acquired == null) {
                 log.debug { "그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
                 CompletableFuture.completedFuture(null)
             } else {
+                lifecycleStarted.set(true)
                 val (lock, slot) = acquired
                 if (resultFuture.isCancelled) {
                     when (lock.unlockAndReport()) {
@@ -362,12 +382,19 @@ class ExposedJdbcLeaderGroupElector private constructor(
                 if (resultFuture.isCancelled) actionFuture.cancel(false)
                 terminalFuture
             }
-        }, executor)
+            }, executor)
+        } catch (e: Throwable) {
+            acquisitionFuture.whenComplete { acquired, _ ->
+                if (acquired != null) releaseIfUnclaimed()
+            }
+            CompletableFuture.failedFuture(e)
+        }
 
         resultFuture.whenComplete { _, _ ->
             if (resultFuture.isCancelled) actionFutureRef.get()?.cancel(false)
         }
         pipelineFuture.whenComplete { value, throwable ->
+            if (throwable != null) releaseIfUnclaimed()
             if (throwable == null) {
                 resultFuture.complete(value)
             } else {

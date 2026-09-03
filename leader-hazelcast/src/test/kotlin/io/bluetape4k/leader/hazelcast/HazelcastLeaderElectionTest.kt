@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
@@ -16,8 +17,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
@@ -228,6 +232,38 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `runAsyncIfLeader - 두 번째 executor 제출 거부 후 획득한 락을 정리한다`() {
+        val lockName = randomName()
+        val election = HazelcastLeaderElector(
+            hazelcastClient,
+            LeaderElectionOptions(waitTime = 2.seconds, leaseTime = 10.seconds),
+        )
+        val worker = Executors.newSingleThreadExecutor()
+        val submissions = AtomicInteger()
+        val executor = Executor { command ->
+            if (submissions.incrementAndGet() == 1) {
+                worker.execute(command)
+            } else {
+                throw RejectedExecutionException("second submission rejected")
+            }
+        }
+
+        try {
+            val resultFuture = runCatching {
+                election.runAsyncIfLeader(lockName, executor) {
+                    CompletableFuture.completedFuture("실행되면 안 됨")
+                }
+            }.getOrElse { CompletableFuture.failedFuture(it) }
+
+            val failure = assertFailsWith<CompletionException> { resultFuture.join() }
+            failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
+            election.runIfLeader(lockName) { "executor 거부 후 복구" } shouldBeEqualTo "executor 거부 후 복구"
+        } finally {
+            worker.shutdownNow()
         }
     }
 

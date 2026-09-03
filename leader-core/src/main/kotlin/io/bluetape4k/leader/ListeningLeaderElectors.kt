@@ -4,6 +4,7 @@ import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.resolveLeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -188,7 +189,7 @@ class ListeningLeaderElector(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         val elected = AtomicBoolean(false)
-        return delegate.runAsyncIfLeaderResult(slot, executor) {
+        val source = delegate.runAsyncIfLeaderResult(slot, executor) {
             elected.set(true)
             val leader = delegate.state(slot.lockName).leader
             listeners.notifyElected(slot.lockName, leader)
@@ -203,7 +204,8 @@ class ListeningLeaderElector(
                 eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
                 CompletableFuture.failedFuture(e)
             }
-        }.whenComplete { result, failure ->
+        }
+        return LeaderFutureBridge.observe(source) { result, failure ->
             if (!elected.get() && failure == null && result is LeaderRunResult.Skipped) {
                 listeners.notifySkipped(slot.lockName)
                 eventSubject.tryEmit(LeaderElectionEvent.Skipped(slot.lockName))

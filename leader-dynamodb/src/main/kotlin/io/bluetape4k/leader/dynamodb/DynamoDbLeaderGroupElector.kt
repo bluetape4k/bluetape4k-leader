@@ -13,6 +13,7 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbKeys
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbLockClient
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbLockExtendDelegate
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -168,10 +169,10 @@ class DynamoDbLeaderGroupElector(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         val elected = AtomicBoolean(false)
-        return runAsyncIfLeader(slot, executor) {
+        return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
             elected.set(true)
             action()
-        }.handle { value, failure ->
+        }) { value, failure ->
             val cause = (failure as? CompletionException)?.cause ?: failure
             when {
                 cause is CancellationException -> throw cause

@@ -1,6 +1,6 @@
 package io.bluetape4k.leader.k8s.contract
 
-import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -17,6 +17,11 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -28,7 +33,7 @@ class KubernetesLeaseExecutorOverloadContractTest {
     private val client: KubernetesClient = KubernetesContractSupport.newClient()
 
     @Test
-    fun singleExecutorOverloadPropagatesLeaderIdAndReleases() {
+    fun singleExecutorRejectsSecondSubmissionAndReleases() {
         val elector = KubernetesLeaseLeaderElector(
             client,
             KubernetesLeaseOptions(
@@ -41,32 +46,39 @@ class KubernetesLeaseExecutorOverloadContractTest {
             ),
         )
         val lockName = "k8s-executor-single-contract"
+        val worker = Executors.newSingleThreadExecutor()
+        val submissions = AtomicInteger()
+        val executor = Executor { command ->
+            if (submissions.incrementAndGet() == 1) {
+                worker.execute(command)
+            } else {
+                throw RejectedExecutionException("second submission rejected")
+            }
+        }
 
-        val first = elector.runAsyncIfLeaderResult(
-            LeaderSlot(lockName, "k8s-single-a"),
-            VirtualThreadExecutor,
-        ) {
-            CompletableFuture.completedFuture("single-ok")
-        }.join()
+        try {
+            val resultFuture = runCatching {
+                elector.runAsyncIfLeader(lockName, executor) {
+                    CompletableFuture.completedFuture("should-not-run")
+                }
+            }.getOrElse { CompletableFuture.failedFuture(it) }
 
-        first shouldBeInstanceOf LeaderRunResult.Elected::class
-        (first as LeaderRunResult.Elected).value shouldBeEqualTo "single-ok"
-        first.leaderId shouldBeEqualTo "k8s-single-a"
+            val failure = assertFailsWith<CompletionException> { resultFuture.join() }
+            failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
 
-        val second = elector.runAsyncIfLeaderResult(
-            LeaderSlot(lockName, "k8s-single-b"),
-            VirtualThreadExecutor,
-        ) {
-            CompletableFuture.completedFuture("single-reacquired")
-        }.join()
-
-        second shouldBeInstanceOf LeaderRunResult.Elected::class
-        (second as LeaderRunResult.Elected).value shouldBeEqualTo "single-reacquired"
-        second.leaderId shouldBeEqualTo "k8s-single-b"
+            val result = elector.runAsyncIfLeaderResult(LeaderSlot(lockName, "k8s-single-b")) {
+                CompletableFuture.completedFuture("single-reacquired")
+            }.join()
+            result shouldBeInstanceOf LeaderRunResult.Elected::class
+            (result as LeaderRunResult.Elected).value shouldBeEqualTo "single-reacquired"
+            result.leaderId shouldBeEqualTo "k8s-single-b"
+        } finally {
+            worker.shutdownNow()
+        }
     }
 
     @Test
-    fun groupExecutorOverloadPropagatesLeaderIdAndReleases() {
+    fun groupExecutorRejectsSecondSubmissionAndReleases() {
         val elector = KubernetesLeaseLeaderGroupElector(
             client,
             KubernetesLeaseGroupOptions(
@@ -80,28 +92,35 @@ class KubernetesLeaseExecutorOverloadContractTest {
             ),
         )
         val lockName = "k8s-executor-group-contract"
+        val worker = Executors.newSingleThreadExecutor()
+        val submissions = AtomicInteger()
+        val executor = Executor { command ->
+            if (submissions.incrementAndGet() == 1) {
+                worker.execute(command)
+            } else {
+                throw RejectedExecutionException("second submission rejected")
+            }
+        }
 
-        val first = elector.runAsyncIfLeaderResult(
-            LeaderSlot(lockName, "k8s-group-a"),
-            VirtualThreadExecutor,
-        ) {
-            CompletableFuture.completedFuture("group-ok")
-        }.join()
+        try {
+            val resultFuture = runCatching {
+                elector.runAsyncIfLeader(lockName, executor) {
+                    CompletableFuture.completedFuture("should-not-run")
+                }
+            }.getOrElse { CompletableFuture.failedFuture(it) }
 
-        first shouldBeInstanceOf LeaderRunResult.Elected::class
-        (first as LeaderRunResult.Elected).value shouldBeEqualTo "group-ok"
-        first.leaderId shouldBeEqualTo "k8s-group-a"
+            val failure = assertFailsWith<CompletionException> { resultFuture.join() }
+            failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
 
-        val second = elector.runAsyncIfLeaderResult(
-            LeaderSlot(lockName, "k8s-group-b"),
-            VirtualThreadExecutor,
-        ) {
-            CompletableFuture.completedFuture("group-reacquired")
-        }.join()
-
-        second shouldBeInstanceOf LeaderRunResult.Elected::class
-        (second as LeaderRunResult.Elected).value shouldBeEqualTo "group-reacquired"
-        second.leaderId shouldBeEqualTo "k8s-group-b"
+            val result = elector.runAsyncIfLeaderResult(LeaderSlot(lockName, "k8s-group-b")) {
+                CompletableFuture.completedFuture("group-reacquired")
+            }.join()
+            result shouldBeInstanceOf LeaderRunResult.Elected::class
+            (result as LeaderRunResult.Elected).value shouldBeEqualTo "group-reacquired"
+            result.leaderId shouldBeEqualTo "k8s-group-b"
+        } finally {
+            worker.shutdownNow()
+        }
     }
 
     @AfterAll

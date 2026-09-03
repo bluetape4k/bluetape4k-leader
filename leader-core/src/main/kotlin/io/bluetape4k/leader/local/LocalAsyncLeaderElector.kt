@@ -4,6 +4,7 @@ import io.bluetape4k.leader.AsyncLeaderElector
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
@@ -81,7 +82,7 @@ class LocalAsyncLeaderElector(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         val elected = AtomicBoolean(false)
-        return CompletableFuture.supplyAsync(
+        return LeaderFutureBridge.map(CompletableFuture.supplyAsync(
             {
                 tryWithLeaderLock(
                     lockName = slot.lockName,
@@ -94,7 +95,7 @@ class LocalAsyncLeaderElector(
                 }
             },
             executor
-        ).handle { value, failure ->
+        )) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()

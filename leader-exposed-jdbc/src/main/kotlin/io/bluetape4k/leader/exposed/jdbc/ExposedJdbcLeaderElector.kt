@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -181,20 +182,38 @@ class ExposedJdbcLeaderElector private constructor(
 
         val resultFuture = CompletableFuture<T?>()
         val actionFutureRef = AtomicReference<CompletableFuture<*>?>()
-        val pipelineFuture = CompletableFuture
+        val lockAcquired = AtomicBoolean()
+        val acquiredAtNanosRef = AtomicLong()
+        val lifecycleStarted = AtomicBoolean()
+        val rejectionCleanupClaimed = AtomicBoolean()
+        val releaseIfUnclaimed: () -> Unit = {
+            if (lockAcquired.get() && !lifecycleStarted.get() && rejectionCleanupClaimed.compareAndSet(false, true)) {
+                runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanosRef.get()) }
+                    .onSuccess { log.debug { "executor 거부 후 비동기 락을 반납했습니다. lockName=$lockName" } }
+                    .onFailure { e -> log.warn(e) { "executor 거부 후 비동기 락 해제 실패. lockName=$lockName" } }
+            }
+        }
+        val acquisitionFuture = CompletableFuture
             .supplyAsync(
                 {
                     lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime) {
                         resultFuture.isCancelled
+                    }.also { acquired ->
+                        if (acquired) {
+                            acquiredAtNanosRef.set(System.nanoTime())
+                            lockAcquired.set(true)
+                        }
                     }
                 },
                 executor,
             )
-            .thenComposeAsync({ acquired ->
+        val pipelineFuture: CompletableFuture<T?> = try {
+            acquisitionFuture.thenComposeAsync({ acquired ->
                 if (!acquired) {
                     log.debug { "리더 승격 실패 (비동기). lockName=$lockName" }
                     CompletableFuture.completedFuture(null)
                 } else {
+                    lifecycleStarted.set(true)
                     val startedAt = Instant.now()
                     val acquiredAtNanos = System.nanoTime()
                     val terminal = AtomicBoolean()
@@ -306,11 +325,18 @@ class ExposedJdbcLeaderElector private constructor(
                     terminalFuture
                 }
             }, executor)
+        } catch (e: Throwable) {
+            acquisitionFuture.whenComplete { acquired, _ ->
+                if (acquired == true) releaseIfUnclaimed()
+            }
+            CompletableFuture.failedFuture(e)
+        }
 
         resultFuture.whenComplete { _, _ ->
             if (resultFuture.isCancelled) actionFutureRef.get()?.cancel(false)
         }
         pipelineFuture.whenComplete { value, throwable ->
+            if (throwable != null) releaseIfUnclaimed()
             if (throwable == null) {
                 resultFuture.complete(value)
             } else {
