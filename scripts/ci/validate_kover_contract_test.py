@@ -86,6 +86,37 @@ jobs:
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("continue-on-error", result.stdout + result.stderr)
 
+    def test_validator_requires_coverage_job_to_follow_impact_filters(self) -> None:
+        workflow = """
+jobs:
+  changes:
+    outputs:
+      leader-core: ${{ steps.filter.outputs.leader-core }}
+  test-core:
+    needs: [changes]
+    if: ${{ needs.changes.outputs['leader-core'] == 'true' }}
+    steps:
+      - run: ./gradlew :bluetape4k-leader-core:test :bluetape4k-leader-core:koverXmlReport
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+  coverage-report:
+    needs: [test-core]
+    if: always()
+    steps:
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v8
+      - name: Aggregate Kover coverage summary
+        run: python3 .github/scripts/aggregate-kover-coverage.py coverage-artifacts
+"""
+
+        path = self._write_workflow(workflow)
+        result = run_validator("--workflow-contract", str(path))
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("changes job", result.stdout + result.stderr)
+
     def test_aggregator_fails_when_no_reports_are_present(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             result = run_aggregator(Path(directory))
