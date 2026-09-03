@@ -202,7 +202,7 @@ def static_errors(workflow: str) -> list[str]:
     test_jobs = [
         spec
         for spec in specs.values()
-        if spec.job_id.startswith(TEST_JOB_PREFIX) or spec.job_id == "compile-benchmark"
+        if spec.job_id.startswith(TEST_JOB_PREFIX)
     ]
     if not test_jobs:
         errors.append("no test jobs were found")
@@ -278,7 +278,7 @@ def runtime_errors(needs: dict[str, Any], event_name: str, specs: dict[str, JobS
 
     outputs = needs.get("changes", {}).get("outputs") or {}
     for spec in specs.values():
-        if not (spec.job_id.startswith(TEST_JOB_PREFIX) or spec.job_id == "compile-benchmark"):
+        if not spec.job_id.startswith(TEST_JOB_PREFIX):
             continue
         expected = event_name == "workflow_dispatch" or any(
             str(outputs.get(key, "false")).lower() == "true" for key in spec.output_keys
@@ -380,7 +380,7 @@ def run_self_test() -> int:
     test_ids = [
         spec.job_id
         for spec in specs.values()
-        if spec.job_id.startswith(TEST_JOB_PREFIX) or spec.job_id == "compile-benchmark"
+        if spec.job_id.startswith(TEST_JOB_PREFIX)
     ]
     base: dict[str, Any] = {
         "changes": {"result": "success", "outputs": {"dependency-graph": "true"}},

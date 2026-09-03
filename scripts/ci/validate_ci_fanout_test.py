@@ -13,6 +13,17 @@ from validate_ci_fanout import job_specs, runtime_errors, static_errors
 
 
 class ValidateCiFanoutContractTest(unittest.TestCase):
+    def test_benchmark_tasks_are_excluded_from_ci_and_nightly(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        ci = root.joinpath(".github/workflows/ci.yml").read_text(encoding="utf-8")
+        nightly = root.joinpath(".github/workflows/nightly-tests.yml").read_text(encoding="utf-8")
+
+        self.assertNotIn("compile-benchmark:", ci)
+        self.assertNotIn("steps.filter.outputs.benchmark", ci)
+        self.assertIn("-x :benchmark:build", ci)
+        self.assertIn("-x :benchmark:build", nightly)
+        self.assertIn("-x :benchmark:detekt", nightly)
+
     def test_static_contract_requires_manual_and_global_filters_and_job(self) -> None:
         workflow = """
 on:

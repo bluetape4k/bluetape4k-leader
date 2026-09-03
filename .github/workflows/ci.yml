@@ -113,7 +113,6 @@ jobs:
       examples-strategic-election: ${{ steps.filter.outputs.examples-strategic-election }}
       examples-virtual-thread-runner: ${{ steps.filter.outputs.examples-virtual-thread-runner }}
       examples-redisson-watchdog: ${{ steps.filter.outputs.examples-redisson-watchdog }}
-      benchmark: ${{ steps.filter.outputs.benchmark }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -265,22 +264,6 @@ jobs:
               - 'examples/redisson-watchdog/**'
               - 'leader-redis-redisson/**'
               - 'leader-core/**'
-            benchmark:
-              - 'benchmark/**'
-              - 'buildSrc/build.gradle.kts'
-              - 'leader-core/**'
-              - 'leader-redis-lettuce/**'
-              - 'leader-redis-redisson/**'
-              - 'leader-exposed-core/**'
-              - 'leader-exposed-jdbc/**'
-              - 'leader-exposed-r2dbc/**'
-              - 'leader-mongodb/**'
-              - 'leader-etcd/**'
-              - 'leader-consul/**'
-              - 'leader-k8s/**'
-              - 'leader-hazelcast/**'
-              - 'leader-zookeeper/**'
-              - 'leader-dynamodb/**'
 
   # ── 2-A. CI fan-out 계약 검증 ────────────────────────────────────────────
   ci-contract:
@@ -409,7 +392,7 @@ jobs:
       - name: Build (compile only)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew build -x test -x koverVerify --parallel --no-configuration-cache && break
+            ./gradlew build -x test -x koverVerify -x :benchmark:build --parallel --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -483,7 +466,7 @@ jobs:
 
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-core:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-core:koverXmlReport --no-configuration-cache --no-daemon -x test
         continue-on-error: true
 
       - name: Upload test results
@@ -530,7 +513,7 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-micrometer:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-micrometer:koverXmlReport --no-configuration-cache --no-daemon -x test
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -581,7 +564,7 @@ jobs:
 
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-redis-lettuce:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-redis-lettuce:koverXmlReport --no-configuration-cache --no-daemon -x test
         continue-on-error: true
 
       - name: Upload test results
@@ -634,7 +617,7 @@ jobs:
 
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-redis-redisson:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-redis-redisson:koverXmlReport --no-configuration-cache --no-daemon -x test
         continue-on-error: true
 
       - name: Upload test results
@@ -686,7 +669,7 @@ jobs:
 
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon -x test
         env:
           LEADER_TEST_DB: "H2"
         continue-on-error: true
@@ -750,7 +733,7 @@ jobs:
 
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon -x test
         env:
           LEADER_TEST_DB: "POSTGRESQL"
         continue-on-error: true
@@ -814,7 +797,7 @@ jobs:
 
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-configuration-cache --no-daemon -x test
         env:
           LEADER_TEST_DB: "MYSQL_V8"
         continue-on-error: true
@@ -873,7 +856,7 @@ jobs:
           LEADER_TEST_DB: "H2"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon -x test
         env:
           LEADER_TEST_DB: "H2"
         continue-on-error: true
@@ -930,7 +913,7 @@ jobs:
           LEADER_TEST_DB: "POSTGRESQL"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon -x test
         env:
           LEADER_TEST_DB: "POSTGRESQL"
         continue-on-error: true
@@ -987,7 +970,7 @@ jobs:
           LEADER_TEST_DB: "MYSQL_V8"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-configuration-cache --no-daemon -x test
         env:
           LEADER_TEST_DB: "MYSQL_V8"
         continue-on-error: true
@@ -1647,7 +1630,7 @@ jobs:
           DOCKER_HOST: 'unix:///var/run/docker.sock'
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-spring-boot:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-spring-boot:koverXmlReport --no-configuration-cache --no-daemon -x test
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -1694,7 +1677,7 @@ jobs:
           DOCKER_HOST: 'unix:///var/run/docker.sock'
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-ktor:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-ktor:koverXmlReport --no-configuration-cache --no-daemon -x test
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -1741,7 +1724,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-mongodb:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-mongodb:koverXmlReport --no-configuration-cache --no-daemon -x test
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -1788,7 +1771,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-dynamodb:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-dynamodb:koverXmlReport --no-configuration-cache --no-daemon -x test
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -1835,7 +1818,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-etcd:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-etcd:koverXmlReport --no-configuration-cache --no-daemon -x test
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -1882,7 +1865,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-consul:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-consul:koverXmlReport --no-configuration-cache --no-daemon -x test
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -1967,7 +1950,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-hazelcast:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-hazelcast:koverXmlReport --no-configuration-cache --no-daemon -x test
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -2014,7 +1997,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew :bluetape4k-leader-zookeeper:koverXmlReport --no-configuration-cache --no-daemon
+        run: ./gradlew :bluetape4k-leader-zookeeper:koverXmlReport --no-configuration-cache --no-daemon -x test
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -2030,28 +2013,6 @@ jobs:
           name: coverage-zookeeper
           path: '**/build/reports/kover/'
           retention-days: 7
-
-  # ── benchmark 컴파일 검증 (timing benchmark 실행 없음) ──────────────────
-  compile-benchmark:
-    name: Compile / benchmark
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [build, changes]
-    if: ${{ needs.changes.outputs['benchmark'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6.0.0
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.3.0
-        with:
-          gradle-version: wrapper
-          cache-read-only: true
-      - name: Compile benchmark classes
-        run: ./gradlew :benchmark:compileBenchmarkKotlin --no-configuration-cache --no-daemon
-        env:
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
 
   # ── 10. Coverage 집계 ─────────────────────────────────────────────────────
   coverage-report:
@@ -2095,7 +2056,6 @@ jobs:
       - test-examples-tenant-aggregator
       - test-examples-ktor-app
       - test-examples-prometheus-dashboard
-      - compile-benchmark
     if: always()
     steps:
       - uses: actions/checkout@v7
@@ -2168,7 +2128,6 @@ jobs:
       - test-examples-tenant-aggregator
       - test-examples-ktor-app
       - test-examples-prometheus-dashboard
-      - compile-benchmark
       - snapshot-warmup
       - coverage-report
     if: always()

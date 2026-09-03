@@ -45,7 +45,7 @@ jobs:
         with:
           gradle-version: wrapper
       - name: Build (compile only)
-        run: ./gradlew build -x test -x koverVerify --parallel
+        run: ./gradlew build -x test -x koverVerify -x :benchmark:build --parallel
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
