@@ -2,6 +2,7 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletionException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -60,16 +61,14 @@ interface VirtualThreadLeaderGroupElector: LeaderGroupElectionState {
             elected.set(true)
             action()
         }
-        val mapped: java.util.concurrent.CompletableFuture<LeaderRunResult<T>> =
-            source.toCompletableFuture().handle { value, failure ->
-                when {
-                    failure != null && elected.get() -> failure.toActionFailedResult()
-                    failure != null -> throw failure.asCompletionException()
-                    elected.get() -> LeaderRunResult.Elected(value) as LeaderRunResult<T>
-                    else -> LeaderRunResult.Skipped as LeaderRunResult<T>
-                }
+        return LeaderFutureBridge.map(source) { value, failure ->
+            when {
+                failure != null && elected.get() -> failure.toActionFailedResult()
+                failure != null -> throw failure.asCompletionException()
+                elected.get() -> LeaderRunResult.Elected(value) as LeaderRunResult<T>
+                else -> LeaderRunResult.Skipped as LeaderRunResult<T>
             }
-        return VirtualFuture(mapped)
+        }
     }
 
     private fun Throwable.unwrapCompletionCause(): Throwable =

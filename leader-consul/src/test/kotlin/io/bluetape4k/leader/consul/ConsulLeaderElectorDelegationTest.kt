@@ -26,8 +26,11 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -320,6 +323,73 @@ class ConsulLeaderElectorDelegationTest {
             client.destroyCalls shouldBeEqualTo 2
         } finally {
             executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `runAsyncIfLeader releases acquired single lease when second executor submission is rejected`() {
+        val client = FakeConsulLockClient()
+        val elector = ConsulLeaderElector.create(client)
+        val worker = Executors.newSingleThreadExecutor()
+        val submissions = AtomicInteger()
+        val executor = Executor { command ->
+            if (submissions.incrementAndGet() == 1) {
+                worker.execute(command)
+            } else {
+                throw RejectedExecutionException("second submission rejected")
+            }
+        }
+
+        try {
+            val resultFuture = runCatching {
+                elector.runAsyncIfLeader("lock-a", executor) {
+                    CompletableFuture.completedFuture("should-not-run")
+                }
+            }.getOrElse { CompletableFuture.failedFuture(it) }
+
+            val failure = assertFailsWith<CompletionException> { resultFuture.join() }
+            failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
+            elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
+            client.releaseCalls shouldBeEqualTo 2
+            client.destroyCalls shouldBeEqualTo 2
+        } finally {
+            worker.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `runAsyncIfLeader releases acquired group slot when second executor submission is rejected`() {
+        val client = FakeConsulLockClient()
+        val elector = ConsulLeaderGroupElector.create(
+            client,
+            ConsulLeaderGroupElectionOptions(
+                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, leaseTime = 10.seconds),
+            ),
+        )
+        val worker = Executors.newSingleThreadExecutor()
+        val submissions = AtomicInteger()
+        val executor = Executor { command ->
+            if (submissions.incrementAndGet() == 1) {
+                worker.execute(command)
+            } else {
+                throw RejectedExecutionException("second submission rejected")
+            }
+        }
+
+        try {
+            val resultFuture = runCatching {
+                elector.runAsyncIfLeader("lock-a", executor) {
+                    CompletableFuture.completedFuture("should-not-run")
+                }
+            }.getOrElse { CompletableFuture.failedFuture(it) }
+
+            val failure = assertFailsWith<CompletionException> { resultFuture.join() }
+            failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
+            elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
+            client.releaseCalls shouldBeEqualTo 2
+            client.destroyCalls shouldBeEqualTo 2
+        } finally {
+            worker.shutdownNow()
         }
     }
 

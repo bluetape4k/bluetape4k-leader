@@ -197,4 +197,58 @@ class AsyncLeaderGroupElectorContractTest {
         (result is LeaderRunResult.ActionFailed).shouldBeTrue()
         (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
     }
+
+    @Test
+    fun `runAsyncIfLeaderResult - group 반환 future 취소가 원본 future 로 전파된다`() {
+        val source = CompletableFuture<Any?>()
+        val election = object : AsyncLeaderGroupElector {
+            override val maxLeaders: Int = 1
+
+            override fun activeCount(lockName: String): Int = 0
+
+            override fun availableSlots(lockName: String): Int = 1
+
+            override fun state(lockName: String): LeaderGroupState = LeaderGroupState(lockName, maxLeaders, 0)
+
+            @Suppress("UNCHECKED_CAST")
+            override fun <T> runAsyncIfLeader(
+                lockName: String,
+                executor: java.util.concurrent.Executor,
+                action: () -> CompletableFuture<T>,
+            ): CompletableFuture<T?> = source as CompletableFuture<T?>
+        }
+
+        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "group-bridge-cancel-node")) {
+            CompletableFuture.completedFuture("unused")
+        }
+
+        result.cancel(false).shouldBeTrue()
+        source.isCancelled.shouldBeTrue()
+    }
+
+    @Test
+    fun `VirtualThreadLeaderGroupElector result bridge 도 반환 future 취소를 원본으로 전파한다`() {
+        val source = CompletableFuture<Any?>()
+        val election = object : VirtualThreadLeaderGroupElector {
+            override val maxLeaders: Int = 1
+
+            override fun activeCount(lockName: String): Int = 0
+
+            override fun availableSlots(lockName: String): Int = 1
+
+            override fun state(lockName: String): LeaderGroupState = LeaderGroupState(lockName, maxLeaders, 0)
+
+            @Suppress("UNCHECKED_CAST")
+            override fun <T> runAsyncIfLeader(
+                lockName: String,
+                action: () -> T,
+            ): io.bluetape4k.concurrent.virtualthread.VirtualFuture<T?> =
+                io.bluetape4k.concurrent.virtualthread.VirtualFuture(source as java.util.concurrent.Future<T?>)
+        }
+
+        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "virtual-group-cancel-node")) { "unused" }
+
+        result.cancel(false).shouldBeTrue()
+        source.isCancelled.shouldBeTrue()
+    }
 }

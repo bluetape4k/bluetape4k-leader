@@ -23,6 +23,7 @@ import io.bluetape4k.leader.consul.internal.ConsulSessionTtl
 import io.bluetape4k.leader.consul.internal.JavaHttpConsulLockClient
 import io.bluetape4k.leader.consul.internal.getWithinRequestTimeout
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -32,6 +33,8 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -117,10 +120,10 @@ class ConsulLeaderElector private constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         var elected = false
-        return runAsyncIfLeader(slot, executor) {
+        return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
             elected = true
             action()
-        }.handle { value, failure ->
+        }) { value, failure ->
             val cause = failure.unwrapCompletionException()
             when {
                 cause is CancellationException -> throw cause
@@ -178,36 +181,70 @@ class ConsulLeaderElector private constructor(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun <T> runAsyncWithLock(
         lockName: String,
         auditLeaderId: String?,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T?> =
-        CompletableFuture.supplyAsync({ acquire(lockName, auditLeaderId) }, executor)
-            .thenComposeAsync({ handle ->
+    ): CompletableFuture<T?> {
+        val acquiredRef = AtomicReference<ConsulLeaseHandle?>()
+        val lifecycleStarted = AtomicBoolean()
+        val rejectionCleanupClaimed = AtomicBoolean()
+        val releaseIfUnclaimed: () -> Unit = {
+            val handle = acquiredRef.get()
+            if (handle != null && !lifecycleStarted.get() && rejectionCleanupClaimed.compareAndSet(false, true)) {
+                release(handle)
+            }
+        }
+        val acquisitionFuture = CompletableFuture.supplyAsync({
+            acquire(lockName, auditLeaderId).also { handle ->
+                if (handle != null) acquiredRef.set(handle)
+            }
+        }, executor)
+        val pipelineFuture: CompletableFuture<T?> = try {
+            acquisitionFuture.thenComposeAsync({ handle ->
                 if (handle == null) {
                     CompletableFuture.completedFuture(null)
                 } else {
-                    runAcquiredAsync(handle, executor, action)
+                    val actionFuture = runAcquiredAsync(handle, executor, action)
+                    lifecycleStarted.set(true)
+                    actionFuture
                 }
             }, executor)
+        } catch (error: Throwable) {
+            acquisitionFuture.whenComplete { handle, _ ->
+                if (handle != null) releaseIfUnclaimed()
+            }
+            CompletableFuture.failedFuture(error)
+        }
+        pipelineFuture.whenComplete { _, failure ->
+            if (failure != null) releaseIfUnclaimed()
+        }
+        return pipelineFuture
+    }
 
+    @Suppress("ReturnCount", "TooGenericExceptionCaught")
     private fun <T> runAcquiredAsync(
         handle: ConsulLeaseHandle,
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val delegate = ConsulLockExtendDelegate(lockClient, handle)
-        val watchdog = LeaderLeaseAutoExtender.start(
-            options.leaderOptions.autoExtend,
-            options.leaderOptions.leaseTime,
-            delegate,
-            ERROR_CLASSIFIER,
-        )
+        val watchdog = try {
+            LeaderLeaseAutoExtender.start(
+                options.leaderOptions.autoExtend,
+                options.leaderOptions.leaseTime,
+                delegate,
+                ERROR_CLASSIFIER,
+            )
+        } catch (e: Throwable) {
+            release(handle)
+            return CompletableFuture.failedFuture(e)
+        }
         val actionFuture = try {
             action()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             watchdog.close()
             release(handle)
             return CompletableFuture.failedFuture(e)

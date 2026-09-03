@@ -6,6 +6,7 @@ import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcGroupLock
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
@@ -35,10 +36,13 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CancellationException as FutureCancellationException
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
@@ -429,6 +433,37 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
+    fun `runAsyncIfLeader - 두 번째 executor 제출 거부 후 획득한 슬롯을 정리한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val election = ExposedJdbcLeaderGroupElector(db, makeOptions(maxLeaders = 1, waitSec = 1))
+        val worker = Executors.newSingleThreadExecutor()
+        val submissions = AtomicInteger()
+        val executor = Executor { command ->
+            if (submissions.incrementAndGet() == 1) {
+                worker.execute(command)
+            } else {
+                throw RejectedExecutionException("second submission rejected")
+            }
+        }
+
+        try {
+            val resultFuture = runCatching {
+                election.runAsyncIfLeader(lockName, executor) {
+                    CompletableFuture.completedFuture("실행되면 안 됨")
+                }
+            }.getOrElse { CompletableFuture.failedFuture(it) }
+
+            assertFailsWith<CompletionException> { resultFuture.join() }
+            election.runIfLeader(lockName) { "executor 거부 후 슬롯 복구" } shouldBeEqualTo "executor 거부 후 슬롯 복구"
+        } finally {
+            worker.shutdownNow()
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
     fun `runAsyncIfLeader - action future 취소 후 FAILED 이력을 기록하고 슬롯을 반환한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
@@ -487,6 +522,10 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
         resultFuture.cancel(false).shouldBeTrue()
         assertFailsWith<FutureCancellationException> { resultFuture.join() }
+        val cancellationDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (!actionFuture.isCancelled && System.nanoTime() < cancellationDeadline) {
+            Thread.sleep(10)
+        }
         actionFuture.isCancelled.shouldBeTrue()
 
         val history = transaction(db) {
@@ -499,6 +538,52 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         history[LeaderLockHistoryTable.durationMs].shouldNotBeNull() shouldBeGreaterOrEqualTo 0L
         election.runIfLeader(lockName) { "async-group-recovered-after-result-cancel" } shouldBeEqualTo
             "async-group-recovered-after-result-cancel"
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `runAsyncIfLeaderResult - 반환 future 취소를 action에 전파하고 FAILED 이력과 슬롯 반환을 보장한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val recorder = SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db))
+        val election = ExposedJdbcLeaderGroupElector(
+            db,
+            makeOptions(maxLeaders = 1),
+            recorder,
+        )
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        val resultFuture = election.runAsyncIfLeaderResult(
+            LeaderSlot(lockName, "group-result-cancel-node"),
+            VirtualThreadExecutor,
+        ) {
+            actionStarted.countDown()
+            actionFuture
+        }
+
+        actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        resultFuture.cancel(false).shouldBeTrue()
+        assertFailsWith<FutureCancellationException> { resultFuture.join() }
+        val cancellationDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (!actionFuture.isCancelled && System.nanoTime() < cancellationDeadline) {
+            Thread.sleep(10)
+        }
+        actionFuture.isCancelled.shouldBeTrue()
+
+        var historyStatus: String? = null
+        val historyDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (historyStatus != LeaderHistoryStatus.FAILED.name && System.nanoTime() < historyDeadline) {
+            historyStatus = transaction(db) {
+                LeaderLockHistoryTable.selectAll()
+                    .where { LeaderLockHistoryTable.lockName eq lockName }
+                    .single()[LeaderLockHistoryTable.status]
+            }
+            if (historyStatus != LeaderHistoryStatus.FAILED.name) Thread.sleep(10)
+        }
+        historyStatus shouldBeEqualTo LeaderHistoryStatus.FAILED.name
+        election.runIfLeader(lockName) { "group result 취소 후 복구" } shouldBeEqualTo "group result 취소 후 복구"
     }
 
     @ParameterizedTest

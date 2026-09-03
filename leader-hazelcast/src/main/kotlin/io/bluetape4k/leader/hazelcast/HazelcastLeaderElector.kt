@@ -19,6 +19,8 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * `HazelcastLeaderElector`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -99,6 +101,7 @@ class HazelcastLeaderElector private constructor(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    @Suppress("LongMethod", "TooGenericExceptionCaught")
     override fun <T> runAsyncIfLeader(
         lockName: String,
         executor: Executor,
@@ -108,38 +111,71 @@ class HazelcastLeaderElector private constructor(
 
         val lock = HazelcastLock(lockMap, lockName, LOCK_MAP_NAME, hazelcast::newTransactionContext)
 
-        return CompletableFuture
-            .supplyAsync({ lock.tryLock(options.waitTime, options.leaseTime) }, executor)
-            .thenComposeAsync({ acquired ->
+        val lockAcquired = AtomicBoolean()
+        val acquiredAtNanosRef = AtomicLong()
+        val lifecycleStarted = AtomicBoolean()
+        val rejectionCleanupClaimed = AtomicBoolean()
+        val releaseIfUnclaimed: () -> Unit = {
+            if (lockAcquired.get() && !lifecycleStarted.get() && rejectionCleanupClaimed.compareAndSet(false, true)) {
+                runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanosRef.get()) }
+                    .onSuccess { log.debug { "executor 거부 후 비동기 락을 반납했습니다. lockName=$lockName" } }
+                    .onFailure { e -> log.error(e) { "Fail to release lock after executor rejection. lockName=$lockName" } }
+            }
+        }
+        val acquisitionFuture = CompletableFuture.supplyAsync({
+            lock.tryLock(options.waitTime, options.leaseTime).also { acquired ->
+                if (acquired) {
+                    acquiredAtNanosRef.set(System.nanoTime())
+                    lockAcquired.set(true)
+                }
+            }
+        }, executor)
+        val pipelineFuture: CompletableFuture<T?> = try {
+            acquisitionFuture.thenComposeAsync({ acquired ->
                 if (!acquired) {
                     log.debug { "Leader 승격 실패 (슬롯 없음, 비동기). lockName=$lockName" }
                     CompletableFuture.completedFuture(null)
                 } else {
-                    val acquiredAtNanos = System.nanoTime()
+                    val acquiredAtNanos = acquiredAtNanosRef.get()
                     val delegate = HazelcastLockExtendDelegate(lock)
-                    val watchdog = LeaderLeaseAutoExtender.start(
-                        options.autoExtend,
-                        options.leaseTime,
-                        delegate,
-                        ERROR_CLASSIFIER,
-                    )
+                    val watchdog = try {
+                        LeaderLeaseAutoExtender.start(
+                            options.autoExtend,
+                            options.leaseTime,
+                            delegate,
+                            ERROR_CLASSIFIER,
+                        )
+                    } catch (error: Throwable) {
+                        return@thenComposeAsync CompletableFuture.failedFuture(error)
+                    }
                     log.debug { "Leader로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
                     // async path 는 handle push 미수행 (AOP scope sync/suspend 만 지원)
                     val actionFuture = runCatching { action() }
                         .getOrElse { error ->
                             watchdog.close()
-                            runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
-                                .onFailure { e -> log.error(e) { "Fail to release lock on action error (async). lockName=$lockName" } }
+                            releaseIfUnclaimed()
                             return@thenComposeAsync CompletableFuture.failedFuture(error)
                         }
+                    lifecycleStarted.set(true)
                     actionFuture.whenComplete { _, _ ->
                         watchdog.close()
                         runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
                             .onSuccess { log.debug { "비동기 Leader 권한을 반납했습니다. lockName=$lockName" } }
                             .onFailure { e -> log.error(e) { "Fail to release lock (async). lockName=$lockName" } }
                     }
+                    actionFuture
                 }
             }, executor)
+        } catch (error: Throwable) {
+            acquisitionFuture.whenComplete { acquired, _ ->
+                if (acquired == true) releaseIfUnclaimed()
+            }
+            CompletableFuture.failedFuture(error)
+        }
+        pipelineFuture.whenComplete { _, failure ->
+            if (failure != null) releaseIfUnclaimed()
+        }
+        return pipelineFuture
     }
 }
 
