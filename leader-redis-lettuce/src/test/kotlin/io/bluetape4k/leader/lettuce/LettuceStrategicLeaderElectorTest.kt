@@ -21,6 +21,7 @@ import io.bluetape4k.support.closeSafe
 import io.lettuce.core.codec.StringCodec
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.microseconds
 import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
@@ -289,6 +290,27 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
 
         Thread.sleep(100)
         node1.listCandidates(lockName).size shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `candidate TTL은 음수와 1ms 미만 값을 Redis 쓰기 전에 거부`() {
+        val lockName = randomName()
+        val candidate = CandidateInfo("node-1")
+
+        assertFailsWith<IllegalArgumentException> {
+            node1.registerCandidate(lockName, candidate, (-500).microseconds)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            node1.registerCandidate(lockName, candidate, 500.microseconds)
+        }
+
+        node1.registerCandidate(lockName, candidate, Duration.ZERO)
+        assertFailsWith<IllegalArgumentException> {
+            node1.refreshCandidate(lockName, candidate, (-500).microseconds)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            node1.refreshCandidate(lockName, candidate, 500.microseconds)
+        }
     }
 
     @Test

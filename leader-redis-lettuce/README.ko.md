@@ -52,6 +52,46 @@ val redisClient = RedisClient.create("redis://localhost:6379")
 val connection = redisClient.connect()
 ```
 
+### Redis Cluster 전략적 elector
+
+네 `LettuceStrategic*Elector` 클래스는 standalone용
+`StatefulRedisConnection`과 Redis Cluster용
+`StatefulRedisClusterConnection`을 모두 받습니다. connection과 client의
+생명주기는 caller가 소유하며 elector가 닫지 않습니다.
+
+```kotlin
+val clusterClient = RedisClusterClient.create("redis://localhost:7000")
+val clusterConnection = clusterClient.connect()
+val elector = LettuceStrategicLeaderElector(clusterConnection, nodeId = "node-a")
+
+val result = elector.runIfLeader("daily-report", FifoElectionStrategy) {
+    generateReport()
+}
+```
+
+Cluster 후보는 v3 hash-tag key layout을 사용하므로 하나의 lock에 속한
+index, candidate, tombstone, migration token이 같은 Redis slot에 배치됩니다.
+기존 v2와 colon layout key는 single-key 연산으로 읽고 source를 삭제하지 않은
+채 승격합니다. persistent tombstone은 unregister와 migration의 race에서
+부활을 막으며, 만료 cleanup은 migration token과 raw value가 모두 일치할 때만
+destination을 삭제합니다.
+
+`lockName`에 Redis hash-tag brace가 들어가면 거부합니다. v3 write가 한 번이라도
+발생한 뒤에는 구버전 binary로 rollback하지 마십시오. writer를 중지하고
+v2/colon 및 v3 상태를 보존·진단한 뒤 forward fix를 배포해야 합니다. Redis의
+`MOVED`/`ASK` 처리와 failover 수렴은 Lettuce topology refresh에 위임되며,
+정상 Cluster 자체를 대신하지 않습니다.
+
+Migration은 한 방향으로만 진행합니다. 구버전과 신버전 writer를 동시에
+운영하지 말고, 구버전 writer를 quiesce한 뒤 v3를 지원하는 reader/writer를
+배포하고 v2 또는 colon source 승격을 완료한 후 정상 스케줄링을 재개합니다.
+v3 write가 관찰된 이후 장애가 발생하면 새 binary를 유지한 채
+중지·상태 보존·진단·forward fix 순서로 복구합니다.
+
+저장소는 Lettuce `7.6.0.RELEASE`를 resolve하고 검증합니다. `clusterTest`
+Gradle task는 일반 PR test와 분리된 Nightly/manual 통합 검증 게이트이며
+benchmark가 아닙니다.
+
 ### 블로킹 단일 리더
 
 ```kotlin
@@ -197,5 +237,5 @@ release 시 `HDEL`로 삭제됩니다. `leaderId`가 빈 문자열이면 기록�
 implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:0.4.0")
 
 // Lettuce가 클래스패스에 있어야 합니다
-implementation("io.lettuce:lettuce-core:6.x.x")
+implementation("io.lettuce:lettuce-core:7.6.0.RELEASE")
 ```

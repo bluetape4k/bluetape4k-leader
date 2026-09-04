@@ -94,6 +94,15 @@ KNOWN_SYNTHETIC_ACCESSORS: dict[str, frozenset[str]] = {
             + "java.lang.String)",
             "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) java.lang.Object "
             + "access$scanKeys(io.bluetape4k.leader.lettuce.LettuceSuspendCandidateRegistry, "
+            + "java.lang.String, kotlin.coroutines.Continuation)",
+            "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) java.lang.Object "
+            + "access$migrateLegacyCandidate(io.bluetape4k.leader.lettuce.LettuceSuspendCandidateRegistry, "
+            + "java.lang.String, java.lang.String, kotlin.coroutines.Continuation)",
+            "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) java.lang.Object "
+            + "access$readCurrentCandidate(io.bluetape4k.leader.lettuce.LettuceSuspendCandidateRegistry, "
+            + "java.lang.String, java.lang.String, kotlin.coroutines.Continuation)",
+            "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) java.lang.Object "
+            + "access$readLegacyNodeIds(io.bluetape4k.leader.lettuce.LettuceSuspendCandidateRegistry, "
             + "java.lang.String, kotlin.coroutines.Continuation)"
         }
     ),
