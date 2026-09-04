@@ -68,7 +68,6 @@ internal class BoundedLeaderAuditExporter(
     private val closed = AtomicBoolean(false)
     private val diagnosticsClosed = AtomicBoolean(false)
     private val workerRunning = AtomicBoolean(false)
-    private val workerRestartRequested = AtomicBoolean(false)
     private val workerHandoffState = AtomicReference(WorkerHandoffState.IDLE)
     private val worker = ConcurrentLinkedQueue<WorkItem>()
     private val active = ConcurrentHashMap.newKeySet<WorkItem>()
@@ -190,7 +189,11 @@ internal class BoundedLeaderAuditExporter(
         // already published CLOSED.
         admissionLock.lock()
         try {
-            active.toList().forEach(::cancelWork)
+            // ConcurrentHashMap key-set의 `toList()`는 크기 추정과 iterator 순회가
+            // 동시에 축소될 때 `NoSuchElementException`을 던질 수 있습니다. close와
+            // 완료 경합에서는 weakly-consistent 순회로 이미 종료된 항목만 건너뛰면
+            // terminalized CAS가 나머지 항목의 취소를 멱등하게 보장합니다.
+            active.forEach(::cancelWork)
         } finally {
             admissionLock.unlock()
         }
@@ -216,6 +219,9 @@ internal class BoundedLeaderAuditExporter(
 
     private fun tryStartWorker() {
         if (closed.get()) return
+        // 실행 중인 handoff가 끝난 뒤 같은 큐를 다시 확인하므로, 동일한 executor
+        // 호출에 대해 중복 dispatch를 만들지 않습니다.
+        if (workerHandoffState.get() != WorkerHandoffState.IDLE) return
         if (!workerRunning.compareAndSet(false, true)) return
         // An Executor is allowed to run inline. Invoke it from a dedicated virtual
         // thread so submit() remains an admission-only, non-blocking boundary even
@@ -225,7 +231,6 @@ internal class BoundedLeaderAuditExporter(
             .start {
                 if (!workerHandoffState.compareAndSet(WorkerHandoffState.IDLE, WorkerHandoffState.CLAIMED)) {
                     workerRunning.set(false)
-                    if (!closed.get()) workerRestartRequested.set(true)
                     return@start
                 }
                 if (!workerHandoffState.compareAndSet(WorkerHandoffState.CLAIMED, WorkerHandoffState.EXECUTING)) {
@@ -249,7 +254,7 @@ internal class BoundedLeaderAuditExporter(
                     if (!closed.get() &&
                         workerHandoffState.compareAndSet(WorkerHandoffState.EXECUTING, WorkerHandoffState.IDLE)
                     ) {
-                        if (workerRestartRequested.getAndSet(false)) tryStartWorker()
+                        if (worker.isNotEmpty()) tryStartWorker()
                     }
                 }
             }
@@ -551,8 +556,6 @@ internal class BoundedLeaderAuditExporter(
 
     private fun finishWork(item: WorkItem, observation: LeaderAuditExportObservation?) {
         if (!item.terminalized.compareAndSet(false, true)) return
-        active.remove(item)
-        admitted.decrementAndGet()
         if (observation != null) {
             when (observation) {
                 LeaderAuditExportObservation.TERMINAL_FAILURE -> terminalFailures.incrementAndGet()
@@ -561,8 +564,12 @@ internal class BoundedLeaderAuditExporter(
                 LeaderAuditExportObservation.SCHEDULER_REJECTED -> schedulerRejections.incrementAndGet()
                 else -> Unit
             }
-            publish(observation)
         }
+        active.remove(item)
+        // 공개 snapshot이 admitted=0을 관찰한 뒤 terminal counter를 놓치지 않도록
+        // observation counter를 permit release보다 먼저 갱신합니다.
+        admitted.decrementAndGet()
+        if (observation != null) publish(observation)
     }
 
     private fun drainQueued(observation: LeaderAuditExportObservation) {
