@@ -30,6 +30,7 @@ import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -291,6 +292,77 @@ class ConsulLeaderElectorDelegationTest {
     }
 
     @Test
+    fun `runAsyncIfLeaderResult 취소 후 늦게 획득한 single lease를 정리한다`() {
+        val acquisition = CompletableFuture<Boolean>()
+        val acquireStarted = CountDownLatch(1)
+        val releaseObserved = CountDownLatch(1)
+        val client = FakeConsulLockClient(
+            acquireFuture = acquisition,
+            acquireStarted = acquireStarted,
+            releaseObserved = releaseObserved,
+        )
+        val elector = ConsulLeaderElector.create(client)
+        val executor = Executors.newFixedThreadPool(2)
+        val actionInvoked = AtomicBoolean()
+
+        try {
+            val result = elector.runAsyncIfLeaderResult(LeaderSlot("lock-late-single", "audit-a"), executor) {
+                actionInvoked.set(true)
+                CompletableFuture.completedFuture("실행되면 안 됨")
+            }
+
+            acquireStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+            acquisition.complete(true)
+
+            releaseObserved.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionInvoked.get() shouldBeEqualTo false
+            client.releaseCalls shouldBeEqualTo 1
+            client.destroyCalls shouldBeEqualTo 1
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `runAsyncIfLeaderResult 취소 후 늦게 획득한 group lease를 정리한다`() {
+        val acquisition = CompletableFuture<Boolean>()
+        val acquireStarted = CountDownLatch(1)
+        val releaseObserved = CountDownLatch(1)
+        val client = FakeConsulLockClient(
+            acquireFuture = acquisition,
+            acquireStarted = acquireStarted,
+            releaseObserved = releaseObserved,
+        )
+        val elector = ConsulLeaderGroupElector.create(
+            client,
+            ConsulLeaderGroupElectionOptions(
+                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, leaseTime = 10.seconds),
+            ),
+        )
+        val executor = Executors.newFixedThreadPool(2)
+        val actionInvoked = AtomicBoolean()
+
+        try {
+            val result = elector.runAsyncIfLeaderResult(LeaderSlot("lock-late-group", "audit-a"), executor) {
+                actionInvoked.set(true)
+                CompletableFuture.completedFuture("실행되면 안 됨")
+            }
+
+            acquireStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+            acquisition.complete(true)
+
+            releaseObserved.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionInvoked.get() shouldBeEqualTo false
+            client.releaseCalls shouldBeEqualTo 1
+            client.destroyCalls shouldBeEqualTo 1
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
     fun `runAsyncIfLeader cleanup runs after caller executor shutdown`() {
         val client = FakeConsulLockClient()
         val elector = ConsulLeaderElector.create(
@@ -463,6 +535,9 @@ class ConsulLeaderElectorDelegationTest {
         override val requestTimeout: Duration = 5.seconds,
         private val readFuture: CompletableFuture<ConsulKvEntry?>? = null,
         private val interruptAcquire: Boolean = false,
+        private val acquireFuture: CompletableFuture<Boolean>? = null,
+        private val acquireStarted: CountDownLatch? = null,
+        private val releaseObserved: CountDownLatch? = null,
     ) : ConsulLockClient {
 
         private var currentEntry: ConsulKvEntry? = entry
@@ -501,9 +576,11 @@ class ConsulLeaderElectorDelegationTest {
             ownerPayload: String,
         ): CompletableFuture<Boolean> {
             acquireCalls++
+            acquireStarted?.countDown()
             if (interruptAcquire) {
                 return InterruptingFuture()
             }
+            acquireFuture?.let { return it }
             if (acquireResult) {
                 currentEntry = ConsulKvEntry(
                     key = key,
@@ -518,6 +595,7 @@ class ConsulLeaderElectorDelegationTest {
 
         override fun release(key: String, sessionId: ConsulSessionId): CompletableFuture<Boolean> {
             releaseCalls++
+            releaseObserved?.countDown()
             return CompletableFuture.completedFuture(true)
         }
 

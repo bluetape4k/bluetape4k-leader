@@ -320,53 +320,97 @@ class ExposedJdbcLeaderGroupElector private constructor(
 
                 val startedAt = Instant.now()
                 val acquiredAtNanos = System.nanoTime()
-                val record = historyRecorder?.let {
-                    LeaderLockHistoryRecord(
-                        lockName = lockName,
-                        token = lock.token,
-                        kind = LockIdentity.AnnotationKind.GROUP,
-                        acquiredAt = startedAt,
-                        lockedUntil = startedAt.plusMillis(leaseTime.inWholeMilliseconds),
-                        nodeId = options.lockOwner,
-                        slotId = slot.toString(),
-                    )
-                }
-                val hKey = record?.let { historyRecorder.recordAcquired(it) }
-                val effectiveKey: LeaderHistoryKey? =
-                    hKey ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token, slotId = slot.toString()) }
-
-                // T10 PR 5: async path 도 sync path 와 동일하게 watchdog/delegate 등록 (split-brain 방지)
-                // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
-                val delegate = ExposedJdbcSlotExtendDelegate(lock)
-                val watchdog = LeaderLeaseAutoExtender.start(
-                    false,
-                    options.leaderGroupOptions.leaseTime,
-                    delegate,
-                    ERROR_CLASSIFIER,
-                )
+                var watchdog: AutoCloseable? = null
+                var effectiveKey: LeaderHistoryKey? = null
                 val terminal = AtomicBoolean()
-                val finishAction: (Throwable?) -> Unit = { throwable ->
-                    if (terminal.compareAndSet(false, true)) {
-                        watchdog.close()
-                        val finishedAt = Instant.now()
-                        val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-                        when {
-                            throwable == null -> effectiveKey?.let {
-                                historyRecorder?.recordCompleted(it, finishedAt, durationMs)
+                val finishAction: (Throwable?) -> Throwable? = { throwable ->
+                    if (!terminal.compareAndSet(false, true)) {
+                        null
+                    } else {
+                        var cleanupFailure: Throwable? = null
+
+                        runCatching { watchdog?.close() }
+                            .onFailure { e ->
+                                cleanupFailure = e
+                                log.warn(e) { "비동기 그룹 watchdog 종료 실패. lockName=$lockName, slot=$slot" }
                             }
-                            else -> effectiveKey?.let {
-                                historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable)
+
+                        runCatching {
+                            val finishedAt = Instant.now()
+                            val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
+                            when {
+                                throwable == null -> effectiveKey?.let {
+                                    historyRecorder?.recordCompleted(it, finishedAt, durationMs)
+                                }
+                                else -> effectiveKey?.let {
+                                    historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable)
+                                }
                             }
+                        }.onFailure { e ->
+                            cleanupFailure = cleanupFailure?.also { it.addSuppressed(e) } ?: e
+                            log.warn(e) { "비동기 그룹 history 기록 실패. lockName=$lockName, slot=$slot" }
                         }
-                        when (lock.unlockAndReport(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)) {
-                            ExposedJdbcUnlockOutcome.RELEASED ->
-                                log.debug { "비동기 그룹 슬롯 반납. lockName=$lockName, slot=$slot" }
-                            ExposedJdbcUnlockOutcome.NOT_HELD ->
-                                log.warn { "비동기 그룹 슬롯 반납 대상이 없습니다. lockName=$lockName, slot=$slot" }
-                            ExposedJdbcUnlockOutcome.FAILED ->
-                                log.warn { "비동기 그룹 슬롯 해제 실패(DB 오류). lockName=$lockName, slot=$slot" }
+
+                        runCatching {
+                            when (lock.unlockAndReport(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)) {
+                                ExposedJdbcUnlockOutcome.RELEASED ->
+                                    log.debug { "비동기 그룹 슬롯 반납. lockName=$lockName, slot=$slot" }
+                                ExposedJdbcUnlockOutcome.NOT_HELD ->
+                                    log.warn { "비동기 그룹 슬롯 반납 대상이 없습니다. lockName=$lockName, slot=$slot" }
+                                ExposedJdbcUnlockOutcome.FAILED ->
+                                    log.warn { "비동기 그룹 슬롯 해제 실패(DB 오류). lockName=$lockName, slot=$slot" }
+                            }
+                        }.onFailure { e ->
+                            cleanupFailure = cleanupFailure?.also { it.addSuppressed(e) } ?: e
+                            log.warn(e) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+                        }
+
+                        if (throwable != null) {
+                            cleanupFailure?.let { throwable.addSuppressed(it) }
+                            null
+                        } else {
+                            cleanupFailure
                         }
                     }
+                }
+
+                try {
+                    val record = historyRecorder?.let {
+                        LeaderLockHistoryRecord(
+                            lockName = lockName,
+                            token = lock.token,
+                            kind = LockIdentity.AnnotationKind.GROUP,
+                            acquiredAt = startedAt,
+                            lockedUntil = startedAt.plusMillis(leaseTime.inWholeMilliseconds),
+                            nodeId = options.lockOwner,
+                            slotId = slot.toString(),
+                        )
+                    }
+                    val fallbackKey = record?.let {
+                        LeaderHistoryKey(lockName = lockName, token = lock.token, slotId = slot.toString())
+                    }
+                    effectiveKey = fallbackKey
+                    val key = record?.let { historyRecorder.recordAcquired(it) }
+                    effectiveKey = key ?: fallbackKey
+
+                    // Group elector에는 autoExtend 옵션이 없으므로 명시적 LockExtender만 사용합니다.
+                    watchdog = LeaderLeaseAutoExtender.start(
+                        false,
+                        options.leaderGroupOptions.leaseTime,
+                        ExposedJdbcSlotExtendDelegate(lock),
+                        ERROR_CLASSIFIER,
+                    )
+                } catch (e: Throwable) {
+                    finishAction(e)
+                    return@thenComposeAsync CompletableFuture.failedFuture(e)
+                }
+
+                if (resultFuture.isCancelled) {
+                    val cancellation = java.util.concurrent.CancellationException(
+                        "runAsyncIfLeader result was cancelled before action",
+                    )
+                    finishAction(cancellation)
+                    return@thenComposeAsync CompletableFuture.failedFuture(cancellation)
                 }
 
                 val actionFuture = runCatching { action() }
@@ -376,7 +420,10 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     }
 
                 val terminalFuture = actionFuture.whenComplete { _, throwable ->
-                    finishAction(throwable)
+                    val cleanupFailure = finishAction(throwable)
+                    if (throwable == null && cleanupFailure != null) {
+                        throw cleanupFailure
+                    }
                 }
                 actionFutureRef.set(actionFuture)
                 if (resultFuture.isCancelled) actionFuture.cancel(false)

@@ -15,6 +15,7 @@ import io.bluetape4k.leader.exposed.jdbc.history.ExposedLeaderHistorySink
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -22,6 +23,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
@@ -497,6 +499,32 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         history[LeaderLockHistoryTable.finishedAt].shouldNotBeNull()
         history[LeaderLockHistoryTable.durationMs].shouldNotBeNull() shouldBeGreaterOrEqualTo 0L
         election.runIfLeader(lockName) { "async-group-recovered-after-cancel" } shouldBeEqualTo "async-group-recovered-after-cancel"
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `runAsyncIfLeader - recordAcquired 인터럽트 후 슬롯을 정리한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val recorder = object : SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db)) {
+            override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
+                throw InterruptedException("group acquire history interrupted")
+            }
+        }
+        val options = makeOptions(maxLeaders = 1, waitSec = 1, leaseSec = 30)
+        val election = ExposedJdbcLeaderGroupElector(db, options, recorder)
+        val actionInvocations = AtomicInteger()
+
+        val resultFuture = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+            actionInvocations.incrementAndGet()
+            CompletableFuture.completedFuture("실행되면 안 됨")
+        }
+
+        val failure = assertFailsWith<CompletionException> { resultFuture.join() }
+        failure.cause.shouldBeInstanceOf(InterruptedException::class)
+        actionInvocations.get() shouldBeEqualTo 0
+        ExposedJdbcLeaderGroupElector(db, options).runIfLeader(lockName) { "복구 성공" } shouldBeEqualTo "복구 성공"
     }
 
     @ParameterizedTest

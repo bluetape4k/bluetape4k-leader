@@ -27,6 +27,8 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * `StatefulRedisConnection` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
@@ -172,10 +174,11 @@ class LettuceLeaderGroupElector(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         val elected = AtomicBoolean(false)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
             elected.set(true)
-            action()
-        }) { value, failure ->
+            cancellationRelay.invoke(action)
+        }, cancellationRelay) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
@@ -185,6 +188,7 @@ class LettuceLeaderGroupElector(
         }
     }
 
+    @Suppress("LongMethod", "TooGenericExceptionCaught")
     private fun <T> runAsyncImpl(
         lockName: String,
         auditLeaderId: String?,
@@ -193,51 +197,107 @@ class LettuceLeaderGroupElector(
     ): CompletableFuture<T?> {
         val slotGroup = getSlotGroup(lockName)
 
-        return slotGroup.tryAcquireAsync(options.waitTime, options.leaseTime, auditLeaderId ?: "").thenComposeAsync({ token ->
+        val acquiredToken = AtomicReference<String?>()
+        val acquiredAtNanos = AtomicLong()
+        val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
+        val releaseAfterRejection: (Throwable) -> CompletableFuture<T?> = { failure ->
+            val token = acquiredToken.get()
+            if (
+                token != null &&
+                lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)
+            ) {
+                releaseAndPropagate(slotGroup, lockName, token, acquiredAtNanos.get(), failure, null)
+            } else {
+                CompletableFuture.failedFuture(failure)
+            }
+        }
+        val acquisitionFuture = slotGroup
+            .tryAcquireAsync(options.waitTime, options.leaseTime, auditLeaderId ?: "")
+            .thenApply { token ->
+                if (token != null) {
+                    acquiredAtNanos.set(System.nanoTime())
+                    acquiredToken.set(token)
+                }
+                token
+            }
+        val pipelineFuture = acquisitionFuture.thenComposeAsync({ token ->
             if (token == null) {
                 log.debug { "리더 선출 실패 (슬롯 없음, async): lockName=$lockName" }
                 CompletableFuture.completedFuture<T?>(null)
             } else {
-                // Codex P2: acquire 성공 후 startedAtNanos 캡처
-                val startedAtNanos = System.nanoTime()
-                val delegate = LettuceSlotExtendDelegate(slotGroup, token)
-                val identity = LockIdentity(
-                    lockName = lockName,
-                    kind = LockIdentity.AnnotationKind.GROUP,
-                    factoryBeanName = LETTUCE_GROUP_FACTORY_BEAN_NAME,
-                    groupParams = LockIdentity.GroupParams(maxLeaders),
-                )
-                val handle = LeaderLockHandle.real(
-                    identity = identity,
-                    token = token,
-                    acquiredAtNanos = startedAtNanos,
-                    slotId = token,
-                    extendDelegate = delegate,
-                    auditLeaderId = auditLeaderId,
-                )
-                log.debug { "리더 선출 성공 (async): lockName=$lockName, token=$token" }
-
-                // Codex P2-2: action 결과(성공/실패)와 무관하게 release 완료까지 대기한 뒤 outer future 를 complete.
-                val actionFuture: CompletableFuture<T> = try {
-                    AopScopeAccess.withPushedSync(handle) {
-                        AopScopeAccess.setCapture(handle)
-                        try {
-                            action()
-                        } finally {
-                            AopScopeAccess.clearCapture()
-                        }
-                    }
-                } catch (e: Throwable) {
-                    return@thenComposeAsync releaseAndPropagate<T>(slotGroup, lockName, token, startedAtNanos, e, null)
-                }
-
-                actionFuture.handle<Pair<T?, Throwable?>> { value, error ->
-                    Pair(value, error)
-                }.thenCompose { (value, error) ->
-                    releaseAndPropagate<T>(slotGroup, lockName, token, startedAtNanos, error, value)
+                val startedAtNanos = acquiredAtNanos.get()
+                if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
+                    CompletableFuture.failedFuture(
+                        CancellationException("leader group action was cancelled before start"),
+                    )
+                } else try {
+                    runAcquiredAsync(
+                        slotGroup,
+                        lockName,
+                        token,
+                        auditLeaderId,
+                        startedAtNanos,
+                        action,
+                    )
+                } catch (error: Throwable) {
+                    releaseAndPropagate(slotGroup, lockName, token, startedAtNanos, error, null)
                 }
             }
         }, executor)
+        acquisitionFuture.whenComplete { token, _ ->
+            if (token != null && pipelineFuture.isCancelled) {
+                releaseAfterRejection(CancellationException("leader group result future was cancelled before action"))
+            }
+        }
+        return LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+            if (failure != null) {
+                releaseAfterRejection(failure.unwrapCompletionCause())
+            } else {
+                CompletableFuture.completedFuture(value)
+            }
+        }
+    }
+
+    private fun <T> runAcquiredAsync(
+        slotGroup: LettuceSlotTokenGroup,
+        lockName: String,
+        token: String,
+        auditLeaderId: String?,
+        startedAtNanos: Long,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> {
+        val delegate = LettuceSlotExtendDelegate(slotGroup, token)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.GROUP,
+            factoryBeanName = LETTUCE_GROUP_FACTORY_BEAN_NAME,
+            groupParams = LockIdentity.GroupParams(maxLeaders),
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = token,
+            acquiredAtNanos = startedAtNanos,
+            slotId = token,
+            extendDelegate = delegate,
+            auditLeaderId = auditLeaderId,
+        )
+        log.debug { "리더 선출 성공 (async): lockName=$lockName, token=$token" }
+        val actionFuture = runCatching {
+            AopScopeAccess.withPushedSync(handle) {
+                AopScopeAccess.setCapture(handle)
+                try {
+                    action()
+                } finally {
+                    AopScopeAccess.clearCapture()
+                }
+            }
+        }.getOrElse { error ->
+            return releaseAndPropagate(slotGroup, lockName, token, startedAtNanos, error, null)
+        }
+        return actionFuture.handle<Pair<T?, Throwable?>> { value, error -> Pair(value, error) }
+            .thenCompose { (value, error) ->
+                releaseAndPropagate(slotGroup, lockName, token, startedAtNanos, error, value)
+            }
     }
 
     private fun Throwable.unwrapCompletionCause(): Throwable =
@@ -274,5 +334,11 @@ class LettuceLeaderGroupElector(
                     CompletableFuture.completedFuture<T?>(value)
                 }
             }
+    }
+
+    private enum class AsyncLifecycle {
+        WAITING,
+        STARTED,
+        CLEANUP,
     }
 }

@@ -65,10 +65,11 @@ interface AsyncLeaderElector: LeaderElectionState {
     ): CompletableFuture<LeaderRunResult<T>> {
         LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         val elected = AtomicBoolean(false)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.map(runAsyncIfLeader(slot.lockName, executor) {
             elected.set(true)
-            action()
-        }) { value, failure ->
+            cancellationRelay.invoke(action)
+        }, cancellationRelay) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()

@@ -2,11 +2,13 @@ package io.bluetape4k.leader.internal
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.atomic.AtomicBoolean
 
 class LeaderFutureBridgeTest {
 
@@ -29,6 +31,47 @@ class LeaderFutureBridgeTest {
         }
 
         assertFailsWith<CompletionException> { observed.join() }.cause shouldBeEqualTo failure
+    }
+
+    @Test
+    fun `flatMap 반환 future 취소를 원본 future 로 전파한다`() {
+        val source = CompletableFuture<String>()
+
+        val bridged = LeaderFutureBridge.flatMap(source) { value, _ ->
+            CompletableFuture.completedFuture(value)
+        }
+
+        bridged.cancel(false).shouldBeTrue()
+        source.isCancelled.shouldBeTrue()
+    }
+
+    @Test
+    fun `flatMap은 cleanup stage 완료 후 terminal state를 반환한다`() {
+        val source = CompletableFuture.failedFuture<String>(IllegalStateException("failed"))
+        val cleanup = CompletableFuture<String>()
+
+        val bridged = LeaderFutureBridge.flatMap(source) { _, _ -> cleanup }
+
+        bridged.isDone.shouldBeFalse()
+        cleanup.complete("cleaned")
+        bridged.join() shouldBeEqualTo "cleaned"
+    }
+
+    @Test
+    fun `action 실행 전 취소는 action을 시작하지 않는다`() {
+        val source = CompletableFuture<String>()
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        val bridged = LeaderFutureBridge.map(source, cancellationRelay) { value, _ -> value }
+        val invoked = AtomicBoolean()
+
+        bridged.cancel(false).shouldBeTrue()
+        val actionFuture = cancellationRelay.invoke {
+            invoked.set(true)
+            CompletableFuture.completedFuture("started")
+        }
+
+        invoked.get().shouldBeFalse()
+        actionFuture.isCompletedExceptionally.shouldBeTrue()
     }
 
     @Test

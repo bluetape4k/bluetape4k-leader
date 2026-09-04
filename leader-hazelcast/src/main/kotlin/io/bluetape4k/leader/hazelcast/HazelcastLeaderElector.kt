@@ -138,6 +138,7 @@ class HazelcastLeaderElector private constructor(
                 } else {
                     val acquiredAtNanos = acquiredAtNanosRef.get()
                     val delegate = HazelcastLockExtendDelegate(lock)
+                    lifecycleStarted.set(true)
                     val watchdog = try {
                         LeaderLeaseAutoExtender.start(
                             options.autoExtend,
@@ -146,6 +147,8 @@ class HazelcastLeaderElector private constructor(
                             ERROR_CLASSIFIER,
                         )
                     } catch (error: Throwable) {
+                        runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
+                            .onFailure { error.addSuppressed(it) }
                         return@thenComposeAsync CompletableFuture.failedFuture(error)
                     }
                     log.debug { "Leader로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
@@ -153,10 +156,10 @@ class HazelcastLeaderElector private constructor(
                     val actionFuture = runCatching { action() }
                         .getOrElse { error ->
                             watchdog.close()
-                            releaseIfUnclaimed()
+                            runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
+                                .onFailure { error.addSuppressed(it) }
                             return@thenComposeAsync CompletableFuture.failedFuture(error)
                         }
-                    lifecycleStarted.set(true)
                     actionFuture.whenComplete { _, _ ->
                         watchdog.close()
                         runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
@@ -174,6 +177,9 @@ class HazelcastLeaderElector private constructor(
         }
         pipelineFuture.whenComplete { _, failure ->
             if (failure != null) releaseIfUnclaimed()
+        }
+        acquisitionFuture.whenComplete { acquired, _ ->
+            if (acquired == true && pipelineFuture.isCancelled) releaseIfUnclaimed()
         }
         return pipelineFuture
     }

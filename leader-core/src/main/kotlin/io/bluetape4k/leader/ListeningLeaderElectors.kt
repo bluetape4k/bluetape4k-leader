@@ -131,13 +131,13 @@ class ListeningLeaderElector(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val elected = AtomicBoolean(false)
-        return delegate.runAsyncIfLeader(lockName, executor) {
+        val source = delegate.runAsyncIfLeader(lockName, executor) {
             elected.set(true)
             val leader = delegate.state(lockName).leader
             listeners.notifyElected(lockName, leader)
             eventSubject.tryEmit(LeaderElectionEvent.Elected.fromLease(lockName, leader))
             try {
-                action().whenComplete { _, _ ->
+                LeaderFutureBridge.observe(action()) { _, _ ->
                     listeners.notifyRevoked(lockName)
                     eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
                 }
@@ -146,7 +146,8 @@ class ListeningLeaderElector(
                 eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
                 CompletableFuture.failedFuture(e)
             }
-        }.whenComplete { value, failure ->
+        }
+        return LeaderFutureBridge.observe(source) { value, failure ->
             if (!elected.get() && failure == null && value == null) {
                 listeners.notifySkipped(lockName)
                 eventSubject.tryEmit(LeaderElectionEvent.Skipped(lockName))
@@ -160,13 +161,13 @@ class ListeningLeaderElector(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val elected = AtomicBoolean(false)
-        return delegate.runAsyncIfLeader(slot, executor) {
+        val source = delegate.runAsyncIfLeader(slot, executor) {
             elected.set(true)
             val leader = delegate.state(slot.lockName).leader
             listeners.notifyElected(slot.lockName, leader)
             eventSubject.tryEmit(LeaderElectionEvent.Elected.fromLease(slot.lockName, leader))
             try {
-                action().whenComplete { _, _ ->
+                LeaderFutureBridge.observe(action()) { _, _ ->
                     listeners.notifyRevoked(slot.lockName)
                     eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
                 }
@@ -175,7 +176,8 @@ class ListeningLeaderElector(
                 eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
                 CompletableFuture.failedFuture(e)
             }
-        }.whenComplete { value, failure ->
+        }
+        return LeaderFutureBridge.observe(source) { value, failure ->
             if (!elected.get() && failure == null && value == null) {
                 listeners.notifySkipped(slot.lockName)
                 eventSubject.tryEmit(LeaderElectionEvent.Skipped(slot.lockName))
@@ -195,7 +197,7 @@ class ListeningLeaderElector(
             listeners.notifyElected(slot.lockName, leader)
             eventSubject.tryEmit(LeaderElectionEvent.Elected.fromLease(slot.lockName, leader))
             try {
-                action().whenComplete { _, _ ->
+                LeaderFutureBridge.observe(action()) { _, _ ->
                     listeners.notifyRevoked(slot.lockName)
                     eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
                 }
@@ -281,12 +283,12 @@ class ListeningLeaderGroupElector(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val elected = AtomicBoolean(false)
-        return delegate.runAsyncIfLeader(lockName, executor) {
+        val source = delegate.runAsyncIfLeader(lockName, executor) {
             elected.set(true)
             listeners.notifyElected(lockName, null)
             eventSubject.tryEmit(LeaderElectionEvent.Elected.fromLease(lockName, null))
             try {
-                action().whenComplete { _, _ ->
+                LeaderFutureBridge.observe(action()) { _, _ ->
                     listeners.notifyRevoked(lockName)
                     eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
                 }
@@ -295,7 +297,8 @@ class ListeningLeaderGroupElector(
                 eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
                 CompletableFuture.failedFuture(e)
             }
-        }.whenComplete { value, failure ->
+        }
+        return LeaderFutureBridge.observe(source) { value, failure ->
             if (!elected.get() && failure == null && value == null) {
                 listeners.notifySkipped(lockName)
                 eventSubject.tryEmit(LeaderElectionEvent.Skipped(lockName))

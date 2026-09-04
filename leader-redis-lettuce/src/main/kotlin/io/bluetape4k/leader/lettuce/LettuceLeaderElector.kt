@@ -29,6 +29,8 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * `StatefulRedisConnection` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
@@ -180,10 +182,11 @@ class LettuceLeaderElector @JvmOverloads constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         val elected = AtomicBoolean(false)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
             elected.set(true)
-            action()
-        }) { value, failure ->
+            cancellationRelay.invoke(action)
+        }, cancellationRelay) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
@@ -193,6 +196,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun <T> runAsyncImpl(
         lockName: String,
         auditLeaderId: String?,
@@ -202,59 +206,102 @@ class LettuceLeaderElector @JvmOverloads constructor(
         lockName.requireNotBlank("lockName")
 
         val lock = LettuceLock(connection, lockName, options.leaseTime)
-        return lock.tryLockAsync(options.waitTime, options.leaseTime).thenComposeAsync({ acquired ->
+        val acquiredAtNanos = AtomicLong()
+        val lockAcquired = AtomicBoolean()
+        val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
+        val releaseAfterRejection: (Throwable) -> CompletableFuture<T?> = { failure ->
+            if (
+                lockAcquired.get() &&
+                lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)
+            ) {
+                lock.unlockAsync(options.minLeaseTime, acquiredAtNanos.get())
+                    .exceptionally { releaseError ->
+                        log.warn(releaseError) { "executor 거부 후 비동기 락 해제 실패. lockName=$lockName" }
+                    }
+                    .thenCompose { CompletableFuture.failedFuture(failure) }
+            } else {
+                CompletableFuture.failedFuture(failure)
+            }
+        }
+        val acquisitionFuture = lock.tryLockAsync(options.waitTime, options.leaseTime).thenApply { acquired ->
+            if (acquired) {
+                acquiredAtNanos.set(System.nanoTime())
+                lockAcquired.set(true)
+            }
+            acquired
+        }
+        val pipelineFuture = acquisitionFuture.thenComposeAsync({ acquired ->
             if (!acquired) {
                 log.debug { "리더 선출 실패 (슬롯 없음, async): lockName=$lockName" }
                 CompletableFuture.completedFuture(null)
             } else {
-                val startedAt = Instant.now()
-                val acquiredAtNanos = System.nanoTime()
-                val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
-                val delegate = LettuceLockExtendDelegate(lock)
-                val watchdog =
-                    LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
-                val identity = LockIdentity(
-                    lockName = lockName,
-                    kind = LockIdentity.AnnotationKind.SINGLE,
-                    factoryBeanName = LETTUCE_FACTORY_BEAN_NAME,
-                )
-                val handle = LeaderLockHandle.real(
-                    identity = identity,
-                    token = token,
-                    acquiredAtNanos = acquiredAtNanos,
-                    extendDelegate = delegate,
-                    auditLeaderId = auditLeaderId,
-                )
-
-                val record = historyRecorder?.let {
-                    LeaderLockHistoryRecord(
-                        lockName = lockName,
-                        token = token,
-                        kind = LockIdentity.AnnotationKind.SINGLE,
-                        acquiredAt = startedAt,
-                        lockedUntil = startedAt.plusMillis(options.leaseTime.inWholeMilliseconds),
-                    )
-                }
-                val key = record?.let { historyRecorder.recordAcquired(it) }
-                val effectiveKey: LeaderHistoryKey? =
-                    key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
-
-                log.debug { "리더 선출 성공 (async): lockName=$lockName" }
-                val actionFuture: CompletableFuture<T> = try {
-                    AopScopeAccess.withPushedSync(handle) { action() }
-                } catch (e: Throwable) {
-                    return@thenComposeAsync releaseAndPropagate<T>(
-                        lock, lockName, watchdog, acquiredAtNanos, effectiveKey, e, null
-                    )
-                }
-
-                actionFuture.handle<Pair<T?, Throwable?>> { value, error ->
-                    Pair(value, error)
-                }.thenCompose { (value, error) ->
-                    releaseAndPropagate(lock, lockName, watchdog, acquiredAtNanos, effectiveKey, error, value)
+                val acquiredAt = acquiredAtNanos.get()
+                if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
+                    CompletableFuture.failedFuture(CancellationException("leader action was cancelled before start"))
+                } else try {
+                    runAcquiredAsync(lock, lockName, auditLeaderId, acquiredAt, action)
+                } catch (error: Throwable) {
+                    lock.unlockAsync(options.minLeaseTime, acquiredAt)
+                        .exceptionally { releaseError ->
+                            error.addSuppressed(releaseError.unwrapCompletionCause())
+                        }
+                        .thenCompose { CompletableFuture.failedFuture(error) }
                 }
             }
         }, executor)
+        acquisitionFuture.whenComplete { acquired, _ ->
+            if (acquired == true && pipelineFuture.isCancelled) {
+                releaseAfterRejection(CancellationException("leader result future was cancelled before action"))
+            }
+        }
+        return LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+            if (failure != null) {
+                releaseAfterRejection(failure.unwrapCompletionCause())
+            } else {
+                CompletableFuture.completedFuture(value)
+            }
+        }
+    }
+
+    private fun <T> runAcquiredAsync(
+        lock: LettuceLock,
+        lockName: String,
+        auditLeaderId: String?,
+        acquiredAtNanos: Long,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> {
+        val startedAt = Instant.now()
+        val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
+        val delegate = LettuceLockExtendDelegate(lock)
+        val handle = LeaderLockHandle.real(
+            identity = LockIdentity(lockName, LockIdentity.AnnotationKind.SINGLE, LETTUCE_FACTORY_BEAN_NAME),
+            token = token,
+            acquiredAtNanos = acquiredAtNanos,
+            extendDelegate = delegate,
+            auditLeaderId = auditLeaderId,
+        )
+        val record = historyRecorder?.let {
+            LeaderLockHistoryRecord(
+                lockName = lockName,
+                token = token,
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                acquiredAt = startedAt,
+                lockedUntil = startedAt.plusMillis(options.leaseTime.inWholeMilliseconds),
+            )
+        }
+        val key = record?.let { historyRecorder.recordAcquired(it) }
+        val effectiveKey = key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
+        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
+
+        log.debug { "리더 선출 성공 (async): lockName=$lockName" }
+        val actionFuture = runCatching { AopScopeAccess.withPushedSync(handle) { action() } }
+            .getOrElse { error ->
+                return releaseAndPropagate(lock, lockName, watchdog, acquiredAtNanos, effectiveKey, error, null)
+            }
+        return actionFuture.handle<Pair<T?, Throwable?>> { value, error -> Pair(value, error) }
+            .thenCompose { (value, error) ->
+                releaseAndPropagate(lock, lockName, watchdog, acquiredAtNanos, effectiveKey, error, value)
+            }
     }
 
     private fun Throwable.unwrapCompletionCause(): Throwable =
@@ -317,5 +364,11 @@ class LettuceLeaderElector @JvmOverloads constructor(
                     CompletableFuture.completedFuture<T?>(value)
                 }
             }
+    }
+
+    private enum class AsyncLifecycle {
+        WAITING,
+        STARTED,
+        CLEANUP,
     }
 }
