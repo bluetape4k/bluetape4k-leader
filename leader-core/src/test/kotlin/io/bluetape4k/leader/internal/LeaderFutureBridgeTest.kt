@@ -3,14 +3,60 @@ package io.bluetape4k.leader.internal
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.atomic.AtomicBoolean
 
 class LeaderFutureBridgeTest {
+
+    @Test
+    fun `map은 성공 값을 변환한다`() {
+        val mapped = LeaderFutureBridge.map(CompletableFuture.completedFuture("done")) { value, failure ->
+            failure shouldBeEqualTo null
+            requireNotNull(value).length
+        }
+
+        mapped.join() shouldBeEqualTo 4
+    }
+
+    @Test
+    fun `map은 source 실패를 mapper에 전달한다`() {
+        val failure = IllegalStateException("source failed")
+        val mapped = LeaderFutureBridge.map(CompletableFuture.failedFuture<String>(failure)) { _, observed ->
+            val observedFailure = requireNotNull(observed)
+            observedFailure shouldBeEqualTo failure
+            throw observedFailure
+        }
+
+        assertFailsWith<CompletionException> { mapped.join() }.cause shouldBeEqualTo failure
+    }
+
+    @Test
+    fun `map은 source cancellation을 보존한다`() {
+        val source = CompletableFuture<String>()
+        val mapped = LeaderFutureBridge.map(source) { _, failure ->
+            throw requireNotNull(failure)
+        }
+
+        source.cancel(false).shouldBeTrue()
+
+        assertFailsWith<CompletionException> { mapped.join() }.cause shouldBeInstanceOf CancellationException::class
+    }
+
+    @Test
+    fun `map 완료 후 cancel은 source 상태를 바꾸지 않는다`() {
+        val source = CompletableFuture.completedFuture("done")
+        val mapped = LeaderFutureBridge.map(source) { value, _ -> value }
+
+        mapped.join() shouldBeEqualTo "done"
+        mapped.cancel(false).shouldBeFalse()
+        source.isCancelled.shouldBeFalse()
+    }
 
     @Test
     fun `observe 반환 future 취소를 원본 future 로 전파한다`() {

@@ -19,7 +19,7 @@ object LeaderFutureBridge {
      */
     fun <T, R> map(
         source: CompletableFuture<T>,
-        mapper: (T, Throwable?) -> R,
+        mapper: (T?, Throwable?) -> R,
     ): CompletableFuture<R> {
         val transformed = source.handle { value, failure -> mapper(value, failure) }
         return mirror(transformed, source)
@@ -30,7 +30,7 @@ object LeaderFutureBridge {
      */
     fun <T, R> flatMap(
         source: CompletableFuture<T>,
-        mapper: (T, Throwable?) -> CompletableFuture<R>,
+        mapper: (T?, Throwable?) -> CompletableFuture<R>,
     ): CompletableFuture<R> {
         val transformed = source.handle { value, failure -> mapper(value, failure) }.thenCompose { it }
         return mirror(transformed, source)
@@ -42,7 +42,7 @@ object LeaderFutureBridge {
     fun <T, R> map(
         source: CompletableFuture<T>,
         cancellationRelay: CancellationRelay,
-        mapper: (T, Throwable?) -> R,
+        mapper: (T?, Throwable?) -> R,
     ): CompletableFuture<R> {
         val transformed = source.handle { value, failure -> mapper(value, failure) }
         return mirror(transformed, source, cancellationRelay::cancel)
@@ -69,7 +69,7 @@ object LeaderFutureBridge {
      */
     fun <T, R> map(
         source: VirtualFuture<T>,
-        mapper: (T, Throwable?) -> R,
+        mapper: (T?, Throwable?) -> R,
     ): VirtualFuture<R> = VirtualFuture(map(source.toCompletableFuture(), mapper))
 
     /**

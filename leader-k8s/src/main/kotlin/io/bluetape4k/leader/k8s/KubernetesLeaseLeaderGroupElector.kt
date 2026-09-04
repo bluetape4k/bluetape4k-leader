@@ -26,7 +26,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -50,6 +49,12 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
 
     companion object : KLogging() {
         internal const val K8S_GROUP_FACTORY_BEAN_NAME = "kubernetes-lease-leader-group-elector"
+    }
+
+    private enum class AsyncLifecycle {
+        WAITING,
+        STARTED,
+        CLEANUP,
     }
 
     override val maxLeaders: Int = options.maxLeaders
@@ -163,11 +168,10 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val acquiredRef = AtomicReference<AcquiredSlot?>()
-        val lifecycleStarted = AtomicBoolean()
-        val rejectionCleanupClaimed = AtomicBoolean()
+        val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val releaseIfUnclaimed: () -> Unit = {
             val acquired = acquiredRef.get()
-            if (acquired != null && !lifecycleStarted.get() && rejectionCleanupClaimed.compareAndSet(false, true)) {
+            if (acquired != null && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
                 release(acquired.lock, acquired.acquiredAtNanos, lockName, acquired.slot)
             }
         }
@@ -180,13 +184,15 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
             acquisitionFuture.thenComposeAsync({ acquired ->
                 if (acquired == null) {
                     CompletableFuture.completedFuture(null)
+                } else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
+                    CompletableFuture.failedFuture(
+                        CancellationException("leader result future was cancelled before action"),
+                    )
                 } else {
-                    lifecycleStarted.set(true)
                     try {
                         runAcquiredAsync(lockName, acquired, auditLeaderId, executor, action)
                     } catch (error: Throwable) {
-                        lifecycleStarted.set(false)
-                        releaseIfUnclaimed()
+                        release(acquired.lock, acquired.acquiredAtNanos, lockName, acquired.slot)
                         CompletableFuture.failedFuture(error)
                     }
                 }

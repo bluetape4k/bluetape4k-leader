@@ -472,6 +472,8 @@ when (val r = election.runIfLeaderResult("daily-job") { compute() }) {
 
 `runIfLeaderResult` is available for blocking electors, `runIfLeaderResultSuspend` for coroutine electors, and `runAsyncIfLeaderResult` for `CompletableFuture` / virtual-thread electors. `CancellationException` is not wrapped as `ActionFailed`: blocking and suspend APIs rethrow it, while async and virtual-thread APIs complete exceptionally (for `join()`, expect `CompletionException` wrapping the cancellation; `isCancelled()` is not guaranteed). Blocking APIs also rethrow `InterruptedException` after restoring the interrupt flag.
 
+Cancelling the `CompletableFuture` returned by an async election propagates the cancellation request to acquisition and any in-flight action, then starts lease or slot cleanup. Cancellation is cooperative and cleanup may finish asynchronously; `mayInterruptIfRunning=true` does not guarantee that user code is forcibly interrupted.
+
 ### Options
 
 ```kotlin

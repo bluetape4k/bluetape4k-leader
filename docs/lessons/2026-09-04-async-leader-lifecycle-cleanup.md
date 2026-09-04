@@ -17,6 +17,11 @@ lifecycle이 끝나지 않는 문제를 다룹니다. 반환 future의 terminal 
   callback에 진입하지 않으므로 callback 내부의 release 경로도 실행하지 않습니다.
 - 취소와 정상 완료가 경쟁할 때 여러 callback이 cleanup을 시작할 수 있으므로,
   cleanup owner를 하나로 고정하지 않으면 중복 release 위험이 생깁니다.
+- action 시작 여부와 cleanup 여부를 서로 다른 원자 값으로 관리하면 cancellation과
+  action 제출이 모두 성공했다고 판단하는 TOCTOU 경쟁이 생깁니다.
+- `CompletableFuture.handle`은 실패 시 value를 `null`로 전달합니다. terminal
+  mapper가 value를 non-null `T`로 선언하면 lambda 진입 전에 Kotlin NPE가 발생해
+  원래 cancellation이나 backend 예외를 가립니다.
 
 ## 결정
 
@@ -26,22 +31,29 @@ lifecycle이 끝나지 않는 문제를 다룹니다. 반환 future의 terminal 
   소유합니다. executor rejection도 cleanup이 끝난 뒤 원래 예외로 완료합니다.
 - cancellation, action 완료, 제출 실패가 경쟁해도 원자적 owner가 cleanup을 정확히
   한 번만 시작하도록 합니다.
+- Consul, Hazelcast, Kubernetes 단일/group 경로는 `WAITING -> STARTED`와
+  `WAITING -> CLEANUP`을 하나의 CAS 상태 전이로 통합합니다. action과 cleanup 중
+  하나만 lifecycle 소유권을 얻습니다.
+- `LeaderFutureBridge.map`과 `flatMap`의 terminal value 계약을 `T?`로 바꿔
+  `value == null && failure != null`인 표준 `CompletableFuture` 실패를 보존합니다.
 
 ## 결과와 검증
 
 반환 future를 취소하면 실제 action future도 취소되고, cleanup 완료 뒤 같은 lock을
-다시 획득할 수 있습니다. Lettuce, Redisson, MongoDB의 단일/group 경로는 두 번째
-executor 제출을 의도적으로 거부하는 회귀 테스트로 lease와 permit 회수를
-검증했습니다.
+다시 획득할 수 있습니다. backend별 회귀 테스트는 action 미실행, 원래
+`RejectedExecutionException`, lease/permit 회수까지 검증합니다.
 
 - RED: 실제 action이 취소되지 않고 재획득이 `null`이 되는 동작을 재현했습니다.
-- GREEN: 영향 모듈 9개의 전체 suite 2,571개가 한 차례 통과했고, 최종 CAS 수정 뒤
-  core/MongoDB/Lettuce/Redisson lifecycle 회귀 16개가 다시 통과했습니다.
-- `./gradlew detekt --no-daemon --console=plain`이 통과했습니다.
-- `git diff --cached --check`가 통과했습니다.
-- 최종 core 전체 재실행은 기존 Issue #868의
-  `BoundedLeaderAuditExporterTest` flake 1건을 두 번 재현했습니다. 해당 테스트의
-  격리 재실행은 통과했으며 이번 lifecycle 변경과 겹치는 source는 없습니다.
+- GREEN: 최종 source 기준 targeted test 275개가 통과했습니다. 구성은 core 39,
+  Exposed JDBC 174, Consul 20, Hazelcast 28, Kubernetes executor contract 4,
+  MongoDB 2, Lettuce 4, Redisson 4입니다.
+- Kubernetes PR task graph에서 unit 16개와 K3s 103개가 통과했고,
+  `leader-k8s/build/reports/kover/report.xml`을 같은 invocation에서 생성했습니다.
+- 영향 모듈 9개의 `compileTestKotlin`, 전체 `detekt`, binary compatibility 검사가
+  통과했습니다. ABI inventory는 artifacts 16, ignored 0, unknown 0이며 분류되지
+  않은 public incompatibility가 없습니다.
+- Kover 정적 계약 validator와 단위 테스트 9개, `actionlint`, diff whitespace 검사를
+  통과했습니다. hosted exact-head CI는 PR push 뒤 별도로 확인합니다.
 
 ## 놓친 가정과 향후 지침
 
@@ -52,3 +64,9 @@ executor 제출을 의도적으로 거부하는 회귀 테스트로 lease와 per
 함께 검증합니다. acquire 뒤 비동기 제출이 있는 backend는 executor rejection을
 별도 terminal 경로로 취급하고, 원래 실패가 관찰되기 전에 cleanup이 끝나는지도
 검증합니다.
+
+리뷰 운영에서도 P1 발견을 issue-only closeout으로 넘기지 않습니다. P0/P1은 현재
+delivery를 막고 먼저 수정하며, 독립 review lane이 응답 없이 멈추거나 실행되지
+않으면 lane을 회수해 inline으로 동일 범위를 검토하고 증거를 다시 실행합니다.
+이번 재검토에서는 이 규칙으로 lifecycle TOCTOU와 terminal mapper NPE를 추가로
+찾아 수정했습니다.

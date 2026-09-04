@@ -404,6 +404,7 @@ class ConsulLeaderElectorDelegationTest {
         val elector = ConsulLeaderElector.create(client)
         val worker = Executors.newSingleThreadExecutor()
         val submissions = AtomicInteger()
+        val actionInvoked = AtomicBoolean()
         val executor = Executor { command ->
             if (submissions.incrementAndGet() == 1) {
                 worker.execute(command)
@@ -415,12 +416,14 @@ class ConsulLeaderElectorDelegationTest {
         try {
             val resultFuture = runCatching {
                 elector.runAsyncIfLeader("lock-a", executor) {
+                    actionInvoked.set(true)
                     CompletableFuture.completedFuture("should-not-run")
                 }
             }.getOrElse { CompletableFuture.failedFuture(it) }
 
             val failure = assertFailsWith<CompletionException> { resultFuture.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
+            actionInvoked.get() shouldBeEqualTo false
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
             client.releaseCalls shouldBeEqualTo 2
             client.destroyCalls shouldBeEqualTo 2
@@ -440,6 +443,7 @@ class ConsulLeaderElectorDelegationTest {
         )
         val worker = Executors.newSingleThreadExecutor()
         val submissions = AtomicInteger()
+        val actionInvoked = AtomicBoolean()
         val executor = Executor { command ->
             if (submissions.incrementAndGet() == 1) {
                 worker.execute(command)
@@ -451,12 +455,14 @@ class ConsulLeaderElectorDelegationTest {
         try {
             val resultFuture = runCatching {
                 elector.runAsyncIfLeader("lock-a", executor) {
+                    actionInvoked.set(true)
                     CompletableFuture.completedFuture("should-not-run")
                 }
             }.getOrElse { CompletableFuture.failedFuture(it) }
 
             val failure = assertFailsWith<CompletionException> { resultFuture.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
+            actionInvoked.get() shouldBeEqualTo false
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
             client.releaseCalls shouldBeEqualTo 2
             client.destroyCalls shouldBeEqualTo 2

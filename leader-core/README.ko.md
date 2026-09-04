@@ -46,6 +46,10 @@ Result API는 `CancellationException`을 `ActionFailed`로 변환하지 않습�
 async/가상 스레드 API는 예외 완료됩니다(`join()`에서는 cancellation을 감싼 `CompletionException`을
 기대하세요. `isCancelled()` 보장은 아닙니다). 동기 API는 `InterruptedException`도 interrupt flag를 복원한 뒤 재전파합니다.
 
+async 선출이 반환한 `CompletableFuture`를 취소하면 acquisition과 실행 중인 action에 취소를 전달하고 lease 또는
+slot 정리를 시작합니다. 취소는 협력적으로 동작하며 정리는 비동기로 끝날 수 있습니다.
+`mayInterruptIfRunning=true`도 사용자 코드의 강제 중단을 보장하지 않습니다.
+
 ### 선출 생명주기 listener
 
 `LeaderElectionListenerRegistry` 구현체는 `addListener`, `removeListener`로 생명주기 callback을 등록할 수 있습니다.

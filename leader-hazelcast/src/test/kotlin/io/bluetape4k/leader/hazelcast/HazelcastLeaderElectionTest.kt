@@ -24,6 +24,7 @@ import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
@@ -270,6 +271,7 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
         )
         val worker = Executors.newSingleThreadExecutor()
         val submissions = AtomicInteger()
+        val actionInvoked = AtomicBoolean()
         val executor = Executor { command ->
             if (submissions.incrementAndGet() == 1) {
                 worker.execute(command)
@@ -281,12 +283,14 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
         try {
             val resultFuture = runCatching {
                 election.runAsyncIfLeader(lockName, executor) {
+                    actionInvoked.set(true)
                     CompletableFuture.completedFuture("실행되면 안 됨")
                 }
             }.getOrElse { CompletableFuture.failedFuture(it) }
 
             val failure = assertFailsWith<CompletionException> { resultFuture.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
+            actionInvoked.get() shouldBeEqualTo false
             election.runIfLeader(lockName) { "executor 거부 후 복구" } shouldBeEqualTo "executor 거부 후 복구"
         } finally {
             worker.shutdownNow()

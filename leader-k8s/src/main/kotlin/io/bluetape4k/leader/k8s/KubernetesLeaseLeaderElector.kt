@@ -25,6 +25,7 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * `KubernetesLeaseLeaderElector`는 Kubernetes Lease backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
@@ -51,6 +52,12 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
     companion object : KLogging() {
         internal const val K8S_FACTORY_BEAN_NAME = "kubernetes-lease-leader-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(KubernetesBackendErrorClassifier)
+    }
+
+    private enum class AsyncLifecycle {
+        WAITING,
+        STARTED,
+        CLEANUP,
     }
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
@@ -169,10 +176,9 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
 
         val lockAcquired = AtomicBoolean()
         val acquiredAtNanosRef = AtomicLong()
-        val lifecycleStarted = AtomicBoolean()
-        val rejectionCleanupClaimed = AtomicBoolean()
+        val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val releaseIfUnclaimed: () -> Unit = {
-            if (lockAcquired.get() && !lifecycleStarted.get() && rejectionCleanupClaimed.compareAndSet(false, true)) {
+            if (lockAcquired.get() && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
                 release(lock, acquiredAtNanosRef.get(), lockName)
             }
         }
@@ -188,13 +194,15 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
             acquisitionFuture.thenComposeAsync({ acquired ->
                 if (!acquired) {
                     CompletableFuture.completedFuture(null)
+                } else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
+                    CompletableFuture.failedFuture(
+                        CancellationException("leader result future was cancelled before action"),
+                    )
                 } else {
-                    lifecycleStarted.set(true)
                     try {
                         runAcquiredAsync(lockName, lock, acquiredAtNanosRef.get(), executor, action)
                     } catch (error: Throwable) {
-                        lifecycleStarted.set(false)
-                        releaseIfUnclaimed()
+                        release(lock, acquiredAtNanosRef.get(), lockName)
                         CompletableFuture.failedFuture(error)
                     }
                 }

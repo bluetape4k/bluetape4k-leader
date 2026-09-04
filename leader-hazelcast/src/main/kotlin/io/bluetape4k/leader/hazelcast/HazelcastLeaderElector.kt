@@ -17,10 +17,12 @@ import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * `HazelcastLeaderElector`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -50,6 +52,12 @@ class HazelcastLeaderElector private constructor(
             hazelcast: HazelcastInstance,
             options: LeaderElectionOptions = LeaderElectionOptions.Default,
         ): HazelcastLeaderElector = HazelcastLeaderElector(hazelcast, options)
+    }
+
+    private enum class AsyncLifecycle {
+        WAITING,
+        STARTED,
+        CLEANUP,
     }
 
     private val lockMap: IMap<String, String> = hazelcast.getMap(LOCK_MAP_NAME)
@@ -113,13 +121,16 @@ class HazelcastLeaderElector private constructor(
 
         val lockAcquired = AtomicBoolean()
         val acquiredAtNanosRef = AtomicLong()
-        val lifecycleStarted = AtomicBoolean()
-        val rejectionCleanupClaimed = AtomicBoolean()
+        val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val releaseIfUnclaimed: () -> Unit = {
-            if (lockAcquired.get() && !lifecycleStarted.get() && rejectionCleanupClaimed.compareAndSet(false, true)) {
+            if (lockAcquired.get() && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
                 runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanosRef.get()) }
-                    .onSuccess { log.debug { "executor 거부 후 비동기 락을 반납했습니다. lockName=$lockName" } }
-                    .onFailure { e -> log.error(e) { "Fail to release lock after executor rejection. lockName=$lockName" } }
+                    .onSuccess {
+                        log.debug { "executor 거부 후 비동기 락을 반납했습니다. lockName=$lockName" }
+                    }
+                    .onFailure { e ->
+                        log.error(e) { "Fail to release lock after executor rejection. lockName=$lockName" }
+                    }
             }
         }
         val acquisitionFuture = CompletableFuture.supplyAsync({
@@ -135,10 +146,13 @@ class HazelcastLeaderElector private constructor(
                 if (!acquired) {
                     log.debug { "Leader 승격 실패 (슬롯 없음, 비동기). lockName=$lockName" }
                     CompletableFuture.completedFuture(null)
+                } else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
+                    CompletableFuture.failedFuture(
+                        CancellationException("leader result future was cancelled before action"),
+                    )
                 } else {
                     val acquiredAtNanos = acquiredAtNanosRef.get()
                     val delegate = HazelcastLockExtendDelegate(lock)
-                    lifecycleStarted.set(true)
                     val watchdog = try {
                         LeaderLeaseAutoExtender.start(
                             options.autoExtend,

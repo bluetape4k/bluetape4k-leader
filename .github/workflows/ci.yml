@@ -1840,7 +1840,7 @@ jobs:
       - name: Test leader-k8s
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest :bluetape4k-leader-k8s:koverXmlReport --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -1856,6 +1856,14 @@ jobs:
           path: |
             **/build/test-results/test/*.xml
             **/build/test-results/k8sTest/*.xml
+          retention-days: 7
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+          name: coverage-leader-k8s
+          path: '**/build/reports/kover/'
           retention-days: 7
 
   # ── leader-hazelcast 테스트 (Testcontainers: Hazelcast) ──────────────────
@@ -2002,6 +2010,7 @@ jobs:
         needs.changes.outputs['leader-dynamodb'] == 'true' ||
         needs.changes.outputs['leader-etcd'] == 'true' ||
         needs.changes.outputs['leader-consul'] == 'true' ||
+        needs.changes.outputs['leader-k8s'] == 'true' ||
         needs.changes.outputs['leader-hazelcast'] == 'true' ||
         needs.changes.outputs['leader-zookeeper'] == 'true'
       )
