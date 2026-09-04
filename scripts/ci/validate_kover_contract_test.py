@@ -117,6 +117,44 @@ jobs:
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("changes job", result.stdout + result.stderr)
 
+    def test_validator_requires_k8s_pr_job_to_publish_aggregated_coverage(self) -> None:
+        workflow = """
+jobs:
+  changes:
+    outputs:
+      leader-k8s: ${{ steps.filter.outputs.leader-k8s }}
+  test-core:
+    steps:
+      - run: ./gradlew :bluetape4k-leader-core:test :bluetape4k-leader-core:koverXmlReport
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+  test-leader-k8s:
+    needs: [changes]
+    if: ${{ needs.changes.outputs['leader-k8s'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Test leader-k8s
+        run: ./gradlew :bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest
+  coverage-report:
+    needs:
+      - changes
+      - test-core
+      - test-leader-k8s
+    if: ${{ needs.changes.outputs['leader-k8s'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v8
+      - name: Aggregate Kover coverage summary
+        run: python3 .github/scripts/aggregate-kover-coverage.py coverage-artifacts
+"""
+
+        path = self._write_workflow(workflow)
+        result = run_validator("--workflow-contract", str(path))
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("test-leader-k8s", result.stdout + result.stderr)
+
     def test_aggregator_fails_when_no_reports_are_present(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             result = run_aggregator(Path(directory))

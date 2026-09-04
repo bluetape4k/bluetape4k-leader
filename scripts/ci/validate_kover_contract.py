@@ -50,6 +50,44 @@ def _gradle_kover_commands(source: str) -> list[str]:
     ]
 
 
+def _validate_k8s_coverage_contract(source: str, path: Path) -> list[str]:
+    coverage_report = _job_block(source, "coverage-report")
+    if coverage_report is None or "test-leader-k8s" not in coverage_report:
+        return []
+
+    violations: list[str] = []
+    k8s_job = _job_block(source, "test-leader-k8s")
+    if k8s_job is None:
+        return [f"{path}: coverage-report가 의존하는 test-leader-k8s job이 없습니다"]
+
+    k8s_commands = [line.strip() for line in k8s_job.splitlines() if "./gradlew" in line]
+    if not any(
+        all(
+            task in command
+            for task in (
+                ":bluetape4k-leader-k8s:test",
+                ":bluetape4k-leader-k8s:k8sTest",
+                ":bluetape4k-leader-k8s:koverXmlReport",
+            )
+        )
+        for command in k8s_commands
+    ):
+        violations.append(
+            f"{path}: test-leader-k8s는 test, k8sTest, koverXmlReport를 same Gradle invocation으로 실행해야 합니다"
+        )
+
+    upload = _step_block(k8s_job, "Upload coverage report")
+    if upload is None:
+        violations.append(f"{path}: test-leader-k8s에 coverage artifact upload step이 없습니다")
+    elif "if-no-files-found: error" not in upload:
+        violations.append(f"{path}: test-leader-k8s coverage upload은 if-no-files-found: error여야 합니다")
+
+    if _job_block(source, "changes") is not None and "needs.changes.outputs['leader-k8s']" not in coverage_report:
+        violations.append(f"{path}: coverage-report의 영향 필터에 leader-k8s가 없습니다")
+
+    return violations
+
+
 def validate_workflow(path: Path) -> list[str]:
     if path.is_symlink() or not path.is_file():
         return [f"{path}: workflow 파일이 없습니다"]
@@ -104,6 +142,8 @@ def validate_workflow(path: Path) -> list[str]:
         aggregate = _step_block(coverage_report, "Aggregate Kover coverage summary")
         if aggregate is None or "aggregate-kover-coverage.py" not in aggregate:
             violations.append(f"{path}: coverage-report에 Kover 집계 step이 없습니다")
+
+    violations.extend(_validate_k8s_coverage_contract(source, path))
 
     return violations
 

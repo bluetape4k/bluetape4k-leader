@@ -48,6 +48,10 @@ async and virtual-thread APIs complete exceptionally instead (for `join()`, expe
 wrapping the cancellation; `isCancelled()` is not guaranteed). Blocking APIs also rethrow
 `InterruptedException` after restoring the interrupt flag.
 
+Cancelling the `CompletableFuture` returned by an async election propagates the cancellation request to acquisition
+and any in-flight action, then starts lease or slot cleanup. Cancellation is cooperative and cleanup may finish
+asynchronously; `mayInterruptIfRunning=true` does not guarantee that user code is forcibly interrupted.
+
 ### Election lifecycle listeners
 
 `LeaderElectionListenerRegistry` implementations support `addListener` and `removeListener` for lifecycle callbacks:

@@ -32,7 +32,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -63,6 +62,12 @@ class ConsulLeaderGroupElector private constructor(
             options: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
         ): ConsulLeaderGroupElector =
             ConsulLeaderGroupElector(lockClient, options)
+    }
+
+    private enum class AsyncLifecycle {
+        WAITING,
+        STARTED,
+        CLEANUP,
     }
 
     override val maxLeaders: Int = options.maxLeaders
@@ -188,11 +193,10 @@ class ConsulLeaderGroupElector private constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val acquiredRef = AtomicReference<ConsulLeaseHandle?>()
-        val lifecycleStarted = AtomicBoolean()
-        val rejectionCleanupClaimed = AtomicBoolean()
+        val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val releaseIfUnclaimed: () -> Unit = {
             val handle = acquiredRef.get()
-            if (handle != null && !lifecycleStarted.get() && rejectionCleanupClaimed.compareAndSet(false, true)) {
+            if (handle != null && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
                 release(handle)
             }
         }
@@ -205,8 +209,11 @@ class ConsulLeaderGroupElector private constructor(
             acquisitionFuture.thenComposeAsync({ handle ->
                 if (handle == null) {
                     CompletableFuture.completedFuture(null)
+                } else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
+                    CompletableFuture.failedFuture(
+                        CancellationException("leader result future was cancelled before action"),
+                    )
                 } else {
-                    lifecycleStarted.set(true)
                     runAcquiredAsync(handle, executor, action)
                 }
             }, executor)

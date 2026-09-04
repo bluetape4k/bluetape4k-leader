@@ -19,9 +19,9 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
@@ -50,6 +50,12 @@ class HazelcastLeaderGroupElector private constructor(
             options.maxLeaders.requirePositiveNumber("maxLeaders")
             return HazelcastLeaderGroupElector(hazelcast, options)
         }
+    }
+
+    private enum class AsyncLifecycle {
+        WAITING,
+        STARTED,
+        CLEANUP,
     }
 
     override val maxLeaders: Int = options.maxLeaders
@@ -147,14 +153,23 @@ class HazelcastLeaderGroupElector private constructor(
 
         val acquiredRef = AtomicReference<Pair<HazelcastLock, Int>?>(null)
         val acquiredAtNanosRef = AtomicLong()
-        val lifecycleStarted = AtomicBoolean()
-        val rejectionCleanupClaimed = AtomicBoolean()
+        val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val releaseIfUnclaimed: () -> Unit = {
             val acquired = acquiredRef.get()
-            if (acquired != null && !lifecycleStarted.get() && rejectionCleanupClaimed.compareAndSet(false, true)) {
+            if (acquired != null && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
                 runCatching { acquired.first.unlock(minLeaseTime, acquiredAtNanosRef.get()) }
-                    .onSuccess { log.debug { "executor 거부 후 비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=${acquired.second}" } }
-                    .onFailure { e -> log.error(e) { "Fail to release group slot after executor rejection. lockName=$lockName, slot=${acquired.second}" } }
+                    .onSuccess {
+                        log.debug {
+                            "executor 거부 후 비동기 그룹 슬롯을 반납했습니다. " +
+                                "lockName=$lockName, slot=${acquired.second}"
+                        }
+                    }
+                    .onFailure { e ->
+                        log.error(e) {
+                            "Fail to release group slot after executor rejection. " +
+                                "lockName=$lockName, slot=${acquired.second}"
+                        }
+                    }
             }
         }
         val acquisitionFuture = CompletableFuture.supplyAsync({
@@ -177,12 +192,15 @@ class HazelcastLeaderGroupElector private constructor(
                 if (acquired == null) {
                     log.debug { "리더 그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
                     CompletableFuture.completedFuture(null)
+                } else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
+                    CompletableFuture.failedFuture(
+                        CancellationException("leader result future was cancelled before action"),
+                    )
                 } else {
                     val (lock, slot) = acquired
                     val acquiredAtNanos = acquiredAtNanosRef.get()
                     log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName, slot=$slot" }
                     val delegate = HazelcastSlotExtendDelegate(lock)
-                    lifecycleStarted.set(true)
                     // Group elector: watchdog disabled (autoExtend 옵션 부재)
                     val watchdog = try {
                         LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
@@ -202,8 +220,16 @@ class HazelcastLeaderGroupElector private constructor(
                     actionFuture.whenComplete { _, _ ->
                         watchdog.close()
                         runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
-                            .onSuccess { log.debug { "비동기 리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
-                            .onFailure { e -> log.error(e) { "Fail to release group slot (async). lockName=$lockName, slot=$slot" } }
+                            .onSuccess {
+                                log.debug {
+                                    "비동기 리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot"
+                                }
+                            }
+                            .onFailure { e ->
+                                log.error(e) {
+                                    "Fail to release group slot (async). lockName=$lockName, slot=$slot"
+                                }
+                            }
                     }
                     actionFuture
                 }
