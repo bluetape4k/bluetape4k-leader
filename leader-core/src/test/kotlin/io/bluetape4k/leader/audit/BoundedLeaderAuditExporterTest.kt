@@ -593,7 +593,10 @@ class BoundedLeaderAuditExporterTest {
 
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
         firstStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        awaitAdmissionReleased(exporter)
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        awaitAdmissionReleased(exporter)
+        diagnosticsQueued(exporter).shouldBeEqualTo(1)
         registration.close()
         diagnosticsQueued(exporter).shouldBeEqualTo(0)
         releaseFirst.countDown()
@@ -673,6 +676,7 @@ class BoundedLeaderAuditExporterTest {
 
             exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
             firstStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            awaitAdmissionReleased(exporter)
             exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
             releaseFirst.countDown()
 
@@ -764,6 +768,7 @@ class BoundedLeaderAuditExporterTest {
         while (exporter.snapshot().admitted != 0 && System.nanoTime() < deadline) {
             Thread.onSpinWait()
         }
+        exporter.snapshot().admitted.shouldBeEqualTo(0)
     }
 
     private fun replaceDiagnosticsQueue(
