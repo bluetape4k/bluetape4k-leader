@@ -3,6 +3,7 @@
 package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
@@ -10,11 +11,11 @@ import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.lettuce.core.ScriptOutputType
-import io.lettuce.core.api.coroutines
+import io.lettuce.core.api.StatefulRedisConnection
+import io.lettuce.core.api.reactive.RedisReactiveCommands
+import io.lettuce.core.api.sync.RedisCommands
 import org.junit.jupiter.api.Test
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
-import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
+import reactor.core.publisher.Mono
 
 class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
 
@@ -108,7 +109,7 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
         )
         updated.first().toString().toLong() shouldBeEqualTo LettuceCandidateResultScript.UPDATED
         connection.sync().get(keys.token).shouldBeNull()
-        LettuceCandidateInfoCodec.decode(connection.sync().get(keys.candidate)!!).successCount shouldBeEqualTo 1L
+        LettuceCandidateInfoCodec.decode(connection.sync().get(keys.candidate).shouldNotBeNull()).successCount shouldBeEqualTo 1L
     }
 
     @Test
@@ -192,36 +193,20 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
             nodeId,
         )
         val raw = LettuceCandidateInfoCodec.encode(CandidateInfo(nodeId))
-        val token = "migration-token-${System.nanoTime()}"
-
-        connection.sync().set(keys.candidate, raw)
-        connection.sync().sadd(keys.index, nodeId)
-        connection.sync().set(keys.token, token)
         connection.sync().set(sourceKey, raw)
-
-        val constructor = LettuceCandidateRegistry::class.java.getDeclaredConstructor(
-            BlockingCandidateCommands::class.java,
-            BlockingCandidateValueReader::class.java,
-            String::class.java,
-        ).apply { isAccessible = true }
-        val registry = constructor.newInstance(
-            LettuceBlockingCandidateCommands(connection.sync()),
-            BlockingCandidateValueReader { emptyMap() },
-            LettuceCandidateRegistry.DEFAULT_KEY_PREFIX,
+        connection.sync().pexpire(sourceKey, 30_000L)
+        connection.sync().sadd(
+            LettuceCandidateKeyCodec.v2IndexKey(LettuceCandidateRegistry.DEFAULT_KEY_PREFIX, lockName),
+            nodeId,
         )
-        LettuceCandidateRegistry::class.java.getDeclaredMethod(
-            "cleanupExpiredMigration",
-            String::class.java,
-            String::class.java,
-            String::class.java,
-            String::class.java,
-            Long::class.javaPrimitiveType,
-            String::class.java,
-        ).apply { isAccessible = true }
-            .invoke(registry, lockName, nodeId, sourceKey, raw, 100L, token)
+        val registry = LettuceCandidateRegistry(persistAfterFirstTtl(sourceKey))
+
+        registry.listCandidates(lockName).single().nodeId shouldBeEqualTo nodeId
 
         connection.sync().get(keys.candidate) shouldBeEqualTo raw
-        connection.sync().get(keys.token) shouldBeEqualTo token
+        connection.sync().get(keys.token).shouldNotBeNull()
+        connection.sync().pttl(sourceKey) shouldBeEqualTo -1L
+        connection.sync().sismember(keys.index, nodeId) shouldBeEqualTo true
     }
 
     @Test
@@ -235,28 +220,20 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
             nodeId,
         )
         val raw = LettuceCandidateInfoCodec.encode(CandidateInfo(nodeId))
-        val token = "suspend-migration-token-${System.nanoTime()}"
-
-        connection.sync().set(keys.candidate, raw)
-        connection.sync().sadd(keys.index, nodeId)
-        connection.sync().set(keys.token, token)
         connection.sync().set(sourceKey, raw)
-
-        val constructor = LettuceSuspendCandidateRegistry::class.java.getDeclaredConstructor(
-            SuspendCandidateCommands::class.java,
-            SuspendCandidateValueReader::class.java,
-            String::class.java,
-        ).apply { isAccessible = true }
-        val registry = constructor.newInstance(
-            LettuceSuspendCandidateCommands(connection.coroutines()) { connection.async() },
-            SuspendCandidateValueReader { emptyMap() },
-            LettuceSuspendCandidateRegistry.DEFAULT_KEY_PREFIX,
+        connection.sync().pexpire(sourceKey, 30_000L)
+        connection.sync().sadd(
+            LettuceCandidateKeyCodec.v2IndexKey(LettuceSuspendCandidateRegistry.DEFAULT_KEY_PREFIX, lockName),
+            nodeId,
         )
+        val registry = LettuceSuspendCandidateRegistry(persistAfterFirstTtl(sourceKey))
 
-        invokeSuspendCleanup(registry, lockName, nodeId, sourceKey, raw, 100L, token)
+        registry.listCandidates(lockName).single().nodeId shouldBeEqualTo nodeId
 
         connection.sync().get(keys.candidate) shouldBeEqualTo raw
-        connection.sync().get(keys.token) shouldBeEqualTo token
+        connection.sync().get(keys.token).shouldNotBeNull()
+        connection.sync().pttl(sourceKey) shouldBeEqualTo -1L
+        connection.sync().sismember(keys.index, nodeId) shouldBeEqualTo true
     }
 
     private fun run(keys: ScriptKeys, operation: String, vararg args: String): List<Any> =
@@ -271,37 +248,38 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
 
     private fun List<Any>.status(): Long = first().toString().toLong()
 
-    private suspend fun invokeSuspendCleanup(
-        registry: Any,
-        lockName: String,
-        nodeId: String,
-        sourceKey: String,
-        sourceRaw: String,
-        observedTtl: Long,
-        token: String,
-    ): Any? {
-        val method = LettuceSuspendCandidateRegistry::class.java.getDeclaredMethod(
-            "cleanupExpiredMigration",
-            String::class.java,
-            String::class.java,
-            String::class.java,
-            String::class.java,
-            Long::class.javaPrimitiveType,
-            String::class.java,
-            Continuation::class.java,
-        ).apply { isAccessible = true }
-        return suspendCoroutineUninterceptedOrReturn { continuation ->
-            val result = method.invoke(
-                registry,
-                lockName,
-                nodeId,
-                sourceKey,
-                sourceRaw,
-                observedTtl,
-                token,
-                continuation,
-            )
-            if (result === COROUTINE_SUSPENDED) COROUTINE_SUSPENDED else result
+    // 실제 PTTL 결과를 반환하되 첫 조회 직후 PERSIST를 완료해서 cleanup의 -1 경계를 재현한다.
+    private fun persistAfterFirstTtl(sourceKey: String): StatefulRedisConnection<String, String> {
+        val sync = connection.sync()
+        val reactive = connection.reactive()
+        var first = true
+        fun persistSource(key: String, ttl: Long) {
+            if (key == sourceKey && first) {
+                ttl shouldBeGreaterThan 0L
+                sync.persist(sourceKey) shouldBeEqualTo true
+                first = false
+            }
+        }
+        val syncCommands = object : RedisCommands<String, String> by sync {
+            override fun pttl(key: String): Long = sync.pttl(key).also { persistSource(key, it) }
+        }
+        val reactiveCommands = object : RedisReactiveCommands<String, String> by reactive {
+            override fun pttl(key: String): Mono<Long> = reactive.pttl(key).flatMap { ttl ->
+                if (key == sourceKey && first) {
+                    ttl shouldBeGreaterThan 0L
+                    first = false
+                    reactive.persist(sourceKey).map { persisted ->
+                        persisted shouldBeEqualTo true
+                        ttl
+                    }
+                } else {
+                    Mono.just(ttl)
+                }
+            }
+        }
+        return object : StatefulRedisConnection<String, String> by connection {
+            override fun sync(): RedisCommands<String, String> = syncCommands
+            override fun reactive(): RedisReactiveCommands<String, String> = reactiveCommands
         }
     }
 

@@ -33,6 +33,12 @@ tasks.named<Test>("test") {
 }
 
 val clusterTestMatrixFile = layout.projectDirectory.file("src/test/resources/redis-cluster-test-matrix.txt").asFile
+val clusterImageFile = layout.projectDirectory.file("src/test/resources/redis-cluster-image.txt").asFile
+val clusterImage = clusterImageFile.readText().trim().also {
+    require(it.matches(Regex("tommy351/redis-cluster@sha256:[a-f0-9]{64}"))) {
+        "Redis Cluster fixture requires an immutable SHA-256 image reference"
+    }
+}
 val expectedClusterTestNames = clusterTestMatrixFile.readLines()
     .map(String::trim)
     .filter(String::isNotEmpty)
@@ -70,8 +76,8 @@ val clusterTest = tasks.register<Test>("clusterTest") {
         directory.mkdirs()
         directory.resolve("task-provenance.txt").writeText(
             buildString {
-                appendLine("image=tommy351/redis-cluster:6.2")
-                appendLine("fixture=io.bluetape4k.testcontainers.storage.RedisClusterServer.Launcher.redisCluster")
+                appendLine("image=$clusterImage")
+                appendLine("fixture=io.bluetape4k.testcontainers.storage.RedisClusterServer")
                 appendLine("task=clusterTest")
                 appendLine("expectedTests=$expectedClusterTestCount")
                 appendLine("dockerHost=${System.getenv("DOCKER_HOST") ?: "default"}")
@@ -125,7 +131,7 @@ val clusterTest = tasks.register<Test>("clusterTest") {
         val clusterState = provenanceLines.firstOrNull { it.startsWith("cluster_state=") }
         val endpoints = provenanceLines.firstOrNull { it.startsWith("endpoints=") }
         val endpointCount = endpoints?.substringAfter('=')?.split(',')?.count { it.isNotBlank() } ?: 0
-        require(imageDigest?.contains("@sha256:") == true && clusterState == "cluster_state=ok" &&
+        require(imageDigest == "image_digest=$clusterImage" && clusterState == "cluster_state=ok" &&
             endpointCount >= 6) {
             "Redis Cluster runtime provenance is incomplete: $provenanceLines"
         }

@@ -17,14 +17,18 @@ import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
 import io.bluetape4k.testcontainers.storage.RedisClusterServer
 import io.lettuce.core.ScriptOutputType
-import io.lettuce.core.cluster.SlotHash
-import io.lettuce.core.cluster.api.coroutines
 import io.lettuce.core.SetArgs
+import io.lettuce.core.cluster.SlotHash
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
+import io.lettuce.core.cluster.api.coroutines
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import org.testcontainers.utility.DockerImageName
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CancellationException
@@ -32,7 +36,32 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 @Tag("redis-cluster")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LettuceStrategicRedisClusterTest {
+
+    private val clusterImage = checkNotNull(javaClass.getResource("/redis-cluster-image.txt"))
+        .readText().trim()
+    // digest를 지정할 수 없는 전역 launcher 대신 기존 서버 factory를 재사용하고 이 테스트가 수명을 소유한다.
+    private val server = RedisClusterServer(DockerImageName.parse(clusterImage))
+
+    @BeforeAll
+    fun startCluster() {
+        try {
+            server.start()
+        } catch (failure: Throwable) {
+            try {
+                server.stop()
+            } catch (cleanupFailure: Throwable) {
+                failure.addSuppressed(cleanupFailure)
+            }
+            throw failure
+        }
+    }
+
+    @AfterAll
+    fun stopCluster() {
+        server.stop()
+    }
 
     @Test
     fun `blocking single elector executes v3 register list refresh result and unregister`() {
@@ -515,7 +544,6 @@ class LettuceStrategicRedisClusterTest {
     }
 
     private fun withCluster(block: (StatefulRedisClusterConnection<String, String>) -> Unit) {
-        val server = RedisClusterServer.Launcher.redisCluster
         RedisClusterServer.Launcher.LettuceLib.getClusterClient(server).use { client ->
             client.connect().use { connection ->
                 recordClusterRuntime(server, connection)
@@ -527,7 +555,6 @@ class LettuceStrategicRedisClusterTest {
     private suspend fun withClusterSuspend(
         block: suspend (StatefulRedisClusterConnection<String, String>) -> Unit,
     ) {
-        val server = RedisClusterServer.Launcher.redisCluster
         RedisClusterServer.Launcher.LettuceLib.getClusterClient(server).use { client ->
             client.connect().use { connection ->
                 recordClusterRuntime(server, connection)
@@ -548,13 +575,16 @@ class LettuceStrategicRedisClusterTest {
         )
         Files.createDirectories(diagnosticsDirectory)
 
-        val imageDigest = server.dockerClient
-            .inspectImageCmd(server.dockerImageName)
+        val actualImageId = server.dockerClient.inspectContainerCmd(server.containerId).exec().imageId
+        val actualImage = server.dockerClient
+            .inspectImageCmd(actualImageId)
             .exec()
-            .repoDigests
+        val requestedImage = server.dockerClient.inspectImageCmd(clusterImage).exec()
+        actualImage.id shouldBeEqualTo requestedImage.id
+        val imageDigest = actualImage.repoDigests
             .orEmpty()
-            .firstOrNull { "@sha256:" in it }
-            ?: error("Redis Cluster image digest is unavailable for ${server.dockerImageName}")
+            .firstOrNull { it == clusterImage }
+            ?: error("Redis Cluster running image does not match pinned digest: $clusterImage")
         val clusterInfo = connection.sync().clusterInfo()
         val clusterState = clusterInfo.lineSequence()
             .firstOrNull { it.startsWith("cluster_state:") }
@@ -565,7 +595,8 @@ class LettuceStrategicRedisClusterTest {
         val runtimeProvenance = buildString {
             appendLine("image=${server.dockerImageName}")
             appendLine("image_digest=$imageDigest")
-            appendLine("fixture=io.bluetape4k.testcontainers.storage.RedisClusterServer.Launcher.redisCluster")
+            appendLine("image_id=$actualImageId")
+            appendLine("fixture=io.bluetape4k.testcontainers.storage.RedisClusterServer")
             appendLine("cluster_state=$clusterState")
             appendLine("endpoints=$endpoints")
             appendLine("mapped_ports=${server.mappedPorts.entries.joinToString(",") { (source, mapped) -> "$source->$mapped" }}")
