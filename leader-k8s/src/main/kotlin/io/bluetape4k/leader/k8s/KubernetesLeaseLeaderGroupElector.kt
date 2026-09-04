@@ -112,10 +112,11 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         var elected = false
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.map(runAsyncWithGroupSlot(slot.lockName, slot.leaderId, executor) {
             elected = true
-            action()
-        }) { value, failure ->
+            cancellationRelay.invoke(action)
+        }, cancellationRelay) { value, failure ->
             val cause = failure.unwrapCompletionException()
             when {
                 cause is CancellationException -> throw cause
@@ -198,6 +199,9 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         }
         pipelineFuture.whenComplete { _, failure ->
             if (failure != null) releaseIfUnclaimed()
+        }
+        acquisitionFuture.whenComplete { acquired, _ ->
+            if (acquired != null && pipelineFuture.isCancelled) releaseIfUnclaimed()
         }
         return pipelineFuture
     }

@@ -10,6 +10,9 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CancellationException
@@ -21,6 +24,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * [AsyncLeaderGroupElector] 인터페이스 계약을 검증하는 테스트입니다.
@@ -224,6 +228,64 @@ class AsyncLeaderGroupElectorContractTest {
 
         result.cancel(false).shouldBeTrue()
         source.isCancelled.shouldBeTrue()
+    }
+
+    @Test
+    fun `runAsyncIfLeaderResult - group 반환 future 취소가 action future와 lease lifecycle로 전파된다`() {
+        val election: AsyncLeaderGroupElector = LocalAsyncLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 1))
+        val lockName = randomLockName()
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val result = election.runAsyncIfLeaderResult(LeaderSlot(lockName, "async-group-cancel-node"), executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+
+            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+            await.atMost(2.seconds).untilAsserted {
+                actionFuture.isCancelled.shouldBeTrue()
+            }
+            await.atMost(2.seconds).untilAsserted {
+                election.runAsyncIfLeader(lockName, executor) {
+                    CompletableFuture.completedFuture("reacquired")
+                }.get(1, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+            }
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `runAsyncIfLeaderResult - group listener decorator도 반환 future 취소를 action future로 전파한다`() {
+        val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 1)).withListeners()
+        val lockName = randomLockName()
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val result = election.runAsyncIfLeaderResult(LeaderSlot(lockName, "group-listener-cancel-node"), executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+
+            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+            await.atMost(2.seconds).untilAsserted {
+                actionFuture.isCancelled.shouldBeTrue()
+            }
+            await.atMost(2.seconds).untilAsserted {
+                election.runAsyncIfLeader(lockName, executor) {
+                    CompletableFuture.completedFuture("reacquired")
+                }.get(1, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+            }
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     @Test

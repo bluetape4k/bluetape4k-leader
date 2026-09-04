@@ -125,10 +125,11 @@ class ConsulLeaderGroupElector private constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         var elected = false
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
             elected = true
-            action()
-        }) { value, failure ->
+            cancellationRelay.invoke(action)
+        }, cancellationRelay) { value, failure ->
             val cause = failure.unwrapCompletionException()
             when {
                 cause is CancellationException -> throw cause
@@ -205,9 +206,8 @@ class ConsulLeaderGroupElector private constructor(
                 if (handle == null) {
                     CompletableFuture.completedFuture(null)
                 } else {
-                    val actionFuture = runAcquiredAsync(handle, executor, action)
                     lifecycleStarted.set(true)
-                    actionFuture
+                    runAcquiredAsync(handle, executor, action)
                 }
             }, executor)
         } catch (error: Throwable) {
@@ -218,6 +218,9 @@ class ConsulLeaderGroupElector private constructor(
         }
         pipelineFuture.whenComplete { _, failure ->
             if (failure != null) releaseIfUnclaimed()
+        }
+        acquisitionFuture.whenComplete { handle, _ ->
+            if (handle != null && pipelineFuture.isCancelled) releaseIfUnclaimed()
         }
         return pipelineFuture
     }

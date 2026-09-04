@@ -68,10 +68,11 @@ class LocalLeaderElector(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         val elected = AtomicBoolean(false)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
             elected.set(true)
-            action()
-        }) { value, failure ->
+            cancellationRelay.invoke(action)
+        }, cancellationRelay) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()

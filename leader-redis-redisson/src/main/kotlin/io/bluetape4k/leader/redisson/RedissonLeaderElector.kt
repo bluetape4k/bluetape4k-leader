@@ -29,6 +29,8 @@ import java.util.concurrent.Executor
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * `RedissonLeaderElector`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -187,10 +189,11 @@ class RedissonLeaderElector private constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         val elected = AtomicBoolean(false)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
             elected.set(true)
-            action()
-        }) { value, failure ->
+            cancellationRelay.invoke(action)
+        }, cancellationRelay) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
@@ -200,6 +203,7 @@ class RedissonLeaderElector private constructor(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun <T> runAsyncImpl(
         lockName: String,
         auditLeaderId: String?,
@@ -212,24 +216,94 @@ class RedissonLeaderElector private constructor(
 
         try {
             val currentThreadId = Thread.currentThread().threadId()
+            val rejectionCleanup = AsyncLockRejectionCleanup(lock, currentThreadId)
             log.debug { "Leader 승격을 요청합니다 ... lock=$lockName, currentThreadId=$currentThreadId" }
 
             // T8: 항상 명시적 leaseTime — Redisson 내장 watchdog 비활성화.
-            return lock
+            val acquisitionFuture = lock
                 .tryLockAsync(waitTimeMills, leaseTimeMills, TimeUnit.MILLISECONDS, currentThreadId)
+                .toCompletableFuture()
+                .thenApply { acquired ->
+                    if (acquired) rejectionCleanup.markAcquired()
+                    acquired
+                }
+            val pipelineFuture = acquisitionFuture
                 .thenComposeAsync({ acquired ->
                     if (acquired) {
-                        executeActionAsync(lock, auditLeaderId, currentThreadId, executor, System.nanoTime(), action)
+                        if (!rejectionCleanup.markLifecycleStarted()) {
+                            CompletableFuture.failedFuture(
+                                CancellationException("leader action was cancelled before start"),
+                            )
+                        } else try {
+                            executeActionAsync(
+                                lock,
+                                auditLeaderId,
+                                currentThreadId,
+                                rejectionCleanup.acquiredAtNanos,
+                                action,
+                            )
+                        } catch (error: Throwable) {
+                            releaseAcquiredLockAsync(lock, currentThreadId, rejectionCleanup.acquiredAtNanos)
+                                .handle { _, releaseError ->
+                                    if (releaseError != null) error.addSuppressed(releaseError.unwrapCompletionCause())
+                                }
+                                .thenCompose { CompletableFuture.failedFuture(error) }
+                        }
                     } else {
                         log.debug { "Leader 승격 실패 (슬롯 없음). lock=$lockName" }
                         CompletableFuture.completedFuture(null)
                     }
                 }, executor)
-                .toCompletableFuture()
+            acquisitionFuture.whenComplete { acquired, _ ->
+                if (acquired == true && pipelineFuture.isCancelled) {
+                    rejectionCleanup.release<Any?>(
+                        CancellationException("leader result future was cancelled before action"),
+                    )
+                }
+            }
+            return LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+                if (failure != null) {
+                    rejectionCleanup.release(failure.unwrapCompletionCause())
+                } else {
+                    CompletableFuture.completedFuture(value)
+                }
+            }
 
         } catch (e: Throwable) {
             log.error(e) { "Fail to runAsync as Leader" }
             return failedCompletableFutureOf(e)
+        }
+    }
+
+    private inner class AsyncLockRejectionCleanup(
+        private val lock: RLock,
+        private val currentThreadId: Long,
+    ) {
+        private val acquired = AtomicBoolean()
+        private val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
+        private val acquiredAtNanosRef = AtomicLong()
+
+        val acquiredAtNanos: Long get() = acquiredAtNanosRef.get()
+
+        fun markAcquired() {
+            acquiredAtNanosRef.set(System.nanoTime())
+            acquired.set(true)
+        }
+
+        fun markLifecycleStarted(): Boolean =
+            lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)
+
+        fun <T> release(failure: Throwable): CompletableFuture<T?> {
+            if (!acquired.get() || !lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
+                return CompletableFuture.failedFuture(failure)
+            }
+            return releaseAcquiredLockAsync(lock, currentThreadId, acquiredAtNanos)
+                .exceptionally { releaseError ->
+                    log.error(releaseError) {
+                        "Fail to release lock after executor rejection. lock=${lock.name}, threadId=$currentThreadId"
+                    }
+                }
+                .thenCompose { CompletableFuture.failedFuture(failure) }
         }
     }
 
@@ -242,7 +316,6 @@ class RedissonLeaderElector private constructor(
         lock: RLock,
         auditLeaderId: String?,
         currentThreadId: Long,
-        executor: Executor,
         acquiredAtNanos: Long,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
@@ -277,7 +350,7 @@ class RedissonLeaderElector private constructor(
             }
 
         return actionFuture
-            .handleAsync<Pair<T?, Throwable?>>({ value, error -> Pair(value, error) }, executor)
+            .handle<Pair<T?, Throwable?>> { value, error -> Pair(value, error) }
             .thenCompose { (value, error) ->
                 releaseAndPropagate(lock, currentThreadId, acquiredAtNanos, watchdog, error, value)
             }
@@ -353,8 +426,38 @@ class RedissonLeaderElector private constructor(
         }
     }
 
+    private fun releaseAcquiredLockAsync(
+        lock: RLock,
+        currentThreadId: Long,
+        acquiredAtNanos: Long,
+    ): CompletableFuture<Unit> {
+        val lockName = lock.name
+        return try {
+            val remaining = remainingMinLeaseTime(acquiredAtNanos, options.minLeaseTime)
+            val releaseFuture: CompletableFuture<*> = if (remaining > kotlin.time.Duration.ZERO) {
+                CompletableFuture.supplyAsync {
+                    redissonClient.keys.expire(remaining.toJavaDuration(), lockName)
+                }
+            } else {
+                lock.unlockAsync(currentThreadId).toCompletableFuture()
+            }
+            releaseFuture.thenApply {
+                log.debug { "executor 거부 후 Leader 권한을 반납했습니다. lock=$lockName, threadId=$currentThreadId" }
+                Unit
+            }
+        } catch (e: Throwable) {
+            failedCompletableFutureOf(e)
+        }
+    }
+
     private fun kotlin.time.Duration.toJavaDuration(): java.time.Duration =
         java.time.Duration.ofNanos(inWholeNanoseconds)
+
+    private enum class AsyncLifecycle {
+        WAITING,
+        STARTED,
+        CLEANUP,
+    }
 }
 
 

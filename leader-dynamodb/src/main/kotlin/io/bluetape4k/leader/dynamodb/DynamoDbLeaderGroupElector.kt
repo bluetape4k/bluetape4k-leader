@@ -169,10 +169,11 @@ class DynamoDbLeaderGroupElector(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         val elected = AtomicBoolean(false)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
             elected.set(true)
-            action()
-        }) { value, failure ->
+            cancellationRelay.invoke(action)
+        }, cancellationRelay) { value, failure ->
             val cause = (failure as? CompletionException)?.cause ?: failure
             when {
                 cause is CancellationException -> throw cause

@@ -182,20 +182,23 @@ class HazelcastLeaderGroupElector private constructor(
                     val acquiredAtNanos = acquiredAtNanosRef.get()
                     log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName, slot=$slot" }
                     val delegate = HazelcastSlotExtendDelegate(lock)
+                    lifecycleStarted.set(true)
                     // Group elector: watchdog disabled (autoExtend 옵션 부재)
                     val watchdog = try {
                         LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
                     } catch (error: Throwable) {
+                        runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
+                            .onFailure { error.addSuppressed(it) }
                         return@thenComposeAsync CompletableFuture.failedFuture(error)
                     }
                     // async path 는 handle push 미수행 (AOP scope sync/suspend 만 지원)
                     val actionFuture = runCatching { action() }
                         .getOrElse { error ->
                             watchdog.close()
-                            releaseIfUnclaimed()
+                            runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
+                                .onFailure { error.addSuppressed(it) }
                             return@thenComposeAsync CompletableFuture.failedFuture(error)
                         }
-                    lifecycleStarted.set(true)
                     actionFuture.whenComplete { _, _ ->
                         watchdog.close()
                         runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
@@ -213,6 +216,9 @@ class HazelcastLeaderGroupElector private constructor(
         }
         pipelineFuture.whenComplete { _, failure ->
             if (failure != null) releaseIfUnclaimed()
+        }
+        acquisitionFuture.whenComplete { acquired, _ ->
+            if (acquired != null && pipelineFuture.isCancelled) releaseIfUnclaimed()
         }
         return pipelineFuture
     }

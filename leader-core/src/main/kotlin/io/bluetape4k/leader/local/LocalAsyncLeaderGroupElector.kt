@@ -99,6 +99,7 @@ class LocalAsyncLeaderGroupElector private constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         val elected = AtomicBoolean(false)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.map(CompletableFuture.supplyAsync(
             {
                 tryWithPermit(
@@ -107,11 +108,11 @@ class LocalAsyncLeaderGroupElector private constructor(
                     nodeId = options.nodeId,
                 ) {
                     elected.set(true)
-                    action().join()
+                    cancellationRelay.invoke(action).join()
                 }
             },
             executor
-        )) { value, failure ->
+        ), cancellationRelay) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()

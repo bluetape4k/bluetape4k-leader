@@ -11,6 +11,7 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
@@ -233,6 +234,31 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
         } finally {
             executor.shutdownNow()
         }
+    }
+
+    @Test
+    fun `runAsyncIfLeaderResult - caller 취소를 action과 lock cleanup에 전파한다`() {
+        val lockName = randomName()
+        val election = HazelcastLeaderElector(
+            hazelcastClient,
+            LeaderElectionOptions(waitTime = 2.seconds, leaseTime = 10.seconds, autoExtend = true),
+        )
+        val actionStarted = CountDownLatch(1)
+        val actionTerminal = CountDownLatch(1)
+        val actionFuture = CompletableFuture<Int>().also { future ->
+            future.whenComplete { _, _ -> actionTerminal.countDown() }
+        }
+
+        val result = election.runAsyncIfLeaderResult(LeaderSlot(lockName, "hazelcast-single-cancel")) {
+            actionStarted.countDown()
+            actionFuture
+        }
+
+        actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+        result.cancel(false).shouldBeTrue()
+        actionTerminal.await(3, TimeUnit.SECONDS).shouldBeTrue()
+        actionFuture.isCancelled.shouldBeTrue()
+        election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
     }
 
     @Test

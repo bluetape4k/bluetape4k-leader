@@ -32,6 +32,8 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
@@ -227,10 +229,11 @@ class RedissonLeaderGroupElector private constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         val elected = AtomicBoolean(false)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
             elected.set(true)
-            action()
-        }) { value, failure ->
+            cancellationRelay.invoke(action)
+        }, cancellationRelay) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
@@ -240,6 +243,7 @@ class RedissonLeaderGroupElector private constructor(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun <T> runAsyncImpl(
         lockName: String,
         auditLeaderId: String?,
@@ -249,28 +253,93 @@ class RedissonLeaderGroupElector private constructor(
         return try {
             lockName.requireNotBlank("lockName")
             val semaphore = getPermitSemaphore(lockName)
+            val rejectionCleanup = AsyncPermitRejectionCleanup(semaphore, lockName)
             log.debug { "리더 그룹 슬롯 획득 요청 (async). lockName=$lockName" }
 
-            semaphore
+            val acquisitionFuture = semaphore
                 .tryAcquireAsync(
                     waitTime.inWholeMilliseconds,
                     leaseTime.inWholeMilliseconds,
                     TimeUnit.MILLISECONDS,
                 )
                 .toCompletableFuture()
+                .thenApply { permitId ->
+                    if (permitId != null) rejectionCleanup.markAcquired(permitId)
+                    permitId
+                }
+            val pipelineFuture = acquisitionFuture
                 .thenComposeAsync({ permitId ->
                     if (permitId == null) {
                         log.debug { "슬롯 획득 실패 (async). lockName=$lockName" }
                         CompletableFuture.completedFuture<T?>(null)
                     } else {
                         // Codex P2: acquire 성공 후 startedAtNanos 캡처
-                        val startedAtNanos = System.nanoTime()
-                        executeAsync(semaphore, lockName, permitId, auditLeaderId, startedAtNanos, action)
+                        val startedAtNanos = rejectionCleanup.acquiredAtNanos
+                        if (!rejectionCleanup.markLifecycleStarted()) {
+                            CompletableFuture.failedFuture(
+                                CancellationException("leader group action was cancelled before start"),
+                            )
+                        } else try {
+                            executeAsync(semaphore, lockName, permitId, auditLeaderId, startedAtNanos, action)
+                        } catch (error: Throwable) {
+                            releaseAndPropagate(semaphore, permitId, startedAtNanos, lockName, error, null)
+                        }
                     }
                 }, executor)
+            acquisitionFuture.whenComplete { permitId, _ ->
+                if (permitId != null && pipelineFuture.isCancelled) {
+                    rejectionCleanup.release<Any?>(
+                        CancellationException("leader group result future was cancelled before action"),
+                    )
+                }
+            }
+            LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+                if (failure != null) {
+                    rejectionCleanup.release(failure.unwrapCompletionCause())
+                } else {
+                    CompletableFuture.completedFuture(value)
+                }
+            }
         } catch (e: Throwable) {
             log.error(e) { "Fail to runAsync as Leader Group. lockName=$lockName" }
             failedCompletableFutureOf(e)
+        }
+    }
+
+    private inner class AsyncPermitRejectionCleanup(
+        private val semaphore: RPermitExpirableSemaphore,
+        private val lockName: String,
+    ) {
+        private val permitId = AtomicReference<String?>()
+        private val acquiredAtNanosRef = AtomicLong()
+        private val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
+
+        val acquiredAtNanos: Long get() = acquiredAtNanosRef.get()
+
+        fun markAcquired(acquiredPermitId: String) {
+            acquiredAtNanosRef.set(System.nanoTime())
+            permitId.set(acquiredPermitId)
+        }
+
+        fun markLifecycleStarted(): Boolean =
+            lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)
+
+        fun <T> release(failure: Throwable): CompletableFuture<T?> {
+            val acquiredPermitId = permitId.get()
+            if (
+                acquiredPermitId == null ||
+                !lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)
+            ) {
+                return CompletableFuture.failedFuture(failure)
+            }
+            return releaseAndPropagate(
+                semaphore,
+                acquiredPermitId,
+                acquiredAtNanos,
+                lockName,
+                failure,
+                null,
+            )
         }
     }
 
@@ -413,6 +482,12 @@ class RedissonLeaderGroupElector private constructor(
         } else {
             semaphore.releaseAsync(permitId).toCompletableFuture()
         }
+    }
+
+    private enum class AsyncLifecycle {
+        WAITING,
+        STARTED,
+        CLEANUP,
     }
 }
 
