@@ -15,6 +15,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
 
 class LettuceStrategicCandidateLookupFailureTest {
@@ -174,6 +175,7 @@ class LettuceStrategicCandidateLookupFailureTest {
         val commands = mockk<RedisCommands<String, String>>()
         every { connection.sync() } returns commands
         every { commands.smembers(any()) } returns setOf("node-1")
+        every { commands.get(any()) } returns null
         every { commands.mget(any<String>()) } returns listOf(
             KeyValue.just(
                 LettuceCandidateKeyCodec.candidateKey(
@@ -200,6 +202,7 @@ class LettuceStrategicCandidateLookupFailureTest {
         val reactive = mockk<RedisReactiveCommands<String, String>>()
         every { connection.reactive() } returns reactive
         every { reactive.smembers(any()) } returns Flux.just("node-1")
+        every { reactive.get(any()) } returns Mono.empty()
         every { reactive.mget(any<String>()) } returns Flux.just(
             KeyValue.just(
                 LettuceCandidateKeyCodec.candidateKey(

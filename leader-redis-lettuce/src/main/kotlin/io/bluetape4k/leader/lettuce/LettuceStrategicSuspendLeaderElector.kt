@@ -15,6 +15,7 @@ import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.api.StatefulRedisConnection
+import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
 import kotlinx.coroutines.CancellationException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -26,14 +27,24 @@ import kotlin.time.Duration.Companion.seconds
  * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  * @property nodeId Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  */
-class LettuceStrategicSuspendLeaderElector(
-    connection: StatefulRedisConnection<String, String>,
-    override val nodeId: String = Uuid.V7.nextBase62(),
+class LettuceStrategicSuspendLeaderElector private constructor(
+    private val registry: LettuceSuspendCandidateRegistry,
+    override val nodeId: String,
 ) : StrategicSuspendLeaderElector {
 
-    companion object : KLogging()
+    @JvmOverloads
+    constructor(
+        connection: StatefulRedisConnection<String, String>,
+        nodeId: String = Uuid.V7.nextBase62(),
+    ) : this(LettuceSuspendCandidateRegistry(connection), nodeId)
 
-    private val registry = LettuceSuspendCandidateRegistry(connection)
+    @JvmOverloads
+    constructor(
+        connection: StatefulRedisClusterConnection<String, String>,
+        nodeId: String = Uuid.V7.nextBase62(),
+    ) : this(LettuceSuspendCandidateRegistry(connection), nodeId)
+
+    companion object : KLogging()
 
     override suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
         registry.registerCandidate(lockName, info, ttl)

@@ -165,6 +165,7 @@ internal object LettuceCandidateResultScript {
         }, '|')
         local written = redis.call('SET', KEYS[1], updated, 'XX', 'KEEPTTL')
         if written then
+          redis.call('DEL', KEYS[2])
           return { $UPDATED }
         end
         return { $ABSENT }

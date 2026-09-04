@@ -199,6 +199,104 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 14
 
+  # ── leader-redis-lettuce Redis Cluster (전용 Nightly/manual full) ─────────
+  test-redis-lettuce-cluster:
+    name: Test / leader-redis-lettuce (Redis Cluster)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '19 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6.0.0
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v6.3.0
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+      - name: Prepare Redis Cluster diagnostics
+        run: mkdir -p leader-redis-lettuce/build/redis-cluster-diagnostics
+      - name: Test Redis Cluster
+        run: ./gradlew :bluetape4k-leader-redis-lettuce:clusterTest --no-daemon --no-configuration-cache --console=plain
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+          DOCKER_HOST: "unix:///var/run/docker.sock"
+      - name: Verify Redis Cluster test scope
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          reports=(leader-redis-lettuce/build/test-results/clusterTest/*.xml)
+          test "${#reports[@]}" -gt 0 || { echo "No clusterTest JUnit XML" >&2; exit 1; }
+          python3 - "${reports[@]}" <<'PY'
+          import sys
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          matrix_path = Path("leader-redis-lettuce/src/test/resources/redis-cluster-test-matrix.txt")
+          expected_names = {
+              line.strip()
+              for line in matrix_path.read_text().splitlines()
+              if line.strip()
+          }
+          tests = skipped = failures = errors = 0
+          observed_names = set()
+          for path in sys.argv[1:]:
+              root = ET.parse(path).getroot()
+              tests += int(root.attrib.get("tests", 0))
+              skipped += int(root.attrib.get("skipped", 0))
+              failures += int(root.attrib.get("failures", 0))
+              errors += int(root.attrib.get("errors", 0))
+              for testcase in root.findall(".//testcase"):
+                  observed_names.add(testcase.attrib.get("name", "").removesuffix("()"))
+          missing_names = sorted(expected_names - observed_names)
+          print({"tests": tests, "skipped": skipped, "failures": failures, "errors": errors})
+          print({"expected_matrix": len(expected_names), "missing_names": missing_names})
+          if tests < len(expected_names) or missing_names or skipped != 0 or failures != 0 or errors != 0:
+              print(f"Redis Cluster test matrix is incomplete; expected={len(expected_names)} missing={missing_names}")
+              raise SystemExit(1)
+
+          provenance = Path("leader-redis-lettuce/build/redis-cluster-diagnostics/cluster-runtime.txt")
+          if not provenance.is_file():
+              print(f"Missing Redis Cluster runtime provenance: {provenance}")
+              raise SystemExit(1)
+          fields = {}
+          for line in provenance.read_text().splitlines():
+              key, separator, value = line.partition("=")
+              if separator:
+                  fields[key] = value
+          endpoints = [endpoint for endpoint in fields.get("endpoints", "").split(",") if endpoint]
+          if "@sha256:" not in fields.get("image_digest", "") or fields.get("cluster_state") != "ok" or len(endpoints) < 6:
+              print(f"Incomplete Redis Cluster runtime provenance: {fields}")
+              raise SystemExit(1)
+          PY
+      - name: Capture Redis Cluster failure diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          docker ps -a > leader-redis-lettuce/build/redis-cluster-diagnostics/docker-ps.txt
+          docker ps -aq | xargs -r -n1 docker inspect > leader-redis-lettuce/build/redis-cluster-diagnostics/docker-inspect.json
+          docker ps -aq | xargs -r -n1 docker logs > leader-redis-lettuce/build/redis-cluster-diagnostics/docker-logs.txt
+          docker events --since 10m --until "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > leader-redis-lettuce/build/redis-cluster-diagnostics/docker-events.txt
+          if command -v redis-cli >/dev/null 2>&1; then
+            redis-cli -c cluster info > leader-redis-lettuce/build/redis-cluster-diagnostics/cluster-info.txt 2>&1
+          fi
+      - name: Upload Redis Cluster diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: redis-lettuce-cluster-diagnostics
+          path: |
+            **/build/test-results/clusterTest/*.xml
+            **/build/reports/tests/clusterTest/**
+            **/build/redis-cluster-diagnostics/**
+          retention-days: 14
+
   # ── leader-redis-redisson (Testcontainers: Redis) ───────────────────────────
   test-redis-redisson:
     name: Test / leader-redis-redisson (Testcontainers)
@@ -1138,6 +1236,7 @@ jobs:
     needs:
       - test-core
       - test-redis-lettuce
+      - test-redis-lettuce-cluster
       - test-redis-redisson
       - test-exposed-core-h2
       - test-exposed-core-postgresql
@@ -1228,6 +1327,7 @@ jobs:
       - snapshot-warmup
       - test-core
       - test-redis-lettuce
+      - test-redis-lettuce-cluster
       - test-redis-redisson
       - test-exposed-core-h2
       - test-exposed-core-postgresql
@@ -1255,10 +1355,16 @@ jobs:
       - name: Check all jobs
         env:
           RESULTS: ${{ join(needs.*.result, ',') }}
+          CLUSTER_RESULT: ${{ needs.test-redis-lettuce-cluster.result }}
+          FULL_SCOPE: ${{ (github.event_name == 'schedule' && github.event.schedule == '19 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
         run: |
           echo "Nightly results: $RESULTS"
           if echo "$RESULTS" | grep -qE "failure|cancelled"; then
             echo "Nightly failed"
+            exit 1
+          fi
+          if [ "$FULL_SCOPE" = "true" ] && [ "$CLUSTER_RESULT" != "success" ]; then
+            echo "Redis Cluster Nightly gate is $CLUSTER_RESULT, expected success"
             exit 1
           fi
           echo "Nightly passed"

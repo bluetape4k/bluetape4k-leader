@@ -16,6 +16,11 @@ internal object LettuceCandidateRefreshScript {
 
     val REFRESH = RedisScript(
         """
+        local ttl = tonumber(ARGV[2])
+        if not ttl or ttl < 0 or ttl % 1 ~= 0 then
+          return redis.error_reply('candidate TTL must be a non-negative integer')
+        end
+
         local current = redis.call('GET', KEYS[1])
         if not current then
           return { $ABSENT }
@@ -68,7 +73,6 @@ internal object LettuceCandidateRefreshScript {
           nodeId, registeredAt, lastStartTime, lastCompletionTime, successCount,
           failureCount, incomingMetadata
         }, '|')
-        local ttl = tonumber(ARGV[2])
         if ttl and ttl > 0 then
           redis.call('PSETEX', KEYS[1], ttl, updated)
         else
@@ -76,6 +80,7 @@ internal object LettuceCandidateRefreshScript {
         end
         redis.call('SADD', KEYS[2], nodeId)
         redis.call('PERSIST', KEYS[2])
+        redis.call('DEL', KEYS[3])
         return { $UPDATED }
         """.trimIndent()
     )

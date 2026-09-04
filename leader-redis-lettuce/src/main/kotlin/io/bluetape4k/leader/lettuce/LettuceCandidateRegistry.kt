@@ -1,31 +1,55 @@
 package io.bluetape4k.leader.lettuce
 
-import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
+import io.bluetape4k.leader.validateLockName
 import io.lettuce.core.RedisCommandExecutionException
 import io.lettuce.core.ScriptOutputType
-import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
+import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
 import java.time.Instant
+import java.util.UUID
 import kotlin.time.Duration
 
 /**
- * `LettuceCandidateRegistry`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `LettuceCandidateRegistry`는 blocking Lettuce strategic 후보의 lifecycle과
+ * legacy migration을 담당합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property connection Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * v3 mutation은 candidate/index/tombstone/token을 같은 hash slot의 Lua 경계로
+ * 묶고, v2/colon source는 single-key 관찰과 cleanup만 허용합니다.
  */
 @Suppress("TooManyFunctions")
-internal class LettuceCandidateRegistry(
-    private val connection: StatefulRedisConnection<String, String>,
-    private val keyPrefix: String = DEFAULT_KEY_PREFIX,
+internal class LettuceCandidateRegistry private constructor(
+    private val commands: BlockingCandidateCommands,
+    private val readMany: BlockingCandidateValueReader,
+    private val keyPrefix: String,
 ) {
-    /** 기존 internal JVM constructor descriptor를 보존합니다. */
+
+    /** 기존 standalone internal JVM constructor descriptor를 보존합니다. */
+    internal constructor(
+        connection: StatefulRedisConnection<String, String>,
+        keyPrefix: String = DEFAULT_KEY_PREFIX,
+    ) : this(
+        LettuceBlockingCandidateCommands(connection.sync()),
+        StandaloneBlockingCandidateValueReader(connection.sync()),
+        keyPrefix,
+    )
+
+    /** 기존 one-argument internal 호출 surface를 보존합니다. */
     internal constructor(connection: StatefulRedisConnection<String, String>) : this(
         connection,
         DEFAULT_KEY_PREFIX,
+    )
+
+    /** Redis Cluster connection을 위한 additive internal constructor입니다. */
+    internal constructor(
+        connection: StatefulRedisClusterConnection<String, String>,
+        keyPrefix: String = DEFAULT_KEY_PREFIX,
+    ) : this(
+        LettuceBlockingCandidateCommands(connection.sync()),
+        ClusterBlockingCandidateValueReader(connection.sync()),
+        keyPrefix,
     )
 
     companion object {
@@ -33,160 +57,240 @@ internal class LettuceCandidateRegistry(
         internal const val GROUP_KEY_PREFIX = "leader:strategy:group-candidates:lettuce:v1"
     }
 
-    private val sync = connection.sync()
-
-    private fun indexKey(lockName: String) =
+    private fun indexKey(lockName: String): String =
         LettuceCandidateKeyCodec.indexKey(keyPrefix, lockName)
 
-    private fun candidateKey(lockName: String, nodeId: String) =
+    private fun candidateKey(lockName: String, nodeId: String): String =
         LettuceCandidateKeyCodec.candidateKey(keyPrefix, lockName, nodeId)
 
-    /**
-     * `registerCandidate` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    private fun tombstoneKey(lockName: String, nodeId: String): String =
+        LettuceCandidateKeyCodec.tombstoneKey(keyPrefix, lockName, nodeId)
+
+    private fun migrationTokenKey(lockName: String, nodeId: String): String =
+        LettuceCandidateKeyCodec.migrationTokenKey(keyPrefix, lockName, nodeId)
+
+    private fun v2IndexKey(lockName: String): String =
+        LettuceCandidateKeyCodec.v2IndexKey(keyPrefix, lockName)
+
+    private fun v2CandidateKey(lockName: String, nodeId: String): String =
+        LettuceCandidateKeyCodec.v2CandidateKey(keyPrefix, lockName, nodeId)
+
+    private fun legacyIndexKey(lockName: String): String =
+        LettuceCandidateKeyCodec.legacyIndexKey(keyPrefix, lockName)
+
+    private fun legacyCandidateKey(lockName: String, nodeId: String): String =
+        LettuceCandidateKeyCodec.legacyCandidateKey(keyPrefix, lockName, nodeId)
+
     fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
         validateLockName(lockName)
-        val key = candidateKey(lockName, info.nodeId)
-        val indexKey = indexKey(lockName)
-        val value = LettuceCandidateInfoCodec.encode(info)
-        if (ttl == Duration.ZERO) sync.set(key, value)
-        else sync.psetex(key, ttl.inWholeMilliseconds, value)
-        sync.sadd(indexKey, info.nodeId)
-        // 후보별 TTL은 candidate key에만 적용한다. index set까지 만료시키면
-        // 유한 TTL 후보가 영구 후보를 같은 lockName에서 가릴 수 있다.
-        sync.persist(indexKey)
+        val ttlMillis = candidateTtlMillis(ttl)
+        val reply = runWriteScript(
+            operation = LettuceCandidateWriteScript.REGISTER,
+            keys = arrayOf(
+                candidateKey(lockName, info.nodeId),
+                indexKey(lockName),
+                tombstoneKey(lockName, info.nodeId),
+                migrationTokenKey(lockName, info.nodeId),
+            ),
+            args = arrayOf(
+                LettuceCandidateInfoCodec.encode(info),
+                ttlMillis.toString(),
+                info.nodeId,
+            ),
+        )
+        requireStatus(reply, LettuceCandidateWriteScript.REGISTERED)
     }
 
-    /** 기존 후보의 heartbeat를 원자적으로 갱신하고 결과 통계는 보존합니다. */
     fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
         validateLockName(lockName)
-        val key = candidateKey(lockName, info.nodeId)
-        if (sync.get(key) == null) {
-            migrateLegacyCandidate(lockName, info.nodeId)
-        }
-        val reply = RedisScriptRunner.run<List<Any>>(
-            sync,
+        val ttlMillis = candidateTtlMillis(ttl)
+        if (commands.get(tombstoneKey(lockName, info.nodeId)) != null) return
+        ensureCurrentCandidate(lockName, info.nodeId)
+        val reply = commands.runScript<List<Any>>(
             LettuceCandidateRefreshScript.REFRESH,
             ScriptOutputType.MULTI,
-            arrayOf(key, indexKey(lockName)),
+            arrayOf(
+                candidateKey(lockName, info.nodeId),
+                indexKey(lockName),
+                migrationTokenKey(lockName, info.nodeId),
+            ),
             LettuceCandidateInfoCodec.encode(info),
-            ttl.inWholeMilliseconds.toString(),
+            ttlMillis.toString(),
         )
         LettuceCandidateRefreshScript.rethrowMalformed(reply)
     }
 
-    /**
-     * `unregisterCandidate` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
     fun unregisterCandidate(lockName: String, nodeId: String) {
         validateLockName(lockName)
-        sync.del(candidateKey(lockName, nodeId))
-        sync.srem(indexKey(lockName), nodeId)
-        val legacyKey = LettuceCandidateKeyCodec.legacyCandidateKey(keyPrefix, lockName, nodeId)
-        if (readLegacyCandidate(legacyKey, nodeId) != null) {
-            sync.del(legacyKey)
-        }
-        removeLegacyIndexMembers(lockName, listOf(nodeId))
+        val reply = runWriteScript(
+            operation = LettuceCandidateWriteScript.UNREGISTER,
+            keys = arrayOf(
+                candidateKey(lockName, nodeId),
+                indexKey(lockName),
+                tombstoneKey(lockName, nodeId),
+                migrationTokenKey(lockName, nodeId),
+            ),
+            args = arrayOf(nodeId),
+        )
+        requireStatus(reply, LettuceCandidateWriteScript.UNREGISTERED)
+
+        cleanupLegacyCandidate(nodeId, v2CandidateKey(lockName, nodeId), v2IndexKey(lockName))
+        cleanupLegacyCandidate(nodeId, legacyCandidateKey(lockName, nodeId), legacyIndexKey(lockName))
     }
 
-    /**
-     * `listCandidates` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
     @Suppress("CyclomaticComplexMethod")
     fun listCandidates(lockName: String): List<CandidateInfo> {
         validateLockName(lockName)
-        val currentIndexKey = indexKey(lockName)
-        val currentNodeIds = sync.smembers(currentIndexKey).toList()
-        val legacyNodeIds = readLegacyNodeIds(lockName)
-        if (currentNodeIds.isEmpty() && legacyNodeIds.isEmpty()) return emptyList()
-
+        val currentIndex = indexKey(lockName)
+        val currentNodeIds = commands.smembers(currentIndex).toList()
         val candidates = linkedMapOf<String, CandidateInfo>()
         val missingCurrentNodeIds = mutableListOf<String>()
         val mismatchedCurrentNodeIds = mutableListOf<String>()
-        val currentKeys = currentNodeIds.associateBy { nodeId -> candidateKey(lockName, nodeId) }
-        if (currentKeys.isNotEmpty()) {
-            sync.mget(*currentKeys.keys.toTypedArray()).forEach { kv ->
-                val nodeId = currentKeys[kv.key] ?: return@forEach
-                if (!kv.hasValue()) {
+
+        if (currentNodeIds.isNotEmpty()) {
+            val keys = currentNodeIds.map { candidateKey(lockName, it) }
+            val values = readMany.read(keys)
+            currentNodeIds.forEach { nodeId ->
+                if (commands.get(tombstoneKey(lockName, nodeId)) != null) {
+                    mismatchedCurrentNodeIds += nodeId
+                    return@forEach
+                }
+                val raw = values[candidateKey(lockName, nodeId)]
+                if (raw == null) {
                     missingCurrentNodeIds += nodeId
                     return@forEach
                 }
-                val candidate = LettuceCandidateInfoCodec.decode(kv.value)
+                val candidate = LettuceCandidateInfoCodec.decode(raw)
                 if (candidate.nodeId == nodeId) candidates[nodeId] = candidate
                 else mismatchedCurrentNodeIds += nodeId
             }
         }
 
-        val staleLegacyNodeIds = mutableListOf<String>()
-        legacyNodeIds.forEach { nodeId ->
+        val v2Index = v2IndexKey(lockName)
+        val legacyIndex = legacyIndexKey(lockName)
+        val v2NodeIds = readIndexMembers(v2Index)
+        val legacyNodeIds = readIndexMembers(legacyIndex)
+        val sourceNodeIds = (v2NodeIds + legacyNodeIds).distinct()
+        val legacySources = sourceNodeIds.associateWith { nodeId ->
+            readLegacySources(lockName, nodeId, nodeId in v2NodeIds, nodeId in legacyNodeIds)
+        }
+        sourceNodeIds.forEach { nodeId ->
             if (candidates.containsKey(nodeId)) return@forEach
-            val legacyCandidate = readLegacyCandidate(
-                LettuceCandidateKeyCodec.legacyCandidateKey(keyPrefix, lockName, nodeId),
-                nodeId,
-            )
-            if (legacyCandidate == null) {
-                staleLegacyNodeIds += nodeId
-                return@forEach
-            }
-            migrateLegacyCandidate(lockName, nodeId)
-            val currentCandidate = readCurrentCandidate(lockName, nodeId)
-            if (currentCandidate != null) {
-                sync.sadd(currentIndexKey, nodeId)
-                sync.persist(currentIndexKey)
-                candidates[nodeId] = currentCandidate
-            } else {
-                candidates[nodeId] = legacyCandidate
-            }
+            if (commands.get(tombstoneKey(lockName, nodeId)) != null) return@forEach
+
+            val source = legacySources[nodeId]?.firstOrNull() ?: return@forEach
+
+            val migrated = migrateLegacyCandidate(lockName, nodeId, source)
+            if (!migrated) return@forEach
+
+            mismatchedCurrentNodeIds.remove(nodeId)
+            val currentRaw = commands.get(candidateKey(lockName, nodeId)) ?: return@forEach
+            val currentCandidate = LettuceCandidateInfoCodec.decode(currentRaw)
+            if (currentCandidate.nodeId == nodeId) candidates[nodeId] = currentCandidate
         }
 
         if (mismatchedCurrentNodeIds.isNotEmpty()) {
-            sync.srem(currentIndexKey, *mismatchedCurrentNodeIds.toTypedArray())
+            commands.srem(currentIndex, mismatchedCurrentNodeIds.toTypedArray())
         }
         if (missingCurrentNodeIds.isNotEmpty()) {
-            removeMissingCurrentIndexMembers(lockName, currentIndexKey, missingCurrentNodeIds)
-        }
-        if (staleLegacyNodeIds.isNotEmpty()) {
-            removeLegacyIndexMembers(lockName, staleLegacyNodeIds)
+            removeMissingCurrentIndexMembers(lockName, currentIndex, missingCurrentNodeIds)
         }
         return candidates.values.toList()
     }
 
-    /**
-     * `updateResult` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
     fun updateResult(lockName: String, nodeId: String, result: CandidateResult) {
         validateLockName(lockName)
-        val key = candidateKey(lockName, nodeId)
-        if (sync.get(key) == null) {
-            migrateLegacyCandidate(lockName, nodeId)
-        }
-        val reply = RedisScriptRunner.run<List<Any>>(
-            sync,
+        if (commands.get(tombstoneKey(lockName, nodeId)) != null) return
+        ensureCurrentCandidate(lockName, nodeId)
+        val reply = commands.runScript<List<Any>>(
             LettuceCandidateResultScript.UPDATE,
             ScriptOutputType.MULTI,
-            arrayOf(key),
+            arrayOf(candidateKey(lockName, nodeId), migrationTokenKey(lockName, nodeId)),
             *LettuceCandidateResultScript.resultArgs(result, Instant.now().toEpochMilli()),
         )
         LettuceCandidateResultScript.rethrowMalformed(reply)
     }
 
-    private fun readLegacyNodeIds(lockName: String): Set<String> = try {
-        sync.smembers(LettuceCandidateKeyCodec.legacyIndexKey(keyPrefix, lockName))
+    private fun runWriteScript(operation: String, keys: Array<String>, args: Array<String>): List<Any> =
+        commands.runScript(
+            LettuceCandidateWriteScript.WRITE,
+            ScriptOutputType.MULTI,
+            keys,
+            operation,
+            *args,
+        )
+
+    private fun requireStatus(reply: List<Any>, expected: Long) {
+        val actual = reply.firstOrNull()?.toString()?.toLongOrNull()
+        require(actual == expected) {
+            "Unexpected candidate write status: expected=$expected actual=$actual"
+        }
+    }
+
+    private fun ensureCurrentCandidate(lockName: String, nodeId: String): Boolean {
+        if (commands.get(candidateKey(lockName, nodeId)) != null) return true
+        val source = readSourceCandidate(lockName, nodeId)
+        return if (source == null) {
+            false
+        } else {
+            migrateLegacyCandidate(lockName, nodeId, source)
+            commands.get(candidateKey(lockName, nodeId)) != null
+        }
+    }
+
+    private fun readIndexMembers(indexKey: String): Set<String> = try {
+        commands.smembers(indexKey)
     } catch (e: RedisCommandExecutionException) {
         if (e.isWrongType()) emptySet() else throw e
     }
 
+    private fun readSourceCandidate(lockName: String, nodeId: String): LegacyCandidate? {
+        val v2Key = v2CandidateKey(lockName, nodeId)
+        val legacyKey = legacyCandidateKey(lockName, nodeId)
+        val v2Candidate = readLegacyCandidate(v2Key, nodeId)
+        val legacyCandidate = readLegacyCandidate(legacyKey, nodeId)
+        return v2Candidate?.let { LegacyCandidate(v2Key, v2IndexKey(lockName)) }
+            ?: legacyCandidate?.let { LegacyCandidate(legacyKey, legacyIndexKey(lockName)) }
+    }
+
+    private fun readLegacySources(
+        lockName: String,
+        nodeId: String,
+        v2Indexed: Boolean,
+        legacyIndexed: Boolean,
+    ): List<LegacyCandidate> = buildList {
+        addLegacySourceIfValid(
+            nodeId,
+            v2CandidateKey(lockName, nodeId),
+            v2IndexKey(lockName),
+            v2Indexed,
+        )?.let(::add)
+        addLegacySourceIfValid(
+            nodeId,
+            legacyCandidateKey(lockName, nodeId),
+            legacyIndexKey(lockName),
+            legacyIndexed,
+        )?.let(::add)
+    }
+
+    private fun addLegacySourceIfValid(
+        nodeId: String,
+        sourceKey: String,
+        sourceIndexKey: String,
+        indexed: Boolean,
+    ): LegacyCandidate? {
+        val candidate = readLegacyCandidate(sourceKey, nodeId)
+        return if (candidate == null) {
+            if (indexed) removeLegacyIndexMembers(sourceIndexKey, listOf(nodeId))
+            null
+        } else {
+            LegacyCandidate(sourceKey, sourceIndexKey)
+        }
+    }
+
     private fun readLegacyCandidate(key: String, expectedNodeId: String): CandidateInfo? {
         val raw = try {
-            sync.get(key)
+            commands.get(key)
         } catch (e: RedisCommandExecutionException) {
             if (!e.isWrongType()) throw e
             null
@@ -194,33 +298,80 @@ internal class LettuceCandidateRegistry(
         return raw?.let(LettuceCandidateInfoCodec::decode)?.takeIf { it.nodeId == expectedNodeId }
     }
 
-    private fun readCurrentCandidate(lockName: String, expectedNodeId: String): CandidateInfo? {
-        val raw = sync.get(candidateKey(lockName, expectedNodeId)) ?: return null
-        return LettuceCandidateInfoCodec.decode(raw).takeIf { it.nodeId == expectedNodeId }
+    private fun migrateLegacyCandidate(lockName: String, nodeId: String, source: LegacyCandidate): Boolean {
+        val sourceRaw = commands.get(source.key)
+        val sourceCandidate = sourceRaw?.let(LettuceCandidateInfoCodec::decode)
+        return if (sourceRaw == null || sourceCandidate?.nodeId != nodeId) {
+            removeSourceIndexMember(source, nodeId)
+            false
+        } else {
+            val observedTtl = commands.pttl(source.key)
+            if (observedTtl == REDIS_KEY_ABSENT_TTL || (observedTtl <= 0L && observedTtl != -1L)) {
+                removeSourceIndexMember(source, nodeId)
+                false
+            } else {
+                val token = UUID.randomUUID().toString()
+                val reply = runWriteScript(
+                    operation = LettuceCandidateWriteScript.MIGRATE,
+                    keys = arrayOf(
+                        candidateKey(lockName, nodeId),
+                        indexKey(lockName),
+                        tombstoneKey(lockName, nodeId),
+                        migrationTokenKey(lockName, nodeId),
+                    ),
+                    args = arrayOf(sourceRaw, observedTtl.toString(), nodeId, token),
+                )
+                when (reply.firstOrNull()?.toString()?.toLongOrNull()) {
+                    LettuceCandidateWriteScript.MIGRATED -> {
+                        cleanupExpiredMigration(lockName, nodeId, source.key, sourceRaw, observedTtl, token)
+                        commands.get(candidateKey(lockName, nodeId)) != null
+                    }
+                    LettuceCandidateWriteScript.EXISTING_REPAIRED -> true
+                    LettuceCandidateWriteScript.MALFORMED -> {
+                        LettuceCandidateInfoCodec.decode(reply.getOrNull(1)?.toString().orEmpty())
+                        false
+                    }
+                    else -> false
+                }
+            }
+        }
     }
 
-    private fun migrateLegacyCandidate(lockName: String, nodeId: String): Boolean {
-        val legacyKey = LettuceCandidateKeyCodec.legacyCandidateKey(keyPrefix, lockName, nodeId)
-        val candidate = readLegacyCandidate(legacyKey, nodeId) ?: return false
-        val raw = LettuceCandidateInfoCodec.encode(candidate)
-        val ttl = sync.pttl(legacyKey)
-        val migrated = when {
-            ttl == -2L -> false
-            ttl == -1L -> sync.setnx(candidateKey(lockName, nodeId), raw)
-            ttl > 0L -> sync.set(candidateKey(lockName, nodeId), raw, SetArgs.Builder.nx().px(ttl)) != null
-            else -> false
-        }
-        if (migrated) {
-            sync.sadd(indexKey(lockName), nodeId)
-            sync.persist(indexKey(lockName))
-        }
-        return migrated
+    private fun cleanupExpiredMigration(
+        lockName: String,
+        nodeId: String,
+        sourceKey: String,
+        sourceRaw: String,
+        observedTtl: Long,
+        token: String,
+    ) {
+        val sourceAfter = commands.get(sourceKey)
+        val sourceTtlAfter = commands.pttl(sourceKey)
+        val expired = sourceAfter == null ||
+            sourceTtlAfter == REDIS_KEY_ABSENT_TTL ||
+            (observedTtl > 0L && sourceTtlAfter == 0L)
+        if (!expired) return
+
+        runWriteScript(
+            operation = LettuceCandidateWriteScript.REMOVE_IF_VALUE,
+            keys = arrayOf(
+                candidateKey(lockName, nodeId),
+                indexKey(lockName),
+                migrationTokenKey(lockName, nodeId),
+            ),
+            args = arrayOf(sourceRaw, token, nodeId),
+        )
     }
 
-    private fun removeMissingCurrentIndexMembers(lockName: String, indexKey: String, nodeIds: List<String>) {
-        val keys = arrayOf(indexKey) + nodeIds.map { candidateKey(lockName, it) }
-        RedisScriptRunner.run<Long>(
-            sync,
+    private fun removeMissingCurrentIndexMembers(lockName: String, currentIndex: String, nodeIds: List<String>) {
+        val keys = buildList {
+            add(currentIndex)
+            nodeIds.forEach { nodeId ->
+                add(candidateKey(lockName, nodeId))
+                add(migrationTokenKey(lockName, nodeId))
+            }
+        }.toTypedArray()
+        commands.runScript<Long>(
             LettuceCandidateIndexCleanupScript.REMOVE_MISSING,
             ScriptOutputType.INTEGER,
             keys,
@@ -228,11 +379,36 @@ internal class LettuceCandidateRegistry(
         )
     }
 
-    private fun removeLegacyIndexMembers(lockName: String, nodeIds: List<String>) {
+    private fun cleanupLegacyCandidate(nodeId: String, candidateKey: String, indexKey: String) {
+        if (readLegacyCandidate(candidateKey, nodeId) != null) commands.del(candidateKey)
+        removeLegacyIndexMembers(indexKey, listOf(nodeId))
+    }
+
+    private fun removeLegacyIndexMembers(indexKey: String, nodeIds: List<String>) {
         try {
-            sync.srem(LettuceCandidateKeyCodec.legacyIndexKey(keyPrefix, lockName), *nodeIds.toTypedArray())
+            commands.srem(indexKey, nodeIds.toTypedArray())
         } catch (e: RedisCommandExecutionException) {
             if (!e.isWrongType()) throw e
         }
     }
+
+    private fun removeSourceIndexMember(source: LegacyCandidate, nodeId: String) {
+        removeLegacyIndexMembers(source.indexKey, listOf(nodeId))
+    }
+
+    private fun candidateTtlMillis(ttl: Duration): Long {
+        require(ttl >= Duration.ZERO) { "Candidate TTL must be non-negative" }
+        val millis = ttl.inWholeMilliseconds
+        require(ttl == Duration.ZERO || millis > 0L) {
+            "Candidate TTL must be zero or at least 1ms"
+        }
+        return millis
+    }
+
+    private data class LegacyCandidate(
+        val key: String,
+        val indexKey: String,
+    )
 }
+
+private const val REDIS_KEY_ABSENT_TTL = -2L

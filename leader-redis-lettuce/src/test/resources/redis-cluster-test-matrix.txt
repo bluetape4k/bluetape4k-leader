@@ -1,0 +1,17 @@
+blocking single elector executes v3 register list refresh result and unregister
+blocking group elector uses cluster mget and same-slot scripts
+suspend single elector preserves cancellation and cluster lifecycle
+suspend group elector uses cluster coroutine mget and group script
+v2 and colon sources migrate through single-key reads and remain preserved
+cluster migration preserves positive source TTL on the v3 destination
+blocking group elector refreshes result and unregisters in cluster
+blocking group elector migrates a v2 source before refreshing and unregistering
+suspend single elector migrates a v2 source before refreshing and unregistering
+suspend group elector refreshes result and unregisters in cluster
+suspend group elector migrates a colon source before refreshing and unregistering
+cluster v3 namespaces use one slot for every elector
+blocking group elector preserves positive and persistent TTL boundaries
+suspend single elector migrates a v2 source with positive TTL
+suspend group elector migrates a colon source with positive TTL
+suspend group elector propagates action cancellation without recording failure
+suspend cluster script cancellation preserves the caller connection

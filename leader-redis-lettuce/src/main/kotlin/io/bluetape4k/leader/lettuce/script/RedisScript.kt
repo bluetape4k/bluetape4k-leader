@@ -6,6 +6,10 @@ import io.lettuce.core.RedisNoScriptException
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
+import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands
+import io.lettuce.core.cluster.api.sync.RedisClusterCommands
+import io.lettuce.core.api.async.RedisScriptingAsyncCommands
+import io.lettuce.core.api.sync.RedisScriptingCommands
 import kotlinx.coroutines.future.await
 import java.security.MessageDigest
 import java.util.concurrent.CompletableFuture
@@ -42,7 +46,8 @@ class RedisScript(val source: String) {
  *
  * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
-object RedisScriptRunner: KLogging() {
+@Suppress("TooManyFunctions")
+object RedisScriptRunner : KLogging() {
 
     /**
      * `선언` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
@@ -51,6 +56,32 @@ object RedisScriptRunner: KLogging() {
      */
     fun <T> run(
         commands: RedisCommands<String, String>,
+        script: RedisScript,
+        outputType: ScriptOutputType,
+        keys: Array<String>,
+        vararg args: String,
+    ): T = runSync(commands, script, outputType, keys, *args)
+
+    /** Cluster command hierarchy에 대한 additive sync overload입니다. */
+    fun <T> run(
+        commands: RedisClusterCommands<String, String>,
+        script: RedisScript,
+        outputType: ScriptOutputType,
+        keys: Array<String>,
+        vararg args: String,
+    ): T = runSync(commands, script, outputType, keys, *args)
+
+    /** scripting capability만 노출하는 adapter를 위한 additive overload입니다. */
+    fun <T> run(
+        commands: RedisScriptingCommands<String, String>,
+        script: RedisScript,
+        outputType: ScriptOutputType,
+        keys: Array<String>,
+        vararg args: String,
+    ): T = runSync(commands, script, outputType, keys, *args)
+
+    private fun <T> runSync(
+        commands: RedisScriptingCommands<String, String>,
         script: RedisScript,
         outputType: ScriptOutputType,
         keys: Array<String>,
@@ -75,6 +106,32 @@ object RedisScriptRunner: KLogging() {
         outputType: ScriptOutputType,
         keys: Array<String>,
         vararg args: String,
+    ): CompletableFuture<T> = runAsyncInternal(commands, script, outputType, keys, *args)
+
+    /** Cluster command hierarchy에 대한 additive async overload입니다. */
+    fun <T> runAsync(
+        commands: RedisClusterAsyncCommands<String, String>,
+        script: RedisScript,
+        outputType: ScriptOutputType,
+        keys: Array<String>,
+        vararg args: String,
+    ): CompletableFuture<T> = runAsyncInternal(commands, script, outputType, keys, *args)
+
+    /** scripting capability만 노출하는 adapter를 위한 additive overload입니다. */
+    fun <T> runAsync(
+        commands: RedisScriptingAsyncCommands<String, String>,
+        script: RedisScript,
+        outputType: ScriptOutputType,
+        keys: Array<String>,
+        vararg args: String,
+    ): CompletableFuture<T> = runAsyncInternal(commands, script, outputType, keys, *args)
+
+    private fun <T> runAsyncInternal(
+        commands: RedisScriptingAsyncCommands<String, String>,
+        script: RedisScript,
+        outputType: ScriptOutputType,
+        keys: Array<String>,
+        vararg args: String,
     ): CompletableFuture<T> {
         val future = commands.evalsha<T>(script.sha1, outputType, keys, *args).toCompletableFuture()
         return future.exceptionallyCompose { error ->
@@ -95,6 +152,32 @@ object RedisScriptRunner: KLogging() {
      */
     suspend fun <T> runSuspending(
         commands: RedisAsyncCommands<String, String>,
+        script: RedisScript,
+        outputType: ScriptOutputType,
+        keys: Array<String>,
+        vararg args: String,
+    ): T = runSuspendingInternal(commands, script, outputType, keys, *args)
+
+    /** Cluster command hierarchy에 대한 additive suspend overload입니다. */
+    suspend fun <T> runSuspending(
+        commands: RedisClusterAsyncCommands<String, String>,
+        script: RedisScript,
+        outputType: ScriptOutputType,
+        keys: Array<String>,
+        vararg args: String,
+    ): T = runSuspendingInternal(commands, script, outputType, keys, *args)
+
+    /** scripting capability만 노출하는 adapter를 위한 additive overload입니다. */
+    suspend fun <T> runSuspending(
+        commands: RedisScriptingAsyncCommands<String, String>,
+        script: RedisScript,
+        outputType: ScriptOutputType,
+        keys: Array<String>,
+        vararg args: String,
+    ): T = runSuspendingInternal(commands, script, outputType, keys, *args)
+
+    private suspend fun <T> runSuspendingInternal(
+        commands: RedisScriptingAsyncCommands<String, String>,
         script: RedisScript,
         outputType: ScriptOutputType,
         keys: Array<String>,

@@ -15,6 +15,7 @@ import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.api.StatefulRedisConnection
+import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -26,17 +27,30 @@ import kotlin.time.Duration
  *
  * `maxLeaders`는 관찰한 후보 기준 목록의 선택 수이며 전역 동시 실행 상한이 아닙니다.
  */
-class LettuceStrategicSuspendLeaderGroupElector(
-    connection: StatefulRedisConnection<String, String>,
-    override val nodeId: String = Uuid.V7.nextBase62(),
+class LettuceStrategicSuspendLeaderGroupElector private constructor(
+    private val registry: LettuceSuspendCandidateRegistry,
+    override val nodeId: String,
 ) : StrategicSuspendLeaderGroupElector {
 
-    companion object : KLogging()
-
-    private val registry = LettuceSuspendCandidateRegistry(
-        connection,
-        LettuceSuspendCandidateRegistry.GROUP_KEY_PREFIX,
+    @JvmOverloads
+    constructor(
+        connection: StatefulRedisConnection<String, String>,
+        nodeId: String = Uuid.V7.nextBase62(),
+    ) : this(
+        LettuceSuspendCandidateRegistry(connection, LettuceSuspendCandidateRegistry.GROUP_KEY_PREFIX),
+        nodeId,
     )
+
+    @JvmOverloads
+    constructor(
+        connection: StatefulRedisClusterConnection<String, String>,
+        nodeId: String = Uuid.V7.nextBase62(),
+    ) : this(
+        LettuceSuspendCandidateRegistry(connection, LettuceSuspendCandidateRegistry.GROUP_KEY_PREFIX),
+        nodeId,
+    )
+
+    companion object : KLogging()
 
     override suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
         registry.registerCandidate(lockName, info, ttl)
