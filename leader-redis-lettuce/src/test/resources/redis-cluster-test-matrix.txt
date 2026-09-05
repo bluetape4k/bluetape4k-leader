@@ -15,3 +15,5 @@ suspend single elector migrates a v2 source with positive TTL
 suspend group elector migrates a colon source with positive TTL
 suspend group elector propagates action cancellation without recording failure
 suspend cluster script cancellation preserves the caller connection
+blocking cluster migration preserves concurrent source and current writers
+suspend cluster migration preserves concurrent source and current writers
