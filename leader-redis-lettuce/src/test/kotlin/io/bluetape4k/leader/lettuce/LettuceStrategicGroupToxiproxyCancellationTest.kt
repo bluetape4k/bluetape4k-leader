@@ -9,6 +9,8 @@ import eu.rekawek.toxiproxy.model.ToxicDirection
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.testcontainers.ReadinessEndpoint
+import io.bluetape4k.leader.testcontainers.readinessBoundaryWaitStrategy
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
 import io.bluetape4k.testcontainers.infra.ToxiproxyServer
@@ -130,6 +132,7 @@ class LettuceStrategicGroupToxiproxyCancellationTest {
                 .use { redis ->
                     ToxiproxyServer(reuse = false)
                         .withNetwork(network)
+                        .waitingFor(readinessBoundaryWaitStrategy(TOXIPROXY_READINESS_ENDPOINT))
                         .use { toxiproxy ->
                             redis.start()
                             toxiproxy.start()
@@ -181,5 +184,7 @@ class LettuceStrategicGroupToxiproxyCancellationTest {
         const val PROXY_PORT = 8666
         const val CANCEL_SETTLE_MILLIS = 250L
         const val CANCEL_SETTLE_ROUNDS = 5
+        val TOXIPROXY_READINESS_ENDPOINT =
+            ReadinessEndpoint(ToxiproxyServer.NAME, ToxiproxyServer.CONTROL_PORT, "/version")
     }
 }

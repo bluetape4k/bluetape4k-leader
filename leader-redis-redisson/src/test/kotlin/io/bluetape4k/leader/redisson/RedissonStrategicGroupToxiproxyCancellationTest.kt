@@ -9,6 +9,8 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.testcontainers.ReadinessEndpoint
+import io.bluetape4k.leader.testcontainers.readinessBoundaryWaitStrategy
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
 import io.bluetape4k.testcontainers.infra.ToxiproxyServer
@@ -204,6 +206,7 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
                 .use { redis ->
                     ToxiproxyServer(reuse = false)
                         .withNetwork(network)
+                        .waitingFor(readinessBoundaryWaitStrategy(TOXIPROXY_READINESS_ENDPOINT))
                         .use { toxiproxy ->
                             redis.start()
                             toxiproxy.start()
@@ -280,5 +283,7 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
         const val REACQUIRE_LEASE_MILLIS = 30_000L
         const val OWNER_THREAD_ID = 826_001L
         const val REACQUIRE_THREAD_ID = 826_002L
+        val TOXIPROXY_READINESS_ENDPOINT =
+            ReadinessEndpoint(ToxiproxyServer.NAME, ToxiproxyServer.CONTROL_PORT, "/version")
     }
 }
