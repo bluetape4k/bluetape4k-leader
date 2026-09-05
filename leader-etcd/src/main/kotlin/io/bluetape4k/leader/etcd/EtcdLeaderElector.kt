@@ -17,6 +17,7 @@ import io.bluetape4k.leader.etcd.internal.JetcdEtcdLockClient
 import io.bluetape4k.leader.etcd.internal.etcdCleanupTimeout
 import io.bluetape4k.leader.etcd.internal.getWithinEtcdCleanupTimeout
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -25,9 +26,11 @@ import io.etcd.jetcd.ByteSequence
 import io.etcd.jetcd.Client
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
@@ -68,6 +71,12 @@ class EtcdLeaderElector private constructor(
             EtcdLeaderElector(lockClient, options)
     }
 
+    private enum class AsyncLifecycle {
+        WAITING,
+        STARTED,
+        CLEANUP,
+    }
+
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         val leaseHandle = acquire(lockName) ?: return null
         val delegate = EtcdLockExtendDelegate(lockClient, leaseHandle)
@@ -100,11 +109,108 @@ class EtcdLeaderElector private constructor(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T?> =
-        CompletableFuture.supplyAsync(
-            { runIfLeader(lockName) { action().join() } },
-            executor,
+    ): CompletableFuture<T?> {
+        val acquiredRef = AtomicReference<EtcdLeaseHandle?>()
+        val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        val beginCleanup: () -> Unit = {
+            if (lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
+                acquiredRef.get()?.let(::releaseAfterMinLease)
+            }
+        }
+        val acquisitionFuture = CompletableFuture.supplyAsync({
+            acquire(lockName).also { handle ->
+                if (handle != null) {
+                    acquiredRef.set(handle)
+                    if (lifecycle.get() == AsyncLifecycle.CLEANUP) {
+                        releaseAfterMinLease(handle)
+                    }
+                }
+            }
+        }, executor)
+        val pipelineFuture = acquisitionFuture.thenComposeAsync({ handle ->
+            when {
+                handle == null -> CompletableFuture.completedFuture(null)
+                !lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED) ->
+                    CompletableFuture.failedFuture(
+                        CancellationException("leader result future was cancelled before action"),
+                    )
+                else -> runAcquiredAsync(handle, cancellationRelay, action)
+            }
+        }, executor)
+        pipelineFuture.whenComplete { _, failure ->
+            if (pipelineFuture.isCancelled) {
+                acquisitionFuture.cancel(true)
+            }
+            if (failure != null) {
+                beginCleanup()
+            }
+        }
+        acquisitionFuture.whenComplete { handle, _ ->
+            if (handle != null && pipelineFuture.isCancelled) {
+                beginCleanup()
+            }
+        }
+        return LeaderFutureBridge.map(pipelineFuture, cancellationRelay) { value, failure ->
+            val cause = failure?.unwrapCompletionException()
+            if (cause != null) {
+                throw CompletionException(cause)
+            }
+            value
+        }
+    }
+
+    @Suppress("ReturnCount", "TooGenericExceptionCaught")
+    private fun <T> runAcquiredAsync(
+        leaseHandle: EtcdLeaseHandle,
+        cancellationRelay: LeaderFutureBridge.CancellationRelay,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> {
+        val delegate = EtcdLockExtendDelegate(lockClient, leaseHandle)
+        val handle = LeaderLockHandle.real(
+            identity = LockIdentity(
+                lockName = leaseHandle.lockName,
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                factoryBeanName = ETCD_FACTORY_BEAN_NAME,
+            ),
+            token = leaseHandle.token,
+            acquiredAtNanos = leaseHandle.acquiredAtNanos,
+            extendDelegate = delegate,
         )
+        val watchdog = try {
+            LeaderLeaseAutoExtender.start(
+                enabled = options.leaderOptions.autoExtend,
+                leaseTime = options.leaderOptions.leaseTime,
+                delegate = delegate,
+                classifier = ERROR_CLASSIFIER,
+            )
+        } catch (e: Throwable) {
+            releaseAfterMinLease(leaseHandle)
+            return CompletableFuture.failedFuture(e)
+        }
+        val actionFuture = try {
+            AopScopeAccess.withPushedSync(handle) {
+                cancellationRelay.invoke(action)
+            }
+        } catch (e: Throwable) {
+            watchdog.close()
+            releaseAfterMinLease(leaseHandle)
+            return CompletableFuture.failedFuture(e)
+        }
+
+        return actionFuture.handle { value, failure ->
+            watchdog.close()
+            releaseAfterMinLease(leaseHandle)
+            val cause = failure?.unwrapCompletionException()
+            if (cause != null) {
+                throw CompletionException(cause)
+            }
+            value
+        }
+    }
+
+    private fun Throwable.unwrapCompletionException(): Throwable =
+        (this as? CompletionException)?.cause ?: this
 
     // Lease grant and lock acquisition have separate timeout, cancellation, interruption,
     // and backend-error branches; keeping them explicit preserves cleanup semantics.
