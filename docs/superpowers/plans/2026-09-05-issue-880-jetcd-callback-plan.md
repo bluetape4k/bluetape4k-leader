@@ -12,8 +12,8 @@
 
 ## 실행 상태 체크박스
 
-- [ ] Task 1 — 기준 graph와 jetcd callback RED 고정
-- [ ] Task 2 — catalog pin 원자 전환과 callback GREEN
+- [x] Task 1 — 기준 graph와 jetcd callback RED 고정
+- [x] Task 2 — catalog pin 원자 전환과 callback GREEN
 - [ ] Task 3 — publisher watch 준비·경합 테스트 결정성 개선
 - [ ] Task 4 — Etcd 단일/group async lifecycle RED
 - [ ] Task 5 — 취소 전파·exactly-once cleanup GREEN
@@ -70,7 +70,7 @@
 
 **Files:** 신규 `JetcdWatchCallbackIntegrationTest.kt`, `.flow-inputs/checklist.md`.
 
-1. `[ ]` 현재 ref에서 기준 graph를 보존한다. 각 명령의 selected version과 selection reason을 checklist에 기록한다.
+1. `[x]` 현재 ref에서 기준 graph를 보존한다. 각 명령의 selected version과 selection reason을 checklist에 기록한다.
 
    ```bash
    ./gradlew :bluetape4k-leader-etcd:dependencyInsight --dependency io.etcd:jetcd-core --configuration testRuntimeClasspath --no-daemon --console=plain
@@ -81,15 +81,15 @@
 
    old ref에서 `io.etcd:jetcd-core:0.8.6`이 선택되어야 한다. 출력은 secret이 없음을 확인한 뒤 증거 경로에 보존한다.
 
-2. `[ ]` raw jetcd fixture를 먼저 추가한다. watcher는 `WatchOption.newBuilder().withCreateNotify(true).build()`를 사용하고 첫 empty `WatchResponse`의 `isCreated`를 `CompletableFuture<Unit>` 또는 `CountDownLatch` readiness로 변환한다. readiness가 10초 안에 오지 않으면 테스트를 실패시키며 임의 delay로 대체하지 않는다.
+2. `[x]` raw jetcd fixture를 먼저 추가한다. watcher는 `WatchOption.newBuilder().withCreateNotify(true).build()`를 사용하고 첫 empty `WatchResponse`의 `isCreated`를 `CompletableFuture<Unit>` 또는 `CountDownLatch` readiness로 변환한다. readiness가 10초 안에 오지 않으면 테스트를 실패시키며 임의 delay로 대체하지 않는다.
 
-3. `[ ]` blocking callback 테스트를 추가한다. created barrier 이후 PUT을 발생시키고 event callback 안에서 같은 `Client.kvClient.get(key).get(10, TimeUnit.SECONDS)`를 호출해 방금 저장한 값을 읽는다. callback 결과 future가 10초 안에 완료되고 예외가 없음을 검증한다.
+3. `[x]` blocking callback 테스트를 추가한다. created barrier 이후 PUT을 발생시키고 event callback 안에서 같은 `Client.kvClient.get(key).get(10, TimeUnit.SECONDS)`를 호출해 방금 저장한 값을 읽는다. callback 결과 future가 10초 안에 완료되고 예외가 없음을 검증한다.
 
-4. `[ ]` ordered delivery 테스트를 별도로 추가한다. 첫 PUT callback은 latch에서 대기시키되 callback 진입을 main test에 알린다. 첫 callback이 대기 중인 동안 두 번째 PUT과 DELETE를 발행하고 latch를 해제한다. 관측 목록이 revision 증가 순서의 `PUT(v1)`, `PUT(v2)`, `DELETE`와 일치해야 한다. 병렬 callback 개수나 thread 이름은 assertion하지 않는다.
+4. `[x]` ordered delivery 테스트를 별도로 추가한다. 첫 PUT callback은 latch에서 대기시키되 callback 진입을 main test에 알린다. 첫 callback이 대기 중인 동안 두 번째 PUT과 DELETE를 발행하고 latch를 해제한다. 관측 목록이 revision 증가 순서의 `PUT(v1)`, `PUT(v2)`, `DELETE`와 일치해야 한다. 병렬 callback 개수나 thread 이름은 assertion하지 않는다.
 
-5. `[ ]` close/restart 테스트를 별도로 추가한다. created barrier를 지난 첫 watcher를 close한 뒤 event count snapshot을 잡고 PUT을 수행한다. 첫 listener count가 변하지 않음을 bounded negative window로 확인하고, 같은 client에서 만든 두 번째 watcher의 created barrier와 다음 PUT 수신을 확인한다. negative window는 `poll`/future timeout으로 표현하고 고정 sleep을 사용하지 않는다.
+5. `[x]` close/restart 테스트를 별도로 추가한다. created barrier를 지난 첫 watcher를 close한 뒤 event count snapshot을 잡고 PUT을 수행한다. 첫 listener count가 변하지 않음을 bounded negative window로 확인하고, 같은 client에서 만든 두 번째 watcher의 created barrier와 다음 PUT 수신을 확인한다. negative window는 `poll`/future timeout으로 표현하고 고정 sleep을 사용하지 않는다.
 
-6. `[ ]` RED 검증은 old catalog ref에서 blocking test만 실행한다.
+6. `[x]` RED 검증은 old catalog ref에서 blocking test만 실행한다.
 
    ```bash
    ./gradlew :bluetape4k-leader-etcd:test --tests '*JetcdWatchCallbackIntegrationTest.callback can perform blocking kv get*' --no-daemon --no-configuration-cache --no-build-cache --rerun-tasks --console=plain
@@ -97,15 +97,15 @@
 
    jetcd `0.8.6`에서 callback 내부 blocking call이 bounded timeout으로 실패해야 Issue #880의 dependency-driven RED가 성립한다. compile 오류, Docker 오류, fixture readiness 실패는 유효한 RED가 아니며 먼저 fixture를 수정한다. 예상과 달리 old ref가 GREEN이면 upstream diff와 test sensitivity를 재검토하고 dependency upgrade를 정당화하는 별도 행동 차이가 확인되기 전까지 Task 2로 진행하지 않는다.
 
-7. `[ ]` watcher/client는 `use`/`try-finally`로 닫고 key는 test마다 고유 prefix를 사용한다. timeout 시 outstanding future와 watcher를 정리해 다음 테스트로 누출하지 않는다.
+7. `[x]` watcher/client는 `use`/`try-finally`로 닫고 key는 test마다 고유 prefix를 사용한다. timeout 시 outstanding future와 watcher를 정리해 다음 테스트로 누출하지 않는다.
 
 ## 4. Task 2 — catalog pin 원자 전환과 callback GREEN
 
 **Files:** `settings.gradle.kts`, `.github/workflows/ci.yml`, `JetcdWatchCallbackIntegrationTest.kt`.
 
-1. `[ ]` `settings.gradle.kts`와 `.github/workflows/ci.yml`의 기존 `850959d0ea5f76ac7e2c442400f47653d5f95eed`를 `9698c9d66bea6fcba373143ee8fa5bfbd9812d4b`로 한 patch에서 바꾼다.
+1. `[x]` `settings.gradle.kts`와 `.github/workflows/ci.yml`의 기존 `850959d0ea5f76ac7e2c442400f47653d5f95eed`를 `9698c9d66bea6fcba373143ee8fa5bfbd9812d4b`로 한 patch에서 바꾼다.
 
-2. `[ ]` 두 ref가 정확히 하나이고 동일한지 검증한다.
+2. `[x]` 두 ref가 정확히 하나이고 동일한지 검증한다.
 
    ```bash
    rg -n '850959d0ea5f76ac7e2c442400f47653d5f95eed|9698c9d66bea6fcba373143ee8fa5bfbd9812d4b' settings.gradle.kts .github/workflows/ci.yml
@@ -113,9 +113,9 @@
 
    old ref는 0건, new ref는 두 파일에서 각 1건이어야 한다.
 
-3. `[ ]` Task 1의 네 `dependencyInsight`를 다시 실행한다. `jetcd-core:0.8.7`, gRPC/Netty/Vert.x selected version과 `selected by rule`/catalog constraint 근거를 review artifact에 기록한다. 중앙 catalog의 광역 변경 때문에 예상하지 못한 downgrade/conflict가 있으면 구현을 중지하고 두 pin을 함께 rollback한다.
+3. `[x]` Task 1의 네 `dependencyInsight`를 다시 실행한다. `jetcd-core:0.8.7`, gRPC/Netty/Vert.x selected version과 `selected by rule`/catalog constraint 근거를 review artifact에 기록한다. 중앙 catalog의 광역 변경 때문에 예상하지 못한 downgrade/conflict가 있으면 구현을 중지하고 두 pin을 함께 rollback한다.
 
-4. `[ ]` 세 callback 테스트를 한 invocation으로 실행한다.
+4. `[x]` 세 callback 테스트를 한 invocation으로 실행한다.
 
    ```bash
    ./gradlew :bluetape4k-leader-etcd:test --tests '*JetcdWatchCallbackIntegrationTest*' --no-daemon --no-configuration-cache --no-build-cache --rerun-tasks --console=plain
@@ -123,7 +123,7 @@
 
    첫 실행에서 모두 GREEN이어야 한다. retry로만 통과하면 PASS가 아니라 stability finding으로 기록하고 원인을 고친다.
 
-5. `[ ]` commit은 catalog 두 pin, raw callback tests, RED/GREEN 증거를 하나의 의도 단위로 묶고 Korean Lore 형식을 사용한다. rollback은 해당 commit revert로 두 pin과 tests를 함께 되돌릴 수 있어야 한다.
+5. `[x]` commit은 catalog 두 pin, raw callback tests, RED/GREEN 증거를 하나의 의도 단위로 묶고 Korean Lore 형식을 사용한다. rollback은 해당 commit revert로 두 pin과 tests를 함께 되돌릴 수 있어야 한다.
 
 ## 5. Task 3 — publisher watch 준비·경합 테스트 결정성 개선
 
