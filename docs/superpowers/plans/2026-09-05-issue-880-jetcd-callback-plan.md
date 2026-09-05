@@ -247,7 +247,7 @@
 
 4. `[x]` `docs/lessons/2026-09-05-issue-880-jetcd-callback.md`에 created notification readiness, dependency-sensitive RED, blocking callback/backpressure, action cancellation relay, exactly-once cleanup, atomic catalog rollback을 재사용 가능한 규칙으로 기록한다.
 
-5. `[ ]` 변경을 작은 Lore commit으로 정리한다. 각 commit은 한국어 intent line, `Constraint`, `Rejected`, `Confidence`, `Scope-risk`, `Directive`, `Tested`, `Not-tested` 중 필요한 trailer를 포함한다. commit 전마다 `git diff --check`와 관련 targeted test를 다시 읽는다.
+5. `[x]` 변경을 작은 Lore commit으로 정리한다. 각 commit은 한국어 intent line, `Constraint`, `Rejected`, `Confidence`, `Scope-risk`, `Directive`, `Tested`, `Not-tested` 중 필요한 trailer를 포함한다. commit 전마다 `git diff --check`와 관련 targeted test를 다시 읽는다.
 
 6. `[ ]` PR 생성 직전 live `gh`로 Issue #880, milestone `1.1.0`, labels, assignee, 기존 open PR/duplicate를 다시 확인한다. head `test/issue-880-jetcd-callback`, base `develop`을 명시하고 한국어 PR body 마지막을 `## DoD Status`로 끝낸다. PR 생성은 승인됐지만 merge는 승인되지 않았다.
 
