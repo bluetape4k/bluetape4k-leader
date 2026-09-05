@@ -17,3 +17,5 @@ suspend group elector propagates action cancellation without recording failure
 suspend cluster script cancellation preserves the caller connection
 blocking cluster migration preserves concurrent source and current writers
 suspend cluster migration preserves concurrent source and current writers
+slot migration emits real ASK and MOVED before client topology converges
+primary process pause triggers automatic failover and caller recovery
