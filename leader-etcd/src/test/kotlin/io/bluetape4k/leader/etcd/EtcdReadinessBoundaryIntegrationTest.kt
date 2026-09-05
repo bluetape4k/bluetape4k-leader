@@ -2,8 +2,8 @@ package io.bluetape4k.leader.etcd
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldContain
-import io.bluetape4k.leader.testcontainers.ReadinessBoundaryWaitStrategy
 import io.bluetape4k.leader.testcontainers.ReadinessEndpoint
+import io.bluetape4k.leader.testcontainers.readinessBoundaryWaitStrategy
 import io.bluetape4k.testcontainers.infra.EtcdServer
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -23,9 +23,9 @@ class EtcdReadinessBoundaryIntegrationTest {
     fun `host wait 실패 직전에 실제 세 경계의 정상 증거를 수집한다`() {
         val etcd = EtcdServer(reuse = false).apply {
             waitingFor(
-                ReadinessBoundaryWaitStrategy(
-                    delegate = ReadyThenFailWaitStrategy(ETCD_READINESS_ENDPOINT),
+                readinessBoundaryWaitStrategy(
                     endpoint = ETCD_READINESS_ENDPOINT,
+                    delegate = ReadyThenFailWaitStrategy(ETCD_READINESS_ENDPOINT),
                 ),
             )
         }

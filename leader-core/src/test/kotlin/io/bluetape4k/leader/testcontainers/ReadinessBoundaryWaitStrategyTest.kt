@@ -101,6 +101,32 @@ class ReadinessBoundaryWaitStrategyTest {
     }
 
     @Test
+    fun `collector 실패도 원래 wait failure를 덮지 않는다`() {
+        val delegate = mockk<WaitStrategy>()
+        val collector = mockk<ReadinessBoundaryDiagnosticCollector>()
+        val target = mockk<WaitStrategyTarget>()
+        val failure = IllegalStateException("host-wait-timeout")
+        every { delegate.waitUntilReady(target) } throws failure
+        every { collector.collect(target, TOXIPROXY) } throws IllegalStateException("docker-inspect-unavailable")
+        val strategy = ReadinessBoundaryWaitStrategy(delegate, TOXIPROXY, collector)
+
+        val thrown = assertFailsWith<ContainerLaunchException> {
+            strategy.waitUntilReady(target)
+        }
+
+        thrown.cause shouldBeSameInstanceAs failure
+        thrown.message.orEmpty() shouldContain "boundary=UNKNOWN"
+        thrown.message.orEmpty() shouldContain "internal=UNAVAILABLE"
+        thrown.message.orEmpty() shouldContain "docker-inspect-unavailable"
+    }
+
+    @Test
+    fun `probe detail은 한 줄 256자로 제한한다`() {
+        ReadinessProbeObservation.success("first\nsecond").detail shouldBeEqualTo "first second"
+        ReadinessProbeObservation.failure("x".repeat(300)).detail.length shouldBeEqualTo 256
+    }
+
+    @Test
     fun `startup timeout은 delegate에 그대로 전달한다`() {
         val delegate = mockk<WaitStrategy>()
         val collector = mockk<ReadinessBoundaryDiagnosticCollector>()

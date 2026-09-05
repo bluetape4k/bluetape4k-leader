@@ -66,7 +66,7 @@ host probe는 현재 wait와 같은 `target.host`, `target.getMappedPort(contain
 - `RedissonStrategicGroupToxiproxyCancellationTest`: per-test `ToxiproxyServer`의 `/version` wait
 - `AbstractEtcdLeaderTest`: shared `EtcdServer`의 `/health` wait
 
-각 fixture는 외부 wrapper가 설정한 60초 startup timeout을 늘리지 않는다. production code와 public artifact에는 영향을 주지 않는다.
+각 fixture는 외부 wrapper가 설정한 60초 startup timeout을 늘리지 않는다. production code와 main artifact ABI에는 영향을 주지 않는다. 다만 기존에 공개되는 `leader-core` test-fixtures variant에는 Testcontainers API dependency와 `ReadinessEndpoint`/factory가 additive API로 추가된다.
 
 ## 테스트 설계
 
@@ -103,22 +103,22 @@ startup failure, failed test, error, skip은 모두 0이어야 한다. fail-then
 ## 호환성·보안·rollback
 
 - Maven artifact의 production class와 binary API는 바뀌지 않는다.
-- shared fixture는 test-fixtures variant에만 Testcontainers implementation dependency를 추가한다.
+- shared fixture는 공개 signature가 `WaitStrategy`를 사용하므로 test-fixtures variant에만 Testcontainers API dependency를 추가한다.
 - diagnostic message는 endpoint, status, mapping, bounded response만 포함한다. container environment와 credential은 수집하지 않는다.
 - rollback은 공통 fixture, 세 적용 지점, test-fixtures dependency를 함께 되돌리는 것이다.
 - Alpine helper pull 또는 execution이 실패해도 원래 wait failure를 대체하지 않고 `UNKNOWN`의 부분 증거로 보존한다.
 
 ## Acceptance criteria
 
-- [ ] deterministic classifier/wrapper tests가 유효한 RED 후 GREEN이다.
-- [ ] 실패 진단에 internal response, host response/error, Docker mapping과 boundary 분류가 함께 포함된다.
-- [ ] Toxiproxy `/version`과 etcd `/health` 정상 container integration proof가 통과한다.
-- [ ] 기존 startup timeout을 늘리지 않는다.
-- [ ] 정상 Colima를 재시작하지 않는다.
-- [ ] Lettuce/Redisson Toxiproxy class와 `leader-etcd` suite가 각각 clean 5회 반복에서 startup failure 0이다.
-- [ ] `detekt`, 전체 `./gradlew build`, `git diff --check`가 통과한다.
-- [ ] production ABI/API diff가 없다.
-- [ ] exact-head inline review에서 P0=0, P1=0이다.
+- [x] deterministic classifier/wrapper tests가 유효한 RED 후 GREEN이다.
+- [x] 실패 진단에 internal response, host response/error, Docker mapping과 boundary 분류가 함께 포함된다.
+- [x] Toxiproxy `/version`과 etcd `/health` 정상 container integration proof가 통과한다.
+- [x] 기존 startup timeout을 늘리지 않는다.
+- [x] 정상 Colima를 재시작하지 않는다.
+- [x] Lettuce/Redisson Toxiproxy class와 `leader-etcd` suite가 각각 clean 5회 반복에서 startup failure 0이다.
+- [x] `detekt`, 전체 `./gradlew build`, `git diff --check`가 통과한다.
+- [x] production ABI/API diff가 없다.
+- [x] exact-head inline review에서 P0=0, P1=0이다.
 - [ ] exact-head PR CI는 PR 생성 권한이 열린 후 별도 게이트에서 확인한다.
 
 ## DoD 경계

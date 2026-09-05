@@ -12,7 +12,7 @@ import java.net.URI
 import java.time.Duration
 
 /** Readiness 실패가 발생한 인프라 경계입니다. */
-enum class ReadinessFailureBoundary {
+internal enum class ReadinessFailureBoundary {
     HOST_FORWARDING,
     CONTAINER_SERVICE,
     PORT_MAPPING,
@@ -20,7 +20,7 @@ enum class ReadinessFailureBoundary {
 }
 
 /** 개별 readiness probe의 결과 상태입니다. */
-enum class ReadinessProbeStatus {
+internal enum class ReadinessProbeStatus {
     SUCCESS,
     FAILURE,
     UNAVAILABLE,
@@ -41,7 +41,7 @@ class ReadinessEndpoint(
 }
 
 /** 외부 로그로 노출할 세부 내용을 한 줄과 256자로 제한한 probe 결과입니다. */
-class ReadinessProbeObservation private constructor(
+internal class ReadinessProbeObservation private constructor(
     val status: ReadinessProbeStatus,
     val detail: String,
 ) {
@@ -58,7 +58,7 @@ class ReadinessProbeObservation private constructor(
 }
 
 /** Internal, host, Docker mapping 관찰값을 하나의 안정적인 진단으로 합칩니다. */
-class ReadinessBoundaryDiagnostic(
+internal class ReadinessBoundaryDiagnostic(
     val endpoint: ReadinessEndpoint,
     val internal: ReadinessProbeObservation,
     val host: ReadinessProbeObservation,
@@ -86,12 +86,12 @@ class ReadinessBoundaryDiagnostic(
 }
 
 /** 실패한 wait 대상에서 readiness 경계 증거를 수집합니다. */
-fun interface ReadinessBoundaryDiagnosticCollector {
+internal fun interface ReadinessBoundaryDiagnosticCollector {
     fun collect(target: WaitStrategyTarget, endpoint: ReadinessEndpoint): ReadinessBoundaryDiagnostic
 }
 
 /** 기존 wait의 정상 경로를 유지하고 실패 직전에 경계 진단을 덧붙입니다. */
-class ReadinessBoundaryWaitStrategy(
+internal class ReadinessBoundaryWaitStrategy(
     private val delegate: WaitStrategy,
     private val endpoint: ReadinessEndpoint,
     private val collector: ReadinessBoundaryDiagnosticCollector = DockerReadinessBoundaryDiagnosticCollector,
@@ -127,11 +127,14 @@ class ReadinessBoundaryWaitStrategy(
 }
 
 /** 지정한 endpoint에 기존 HTTP wait와 실패 진단을 함께 적용합니다. */
-fun readinessBoundaryWaitStrategy(endpoint: ReadinessEndpoint): WaitStrategy =
+fun readinessBoundaryWaitStrategy(
+    endpoint: ReadinessEndpoint,
+    delegate: WaitStrategy = org.testcontainers.containers.wait.strategy.Wait
+        .forHttp(endpoint.path)
+        .forPort(endpoint.containerPort),
+): WaitStrategy =
     ReadinessBoundaryWaitStrategy(
-        delegate = org.testcontainers.containers.wait.strategy.Wait
-            .forHttp(endpoint.path)
-            .forPort(endpoint.containerPort),
+        delegate = delegate,
         endpoint = endpoint,
     )
 

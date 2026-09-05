@@ -13,11 +13,11 @@
 ## 실행 상태
 
 - [x] Task 1 — 기준 상태와 root-cause 경계 고정
-- [ ] Task 2 — classifier와 wait wrapper RED
-- [ ] Task 3 — 최소 diagnostic fixture GREEN
-- [ ] Task 4 — Toxiproxy·etcd 적용과 실제 endpoint proof
-- [ ] Task 5 — clean 반복·module·전체 build 검증
-- [ ] Task 6 — lesson·inline review·delivery checkpoint
+- [x] Task 2 — classifier와 wait wrapper RED
+- [x] Task 3 — 최소 diagnostic fixture GREEN
+- [x] Task 4 — Toxiproxy·etcd 적용과 실제 endpoint proof
+- [x] Task 5 — clean 반복·module·전체 build 검증
+- [x] Task 6 — lesson·inline review·delivery checkpoint
 
 ## Task 1 — 기준 상태와 root-cause 경계 고정
 
@@ -53,17 +53,17 @@
 - Create: `leader-core/src/test/kotlin/io/bluetape4k/leader/testcontainers/ReadinessBoundaryWaitStrategyTest.kt`
 - Modify: `leader-core/build.gradle.kts`
 
-- [ ] **Step 1: Test fixture compile dependency만 추가한다**
+- [x] **Step 1: Test fixture compile dependency만 추가한다**
 
-  `leader-core/build.gradle.kts`에 기존 catalog alias를 재사용한다.
+  `leader-core/build.gradle.kts`에 기존 catalog alias를 재사용한다. 공개 fixture signature가 Testcontainers 타입을 노출하므로 최종 구현은 소비 모듈 compile classpath를 보존하는 `testFixturesApi`를 사용한다.
 
   ```kotlin
-  testFixturesImplementation(libs.testcontainers)
+  testFixturesApi(libs.testcontainers)
   ```
 
   새 artifact/version alias는 추가하지 않는다.
 
-- [ ] **Step 2: 분류 RED를 작성한다**
+- [x] **Step 2: 분류 RED를 작성한다**
 
   `ReadinessBoundaryDiagnostic.classify(...)`의 wished-for API로 다음 독립 테스트를 작성한다.
 
@@ -76,7 +76,7 @@
 
   관찰값은 success Boolean과 bounded detail만 가진다. public test-fixture data class는 `Serializable`과 `serialVersionUID`를 정의한다.
 
-- [ ] **Step 3: Wait wrapper RED를 작성한다**
+- [x] **Step 3: Wait wrapper RED를 작성한다**
 
   fake delegate와 fake collector를 사용해 다음을 검증한다.
 
@@ -89,7 +89,7 @@
 
   exception은 `io.bluetape4k.assertions.assertFailsWith`로 검증한다.
 
-- [ ] **Step 4: RED를 실행한다**
+- [x] **Step 4: RED를 실행한다**
 
   ```bash
   ./gradlew :bluetape4k-leader-core:test --tests 'io.bluetape4k.leader.testcontainers.ReadinessBoundaryWaitStrategyTest' --no-build-cache --rerun-tasks --console=plain
@@ -103,15 +103,15 @@
 - Create: `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/testcontainers/ReadinessBoundaryWaitStrategy.kt`
 - Test: `leader-core/src/test/kotlin/io/bluetape4k/leader/testcontainers/ReadinessBoundaryWaitStrategyTest.kt`
 
-- [ ] **Step 1: 진단 model과 classifier를 구현한다**
+- [x] **Step 1: 진단 model과 classifier를 구현한다**
 
   `ReadinessFailureBoundary`, `ReadinessProbeObservation`, `ReadinessBoundaryDiagnostic`을 test-fixtures variant에 둔다. 분류 우선순위는 `PORT_MAPPING`, `CONTAINER_SERVICE`, `HOST_FORWARDING`, `UNKNOWN` 순이다. detail은 줄바꿈을 공백으로 바꾸고 256자로 제한한다.
 
-- [ ] **Step 2: Delegate wrapper를 구현한다**
+- [x] **Step 2: Delegate wrapper를 구현한다**
 
   `ReadinessBoundaryWaitStrategy`는 `WaitStrategy`를 구현한다. `waitUntilReady()` 성공 시 즉시 반환하고 실패 시 collector를 한 번 호출해 diagnostic message를 가진 새 `ContainerLaunchException`을 던지되 원래 throwable을 cause로 보존한다. `withStartupTimeout()`은 같은 duration을 delegate에 전달하고 자기 자신을 반환한다.
 
-- [ ] **Step 3: Docker boundary collector를 구현한다**
+- [x] **Step 3: Docker boundary collector를 구현한다**
 
   host probe는 JDK `HttpURLConnection`으로 connect/read 각 2초, internal probe는 다음 immutable image와 one-shot 5초 상한을 사용한다.
 
@@ -122,7 +122,7 @@
 
   Docker inspect는 target 상태와 요청한 port의 binding만 정규화한다. helper는 `use` 또는 `try/finally`에서 중지한다. probe failure는 원래 wait failure를 덮지 않고 observation detail로 축약한다.
 
-- [ ] **Step 4: GREEN과 fixture compilation을 확인한다**
+- [x] **Step 4: GREEN과 fixture compilation을 확인한다**
 
   ```bash
   ./gradlew :bluetape4k-leader-core:test --tests 'io.bluetape4k.leader.testcontainers.ReadinessBoundaryWaitStrategyTest' --no-build-cache --rerun-tasks --console=plain
@@ -131,7 +131,7 @@
 
   Expected: 모든 classifier/wrapper test 통과, compile warning/error 0.
 
-- [ ] **Step 5: 첫 구현 commit을 만든다**
+- [x] **Step 5: 첫 구현 commit을 만든다**
 
   Kotlin test, fixture, `leader-core/build.gradle.kts`만 Korean Lore commit으로 묶는다.
 
@@ -143,23 +143,23 @@
 - Modify: `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/AbstractEtcdLeaderTest.kt`
 - Create: `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/EtcdReadinessBoundaryIntegrationTest.kt`
 
-- [ ] **Step 1: Toxiproxy 적용점을 바꾼다**
+- [x] **Step 1: Toxiproxy 적용점을 바꾼다**
 
   두 cancellation class가 per-test `ToxiproxyServer`를 시작하기 전에 `readinessBoundaryWaitStrategy(containerPort = 8474, path = "/version")`를 설정한다. Redis/network/toxic/action lifecycle은 수정하지 않는다.
 
-- [ ] **Step 2: Etcd launcher 적용점을 바꾼다**
+- [x] **Step 2: Etcd launcher 적용점을 바꾼다**
 
   `AbstractEtcdLeaderTest`의 shared `EtcdServer`를 직접 생성하고 `/health` diagnostic wait를 설정한 뒤 한 번 시작해 `ShutdownQueue`에 등록한다. external wrapper의 endpoint, reuse=false, client ownership 계약을 유지한다.
 
-- [ ] **Step 3: 실제 endpoint integration proof를 작성한다**
+- [x] **Step 3: 실제 endpoint integration proof를 작성한다**
 
   bounded integration test는 Toxiproxy 또는 etcd 정상 시작에서 delegate가 성공하고 diagnostic exception이 발생하지 않음을 검증한다. 실제 Colima failure를 인위적인 sleep, network restart, timeout 연장으로 만들지 않는다.
 
-- [ ] **Step 4: 대상 module을 한 번 clean 실행한다**
+- [x] **Step 4: 대상 module을 한 번 clean 실행한다**
 
   Task 1의 세 command를 같은 순서로 실행한다. Expected: Lettuce 2, Redisson 3, etcd 157개 이상, failures/errors/skips 0.
 
-- [ ] **Step 5: 적용 commit을 만든다**
+- [x] **Step 5: 적용 commit을 만든다**
 
   세 module의 test-only 적용과 integration proof만 Korean Lore commit으로 묶는다.
 
@@ -168,7 +168,7 @@
 **Files:**
 - Verify: all changed files and generated JUnit XML
 
-- [ ] **Step 1: Source hygiene를 검사한다**
+- [x] **Step 1: Source hygiene를 검사한다**
 
   ```bash
   git diff --check
@@ -177,18 +177,18 @@
 
   Expected: `git diff --check` exit 0, 새 금지 assertion/sleep 0건.
 
-- [ ] **Step 2: Clean startup matrix를 5회 순차 반복한다**
+- [x] **Step 2: Clean startup matrix를 5회 순차 반복한다**
 
   각 iteration에서 `cleanTest`, `--no-build-cache`, `--rerun-tasks`를 사용하고 서로 다른 Gradle process를 병렬 실행하지 않는다. JUnit XML 합계에서 expected tests, failure=0, error=0, skipped=0을 매회 확인한다.
 
-- [ ] **Step 3: Affected module과 static analysis를 실행한다**
+- [x] **Step 3: Affected module과 static analysis를 실행한다**
 
   ```bash
   ./gradlew :bluetape4k-leader-core:test :bluetape4k-leader-redis-lettuce:test :bluetape4k-leader-redis-redisson:test :bluetape4k-leader-etcd:test --no-build-cache --rerun-tasks --console=plain
   ./gradlew detekt --no-build-cache --rerun-tasks --console=plain
   ```
 
-- [ ] **Step 4: 전체 build와 binary API 무변경을 확인한다**
+- [x] **Step 4: 전체 build와 binary API 무변경을 확인한다**
 
   ```bash
   ./gradlew build --no-build-cache --rerun-tasks --console=plain
@@ -203,15 +203,15 @@
 - Create: `docs/lessons/2026-09-06-issue-884-testcontainers-readiness.md`
 - Create: `docs/review/2026-09-06-issue-884-testcontainers-readiness-review.md`
 
-- [ ] **Step 1: 재사용 lesson을 기록한다**
+- [x] **Step 1: 재사용 lesson을 기록한다**
 
   간헐적 Testcontainers HTTP wait에서 retry pass를 해결로 보지 않는 이유, target 제거 전 세 경계를 수집하는 방법, distroless image의 probe 제한, 정상 Colima 재시작 금지를 기록한다.
 
-- [ ] **Step 2: Exact diff inline review를 수행한다**
+- [x] **Step 2: Exact diff inline review를 수행한다**
 
   Kotlin/test infrastructure, correctness, lifecycle/cleanup, security/redaction, performance/boundedness, API/ABI, CI/test determinism 관점으로 file/line 증거를 검토한다. P0/P1은 모두 고치고 targeted/broader validation을 다시 실행한다.
 
-- [ ] **Step 3: GNO를 갱신하고 final local commit을 만든다**
+- [x] **Step 3: GNO를 갱신하고 final local commit을 만든다**
 
   ```bash
   gno update
@@ -221,6 +221,6 @@
 
   lesson, review, 최종 검증 증거를 Korean Lore commit으로 묶는다.
 
-- [ ] **Step 4: Delivery gate에서 멈춘다**
+- [x] **Step 4: Delivery gate에서 멈춘다**
 
   Exact local HEAD, commits, changed files, test counts, P0/P1, remaining risks를 보고한다. PR 생성은 repository `bluetape4k/bluetape4k-leader`, base `develop`, head `fix/issue-884-testcontainers-readiness`에 대한 별도 권한이 확인될 때까지 `PENDING`이다. Merge는 PR CI와 fresh exact-head 승인 전까지 실행하지 않는다.
