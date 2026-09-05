@@ -543,6 +543,34 @@ class LettuceStrategicRedisClusterTest {
         }
     }
 
+    @Test
+    fun `blocking cluster migration preserves concurrent source and current writers`() = runSuspendIO {
+        withClusterSuspend { connection ->
+            MigrationSource.entries.forEach { source ->
+                MigrationRace.entries.forEach { race ->
+                    val scenario = MigrationRaceScenario(connection.sync(), source)
+                    val registry = LettuceCandidateRegistry(scenario.wrap(connection))
+                    scenario.verifyRace(race) { registry.listCandidates(scenario.lockName) }
+                    connection.sync().ping() shouldBeEqualTo "PONG"
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `suspend cluster migration preserves concurrent source and current writers`() = runSuspendIO {
+        withClusterSuspend { connection ->
+            MigrationSource.entries.forEach { source ->
+                MigrationRace.entries.forEach { race ->
+                    val scenario = MigrationRaceScenario(connection.sync(), source)
+                    val registry = LettuceSuspendCandidateRegistry(scenario.wrap(connection))
+                    scenario.verifyRace(race) { registry.listCandidates(scenario.lockName) }
+                    connection.sync().ping() shouldBeEqualTo "PONG"
+                }
+            }
+        }
+    }
+
     private fun withCluster(block: (StatefulRedisClusterConnection<String, String>) -> Unit) {
         RedisClusterServer.Launcher.LettuceLib.getClusterClient(server).use { client ->
             client.connect().use { connection ->
