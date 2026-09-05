@@ -15,7 +15,7 @@
 - [x] Task 1 — 기준 graph와 jetcd callback RED 고정
 - [x] Task 2 — catalog pin 원자 전환과 callback GREEN
 - [x] Task 3 — publisher watch 준비·경합 테스트 결정성 개선
-- [ ] Task 4 — Etcd 단일/group async lifecycle RED
+- [x] Task 4 — Etcd 단일/group async lifecycle RED
 - [ ] Task 5 — 취소 전파·exactly-once cleanup GREEN
 - [ ] Task 6 — module·전체 저장소·ABI 검증
 - [ ] Task 7 — 7-Tier 리뷰·lesson·PR·exact-head CI
@@ -147,17 +147,17 @@
 
 **Files:** 신규 `EtcdAsyncLifecycleTest.kt`.
 
-1. `[ ]` `EtcdLockClient` fake는 granted lease, pending/complete lock future, ownership key, unlock/revoke call count를 thread-safe하게 기록한다. active lease/ownership을 상태로 보유하고 unlock/revoke 전의 두 번째 acquisition은 완료시키지 않아 후속 재획득 assertion이 실제 cleanup을 검증하도록 한다. action은 직접 제어하는 `CompletableFuture<T>`를 반환한다. 새 예외 assertion은 반드시 `io.bluetape4k.assertions.assertFailsWith`를 사용한다.
+1. `[x]` `EtcdLockClient` fake는 granted lease, pending/complete lock future, ownership key, unlock/revoke call count를 thread-safe하게 기록한다. active lease/ownership을 상태로 보유하고 unlock/revoke 전의 두 번째 acquisition은 완료시키지 않아 후속 재획득 assertion이 실제 cleanup을 검증하도록 한다. action은 직접 제어하는 `CompletableFuture<T>`를 반환한다. 새 예외 assertion은 반드시 `io.bluetape4k.assertions.assertFailsWith`를 사용한다.
 
-2. `[ ]` 단일 elector RED를 추가한다. action 진입을 barrier로 확인하고 반환 future를 `cancel(true)`한다. 실제 action future가 `isCancelled == true`, unlock/revoke가 각각 정확히 한 번, 후속 동일 lock 실행이 성공함을 확인한다.
+2. `[x]` 단일 elector RED를 추가한다. action 진입을 barrier로 확인하고 반환 future를 `cancel(true)`한다. 실제 action future가 `isCancelled == true`, unlock/revoke가 각각 정확히 한 번, 후속 동일 lock 실행이 성공함을 확인한다.
 
-3. `[ ]` group elector RED를 `maxLeaders=1`로 추가한다. 반환 future 취소 후 실제 action 취소, 동일 slot cleanup, 후속 같은 group lock 재획득을 확인한다.
+3. `[x]` group elector RED를 `maxLeaders=1`로 추가한다. 반환 future 취소 후 실제 action 취소, 동일 slot cleanup, 후속 같은 group lock 재획득을 확인한다.
 
-4. `[ ]` acquisition 대기 중 취소 시 action이 호출되지 않고, 늦게 완료된 ownership key가 unlock/revoke되는 single/group case를 추가한다. returned future의 cancel과 lock future 완료 경합을 barrier로 고정한다.
+4. `[x]` acquisition 대기 중 취소 시 action이 호출되지 않고, 늦게 완료된 ownership key가 unlock/revoke되는 single/group case를 추가한다. returned future의 cancel과 lock future 완료 경합을 barrier로 고정한다.
 
-5. `[ ]` lease 획득과 action 제출 사이 executor 거부를 재현하는 scripted executor를 추가한다. 첫 `execute`는 acquisition task를 실행하고 두 번째 `execute`는 `RejectedExecutionException("rejected-after-acquire")`을 던져야 한다. 결과 cause가 원래 예외이고 unlock/revoke가 정확히 한 번이며 후속 재획득이 성공해야 한다. 별도 always-reject executor는 acquisition 전 거부가 backend 호출 0건임을 확인할 때만 사용한다.
+5. `[x]` lease 획득과 action 제출 사이 executor 거부를 재현하는 scripted executor를 추가한다. 첫 `execute`는 acquisition task를 실행하고 두 번째 `execute`는 `RejectedExecutionException("rejected-after-acquire")`을 던져야 한다. 결과 cause가 원래 예외이고 unlock/revoke가 정확히 한 번이며 후속 재획득이 성공해야 한다. 별도 always-reject executor는 acquisition 전 거부가 backend 호출 0건임을 확인할 때만 사용한다.
 
-6. `[ ]` 현재 구현에서 targeted class를 실행해 유효한 RED를 얻는다.
+6. `[x]` 현재 구현에서 targeted class를 실행해 유효한 RED를 얻는다.
 
    ```bash
    ./gradlew :bluetape4k-leader-etcd:test --tests '*EtcdAsyncLifecycleTest*' --no-daemon --no-configuration-cache --no-build-cache --rerun-tasks --console=plain
