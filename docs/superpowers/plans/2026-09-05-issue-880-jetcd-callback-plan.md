@@ -16,7 +16,7 @@
 - [x] Task 2 — catalog pin 원자 전환과 callback GREEN
 - [x] Task 3 — publisher watch 준비·경합 테스트 결정성 개선
 - [x] Task 4 — Etcd 단일/group async lifecycle RED
-- [ ] Task 5 — 취소 전파·exactly-once cleanup GREEN
+- [x] Task 5 — 취소 전파·exactly-once cleanup GREEN
 - [ ] Task 6 — module·전체 저장소·ABI 검증
 - [ ] Task 7 — 7-Tier 리뷰·lesson·PR·exact-head CI
 
@@ -169,17 +169,17 @@
 
 **Files:** `EtcdLeaderElector.kt`, `EtcdLeaderGroupElector.kt`, `EtcdAsyncLifecycleTest.kt`, 신규 `EtcdAsyncLeaderElectorIntegrationTest.kt`, `contract/EtcdVirtualThreadLeaderElectorContractTest.kt`.
 
-1. `[ ]` 두 elector에 private `AsyncLifecycle { WAITING, STARTED, CLEANUP }`을 두고 `AtomicReference` CAS로 action 시작과 cleanup 소유권을 직렬화한다. 취소와 action 시작 중 하나만 `WAITING`을 선점하며 cleanup은 lease handle의 `markReleased()`와 함께 exactly once다.
+1. `[x]` 두 elector에 private `AsyncLifecycle { WAITING, STARTED, CLEANUP }`을 두고 `AtomicReference` CAS로 action 시작과 cleanup 소유권을 직렬화한다. 취소와 action 시작 중 하나만 `WAITING`을 선점하며 cleanup은 lease handle의 `markReleased()`와 함께 exactly once다.
 
-2. `[ ]` acquisition은 caller executor에서 수행하되 source/returned future를 `LeaderFutureBridge`로 연결한다. 반환 future 취소는 acquisition source, 실제 action future, watchdog/cleanup에 전파한다. action supplier가 throw하면 failed future와 동일한 cleanup path로 수렴한다.
+2. `[x]` acquisition은 caller executor에서 수행하되 source/returned future를 `LeaderFutureBridge`로 연결한다. 반환 future 취소는 acquisition source, 실제 action future, watchdog/cleanup에 전파한다. action supplier가 throw하면 failed future와 동일한 cleanup path로 수렴한다.
 
-3. `[ ]` action은 lease 획득 뒤에만 호출한다. `LeaderFutureBridge.cancellationRelay()`를 action future에 설치하고 result mapping에서 `CompletionException` wrapper를 불필요하게 노출하지 않는다. 정상 contention은 기존처럼 `null`을 반환한다.
+3. `[x]` action은 lease 획득 뒤에만 호출한다. `LeaderFutureBridge.cancellationRelay()`를 action future에 설치하고 result mapping에서 `CompletionException` wrapper를 불필요하게 노출하지 않는다. 정상 contention은 기존처럼 `null`을 반환한다.
 
-4. `[ ]` `LeaderLockHandle`의 single/group identity, group `slotId`/`auditLeaderId`, AOP scope capture, autoExtend 설정, `minLeaseTime`, unlock→revoke 순서와 caller-owned client 계약을 보존한다. group은 기존과 같이 watchdog disabled 의미를 유지한다.
+4. `[x]` `LeaderLockHandle`의 single/group identity, group `slotId`/`auditLeaderId`, AOP scope capture, autoExtend 설정, `minLeaseTime`, unlock→revoke 순서와 caller-owned client 계약을 보존한다. group은 기존과 같이 watchdog disabled 의미를 유지한다.
 
-5. `[ ]` executor가 initial acquisition 또는 post-acquire action 실행을 거부할 때 원래 `RejectedExecutionException`을 result에 보존한다. lease가 이미 획득된 경우 cleanup을 먼저 설치한 뒤 제출하며, 획득 전 거부에는 backend 호출이 없어야 한다.
+5. `[x]` executor가 initial acquisition 또는 post-acquire action 실행을 거부할 때 원래 `RejectedExecutionException`을 result에 보존한다. lease가 이미 획득된 경우 cleanup을 먼저 설치한 뒤 제출하며, 획득 전 거부에는 backend 호출이 없어야 한다.
 
-6. `[ ]` Task 4 targeted class를 GREEN으로 만들고 다음 기존 회귀 tests도 실행한다.
+6. `[x]` Task 4 targeted class를 GREEN으로 만들고 다음 기존 회귀 tests도 실행한다.
 
    ```bash
    ./gradlew :bluetape4k-leader-etcd:test \
@@ -193,11 +193,11 @@
      --no-daemon --no-configuration-cache --no-build-cache --rerun-tasks --console=plain
    ```
 
-7. `[ ]` 실제 etcd integration test에서 단일/group `runAsyncIfLeader`의 action future를 취소하고 returned future의 취소 상태, 같은 lock/slot 재획득을 확인한다. virtual-thread contract에는 action 진입 후 returned `VirtualFuture` 취소와 같은 lock 재획득을 추가한다. 기존 sync sequential reacquire, sync contention, suspend single/group cancellation tests와 함께 execution-model matrix를 완성한다.
+7. `[x]` 실제 etcd integration test에서 단일/group `runAsyncIfLeader`의 action future를 취소하고 returned future의 취소 상태, 같은 lock/slot 재획득을 확인한다. virtual-thread contract에는 action 진입 후 returned `VirtualFuture` 취소와 같은 lock 재획득을 추가한다. 기존 sync sequential reacquire, sync contention, suspend single/group cancellation tests와 함께 execution-model matrix를 완성한다.
 
-8. `[ ]` async action supplier가 `extendActiveLock()`을 호출하는 기존 scope 의미와 auto-extend cleanup을 fake 또는 integration test로 고정한다. 구현이 기존 scope 의미를 보존할 수 없거나 의미가 불명확하면 무단으로 축소하지 않고 설계 게이트로 되돌아간다.
+8. `[x]` async action supplier가 `extendActiveLock()`을 호출하는 기존 scope 의미와 auto-extend cleanup을 fake 또는 integration test로 고정한다. 구현이 기존 scope 의미를 보존할 수 없거나 의미가 불명확하면 무단으로 축소하지 않고 설계 게이트로 되돌아간다.
 
-9. `[ ]` duplicated single/group lifecycle code는 먼저 기존 두 클래스의 대칭성을 유지한다. 검증된 반복이 private internal helper로 명확히 줄어들지 않는 한 새 abstraction을 만들지 않는다.
+9. `[x]` duplicated single/group lifecycle code는 먼저 기존 두 클래스의 대칭성을 유지한다. 검증된 반복이 private internal helper로 명확히 줄어들지 않는 한 새 abstraction을 만들지 않는다.
 
 ## 8. Task 6 — module·전체 저장소·ABI 검증
 

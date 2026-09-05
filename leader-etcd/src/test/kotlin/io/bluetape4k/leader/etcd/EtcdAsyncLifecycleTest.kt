@@ -34,11 +34,15 @@ class EtcdAsyncLifecycleTest {
         val elector = EtcdLeaderElector.create(client, singleOptions())
         val executor = Executors.newSingleThreadExecutor()
         val action = CancellationRecordingFuture<String>()
+        val actionStarted = CountDownLatch(1)
 
         try {
-            val result = elector.runAsyncIfLeader("lock-a", executor) { action }
+            val result = elector.runAsyncIfLeader("lock-a", executor) {
+                actionStarted.countDown()
+                action
+            }
 
-            client.acquired.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
             result.cancel(true).shouldBeTrue()
 
             action.cancelled.await(2, TimeUnit.SECONDS).shouldBeTrue()
@@ -58,11 +62,15 @@ class EtcdAsyncLifecycleTest {
         val elector = EtcdLeaderGroupElector.create(client, groupOptions())
         val executor = Executors.newSingleThreadExecutor()
         val action = CancellationRecordingFuture<String>()
+        val actionStarted = CountDownLatch(1)
 
         try {
-            val result = elector.runAsyncIfLeader("lock-a", executor) { action }
+            val result = elector.runAsyncIfLeader("lock-a", executor) {
+                actionStarted.countDown()
+                action
+            }
 
-            client.acquired.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
             result.cancel(true).shouldBeTrue()
 
             action.cancelled.await(2, TimeUnit.SECONDS).shouldBeTrue()
@@ -147,6 +155,8 @@ class EtcdAsyncLifecycleTest {
             failure.cause?.message shouldBeEqualTo "rejected-after-acquire"
             client.cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
             actionInvoked.get().shouldBeFalse()
+            client.unlockCalls.get() shouldBeEqualTo 1
+            client.revokeCalls.get() shouldBeEqualTo 1
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             worker.shutdownNow()
@@ -172,6 +182,8 @@ class EtcdAsyncLifecycleTest {
             failure.cause?.message shouldBeEqualTo "rejected-after-acquire"
             client.cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
             actionInvoked.get().shouldBeFalse()
+            client.unlockCalls.get() shouldBeEqualTo 1
+            client.revokeCalls.get() shouldBeEqualTo 1
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             worker.shutdownNow()
@@ -234,7 +246,6 @@ class EtcdAsyncLifecycleTest {
     private class StatefulEtcdLockClient(
         private val pendFirstLock: Boolean = false,
     ): EtcdLockClient {
-        val acquired = CountDownLatch(1)
         val pendingAcquisition = CountDownLatch(1)
         val cleaned = CountDownLatch(1)
         val grantCalls = AtomicInteger()
@@ -273,7 +284,6 @@ class EtcdAsyncLifecycleTest {
             }
             ownershipToLockKey[ownershipKey] = lockKey
             leaseToLockKey[leaseId] = lockKey
-            acquired.countDown()
             return CompletableFuture.completedFuture(ownershipKey)
         }
 
@@ -301,7 +311,6 @@ class EtcdAsyncLifecycleTest {
             activeLockKeys.add(request.lockKey)
             ownershipToLockKey[request.ownershipKey] = request.lockKey
             leaseToLockKey[request.leaseId] = request.lockKey
-            acquired.countDown()
             request.future.complete(request.ownershipKey)
         }
 
