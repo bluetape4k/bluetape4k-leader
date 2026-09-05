@@ -191,6 +191,54 @@ class EtcdAsyncLifecycleTest {
     }
 
     @Test
+    fun `single action supplier failure preserves cause and releases lease`() {
+        val client = StatefulEtcdLockClient()
+        val elector = EtcdLeaderElector.create(client, singleOptions())
+        val executor = Executors.newSingleThreadExecutor()
+
+        try {
+            val failure = assertFailsWith<CompletionException> {
+                elector.runAsyncIfLeader<String>("lock-a", executor) {
+                    throw IllegalStateException("action-supplier-failed")
+                }.join()
+            }
+
+            failure.cause.shouldBeInstanceOf<IllegalStateException>()
+            failure.cause?.message shouldBeEqualTo "action-supplier-failed"
+            client.cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            client.unlockCalls.get() shouldBeEqualTo 1
+            client.revokeCalls.get() shouldBeEqualTo 1
+            elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `group action supplier failure preserves cause and releases slot`() {
+        val client = StatefulEtcdLockClient()
+        val elector = EtcdLeaderGroupElector.create(client, groupOptions())
+        val executor = Executors.newSingleThreadExecutor()
+
+        try {
+            val failure = assertFailsWith<CompletionException> {
+                elector.runAsyncIfLeader<String>("lock-a", executor) {
+                    throw IllegalStateException("action-supplier-failed")
+                }.join()
+            }
+
+            failure.cause.shouldBeInstanceOf<IllegalStateException>()
+            failure.cause?.message shouldBeEqualTo "action-supplier-failed"
+            client.cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            client.unlockCalls.get() shouldBeEqualTo 1
+            client.revokeCalls.get() shouldBeEqualTo 1
+            elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
     fun `first executor rejection performs no backend call`() {
         val singleClient = StatefulEtcdLockClient()
         val groupClient = StatefulEtcdLockClient()
