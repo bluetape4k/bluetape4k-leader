@@ -14,7 +14,7 @@
 
 - [x] Task 1 — 기준 graph와 jetcd callback RED 고정
 - [x] Task 2 — catalog pin 원자 전환과 callback GREEN
-- [ ] Task 3 — publisher watch 준비·경합 테스트 결정성 개선
+- [x] Task 3 — publisher watch 준비·경합 테스트 결정성 개선
 - [ ] Task 4 — Etcd 단일/group async lifecycle RED
 - [ ] Task 5 — 취소 전파·exactly-once cleanup GREEN
 - [ ] Task 6 — module·전체 저장소·ABI 검증
@@ -129,13 +129,13 @@
 
 **Files:** `EtcdLeaderElectionEventPublisherIntegrationTest.kt`.
 
-1. `[ ]` collector가 producer보다 먼저 구독하도록 모든 `async { publisher.events... }`를 `async(start = CoroutineStart.UNDISPATCHED) { ... }`로 바꾸고 collector 준비용 `delay(250)`를 삭제한다.
+1. `[x]` collector가 producer보다 먼저 구독하도록 모든 `async { publisher.events... }`를 `async(start = CoroutineStart.UNDISPATCHED) { ... }`로 바꾸고 collector 준비용 `delay(250)`를 삭제한다.
 
-2. `[ ]` queued contender 테스트의 `delay(500)`를 제거한다. holder 진입 latch 이후 contender가 실제 acquisition을 시작했음을 executor-side latch로 알리고, publisher가 holder `Elected`를 전달한 것을 positive barrier로 확인한 뒤 holder를 해제한다. assertion은 최종 event sequence가 `elected`, `revoked`, `elected`, `revoked`이고 queued 상태에서 추가 `Elected`가 발생하지 않았다는 기존 의미를 유지한다.
+2. `[x]` queued contender 테스트의 `delay(500)`를 제거한다. holder 진입 latch 이후 contender가 실제 acquisition을 시작했음을 executor-side latch로 알리고, publisher가 holder `Elected`를 전달한 것을 positive barrier로 확인한 뒤 holder를 해제한다. assertion은 최종 event sequence가 `elected`, `revoked`, `elected`, `revoked`이고 queued 상태에서 추가 `Elected`가 발생하지 않았다는 기존 의미를 유지한다.
 
-3. `[ ]` close 테스트를 확장한다. publisher를 close한 뒤 동일 prefix에 실제 ownership 변화를 만들고 closed publisher의 `first()` collector가 완료되지 않음을 `future.get(500, TimeUnit.MILLISECONDS)`의 `TimeoutException`으로 확인한 뒤 collector를 취소한다. 이어 같은 caller-owned client로 새 publisher/elector가 정상 event를 전달함을 확인한다. client usability만 확인하는 기존 assertion도 유지한다.
+3. `[x]` close 테스트를 확장한다. publisher를 close한 뒤 동일 prefix에 실제 ownership 변화를 만들고 closed publisher의 `first()` collector가 완료되지 않음을 `future.get(500, TimeUnit.MILLISECONDS)`의 `TimeoutException`으로 확인한 뒤 collector를 취소한다. 이어 같은 caller-owned client로 새 publisher/elector가 정상 event를 전달함을 확인한다. client usability만 확인하는 기존 assertion도 유지한다.
 
-4. `[ ]` RED/GREEN 검증은 수정할 테스트 class만 매번 실행한다.
+4. `[x]` RED/GREEN 검증은 수정할 테스트 class만 매번 실행한다.
 
    ```bash
    ./gradlew :bluetape4k-leader-etcd:test --tests '*EtcdLeaderElectionEventPublisherIntegrationTest*' --no-daemon --no-configuration-cache --no-build-cache --rerun-tasks --console=plain
