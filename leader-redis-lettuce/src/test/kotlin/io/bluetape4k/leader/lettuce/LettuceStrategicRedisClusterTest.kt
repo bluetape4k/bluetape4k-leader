@@ -49,6 +49,23 @@ class LettuceStrategicRedisClusterTest {
         try {
             server.start()
         } catch (failure: Throwable) {
+            // 호스트 전달 경로와 Redis 내부 상태를 종료 전에 보존한다.
+            try {
+                val output = Path.of(System.getProperty("redis.cluster.diagnostics.dir", "build/redis-cluster-diagnostics"))
+                Files.createDirectories(output)
+                val diagnostic = buildString {
+                    appendLine("failure=${failure.javaClass.name}:${failure.message}")
+                    appendLine("endpoints=${server.properties()["nodes"]}")
+                    RedisClusterServer.PORTS.forEach { port ->
+                        val result = server.execInContainer("timeout", "2", "redis-cli", "--raw", "-p", "$port", "CLUSTER", "INFO")
+                        appendLine("port=$port;exit=${result.exitCode};info=${result.stdout};stderr=${result.stderr}")
+                    }
+                    appendLine(server.logs.lines().takeLast(100).joinToString("\n"))
+                }
+                Files.writeString(output.resolve("shared-startup-failure.txt"), diagnostic)
+            } catch (diagnosticFailure: Throwable) {
+                failure.addSuppressed(diagnosticFailure)
+            }
             try {
                 server.stop()
             } catch (cleanupFailure: Throwable) {
