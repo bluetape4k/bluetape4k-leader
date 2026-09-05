@@ -24,5 +24,6 @@ dependencies {
     testFixturesApi(libs.junit.jupiter)
     testFixturesApi(libs.kotlinx.coroutines.core)
     testFixturesApi(libs.kotlinx.coroutines.test)
+    testFixturesApi(libs.testcontainers)
 
 }
