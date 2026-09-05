@@ -35,6 +35,7 @@ helper 실행과 HTTP 요청은 one-shot 5초/2초로 제한한다. 다만 failu
 - startup timeout을 늘리지 않는다. opaque failure를 늦출 뿐 경계를 설명하지 못한다.
 - fail-then-pass를 성공 증거로 처리하지 않는다. clean 반복과 failure 당시 diagnostic을 함께 본다.
 - Testcontainers 기반 검증은 순차 실행한다. 같은 Docker runtime을 공유하는 Gradle job을 병렬화하지 않는다.
+- 변경 범위 밖 flaky가 full build에서 발견되면 fail-then-pass로 숨기지 않고 별도 issue로 분리한 뒤 exact-head 검증을 다시 수행한다.
 
 ## 검증 결과
 
@@ -42,7 +43,7 @@ helper 실행과 HTTP 요청은 one-shot 5초/2초로 제한한다. 다만 failu
 - 실제 etcd 세 경계 수집 proof: 1/1
 - clean matrix 5회: Lettuce 2/2, Redisson 3/3, etcd 157/157을 매회 통과
 - affected module 전체: 1,914/1,914
-- repository 전체 build: 4,370/4,370, failures/errors/skips 0
+- repository 전체 build: working-tree 검증 4,370/4,370 통과. 이후 exact-head 검증에서 기존 `leader-ktor` WebSocket cleanup timeout 1건이 발생해 [#886](https://github.com/bluetape4k/bluetape4k-leader/issues/886)으로 분리했다.
 - `detekt`: 38 tasks 성공
 - production API dump diff: 0
 

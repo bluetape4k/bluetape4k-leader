@@ -68,6 +68,7 @@
 - module 추가/rename, workflow, nightly 변경이 없어 module wiring checklist는 N/A다.
 - 새 KDoc, 설계, 계획, lesson은 한국어이고 public README/API 사용법 변경은 없다.
 - `detekt`, `git diff --check`, production API diff 검증이 통과했다.
+- exact-head full build 첫 시도에서 변경 범위 밖 `LeaderEventStreamRouteTest` WebSocket disconnect cleanup이 5초 timeout으로 실패했다. 동일 class clean 재실행 9/9는 통과했으며, fail-then-pass로 숨기지 않고 [#886](https://github.com/bluetape4k/bluetape4k-leader/issues/886)으로 분리했다.
 - exact-head PR CI는 PR 생성 전이므로 `PENDING`이다. 1인 개발자 workflow에서 human-review subgate만 `N/A`이며 기술 검증과 CI gate는 유지한다.
 
 판정: LOCAL PASS / PR CI PENDING.
@@ -86,7 +87,8 @@
 - `EtcdReadinessBoundaryIntegrationTest`: 1/1
 - 5회 clean matrix: Lettuce 10/10, Redisson 15/15, etcd 785/785
 - affected full tests: 1,914/1,914
-- full build: 4,370/4,370, 9분 14초
+- full build: working-tree 4,370/4,370, 9분 14초
+- exact-head full build 첫 시도: `leader-ktor` 1 failure, issue #886 등록; 재검증 `PENDING`
 - `detekt`: 38/38 tasks
 - failures/errors/skips: 0
 - production API dump diff: 0
@@ -95,6 +97,7 @@
 ## 남은 게이트
 
 - PR 생성: `PENDING` — 대상 `bluetape4k/bluetape4k-leader`, base `develop`, head `fix/issue-884-testcontainers-readiness`
+- local exact-head full build: `PENDING` — unrelated #886 분리 후 재검증 필요
 - exact-head PR CI: `PENDING`
 - merge: `PENDING` — CI, thread/read-back, mergeability, fresh exact-head 승인 필요
 - human review: `N/A` — solo maintainer subgate에 한함

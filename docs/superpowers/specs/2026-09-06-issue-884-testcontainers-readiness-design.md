@@ -116,7 +116,7 @@ startup failure, failed test, error, skip은 모두 0이어야 한다. fail-then
 - [x] 기존 startup timeout을 늘리지 않는다.
 - [x] 정상 Colima를 재시작하지 않는다.
 - [x] Lettuce/Redisson Toxiproxy class와 `leader-etcd` suite가 각각 clean 5회 반복에서 startup failure 0이다.
-- [x] `detekt`, 전체 `./gradlew build`, `git diff --check`가 통과한다.
+- [ ] `detekt`, 전체 `./gradlew build`, `git diff --check`가 통과한다. (`detekt`/diff는 통과, exact-head full build 첫 시도는 unrelated #886으로 실패해 재검증 중)
 - [x] production ABI/API diff가 없다.
 - [x] exact-head inline review에서 P0=0, P1=0이다.
 - [ ] exact-head PR CI는 PR 생성 권한이 열린 후 별도 게이트에서 확인한다.
