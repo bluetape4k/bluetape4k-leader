@@ -17,7 +17,7 @@
 - [x] Task 3 — publisher watch 준비·경합 테스트 결정성 개선
 - [x] Task 4 — Etcd 단일/group async lifecycle RED
 - [x] Task 5 — 취소 전파·exactly-once cleanup GREEN
-- [ ] Task 6 — module·전체 저장소·ABI 검증
+- [x] Task 6 — module·전체 저장소·ABI 검증
 - [ ] Task 7 — 7-Tier 리뷰·lesson·PR·exact-head CI
 
 ## 0. 고정 전제와 실행 경계
@@ -203,7 +203,7 @@
 
 **Files:** 모든 변경 파일, Gradle/JUnit 결과, `.flow-inputs/checklist.md`.
 
-1. `[ ]` source hygiene와 결정성 정적 검사를 한다.
+1. `[x]` source hygiene와 결정성 정적 검사를 한다.
 
    ```bash
    git diff --check
@@ -213,7 +213,7 @@
 
    첫 명령은 exit 0, 두 번째와 세 번째는 0건이어야 한다.
 
-2. `[ ]` `leader-etcd` 전체 테스트를 retry 없이 clean first-run으로 실행한다. CI의 5회 retry wrapper를 로컬 성공 증거로 사용하지 않는다.
+2. `[x]` `leader-etcd` 전체 테스트를 retry 없이 clean first-run으로 실행한다. CI의 5회 retry wrapper를 로컬 성공 증거로 사용하지 않는다.
 
    ```bash
    ./gradlew :bluetape4k-leader-etcd:cleanTest :bluetape4k-leader-etcd:test --no-daemon --no-configuration-cache --no-build-cache --rerun-tasks --console=plain
@@ -221,7 +221,7 @@
 
    JUnit XML의 tests/failures/errors/skipped 합계와 elapsed time을 checklist/review에 기록한다. unexplained retry나 skipped integration test는 PASS가 아니다.
 
-3. `[ ]` central catalog 광역 영향과 public ABI를 검증한다.
+3. `[x]` central catalog 광역 영향과 public ABI를 검증한다.
 
    ```bash
    ./gradlew detekt --no-daemon --console=plain
@@ -231,21 +231,21 @@
 
    모두 exit 0이어야 한다. 환경상 전체 build를 실행할 수 없다면 정확한 실패와 대체 범위를 `PENDING`으로 남기고 PR merge-ready를 주장하지 않는다.
 
-4. `[ ]` sync/async/suspend/virtual-thread와 single/group 결과를 verification matrix에 명시한다. 테스트가 존재하지 않는 조합은 임의 PASS가 아니라 `N/A` 또는 `PENDING`으로 분류하고 근거를 쓴다.
+4. `[x]` sync/async/suspend/virtual-thread와 single/group 결과를 verification matrix에 명시한다. 테스트가 존재하지 않는 조합은 임의 PASS가 아니라 `N/A` 또는 `PENDING`으로 분류하고 근거를 쓴다.
 
-5. `[ ]` 두 catalog pin equality, `jetcd 0.8.7`, gRPC/Netty/Vert.x graph, 변경된 public API 0건, README/KDoc `N/A`를 최종 증거에 다시 기록한다.
+5. `[x]` 두 catalog pin equality, `jetcd 0.8.7`, gRPC/Netty/Vert.x graph, 변경된 public API 0건, README/KDoc `N/A`를 최종 증거에 다시 기록한다.
 
 ## 9. Task 7 — 7-Tier 리뷰·lesson·PR·exact-head CI
 
 **Files:** 신규 review/lesson 문서, 전체 diff, GitHub PR.
 
-1. `[ ]` `$bluetape-kotlin-patterns`의 7-Tier 순서로 exact diff를 검토한다: Kotlin correctness, concurrency/cancellation, API/ABI, backend/watch semantics, tests/flakiness, dependency/security/ops, CI/delivery. 발견은 파일/line·재현·severity·처리 상태를 `docs/review/2026-09-05-issue-880-jetcd-callback-review.md`에 기록한다.
+1. `[x]` `$bluetape-kotlin-patterns`의 7-Tier 순서로 exact diff를 검토한다: Kotlin correctness, concurrency/cancellation, API/ABI, backend/watch semantics, tests/flakiness, dependency/security/ops, CI/delivery. 발견은 파일/line·재현·severity·처리 상태를 `docs/review/2026-09-05-issue-880-jetcd-callback-review.md`에 기록한다.
 
-2. `[ ]` performance/stability scan을 별도로 수행한다. callback backpressure, bounded waits, thread/executor leak, watcher close race, CAS ownership, cleanup count, full-suite runtime을 확인한다. P0/P1은 PR 전 모두 고치고 다시 검증한다.
+2. `[x]` performance/stability scan을 별도로 수행한다. callback backpressure, bounded waits, thread/executor leak, watcher close race, CAS ownership, cleanup count, full-suite runtime을 확인한다. P0/P1은 PR 전 모두 고치고 다시 검증한다.
 
-3. `[ ]` 독립 review lane을 한 번 실행한다. lane이 90초 안에 유효 결과를 내지 못하거나 unavailable이면 중단하고 사용자 standing rule에 따라 같은 checklist를 inline으로 완결한다. human reviewer는 solo-maintainer lane에서만 `N/A`; 기술 검토는 생략하지 않는다.
+3. `[x]` 독립 review lane을 한 번 실행한다. lane이 90초 안에 유효 결과를 내지 못하거나 unavailable이면 중단하고 사용자 standing rule에 따라 같은 checklist를 inline으로 완결한다. human reviewer는 solo-maintainer lane에서만 `N/A`; 기술 검토는 생략하지 않는다.
 
-4. `[ ]` `docs/lessons/2026-09-05-issue-880-jetcd-callback.md`에 created notification readiness, dependency-sensitive RED, blocking callback/backpressure, action cancellation relay, exactly-once cleanup, atomic catalog rollback을 재사용 가능한 규칙으로 기록한다.
+4. `[x]` `docs/lessons/2026-09-05-issue-880-jetcd-callback.md`에 created notification readiness, dependency-sensitive RED, blocking callback/backpressure, action cancellation relay, exactly-once cleanup, atomic catalog rollback을 재사용 가능한 규칙으로 기록한다.
 
 5. `[ ]` 변경을 작은 Lore commit으로 정리한다. 각 commit은 한국어 intent line, `Constraint`, `Rejected`, `Confidence`, `Scope-risk`, `Directive`, `Tested`, `Not-tested` 중 필요한 trailer를 포함한다. commit 전마다 `git diff --check`와 관련 targeted test를 다시 읽는다.
 
