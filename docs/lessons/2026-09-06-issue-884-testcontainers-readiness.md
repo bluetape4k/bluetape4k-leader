@@ -43,7 +43,7 @@ helper 실행과 HTTP 요청은 one-shot 5초/2초로 제한한다. 다만 failu
 - 실제 etcd 세 경계 수집 proof: 1/1
 - clean matrix 5회: Lettuce 2/2, Redisson 3/3, etcd 157/157을 매회 통과
 - affected module 전체: 1,914/1,914
-- repository 전체 build: working-tree 검증 4,370/4,370 통과. 이후 exact-head 검증에서 기존 `leader-ktor` WebSocket cleanup timeout 1건이 발생해 [#886](https://github.com/bluetape4k/bluetape4k-leader/issues/886)으로 분리했다.
+- repository 전체 build: working-tree 검증 4,370/4,370 통과. 이후 exact-head 검증에서 기존 `leader-ktor` WebSocket cleanup timeout이 2회 연속 발생해 [#886](https://github.com/bluetape4k/bluetape4k-leader/issues/886)으로 분리했다.
 - `detekt`: 38 tasks 성공
 - production API dump diff: 0
 
