@@ -35,6 +35,15 @@ internal object LettuceCandidateWriteScript {
             return redis.error_reply('candidate TTL must be a non-negative integer')
           end
 
+          local expectedTombstone = ARGV[5]
+          if expectedTombstone then
+            local currentTombstone = redis.call('GET', KEYS[3])
+            if (expectedTombstone == '' and currentTombstone)
+              or (expectedTombstone ~= '' and currentTombstone ~= expectedTombstone) then
+              return { $TOMBSTONED }
+            end
+          end
+
           redis.call('DEL', KEYS[3], KEYS[4])
           if ttl > 0 then
             redis.call('PSETEX', KEYS[1], ttl, ARGV[2])
@@ -127,7 +136,7 @@ internal object LettuceCandidateWriteScript {
         end
 
         if operation == '$UNREGISTER' then
-          redis.call('SET', KEYS[3], '1')
+          redis.call('SET', KEYS[3], ARGV[3] or '1')
           redis.call('DEL', KEYS[1], KEYS[4])
           redis.call('SREM', KEYS[2], ARGV[2])
           return { $UNREGISTERED }
