@@ -198,6 +198,33 @@ val election = ExposedJdbcLeaderElector(db, options, recorder)
 | PostgreSQL | 14+ |
 | MySQL | 8.0+ |
 
+## 실행 중 JDBC transaction 취소
+
+`CompletableFuture.cancel(false)`, `Thread.interrupt()`, `Statement.cancel()`은
+서로 다른 경계를 가집니다. 첫 번째는 caller에게 보이는 future 상태를 바꾸고 두 번째는
+worker interrupt flag를 설정할 뿐, 이미 실행 중인 JDBC statement나 transaction의 종료를
+보장하지 않습니다. application adapter가 `Statement`와 transaction을 소유하고, 선택한
+정책이 취소라면 `Statement.cancel()`을 명시적으로 호출한 뒤 transaction 종료를 기다리고
+application resource를 반환해야 합니다.
+
+통합 계약은 아래 resolved test driver 버전에 고정됩니다. 이는 모든 JDBC 구현에 대한
+보장이 아니라 실제 driver에서 관찰한 결과입니다.
+
+| Database / driver | `Statement.cancel()` 예외 | SQLState | terminal 시점 worker interrupt |
+|---|---|---|---|
+| H2 2.4.240 | `JdbcSQLTimeoutException` | `57014` | 보존 |
+| pgjdbc 42.7.13 | `PSQLException` | `57014` | 보존 |
+| Connector/J 9.7.0 | `MySQLStatementCancelledException` | `null` | 미보장 |
+
+세 driver 테스트는 database system view에서 marker query가 active임을 확인한 뒤에만
+interruption을 주입하고 probe transaction rollback을 검증합니다. Leader 통합 테스트는
+`FAILED` history row가 정확히 하나이며 같은 lock을 다시 획득할 수 있어야 합니다.
+Connector/J의 terminal interrupt flag는 반복 실행에서 안정된 관찰값이 아니므로
+transaction 종료 근거로 사용하면 안 됩니다.
+
+credential, production query 선택, timeout, retry, 취소 또는 완료 대기 정책은 계속 caller가
+소유합니다.
+
 ## 의존성 추가
 
 ```kotlin

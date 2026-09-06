@@ -16,11 +16,11 @@ cancellation 계약은 넓히지 않는다.
 
 Gradle `testRuntimeClasspath`와 기존 `TestDB`가 선택한 대상은 다음과 같다.
 
-| DB | JDBC driver | 장기 query | active-query probe | cancel SQLState |
+| DB | JDBC driver | 장기 query | active-query probe | cancel 예외 / SQLState |
 |---|---|---|---|---|
-| H2 | 2.4.240 | marker가 포함된 bounded CPU query | `INFORMATION_SCHEMA.SESSIONS.EXECUTING_STATEMENT` | `57014` |
-| PostgreSQL | pgjdbc 42.7.13 | `pg_sleep(30)` | `pg_stat_activity` | `57014` |
-| MySQL | Connector/J 9.7.0 | `SLEEP(30)` | `INFORMATION_SCHEMA.PROCESSLIST` | `70100` |
+| H2 | 2.4.240 | marker가 포함된 bounded CPU query | `INFORMATION_SCHEMA.SESSIONS.EXECUTING_STATEMENT` | `JdbcSQLTimeoutException` / `57014` |
+| PostgreSQL | pgjdbc 42.7.13 | `pg_sleep(30)` | `pg_stat_activity` | `PSQLException` / `57014` |
+| MySQL | Connector/J 9.7.0 | `SLEEP(30)` | `INFORMATION_SCHEMA.PROCESSLIST` | `MySQLStatementCancelledException` / `null` |
 
 H2의 `JdbcStatement.cancel()`은 실행 command에 cancel flag를 설정하고 command가
 `57014`를 던진다. pgjdbc는 별도 cancel request를 server connection에 보내며,
@@ -55,9 +55,11 @@ JDBC task나 statement cancel을 암시하지 않는다. 테스트는 future가 
 ### Worker thread interruption
 
 `Thread.interrupt()`는 worker interrupt flag를 설정하지만 JDBC cancellation API가 아니다.
-현재 세 driver에서 query가 즉시 terminal state가 되지 않는 것을 확인하고, flag가 보존된
-상태에서 명시적 `Statement.cancel()`로 bounded cleanup한다. 이 관찰값은 driver 버전이
-바뀌면 재검토해야 하는 driver-specific contract이다.
+현재 세 driver에서 query가 즉시 terminal state가 되지 않는 것을 확인하고 명시적
+`Statement.cancel()`로 bounded cleanup한다. 주입 직후 worker flag는 설정되지만 terminal
+시점에는 H2와 PostgreSQL만 보존을 확인했고 Connector/J는 반복 실행에서 true/false가 모두
+관찰되어 미보장으로 기록한다. 이 관찰값은 driver 버전이 바뀌면 재검토해야 하는
+driver-specific contract이다.
 
 ### Driver-level statement cancellation
 

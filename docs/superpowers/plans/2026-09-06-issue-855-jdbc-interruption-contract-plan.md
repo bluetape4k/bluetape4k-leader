@@ -20,40 +20,40 @@ private harness를 만들고 네 parameterized test가 raw driver matrix와 Lead
 
 ## Task 1: Raw JDBC harness TDD
 
-- [ ] 실패 테스트에서 `RunningJdbcTransaction`과 세 driver matrix type을 참조한다.
-- [ ] compile RED로 missing harness를 확인한다.
-- [ ] 고유 probe table, transaction update, session id, marker query, observer polling을 구현한다.
-- [ ] 모든 wait에 5초 timeout, statement에 query timeout, `finally`에 cancel/rollback/close를 둔다.
-- [ ] H2/PostgreSQL/MySQL별 active query가 관찰된 뒤에만 다음 단계로 진행하는 GREEN을 확인한다.
+- [x] 실패 테스트에서 `RunningJdbcTransaction`과 세 driver matrix type을 참조한다.
+- [x] compile RED로 missing harness를 확인한다.
+- [x] 고유 probe table, transaction update, session id, marker query, observer polling을 구현한다.
+- [x] 모든 wait에 5초 timeout, statement에 query timeout, terminal/close 경로에 cancel/rollback/close를 둔다.
+- [x] H2/PostgreSQL/MySQL별 active query가 관찰된 뒤에만 다음 단계로 진행하는 GREEN을 확인한다.
 
 ## Task 2: 세 interruption 경로 분리
 
-- [ ] caller `CompletableFuture.cancel(false)` 뒤 caller future는 canceled지만 query가 active임을 확인한다.
-- [ ] worker `Thread.interrupt()` 뒤 query가 active이고 worker interrupt flag가 보존됨을 확인한다.
-- [ ] `Statement.cancel()` 뒤 task 종료, rollback, driver별 exception class/SQLState를 확인한다.
-- [ ] caller/worker test는 assertion 뒤 명시적 statement cancel로 bounded cleanup한다.
-- [ ] targeted matrix를 반복해 race와 hang이 없는지 확인한다.
+- [x] caller `CompletableFuture.cancel(false)` 뒤 caller future는 canceled지만 query가 active임을 확인한다.
+- [x] worker `Thread.interrupt()` 뒤 query가 active이고 주입 직후 worker interrupt flag가 설정됨을 확인한다.
+- [x] `Statement.cancel()` 뒤 task 종료, rollback, driver별 exception class/SQLState를 확인한다.
+- [x] caller/worker test는 assertion 뒤 명시적 statement cancel로 bounded cleanup한다.
+- [x] targeted matrix를 반복해 race와 hang이 없는지 확인한다.
 
 ## Task 3: Leader lifecycle integration
 
-- [ ] action이 harness completion future를 반환하는 `runAsyncIfLeader()` test를 작성한다.
-- [ ] query active 뒤 statement cancel을 주입하고 반환 future의 cause를 확인한다.
-- [ ] probe rollback, `FAILED` history 정확히 1개, action terminal 1회, 다음 lock 획득 성공을 확인한다.
-- [ ] #846의 일반 caller cancellation 테스트는 중복하지 않고 전체 module 회귀로 확인한다.
+- [x] action이 harness completion future를 반환하는 `runAsyncIfLeader()` test를 작성한다.
+- [x] query active 뒤 statement cancel을 주입하고 반환 future의 cause를 확인한다.
+- [x] probe rollback, `FAILED` history 정확히 1개, action terminal 1회, 다음 lock 획득 성공을 확인한다.
+- [x] #846의 일반 caller cancellation 테스트는 중복하지 않고 전체 module 회귀로 확인한다.
 
 ## Task 4: 문서와 지원 경계
 
-- [ ] README 두 locale에 H2 2.4.240, pgjdbc 42.7.13, Connector/J 9.7.0 matrix를 기록한다.
-- [ ] future cancel/thread interrupt가 statement cancel을 자동 보장하지 않음을 명시한다.
-- [ ] production query cancellation policy, credential, retry, timeout은 caller 책임으로 남긴다.
-- [ ] source와 두 locale의 exception class/SQLState/capability를 대조한다.
-- [ ] Korean terminology audit와 `git diff --check`를 실행한다.
+- [x] README 두 locale에 H2 2.4.240, pgjdbc 42.7.13, Connector/J 9.7.0 matrix를 기록한다.
+- [x] future cancel/thread interrupt가 statement cancel을 자동 보장하지 않음을 명시한다.
+- [x] production query cancellation policy, credential, retry, timeout은 caller 책임으로 남긴다.
+- [x] source와 두 locale의 exception class/SQLState/capability를 대조한다.
+- [x] Korean terminology audit와 `git diff --check`를 실행한다.
 
 ## Task 5: 검증, 인라인 리뷰, lesson, PR
 
-- [ ] targeted class를 3회 반복하고 JUnit 건수/실패/skip을 기록한다.
-- [ ] `:bluetape4k-leader-exposed-jdbc:test --rerun-tasks`를 실행한다.
-- [ ] `detekt checkBinaryCompatibility`를 실행하고 production/public diff가 없음을 확인한다.
+- [x] targeted class를 3회 반복하고 JUnit 건수/실패/skip을 기록한다.
+- [x] `:bluetape4k-leader-exposed-jdbc:test --rerun-tasks`를 실행한다.
+- [x] `detekt checkBinaryCompatibility`를 실행하고 production/public diff가 없음을 확인한다.
 - [ ] exact diff를 성능, 안정성, 보안, 운영, 개발자/API, 사용자/caller 관점으로 인라인 검토한다.
 - [ ] baseline finding과 처분, 검증 근거를 review와 lesson에 기록한다.
 - [ ] Lore commit, push, `develop` base PR 생성 후 exact-head CI/threads/mergeability를 확인한다.

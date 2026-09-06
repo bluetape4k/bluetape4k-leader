@@ -199,6 +199,35 @@ History is best-effort — recording failures do not affect lock semantics.
 | PostgreSQL | 14+ |
 | MySQL | 8.0+ |
 
+## Running JDBC transaction cancellation
+
+`CompletableFuture.cancel(false)`, `Thread.interrupt()`, and `Statement.cancel()`
+have different boundaries. The first changes the caller-visible future state,
+and the second sets the worker interrupt flag; neither one guarantees that an
+already-running JDBC statement or transaction has stopped. Keep ownership of
+the `Statement` and transaction in the application adapter, invoke
+`Statement.cancel()` explicitly when that is the selected policy, wait for the
+transaction to finish, and then release application resources.
+
+The integration contract is pinned to the resolved test drivers below. These
+are observed driver results, not a promise for every JDBC implementation.
+
+| Database / driver | `Statement.cancel()` exception | SQLState | Worker interrupt at terminal |
+|---|---|---|---|
+| H2 2.4.240 | `JdbcSQLTimeoutException` | `57014` | preserved |
+| pgjdbc 42.7.13 | `PSQLException` | `57014` | preserved |
+| Connector/J 9.7.0 | `MySQLStatementCancelledException` | `null` | unspecified |
+
+All three tests verify that the marker query is active through a database
+system view before injecting interruption. Cancellation then rolls back the
+probe transaction. The Leader integration test additionally requires one
+`FAILED` history row and successful reacquisition of the same lock. Connector/J
+does not expose a stable terminal interrupt flag in repeated runs, so callers
+must not use that flag as transaction-completion evidence.
+
+Credentials, production query selection, timeout, retry, and whether to cancel
+or let work finish remain caller-owned operational policy.
+
 ## Dependency
 
 ```kotlin
