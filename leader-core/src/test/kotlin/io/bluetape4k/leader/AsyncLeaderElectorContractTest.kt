@@ -6,6 +6,7 @@ import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import org.awaitility.kotlin.atMost
@@ -17,8 +18,11 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -196,6 +200,66 @@ class AsyncLeaderElectorContractTest {
     }
 
     @Test
+    fun `runAsyncIfLeader - nullable 반환 future 취소가 모든 Local action과 lease lifecycle로 전파된다`() {
+        listOf<AsyncLeaderElector>(LocalAsyncLeaderElector(), LocalLeaderElector()).forEach { election ->
+            assertNullableCancellationPropagates(election, useSlot = false)
+            assertNullableCancellationPropagates(election, useSlot = true)
+        }
+    }
+
+    @Test
+    fun `runAsyncIfLeader - nullable 반환 future를 acquisition 전에 취소하면 action을 시작하지 않는다`() {
+        val election: AsyncLeaderElector = LocalAsyncLeaderElector()
+        val executor = Executors.newSingleThreadExecutor()
+        val blockerStarted = CountDownLatch(1)
+        val releaseBlocker = CountDownLatch(1)
+        val actionInvoked = AtomicBoolean()
+
+        try {
+            executor.submit {
+                blockerStarted.countDown()
+                releaseBlocker.await(2, TimeUnit.SECONDS)
+            }
+            blockerStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+
+            val result = election.runAsyncIfLeader(randomLockName(), executor) {
+                actionInvoked.set(true)
+                CompletableFuture.completedFuture("unexpected")
+            }
+
+            result.cancel(false).shouldBeTrue()
+            releaseBlocker.countDown()
+            executor.submit {}.get(2, TimeUnit.SECONDS)
+            actionInvoked.get().shouldBeFalse()
+        } finally {
+            releaseBlocker.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `runAsyncIfLeader - nullable Local overload는 executor rejection을 즉시 전파한다`() {
+        val rejected = Executor { throw RejectedExecutionException("rejected") }
+        val actionInvoked = AtomicBoolean()
+
+        listOf<AsyncLeaderElector>(LocalAsyncLeaderElector(), LocalLeaderElector()).forEach { election ->
+            assertFailsWith<RejectedExecutionException> {
+                election.runAsyncIfLeader(randomLockName(), rejected) {
+                    actionInvoked.set(true)
+                    CompletableFuture.completedFuture("unexpected")
+                }
+            }
+            assertFailsWith<RejectedExecutionException> {
+                election.runAsyncIfLeader(LeaderSlot(randomLockName(), "rejected-node"), rejected) {
+                    actionInvoked.set(true)
+                    CompletableFuture.completedFuture("unexpected")
+                }
+            }
+        }
+        actionInvoked.get().shouldBeFalse()
+    }
+
+    @Test
     fun `runAsyncIfLeaderResult - listener decorator도 반환 future 취소를 action future로 전파한다`() {
         val election = LocalLeaderElector().withListeners()
         val lockName = randomLockName()
@@ -249,6 +313,44 @@ class AsyncLeaderElectorContractTest {
             election.runAsyncIfLeader(randomLockName()) {
                 CompletableFuture.failedFuture<Int>(IllegalArgumentException("invalid"))
             }.join()
+        }
+    }
+
+    private fun assertNullableCancellationPropagates(
+        election: AsyncLeaderElector,
+        useSlot: Boolean,
+    ) {
+        val lockName = randomLockName()
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val result = if (useSlot) {
+                election.runAsyncIfLeader(LeaderSlot(lockName, "nullable-cancel-node"), executor) {
+                    actionStarted.countDown()
+                    actionFuture
+                }
+            } else {
+                election.runAsyncIfLeader(lockName, executor) {
+                    actionStarted.countDown()
+                    actionFuture
+                }
+            }
+
+            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+            await.atMost(2.seconds).untilAsserted {
+                actionFuture.isCancelled.shouldBeTrue()
+            }
+            await.atMost(2.seconds).untilAsserted {
+                election.runAsyncIfLeader(lockName, executor) {
+                    CompletableFuture.completedFuture("reacquired")
+                }.get(1, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+            }
+        } finally {
+            actionFuture.cancel(true)
+            executor.shutdownNow()
         }
     }
 }

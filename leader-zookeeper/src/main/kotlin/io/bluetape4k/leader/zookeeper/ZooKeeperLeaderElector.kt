@@ -9,6 +9,7 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperLockExtendDelegate
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperOwnedInterProcessMutex
@@ -142,11 +143,16 @@ class ZooKeeperLeaderElector private constructor(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T?> =
-        CompletableFuture.supplyAsync(
-            { runIfLeader(lockName) { action().join() } },
-            executor
+    ): CompletableFuture<T?> {
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        return LeaderFutureBridge.propagateCancellation(
+            CompletableFuture.supplyAsync(
+                { runIfLeader(lockName) { cancellationRelay.invoke(action).join() } },
+                executor,
+            ),
+            cancellationRelay,
         )
+    }
 }
 
 /**

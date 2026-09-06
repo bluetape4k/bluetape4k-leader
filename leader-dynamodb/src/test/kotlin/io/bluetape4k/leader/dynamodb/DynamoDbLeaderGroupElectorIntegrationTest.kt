@@ -11,7 +11,11 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -151,6 +155,35 @@ class DynamoDbLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
         }
 
         result shouldBeEqualTo LeaderRunResult.Elected("ok", leaderId = "dynamodb-group-audit-node-a")
+    }
+
+    @Test
+    fun `runAsyncIfLeader cancellation propagates to nullable action and group cleanup`() {
+        val elector = newElector(
+            groupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 100.milliseconds, leaseTime = 5.seconds),
+        )
+        val lockName = randomName()
+        val slot = LeaderSlot(lockName, "dynamodb-nullable-group-cancel-node")
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val result = elector.runAsyncIfLeader(slot, executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+
+            actionStarted.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+            result.cancel(false) shouldBeEqualTo true
+            actionFuture.isCancelled shouldBeEqualTo true
+            await.atMost(5.seconds).untilAsserted {
+                elector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+            }
+        } finally {
+            actionFuture.cancel(true)
+            executor.shutdownNow()
+        }
     }
 
     private fun newElector(

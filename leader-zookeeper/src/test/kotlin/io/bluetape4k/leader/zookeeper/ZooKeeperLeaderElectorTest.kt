@@ -9,6 +9,9 @@ import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
@@ -95,6 +98,35 @@ class ZooKeeperLeaderElectorTest: AbstractZooKeeperLeaderTest() {
         }.join()
 
         result shouldBeEqualTo 42
+    }
+
+    @Test
+    fun `runAsyncIfLeader - nullable 반환 future 취소가 action과 ZooKeeper lock cleanup으로 전파된다`() {
+        val lockName = randomName()
+        val election = ZooKeeperLeaderElector(
+            curator,
+            options = LeaderElectionOptions(waitTime = 100.milliseconds, leaseTime = 5.seconds),
+        )
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val result = election.runAsyncIfLeader(lockName, executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+
+            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+            actionFuture.isCancelled.shouldBeTrue()
+            await.atMost(5.seconds).untilAsserted {
+                election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+            }
+        } finally {
+            actionFuture.cancel(true)
+            executor.shutdownNow()
+        }
     }
 
     @Test

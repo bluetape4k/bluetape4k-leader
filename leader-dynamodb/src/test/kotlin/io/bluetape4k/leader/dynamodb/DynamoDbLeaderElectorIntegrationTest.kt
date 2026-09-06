@@ -222,6 +222,35 @@ class DynamoDbLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
     }
 
     @Test
+    fun `runAsyncIfLeader cancellation propagates to nullable action and lock cleanup`() {
+        val elector = newElector(
+            leaderOptions = LeaderElectionOptions(waitTime = 100.milliseconds, leaseTime = 5.seconds),
+        )
+        val lockName = randomName()
+        val slot = LeaderSlot(lockName, "dynamodb-nullable-cancel-node")
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val result = elector.runAsyncIfLeader(slot, executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+
+            actionStarted.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+            result.cancel(false) shouldBeEqualTo true
+            actionFuture.isCancelled shouldBeEqualTo true
+            await.atMost(5.seconds).untilAsserted {
+                elector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+            }
+        } finally {
+            actionFuture.cancel(true)
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
     fun `runAsyncIfLeaderResult returns elected result with audit identity`() {
         val elector = newElector()
         val slot = LeaderSlot(randomName(), "dynamodb-async-audit")

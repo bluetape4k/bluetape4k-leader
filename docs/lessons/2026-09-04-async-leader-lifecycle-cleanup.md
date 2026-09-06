@@ -9,6 +9,11 @@ lifecycle이 끝나지 않는 문제를 다룹니다. 반환 future의 terminal 
 획득과 action 제출 사이의 실패 때문에 이미 얻은 lease나 group permit이 남을 수
 있습니다.
 
+Issue #890에서는 같은 계약이 nullable `runAsyncIfLeader` 경로에 적용되지 않은
+사실을 확인했습니다. 결과형 API만 cancellation relay를 사용하고 nullable API는
+`CompletableFuture.supplyAsync { action().join() }`을 직접 반환해, 호출자가 반환
+future를 취소해도 실제 action future가 계속 실행됐습니다.
+
 ## 원인
 
 - 결과 future의 취소 대상이 바깥쪽 source future에만 연결되어 실제 action
@@ -27,6 +32,9 @@ lifecycle이 끝나지 않는 문제를 다룹니다. 반환 future의 terminal 
 
 - 결과 변환과 backend pipeline 사이에 cancellation relay를 두고, 실제 action
   future가 정해지는 즉시 취소 대상을 연결합니다.
+- 결과형과 nullable API가 같은 relay 규칙을 사용합니다. 바깥 source future와
+  실제 action future를 모두 relay에 연결해 어느 경로에서도 취소가 끊기지 않게
+  합니다.
 - lock 획득 이후에는 action 실행 여부와 관계없이 terminal 경로가 lease cleanup을
   소유합니다. executor rejection도 cleanup이 끝난 뒤 원래 예외로 완료합니다.
 - cancellation, action 완료, 제출 실패가 경쟁해도 원자적 owner가 cleanup을 정확히
@@ -55,11 +63,19 @@ lifecycle이 끝나지 않는 문제를 다룹니다. 반환 future의 terminal 
 - Kover 정적 계약 validator와 단위 테스트 9개, `actionlint`, diff whitespace 검사를
   통과했습니다. hosted exact-head CI는 PR push 뒤 별도로 확인합니다.
 
+Issue #890 회귀 검증에서는 Local blocking/async, ZooKeeper, DynamoDB의 단일/group
+nullable API를 함께 확인했습니다. core 1,045개, ZooKeeper 102개, DynamoDB 121개
+전체 테스트와 `detekt`, binary compatibility 검사가 통과했습니다. 취소 전에 lock을
+얻지 못한 경우에는 action을 시작하지 않고, executor가 작업을 거부하면 원래
+`RejectedExecutionException`을 즉시 보존하는 계약도 core contract test로
+고정했습니다.
+
 ## 놓친 가정과 향후 지침
 
 `CompletableFuture.cancel()`은 연결된 비동기 작업 전체를 자동으로 취소하지
-않습니다. future adapter를 추가하거나 수정할 때는 반환 future, acquire future,
-실제 action future, watchdog, lease cleanup의 ownership을 각각 확인해야 합니다.
+않습니다. future adapter를 추가하거나 수정할 때는 결과형과 nullable API를 모두
+목록화하고, 반환 future, acquire future, 실제 action future, watchdog, lease
+cleanup의 ownership을 각각 확인해야 합니다.
 회귀 테스트는 `isCancelled`만 검사하지 말고 action 취소와 동일 lock/slot 재획득을
 함께 검증합니다. acquire 뒤 비동기 제출이 있는 backend는 executor rejection을
 별도 terminal 경로로 취급하고, 원래 실패가 관찰되기 전에 cleanup이 끝나는지도

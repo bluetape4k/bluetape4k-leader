@@ -136,15 +136,31 @@ class DynamoDbLeaderElector(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T?> =
-        CompletableFuture.supplyAsync({ runIfLeader(lockName) { action().join() } }, executor)
+    ): CompletableFuture<T?> {
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        return LeaderFutureBridge.propagateCancellation(
+            CompletableFuture.supplyAsync(
+                { runIfLeader(lockName) { cancellationRelay.invoke(action).join() } },
+                executor,
+            ),
+            cancellationRelay,
+        )
+    }
 
     override fun <T> runAsyncIfLeader(
         slot: LeaderSlot,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T?> =
-        CompletableFuture.supplyAsync({ runIfLeader(slot) { action().join() } }, executor)
+    ): CompletableFuture<T?> {
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        return LeaderFutureBridge.propagateCancellation(
+            CompletableFuture.supplyAsync(
+                { runIfLeader(slot) { cancellationRelay.invoke(action).join() } },
+                executor,
+            ),
+            cancellationRelay,
+        )
+    }
 
     override fun <T> runAsyncIfLeaderResult(
         slot: LeaderSlot,
