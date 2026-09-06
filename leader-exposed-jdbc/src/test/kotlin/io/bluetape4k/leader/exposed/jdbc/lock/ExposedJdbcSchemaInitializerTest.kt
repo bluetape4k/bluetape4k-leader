@@ -1,15 +1,21 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import io.bluetape4k.exposed.tests.TestDB
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.leader.exposed.testing.databaseUrlRedactionContractTests
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldContain
-import io.bluetape4k.assertions.shouldNotContain
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import org.slf4j.LoggerFactory
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -19,51 +25,32 @@ class ExposedJdbcSchemaInitializerTest : AbstractExposedJdbcLeaderTest() {
 
     companion object : KLogging()
 
-    // --- sanitizeUrl ---
+    @TestFactory
+    fun `database URL redaction contract`() =
+        databaseUrlRedactionContractTests(ExposedJdbcSchemaInitializer::sanitizeUrl)
 
-    @Test
-    fun `sanitizeUrl - jdbc postgres URL 의 password가 마스킹된다`() {
-        val url = "jdbc:postgresql://alice:s3cret@db.example.com:5432/leader"
-        val sanitized = ExposedJdbcSchemaInitializer.sanitizeUrl(url)
+    @org.junit.jupiter.api.Test
+    fun `초기화 실패 로그는 예외의 raw URL을 기록하지 않는다`() {
+        val secret = "jdbc-log-secret"
+        val initializerLogger = LoggerFactory.getLogger(ExposedJdbcSchemaInitializer::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().also { it.start() }
+        initializerLogger.addAppender(appender)
 
-        sanitized shouldNotContain "s3cret"
-        sanitized shouldContain "***"
-        sanitized shouldContain "jdbc:"
-        sanitized shouldContain "db.example.com"
-        sanitized shouldContain "leader"
-    }
+        try {
+            ExposedJdbcSchemaInitializer.logInitializationFailure(
+                "jdbc:postgresql://alice:$secret@db.example.com/leader",
+                IllegalStateException("연결 실패: jdbc:postgresql://alice:$secret@db.example.com/leader"),
+            )
 
-    @Test
-    fun `sanitizeUrl - jdbc mysql URL 의 password가 마스킹된다`() {
-        val url = "jdbc:mysql://root:topsecret@mysql.host:3306/leader?useSSL=false"
-        val sanitized = ExposedJdbcSchemaInitializer.sanitizeUrl(url)
-
-        sanitized shouldNotContain "topsecret"
-        sanitized shouldContain "***"
-    }
-
-    @Test
-    fun `sanitizeUrl - userinfo 없는 URL은 그대로 반환된다`() {
-        val url = "jdbc:postgresql://db.example.com:5432/leader"
-        val sanitized = ExposedJdbcSchemaInitializer.sanitizeUrl(url)
-
-        sanitized shouldBeEqualTo url
-    }
-
-    @Test
-    fun `sanitizeUrl - 잘못된 형식의 URL은 원본 그대로 반환된다`() {
-        val url = "not::a::valid::url"
-        val sanitized = ExposedJdbcSchemaInitializer.sanitizeUrl(url)
-
-        sanitized shouldBeEqualTo url
-    }
-
-    @Test
-    fun `sanitizeUrl - 빈 userinfo 는 원본 그대로 반환된다`() {
-        val url = "jdbc:postgresql://@db.example.com:5432/leader"
-        val sanitized = ExposedJdbcSchemaInitializer.sanitizeUrl(url)
-
-        sanitized shouldBeEqualTo url
+            val warning = appender.list.first { event ->
+                event.level == Level.WARN && "리더 선출 스키마 초기화 실패" in event.formattedMessage
+            }
+            warning.formattedMessage shouldNotContain secret
+            warning.throwableProxy.shouldBeNull()
+        } finally {
+            initializerLogger.detachAppender(appender)
+            appender.stop()
+        }
     }
 
     // --- ensureSchema 동시성 ---

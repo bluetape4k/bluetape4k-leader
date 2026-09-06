@@ -1,6 +1,13 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.leader.exposed.testing.databaseUrlRedactionContractTests
 import io.bluetape4k.leader.exposed.r2dbc.AbstractExposedR2dbcLeaderTest
 import io.bluetape4k.leader.exposed.r2dbc.TestR2dbcDB
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -9,11 +16,11 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldContain
-import io.bluetape4k.assertions.shouldNotContain
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import org.slf4j.LoggerFactory
 
 class ExposedR2dbcSchemaInitializerTest: AbstractExposedR2dbcLeaderTest() {
 
@@ -68,40 +75,32 @@ class ExposedR2dbcSchemaInitializerTest: AbstractExposedR2dbcLeaderTest() {
         ExposedR2dbcSchemaInitializer.ensureSchema(db)
     }
 
-    // ─── 순수 함수 테스트 (DB 불필요) ─────────────────────────────────────────
+    @TestFactory
+    fun `database URL redaction contract`() =
+        databaseUrlRedactionContractTests(ExposedR2dbcSchemaInitializer::sanitizeUrl)
 
     @Test
-    fun `sanitizeUrl - 비밀번호가 포함된 PostgreSQL URL이 마스킹된다`() {
-        val url = "r2dbc:postgresql://user:secret123@localhost:5432/mydb"
-        val sanitized = ExposedR2dbcSchemaInitializer.sanitizeUrl(url)
+    fun `초기화 실패 로그는 예외의 raw URL을 기록하지 않는다`() {
+        val secret = "r2dbc-log-secret"
+        val initializerLogger = LoggerFactory.getLogger(ExposedR2dbcSchemaInitializer::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().also { it.start() }
+        initializerLogger.addAppender(appender)
 
-        sanitized shouldContain "***"
-        sanitized shouldNotContain "secret123"
-    }
+        try {
+            ExposedR2dbcSchemaInitializer.logInitializationFailure(
+                "r2dbc:postgresql://alice:$secret@db.example.com/leader",
+                IllegalStateException("연결 실패: r2dbc:postgresql://alice:$secret@db.example.com/leader"),
+            )
 
-    @Test
-    fun `sanitizeUrl - userinfo 없는 URL은 그대로 반환된다`() {
-        val url = "r2dbc:postgresql://localhost:5432/mydb"
-        val sanitized = ExposedR2dbcSchemaInitializer.sanitizeUrl(url)
-
-        sanitized shouldBeEqualTo url
-    }
-
-    @Test
-    fun `sanitizeUrl - H2 in-memory URL도 예외 없이 원본 반환된다`() {
-        val url = "r2dbc:h2:mem:///leader_test;MODE=MySQL;DB_CLOSE_DELAY=-1"
-        val sanitized = ExposedR2dbcSchemaInitializer.sanitizeUrl(url)
-
-        sanitized shouldBeEqualTo url
-    }
-
-    @Test
-    fun `sanitizeUrl - r2dbc 접두사 없는 URL도 처리된다`() {
-        val url = "postgresql://user:pass@localhost:5432/mydb"
-        val sanitized = ExposedR2dbcSchemaInitializer.sanitizeUrl(url)
-
-        sanitized shouldContain "***"
-        sanitized shouldNotContain "pass"
+            val warning = appender.list.first { event ->
+                event.level == Level.WARN && "리더 선출 스키마 초기화 실패" in event.formattedMessage
+            }
+            warning.formattedMessage shouldNotContain secret
+            warning.throwableProxy.shouldBeNull()
+        } finally {
+            initializerLogger.detachAppender(appender)
+            appender.stop()
+        }
     }
 
     // ─── lockName 검증 테스트 ──────────────────────────────────────────────────
