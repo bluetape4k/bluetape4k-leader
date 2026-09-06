@@ -241,13 +241,13 @@ Expected: 각 command exit 0, 실패 test 0, unclassified binary incompatibility
 Issue 수용 기준을 code/test/docs와 일대일로 대조한다. production API, dependency,
 module/workflow 변경이 없음을 diff에서 확인한다.
 
-- [ ] **Step 3: exact diff 인라인 6관점 리뷰**
+- [x] **Step 3: exact diff 인라인 6관점 리뷰**
 
 성능, 안정성, 보안, 운영, 개발자/API, 사용자/caller 관점으로 각각 P0/P1/P2/P3를
 기록하고 통합한다. 현재 조건상 독립 provenance를 주장하지 않는다. P0/P1은 수정 후
 해당 관점과 targeted test를 다시 실행한다.
 
-- [ ] **Step 4: lesson과 Lore commit**
+- [x] **Step 4: lesson과 Lore commit**
 
 lesson에 context, decision, observed #884 timing failure, outcome, verification, future guard를
 기록한다. 모든 변경을 한국어 intent line과 Lore trailer로 commit한다.
