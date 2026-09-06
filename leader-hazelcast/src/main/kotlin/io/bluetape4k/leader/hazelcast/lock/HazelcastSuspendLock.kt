@@ -5,6 +5,7 @@ import com.hazelcast.map.IMap
 import com.hazelcast.transaction.TransactionContext
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
+import io.bluetape4k.leader.internal.MonotonicDeadline
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -54,8 +55,22 @@ class HazelcastSuspendLock(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
-    suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
-        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
+    suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean = tryLock(
+        waitTime = waitTime,
+        leaseTime = leaseTime,
+        ticker = System::nanoTime,
+        delayMillis = { delay(it.milliseconds) },
+    )
+
+    @JvmSynthetic
+    @Suppress("ReturnCount")
+    internal suspend fun tryLock(
+        waitTime: Duration,
+        leaseTime: Duration,
+        ticker: () -> Long,
+        delayMillis: suspend (Long) -> Unit,
+    ): Boolean {
+        val deadline = MonotonicDeadline.fromNow(waitTime, ticker)
         val leaseMs = leaseTime.inWholeMilliseconds
 
         do {
@@ -71,11 +86,11 @@ class HazelcastSuspendLock(
                 log.debug { "Lock 획득 성공 (suspend): lockKey=$lockKey" }
                 return true
             }
-            val remaining = deadline - System.currentTimeMillis()
+            val remaining = deadline.remainingMillisForDelay(RETRY_DELAY_MS)
             if (remaining > 0) {
-                delay(minOf(RETRY_DELAY_MS, remaining).milliseconds)
+                delayMillis(remaining)
             }
-        } while (System.currentTimeMillis() < deadline)
+        } while (deadline.hasTimeRemaining())
 
         log.debug { "Lock 획득 실패 (timeout, suspend): lockKey=$lockKey" }
         return false
