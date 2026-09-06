@@ -179,6 +179,7 @@ class MongoLeaderGroupElector private constructor(
         val leaseTime = options.leaderGroupOptions.leaseTime
         val perSlotWait = options.leaderGroupOptions.waitTime / maxLeaders
         val start = Random.nextInt(maxLeaders)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
 
         val rejectionCleanup = AsyncSlotRejectionCleanup(lockName)
         val acquisitionFuture = acquireSlotAsync(lockName, start, perSlotWait, leaseTime).thenApply { acquired ->
@@ -197,7 +198,7 @@ class MongoLeaderGroupElector private constructor(
                         CancellationException("leader group action was cancelled before start"),
                     )
                 } else try {
-                    runAcquiredAsync(lock, lockName, slot, acquiredAtNanos, leaseTime, action)
+                    runAcquiredAsync(lock, lockName, slot, acquiredAtNanos, leaseTime, cancellationRelay, action)
                 } catch (error: Throwable) {
                     releaseAcquiredSlot(lock, lockName, slot, acquiredAtNanos, error)
                 }
@@ -210,13 +211,16 @@ class MongoLeaderGroupElector private constructor(
                 )
             }
         }
-        return LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
-            if (failure != null) {
-                rejectionCleanup.release(failure.unwrapCompletionCause())
-            } else {
-                CompletableFuture.completedFuture(value)
-            }
-        }
+        return LeaderFutureBridge.propagateCancellation(
+            LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+                if (failure != null) {
+                    rejectionCleanup.release(failure.unwrapCompletionCause())
+                } else {
+                    CompletableFuture.completedFuture(value)
+                }
+            },
+            cancellationRelay,
+        )
     }
 
     private fun <T> runAcquiredAsync(
@@ -225,6 +229,7 @@ class MongoLeaderGroupElector private constructor(
         slot: Int,
         acquiredAtNanos: Long,
         leaseTime: Duration,
+        cancellationRelay: LeaderFutureBridge.CancellationRelay,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val startedAt = Instant.now()
@@ -232,7 +237,7 @@ class MongoLeaderGroupElector private constructor(
         val delegate = MongoSlotExtendDelegate(lock)
         val historyKey = recordAcquired(lockName, lock.token, slot, startedAt, leaseTime)
         val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
-        val actionFuture = runCatching { action() }.getOrElse { error ->
+        val actionFuture = runCatching { cancellationRelay.invoke(action) }.getOrElse { error ->
             val finishedAt = Instant.now()
             val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
             recordFailed(historyKey, finishedAt, durationMs, error)

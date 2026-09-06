@@ -144,6 +144,7 @@ class MongoLeaderElector private constructor(
     ): CompletableFuture<T?> {
         validateMongoLockName(lockName)
         val lock = MongoLock(collection, lockName, options.retryDelay)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
 
         val rejectionCleanup = AsyncLockRejectionCleanup(lock, lockName)
         val acquisitionFuture = lock
@@ -160,7 +161,7 @@ class MongoLeaderElector private constructor(
                 if (!rejectionCleanup.markLifecycleStarted()) {
                     CompletableFuture.failedFuture(CancellationException("leader action was cancelled before start"))
                 } else try {
-                    runAcquiredAsync(lock, lockName, rejectionCleanup.acquiredAtNanos, action)
+                    runAcquiredAsync(lock, lockName, rejectionCleanup.acquiredAtNanos, cancellationRelay, action)
                 } catch (error: Throwable) {
                     releaseAcquiredLock(lock, lockName, rejectionCleanup.acquiredAtNanos, error)
                 }
@@ -173,19 +174,23 @@ class MongoLeaderElector private constructor(
                 )
             }
         }
-        return LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
-            if (failure != null) {
-                rejectionCleanup.release(failure.unwrapCompletionCause())
-            } else {
-                CompletableFuture.completedFuture(value)
-            }
-        }
+        return LeaderFutureBridge.propagateCancellation(
+            LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+                if (failure != null) {
+                    rejectionCleanup.release(failure.unwrapCompletionCause())
+                } else {
+                    CompletableFuture.completedFuture(value)
+                }
+            },
+            cancellationRelay,
+        )
     }
 
     private fun <T> runAcquiredAsync(
         lock: MongoLock,
         lockName: String,
         acquiredAtNanos: Long,
+        cancellationRelay: LeaderFutureBridge.CancellationRelay,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val startedAt = Instant.now()
@@ -209,7 +214,7 @@ class MongoLeaderElector private constructor(
         val effectiveKey = key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token) }
 
         log.debug { "리더로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
-        val actionFuture = runCatching { action() }.getOrElse { error ->
+        val actionFuture = runCatching { cancellationRelay.invoke(action) }.getOrElse { error ->
             watchdog.close()
             val finishedAt = Instant.now()
             val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)

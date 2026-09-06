@@ -196,6 +196,7 @@ class ConsulLeaderElector private constructor(
     ): CompletableFuture<T?> {
         val acquiredRef = AtomicReference<ConsulLeaseHandle?>()
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         val releaseIfUnclaimed: () -> Unit = {
             val handle = acquiredRef.get()
             if (handle != null && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
@@ -216,7 +217,7 @@ class ConsulLeaderElector private constructor(
                         CancellationException("leader result future was cancelled before action"),
                     )
                 } else {
-                    runAcquiredAsync(handle, action)
+                    runAcquiredAsync(handle, cancellationRelay, action)
                 }
             }, executor)
         } catch (error: Throwable) {
@@ -231,12 +232,13 @@ class ConsulLeaderElector private constructor(
         acquisitionFuture.whenComplete { handle, _ ->
             if (handle != null && pipelineFuture.isCancelled) releaseIfUnclaimed()
         }
-        return pipelineFuture
+        return LeaderFutureBridge.propagateCancellation(pipelineFuture, cancellationRelay)
     }
 
     @Suppress("ReturnCount", "TooGenericExceptionCaught")
     private fun <T> runAcquiredAsync(
         handle: ConsulLeaseHandle,
+        cancellationRelay: LeaderFutureBridge.CancellationRelay,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val delegate = ConsulLockExtendDelegate(lockClient, handle)
@@ -251,7 +253,7 @@ class ConsulLeaderElector private constructor(
             return AsyncLeaseCleanupDispatcher.failAfter(e) { release(handle) }
         }
         val actionFuture = try {
-            action()
+            cancellationRelay.invoke(action)
         } catch (e: Throwable) {
             return AsyncLeaseCleanupDispatcher.failAfter(e) {
                 watchdog.close()
