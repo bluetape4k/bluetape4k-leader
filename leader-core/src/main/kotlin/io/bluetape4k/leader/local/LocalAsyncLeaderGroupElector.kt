@@ -53,11 +53,16 @@ class LocalAsyncLeaderGroupElector private constructor(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T?> =
-        CompletableFuture.supplyAsync(
-            { tryWithPermit(lockName) { action().join() } },
-            executor
+    ): CompletableFuture<T?> {
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        return LeaderFutureBridge.propagateCancellation(
+            CompletableFuture.supplyAsync(
+                { tryWithPermit(lockName) { cancellationRelay.invoke(action).join() } },
+                executor,
+            ),
+            cancellationRelay,
         )
+    }
 
     /**
      * `runAsyncIfLeader`는 leadership을 획득한 경우에만 async action을 실행하고, 획득하지 못하면 null 결과를 완료합니다.
@@ -72,17 +77,22 @@ class LocalAsyncLeaderGroupElector private constructor(
         slot: LeaderSlot,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T?> =
-        CompletableFuture.supplyAsync(
-            {
-                tryWithPermit(
-                    lockName = slot.lockName,
-                    auditLeaderId = slot.leaderId,
-                    nodeId = options.nodeId,
-                ) { action().join() }
-            },
-            executor
+    ): CompletableFuture<T?> {
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        return LeaderFutureBridge.propagateCancellation(
+            CompletableFuture.supplyAsync(
+                {
+                    tryWithPermit(
+                        lockName = slot.lockName,
+                        auditLeaderId = slot.leaderId,
+                        nodeId = options.nodeId,
+                    ) { cancellationRelay.invoke(action).join() }
+                },
+                executor,
+            ),
+            cancellationRelay,
         )
+    }
 
     /**
      * `runAsyncIfLeaderResult`는 async leadership 획득, skip, action 실패를 명시적인 LeaderRunResult로 반환합니다.

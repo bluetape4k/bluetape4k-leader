@@ -46,21 +46,31 @@ class LocalLeaderElector(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T?> =
-        CompletableFuture.supplyAsync(
-            { tryWithLeaderLock(lockName, options.waitTime) { action().join() } },
-            executor
+    ): CompletableFuture<T?> {
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        return LeaderFutureBridge.propagateCancellation(
+            CompletableFuture.supplyAsync(
+                { tryWithLeaderLock(lockName, options.waitTime) { cancellationRelay.invoke(action).join() } },
+                executor,
+            ),
+            cancellationRelay,
         )
+    }
 
     override fun <T> runAsyncIfLeader(
         slot: LeaderSlot,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T?> =
-        CompletableFuture.supplyAsync(
-            { runIfLeader(slot) { action().join() } },
-            executor,
+    ): CompletableFuture<T?> {
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        return LeaderFutureBridge.propagateCancellation(
+            CompletableFuture.supplyAsync(
+                { runIfLeader(slot) { cancellationRelay.invoke(action).join() } },
+                executor,
+            ),
+            cancellationRelay,
         )
+    }
 
     override fun <T> runAsyncIfLeaderResult(
         slot: LeaderSlot,

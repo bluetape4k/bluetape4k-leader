@@ -121,6 +121,19 @@ class LeaderFutureBridgeTest {
     }
 
     @Test
+    fun `propagateCancellation은 source와 실행 중인 action future를 함께 취소한다`() {
+        val source = CompletableFuture<String>()
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        val actionFuture = cancellationRelay.invoke { CompletableFuture<String>() }
+        val bridged = LeaderFutureBridge.propagateCancellation(source, cancellationRelay)
+
+        bridged.cancel(true).shouldBeTrue()
+
+        source.isCancelled.shouldBeTrue()
+        actionFuture.isCancelled.shouldBeTrue()
+    }
+
+    @Test
     fun `VirtualFuture cancellation bridge 는 반환 future 취소를 원본으로 전파한다`() {
         val source = CompletableFuture<String>()
         val virtual = VirtualFuture(source as java.util.concurrent.Future<String>)

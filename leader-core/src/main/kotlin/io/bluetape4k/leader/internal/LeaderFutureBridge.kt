@@ -80,6 +80,14 @@ object LeaderFutureBridge {
         return VirtualFuture(mirror(completable, completable))
     }
 
+    /**
+     * 원본 future와 실행 중인 action future를 동일한 cancellation lifecycle에 연결합니다.
+     */
+    fun <T> propagateCancellation(
+        source: CompletableFuture<T>,
+        cancellationRelay: CancellationRelay,
+    ): CompletableFuture<T> = mirror(source, source, cancellationRelay::cancel)
+
     private fun <T> mirror(
         source: CompletableFuture<T>,
         cancellationTarget: CompletableFuture<*>,

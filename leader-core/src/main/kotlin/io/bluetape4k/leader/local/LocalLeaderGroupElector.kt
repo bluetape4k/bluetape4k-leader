@@ -5,6 +5,7 @@ import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.CancellationException
@@ -60,11 +61,16 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T?> =
-        CompletableFuture.supplyAsync(
-            { tryWithPermit(lockName) { action().join() } },
-            executor
+    ): CompletableFuture<T?> {
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        return LeaderFutureBridge.propagateCancellation(
+            CompletableFuture.supplyAsync(
+                { tryWithPermit(lockName) { cancellationRelay.invoke(action).join() } },
+                executor,
+            ),
+            cancellationRelay,
         )
+    }
 
     /**
      * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
