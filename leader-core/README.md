@@ -244,6 +244,43 @@ interface StrategicLeaderElector {
 }
 ```
 
+### Custom backend conformance
+
+Custom backend tests can inherit `AbstractStrategicBackendConformanceTest` from the
+`leader-core` test fixtures. The fixture runs the same candidate lifecycle, expiry,
+concurrency, winner, skip, and cleanup assertions against blocking/suspend and
+single/group adapters:
+
+```kotlin
+dependencies {
+    testImplementation(testFixtures("io.github.bluetape4k.leader:bluetape4k-leader-core"))
+}
+
+class AcmeStrategicBackendConformanceTest : AbstractStrategicBackendConformanceTest() {
+    override fun createProvider(): StrategicBackendConformanceProvider = AcmeConformanceProvider()
+}
+```
+
+The provider supplies `blocking(kind, nodeId)` and `suspending(kind, nodeId)` adapters for
+`StrategicBackendKind.SINGLE` and `StrategicBackendKind.GROUP`. Its
+`awaitCandidateExpiration` test control must report expiry only after the candidate is absent
+from backend reads and must not delete the candidate through a management API. The provider
+also owns test namespaces, credentials, clients, and `close()` cleanup. See
+[`CustomStrategicBackendConformanceTest`](./src/test/kotlin/io/bluetape4k/leader/contract/CustomStrategicBackendConformanceTest.kt)
+for a dependency-free custom adapter.
+
+| Execution surface | Minimum custom-backend contract | Reusable proof |
+|---|---|---|
+| Strategic blocking single/group | winner result, loser `null`, atomic candidate mutation, expiry, idempotent unregister | `AbstractStrategicBackendConformanceTest` |
+| Strategic suspend single/group | blocking contract plus cancellation propagation and non-blocking adapter boundary | `AbstractStrategicBackendConformanceTest` |
+| Lock-based async | completed result/`null`, cancellation relay, exactly-once lease cleanup | `AsyncLeaderElector` contract fixtures and backend async tests |
+| Lock-based virtual thread | result/`null`, interruption/cancellation propagation, exactly-once lease cleanup | backend virtual-thread contract tests |
+
+There is no strategic async or strategic virtual-thread public interface. Those rows describe
+the separate lock-based execution models, not additional candidate-registry capabilities.
+Passing this fixture proves the named storage semantics only; it does not certify throughput,
+provisioning, retry policy, or failure recovery for a custom backend.
+
 ## Usage Examples
 
 ### Strategic election — scored idle-time
