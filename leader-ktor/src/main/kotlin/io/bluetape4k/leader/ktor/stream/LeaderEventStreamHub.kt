@@ -158,13 +158,13 @@ internal class LeaderEventStreamHub(
     }
 
     /**
-     * 지정한 subscriber 수 이상이 등록될 때까지 기다리는 deterministic test barrier입니다.
+     * 지정한 subscriber 수가 될 때까지 기다리는 deterministic test barrier입니다.
      * 운영 adapter는 이 내부 helper를 사용하지 않습니다.
      */
     internal suspend fun awaitSubscriberCount(expected: Int) {
         require(expected >= 0) { "expected subscriber count must be non-negative" }
         val waiter = mutex.withLock {
-            if (subscribers.size >= expected) {
+            if (subscribers.size == expected) {
                 null
             } else {
                 SubscriberWaiter(expected).also { subscriberWaiters += it }
@@ -353,7 +353,7 @@ internal class LeaderEventStreamHub(
     }
 
     private fun completeSubscriberWaitersLocked() {
-        val satisfied = subscriberWaiters.filter { subscribers.size >= it.expected }
+        val satisfied = subscriberWaiters.filter { subscribers.size == it.expected }
         satisfied.forEach { it.completion.complete(Unit) }
         subscriberWaiters.removeAll(satisfied.toSet())
     }
