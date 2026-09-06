@@ -2,7 +2,8 @@
 
 ## 범위와 판정
 
-- 기준: `origin/develop@65731c0b4a0f046bae4c85a97ee4646c95d27ee1`
+- 최초 기준: `origin/develop@65731c0b4a0f046bae4c85a97ee4646c95d27ee1`
+- 현재 재검증 기준: `origin/develop@5d3eefe4376634f25da5879ac8329764adcc34b3`, branch head `aa7aa2917ca55567979a8dacf85eb3d1783f7466`
 - branch: `fix/issue-884-testcontainers-readiness`
 - 범위: `leader-core` test fixtures, Lettuce/Redisson Toxiproxy tests, etcd tests, 설계·계획·lesson
 - 방식: 독립 lane이 결과를 반환하지 못해 사용자 지침에 따라 `gpt-5.6-luna max` inline 검토
@@ -59,7 +60,7 @@
 - unit 9개가 분류, 정상 no-op, cause 보존, collector failure, detail bound, timeout 전달을 고정한다.
 - 실제 etcd proof는 service readiness 성공 직후 합성 delegate failure를 발생시켜 제거 전에 internal/host/mapping이 모두 `SUCCESS`인지 확인한다.
 - clean matrix는 Lettuce 2개, Redisson 3개, etcd 157개를 5회 순차 실행했고 모든 single-use daemon이 exit 0이었다.
-- affected 4개 모듈 1,914개와 전체 build 4,370개가 failures/errors/skips 0으로 통과했다.
+- 최초 working-tree 검증에서 affected 4개 모듈 1,914개와 전체 build 4,370개가 failures/errors/skips 0으로 통과했다.
 
 판정: PASS.
 
@@ -68,7 +69,8 @@
 - module 추가/rename, workflow, nightly 변경이 없어 module wiring checklist는 N/A다.
 - 새 KDoc, 설계, 계획, lesson은 한국어이고 public README/API 사용법 변경은 없다.
 - `detekt`, `git diff --check`, production API diff 검증이 통과했다.
-- exact-head full build에서 변경 범위 밖 `LeaderEventStreamRouteTest` WebSocket disconnect cleanup이 5초 timeout으로 2회 연속 실패했다. 동일 class clean 재실행 9/9는 통과했으며, fail-then-pass로 숨기지 않고 [#886](https://github.com/bluetape4k/bluetape4k-leader/issues/886)으로 분리했다.
+- #886 수정이 포함된 최신 `develop` 위로 재정렬한 뒤 `LeaderEventStreamRouteTest`를 포함한 `leader-ktor` 124개는 전체 build 안에서 통과했다.
+- 같은 exact-head full build는 기존 `RedissonStrategicHeartbeatExpirationRaceTest`의 suspend group case에서 316개 중 1개가 실패했다. 테스트는 TTL이 `0ms`가 되면 key가 제거됐다고 가정하지만 실제 key가 남을 수 있어 `fresh` 후보가 다시 저장되는 timing window가 있다. 단독 class는 4/4로 통과했으므로 fail-then-pass로 full build 성공을 주장하지 않고, expiry conformance를 소유하는 #856에서 fixture를 보강한다.
 - exact-head PR CI는 PR 생성 전이므로 `PENDING`이다. 1인 개발자 workflow에서 human-review subgate만 `N/A`이며 기술 검증과 CI gate는 유지한다.
 
 판정: LOCAL PASS / PR CI PENDING.
@@ -88,7 +90,7 @@
 - 5회 clean matrix: Lettuce 10/10, Redisson 15/15, etcd 785/785
 - affected full tests: 1,914/1,914
 - full build: working-tree 4,370/4,370, 9분 14초
-- exact-head full build: 같은 `leader-ktor` 1 failure가 2회 연속 재현, issue #886 등록; `BLOCKED`
+- 최신 exact-head full build: `leader-ktor` 124/124 통과, 기존 Redisson expiry race 316개 중 1개 실패; 단독 class 4/4 통과, #856에서 보강 후 재검증 `PENDING`
 - `detekt`: 38/38 tasks
 - failures/errors/skips: 0
 - production API dump diff: 0
@@ -97,7 +99,7 @@
 ## 남은 게이트
 
 - PR 생성: `PENDING` — 대상 `bluetape4k/bluetape4k-leader`, base `develop`, head `fix/issue-884-testcontainers-readiness`
-- local exact-head full build: `BLOCKED` — unrelated #886이 재검증에서도 동일하게 재현됨
+- local exact-head full build: `PENDING` — #886 경로는 통과했고 기존 Redisson expiry fixture의 0ms 경계는 #856에서 보강 후 재검증
 - exact-head PR CI: `PENDING`
 - merge: `PENDING` — CI, thread/read-back, mergeability, fresh exact-head 승인 필요
 - human review: `N/A` — solo maintainer subgate에 한함

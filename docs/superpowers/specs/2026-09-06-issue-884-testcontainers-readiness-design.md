@@ -7,7 +7,8 @@
 - 대상 저장소: `bluetape4k/bluetape4k-leader`
 - 대상 모듈: `leader-core` test fixtures, `leader-redis-lettuce`, `leader-redis-redisson`, `leader-etcd`
 - 이슈: [#884](https://github.com/bluetape4k/bluetape4k-leader/issues/884)
-- 기준 커밋: `65731c0b4a0f046bae4c85a97ee4646c95d27ee1` (`develop`)
+- 최초 기준 커밋: `65731c0b4a0f046bae4c85a97ee4646c95d27ee1` (`develop`)
+- 현재 재검증 기준: `5d3eefe4376634f25da5879ac8329764adcc34b3` (`develop`)
 - 작업 branch: `fix/issue-884-testcontainers-readiness`
 - 제외 범위: production Redis/Etcd/leader API, timeout 연장, 정상 Colima 재시작, dependency catalog 변경, publish/release/tag/merge
 
@@ -116,7 +117,7 @@ startup failure, failed test, error, skip은 모두 0이어야 한다. fail-then
 - [x] 기존 startup timeout을 늘리지 않는다.
 - [x] 정상 Colima를 재시작하지 않는다.
 - [x] Lettuce/Redisson Toxiproxy class와 `leader-etcd` suite가 각각 clean 5회 반복에서 startup failure 0이다.
-- [ ] `detekt`, 전체 `./gradlew build`, `git diff --check`가 통과한다. (`detekt`/diff는 통과, exact-head full build는 unrelated #886이 2회 연속 재현돼 BLOCKED)
+- [ ] `detekt`, 전체 `./gradlew build`, `git diff --check`가 통과한다. (`detekt`/diff/ABI와 readiness 대상 테스트는 통과했다. #886 수정이 포함된 exact-head full build에서 기존 `RedissonStrategicHeartbeatExpirationRaceTest`의 0ms TTL 경계가 한 번 실패했고 단독 4/4는 통과했다. expiry conformance를 소유하는 #856에서 fixture를 보강한 뒤 다시 검증한다.)
 - [x] production ABI/API diff가 없다.
 - [x] exact-head inline review에서 P0=0, P1=0이다.
 - [ ] exact-head PR CI는 PR 생성 권한이 열린 후 별도 게이트에서 확인한다.

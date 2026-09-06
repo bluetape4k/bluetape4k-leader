@@ -27,7 +27,7 @@
 
 - [x] **Step 1: Exact base와 live issue를 고정한다**
 
-  `origin/develop`과 worktree base가 `65731c0b4a0f046bae4c85a97ee4646c95d27ee1`인지 확인하고 Issue #884의 milestone `1.1.0`, assignee `debop`, labels `bug`, `ci`, `test`, `build`를 읽는다.
+  최초 `origin/develop`과 worktree base가 `65731c0b4a0f046bae4c85a97ee4646c95d27ee1`인지 확인하고 Issue #884의 milestone `1.1.0`, assignee `debop`, labels `bug`, `ci`, `test`, `build`를 읽는다. PR 전 재검증에서는 #886 수정이 포함된 `develop@5d3eefe4376634f25da5879ac8329764adcc34b3` 위로 branch를 재정렬한다.
 
 - [x] **Step 2: Clean baseline을 순차 실행한다**
 

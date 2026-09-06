@@ -43,7 +43,7 @@ helper 실행과 HTTP 요청은 one-shot 5초/2초로 제한한다. 다만 failu
 - 실제 etcd 세 경계 수집 proof: 1/1
 - clean matrix 5회: Lettuce 2/2, Redisson 3/3, etcd 157/157을 매회 통과
 - affected module 전체: 1,914/1,914
-- repository 전체 build: working-tree 검증 4,370/4,370 통과. 이후 exact-head 검증에서 기존 `leader-ktor` WebSocket cleanup timeout이 2회 연속 발생해 [#886](https://github.com/bluetape4k/bluetape4k-leader/issues/886)으로 분리했다.
+- repository 전체 build: 최초 working-tree 검증 4,370/4,370 통과. 이후 `leader-ktor` WebSocket cleanup timeout은 [#886](https://github.com/bluetape4k/bluetape4k-leader/issues/886)으로 분리했고, 그 수정이 포함된 최신 `develop` 기준 전체 build에서 Ktor 124/124가 통과했다. 이 재검증은 기존 Redisson expiry race의 0ms TTL 경계에서 316개 중 1개가 실패했고 단독 4/4는 통과했다. fail-then-pass를 전체 성공으로 바꾸지 않고 expiry conformance를 소유하는 #856의 검증 항목으로 넘겼다.
 - `detekt`: 38 tasks 성공
 - production API dump diff: 0
 
