@@ -241,6 +241,44 @@ interface StrategicLeaderElector {
 }
 ```
 
+### Custom backend conformance
+
+Custom backend 테스트는 `leader-core` test fixtures의
+`AbstractStrategicBackendConformanceTest`를 상속할 수 있습니다. 이 fixture는
+blocking/suspend와 single/group adapter에 같은 후보 lifecycle, expiry, concurrency,
+winner, skip, cleanup assertion을 실행합니다.
+
+```kotlin
+dependencies {
+    testImplementation(testFixtures("io.github.bluetape4k.leader:bluetape4k-leader-core"))
+}
+
+class AcmeStrategicBackendConformanceTest : AbstractStrategicBackendConformanceTest() {
+    override fun createProvider(): StrategicBackendConformanceProvider = AcmeConformanceProvider()
+}
+```
+
+Provider는 `StrategicBackendKind.SINGLE`과 `StrategicBackendKind.GROUP`에 대해
+`blocking(kind, nodeId)`과 `suspending(kind, nodeId)` adapter를 제공합니다.
+`awaitCandidateExpiration` test control은 관리 API로 후보를 삭제하지 않고, backend
+조회에서 후보가 실제로 사라진 뒤에만 만료 완료를 반환해야 합니다. Test namespace,
+credential, client와 `close()` cleanup도 provider가
+소유합니다. Dependency 없이 custom adapter를 구현한 예는
+[`CustomStrategicBackendConformanceTest`](./src/test/kotlin/io/bluetape4k/leader/contract/CustomStrategicBackendConformanceTest.kt)를
+참고하세요.
+
+| 실행 surface | Custom backend 최소 계약 | 재사용 검증 |
+|---|---|---|
+| Strategic blocking single/group | winner 결과, loser `null`, 원자적 후보 변경, expiry, idempotent unregister | `AbstractStrategicBackendConformanceTest` |
+| Strategic suspend single/group | blocking 계약, cancellation 전파, non-blocking adapter 경계 | `AbstractStrategicBackendConformanceTest` |
+| Lock 기반 async | 완료 결과/`null`, cancellation 전달, 정확히 한 번 lease cleanup | `AsyncLeaderElector` 계약 fixture와 backend async 테스트 |
+| Lock 기반 virtual thread | 결과/`null`, interruption/cancellation 전파, 정확히 한 번 lease cleanup | backend virtual-thread 계약 테스트 |
+
+Strategic async 또는 strategic virtual-thread public interface는 없습니다. 마지막 두 행은
+후보 레지스트리 기능이 아니라 별도의 lock 기반 실행 모델을 설명합니다. 이 fixture 통과는
+표에 적은 저장 의미만 증명하며 custom backend의 처리량, provisioning, retry 정책, 장애
+복구를 보증하지 않습니다.
+
 ## 사용 예시
 
 ### 전략 기반 선출 — IdleTime Scorer

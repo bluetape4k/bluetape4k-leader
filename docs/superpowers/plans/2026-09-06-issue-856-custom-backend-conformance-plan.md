@@ -29,7 +29,7 @@
 - Create: `leader-core/src/test/kotlin/io/bluetape4k/leader/contract/CustomStrategicBackendConformanceTest.kt`
 - Create: `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/StrategicBackendConformance.kt`
 
-- [ ] **Step 1: fixture를 상속하는 실패 테스트 작성**
+- [x] **Step 1: fixture를 상속하는 실패 테스트 작성**
 
 ```kotlin
 class CustomStrategicBackendConformanceTest : AbstractStrategicBackendConformanceTest() {
@@ -37,22 +37,24 @@ class CustomStrategicBackendConformanceTest : AbstractStrategicBackendConformanc
 }
 ```
 
-- [ ] **Step 2: RED 확인**
+- [x] **Step 2: RED 확인**
 
 Run: `./gradlew :bluetape4k-leader-core:test --tests "io.bluetape4k.leader.contract.CustomStrategicBackendConformanceTest"`
 
 Expected: `AbstractStrategicBackendConformanceTest` 또는 `StrategicBackendConformanceProvider` unresolved reference로 compile 실패.
 
-- [ ] **Step 3: 최소 provider/adapter 계약 추가**
+- [x] **Step 3: 최소 provider/adapter 계약 추가**
 
 ```kotlin
 interface StrategicBackendConformanceProvider : AutoCloseable {
-    fun blockingSingle(nodeId: String): BlockingStrategicBackend
-    fun blockingGroup(nodeId: String): BlockingStrategicBackend
-    fun suspendSingle(nodeId: String): SuspendStrategicBackend
-    fun suspendGroup(nodeId: String): SuspendStrategicBackend
-    fun expireCandidate(mode: StrategicBackendMode, lockName: String, nodeId: String)
-    fun clear(mode: StrategicBackendMode, lockName: String)
+    fun blocking(kind: StrategicBackendKind, nodeId: String): BlockingStrategicBackend
+    fun suspending(kind: StrategicBackendKind, nodeId: String): SuspendStrategicBackend
+    fun awaitCandidateExpiration(
+        kind: StrategicBackendKind,
+        lockName: String,
+        nodeId: String,
+        timeout: Duration,
+    ): Boolean
 }
 ```
 
@@ -60,13 +62,13 @@ blocking/suspend adapter는 `registerCandidate`, `refreshCandidate`, `unregister
 `listCandidates`, `updateResult`, `runIfLeader`를 제공한다. `close()` 기본 구현은 no-op으로
 두되 fixture가 test마다 정확히 한 번 호출한다.
 
-- [ ] **Step 4: testFixtures compile 확인**
+- [x] **Step 4: testFixtures compile 확인**
 
 Run: `./gradlew :bluetape4k-leader-core:testFixturesJar`
 
 Expected: `BUILD SUCCESSFUL`.
 
-- [ ] **Step 5: 설계/계획 commit**
+- [x] **Step 5: 설계/계획 commit**
 
 ```bash
 git add docs/superpowers/specs/2026-09-06-issue-856-custom-backend-conformance-design.md \
@@ -84,7 +86,7 @@ Commit은 Lore protocol과 한국어 intent line을 사용한다.
 - Create: `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/AbstractStrategicBackendConformanceTest.kt`
 - Modify: `leader-core/src/test/kotlin/io/bluetape4k/leader/contract/CustomStrategicBackendConformanceTest.kt`
 
-- [ ] **Step 1: lifecycle와 winner assertion 추가**
+- [x] **Step 1: lifecycle와 winner assertion 추가**
 
 각 mode에 다음 동작을 추가한다.
 
@@ -99,19 +101,19 @@ backend.listCandidates(lockName).shouldBeEmpty()
 
 FIFO winner의 action count는 1, loser action count는 0, loser 결과는 `null`이어야 한다.
 
-- [ ] **Step 2: RED 확인**
+- [x] **Step 2: RED 확인**
 
 Run: `./gradlew :bluetape4k-leader-core:test --tests "io.bluetape4k.leader.contract.CustomStrategicBackendConformanceTest"`
 
 Expected: custom provider의 미구현 연산 또는 잘못된 final state로 실패.
 
-- [ ] **Step 3: custom shared store와 네 adapter 구현**
+- [x] **Step 3: custom shared store와 네 adapter 구현**
 
 `ConcurrentHashMap`의 `compute`/`computeIfPresent`를 사용한다. refresh는 metadata만
 교체하고, update는 `CandidateInfo.withResult`를 적용하며, unregister와 expiry는 entry를
 제거한다. single/group namespace를 분리한다.
 
-- [ ] **Step 4: GREEN 확인**
+- [x] **Step 4: GREEN 확인**
 
 Run: `./gradlew :bluetape4k-leader-core:test --tests "io.bluetape4k.leader.contract.CustomStrategicBackendConformanceTest"`
 
@@ -125,33 +127,33 @@ Expected: lifecycle/winner test 전부 PASS.
 - Modify: `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/AbstractStrategicBackendConformanceTest.kt`
 - Modify: `leader-core/src/test/kotlin/io/bluetape4k/leader/contract/CustomStrategicBackendConformanceTest.kt`
 
-- [ ] **Step 1: 실패 가능한 경합 테스트 추가**
+- [x] **Step 1: 실패 가능한 경합 테스트 추가**
 
 blocking은 `MultithreadingTester`, suspend는 `coroutineScope`와 `async`를 사용해 다음을
 검증한다.
 
 ```kotlin
-repeat(100) {
+repeat(WORKERS * ROUNDS) {
     updateResult(lockName, nodeId, CandidateResult.SUCCESS)
     refreshCandidate(lockName, heartbeat, 60.seconds)
 }
 ```
 
-최종 `successCount`는 정확히 100이고 metadata는 heartbeat 값이어야 한다. concurrent
+최종 `successCount`는 정확히 200이고 metadata는 heartbeat 값이어야 한다. concurrent
 refresh/unregister가 모두 끝난 뒤 후보는 없어야 한다.
 
-- [ ] **Step 2: RED 확인**
+- [x] **Step 2: RED 확인**
 
 Run: `./gradlew :bluetape4k-leader-core:test --tests "io.bluetape4k.leader.contract.CustomStrategicBackendConformanceTest"`
 
 Expected: non-atomic custom store 변형에서 lost update 또는 resurrection으로 실패.
 
-- [ ] **Step 3: 원자 store 연산으로 최소 수정**
+- [x] **Step 3: 원자 store 연산으로 최소 수정**
 
 같은 `(mode, lockName, nodeId)` key의 mutation은 `ConcurrentHashMap.compute` 계열 한 번으로
 완료한다. 별도 read-modify-write를 추가하지 않는다.
 
-- [ ] **Step 4: GREEN 및 반복 실행**
+- [x] **Step 4: GREEN 및 반복 실행**
 
 Run: `./gradlew :bluetape4k-leader-core:test --tests "io.bluetape4k.leader.contract.CustomStrategicBackendConformanceTest" --rerun-tasks`
 
@@ -164,13 +166,13 @@ Expected: 모든 concurrency/expiry test PASS, hang 없음.
 **Files:**
 - Modify: `leader-redis-redisson/src/test/kotlin/io/bluetape4k/leader/redisson/RedissonStrategicHeartbeatExpirationRaceTest.kt`
 
-- [ ] **Step 1: 기존 RED 증거 고정**
+- [x] **Step 1: 기존 RED 증거 고정**
 
 2026-09-06 #884 exact-base full build에서 suspend group case가 `TTL == 0` 뒤 fresh
 `CandidateInfo`를 관찰해 실패했고, 단독 재실행은 PASS했다. 이는 실제 key 제거보다 먼저
 gate를 해제한 timing failure다.
 
-- [ ] **Step 2: 실제 부재까지 기다리도록 수정**
+- [x] **Step 2: 실제 부재까지 기다리도록 수정**
 
 ```kotlin
 withTimeout(5.seconds) {
@@ -180,7 +182,7 @@ withTimeout(5.seconds) {
 }
 ```
 
-- [ ] **Step 3: Redisson targeted 반복 검증**
+- [x] **Step 3: Redisson targeted 반복 검증**
 
 Run: `./gradlew :bluetape4k-leader-redis-redisson:test --tests "io.bluetape4k.leader.redisson.RedissonStrategicHeartbeatExpirationRaceTest" --rerun-tasks`
 
@@ -196,18 +198,18 @@ Expected: 4 tests PASS, key 부재 assertion PASS.
 - Modify: `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/StrategicBackendConformance.kt`
 - Modify: `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/AbstractStrategicBackendConformanceTest.kt`
 
-- [ ] **Step 1: capability matrix와 적용 예제 작성**
+- [x] **Step 1: capability matrix와 적용 예제 작성**
 
 README 두 locale에 strategic blocking/suspend는 새 fixture를 사용하고 lock 기반 async와
 virtual-thread는 각 실행 모델 fixture를 사용한다고 기록한다. provider가 credential,
-client, namespace, expiry control, cleanup을 소유하고 fixture 통과가 성능·장애 복구를
+client, namespace, actual-expiry confirmation, cleanup을 소유하고 fixture 통과가 성능·장애 복구를
 보증하지 않는다고 명시한다.
 
-- [ ] **Step 2: Korean KDoc과 locale 의미 대조**
+- [x] **Step 2: Korean KDoc과 locale 의미 대조**
 
 API 이름, method, mode 수, 미보증 범위가 source와 두 README에서 같아야 한다.
 
-- [ ] **Step 3: 문서 검사**
+- [x] **Step 3: 문서 검사**
 
 Run: `node ~/.codex/skills/bluetape-writer/scripts/audit-korean-terms.mjs leader-core/README.ko.md docs/superpowers/specs/2026-09-06-issue-856-custom-backend-conformance-design.md docs/superpowers/plans/2026-09-06-issue-856-custom-backend-conformance-plan.md`
 
@@ -221,7 +223,7 @@ Expected: unresolved terminology finding 0.
 - Create: `docs/review/2026-09-06-issue-856-custom-backend-conformance-review.md`
 - Create: `docs/lessons/2026-09-06-issue-856-custom-backend-conformance.md`
 
-- [ ] **Step 1: module 및 static/API 검증**
+- [x] **Step 1: module 및 static/API 검증**
 
 Run sequentially:
 
@@ -234,7 +236,7 @@ git diff --check
 
 Expected: 각 command exit 0, 실패 test 0, unclassified binary incompatibility 0.
 
-- [ ] **Step 2: spec/plan 추적 검증**
+- [x] **Step 2: spec/plan 추적 검증**
 
 Issue 수용 기준을 code/test/docs와 일대일로 대조한다. production API, dependency,
 module/workflow 변경이 없음을 diff에서 확인한다.
@@ -261,7 +263,7 @@ threads, mergeability를 다시 읽고 CI 완료까지 기다린다. merge는 �
 
 | 위험 | 신호 | 완화 | rollback/rerun |
 |---|---|---|---|
-| fixture가 backend 구현 세부를 강제 | Redis/DB adapter가 admin API 없이는 구현 불가 | expiry/clear만 provider test control로 분리 | adapter API를 축소하고 spec review 재실행 |
+| fixture가 backend 구현 세부를 강제 | Redis/DB adapter가 bounded expiry 조회를 제공할 수 없음 | actual-absence 대기만 provider test control로 분리 | adapter API를 축소하고 spec review 재실행 |
 | concurrency test flake | 단독 PASS, module build FAIL | bounded worker, 실제 completion wait, sleep 최소화 | raw failure 보존 후 harness 원인 수정, Task 3부터 재실행 |
 | published test API 과다 | consumer가 불필요한 helper를 구현 | 최소 operation surface와 default close | public type 추가를 되돌리고 package-private assertion 대안 재검토 |
 | Redisson polling 부하 | Redis RTT 과다 또는 timeout | 한 candidate key만 10ms bounded poll | targeted test 로그 확인 후 poll condition 조정 |

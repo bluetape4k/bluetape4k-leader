@@ -122,7 +122,7 @@ class RedissonStrategicHeartbeatExpirationRaceTest : AbstractRedissonLeaderTest(
 
                 withTimeout(2.seconds) { operationEntered.await() }
                 withTimeout(5.seconds) {
-                    while (realCache.remainTimeToLive(nodeId) > 0L) {
+                    while (realCache.get(nodeId) != null) {
                         delay(10)
                     }
                 }

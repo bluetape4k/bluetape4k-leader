@@ -46,7 +46,8 @@ winner 계산을 같은 assertion으로 검증할 재사용 가능한 fixture가
 
 ### Provider-injectable abstract fixture
 
-`StrategicBackendConformanceProvider`는 다음 네 mode의 adapter를 만든다.
+`StrategicBackendConformanceProvider`는 `StrategicBackendKind`로 single/group을 구분하고,
+각 kind에 다음 두 execution adapter를 만든다.
 
 - blocking single
 - blocking group
@@ -54,9 +55,9 @@ winner 계산을 같은 assertion으로 검증할 재사용 가능한 fixture가
 - suspend group
 
 각 adapter는 public strategic interface를 얇게 감싸고, fixture가 필요한 backend test
-control인 `expireCandidate`와 `clear`를 provider가 담당한다. 만료를 wall clock sleep으로
-기다리도록 강제하지 않으므로 Redis, database, fake clock 구현이 각자의 안정적인 방법을
-선택할 수 있다.
+control인 `awaitCandidateExpiration`을 provider가 담당한다. 실제 backend는 bounded
+polling을, fake backend는 test clock 진행을 사용하되 관리 API 삭제로 TTL 계약을 우회하지
+않는다.
 
 `AbstractStrategicBackendConformanceTest`는 JUnit 5 testFixtures API다. 하위 테스트는
 `createProvider()`만 구현한다. 각 test는 새 provider를 만들고 `close()`를 정확히 한 번
@@ -72,7 +73,8 @@ matrix를 명시해 존재하지 않는 strategic async/virtual-thread API를 �
 ### Custom adapter 증명
 
 `leader-core` 테스트에 built-in Local 구현을 재사용하지 않는 test-only custom provider를
-작성한다. 이 provider는 shared concurrent store와 명시적 expiry control을 구현하고 새
+작성한다. 이 provider는 shared concurrent store와 실제 후보 부재를 확인하는 bounded
+expiry 대기를 구현하고 새
 fixture를 상속한다. 이 테스트는 외부 vendor를 도입하지 않으면서 provider 적용 방법과
 fixture 자체의 실행 가능성을 증명한다.
 
@@ -98,7 +100,7 @@ API로 새어 나온다. testFixtures 전용 범위를 지키기 위해 채택�
 
 - fixture는 backend의 저장 연산과 결과 상태를 검증하지만 성능이나 장애 복구를 자동
   보증하지 않는다.
-- provider는 test namespace, client lifecycle, expiry 강제 수단, test 종료 cleanup을
+- provider는 test namespace, client lifecycle, 실제 expiry 확인 수단, test 종료 cleanup을
   소유한다.
 - application은 custom backend의 credential, retry, timeout, provisioning을 계속 소유한다.
 - production strategic interface와 직렬화 형식은 변경하지 않는다.
@@ -128,7 +130,7 @@ interface와 abstract test class가 추가된다. 기존 consumer는 영향을 �
 | 실행 모델별 최소 계약 | strategic blocking/suspend와 lock async/virtual-thread capability matrix |
 | skip/null/result, refresh, expiry, cleanup | abstract fixture의 winner/loser, lifecycle, expiry, idempotent unregister 테스트 |
 | concurrent atomicity/linearizability | register/refresh/update/unregister 경합의 허용 최종 상태 명시 |
-| provider-injectable fixture | `StrategicBackendConformanceProvider`와 네 adapter factory |
+| provider-injectable fixture | `StrategicBackendConformanceProvider`와 kind별 blocking/suspend factory |
 | custom backend 적용 | test-only shared concurrent store provider |
 | core 문서/README 책임 구분 | 영문·한글 `leader-core` README 동시 갱신 |
 | test/detekt/ABI | targeted core/Redisson, detekt, binary compatibility 검증 |
@@ -140,14 +142,17 @@ exact spec을 여섯 관점으로 각각 검토했다. 독립 review provenance�
 
 | 관점 | 판정 | 근거와 처분 |
 |---|---|---|
-| 성능 | P0=0, P1=0 | bounded 반복만 사용하고 wall clock expiry 대기를 provider control로 분리 |
+| 성능 | P0=0, P1=0 | bounded 반복만 사용하고 actual-absence expiry 대기를 provider control로 분리 |
 | 안정성 | P0=0, P1=0 | 경합 최종 상태와 provider lifecycle을 명시; Redisson actual absence 대기 포함 |
 | 보안 | P0=0, P1=0 | credential/provisioning은 provider 책임이며 fixture에 secret surface 없음 |
 | 운영 | P0=0, P1=0 | capability와 미보증 범위를 README에 명시; production 관측 경로 변경 없음 |
 | 개발자/API | P0=0, P1=0 | 기존 abstract contract 관례를 재사용하고 production API 변경 없음 |
 | 사용자/caller | P0=0, P1=0 | 네 strategic mode와 async/virtual-thread 경계를 명시해 오용 방지 |
 
-통합 판정은 `P0=0`, `P1=0`이다. P2/P3 발견은 없다.
+초기 설계의 강제 삭제 방식은 TTL을 구현하지 않은 backend도 통과할 수 있는 안정성 P1로
+판정해 actual-absence 대기 계약으로 교체했다. 구현 중 `updateResult` 뒤 completion time까지
+보존한다고 가정한 assertion과 과도한 public cleanup hook은 각각 P2로 발견해 수정·삭제했다.
+수정 후 통합 판정은 `P0=0`, `P1=0`이며 미처리 finding은 없다.
 
 ## DoD
 
