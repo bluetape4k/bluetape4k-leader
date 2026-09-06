@@ -2,6 +2,10 @@ configurations {
     testImplementation.get().extendsFrom(compileOnly.get(), runtimeOnly.get())
 }
 
+kotlin.sourceSets.named("test") {
+    kotlin.srcDir(project(":bluetape4k-leader-exposed-core").file("src/sharedTest/kotlin"))
+}
+
 dependencies {
     api(project(":bluetape4k-leader-core"))
     api(project(":bluetape4k-leader-exposed-core"))

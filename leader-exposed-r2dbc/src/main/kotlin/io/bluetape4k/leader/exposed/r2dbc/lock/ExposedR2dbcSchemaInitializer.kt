@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
 import io.bluetape4k.leader.exposed.ExposedLeaderSchema
+import io.bluetape4k.leader.exposed.internal.redactDatabaseUrlForLog
+import io.bluetape4k.leader.identity.LeaderInternalApi
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -10,8 +12,6 @@ import kotlinx.coroutines.sync.withLock
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.SchemaUtils
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
-import java.net.URI
-import java.net.URISyntaxException
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -42,7 +42,7 @@ internal object ExposedR2dbcSchemaInitializer : KLoggingChannel() {
                         .forEach { sql -> exec(sql) }
                 }
             } catch (e: Throwable) {
-                log.warn(e) { "리더 선출 스키마 초기화 실패 (다음 호출 시 재시도): ${sanitizeUrl(dbKey)}" }
+                logInitializationFailure(dbKey, e)
                 throw e
             }
             initializedDbs[dbKey] = true
@@ -55,30 +55,14 @@ internal object ExposedR2dbcSchemaInitializer : KLoggingChannel() {
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
-    internal fun sanitizeUrl(url: String): String {
-        val (prefix, rest) = when {
-            url.startsWith("r2dbc:", ignoreCase = true) -> "r2dbc:" to url.substring(6)
-            else -> "" to url
-        }
-        return try {
-            val uri = URI(rest)
-            val rawUserInfo = uri.rawUserInfo
-            if (rawUserInfo.isNullOrEmpty()) return url
+    @OptIn(LeaderInternalApi::class)
+    internal fun sanitizeUrl(url: String): String =
+        redactDatabaseUrlForLog(url)
 
-            val sanitized = URI(
-                uri.scheme,
-                "***",
-                uri.host,
-                uri.port,
-                uri.path,
-                uri.query,
-                uri.fragment
-            ).toString()
-            prefix + sanitized
-        } catch (_: URISyntaxException) {
-            url
-        } catch (_: IllegalArgumentException) {
-            url
+    internal fun logInitializationFailure(url: String, error: Throwable) {
+        val errorType = error::class.qualifiedName ?: error::class.simpleName ?: "unknown"
+        log.warn {
+            "리더 선출 스키마 초기화 실패 (다음 호출 시 재시도): ${sanitizeUrl(url)}, errorType=$errorType"
         }
     }
 
