@@ -180,7 +180,7 @@ class LeaderEventStreamRouteTest {
             val frame = withTimeout(5.seconds) { responseJob.await() }
             frame shouldContain "event: heartbeat"
             withTimeout(5.seconds) {
-                while (hub.subscriberCount() != 0) yield()
+                hub.awaitSubscriberCount(0)
             }
         }
     }
@@ -342,7 +342,7 @@ class LeaderEventStreamRouteTest {
             first.cancelAndJoin()
             publisher.emit(LeaderElectionEvent.Skipped("job"))
             withTimeout(5.seconds) {
-                while (hub.subscriberCount() != 0) yield()
+                hub.awaitSubscriberCount(0)
             }
 
             val second = async {
@@ -430,11 +430,11 @@ class LeaderEventStreamRouteTest {
                 event shouldContain "\"lockName\":\"job\""
                 event shouldContain "\"leaderId\":\"node-ws\""
                 close(CloseReason(CloseReason.Codes.NORMAL, "test"))
+                withTimeout(5.seconds) { closeReason.await() }
             }
             wsClient.close()
-            publisher.emit(LeaderElectionEvent.Skipped("job"))
             withTimeout(5.seconds) {
-                while (hub.subscriberCount() != 0) yield()
+                hub.awaitSubscriberCount(0)
             }
         }
     }

@@ -170,6 +170,22 @@ class LeaderEventStreamHubTest {
     }
 
     @Test
+    fun `subscriber count barrier는 release 완료 전 0으로 통과하지 않는다`() = runTest {
+        val publisher = FakePublisher()
+        val hub = LeaderEventStreamHub(publisher, capacity = 2, scope = backgroundScope)
+        hub.awaitStarted()
+        val connection = hub.acquireConnection(lockName = "job", afterSequence = null)
+
+        val cleanup = launch { hub.awaitSubscriberCount(0) }
+        runCurrent()
+
+        cleanup.isCompleted shouldBeEqualTo false
+        hub.releaseConnection(connection)
+        cleanup.join()
+        hub.subscriberCount() shouldBeEqualTo 0
+    }
+
+    @Test
     fun `cancelled subscription은 connection permit을 반환한다`() = runTest {
         val publisher = FakePublisher()
         val hub = LeaderEventStreamHub(
