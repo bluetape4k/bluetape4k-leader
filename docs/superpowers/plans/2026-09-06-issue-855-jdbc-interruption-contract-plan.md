@@ -54,8 +54,8 @@ private harness를 만들고 네 parameterized test가 raw driver matrix와 Lead
 - [x] targeted class를 3회 반복하고 JUnit 건수/실패/skip을 기록한다.
 - [x] `:bluetape4k-leader-exposed-jdbc:test --rerun-tasks`를 실행한다.
 - [x] `detekt checkBinaryCompatibility`를 실행하고 production/public diff가 없음을 확인한다.
-- [ ] exact diff를 성능, 안정성, 보안, 운영, 개발자/API, 사용자/caller 관점으로 인라인 검토한다.
-- [ ] baseline finding과 처분, 검증 근거를 review와 lesson에 기록한다.
+- [x] exact diff를 성능, 안정성, 보안, 운영, 개발자/API, 사용자/caller 관점으로 인라인 검토한다.
+- [x] baseline finding과 처분, 검증 근거를 review와 lesson에 기록한다.
 - [ ] Lore commit, push, `develop` base PR 생성 후 exact-head CI/threads/mergeability를 확인한다.
 - [ ] 세 PR exact head를 묶은 fresh merge 승인 전에는 merge하지 않는다.
 
