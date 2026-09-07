@@ -90,7 +90,7 @@ class LettuceRedisClusterRecoveryTest {
             val slot = SlotHash.getSlot(key)
             val source = checkNotNull(client.partitions.getPartitionBySlot(slot))
             val sourcePort = portOf(server, source.nodeId)
-            val replica = client.partitions.first { it.slaveOf == source.nodeId }
+            val replica = awaitReplicaTopology(source.nodeId, evidence) { client.partitions }
             val replicaPort = portOf(server, replica.nodeId)
             RedisClusterServer.PORTS.forEach { port ->
                 cli(server, port, "CONFIG", "SET", "cluster-node-timeout", "1000") shouldBeEqualTo "OK"
