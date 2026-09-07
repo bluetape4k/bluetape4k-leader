@@ -4,6 +4,9 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.ktor.core.ApplicationResourceRegistry
+import io.bluetape4k.ktor.core.ApplicationResourceRegistryState
+import io.bluetape4k.ktor.core.installApplicationResourceLifecycle
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.ktor.server.application.install
@@ -79,6 +82,60 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
         registry.awaitClosed()
 
         closeCount.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `ApplicationStopped는 공통 lifecycle을 통해 Leader registry를 한 번 닫는다`() = runSuspendIO {
+        val closeCount = AtomicInteger(0)
+        lateinit var applicationRegistry: ApplicationResourceRegistry
+        lateinit var leaderRegistry: LeaderElectionResourceRegistry
+
+        testApplication {
+            application {
+                applicationRegistry = installApplicationResourceLifecycle()
+                install(LeaderElectionPlugin) {
+                    leaderElection = FakeSuspendLeaderElector()
+                }
+                leaderRegistry = leaderElectionResourceRegistryOrNull()!!
+                leaderRegistry.register(AutoCloseable { closeCount.incrementAndGet() })
+            }
+            startApplication()
+        }
+
+        leaderRegistry.awaitClosed()
+        applicationRegistry.closeReport.state shouldBeEqualTo ApplicationResourceRegistryState.CLOSED
+        applicationRegistry.closeReport.attempted shouldBeEqualTo 1
+        applicationRegistry.closeReport.closed shouldBeEqualTo 1
+        closeCount.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `공통 lifecycle 반복 close 뒤 Leader late registration은 즉시 닫힌다`() = runSuspendIO {
+        val regularCloseCount = AtomicInteger(0)
+        val lateCloseCount = AtomicInteger(0)
+        lateinit var applicationRegistry: ApplicationResourceRegistry
+        lateinit var leaderRegistry: LeaderElectionResourceRegistry
+
+        testApplication {
+            application {
+                applicationRegistry = installApplicationResourceLifecycle()
+                install(LeaderElectionPlugin) {
+                    leaderElection = FakeSuspendLeaderElector()
+                }
+                leaderRegistry = leaderElectionResourceRegistryOrNull()!!
+                leaderRegistry.register(AutoCloseable { regularCloseCount.incrementAndGet() })
+            }
+            startApplication()
+
+            applicationRegistry.close()
+            applicationRegistry.close()
+            leaderRegistry.register(AutoCloseable { lateCloseCount.incrementAndGet() })
+        }
+
+        leaderRegistry.awaitClosed()
+        applicationRegistry.closeReport.attempted shouldBeEqualTo 1
+        regularCloseCount.get() shouldBeEqualTo 1
+        lateCloseCount.get() shouldBeEqualTo 1
     }
 
     @Test

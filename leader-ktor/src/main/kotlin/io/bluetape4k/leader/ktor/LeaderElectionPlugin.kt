@@ -1,15 +1,15 @@
 package io.bluetape4k.leader.ktor
 
+import io.bluetape4k.ktor.core.installApplicationResourceLifecycle
 import io.bluetape4k.leader.LeaderElectionEventPublisher
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.ktor.stream.LeaderEventStreamHub
 import io.bluetape4k.leader.ktor.stream.toLeaderEventStreamConfig
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStarted
-import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.hooks.MonitoringEvent
 import io.ktor.server.application.install
@@ -33,6 +33,16 @@ val LeaderElectionPlugin = createApplicationPlugin(
     application.attributes.put(LeaderElectionConfigKey, config)
     val resourceRegistry = LeaderElectionResourceRegistryImpl()
     application.attributes.put(LeaderElectionResourceRegistryKey, resourceRegistry)
+    resourceRegistry.observeShutdown { report ->
+        LeaderElectionPluginInternals.log.info {
+            "LeaderElectionPlugin resource shutdown — " +
+                "attempted=${report.attempted}, closed=${report.closed}, " +
+                "failures=${report.failures}, timedOutJobs=${report.timedOutJobs}, " +
+                "timedOutResources=${report.timedOutResources}, " +
+                "failureKinds=${report.failureKinds}, timeoutKinds=${report.timeoutKinds}"
+        }
+    }
+    application.installApplicationResourceLifecycle().register(resourceRegistry)
 
     val eventStreamConfig = config.toLeaderEventStreamConfig()
     if (eventStreamConfig.eventStreamRouteEnabled) {
@@ -101,19 +111,6 @@ val LeaderElectionPlugin = createApplicationPlugin(
         LeaderElectionPluginInternals.log.info {
             "LeaderElectionPlugin 시작 — application=${application.javaClass.simpleName}"
         }
-    }
-
-    on(MonitoringEvent(ApplicationStopped)) { _ ->
-        resourceRegistry.observeShutdown { report ->
-            LeaderElectionPluginInternals.log.info {
-                "LeaderElectionPlugin resource shutdown — " +
-                    "attempted=${report.attempted}, closed=${report.closed}, " +
-                    "failures=${report.failures}, timedOutJobs=${report.timedOutJobs}, " +
-                    "timedOutResources=${report.timedOutResources}, " +
-                    "failureKinds=${report.failureKinds}, timeoutKinds=${report.timeoutKinds}"
-            }
-        }
-        resourceRegistry.close()
     }
 }
 
