@@ -22,28 +22,26 @@ import kotlin.time.Duration
  *
  * `maxLeaders`는 관찰한 후보 기준 목록의 선택 수이며 전역 동시 실행 상한이 아닙니다.
  */
-class LettuceStrategicLeaderGroupElector private constructor(
-    private val registry: LettuceCandidateRegistry,
-    override val nodeId: String,
+class LettuceStrategicLeaderGroupElector @JvmOverloads constructor(
+    connection: StatefulRedisConnection<String, String>,
+    override val nodeId: String = Uuid.V7.nextBase62(),
 ) : StrategicLeaderGroupElector {
 
-    @JvmOverloads
-    constructor(
-        connection: StatefulRedisConnection<String, String>,
-        nodeId: String = Uuid.V7.nextBase62(),
-    ) : this(
-        LettuceCandidateRegistry(connection, LettuceCandidateRegistry.GROUP_KEY_PREFIX),
-        nodeId,
-    )
+    private lateinit var registry: LettuceCandidateRegistry
+
+    init {
+        if (connection !== LettuceStrategicConstructorSupport.clusterPrimaryConnection) {
+            registry = LettuceCandidateRegistry(connection, LettuceCandidateRegistry.GROUP_KEY_PREFIX)
+        }
+    }
 
     @JvmOverloads
     constructor(
         connection: StatefulRedisClusterConnection<String, String>,
         nodeId: String = Uuid.V7.nextBase62(),
-    ) : this(
-        LettuceCandidateRegistry(connection, LettuceCandidateRegistry.GROUP_KEY_PREFIX),
-        nodeId,
-    )
+    ) : this(LettuceStrategicConstructorSupport.clusterPrimaryConnection, nodeId) {
+        registry = LettuceCandidateRegistry(connection, LettuceCandidateRegistry.GROUP_KEY_PREFIX)
+    }
 
     companion object : KLogging()
 
