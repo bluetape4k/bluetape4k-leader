@@ -22,7 +22,6 @@ import org.awaitility.kotlin.until
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
@@ -504,7 +503,7 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
     private companion object {
         const val KEY_PREFIX = LettuceCandidateRegistry.DEFAULT_KEY_PREFIX
         const val INJECTED_FAILURE = "injected legacy cleanup failure"
-        val FRESH_TTL = 150.milliseconds
+        val FRESH_TTL = 1.seconds
         val LEGACY_TTL = 30.seconds
     }
 }
