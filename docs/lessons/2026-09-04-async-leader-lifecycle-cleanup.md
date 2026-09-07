@@ -14,6 +14,11 @@ Issue #890에서는 같은 계약이 nullable `runAsyncIfLeader` 경로에 적�
 `CompletableFuture.supplyAsync { action().join() }`을 직접 반환해, 호출자가 반환
 future를 취소해도 실제 action future가 계속 실행됐습니다.
 
+Issue #900에서는 action future의 terminal callback이 lease cleanup을 어느
+스레드에서 실행하는지 점검했습니다. 비동기 suffix가 없는 `handle`은 future를
+완료한 스레드에서 callback을 실행할 수 있습니다. callback 안의 `minLeaseTime`
+대기와 backend 요청 때문에 사용자 event loop가 멈출 수 있었습니다.
+
 ## 원인
 
 - 결과 future의 취소 대상이 바깥쪽 source future에만 연결되어 실제 action
@@ -27,6 +32,9 @@ future를 취소해도 실제 action future가 계속 실행됐습니다.
 - `CompletableFuture.handle`은 실패 시 value를 `null`로 전달합니다. terminal
   mapper가 value를 non-null `T`로 선언하면 lambda 진입 전에 Kotlin NPE가 발생해
   원래 cancellation이나 backend 예외를 가립니다.
+- action 완료와 cleanup 완료의 순서는 필요하지만, 같은 스레드에서 연속 실행할
+  필요는 없습니다. 두 조건을 동일시해 사용자 completion thread가 blocking
+  cleanup까지 떠맡았습니다.
 
 ## 결정
 
@@ -44,6 +52,11 @@ future를 취소해도 실제 action future가 계속 실행됐습니다.
   하나만 lifecycle 소유권을 얻습니다.
 - `LeaderFutureBridge.map`과 `flatMap`의 terminal value 계약을 `T?`로 바꿔
   `value == null && failure != null`인 표준 `CompletableFuture` 실패를 보존합니다.
+- Etcd, Consul, Kubernetes의 단일/group async 경로는 action completion callback에서
+  cleanup을 caller executor와 독립된 backend 전용 virtual thread로 넘깁니다.
+  thread 시작이 거부되면 fallback 경로에서도 cleanup을 exactly-once로 실행하고,
+  cleanup이 끝난 뒤에만 결과 future를 완료합니다. action과 cleanup이 모두 실패하면
+  action 실패를 주 예외로 유지하고 cleanup 실패를 suppressed exception으로 남깁니다.
 
 ## 결과와 검증
 
@@ -70,6 +83,16 @@ nullable API를 함께 확인했습니다. core 1,045개, ZooKeeper 102개, Dyna
 `RejectedExecutionException`을 즉시 보존하는 계약도 core contract test로
 고정했습니다.
 
+Issue #900 회귀 검증은 이름이 지정된 single-thread event loop에서 action future를
+완료한 다음, blocking cleanup과 별개로 probe task가 진행되는지 확인합니다. Etcd
+161개, Consul 157개, Kubernetes unit 20개와 K3s 103개가 모두 통과했습니다.
+cleanup 실행을 거부하는 test executor에서도 각 backend dispatcher의 cleanup이 한
+번만 실행되고 결과 future가 terminal 상태에 도달했습니다. cleanup까지 실패하는
+경우에는 원래 action 실패가 보존됩니다. 전체 `detekt`와 binary
+compatibility gate도 통과했으며 ABI inventory는 artifacts 16, ignored 1,
+unknown 0입니다. ignored 1건은 기존 Lettuce compiler-generated synthetic
+accessor 분류입니다.
+
 ## 놓친 가정과 향후 지침
 
 `CompletableFuture.cancel()`은 연결된 비동기 작업 전체를 자동으로 취소하지
@@ -80,6 +103,11 @@ cleanup의 ownership을 각각 확인해야 합니다.
 함께 검증합니다. acquire 뒤 비동기 제출이 있는 backend는 executor rejection을
 별도 terminal 경로로 취급하고, 원래 실패가 관찰되기 전에 cleanup이 끝나는지도
 검증합니다.
+
+completion thread 격리 테스트는 임의의 `sleep` 대신 cleanup 진입·해제 latch를
+사용합니다. cleanup이 막힌 동안 event-loop probe가 진행되고 결과 future는 아직
+완료되지 않았음을 함께 검증해야 합니다. cleanup executor rejection 테스트는
+release call count뿐 아니라 fallback 뒤 terminal completion도 확인합니다.
 
 리뷰 운영에서도 P1 발견을 issue-only closeout으로 넘기지 않습니다. P0/P1은 현재
 delivery를 막고 먼저 수정하며, 독립 review lane이 응답 없이 멈추거나 실행되지

@@ -197,7 +197,7 @@ class ConsulLeaderGroupElector private constructor(
         val releaseIfUnclaimed: () -> Unit = {
             val handle = acquiredRef.get()
             if (handle != null && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                release(handle)
+                AsyncLeaseCleanupDispatcher.execute { release(handle) }
             }
         }
         val acquisitionFuture = CompletableFuture.supplyAsync({
@@ -214,7 +214,7 @@ class ConsulLeaderGroupElector private constructor(
                         CancellationException("leader result future was cancelled before action"),
                     )
                 } else {
-                    runAcquiredAsync(handle, executor, action)
+                    runAcquiredAsync(handle, action)
                 }
             }, executor)
         } catch (error: Throwable) {
@@ -235,7 +235,6 @@ class ConsulLeaderGroupElector private constructor(
     @Suppress("ReturnCount", "TooGenericExceptionCaught")
     private fun <T> runAcquiredAsync(
         handle: ConsulLeaseHandle,
-        executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val delegate = ConsulLockExtendDelegate(lockClient, handle)
@@ -248,20 +247,24 @@ class ConsulLeaderGroupElector private constructor(
                 classifier = ConsulLeaderElector.ERROR_CLASSIFIER,
             )
         } catch (e: Throwable) {
-            release(handle)
-            return CompletableFuture.failedFuture(e)
+            return AsyncLeaseCleanupDispatcher.failAfter(e) { release(handle) }
         }
         val actionFuture = try {
             action()
         } catch (e: Throwable) {
-            watchdog.close()
-            release(handle)
-            return CompletableFuture.failedFuture(e)
+            return AsyncLeaseCleanupDispatcher.failAfter(e) {
+                watchdog.close()
+                release(handle)
+            }
         }
 
-        return actionFuture.handle { value, failure ->
-            watchdog.close()
-            release(handle)
+        return AsyncLeaseCleanupDispatcher.completeAfter(
+            source = actionFuture,
+            cleanup = {
+                watchdog.close()
+                release(handle)
+            },
+        ) { value, failure ->
             val cause = failure.unwrapCompletionException()
             if (cause != null) {
                 throw CompletionException(cause)

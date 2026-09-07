@@ -179,7 +179,9 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val releaseIfUnclaimed: () -> Unit = {
             if (lockAcquired.get() && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                release(lock, acquiredAtNanosRef.get(), lockName)
+                AsyncLeaseCleanupDispatcher.execute {
+                    release(lock, acquiredAtNanosRef.get(), lockName)
+                }
             }
         }
         val acquisitionFuture = CompletableFuture.supplyAsync({
@@ -200,10 +202,11 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
                     )
                 } else {
                     try {
-                        runAcquiredAsync(lockName, lock, acquiredAtNanosRef.get(), executor, action)
+                        runAcquiredAsync(lockName, lock, acquiredAtNanosRef.get(), action)
                     } catch (error: Throwable) {
-                        release(lock, acquiredAtNanosRef.get(), lockName)
-                        CompletableFuture.failedFuture(error)
+                        AsyncLeaseCleanupDispatcher.failAfter(error) {
+                            release(lock, acquiredAtNanosRef.get(), lockName)
+                        }
                     }
                 }
             }, executor)
@@ -227,7 +230,6 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
         lockName: String,
         lock: KubernetesLeaseLock,
         acquiredAtNanos: Long,
-        executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val delegate = KubernetesLeaseLockExtendDelegate(lock)
@@ -239,20 +241,24 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
                 ERROR_CLASSIFIER,
             )
         } catch (e: Throwable) {
-            release(lock, acquiredAtNanos, lockName)
-            return CompletableFuture.failedFuture(e)
+            return AsyncLeaseCleanupDispatcher.failAfter(e) { release(lock, acquiredAtNanos, lockName) }
         }
         val actionFuture = try {
             action()
         } catch (e: Throwable) {
-            watchdog.close()
-            release(lock, acquiredAtNanos, lockName)
-            return CompletableFuture.failedFuture(e)
+            return AsyncLeaseCleanupDispatcher.failAfter(e) {
+                watchdog.close()
+                release(lock, acquiredAtNanos, lockName)
+            }
         }
 
-        return actionFuture.handle { value, failure ->
-            watchdog.close()
-            release(lock, acquiredAtNanos, lockName)
+        return AsyncLeaseCleanupDispatcher.completeAfter(
+            source = actionFuture,
+            cleanup = {
+                watchdog.close()
+                release(lock, acquiredAtNanos, lockName)
+            },
+        ) { value, failure ->
             val cause = failure.unwrapCompletionException()
             if (cause != null) {
                 throw cause
