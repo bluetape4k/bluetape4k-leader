@@ -12,7 +12,6 @@ import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
 import kotlinx.coroutines.delay
@@ -55,9 +54,7 @@ internal class ExposedR2dbcLock internal constructor(
     private val lockOwner: String? = null,
     private val useDbTime: Boolean = false,
 ) {
-    companion object: KLoggingChannel() {
-        private val ACQUISITION_CLEANUP_TIMEOUT = 1.seconds
-    }
+    companion object: KLoggingChannel()
 
     /**
      * `token` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
@@ -174,11 +171,9 @@ internal class ExposedR2dbcLock internal constructor(
     ) {
         try {
             withContext(NonCancellable) {
-                withTimeout(ACQUISITION_CLEANUP_TIMEOUT) {
-                    suspendTransaction(db) {
-                        LeaderLockTable.deleteWhere {
-                            (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal)
-                        }
+                suspendTransaction(db) {
+                    LeaderLockTable.deleteWhere {
+                        (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal)
                     }
                 }
             }
