@@ -360,6 +360,9 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
             await.atMost(2.seconds).untilAsserted {
                 actionFuture.isCancelled.shouldBeTrue()
             }
+            await.atMost(2.seconds).untilAsserted {
+                lockCollection.countDocuments(Filters.eq("_id", lockName)) shouldBeEqualTo 0L
+            }
             election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             actionFuture.cancel(false)

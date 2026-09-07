@@ -30,6 +30,7 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
@@ -182,9 +183,9 @@ class MongoLeaderGroupElector private constructor(
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
 
         val rejectionCleanup = AsyncSlotRejectionCleanup(lockName)
-        val acquisitionFuture = acquireSlotAsync(lockName, start, perSlotWait, leaseTime).thenApply { acquired ->
+        val acquisitionFuture = acquireSlotAsync(lockName, start, perSlotWait, leaseTime)
+        acquisitionFuture.whenComplete { acquired, _ ->
             if (acquired != null) rejectionCleanup.markAcquired(acquired)
-            acquired
         }
         val pipelineFuture = acquisitionFuture.thenComposeAsync({ acquired ->
             if (acquired == null) {
@@ -192,6 +193,7 @@ class MongoLeaderGroupElector private constructor(
                 CompletableFuture.completedFuture(null)
             } else {
                 val (lock, slot) = acquired
+                rejectionCleanup.markAcquired(acquired)
                 val acquiredAtNanos = rejectionCleanup.acquiredAtNanos
                 if (!rejectionCleanup.markLifecycleStarted()) {
                     CompletableFuture.failedFuture(
@@ -204,8 +206,9 @@ class MongoLeaderGroupElector private constructor(
                 }
             }
         }, executor)
-        acquisitionFuture.whenComplete { acquired, _ ->
-            if (acquired != null && pipelineFuture.isCancelled) {
+        pipelineFuture.whenComplete { _, _ ->
+            if (pipelineFuture.isCancelled) {
+                acquisitionFuture.cancel(true)
                 rejectionCleanup.release<Any?>(
                     CancellationException("leader group result future was cancelled before action"),
                 )
@@ -244,21 +247,29 @@ class MongoLeaderGroupElector private constructor(
             watchdog.close()
             return releaseAcquiredSlot(lock, lockName, slot, acquiredAtNanos, error)
         }
-        return actionFuture.whenComplete { _, failure ->
+        return AsyncLeaseCleanupDispatcher.completeAfter(
+            source = actionFuture,
+            cleanup = { watchdog.close() },
+        ) { value, failure ->
             val finishedAt = Instant.now()
             val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-            if (failure == null) {
-                recordCompleted(historyKey, finishedAt, durationMs)
-            } else {
-                recordFailed(historyKey, finishedAt, durationMs, failure)
-            }
-            watchdog.close()
-            runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
-                .onSuccess { log.debug { "비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
-                .onFailure { error ->
-                    log.warn(error) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+            val cause = failure?.unwrapCompletionCause()
+            try {
+                when {
+                    cause == null -> recordCompleted(historyKey, finishedAt, durationMs)
+                    cause is CancellationException -> Unit
+                    else -> recordFailed(historyKey, finishedAt, durationMs, cause)
                 }
-        }.thenApply<T?> { it }
+            } finally {
+                runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
+                    .onSuccess { log.debug { "비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
+                    .onFailure { error ->
+                        log.warn(error) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+                    }
+            }
+            if (cause != null) throw cause
+            value
+        }
     }
 
     private fun <T> releaseAcquiredSlot(
@@ -268,41 +279,59 @@ class MongoLeaderGroupElector private constructor(
         acquiredAtNanos: Long,
         failure: Throwable,
     ): CompletableFuture<T?> {
-        runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
-            .onFailure { error ->
-                failure.addSuppressed(error)
-                log.warn(error) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
-            }
-        return CompletableFuture.failedFuture(failure)
+        return AsyncLeaseCleanupDispatcher.failAfter(failure) {
+            runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
+                .onSuccess { log.debug { "비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
+                .onFailure { error ->
+                    failure.addSuppressed(error)
+                    log.warn(error) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+                }
+        }
     }
 
     private inner class AsyncSlotRejectionCleanup(
         private val lockName: String,
     ) {
         private val acquired = AtomicReference<Pair<MongoLock, Int>?>()
+        private val cleanupStarted = AtomicBoolean()
         private val acquiredAtNanosRef = AtomicLong()
         private val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
 
         val acquiredAtNanos: Long get() = acquiredAtNanosRef.get()
 
         fun markAcquired(acquiredSlot: Pair<MongoLock, Int>) {
-            acquiredAtNanosRef.set(System.nanoTime())
-            acquired.set(acquiredSlot)
+            if (acquired.compareAndSet(null, acquiredSlot)) {
+                acquiredAtNanosRef.set(System.nanoTime())
+                if (lifecycle.get() == AsyncLifecycle.CLEANUP && cleanupStarted.compareAndSet(false, true)) {
+                    scheduleLateCleanup(acquiredSlot)
+                }
+            }
         }
 
         fun markLifecycleStarted(): Boolean =
             lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)
 
         fun <T> release(failure: Throwable): CompletableFuture<T?> {
-            val acquiredSlot = acquired.get()
-            if (
-                acquiredSlot != null &&
-                lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)
-            ) {
-                val (lock, slot) = acquiredSlot
-                return releaseAcquiredSlot(lock, lockName, slot, acquiredAtNanos, failure)
+            if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
+                return CompletableFuture.failedFuture(failure)
             }
-            return CompletableFuture.failedFuture(failure)
+            val acquiredSlot = acquired.get()
+            return if (acquiredSlot != null && cleanupStarted.compareAndSet(false, true)) {
+                val (lock, slot) = acquiredSlot
+                releaseAcquiredSlot(lock, lockName, slot, acquiredAtNanos, failure)
+            } else {
+                CompletableFuture.failedFuture(failure)
+            }
+        }
+
+        private fun scheduleLateCleanup(acquiredSlot: Pair<MongoLock, Int>) {
+            val (lock, slot) = acquiredSlot
+            AsyncLeaseCleanupDispatcher.execute {
+                runCatching { lock.unlock() }
+                    .onFailure { error ->
+                        log.warn(error) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+                    }
+            }
         }
     }
 
@@ -315,30 +344,90 @@ class MongoLeaderGroupElector private constructor(
         CLEANUP,
     }
 
+    @Suppress("CyclomaticComplexMethod")
     private fun acquireSlotAsync(
         lockName: String,
         start: Int,
         perSlotWait: Duration,
         leaseTime: Duration,
     ): CompletableFuture<Pair<MongoLock, Int>?> {
+        val currentStage = AtomicReference<CompletableFuture<*>?>()
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        val cancellationTarget = object : CompletableFuture<Unit>() {
+            override fun cancel(mayInterruptIfRunning: Boolean): Boolean {
+                currentStage.get()?.cancel(mayInterruptIfRunning)
+                return super.cancel(mayInterruptIfRunning)
+            }
+        }
+        cancellationRelay.invoke { cancellationTarget }
+        val resultSource = CompletableFuture<Pair<MongoLock, Int>?>()
+        val result = LeaderFutureBridge.propagateCancellation(resultSource, cancellationRelay)
+
+        fun complete(value: Pair<MongoLock, Int>?): Boolean {
+            val completed = result.complete(value)
+            resultSource.complete(value)
+            return completed
+        }
+
+        fun completeExceptionally(failure: Throwable): Boolean {
+            val completed = result.completeExceptionally(failure)
+            resultSource.completeExceptionally(failure)
+            return completed
+        }
+
+        fun registerStage(stage: CompletableFuture<*>): Boolean {
+            currentStage.set(stage)
+            if (result.isDone && currentStage.compareAndSet(stage, null)) {
+                stage.cancel(true)
+                return false
+            }
+            return true
+        }
+
+        fun releaseLateAcquisition(lock: MongoLock, released: AtomicBoolean) {
+            if (released.compareAndSet(false, true)) {
+                AsyncLeaseCleanupDispatcher.execute {
+                    runCatching { lock.unlock() }
+                        .onFailure { error ->
+                            log.warn(error) { "취소된 async 그룹 슬롯 획득을 반납하지 못했습니다." }
+                        }
+                }
+            }
+        }
+
         fun attempt(offset: Int): CompletableFuture<Pair<MongoLock, Int>?> {
-            if (offset >= maxLeaders) {
-                return CompletableFuture.completedFuture(null)
+            if (result.isDone) {
+                return result
             }
 
             val slot = (start + offset) % maxLeaders
             val lock = MongoLock(groupCollection, slotKey(lockName, slot), options.retryDelay)
-            return lock.tryLockAsync(perSlotWait, leaseTime)
-                .thenCompose { acquired ->
-                    if (acquired) {
-                        CompletableFuture.completedFuture(lock to slot)
-                    } else {
-                        attempt(offset + 1)
-                    }
+            val lateRelease = AtomicBoolean()
+            val acquisition = lock.tryLockAsync(perSlotWait, leaseTime)
+            registerStage(acquisition)
+            acquisition.whenComplete { acquired, failure ->
+                currentStage.compareAndSet(acquisition, null)
+                if (failure != null) {
+                    if (!result.isDone) completeExceptionally(failure)
+                    return@whenComplete
                 }
+                if (result.isCancelled) {
+                    if (acquired) releaseLateAcquisition(lock, lateRelease)
+                    return@whenComplete
+                }
+                if (acquired) {
+                    if (!complete(lock to slot)) releaseLateAcquisition(lock, lateRelease)
+                } else if (offset + 1 >= maxLeaders) {
+                    complete(null)
+                } else {
+                    attempt(offset + 1)
+                }
+            }
+            return result
         }
 
-        return attempt(0)
+        attempt(0)
+        return result
     }
 
     private fun recordAcquired(

@@ -147,17 +147,19 @@ class MongoLeaderElector private constructor(
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
 
         val rejectionCleanup = AsyncLockRejectionCleanup(lock, lockName)
-        val acquisitionFuture = lock
-            .tryLockAsync(options.leaderOptions.waitTime, options.leaderOptions.leaseTime)
-            .thenApply { acquired ->
-                if (acquired) rejectionCleanup.markAcquired()
-                acquired
-            }
+        val acquisitionFuture = lock.tryLockAsync(
+            options.leaderOptions.waitTime,
+            options.leaderOptions.leaseTime,
+        )
+        acquisitionFuture.whenComplete { acquired, _ ->
+            if (acquired == true) rejectionCleanup.markAcquired()
+        }
         val pipelineFuture = acquisitionFuture.thenComposeAsync({ acquired ->
             if (!acquired) {
                 log.debug { "리더 승격 실패 (슬롯 없음, 비동기). lockName=$lockName" }
                 CompletableFuture.completedFuture(null)
             } else {
+                rejectionCleanup.markAcquired()
                 if (!rejectionCleanup.markLifecycleStarted()) {
                     CompletableFuture.failedFuture(CancellationException("leader action was cancelled before start"))
                 } else try {
@@ -167,8 +169,9 @@ class MongoLeaderElector private constructor(
                 }
             }
         }, executor)
-        acquisitionFuture.whenComplete { acquired, _ ->
-            if (acquired == true && pipelineFuture.isCancelled) {
+        pipelineFuture.whenComplete { _, _ ->
+            if (pipelineFuture.isCancelled) {
+                acquisitionFuture.cancel(true)
                 rejectionCleanup.release<Any?>(
                     CancellationException("leader result future was cancelled before action"),
                 )
@@ -221,19 +224,27 @@ class MongoLeaderElector private constructor(
             effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, error) }
             return releaseAcquiredLock(lock, lockName, acquiredAtNanos, error)
         }
-        return actionFuture.whenComplete { _, failure ->
-            watchdog.close()
+        return AsyncLeaseCleanupDispatcher.completeAfter(
+            source = actionFuture,
+            cleanup = { watchdog.close() },
+        ) { value, failure ->
             val finishedAt = Instant.now()
             val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-            when {
-                failure == null -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
-                failure is CancellationException -> Unit
-                else -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, failure) }
+            val cause = failure?.unwrapCompletionCause()
+            try {
+                when {
+                    cause == null -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
+                    cause is CancellationException -> Unit
+                    else -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, cause) }
+                }
+            } finally {
+                runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
+                    .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
+                    .onFailure { error -> log.warn(error) { "비동기 락 해제 실패. lockName=$lockName" } }
             }
-            runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
-                .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
-                .onFailure { error -> log.warn(error) { "비동기 락 해제 실패. lockName=$lockName" } }
-        }.thenApply<T?> { it }
+            if (cause != null) throw cause
+            value
+        }
     }
 
     private fun <T> releaseAcquiredLock(
@@ -242,12 +253,14 @@ class MongoLeaderElector private constructor(
         acquiredAtNanos: Long,
         failure: Throwable,
     ): CompletableFuture<T?> {
-        runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
-            .onFailure { error ->
-                failure.addSuppressed(error)
-                log.warn(error) { "비동기 락 해제 실패. lockName=$lockName" }
-            }
-        return CompletableFuture.failedFuture(failure)
+        return AsyncLeaseCleanupDispatcher.failAfter(failure) {
+            runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
+                .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
+                .onFailure { error ->
+                    failure.addSuppressed(error)
+                    log.warn(error) { "비동기 락 해제 실패. lockName=$lockName" }
+                }
+        }
     }
 
     private inner class AsyncLockRejectionCleanup(
@@ -255,25 +268,41 @@ class MongoLeaderElector private constructor(
         private val lockName: String,
     ) {
         private val acquired = AtomicBoolean()
+        private val cleanupStarted = AtomicBoolean()
         private val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         private val acquiredAtNanosRef = AtomicLong()
 
         val acquiredAtNanos: Long get() = acquiredAtNanosRef.get()
 
         fun markAcquired() {
-            acquiredAtNanosRef.set(System.nanoTime())
-            acquired.set(true)
+            if (acquired.compareAndSet(false, true)) {
+                acquiredAtNanosRef.set(System.nanoTime())
+                if (lifecycle.get() == AsyncLifecycle.CLEANUP && cleanupStarted.compareAndSet(false, true)) {
+                    scheduleLateCleanup()
+                }
+            }
         }
 
         fun markLifecycleStarted(): Boolean =
             lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)
 
-        fun <T> release(failure: Throwable): CompletableFuture<T?> =
-            if (acquired.get() && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
+        fun <T> release(failure: Throwable): CompletableFuture<T?> {
+            if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
+                return CompletableFuture.failedFuture(failure)
+            }
+            return if (acquired.get() && cleanupStarted.compareAndSet(false, true)) {
                 releaseAcquiredLock(lock, lockName, acquiredAtNanos, failure)
             } else {
                 CompletableFuture.failedFuture(failure)
             }
+        }
+
+        private fun scheduleLateCleanup() {
+            AsyncLeaseCleanupDispatcher.execute {
+                runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
+                    .onFailure { error -> log.warn(error) { "비동기 락 해제 실패. lockName=$lockName" } }
+            }
+        }
     }
 
     private fun Throwable.unwrapCompletionCause(): Throwable =
