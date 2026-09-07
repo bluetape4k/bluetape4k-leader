@@ -10,8 +10,9 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
 import kotlinx.coroutines.delay
@@ -54,7 +55,9 @@ internal class ExposedR2dbcLock internal constructor(
     private val lockOwner: String? = null,
     private val useDbTime: Boolean = false,
 ) {
-    companion object: KLoggingChannel()
+    companion object: KLoggingChannel() {
+        private val ACQUISITION_CLEANUP_TIMEOUT = 1.seconds
+    }
 
     /**
      * `token` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
@@ -158,25 +161,40 @@ internal class ExposedR2dbcLock internal constructor(
                 true
             }
         } catch (e: CancellationException) {
-            cleanupAcquisitionAfterCancellation(lockNameVal, tokenVal)
+            cleanupAcquisitionAfterCancellation(lockNameVal, tokenVal, e)
             throw e
         }
     }
 
     @Suppress("TooGenericExceptionCaught")
-    private suspend fun cleanupAcquisitionAfterCancellation(lockNameVal: String, tokenVal: String) {
-        withContext(NonCancellable) {
-            try {
-                suspendTransaction(db) {
-                    LeaderLockTable.deleteWhere {
-                        (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal)
+    private suspend fun cleanupAcquisitionAfterCancellation(
+        lockNameVal: String,
+        tokenVal: String,
+        cancellation: CancellationException,
+    ) {
+        try {
+            withContext(NonCancellable) {
+                withTimeout(ACQUISITION_CLEANUP_TIMEOUT) {
+                    suspendTransaction(db) {
+                        LeaderLockTable.deleteWhere {
+                            (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal)
+                        }
                     }
                 }
-            } catch (cleanupFailure: Throwable) {
-                log.warn(cleanupFailure) {
-                    "취소된 R2DBC 락 획득 보상 정리 실패: lockName=$lockNameVal, token=${tokenVal.take(8)}"
-                }
             }
+        } catch (cleanupFailure: Exception) {
+            cancellation.addSuppressedSafely(cleanupFailure)
+            log.warn(cleanupFailure) {
+                "취소된 R2DBC 락 획득 보상 정리 실패: " +
+                        "lockName=$lockNameVal, token=${tokenVal.take(8)}, " +
+                        "failure=${cleanupFailure::class.simpleName}"
+            }
+        }
+    }
+
+    private fun Throwable.addSuppressedSafely(cause: Throwable) {
+        if (cause !== this && suppressed.none { it === cause }) {
+            addSuppressed(cause)
         }
     }
 

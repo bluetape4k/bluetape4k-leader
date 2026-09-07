@@ -25,11 +25,13 @@ import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.statements.GlobalSuspendStatementInterceptor
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
@@ -334,7 +336,7 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
             ),
             retryStrategy = RetryStrategy.Fixed(10L),
         )
-        val interceptor = CancelAfterAcquisitionCommit()
+        val interceptor = CancelAfterAcquisitionCommit(db) {}
         R2dbcTransaction.globalInterceptors += interceptor
 
         try {
@@ -355,6 +357,64 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
             withTimeout(1.seconds) {
                 ExposedR2DbcSuspendLeaderElector(db, options).runIfLeader(lockName) { "reacquired" }
             } shouldBeEqualTo "reacquired"
+        } finally {
+            R2dbcTransaction.globalInterceptors.remove(interceptor)
+            cleanTables(db)
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `acquisition cleanup failure는 원래 cancellation에 suppressed 된다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val cleanupFailure = IllegalStateException("deterministic cleanup failure")
+        val interceptor = CancelAfterAcquisitionCommit(db) { throw cleanupFailure }
+        R2dbcTransaction.globalInterceptors += interceptor
+
+        try {
+            val cancellation = assertFailsWith<CancellationException> {
+                ExposedR2DbcSuspendLeaderElector(db).runIfLeader(lockName) {
+                    error("action must not run after acquisition cancellation")
+                }
+            }
+
+            cancellation.suppressed.single().shouldBeInstanceOf<IllegalStateException>()
+            cancellation.suppressed.single().message shouldBeEqualTo cleanupFailure.message
+            R2dbcTransaction.globalInterceptors.remove(interceptor)
+            ExposedR2DbcSuspendLeaderElector(db).runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+        } finally {
+            R2dbcTransaction.globalInterceptors.remove(interceptor)
+            cleanTables(db)
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `acquisition cleanup timeout은 원래 cancellation에 suppressed 된다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val cleanupTimeout = IllegalStateException("deterministic cleanup timeout")
+        val interceptor = CancelAfterAcquisitionCommit(db) {
+            throw cleanupTimeout
+        }
+        R2dbcTransaction.globalInterceptors += interceptor
+
+        try {
+            val cancellation = assertFailsWith<CancellationException> {
+                withTimeout(30.seconds) {
+                    ExposedR2DbcSuspendLeaderElector(db).runIfLeader(lockName) {
+                        error("action must not run after acquisition cancellation")
+                    }
+                }
+            }
+
+            cancellation.suppressed.single().shouldBeInstanceOf<IllegalStateException>()
+            cancellation.suppressed.single().message shouldBeEqualTo cleanupTimeout.message
+            R2dbcTransaction.globalInterceptors.remove(interceptor)
+            ExposedR2DbcSuspendLeaderElector(db).runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             R2dbcTransaction.globalInterceptors.remove(interceptor)
             cleanTables(db)
@@ -409,13 +469,20 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
         }
     }
 
-    private class CancelAfterAcquisitionCommit : GlobalSuspendStatementInterceptor {
+    private class CancelAfterAcquisitionCommit(
+        private val targetDb: R2dbcDatabase,
+        private val onCleanupCommit: suspend () -> Unit,
+    ) : GlobalSuspendStatementInterceptor {
         private val cancelled = AtomicBoolean()
 
         override suspend fun afterCommit(transaction: R2dbcTransaction) {
+            if (transaction.db !== targetDb) return
+
             if (cancelled.compareAndSet(false, true)) {
                 throw CancellationException("cancel after acquisition commit")
             }
+
+            onCleanupCommit()
         }
     }
 }
