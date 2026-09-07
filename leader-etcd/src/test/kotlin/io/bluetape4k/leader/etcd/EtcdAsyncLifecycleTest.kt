@@ -29,6 +29,79 @@ import kotlin.time.Duration.Companion.seconds
 class EtcdAsyncLifecycleTest {
 
     @Test
+    fun `single action completion keeps named event loop free while cleanup is blocked`() {
+        val blocker = CleanupBlocker()
+        val client = StatefulEtcdLockClient(cleanupBlocker = blocker)
+
+        assertCompletionThreadIsolated(blocker) { executor, actionFuture, actionStarted ->
+            EtcdLeaderElector.create(client, singleOptions())
+                .runAsyncIfLeader("lock-a", executor) {
+                    actionStarted.countDown()
+                    actionFuture
+                }
+        }
+
+        client.unlockCalls.get() shouldBeEqualTo 1
+        client.revokeCalls.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `group action completion keeps named event loop free while cleanup is blocked`() {
+        val blocker = CleanupBlocker()
+        val client = StatefulEtcdLockClient(cleanupBlocker = blocker)
+
+        assertCompletionThreadIsolated(blocker) { executor, actionFuture, actionStarted ->
+            EtcdLeaderGroupElector.create(client, groupOptions())
+                .runAsyncIfLeader("lock-a", executor) {
+                    actionStarted.countDown()
+                    actionFuture
+                }
+        }
+
+        client.unlockCalls.get() shouldBeEqualTo 1
+        client.revokeCalls.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `dispatcher rejection falls back and completes after exactly once cleanup`() {
+        val cleanupCalls = AtomicInteger()
+        val rejectionCalls = AtomicInteger()
+        val rejectingExecutor = Executor {
+            rejectionCalls.incrementAndGet()
+            throw RejectedExecutionException("issue-900-cleanup-rejected")
+        }
+
+        val result = AsyncLeaseCleanupDispatcher.completeAfter(
+            source = CompletableFuture.completedFuture("done"),
+            executor = rejectingExecutor,
+            cleanup = { cleanupCalls.incrementAndGet() },
+        ) { value, _ -> value }
+
+        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        result.isDone.shouldBeTrue()
+        rejectionCalls.get() shouldBeEqualTo 1
+        cleanupCalls.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `dispatcher preserves action failure and suppresses cleanup failure`() {
+        val actionFailure = IllegalStateException("action-failed")
+        val cleanupFailure = IllegalStateException("cleanup-failed")
+        val inlineExecutor = Executor { command -> command.run() }
+
+        val result = AsyncLeaseCleanupDispatcher.completeAfter(
+            source = CompletableFuture.failedFuture<String>(actionFailure),
+            executor = inlineExecutor,
+            cleanup = { throw cleanupFailure },
+        ) { value, _ -> value }
+
+        val thrown = assertFailsWith<CompletionException> { result.join() }
+
+        thrown.cause shouldBeEqualTo actionFailure
+        thrown.cause?.suppressed?.toList() shouldBeEqualTo listOf(cleanupFailure)
+    }
+
+    @Test
     fun `single caller cancellation cancels action and releases lease`() {
         val client = StatefulEtcdLockClient()
         val elector = EtcdLeaderElector.create(client, singleOptions())
@@ -282,6 +355,34 @@ class EtcdAsyncLifecycleTest {
         }
     }
 
+    private fun assertCompletionThreadIsolated(
+        blocker: CleanupBlocker,
+        runAsync: (Executor, CompletableFuture<String>, CountDownLatch) -> CompletableFuture<String?>,
+    ) {
+        val eventLoop = Executors.newSingleThreadExecutor { task -> Thread(task, "issue-900-etcd-event-loop") }
+        val actionFuture = CompletableFuture<String>()
+        val actionStarted = CountDownLatch(1)
+        val eventLoopProbe = CountDownLatch(1)
+
+        try {
+            val result = runAsync(eventLoop, actionFuture, actionStarted)
+            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            eventLoop.execute { actionFuture.complete("done") }
+
+            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            eventLoop.execute { eventLoopProbe.countDown() }
+            eventLoopProbe.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            result.isDone.shouldBeFalse()
+            (blocker.threadName.get() == "issue-900-etcd-event-loop").shouldBeFalse()
+
+            blocker.release.countDown()
+            result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        } finally {
+            blocker.release.countDown()
+            eventLoop.shutdownNow()
+        }
+    }
+
     private class CancellationRecordingFuture<T>: CompletableFuture<T>() {
         val cancelled = CountDownLatch(1)
 
@@ -293,6 +394,7 @@ class EtcdAsyncLifecycleTest {
 
     private class StatefulEtcdLockClient(
         private val pendFirstLock: Boolean = false,
+        private val cleanupBlocker: CleanupBlocker? = null,
     ): EtcdLockClient {
         val pendingAcquisition = CountDownLatch(1)
         val cleaned = CountDownLatch(1)
@@ -337,6 +439,7 @@ class EtcdAsyncLifecycleTest {
 
         override fun unlock(ownershipKey: ByteSequence): CompletableFuture<Unit> {
             unlockCalls.incrementAndGet()
+            cleanupBlocker?.block()
             ownershipToLockKey.remove(ownershipKey)?.let(activeLockKeys::remove)
             return CompletableFuture.completedFuture(Unit)
         }
@@ -374,5 +477,17 @@ class EtcdAsyncLifecycleTest {
             val ownershipKey: ByteSequence,
             val future: CompletableFuture<ByteSequence>,
         )
+    }
+
+    private class CleanupBlocker {
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val threadName = AtomicReference<String>()
+
+        fun block() {
+            threadName.set(Thread.currentThread().name)
+            started.countDown()
+            release.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        }
     }
 }

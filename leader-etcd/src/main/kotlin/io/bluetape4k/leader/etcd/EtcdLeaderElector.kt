@@ -115,7 +115,9 @@ class EtcdLeaderElector private constructor(
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         val beginCleanup: () -> Unit = {
             if (lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                acquiredRef.get()?.let(::releaseAfterMinLease)
+                acquiredRef.get()?.let { handle ->
+                    AsyncLeaseCleanupDispatcher.execute { releaseAfterMinLease(handle) }
+                }
             }
         }
         val acquisitionFuture = CompletableFuture.supplyAsync({
@@ -123,7 +125,7 @@ class EtcdLeaderElector private constructor(
                 if (handle != null) {
                     acquiredRef.set(handle)
                     if (lifecycle.get() == AsyncLifecycle.CLEANUP) {
-                        releaseAfterMinLease(handle)
+                        AsyncLeaseCleanupDispatcher.execute { releaseAfterMinLease(handle) }
                     }
                 }
             }
@@ -185,22 +187,26 @@ class EtcdLeaderElector private constructor(
                 classifier = ERROR_CLASSIFIER,
             )
         } catch (e: Throwable) {
-            releaseAfterMinLease(leaseHandle)
-            return CompletableFuture.failedFuture(e)
+            return AsyncLeaseCleanupDispatcher.failAfter(e) { releaseAfterMinLease(leaseHandle) }
         }
         val actionFuture = try {
             AopScopeAccess.withPushedSync(handle) {
                 cancellationRelay.invoke(action)
             }
         } catch (e: Throwable) {
-            watchdog.close()
-            releaseAfterMinLease(leaseHandle)
-            return CompletableFuture.failedFuture(e)
+            return AsyncLeaseCleanupDispatcher.failAfter(e) {
+                watchdog.close()
+                releaseAfterMinLease(leaseHandle)
+            }
         }
 
-        return actionFuture.handle { value, failure ->
-            watchdog.close()
-            releaseAfterMinLease(leaseHandle)
+        return AsyncLeaseCleanupDispatcher.completeAfter(
+            source = actionFuture,
+            cleanup = {
+                watchdog.close()
+                releaseAfterMinLease(leaseHandle)
+            },
+        ) { value, failure ->
             val cause = failure?.unwrapCompletionException()
             if (cause != null) {
                 throw CompletionException(cause)

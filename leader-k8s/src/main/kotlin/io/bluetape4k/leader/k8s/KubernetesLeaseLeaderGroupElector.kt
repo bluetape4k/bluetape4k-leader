@@ -172,7 +172,9 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         val releaseIfUnclaimed: () -> Unit = {
             val acquired = acquiredRef.get()
             if (acquired != null && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                release(acquired.lock, acquired.acquiredAtNanos, lockName, acquired.slot)
+                AsyncLeaseCleanupDispatcher.execute {
+                    release(acquired.lock, acquired.acquiredAtNanos, lockName, acquired.slot)
+                }
             }
         }
         val acquisitionFuture = CompletableFuture.supplyAsync({
@@ -190,10 +192,11 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
                     )
                 } else {
                     try {
-                        runAcquiredAsync(lockName, acquired, auditLeaderId, executor, action)
+                        runAcquiredAsync(lockName, acquired, auditLeaderId, action)
                     } catch (error: Throwable) {
-                        release(acquired.lock, acquired.acquiredAtNanos, lockName, acquired.slot)
-                        CompletableFuture.failedFuture(error)
+                        AsyncLeaseCleanupDispatcher.failAfter(error) {
+                            release(acquired.lock, acquired.acquiredAtNanos, lockName, acquired.slot)
+                        }
                     }
                 }
             }, executor)
@@ -217,7 +220,6 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         lockName: String,
         acquired: AcquiredSlot,
         auditLeaderId: String?,
-        executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val lock = acquired.lock
@@ -230,21 +232,27 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
                 classifier = KubernetesLeaseLeaderElector.ERROR_CLASSIFIER,
             )
         } catch (e: Throwable) {
-            release(lock, acquired.acquiredAtNanos, lockName, acquired.slot)
-            return CompletableFuture.failedFuture(e)
+            return AsyncLeaseCleanupDispatcher.failAfter(e) {
+                release(lock, acquired.acquiredAtNanos, lockName, acquired.slot)
+            }
         }
         val actionFuture = try {
             val handle = handle(lockName, lock, acquired.slot, acquired.acquiredAtNanos, delegate, auditLeaderId)
             AopScopeAccess.withPushedSync(handle) { action() }
         } catch (e: Throwable) {
-            watchdog.close()
-            release(lock, acquired.acquiredAtNanos, lockName, acquired.slot)
-            return CompletableFuture.failedFuture(e)
+            return AsyncLeaseCleanupDispatcher.failAfter(e) {
+                watchdog.close()
+                release(lock, acquired.acquiredAtNanos, lockName, acquired.slot)
+            }
         }
 
-        return actionFuture.handle { value, failure ->
-            watchdog.close()
-            release(lock, acquired.acquiredAtNanos, lockName, acquired.slot)
+        return AsyncLeaseCleanupDispatcher.completeAfter(
+            source = actionFuture,
+            cleanup = {
+                watchdog.close()
+                release(lock, acquired.acquiredAtNanos, lockName, acquired.slot)
+            },
+        ) { value, failure ->
             val cause = failure.unwrapCompletionException()
             if (cause != null) {
                 throw cause

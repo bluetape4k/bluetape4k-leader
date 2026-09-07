@@ -2,6 +2,7 @@ package io.bluetape4k.leader.consul
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
@@ -32,11 +33,88 @@ import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class ConsulLeaderElectorDelegationTest {
+
+    @Test
+    fun `single action completion keeps named event loop free while cleanup is blocked`() {
+        val blocker = CleanupBlocker()
+        val client = FakeConsulLockClient(cleanupBlocker = blocker)
+
+        assertCompletionThreadIsolated(blocker) { executor, actionFuture, actionStarted ->
+            ConsulLeaderElector.create(client).runAsyncIfLeader("lock-a", executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+        }
+
+        client.releaseCalls shouldBeEqualTo 1
+        client.destroyCalls shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `group action completion keeps named event loop free while cleanup is blocked`() {
+        val blocker = CleanupBlocker()
+        val client = FakeConsulLockClient(cleanupBlocker = blocker)
+
+        assertCompletionThreadIsolated(blocker) { executor, actionFuture, actionStarted ->
+            ConsulLeaderGroupElector.create(
+                client,
+                ConsulLeaderGroupElectionOptions(
+                    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, leaseTime = 10.seconds),
+                ),
+            ).runAsyncIfLeader("lock-a", executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+        }
+
+        client.releaseCalls shouldBeEqualTo 1
+        client.destroyCalls shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `dispatcher rejection falls back and completes after exactly once cleanup`() {
+        val cleanupCalls = AtomicInteger()
+        val rejectionCalls = AtomicInteger()
+        val rejectingExecutor = Executor {
+            rejectionCalls.incrementAndGet()
+            throw RejectedExecutionException("issue-900-cleanup-rejected")
+        }
+
+        val result = AsyncLeaseCleanupDispatcher.completeAfter(
+            source = CompletableFuture.completedFuture("done"),
+            executor = rejectingExecutor,
+            cleanup = { cleanupCalls.incrementAndGet() },
+        ) { value, _ -> value }
+
+        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        result.isDone.shouldBeTrue()
+        rejectionCalls.get() shouldBeEqualTo 1
+        cleanupCalls.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `dispatcher preserves action failure and suppresses cleanup failure`() {
+        val actionFailure = IllegalStateException("action-failed")
+        val cleanupFailure = IllegalStateException("cleanup-failed")
+        val inlineExecutor = Executor { command -> command.run() }
+
+        val result = AsyncLeaseCleanupDispatcher.completeAfter(
+            source = CompletableFuture.failedFuture<String>(actionFailure),
+            executor = inlineExecutor,
+            cleanup = { throw cleanupFailure },
+        ) { value, _ -> value }
+
+        val thrown = assertFailsWith<CompletionException> { result.join() }
+
+        thrown.cause shouldBeEqualTo actionFailure
+        thrown.cause?.suppressed?.toList() shouldBeEqualTo listOf(cleanupFailure)
+    }
 
     @Test
     fun `contention returns null even when destroy cleanup fails`() {
@@ -534,6 +612,34 @@ class ConsulLeaderElectorDelegationTest {
         future.requestedTimeoutNanos shouldBeEqualTo 77.milliseconds.inWholeNanoseconds
     }
 
+    private fun assertCompletionThreadIsolated(
+        blocker: CleanupBlocker,
+        runAsync: (Executor, CompletableFuture<String>, CountDownLatch) -> CompletableFuture<String?>,
+    ) {
+        val eventLoop = Executors.newSingleThreadExecutor { task -> Thread(task, "issue-900-consul-event-loop") }
+        val actionFuture = CompletableFuture<String>()
+        val actionStarted = CountDownLatch(1)
+        val eventLoopProbe = CountDownLatch(1)
+
+        try {
+            val result = runAsync(eventLoop, actionFuture, actionStarted)
+            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            eventLoop.execute { actionFuture.complete("done") }
+
+            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            eventLoop.execute { eventLoopProbe.countDown() }
+            eventLoopProbe.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            result.isDone.shouldBeFalse()
+            (blocker.threadName.get() == "issue-900-consul-event-loop").shouldBeFalse()
+
+            blocker.release.countDown()
+            result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        } finally {
+            blocker.release.countDown()
+            eventLoop.shutdownNow()
+        }
+    }
+
     private class FakeConsulLockClient(
         private val acquireResult: Boolean = true,
         private val destroyFails: Boolean = false,
@@ -544,6 +650,7 @@ class ConsulLeaderElectorDelegationTest {
         private val acquireFuture: CompletableFuture<Boolean>? = null,
         private val acquireStarted: CountDownLatch? = null,
         private val releaseObserved: CountDownLatch? = null,
+        private val cleanupBlocker: CleanupBlocker? = null,
     ) : ConsulLockClient {
 
         private var currentEntry: ConsulKvEntry? = entry
@@ -602,6 +709,7 @@ class ConsulLeaderElectorDelegationTest {
         override fun release(key: String, sessionId: ConsulSessionId): CompletableFuture<Boolean> {
             releaseCalls++
             releaseObserved?.countDown()
+            cleanupBlocker?.block()
             return CompletableFuture.completedFuture(true)
         }
 
@@ -639,5 +747,17 @@ class ConsulLeaderElectorDelegationTest {
     private class InterruptingFuture<T> : CompletableFuture<T>() {
         override fun get(timeout: Long, unit: TimeUnit): T =
             throw InterruptedException("interrupted acquisition")
+    }
+
+    private class CleanupBlocker {
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val threadName = AtomicReference<String>()
+
+        fun block() {
+            threadName.set(Thread.currentThread().name)
+            started.countDown()
+            release.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        }
     }
 }
