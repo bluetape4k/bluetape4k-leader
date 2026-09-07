@@ -15,6 +15,7 @@ internal object LettuceCandidateWriteScript {
     const val MIGRATE = "MIGRATE"
     const val UNREGISTER = "UNREGISTER"
     const val REMOVE_IF_VALUE = "REMOVE_IF_VALUE"
+    const val REMOVE_LEGACY_IF_VALUE = "REMOVE_LEGACY_IF_VALUE"
 
     const val ABSENT = 0L
     const val MALFORMED = -1L
@@ -148,6 +149,14 @@ internal object LettuceCandidateWriteScript {
           if current and currentToken and current == ARGV[2] and currentToken == ARGV[3] then
             redis.call('DEL', KEYS[1], KEYS[3])
             redis.call('SREM', KEYS[2], ARGV[4])
+            return { $REMOVED }
+          end
+          return { $ABSENT }
+        end
+
+        if operation == '$REMOVE_LEGACY_IF_VALUE' then
+          if redis.call('GET', KEYS[1]) == ARGV[2] then
+            redis.call('DEL', KEYS[1])
             return { $REMOVED }
           end
           return { $ABSENT }

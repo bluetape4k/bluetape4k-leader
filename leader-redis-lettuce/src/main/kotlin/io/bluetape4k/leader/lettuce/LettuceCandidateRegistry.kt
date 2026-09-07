@@ -298,13 +298,18 @@ internal class LettuceCandidateRegistry private constructor(
     }
 
     private fun readLegacyCandidate(key: String, expectedNodeId: String): CandidateInfo? {
+        return readLegacyCandidateRaw(key, expectedNodeId)
+            ?.let(LettuceCandidateInfoCodec::decode)
+    }
+
+    private fun readLegacyCandidateRaw(key: String, expectedNodeId: String): String? {
         val raw = try {
             commands.get(key)
         } catch (e: RedisCommandExecutionException) {
             if (!e.isWrongType()) throw e
             null
         }
-        return raw?.let(LettuceCandidateInfoCodec::decode)?.takeIf { it.nodeId == expectedNodeId }
+        return raw?.takeIf { encoded -> LettuceCandidateInfoCodec.decode(encoded).nodeId == expectedNodeId }
     }
 
     private fun migrateLegacyCandidate(lockName: String, nodeId: String, source: LegacyCandidate): Boolean {
@@ -394,8 +399,27 @@ internal class LettuceCandidateRegistry private constructor(
     }
 
     private fun cleanupLegacyCandidate(nodeId: String, candidateKey: String, indexKey: String) {
-        if (readLegacyCandidate(candidateKey, nodeId) != null) commands.del(candidateKey)
-        removeLegacyIndexMembers(indexKey, listOf(nodeId))
+        val observedRaw = readLegacyCandidateRaw(candidateKey, nodeId)
+        val removed = observedRaw?.let { raw ->
+            runWriteScript(
+                operation = LettuceCandidateWriteScript.REMOVE_LEGACY_IF_VALUE,
+                keys = arrayOf(candidateKey),
+                args = arrayOf(raw),
+            ).firstOrNull()?.toString()?.toLongOrNull() == LettuceCandidateWriteScript.REMOVED
+        } ?: false
+        if (observedRaw == null || removed) {
+            removeLegacyIndexMembers(indexKey, listOf(nodeId))
+            restoreLegacyIndexMemberIfSourceReappeared(candidateKey, indexKey, nodeId)
+        }
+    }
+
+    private fun restoreLegacyIndexMemberIfSourceReappeared(candidateKey: String, indexKey: String, nodeId: String) {
+        if (readLegacyCandidateRaw(candidateKey, nodeId) == null) return
+        try {
+            commands.sadd(indexKey, nodeId)
+        } catch (e: RedisCommandExecutionException) {
+            if (!e.isWrongType()) throw e
+        }
     }
 
     private fun removeLegacyIndexMembers(indexKey: String, nodeIds: List<String>) {
