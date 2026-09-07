@@ -82,6 +82,25 @@ Cluster 21개(`2026-09-05T12:03:07.973Z`) 모두 실패·오류·건너뜀 0개�
 하지만 준비 단계의 간헐적 실패가 해결됐다는 증거는 아니다. hosted CI는 아직 미완료다.
 이 문서는 merge-ready 판정이 아니다.
 
+## Issue #905: 장애 주입 전 replica topology 준비 계약
+
+2026-09-07 [#905](https://github.com/bluetape4k/bluetape4k-leader/issues/905)에서는
+`develop@2a81c1c8873371f7d4954197afe6884ec44c2975` 기준으로 자동 failover 테스트의 별도 race를 확인했다.
+slot의 primary가 보이는 시점에도 Lettuce topology가 그 primary의 `slaveOf` 관계를 아직 반영하지 않을 수 있다.
+따라서 `client.partitions.first { it.slaveOf == source.nodeId }`를 즉시 실행하면 실제 장애를 주입하기 전에
+`NoSuchElementException`으로 실패한다.
+
+자동 failover 테스트는 이제 source primary에 연결된 replica 관계를 최대 10초 동안 100ms 간격으로 기다린다.
+timeout이면 마지막 topology의 `nodeId`, `role`, `slaveOf`, slot 개수와 범위를 assertion 원인에 남긴다.
+준비 단계의 시도 횟수와 시간은 `phase=replica-readiness`로 기록하며, 이 단계가 완료된 뒤에만
+`fault=SIGSTOP`을 실행한다. 이로써 fixture 준비 시간은 장애 이후의 `convergence_ms`에 포함되지 않는다.
+
+회귀 테스트는 첫 snapshot에 source만 있고 다음 snapshot에 replica 관계가 나타나는 경우와, 제한 시간까지
+관계가 나타나지 않아 마지막 topology 진단을 남기는 경우를 각각 고정한다. Issue #905 검증의 직렬 실행은
+일반 테스트 418개와 Cluster matrix 21개가 모두 통과했다. 해당 실행의 `automatic-failover.txt`에서는 준비
+108ms가 장애 주입 전에 기록됐고, 별도로 측정한 failover 수렴은 3,781ms였다. 이 수치는 단일 로컬 실행의
+관측값이며 운영 SLA가 아니다.
+
 ## baseline 실패로 확인한 환경 경계
 
 처음에는 Cluster 자체가 잘못된 RESP를 반환했다고 의심했다. 그러나 trace에서
