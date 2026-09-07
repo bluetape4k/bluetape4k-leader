@@ -446,8 +446,10 @@ Gradle (Kotlin DSL):
 
 ```kotlin
 dependencies {
-    implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:$bluetape4kLeaderVersion")
-    implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:$bluetape4kLeaderVersion") // 또는 다른 백엔드
+    val bluetape4kVersion = "<version>"
+    implementation(platform("io.github.bluetape4k:bluetape4k-dependencies:$bluetape4kVersion"))
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor")
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson") // 또는 다른 백엔드
     implementation("io.ktor:ktor-server-core:3.4.3")
 
     testImplementation("io.github.bluetape4k:bluetape4k-ktor-testing")
@@ -457,11 +459,10 @@ dependencies {
 `ktor-server-core` 는 본 모듈에서 `compileOnly` 로만 선언되므로, 사용 애플리케이션에서
 직접 의존성을 추가해야 합니다.
 
-같은 Ktor 서비스에서 공통 JSON, 오류 응답, health, readiness helper가 필요하면
-애플리케이션 계층에서 `bluetape4k-ktor-core` 를 함께 사용하세요. 이 모듈의 public
-surface는 leader-election plugin과 scheduler DSL이며, management route는 content
-negotiation plugin 없이 JSON text를 직접 응답하므로 `bluetape4k-ktor-core` 를 runtime
-의존성으로 강제하지 않습니다.
+`bluetape4k-leader-ktor` 는 공통 `ApplicationStopped` 리소스 lifecycle을 위해
+`bluetape4k-ktor-core` 를 runtime 의존성으로 포함합니다. 애플리케이션에서 이를
+별도로 선언할 필요는 없습니다. `ktor-server-core` 는 이 모듈에서 여전히
+`compileOnly` 이므로 애플리케이션이 직접 선언해야 합니다.
 
 ## License
 

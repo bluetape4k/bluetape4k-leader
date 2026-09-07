@@ -7,12 +7,17 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.ktor.core.ApplicationResourceRegistry
 import io.bluetape4k.ktor.core.ApplicationResourceRegistryState
 import io.bluetape4k.ktor.core.installApplicationResourceLifecycle
+import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.ktor.server.application.install
+import io.ktor.server.application.pluginOrNull
 import io.ktor.server.testing.testApplication
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.seconds
 
 class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
 
@@ -147,5 +152,42 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
         }
 
         elector.closeCount.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `후속 설정 검증 실패는 이미 등록한 event hub와 registry를 한 번 닫고 원래 예외를 보존한다`() = runSuspendIO {
+        lateinit var leaderRegistry: LeaderElectionResourceRegistry
+        lateinit var hub: io.bluetape4k.leader.ktor.stream.LeaderEventStreamHub
+
+        val failure = assertFailsWith<IllegalArgumentException> {
+            testApplication {
+                application {
+                    try {
+                        install(LeaderElectionPlugin) {
+                            leaderElection = LocalSuspendLeaderElector()
+                            eventStreamRouteEnabled = true
+                            managementActionRouteEnabled = true
+                        }
+                    } catch (cause: Throwable) {
+                        leaderRegistry = requireNotNull(leaderElectionResourceRegistryOrNull())
+                        hub = requireNotNull(pluginOrNull(LeaderEventStreamRuntimePlugin)?.hub)
+                        runBlocking {
+                            withTimeout(1.seconds) {
+                                val report = leaderRegistry.awaitClosed()
+                                report.attempted shouldBeEqualTo 1
+                                report.closed shouldBeEqualTo 1
+                                hub.awaitClosed()
+                            }
+                        }
+                        throw cause
+                    }
+                }
+                startApplication()
+            }
+        }
+
+        failure.message shouldBeEqualTo
+            "managementActionRouteEnabled=true 이면 application-owned managementActionRegistry를 설정해야 합니다."
+        leaderRegistry.awaitClosed().attempted shouldBeEqualTo 1
     }
 }
