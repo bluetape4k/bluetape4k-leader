@@ -23,8 +23,6 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -174,27 +172,32 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
     ): CompletableFuture<T?> {
         val lock = newLock(lockName, auditLeaderId)
 
-        val lockAcquired = AtomicBoolean()
-        val acquiredAtNanosRef = AtomicLong()
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
-        val releaseIfUnclaimed: () -> Unit = {
-            if (lockAcquired.get() && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                AsyncLeaseCleanupDispatcher.execute {
-                    release(lock, acquiredAtNanosRef.get(), lockName)
-                }
+        val cleanupBarrier = AsyncLeaseCleanupBarrier<Long> { acquiredAtNanos ->
+            release(lock, acquiredAtNanos, lockName)
+        }
+        val releaseIfUnclaimed: () -> CompletableFuture<Unit> = {
+            when {
+                lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
+                lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
+                else -> CompletableFuture.completedFuture(Unit)
             }
         }
         val acquisitionFuture = CompletableFuture.supplyAsync({
-            lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime).also { acquired ->
-                if (acquired) {
-                    acquiredAtNanosRef.set(System.nanoTime())
-                    lockAcquired.set(true)
+            var acquiredAtNanos: Long? = null
+            try {
+                if (lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime)) {
+                    System.nanoTime().also { acquiredAtNanos = it }
+                } else {
+                    null
                 }
+            } finally {
+                cleanupBarrier.completeAcquisition(acquiredAtNanos)
             }
         }, executor)
         val pipelineFuture: CompletableFuture<T?> = try {
-            acquisitionFuture.thenComposeAsync({ acquired ->
-                if (!acquired) {
+            acquisitionFuture.thenComposeAsync({ acquiredAtNanos ->
+                if (acquiredAtNanos == null) {
                     CompletableFuture.completedFuture(null)
                 } else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
                     CompletableFuture.failedFuture(
@@ -202,27 +205,28 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
                     )
                 } else {
                     try {
-                        runAcquiredAsync(lockName, lock, acquiredAtNanosRef.get(), action)
+                        runAcquiredAsync(lockName, lock, acquiredAtNanos, action)
                     } catch (error: Throwable) {
                         AsyncLeaseCleanupDispatcher.failAfter(error) {
-                            release(lock, acquiredAtNanosRef.get(), lockName)
+                            release(lock, acquiredAtNanos, lockName)
                         }
                     }
                 }
             }, executor)
         } catch (error: Throwable) {
-            acquisitionFuture.whenComplete { acquired, _ ->
-                if (acquired == true) releaseIfUnclaimed()
-            }
             CompletableFuture.failedFuture(error)
         }
-        pipelineFuture.whenComplete { _, failure ->
-            if (failure != null) releaseIfUnclaimed()
+        return LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+            if (failure == null) {
+                CompletableFuture.completedFuture(value)
+            } else {
+                releaseIfUnclaimed().handle { _, cleanupFailure ->
+                    val cause = checkNotNull(failure.unwrapCompletionException())
+                    cleanupFailure?.unwrapCompletionException()?.let(cause::addSuppressed)
+                    throw CompletionException(cause)
+                }
+            }
         }
-        acquisitionFuture.whenComplete { acquired, _ ->
-            if (acquired == true && pipelineFuture.isCancelled) releaseIfUnclaimed()
-        }
-        return pipelineFuture
     }
 
     @Suppress("ReturnCount", "TooGenericExceptionCaught")

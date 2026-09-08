@@ -17,6 +17,7 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
@@ -80,6 +81,56 @@ class EtcdAsyncLifecycleTest {
         result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
         result.isDone.shouldBeTrue()
         rejectionCalls.get() shouldBeEqualTo 1
+        cleanupCalls.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `dispatcher terminalizes non rejection scheduler failure`() {
+        val schedulerFailure = IllegalStateException("issue-914-scheduler-failed")
+        val cleanupCalls = AtomicInteger()
+        val failingExecutor = Executor { throw schedulerFailure }
+
+        val result = AsyncLeaseCleanupDispatcher.completeAfter(
+            source = CompletableFuture.completedFuture("done"),
+            executor = failingExecutor,
+            cleanup = { cleanupCalls.incrementAndGet() },
+        ) { value, _ -> value }
+
+        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        cleanupCalls.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `dispatcher dual scheduler failure stays terminal without inline cleanup`() {
+        val dispatchFailure = IllegalStateException("issue-914-primary-failed")
+        val fallbackFailure = IllegalArgumentException("issue-914-fallback-failed")
+        val cleanupCalls = AtomicInteger()
+
+        val result = AsyncLeaseCleanupDispatcher.completeAfter(
+            source = CompletableFuture.completedFuture("done"),
+            executor = Executor { throw dispatchFailure },
+            cleanup = { cleanupCalls.incrementAndGet() },
+            fallbackExecutor = Executor { throw fallbackFailure },
+        ) { value, _ -> value }
+
+        val failure = assertFailsWith<ExecutionException> { result.get(2, TimeUnit.SECONDS) }
+
+        failure.cause shouldBeEqualTo dispatchFailure
+        failure.cause?.suppressed?.toList() shouldBeEqualTo listOf(fallbackFailure)
+        cleanupCalls.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `cleanup barrier shares completion and dispatches exactly once`() {
+        val cleanupCalls = AtomicInteger()
+        val barrier = AsyncLeaseCleanupBarrier<String> { cleanupCalls.incrementAndGet() }
+
+        val first = barrier.request()
+        barrier.completeAcquisition("lease")
+        val second = barrier.request()
+
+        (first === second).shouldBeTrue()
+        first.get(2, TimeUnit.SECONDS)
         cleanupCalls.get() shouldBeEqualTo 1
     }
 
@@ -211,7 +262,8 @@ class EtcdAsyncLifecycleTest {
 
     @Test
     fun `single second executor rejection releases acquired lease`() {
-        val client = StatefulEtcdLockClient()
+        val blocker = CleanupBlocker()
+        val client = StatefulEtcdLockClient(cleanupBlocker = blocker)
         val elector = EtcdLeaderElector.create(client, singleOptions())
         val worker = Executors.newSingleThreadExecutor()
         val actionInvoked = AtomicBoolean()
@@ -223,6 +275,10 @@ class EtcdAsyncLifecycleTest {
                 CompletableFuture.completedFuture("should-not-run")
             }
 
+            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            result.isDone.shouldBeFalse()
+            blocker.release.countDown()
+
             val failure = assertFailsWith<CompletionException> { result.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             failure.cause?.message shouldBeEqualTo "rejected-after-acquire"
@@ -232,13 +288,15 @@ class EtcdAsyncLifecycleTest {
             client.revokeCalls.get() shouldBeEqualTo 1
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
+            blocker.release.countDown()
             worker.shutdownNow()
         }
     }
 
     @Test
     fun `group second executor rejection releases acquired slot`() {
-        val client = StatefulEtcdLockClient()
+        val blocker = CleanupBlocker()
+        val client = StatefulEtcdLockClient(cleanupBlocker = blocker)
         val elector = EtcdLeaderGroupElector.create(client, groupOptions())
         val worker = Executors.newSingleThreadExecutor()
         val actionInvoked = AtomicBoolean()
@@ -250,6 +308,10 @@ class EtcdAsyncLifecycleTest {
                 CompletableFuture.completedFuture("should-not-run")
             }
 
+            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            result.isDone.shouldBeFalse()
+            blocker.release.countDown()
+
             val failure = assertFailsWith<CompletionException> { result.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             failure.cause?.message shouldBeEqualTo "rejected-after-acquire"
@@ -259,6 +321,7 @@ class EtcdAsyncLifecycleTest {
             client.revokeCalls.get() shouldBeEqualTo 1
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
+            blocker.release.countDown()
             worker.shutdownNow()
         }
     }

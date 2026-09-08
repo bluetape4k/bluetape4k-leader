@@ -167,19 +167,23 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        val acquiredRef = AtomicReference<AcquiredSlot?>()
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
-        val releaseIfUnclaimed: () -> Unit = {
-            val acquired = acquiredRef.get()
-            if (acquired != null && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                AsyncLeaseCleanupDispatcher.execute {
-                    release(acquired.lock, acquired.acquiredAtNanos, lockName, acquired.slot)
-                }
+        val cleanupBarrier = AsyncLeaseCleanupBarrier<AcquiredSlot> { acquired ->
+            release(acquired.lock, acquired.acquiredAtNanos, lockName, acquired.slot)
+        }
+        val releaseIfUnclaimed: () -> CompletableFuture<Unit> = {
+            when {
+                lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
+                lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
+                else -> CompletableFuture.completedFuture(Unit)
             }
         }
         val acquisitionFuture = CompletableFuture.supplyAsync({
-            acquire(lockName, auditLeaderId).also { acquired ->
-                if (acquired != null) acquiredRef.set(acquired)
+            var acquired: AcquiredSlot? = null
+            try {
+                acquire(lockName, auditLeaderId).also { acquired = it }
+            } finally {
+                cleanupBarrier.completeAcquisition(acquired)
             }
         }, executor)
         val pipelineFuture: CompletableFuture<T?> = try {
@@ -201,18 +205,19 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
                 }
             }, executor)
         } catch (error: Throwable) {
-            acquisitionFuture.whenComplete { acquired, _ ->
-                if (acquired != null) releaseIfUnclaimed()
-            }
             CompletableFuture.failedFuture(error)
         }
-        pipelineFuture.whenComplete { _, failure ->
-            if (failure != null) releaseIfUnclaimed()
+        return LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+            if (failure == null) {
+                CompletableFuture.completedFuture(value)
+            } else {
+                releaseIfUnclaimed().handle { _, cleanupFailure ->
+                    val cause = checkNotNull(failure.unwrapCompletionException())
+                    cleanupFailure?.unwrapCompletionException()?.let(cause::addSuppressed)
+                    throw CompletionException(cause)
+                }
+            }
         }
-        acquisitionFuture.whenComplete { acquired, _ ->
-            if (acquired != null && pipelineFuture.isCancelled) releaseIfUnclaimed()
-        }
-        return pipelineFuture
     }
 
     @Suppress("ReturnCount", "TooGenericExceptionCaught")

@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
@@ -98,6 +99,56 @@ class ConsulLeaderElectorDelegationTest {
         result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
         result.isDone.shouldBeTrue()
         rejectionCalls.get() shouldBeEqualTo 1
+        cleanupCalls.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `dispatcher terminalizes non rejection scheduler failure`() {
+        val schedulerFailure = IllegalStateException("issue-914-scheduler-failed")
+        val cleanupCalls = AtomicInteger()
+        val failingExecutor = Executor { throw schedulerFailure }
+
+        val result = AsyncLeaseCleanupDispatcher.completeAfter(
+            source = CompletableFuture.completedFuture("done"),
+            executor = failingExecutor,
+            cleanup = { cleanupCalls.incrementAndGet() },
+        ) { value, _ -> value }
+
+        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        cleanupCalls.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `dispatcher dual scheduler failure stays terminal without inline cleanup`() {
+        val dispatchFailure = IllegalStateException("issue-914-primary-failed")
+        val fallbackFailure = IllegalArgumentException("issue-914-fallback-failed")
+        val cleanupCalls = AtomicInteger()
+
+        val result = AsyncLeaseCleanupDispatcher.completeAfter(
+            source = CompletableFuture.completedFuture("done"),
+            executor = Executor { throw dispatchFailure },
+            cleanup = { cleanupCalls.incrementAndGet() },
+            fallbackExecutor = Executor { throw fallbackFailure },
+        ) { value, _ -> value }
+
+        val failure = assertFailsWith<ExecutionException> { result.get(2, TimeUnit.SECONDS) }
+
+        failure.cause shouldBeEqualTo dispatchFailure
+        failure.cause?.suppressed?.toList() shouldBeEqualTo listOf(fallbackFailure)
+        cleanupCalls.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `cleanup barrier shares completion and dispatches exactly once`() {
+        val cleanupCalls = AtomicInteger()
+        val barrier = AsyncLeaseCleanupBarrier<String> { cleanupCalls.incrementAndGet() }
+
+        val first = barrier.request()
+        barrier.completeAcquisition("lease")
+        val second = barrier.request()
+
+        (first === second).shouldBeTrue()
+        first.get(2, TimeUnit.SECONDS)
         cleanupCalls.get() shouldBeEqualTo 1
     }
 
@@ -550,7 +601,8 @@ class ConsulLeaderElectorDelegationTest {
 
     @Test
     fun `runAsyncIfLeader releases acquired single lease when second executor submission is rejected`() {
-        val client = FakeConsulLockClient()
+        val blocker = CleanupBlocker()
+        val client = FakeConsulLockClient(cleanupBlocker = blocker)
         val elector = ConsulLeaderElector.create(client)
         val worker = Executors.newSingleThreadExecutor()
         val submissions = AtomicInteger()
@@ -571,6 +623,10 @@ class ConsulLeaderElectorDelegationTest {
                 }
             }.getOrElse { CompletableFuture.failedFuture(it) }
 
+            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            resultFuture.isDone.shouldBeFalse()
+            blocker.release.countDown()
+
             val failure = assertFailsWith<CompletionException> { resultFuture.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             actionInvoked.get() shouldBeEqualTo false
@@ -578,13 +634,15 @@ class ConsulLeaderElectorDelegationTest {
             client.releaseCalls shouldBeEqualTo 2
             client.destroyCalls shouldBeEqualTo 2
         } finally {
+            blocker.release.countDown()
             worker.shutdownNow()
         }
     }
 
     @Test
     fun `runAsyncIfLeader releases acquired group slot when second executor submission is rejected`() {
-        val client = FakeConsulLockClient()
+        val blocker = CleanupBlocker()
+        val client = FakeConsulLockClient(cleanupBlocker = blocker)
         val elector = ConsulLeaderGroupElector.create(
             client,
             ConsulLeaderGroupElectionOptions(
@@ -610,6 +668,10 @@ class ConsulLeaderElectorDelegationTest {
                 }
             }.getOrElse { CompletableFuture.failedFuture(it) }
 
+            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            resultFuture.isDone.shouldBeFalse()
+            blocker.release.countDown()
+
             val failure = assertFailsWith<CompletionException> { resultFuture.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             actionInvoked.get() shouldBeEqualTo false
@@ -617,6 +679,7 @@ class ConsulLeaderElectorDelegationTest {
             client.releaseCalls shouldBeEqualTo 2
             client.destroyCalls shouldBeEqualTo 2
         } finally {
+            blocker.release.countDown()
             worker.shutdownNow()
         }
     }
