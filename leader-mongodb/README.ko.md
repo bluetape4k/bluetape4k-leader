@@ -129,6 +129,16 @@ val options = MongoLeaderElectionOptions(
 val election = MongoLeaderElector(lockCollection, options)
 ```
 
+### 비동기 cleanup 실패
+
+single/group 비동기 선출은 획득 상태를 기록한 뒤 action을 제출합니다. action 제출에 실패하면
+획득한 lease의 cleanup이 끝난 뒤 결과 future를 완료합니다. cleanup은 호출자의 완료 스레드가 아니라
+backend 소유 virtual thread에서 실행합니다. cleanup scheduler가 모두 실패하면 inline cleanup 없이
+future를 예외로 완료하며, 이 경우 lease가 해제되었다고 보장하지 않습니다.
+dispatcher는 원래 action 오류를 우선하고 자신이 관찰한 cleanup 또는 dispatch 오류를 suppressed 예외로 보존합니다.
+backend unlock의 기존 best-effort 오류 처리 정책은 변경하지 않습니다.
+명시적인 `cancel()`은 호출자 future를 즉시 완료하므로 cleanup 완료 신호로 사용하면 안 됩니다.
+
 ### SPI 팩토리 사용
 
 ```kotlin

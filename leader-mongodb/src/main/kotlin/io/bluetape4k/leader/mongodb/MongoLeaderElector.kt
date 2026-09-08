@@ -151,10 +151,11 @@ class MongoLeaderElector private constructor(
             options.leaderOptions.waitTime,
             options.leaderOptions.leaseTime,
         )
-        acquisitionFuture.whenComplete { acquired, _ ->
+        // 획득 기록을 action 제출보다 먼저 완료하여 거부 시 cleanup 소유권을 잃지 않습니다.
+        val recordedAcquisition = acquisitionFuture.whenComplete { acquired, _ ->
             if (acquired == true) rejectionCleanup.markAcquired()
         }
-        val pipelineFuture = acquisitionFuture.thenComposeAsync({ acquired ->
+        val pipelineFuture = recordedAcquisition.thenComposeAsync({ acquired ->
             if (!acquired) {
                 log.debug { "리더 승격 실패 (슬롯 없음, 비동기). lockName=$lockName" }
                 CompletableFuture.completedFuture(null)
