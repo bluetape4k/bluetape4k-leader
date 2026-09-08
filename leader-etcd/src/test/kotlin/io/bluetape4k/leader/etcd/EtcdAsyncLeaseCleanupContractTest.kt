@@ -17,4 +17,3 @@ class EtcdAsyncLeaseCleanupContractTest : AbstractAsyncLeaseCleanupContractTest(
         else -> AsyncLeaseCleanupDispatcher.completeAfter(source, executor, cleanup, fallbackExecutor, transform)
     }
 }
-

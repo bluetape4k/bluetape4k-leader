@@ -17,4 +17,3 @@ class ConsulAsyncLeaseCleanupContractTest : AbstractAsyncLeaseCleanupContractTes
         else -> AsyncLeaseCleanupDispatcher.completeAfter(source, executor, cleanup, fallbackExecutor, transform)
     }
 }
-
