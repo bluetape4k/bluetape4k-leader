@@ -20,6 +20,7 @@ conditional write와 logical TTL 기반의 프리뷰 DynamoDB 리더 선출 백�
 - 획득은 행이 없거나 logical lease가 만료된 경우에만 성공하는 조건부 `PutItem`을 사용합니다.
 - `ttl`은 cleanup 메타데이터입니다. correctness는 DynamoDB TTL 삭제 시점이 아니라 `leaseExpiry`에 의존합니다.
 - 일반적인 락 경쟁은 `null`을 반환하고, AWS SDK/client 장애는 전파합니다.
+- 그룹 상태 조회는 모든 batch-get chunk에서 추가 재시도 최대 8회를 공유하고, 25ms부터 최대 200ms까지 지수 backoff를 적용합니다. 한도 초과 시 불완전한 상태 대신 `IllegalStateException`을 던집니다. 이는 재시도 횟수 상한이지 전체 요청 timeout이 아닙니다. 개별 SDK 요청 timeout은 애플리케이션이 소유한 client에 설정합니다.
 - `minLeaseTime`은 caller를 블로킹하지 않고 남은 최소 lease 동안 행을 유지합니다.
 - 단일 리더 `autoExtend`는 action 실행 중 lease를 갱신합니다. Group elector는 명시적 `LockExtender` 호출이 필요합니다.
 
