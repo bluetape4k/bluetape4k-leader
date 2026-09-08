@@ -72,12 +72,12 @@ class WebhookPoller(
     private var indexEnsured: Boolean = false
 
     /**
-     * `start` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+     * 주어진 scope에서 polling을 시작합니다. 이전 job이 정리 중이면 재시작을 거부합니다.
      *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+     * 반환한 [Job]이 실제 완료된 뒤 같은 인스턴스를 재시작할 수 있습니다.
      */
     fun start(scope: CoroutineScope): Job = lifecycleLock.withLock {
-        check(pollerJob == null || pollerJob?.isActive != true) {
+        check(pollerJob == null || pollerJob?.isCompleted == true) {
             "WebhookPoller(nodeId=${options.nodeId}) is already running"
         }
         val job = scope.launch {
@@ -92,26 +92,34 @@ class WebhookPoller(
             }
         }
         pollerJob = job
+        job.invokeOnCompletion {
+            lifecycleLock.withLock {
+                if (pollerJob === job) pollerJob = null
+            }
+        }
         job
     }
 
     /**
-     * `stopGracefully` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+     * worker에 취소를 요청하고 [timeout] 동안 실제 종료를 기다립니다.
      *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+     * 시간 초과는 경고로 기록하며, 호출자 취소는 전파합니다.
+     * 두 경우 모두 이전 job이 완료되기 전까지 재시작할 수 없습니다.
+     * 0 이하 timeout도 worker 취소 요청은 수행합니다.
      */
     suspend fun stopGracefully(timeout: Duration = 30.seconds) {
         val job = lifecycleLock.withLock { pollerJob } ?: return
+        // 대기 시간이 0이거나 호출자가 이미 취소됐어도 worker 취소는 요청합니다.
+        job.cancel()
         try {
-            withTimeoutOrNull(timeout) { job.cancelAndJoin() }
+            val completed = withTimeoutOrNull(timeout) { job.cancelAndJoin(); true } ?: false
+            if (!completed && !job.isCompleted) {
+                log.warn { "[${options.nodeId}] stopGracefully timed out; cleanup is still pending" }
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             log.warn(e) { "[${options.nodeId}] stopGracefully encountered error" }
-        } finally {
-            lifecycleLock.withLock {
-                if (pollerJob === job) pollerJob = null
-            }
         }
     }
 

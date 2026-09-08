@@ -66,6 +66,11 @@ val job = aggregator.start(applicationScope)
 aggregator.stopGracefully(timeout = 30.seconds)
 ```
 
+`stopGracefully`는 취소를 요청한 뒤 timeout 동안 종료를 기다립니다. 시간 초과는 경고로 기록하며,
+정리 완료를 의미하지 않습니다. 호출자가 취소되거나 timeout이 지나도 이전 job이 실제 완료될 때까지
+같은 인스턴스의 `start`는 재시작을 거부합니다. `start`가 반환한 Job의 `isCompleted` 또는 `join()`으로 종료를 확인하세요.
+0 이하 timeout도 취소 요청은 수행합니다. 이 제한은 로컬 worker lifecycle에 관한 것으로 분산 lease 해제를 보장하지 않습니다.
+
 ## Demo
 
 ```bash

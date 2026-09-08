@@ -89,13 +89,13 @@ class TenantAggregator(
     /**
      * 모든 [TenantAggregatorOptions.tenants] 에 대해 별도 child coroutine 을 launch 하여 polling 시작.
      *
-     * - 동일 인스턴스에서 두 번 호출 금지 (이미 실행 중이면 [IllegalStateException]).
+     * - 이전 job이 실행 또는 정리 중이면 [IllegalStateException]. 실제 완료 후 재시작할 수 있습니다.
      *   여러 호출자가 거의 동시에 호출해도 [lifecycleLock] 으로 직렬화되어 단 하나의 호출만 성공한다 (thread-safe).
      * - [scope] 가 cancel 되면 모든 테넌트 코루틴이 자동 종료.
      * - 한 테넌트 코루틴의 예외는 다른 테넌트 코루틴에 영향을 주지 않는다 ([supervisorScope] 사용).
      */
     fun start(scope: CoroutineScope): Job = lifecycleLock.withLock {
-        check(rootJob == null || rootJob?.isActive != true) {
+        check(rootJob == null || rootJob?.isCompleted == true) {
             "TenantAggregator(nodeId=${options.nodeId}) is already running"
         }
         val job = scope.launch {
@@ -113,26 +113,34 @@ class TenantAggregator(
             }
         }
         rootJob = job
+        job.invokeOnCompletion {
+            lifecycleLock.withLock {
+                if (rootJob === job) rootJob = null
+            }
+        }
         job
     }
 
     /**
-     * 모든 테넌트 polling 을 정상 종료한다. [timeout] 안에 종료되지 않으면 강제 cancel 후 반환.
+     * 모든 테넌트에 취소를 요청하고 [timeout] 동안 실제 종료를 기다립니다.
+     * 시간 초과는 경고로 기록하며 정리가 끝날 때까지 재시작을 거부합니다.
+     * 호출자 취소는 전파하며, 0 이하 timeout도 worker 취소 요청은 수행합니다.
      *
      * [start] 와 동일한 [lifecycleLock] 으로 보호되어 동시 호출에도 안전하다.
      */
     suspend fun stopGracefully(timeout: Duration = 30.seconds) {
         val job = lifecycleLock.withLock { rootJob } ?: return
+        // 대기 시간이 0이거나 호출자가 이미 취소됐어도 worker 취소는 요청합니다.
+        job.cancel()
         try {
-            withTimeoutOrNull(timeout) { job.cancelAndJoin() }
+            val completed = withTimeoutOrNull(timeout) { job.cancelAndJoin(); true } ?: false
+            if (!completed && !job.isCompleted) {
+                log.warn { "[${options.nodeId}] stopGracefully timed out; cleanup is still pending" }
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             log.warn(e) { "[${options.nodeId}] stopGracefully encountered error" }
-        } finally {
-            lifecycleLock.withLock {
-                if (rootJob === job) rootJob = null
-            }
         }
     }
 
