@@ -78,6 +78,8 @@ val result = election.runIfLeader("parallel-batch") {
 
 ### 비동기 단일 리더
 
+비동기 single/group elector는 기존 `VirtualThreadExecutor`의 한 소유 작업에서 Curator lease를 획득하고 해제합니다. caller executor는 action을 시작한 뒤 그 future를 기다리지 않으므로 action이 같은 single-thread executor에 작업을 제출해도 됩니다. action의 최초 호출에는 lock-handle scope를 전달하지만 이후 임의의 future callback에 thread-local scope가 자동 전파되지는 않습니다. 취소는 제출 대기와 실제 action future 양쪽으로 전달되며, 명시적으로 취소한 결과는 cleanup 완료의 증거가 아닙니다. 기존 best-effort release 오류 처리는 유지됩니다.
+
 ```kotlin
 val election = ZooKeeperLeaderElector(curator)
 
