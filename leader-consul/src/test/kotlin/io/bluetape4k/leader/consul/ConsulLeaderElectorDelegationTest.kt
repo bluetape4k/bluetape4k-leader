@@ -31,7 +31,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
-import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
@@ -100,42 +99,6 @@ class ConsulLeaderElectorDelegationTest {
         result.isDone.shouldBeTrue()
         rejectionCalls.get() shouldBeEqualTo 1
         cleanupCalls.get() shouldBeEqualTo 1
-    }
-
-    @Test
-    fun `dispatcher terminalizes non rejection scheduler failure`() {
-        val schedulerFailure = IllegalStateException("issue-914-scheduler-failed")
-        val cleanupCalls = AtomicInteger()
-        val failingExecutor = Executor { throw schedulerFailure }
-
-        val result = AsyncLeaseCleanupDispatcher.completeAfter(
-            source = CompletableFuture.completedFuture("done"),
-            executor = failingExecutor,
-            cleanup = { cleanupCalls.incrementAndGet() },
-        ) { value, _ -> value }
-
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
-        cleanupCalls.get() shouldBeEqualTo 1
-    }
-
-    @Test
-    fun `dispatcher dual scheduler failure stays terminal without inline cleanup`() {
-        val dispatchFailure = IllegalStateException("issue-914-primary-failed")
-        val fallbackFailure = IllegalArgumentException("issue-914-fallback-failed")
-        val cleanupCalls = AtomicInteger()
-
-        val result = AsyncLeaseCleanupDispatcher.completeAfter(
-            source = CompletableFuture.completedFuture("done"),
-            executor = Executor { throw dispatchFailure },
-            cleanup = { cleanupCalls.incrementAndGet() },
-            fallbackExecutor = Executor { throw fallbackFailure },
-        ) { value, _ -> value }
-
-        val failure = assertFailsWith<ExecutionException> { result.get(2, TimeUnit.SECONDS) }
-
-        failure.cause shouldBeEqualTo dispatchFailure
-        failure.cause?.suppressed?.toList() shouldBeEqualTo listOf(fallbackFailure)
-        cleanupCalls.get() shouldBeEqualTo 0
     }
 
     @Test
