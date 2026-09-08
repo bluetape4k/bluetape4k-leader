@@ -15,6 +15,7 @@ internal object LettuceCandidateWriteScript {
     const val MIGRATE = "MIGRATE"
     const val UNREGISTER = "UNREGISTER"
     const val REMOVE_IF_VALUE = "REMOVE_IF_VALUE"
+    const val REMOVE_LEGACY_IF_VALUE = "REMOVE_LEGACY_IF_VALUE"
 
     const val ABSENT = 0L
     const val MALFORMED = -1L
@@ -33,6 +34,15 @@ internal object LettuceCandidateWriteScript {
           local ttl = tonumber(ARGV[3])
           if not ttl or ttl < 0 or ttl % 1 ~= 0 then
             return redis.error_reply('candidate TTL must be a non-negative integer')
+          end
+
+          local expectedTombstone = ARGV[5]
+          if expectedTombstone then
+            local currentTombstone = redis.call('GET', KEYS[3])
+            if (expectedTombstone == '' and currentTombstone)
+              or (expectedTombstone ~= '' and currentTombstone ~= expectedTombstone) then
+              return { $TOMBSTONED }
+            end
           end
 
           redis.call('DEL', KEYS[3], KEYS[4])
@@ -127,7 +137,7 @@ internal object LettuceCandidateWriteScript {
         end
 
         if operation == '$UNREGISTER' then
-          redis.call('SET', KEYS[3], '1')
+          redis.call('SET', KEYS[3], ARGV[3] or '1')
           redis.call('DEL', KEYS[1], KEYS[4])
           redis.call('SREM', KEYS[2], ARGV[2])
           return { $UNREGISTERED }
@@ -139,6 +149,14 @@ internal object LettuceCandidateWriteScript {
           if current and currentToken and current == ARGV[2] and currentToken == ARGV[3] then
             redis.call('DEL', KEYS[1], KEYS[3])
             redis.call('SREM', KEYS[2], ARGV[4])
+            return { $REMOVED }
+          end
+          return { $ABSENT }
+        end
+
+        if operation == '$REMOVE_LEGACY_IF_VALUE' then
+          if redis.call('GET', KEYS[1]) == ARGV[2] then
+            redis.call('DEL', KEYS[1])
             return { $REMOVED }
           end
           return { $ABSENT }

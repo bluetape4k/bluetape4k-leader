@@ -16,11 +16,15 @@ import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
 import io.bluetape4k.testcontainers.storage.RedisClusterServer
+import io.lettuce.core.RedisFuture
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.SetArgs
+import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands
 import io.lettuce.core.cluster.SlotHash
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
 import io.lettuce.core.cluster.api.coroutines
+import io.lettuce.core.cluster.api.reactive.RedisAdvancedClusterReactiveCommands
+import io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.AfterAll
@@ -29,6 +33,7 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.testcontainers.utility.DockerImageName
+import reactor.core.publisher.Mono
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CancellationException
@@ -588,6 +593,40 @@ class LettuceStrategicRedisClusterTest {
         }
     }
 
+    @Test
+    fun `blocking cluster cleanup failure leaves only the legacy index residue`() {
+        withCluster { connection ->
+            val fixture = seedLegacyCleanupFixture(connection, "cluster-cleanup-failure-blocking")
+            val failure = ClusterLegacyCleanupFailureConnection(connection, fixture.indexKey)
+            val registry = LettuceCandidateRegistry(failure.wrappedConnection)
+
+            assertFailsWith<IllegalStateException> {
+                registry.unregisterCandidate(fixture.lockName, fixture.nodeId)
+            }
+
+            connection.sync().get(fixture.sourceKey).shouldBeNull()
+            connection.sync().sismember(fixture.indexKey, fixture.nodeId) shouldBeEqualTo true
+            connection.sync().get(fixture.tombstoneKey).shouldNotBeNull()
+        }
+    }
+
+    @Test
+    fun `suspend cluster cleanup failure leaves only the legacy index residue`() = runSuspendIO {
+        withClusterSuspend { connection ->
+            val fixture = seedLegacyCleanupFixture(connection, "cluster-cleanup-failure-suspend")
+            val failure = ClusterLegacyCleanupFailureConnection(connection, fixture.indexKey)
+            val registry = LettuceSuspendCandidateRegistry(failure.wrappedConnection)
+
+            assertFailsWith<IllegalStateException> {
+                registry.unregisterCandidate(fixture.lockName, fixture.nodeId)
+            }
+
+            connection.sync().get(fixture.sourceKey).shouldBeNull()
+            connection.sync().sismember(fixture.indexKey, fixture.nodeId) shouldBeEqualTo true
+            connection.sync().get(fixture.tombstoneKey).shouldNotBeNull()
+        }
+    }
+
     private fun withCluster(block: (StatefulRedisClusterConnection<String, String>) -> Unit) {
         RedisClusterServer.Launcher.LettuceLib.getClusterClient(server).use { client ->
             client.connect().use { connection ->
@@ -648,5 +687,85 @@ class LettuceStrategicRedisClusterTest {
         }
         Files.writeString(diagnosticsDirectory.resolve("cluster-runtime.txt"), runtimeProvenance)
         Files.writeString(diagnosticsDirectory.resolve("cluster-info.txt"), clusterInfo)
+    }
+
+    private fun seedLegacyCleanupFixture(
+        connection: StatefulRedisClusterConnection<String, String>,
+        name: String,
+    ): ClusterLegacyCleanupFixture {
+        val lockName = "$name-${System.nanoTime()}"
+        val nodeId = "cluster-cleanup-node"
+        val sourceKey = LettuceCandidateKeyCodec.v2CandidateKey(
+            LettuceCandidateRegistry.DEFAULT_KEY_PREFIX,
+            lockName,
+            nodeId,
+        )
+        val indexKey = LettuceCandidateKeyCodec.v2IndexKey(
+            LettuceCandidateRegistry.DEFAULT_KEY_PREFIX,
+            lockName,
+        )
+        connection.sync().set(
+            sourceKey,
+            LettuceCandidateInfoCodec.encode(CandidateInfo(nodeId, metadata = mapOf("generation" to "legacy"))),
+        )
+        connection.sync().sadd(indexKey, nodeId)
+        return ClusterLegacyCleanupFixture(
+            lockName = lockName,
+            nodeId = nodeId,
+            sourceKey = sourceKey,
+            indexKey = indexKey,
+            tombstoneKey = LettuceCandidateKeyCodec.tombstoneKey(
+                LettuceCandidateRegistry.DEFAULT_KEY_PREFIX,
+                lockName,
+                nodeId,
+            ),
+        )
+    }
+
+    private data class ClusterLegacyCleanupFixture(
+        val lockName: String,
+        val nodeId: String,
+        val sourceKey: String,
+        val indexKey: String,
+        val tombstoneKey: String,
+    )
+
+    private class ClusterLegacyCleanupFailureConnection(
+        connection: StatefulRedisClusterConnection<String, String>,
+        private val sourceIndexKey: String,
+    ) {
+        private val sync = connection.sync()
+        private val async = connection.async()
+        private val reactive = connection.reactive()
+
+        private val syncCommands = object : RedisAdvancedClusterCommands<String, String> by sync {
+            override fun srem(key: String, vararg members: String): Long =
+                if (key == sourceIndexKey) error(INJECTED_CLUSTER_FAILURE) else sync.srem(key, *members)
+        }
+
+        private val asyncCommands = object : RedisAdvancedClusterAsyncCommands<String, String> by async {
+            override fun srem(key: String, vararg members: String): RedisFuture<Long> =
+                if (key == sourceIndexKey) error(INJECTED_CLUSTER_FAILURE) else async.srem(key, *members)
+        }
+
+        private val reactiveCommands = object : RedisAdvancedClusterReactiveCommands<String, String> by reactive {
+            override fun srem(key: String, vararg members: String): Mono<Long> =
+                if (key == sourceIndexKey) {
+                    Mono.error(IllegalStateException(INJECTED_CLUSTER_FAILURE))
+                } else {
+                    reactive.srem(key, *members)
+                }
+        }
+
+        val wrappedConnection: StatefulRedisClusterConnection<String, String> =
+            object : StatefulRedisClusterConnection<String, String> by connection {
+                override fun sync(): RedisAdvancedClusterCommands<String, String> = syncCommands
+                override fun async(): RedisAdvancedClusterAsyncCommands<String, String> = asyncCommands
+                override fun reactive(): RedisAdvancedClusterReactiveCommands<String, String> = reactiveCommands
+            }
+    }
+
+    private companion object {
+        const val INJECTED_CLUSTER_FAILURE = "injected cluster legacy cleanup failure"
     }
 }

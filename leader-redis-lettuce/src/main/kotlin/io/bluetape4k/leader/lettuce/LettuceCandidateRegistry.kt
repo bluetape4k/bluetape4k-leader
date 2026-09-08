@@ -84,21 +84,31 @@ internal class LettuceCandidateRegistry private constructor(
     fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
         validateLockName(lockName)
         val ttlMillis = candidateTtlMillis(ttl)
-        val reply = runWriteScript(
-            operation = LettuceCandidateWriteScript.REGISTER,
-            keys = arrayOf(
-                candidateKey(lockName, info.nodeId),
-                indexKey(lockName),
-                tombstoneKey(lockName, info.nodeId),
-                migrationTokenKey(lockName, info.nodeId),
-            ),
-            args = arrayOf(
-                LettuceCandidateInfoCodec.encode(info),
-                ttlMillis.toString(),
-                info.nodeId,
-            ),
-        )
-        requireStatus(reply, LettuceCandidateWriteScript.REGISTERED)
+        repeat(MAX_REGISTER_FENCE_ATTEMPTS) {
+            val observedTombstone = commands.get(tombstoneKey(lockName, info.nodeId))
+            if (observedTombstone != null) cleanupLegacyGeneration(lockName, info.nodeId)
+            val reply = runWriteScript(
+                operation = LettuceCandidateWriteScript.REGISTER,
+                keys = arrayOf(
+                    candidateKey(lockName, info.nodeId),
+                    indexKey(lockName),
+                    tombstoneKey(lockName, info.nodeId),
+                    migrationTokenKey(lockName, info.nodeId),
+                ),
+                args = arrayOf(
+                    LettuceCandidateInfoCodec.encode(info),
+                    ttlMillis.toString(),
+                    info.nodeId,
+                    observedTombstone.orEmpty(),
+                ),
+            )
+            when (reply.firstOrNull()?.toString()?.toLongOrNull()) {
+                LettuceCandidateWriteScript.REGISTERED -> return
+                LettuceCandidateWriteScript.TOMBSTONED -> Unit
+                else -> requireStatus(reply, LettuceCandidateWriteScript.REGISTERED)
+            }
+        }
+        error("Candidate registration fence changed too many times")
     }
 
     fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
@@ -130,12 +140,11 @@ internal class LettuceCandidateRegistry private constructor(
                 tombstoneKey(lockName, nodeId),
                 migrationTokenKey(lockName, nodeId),
             ),
-            args = arrayOf(nodeId),
+            args = arrayOf(nodeId, UUID.randomUUID().toString()),
         )
         requireStatus(reply, LettuceCandidateWriteScript.UNREGISTERED)
 
-        cleanupLegacyCandidate(nodeId, v2CandidateKey(lockName, nodeId), v2IndexKey(lockName))
-        cleanupLegacyCandidate(nodeId, legacyCandidateKey(lockName, nodeId), legacyIndexKey(lockName))
+        cleanupLegacyGeneration(lockName, nodeId)
     }
 
     @Suppress("CyclomaticComplexMethod")
@@ -289,13 +298,18 @@ internal class LettuceCandidateRegistry private constructor(
     }
 
     private fun readLegacyCandidate(key: String, expectedNodeId: String): CandidateInfo? {
+        return readLegacyCandidateRaw(key, expectedNodeId)
+            ?.let(LettuceCandidateInfoCodec::decode)
+    }
+
+    private fun readLegacyCandidateRaw(key: String, expectedNodeId: String): String? {
         val raw = try {
             commands.get(key)
         } catch (e: RedisCommandExecutionException) {
             if (!e.isWrongType()) throw e
             null
         }
-        return raw?.let(LettuceCandidateInfoCodec::decode)?.takeIf { it.nodeId == expectedNodeId }
+        return raw?.takeIf { encoded -> LettuceCandidateInfoCodec.decode(encoded).nodeId == expectedNodeId }
     }
 
     private fun migrateLegacyCandidate(lockName: String, nodeId: String, source: LegacyCandidate): Boolean {
@@ -379,9 +393,33 @@ internal class LettuceCandidateRegistry private constructor(
         )
     }
 
+    private fun cleanupLegacyGeneration(lockName: String, nodeId: String) {
+        cleanupLegacyCandidate(nodeId, v2CandidateKey(lockName, nodeId), v2IndexKey(lockName))
+        cleanupLegacyCandidate(nodeId, legacyCandidateKey(lockName, nodeId), legacyIndexKey(lockName))
+    }
+
     private fun cleanupLegacyCandidate(nodeId: String, candidateKey: String, indexKey: String) {
-        if (readLegacyCandidate(candidateKey, nodeId) != null) commands.del(candidateKey)
-        removeLegacyIndexMembers(indexKey, listOf(nodeId))
+        val observedRaw = readLegacyCandidateRaw(candidateKey, nodeId)
+        val removed = observedRaw?.let { raw ->
+            runWriteScript(
+                operation = LettuceCandidateWriteScript.REMOVE_LEGACY_IF_VALUE,
+                keys = arrayOf(candidateKey),
+                args = arrayOf(raw),
+            ).firstOrNull()?.toString()?.toLongOrNull() == LettuceCandidateWriteScript.REMOVED
+        } ?: false
+        if (observedRaw == null || removed) {
+            removeLegacyIndexMembers(indexKey, listOf(nodeId))
+            restoreLegacyIndexMemberIfSourceReappeared(candidateKey, indexKey, nodeId)
+        }
+    }
+
+    private fun restoreLegacyIndexMemberIfSourceReappeared(candidateKey: String, indexKey: String, nodeId: String) {
+        if (readLegacyCandidateRaw(candidateKey, nodeId) == null) return
+        try {
+            commands.sadd(indexKey, nodeId)
+        } catch (e: RedisCommandExecutionException) {
+            if (!e.isWrongType()) throw e
+        }
     }
 
     private fun removeLegacyIndexMembers(indexKey: String, nodeIds: List<String>) {
@@ -412,3 +450,4 @@ internal class LettuceCandidateRegistry private constructor(
 }
 
 private const val REDIS_KEY_ABSENT_TTL = -2L
+private const val MAX_REGISTER_FENCE_ATTEMPTS = 3
