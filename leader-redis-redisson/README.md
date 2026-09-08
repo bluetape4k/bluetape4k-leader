@@ -16,6 +16,16 @@ For multi-leader groups, the elector binds to a `RPermitExpirableSemaphore` keye
 
 The coroutine single-leader implementation uses a PID-seeded mini-Snowflake ID generator to produce unique per-coroutine lock IDs without Redis round-trips, ensuring safety in HA (multi-JVM) deployments.
 
+### Async cleanup policy
+
+Single-lock async cleanup uses `isHeldByThreadAsync`, `expireAsync`, and
+`unlockAsync` directly; minimum-lease cleanup after executor rejection also uses
+native expiry. No blocking Redis call is wrapped in the common pool on these paths.
+Cleanup failures reported by the single/group cleanup futures are logged and do
+not replace the original action value, exception, or cancellation. This is
+best-effort cleanup, not a guarantee that release succeeded. A retained minimum
+lease can still cause normal contention until its TTL expires.
+
 ## Architecture
 
 ![leader redis redisson Class Structure diagram](../docs/images/readme-diagrams/leader-redis-redisson-class-01.png)

@@ -16,6 +16,15 @@
 
 코루틴 단일 리더 구현체는 PID 시드 기반의 미니 Snowflake ID 생성기를 사용하여 Redis 라운드트립 없이 코루틴별 고유 락 ID를 생성합니다. HA(다중 JVM) 환경에서 안전하게 동작합니다.
 
+### 비동기 정리 정책
+
+단일 락의 비동기 정리는 `isHeldByThreadAsync`, `expireAsync`, `unlockAsync`를
+직접 사용합니다. executor 거부 후 최소 lease 정리도 native expiry를 사용하며,
+이 경로에서는 blocking Redis 호출을 common pool로 감싸지 않습니다.
+single/group 정리 future로 보고된 실패는 로그에 남기고 원래 action 값·예외·취소를
+바꾸지 않습니다. 이는 best-effort 정책이며 해제 성공 보장은 아닙니다.
+최소 lease가 남아 있으면 TTL 만료까지 정상 경합이 발생할 수 있습니다.
+
 ## 아키텍처
 
 ![leader redis redisson Class Structure diagram](../docs/images/readme-diagrams/leader-redis-redisson-class-01.png)
