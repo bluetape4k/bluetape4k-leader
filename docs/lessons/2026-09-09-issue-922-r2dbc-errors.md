@@ -23,6 +23,14 @@ DB transaction manager에서 기본 인자를 평가한다. 등록되지 않은 
 등록된 H2 DB와 mock transaction 본문을 조합한 뒤 의도한 5개 실패를 확인했다.
 수정 후 fatal·wrapped 취소·재시도·예산·cause 순환 등 12개 테스트가 통과했다.
 
+## 작업 범위 기록의 재발 방지
+
+직접 검토 문서를 `docs/review`에 추가하면서 최초 receipt의 쓰기 범위에
+그 경로가 없음을 놓쳤다. PR 생성 전에 별도 주 세션 문서 lane을 등록하고
+해당 경로의 `mutation-check`를 다시 통과했다. 앞으로 새 산출물 경로는
+작성 전에 전체 변경 경로와 함께 검사한다. 이 보완은 이전 누락을 없던 일로
+만드는 것이 아니며 독립 reviewer 실행을 뜻하지 않는다.
+
 ## 검토와 한계
 
 독립 reviewer 실행이 불가하여 workspace 규칙에 따른 주 세션 직접 검토를
