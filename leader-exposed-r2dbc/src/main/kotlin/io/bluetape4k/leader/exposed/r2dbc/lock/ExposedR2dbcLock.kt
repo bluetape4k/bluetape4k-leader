@@ -10,7 +10,9 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -101,58 +103,93 @@ internal class ExposedR2dbcLock internal constructor(
         val lockOwnerVal = this@ExposedR2dbcLock.lockOwner
         val tokenVal = this@ExposedR2dbcLock.token
 
-        return suspendTransaction(db) {
-            val now = currentTime(useDbTime)
-            val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
+        return try {
+            suspendTransaction(db) {
+                val now = currentTime(useDbTime)
+                val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
 
-            // Step 1: 만료된 락 갱신 시도
-            val updated = LeaderLockTable.update(
-                where = { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.lockedUntil less now) }
-            ) {
-                it[LeaderLockTable.lockOwner] = lockOwnerVal
-                it[LeaderLockTable.token] = tokenVal
-                it[LeaderLockTable.lockedAt] = now
-                it[LeaderLockTable.lockedUntil] = lockedUntil
-            }
-
-            if (updated == 0) {
-                // Step 2: 신규 행 삽입 시도
-                // PostgreSQL: INSERT ... ON CONFLICT DO NOTHING (안전, 예외 없음)
-                // MySQL: INSERT IGNORE INTO (안전, 예외 없음)
-                // H2 MySQL mode: INSERT IGNORE INTO (안전, 예외 없음)
-                // H2 default mode: UnsupportedOperationException (Kotlin 예외, DB 중단 아님) → false 반환
-                val inserted = try {
-                    LeaderLockTable.insertIgnore {
-                        it[LeaderLockTable.lockName] = lockNameVal
-                        it[LeaderLockTable.lockOwner] = lockOwnerVal
-                        it[LeaderLockTable.token] = tokenVal
-                        it[LeaderLockTable.lockedAt] = now
-                        it[LeaderLockTable.lockedUntil] = lockedUntil
-                    }
-                    true
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: UnsupportedByDialectException) {
-                    // H2 default mode: insertIgnore 미지원 → 경합 실패로 처리
-                    log.debug { "insertIgnore 미지원 dialect (H2 default mode?): lockName=$lockName" }
-                    false
+                // Step 1: 만료된 락 갱신 시도
+                val updated = LeaderLockTable.update(
+                    where = { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.lockedUntil less now) }
+                ) {
+                    it[LeaderLockTable.lockOwner] = lockOwnerVal
+                    it[LeaderLockTable.token] = tokenVal
+                    it[LeaderLockTable.lockedAt] = now
+                    it[LeaderLockTable.lockedUntil] = lockedUntil
                 }
 
-                if (!inserted) return@suspendTransaction false
-
-                // insertIgnore가 경합 행 때문에 무시됐을 수 있으므로 토큰 소유 여부 확인
-                return@suspendTransaction !LeaderLockTable
-                    .selectAll()
-                    .where {
-                        (LeaderLockTable.lockName eq lockNameVal) and
-                                (LeaderLockTable.token eq tokenVal) and
-                                (LeaderLockTable.lockedUntil greater now)
+                if (updated == 0) {
+                    // Step 2: 신규 행 삽입 시도
+                    // PostgreSQL: INSERT ... ON CONFLICT DO NOTHING (안전, 예외 없음)
+                    // MySQL: INSERT IGNORE INTO (안전, 예외 없음)
+                    // H2 MySQL mode: INSERT IGNORE INTO (안전, 예외 없음)
+                    // H2 default mode: UnsupportedOperationException (Kotlin 예외, DB 중단 아님) → false 반환
+                    val inserted = try {
+                        LeaderLockTable.insertIgnore {
+                            it[LeaderLockTable.lockName] = lockNameVal
+                            it[LeaderLockTable.lockOwner] = lockOwnerVal
+                            it[LeaderLockTable.token] = tokenVal
+                            it[LeaderLockTable.lockedAt] = now
+                            it[LeaderLockTable.lockedUntil] = lockedUntil
+                        }
+                        true
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: UnsupportedByDialectException) {
+                        // H2 default mode: insertIgnore 미지원 → 경합 실패로 처리
+                        log.debug { "insertIgnore 미지원 dialect (H2 default mode?): lockName=$lockName" }
+                        false
                     }
-                    .empty()
-            }
 
-            // UPDATE가 성공한 경우 — 이미 토큰이 행에 기록됨
-            true
+                    if (!inserted) return@suspendTransaction false
+
+                    // insertIgnore가 경합 행 때문에 무시됐을 수 있으므로 토큰 소유 여부 확인
+                    return@suspendTransaction !LeaderLockTable
+                        .selectAll()
+                        .where {
+                            (LeaderLockTable.lockName eq lockNameVal) and
+                                    (LeaderLockTable.token eq tokenVal) and
+                                    (LeaderLockTable.lockedUntil greater now)
+                        }
+                        .empty()
+                }
+
+                // UPDATE가 성공한 경우 — 이미 토큰이 행에 기록됨
+                true
+            }
+        } catch (e: CancellationException) {
+            cleanupAcquisitionAfterCancellation(lockNameVal, tokenVal, e)
+            throw e
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun cleanupAcquisitionAfterCancellation(
+        lockNameVal: String,
+        tokenVal: String,
+        cancellation: CancellationException,
+    ) {
+        try {
+            withContext(NonCancellable) {
+                suspendTransaction(db) {
+                    LeaderLockTable.deleteWhere {
+                        (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal)
+                    }
+                }
+            }
+        } catch (cleanupFailure: Exception) {
+            cancellation.addSuppressedSafely(cleanupFailure)
+            log.warn(cleanupFailure) {
+                "취소된 R2DBC 락 획득 보상 정리 실패: " +
+                        "lockName=$lockNameVal, token=${tokenVal.take(8)}, " +
+                        "failure=${cleanupFailure::class.simpleName}"
+            }
+        }
+    }
+
+    private fun Throwable.addSuppressedSafely(cause: Throwable) {
+        if (cause !== this && suppressed.none { it === cause }) {
+            addSuppressed(cause)
         }
     }
 
