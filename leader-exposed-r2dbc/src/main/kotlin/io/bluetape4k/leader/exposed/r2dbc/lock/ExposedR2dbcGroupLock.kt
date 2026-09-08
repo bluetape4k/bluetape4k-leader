@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
+import io.bluetape4k.leader.exposed.r2dbc.internal.classifyAcquisitionFailure
+
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
@@ -104,6 +106,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    @Suppress("TooGenericExceptionCaught", "ReturnCount") // 획득·경합·unavailable을 구분하고 Error와 취소는 전파합니다.
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean? {
         val deadline = MonotonicDeadline.fromNow(waitTime)
         var attempt = 0
@@ -115,8 +118,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
                 tryAcquireOnce(leaseTime)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Throwable) {
-                log.warn(e) { "DB 오류로 슬롯 순회 중단: lockName=$lockName, slot=$slot, attempt=$attempt" }
+            } catch (e: Exception) {
+                val kind = classifyAcquisitionFailure(e)
+                log.warn(e) { "DB 오류로 슬롯 순회 중단: kind=$kind, lockName=$lockName, slot=$slot, attempt=$attempt" }
                 markUnavailablePreservingFailure(e)
                 return null
             }

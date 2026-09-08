@@ -5,6 +5,8 @@ import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.r2dbc.internal.MonotonicDeadline
+import io.bluetape4k.leader.exposed.r2dbc.internal.classifyAcquisitionFailure
+import io.bluetape4k.leader.internal.BackendErrorKind
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -66,6 +68,7 @@ internal class ExposedR2dbcLock internal constructor(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    @Suppress("TooGenericExceptionCaught") // 드라이버의 예외를 기존 분류기로 구분합니다.
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
         val deadline = MonotonicDeadline.fromNow(waitTime)
         var attempt = 0
@@ -77,8 +80,10 @@ internal class ExposedR2dbcLock internal constructor(
                 tryAcquireOnce(leaseTime)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Throwable) {
-                log.warn(e) { "DB 오류 (재시도 유지): lockName=$lockName, attempt=$attempt" }
+            } catch (e: Exception) {
+                val kind = classifyAcquisitionFailure(e)
+                log.warn(e) { "DB 오류: kind=$kind, lockName=$lockName, attempt=$attempt" }
+                if (kind != BackendErrorKind.TRANSIENT) break
                 false
             }
 
@@ -94,7 +99,7 @@ internal class ExposedR2dbcLock internal constructor(
             }
         } while (deadline.hasTimeRemaining())
 
-        log.debug { "락 획득 실패 (타임아웃): lockName=$lockName" }
+        log.debug { "락 획득 실패: lockName=$lockName" }
         return false
     }
 

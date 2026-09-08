@@ -12,6 +12,14 @@
 
 락 전략: 단일 트랜잭션 내 `UPDATE WHERE lockedUntil < NOW()` + `INSERT IGNORE` — Redis나 외부 브로커가 필요 없습니다. H2(인메모리), PostgreSQL, MySQL 8을 지원합니다.
 
+### 획득 실패 정책
+
+취소와 JVM `Error`는 wrapper 내부 원인까지 확인해 원본을 전파합니다.
+단일 락은 transient DB 오류만 기존 대기 시간 예산 안에서 재시도하며,
+non-transient 또는 미분류 예외는 즉시 `false`로 종료합니다.
+그룹 락은 DB 오류의 unavailable/`null` 정책과 슬롯 순회 중단을 유지합니다.
+정상 경합은 여전히 예외가 아닌 실행 건너뛰기로 처리합니다.
+
 ## 아키텍처
 
 ![leader exposed r2dbc Class Structure diagram](../docs/images/readme-diagrams/leader-exposed-r2dbc-class-01.png)
