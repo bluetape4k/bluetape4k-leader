@@ -402,24 +402,13 @@ class RedissonLeaderElector private constructor(
     }
 
     private fun releaseLockAsync(lock: RLock, currentThreadId: Long, acquiredAtNanos: Long): CompletableFuture<Unit> {
-        val lockName = lock.name
         return try {
-            if (lock.isHeldByThread(currentThreadId)) {
-                val remaining = remainingMinLeaseTime(acquiredAtNanos, options.minLeaseTime)
-                val releaseFuture: CompletableFuture<*> = if (remaining > kotlin.time.Duration.ZERO) {
-                    CompletableFuture.supplyAsync {
-                        redissonClient.keys.expire(remaining.toJavaDuration(), lockName)
-                    }
+            lock.isHeldByThreadAsync(currentThreadId).toCompletableFuture().thenCompose { held ->
+                if (held) {
+                    releaseAcquiredLockAsync(lock, currentThreadId, acquiredAtNanos)
                 } else {
-                    lock.unlockAsync(currentThreadId).toCompletableFuture()
+                    CompletableFuture.completedFuture(Unit)
                 }
-
-                releaseFuture.thenApply {
-                    log.debug { "Leader 권한을 반납했습니다. lock=$lockName, threadId=$currentThreadId" }
-                    Unit
-                }
-            } else {
-                CompletableFuture.completedFuture(Unit)
             }
         } catch (e: Throwable) {
             failedCompletableFutureOf(e)
@@ -435,14 +424,12 @@ class RedissonLeaderElector private constructor(
         return try {
             val remaining = remainingMinLeaseTime(acquiredAtNanos, options.minLeaseTime)
             val releaseFuture: CompletableFuture<*> = if (remaining > kotlin.time.Duration.ZERO) {
-                CompletableFuture.supplyAsync {
-                    redissonClient.keys.expire(remaining.toJavaDuration(), lockName)
-                }
+                redissonClient.keys.expireAsync(remaining.toJavaDuration(), lockName).toCompletableFuture()
             } else {
                 lock.unlockAsync(currentThreadId).toCompletableFuture()
             }
             releaseFuture.thenApply {
-                log.debug { "executor 거부 후 Leader 권한을 반납했습니다. lock=$lockName, threadId=$currentThreadId" }
+                log.debug { "Leader 권한을 반납했습니다. lock=$lockName, threadId=$currentThreadId" }
                 Unit
             }
         } catch (e: Throwable) {
