@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.examples.batch
 
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.lettuce.LettuceLeaderElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
@@ -36,20 +37,25 @@ class BatchScheduler(
     )
 
     /**
-     * `선언` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+     * 리더로 선출되면 작업을 실행하며 실제 경합일 때만 skip 로그를 남깁니다.
      *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+     * 반환형은 T?이므로 작업의 null 결과와 경합을 반환값만으로 구분할 수 없습니다.
+     * 작업 오류·취소는 원본을 전파하며 InterruptedException의 interrupt flag를 복원합니다.
      */
     fun <T> run(job: () -> T): T? {
-        return elector.runIfLeader(lockName) {
+        val outcome = elector.runIfLeaderResult(lockName) {
             log.info { "[$nodeId] 리더 선출 성공 — Job 실행 시작" }
             val result = job()
             log.info { "[$nodeId] Job 실행 완료" }
             result
-        }.also {
-            if (it == null) {
+        }
+        return when (outcome) {
+            is LeaderRunResult.Elected -> outcome.value
+            LeaderRunResult.Skipped -> {
                 log.info { "[$nodeId] 리더 선출 실패 — 다른 인스턴스가 실행 중. skip." }
+                null
             }
+            is LeaderRunResult.ActionFailed -> throw outcome.cause
         }
     }
 }
