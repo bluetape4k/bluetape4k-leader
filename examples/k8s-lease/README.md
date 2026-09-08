@@ -38,6 +38,12 @@ can acquire the same Lease later.
 
 ## Run
 
+`leaseDuration` accepts positive `java.time.Duration` values up to `Int.MAX_VALUE` seconds.
+Fractional seconds are rounded up: 1ns and 500ms become 1 second, and 1s + 1ns becomes 2 seconds.
+Zero, negative values, and values above the limit fail before any client call.
+Create, update, and the fallback for an existing Lease with no duration use the same converted value.
+Normal `test` validates mock requests; `k8sTest` separately validates real subsecond create/update requests.
+
 K3s requires Docker privileged mode. The test is tagged `k8s` and is excluded
 from the normal `test` task.
 

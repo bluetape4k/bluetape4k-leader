@@ -19,7 +19,7 @@ import java.time.ZonedDateTime
  * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  * @property client example workflow 계약에서 사용하는 속성입니다.
  * @property namespace example workflow 계약에서 사용하는 속성입니다.
- * @property leaseDuration example workflow 계약에서 사용하는 속성입니다.
+ * @property leaseDuration 양수 기간이며 소수 초는 올림합니다. Int.MAX_VALUE초를 넘으면 client 호출 전에 거부합니다.
  * @property clock example workflow 계약에서 사용하는 속성입니다.
  */
 class K8sLeaseLeaderElectionExample(
@@ -34,7 +34,14 @@ class K8sLeaseLeaderElectionExample(
         require(!leaseDuration.isNegative && !leaseDuration.isZero) {
             "leaseDuration must be positive. leaseDuration=$leaseDuration"
         }
+        require(leaseDuration <= Duration.ofSeconds(Int.MAX_VALUE.toLong())) {
+            "leaseDuration is too large for Kubernetes leaseDurationSeconds. leaseDuration=$leaseDuration"
+        }
     }
+
+    /** create/update와 기존 Lease의 기간 누락 fallback에 같은 올림 값을 사용합니다. */
+    private val leaseDurationSeconds =
+        (leaseDuration.seconds + if (leaseDuration.nano > 0) 1L else 0L).toInt()
 
     companion object: KLogging() {
         private const val CONFLICT_STATUS = 409
@@ -68,7 +75,7 @@ class K8sLeaseLeaderElectionExample(
             .withSpec(
                 LeaseSpecBuilder(current.spec)
                     .withHolderIdentity(holderIdentity)
-                    .withLeaseDurationSeconds(leaseDuration.seconds.toInt())
+                    .withLeaseDurationSeconds(leaseDurationSeconds)
                     .withRenewTime(now)
                     .withLeaseTransitions((current.spec?.leaseTransitions ?: 0) + transitionIncrement(current, holderIdentity))
                     .build()
@@ -120,7 +127,7 @@ class K8sLeaseLeaderElectionExample(
             .endMetadata()
             .withNewSpec()
             .withHolderIdentity(holderIdentity)
-            .withLeaseDurationSeconds(leaseDuration.seconds.toInt())
+            .withLeaseDurationSeconds(leaseDurationSeconds)
             .withAcquireTime(now)
             .withRenewTime(now)
             .withLeaseTransitions(0)
@@ -154,7 +161,7 @@ class K8sLeaseLeaderElectionExample(
         }
 
         val renewedAt = spec.renewTime ?: spec.acquireTime ?: return true
-        val leaseSeconds = spec.leaseDurationSeconds ?: leaseDuration.seconds.toInt()
+        val leaseSeconds = spec.leaseDurationSeconds ?: leaseDurationSeconds
         return renewedAt.toInstant().plusSeconds(leaseSeconds.toLong()).isBefore(now.toInstant())
     }
 

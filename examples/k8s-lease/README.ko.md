@@ -36,6 +36,12 @@ Kubernetes `coordination.k8s.io/v1` Lease API로 리더 선출 흐름을 검증�
 
 ## 실행
 
+`leaseDuration`은 양수이며 `Int.MAX_VALUE`초 이하인 `java.time.Duration`을 받습니다.
+소수 초는 올림하므로 1ns와 500ms는 1초, 1초+1ns는 2초가 됩니다.
+0·음수·상한 초과는 client 호출 전에 실패합니다.
+create·update 및 기간 필드가 없는 기존 Lease의 fallback에 같은 변환값을 사용합니다.
+일반 `test`는 mock 요청을, 별도 `k8sTest`는 실제 subsecond create/update 요청을 검증합니다.
+
 K3s는 Docker privileged mode가 필요합니다. 테스트는 `k8s` 태그가 붙어 있고
 일반 `test` 태스크에서는 제외됩니다.
 
