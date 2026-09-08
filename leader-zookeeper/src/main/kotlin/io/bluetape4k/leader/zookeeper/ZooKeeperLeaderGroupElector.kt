@@ -156,8 +156,12 @@ class ZooKeeperLeaderGroupElector private constructor(
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
             CompletableFuture.supplyAsync(
-                { runIfLeader(lockName) { cancellationRelay.invoke(action).join() } },
-                executor,
+                {
+                    runIfLeader(lockName) {
+                        cancellationRelay.invoke { submitZooKeeperAction(lockName, executor, action) }.join()
+                    }
+                },
+                VirtualThreadExecutor,
             ),
             cancellationRelay,
         )

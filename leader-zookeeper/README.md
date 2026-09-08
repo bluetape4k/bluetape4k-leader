@@ -78,6 +78,8 @@ val result = election.runIfLeader("parallel-batch") {
 
 ### Async single-leader
 
+Async single/group electors acquire and release the Curator lease in one owner task on the existing `VirtualThreadExecutor`. The caller executor starts the action without waiting for its future, so the action may schedule work on that same single-thread executor. The action's initial invocation receives the lock-handle scope; arbitrary later future callbacks do not inherit thread-local scope automatically. Cancellation reaches both queued submission and the actual action future, but an explicitly cancelled result is not proof that cleanup has finished. Existing best-effort release error handling remains unchanged.
+
 ```kotlin
 val election = ZooKeeperLeaderElector(curator)
 
