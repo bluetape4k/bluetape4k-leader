@@ -60,6 +60,12 @@ if (result == null) {
 
 ## Demo
 
+`run<String?> { null }` does not log a skip when the job actually ran. Internally, the existing
+`LeaderRunResult.Elected(null)` and `Skipped` are distinguished. The return type remains T?, so the
+return value alone cannot distinguish them. Interpret null as contention only when the job returns a non-null value, such as Unit above.
+Action failures and cancellation propagate unchanged; InterruptedException restores the interrupt flag.
+
+
 ```bash
 ./gradlew :examples:batch-scheduler:run
 ```

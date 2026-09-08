@@ -59,6 +59,12 @@ if (result == null) {
 
 ## Demo
 
+`run<String?> { null }`처럼 작업이 null을 반환해도 실제 실행된 경우에는 skip 로그를 남기지 않습니다.
+내부에서는 기존 `LeaderRunResult.Elected(null)`과 `Skipped`를 구분합니다. 반환형은 T?를 유지하므로
+반환값만으로 두 경우를 구분할 수 없습니다. 위 예제처럼 작업이 non-null Unit을 반환할 때만 null을 경합으로 해석하세요.
+작업 오류와 취소는 원본을 전파하며 InterruptedException은 interrupt flag를 복원합니다.
+
+
 ```bash
 ./gradlew :examples:batch-scheduler:run
 ```
