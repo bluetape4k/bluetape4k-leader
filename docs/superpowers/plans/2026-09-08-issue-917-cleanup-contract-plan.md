@@ -7,39 +7,45 @@
 
 ## 작업 1 — 공유 suite와 adapter
 
-- [ ] `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/AbstractAsyncLeaseCleanupContractTest.kt`에 아래 실행 경계를 둔다.
+- [x] `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/AbstractAsyncLeaseCleanupContractTest.kt`에 아래 실행 경계를 둔다.
 
 ```kotlin
 abstract class AbstractAsyncLeaseCleanupContractTest {
-    protected abstract fun completeOwned(source: CompletableFuture<String>, cleanup: () -> Unit): CompletableFuture<String?>
-    protected abstract fun completeInjected(source: CompletableFuture<String>, primary: Executor, fallback: Executor, cleanup: () -> Unit): CompletableFuture<String?>
+    protected abstract fun <T, R> completeAfter(
+        source: CompletableFuture<T>, executor: Executor? = null, cleanup: () -> Unit,
+        fallbackExecutor: Executor? = null, transform: (T?, Throwable?) -> R,
+    ): CompletableFuture<R>
 }
 ```
 
-- [ ] MongoDB의 7개 scheduler 회귀를 위 suite로 옮기고 cleanup 단독 실패, 중복 dispatch, 정상 완료 순서를 추가한다.
-- [ ] `leader-{consul,etcd,k8s,mongodb}/src/test/kotlin/io/bluetape4k/leader/{consul,etcd,k8s,mongodb}/`에 `*AsyncLeaseCleanupContractTest.kt` adapter를 만든다.
+- [x] MongoDB의 7개 scheduler 회귀를 위 suite로 옮기고 cleanup 단독 실패, 중복 dispatch, 정상 완료 순서를 추가한다.
+- [x] `leader-{consul,etcd,k8s,mongodb}/src/test/kotlin/io/bluetape4k/leader/{consul,etcd,k8s,mongodb}/`에 `*AsyncLeaseCleanupContractTest.kt` adapter를 만든다.
 
 ```kotlin
-override fun completeOwned(source: CompletableFuture<String>, cleanup: () -> Unit) =
-    AsyncLeaseCleanupDispatcher.completeAfter(source, cleanup) { value, _ -> value }
-override fun completeInjected(source: CompletableFuture<String>, primary: Executor, fallback: Executor, cleanup: () -> Unit) =
-    AsyncLeaseCleanupDispatcher.completeAfter(source, primary, cleanup, fallback) { value, _ -> value }
+override fun <T, R> completeAfter(
+    source: CompletableFuture<T>, executor: Executor?, cleanup: () -> Unit,
+    fallbackExecutor: Executor?, transform: (T?, Throwable?) -> R,
+): CompletableFuture<R> = when {
+    executor == null -> AsyncLeaseCleanupDispatcher.completeAfter(source, cleanup, transform)
+    fallbackExecutor == null -> AsyncLeaseCleanupDispatcher.completeAfter(source, executor, cleanup, transform = transform)
+    else -> AsyncLeaseCleanupDispatcher.completeAfter(source, executor, cleanup, fallbackExecutor, transform)
+}
 ```
 
-- [ ] 네 모듈 각각 `./gradlew :bluetape4k-leader-<module>:test --tests '*AsyncLeaseCleanupContractTest' --console=plain --no-build-cache`를 순차 실행한다. production 동작 변경이 없는 refactor이므로 기존 #916/#915 RED 근거를 보존하고 현재 GREEN으로 이동 안전성을 잠근다.
+- [x] 네 모듈 각각 `./gradlew :bluetape4k-leader-<module>:test --tests '*AsyncLeaseCleanupContractTest' --console=plain --no-build-cache`를 순차 실행한다. production 동작 변경이 없는 refactor이므로 기존 #916/#915 RED 근거를 보존하고 현재 GREEN으로 이동 안전성을 잠근다.
 
 ## 작업 2 — 테스트 중복 제거
 
-- [ ] 기존 `MongoAsyncLeaseCleanupDispatcherTest.kt`를 공통 suite adapter로 대체한다.
-- [ ] `ConsulLeaderElectorDelegationTest`, `EtcdAsyncLifecycleTest`, `KubernetesLeaseAsyncLifecycleTest`에서 공유 suite가 대체하는 scheduler 이중 실패 테스트만 제거한다.
-- [ ] backend barrier·single/group lifecycle 테스트는 유지한다. grounded fail-safe fallback의 의미는 변경하지 않는다.
+- [x] 기존 `MongoAsyncLeaseCleanupDispatcherTest.kt`를 공통 suite adapter로 대체한다.
+- [x] `ConsulLeaderElectorDelegationTest`, `EtcdAsyncLifecycleTest`, `KubernetesLeaseAsyncLifecycleTest`에서 공유 suite가 대체하는 비표준 scheduler 및 이중 실패 테스트만 제거한다.
+- [x] backend barrier·single/group lifecycle 테스트는 유지한다. grounded fail-safe fallback의 의미는 변경하지 않는다.
 
 ## 작업 3 — 검증과 전달
 
-- [ ] core testFixtures compile 및 네 backend 전체 test/detekt를 하나씩 순차 실행한다.
-- [ ] `./gradlew checkBinaryCompatibility --console=plain --no-build-cache`, `git diff --check`와 test count 확인.
-- [ ] README production 계약은 변하지 않으므로 spec의 차이 표와 lesson으로 공통 테스트/소유권 결정을 기록한다. 새 module/workflow/Spring/catalog 변경은 N/A.
-- [ ] 성능/안정성/보안/Ops/API/caller 관점과 통합 검토를 수행한다. 실패 시 해당 adapter/suite와 모듈 검증부터 다시 실행한다.
+- [x] core testFixtures compile 및 네 backend 전체 test/detekt를 하나씩 순차 실행한다.
+- [x] `./gradlew checkBinaryCompatibility --console=plain --no-build-cache`, `git diff --check`와 test count 확인.
+- [x] README production 계약은 변하지 않으므로 spec의 차이 표와 lesson으로 공통 테스트/소유권 결정을 기록한다. 새 module/workflow/Spring/catalog 변경은 N/A.
+- [x] 성능/안정성/보안/Ops/API/caller 관점과 통합 검토를 수행한다. 실패 시 해당 adapter/suite와 모듈 검증부터 다시 실행한다.
 - [ ] lesson 및 GNO update, 좁은 커밋, 승인된 stacked PR 생성. CI 미실행은 PENDING으로 기록하고 머지하지 않는다.
 
 ## 위험과 되돌리기
