@@ -27,28 +27,32 @@ import kotlin.time.Duration
  *
  * `maxLeaders`는 관찰한 후보 기준 목록의 선택 수이며 전역 동시 실행 상한이 아닙니다.
  */
-class LettuceStrategicSuspendLeaderGroupElector private constructor(
-    private val registry: LettuceSuspendCandidateRegistry,
-    override val nodeId: String,
+class LettuceStrategicSuspendLeaderGroupElector @JvmOverloads constructor(
+    connection: StatefulRedisConnection<String, String>,
+    override val nodeId: String = Uuid.V7.nextBase62(),
 ) : StrategicSuspendLeaderGroupElector {
 
-    @JvmOverloads
-    constructor(
-        connection: StatefulRedisConnection<String, String>,
-        nodeId: String = Uuid.V7.nextBase62(),
-    ) : this(
-        LettuceSuspendCandidateRegistry(connection, LettuceSuspendCandidateRegistry.GROUP_KEY_PREFIX),
-        nodeId,
-    )
+    private lateinit var registry: LettuceSuspendCandidateRegistry
+
+    init {
+        if (connection !== LettuceStrategicConstructorSupport.clusterPrimaryConnection) {
+            registry = LettuceSuspendCandidateRegistry(
+                connection,
+                LettuceSuspendCandidateRegistry.GROUP_KEY_PREFIX,
+            )
+        }
+    }
 
     @JvmOverloads
     constructor(
         connection: StatefulRedisClusterConnection<String, String>,
         nodeId: String = Uuid.V7.nextBase62(),
-    ) : this(
-        LettuceSuspendCandidateRegistry(connection, LettuceSuspendCandidateRegistry.GROUP_KEY_PREFIX),
-        nodeId,
-    )
+    ) : this(LettuceStrategicConstructorSupport.clusterPrimaryConnection, nodeId) {
+        registry = LettuceSuspendCandidateRegistry(
+            connection,
+            LettuceSuspendCandidateRegistry.GROUP_KEY_PREFIX,
+        )
+    }
 
     companion object : KLogging()
 
