@@ -210,15 +210,19 @@ application resource를 반환해야 합니다.
 통합 계약은 아래 resolved test driver 버전에 고정됩니다. 이는 모든 JDBC 구현에 대한
 보장이 아니라 실제 driver에서 관찰한 결과입니다.
 
-| Database / driver | `Statement.cancel()` 예외 | SQLState | terminal 시점 worker interrupt |
+| Database / driver | `Statement.cancel()` terminal outcome | 예외 발생 시 SQLState | terminal 시점 worker interrupt |
 |---|---|---|---|
 | H2 2.4.240 | `JdbcSQLTimeoutException` | `57014` | 보존 |
 | pgjdbc 42.7.13 | `PSQLException` | `57014` | 보존 |
-| Connector/J 9.7.0 | `MySQLStatementCancelledException` | `null` | 미보장 |
+| Connector/J 9.7.0 | `MySQLStatementCancelledException` 또는 정상 완료 | `null` | 미보장 |
 
 세 driver 테스트는 database system view에서 marker query가 active임을 확인한 뒤에만
-interruption을 주입하고 probe transaction rollback을 검증합니다. Leader 통합 테스트는
-`FAILED` history row가 정확히 하나이며 같은 lock을 다시 획득할 수 있어야 합니다.
+interruption을 주입합니다. 취소 요청은 `Statement.cancel()` 호출 전에 rollback 의도를
+기록하며 action future가 terminal 상태에 도달하는지 확인합니다. H2와 PostgreSQL은 표의
+예외를 반드시 노출해야 하고, Connector/J는 취소 요청이 statement 종료 뒤 정상 반환할 수
+있으므로 해당 예외 또는 정상 완료를 허용합니다. 두 outcome 모두 probe transaction
+rollback을 보장해야 합니다. Leader 통합 테스트는 예외 outcome이면 `FAILED`, 정상 완료이면
+`COMPLETED` history row를 정확히 하나 기록하고 같은 lock을 다시 획득할 수 있어야 합니다.
 Connector/J의 terminal interrupt flag는 반복 실행에서 안정된 관찰값이 아니므로
 transaction 종료 근거로 사용하면 안 됩니다.
 

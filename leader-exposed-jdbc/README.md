@@ -212,18 +212,23 @@ transaction to finish, and then release application resources.
 The integration contract is pinned to the resolved test drivers below. These
 are observed driver results, not a promise for every JDBC implementation.
 
-| Database / driver | `Statement.cancel()` exception | SQLState | Worker interrupt at terminal |
+| Database / driver | `Statement.cancel()` terminal outcome | SQLState when exceptional | Worker interrupt at terminal |
 |---|---|---|---|
 | H2 2.4.240 | `JdbcSQLTimeoutException` | `57014` | preserved |
 | pgjdbc 42.7.13 | `PSQLException` | `57014` | preserved |
-| Connector/J 9.7.0 | `MySQLStatementCancelledException` | `null` | unspecified |
+| Connector/J 9.7.0 | `MySQLStatementCancelledException` or normal completion | `null` | unspecified |
 
-All three tests verify that the marker query is active through a database
-system view before injecting interruption. Cancellation then rolls back the
-probe transaction. The Leader integration test additionally requires one
-`FAILED` history row and successful reacquisition of the same lock. Connector/J
-does not expose a stable terminal interrupt flag in repeated runs, so callers
-must not use that flag as transaction-completion evidence.
+All interruption paths verify that the marker query is active through a database
+system view before injecting interruption. The cancellation request records
+rollback intent before invoking `Statement.cancel()`, and the action future
+must reach a terminal state. H2 and PostgreSQL require the listed exception;
+Connector/J permits that exception or normal completion because its cancel
+request can return after the statement has already completed. Both outcomes
+must roll back the probe transaction. The Leader integration test records one
+`FAILED` history row for an exceptional outcome or one `COMPLETED` row for
+normal completion, and then requires successful reacquisition of the same
+lock. Connector/J does not expose a stable terminal interrupt flag in repeated
+runs, so callers must not use that flag as transaction-completion evidence.
 
 Credentials, production query selection, timeout, retry, and whether to cancel
 or let work finish remain caller-owned operational policy.

@@ -73,7 +73,7 @@ class JdbcTransactionInterruptionContractTest : AbstractExposedJdbcLeaderTest() 
 
     @ParameterizedTest
     @MethodSource("enableDialects")
-    fun `Statement cancel은 실행 중 transaction을 rollback하고 driver 예외를 노출한다`(testDB: TestDB) {
+    fun `Statement cancel은 실행 중 transaction을 rollback하고 driver별 terminal outcome을 노출한다`(testDB: TestDB) {
         connectDb(testDB)
 
         RunningJdbcTransaction.start(testDB).use { running ->
@@ -82,16 +82,15 @@ class JdbcTransactionInterruptionContractTest : AbstractExposedJdbcLeaderTest() 
             running.cancelStatement()
             running.awaitFinished()
 
-            running.actionFuture.isCompletedExceptionally.shouldBeTrue()
             running.interruptObservedAtTerminal.shouldBeFalse()
-            running.assertDriverCancelOutcome()
+            running.assertCancelOutcome()
             running.assertRolledBack()
         }
     }
 
     @ParameterizedTest
     @MethodSource("enableDialects")
-    fun `driver cancel 뒤 FAILED history를 한 번 기록하고 lock을 반환한다`(testDB: TestDB) {
+    fun `driver cancel 뒤 terminal history를 한 번 기록하고 lock을 반환한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
         val lockName = randomName()
@@ -112,11 +111,23 @@ class JdbcTransactionInterruptionContractTest : AbstractExposedJdbcLeaderTest() 
             running.awaitActive()
             running.cancelStatement()
 
-            val failure = assertFailsWith<CompletionException> { resultFuture.join() }
-            failure.cause?.javaClass?.name shouldBeEqualTo running.contract.exceptionClass
-            (failure.cause as SQLException).sqlState shouldBeEqualTo running.contract.cancelSqlState
             running.awaitFinished()
+            val outcome = running.assertCancelOutcome()
             running.assertRolledBack()
+
+            val expectedHistoryStatus = when (outcome) {
+                JdbcCancelTerminalOutcome.DRIVER_EXCEPTION -> {
+                    val failure = assertFailsWith<CompletionException> { resultFuture.join() }
+                    failure.cause?.javaClass?.name shouldBeEqualTo running.contract.exceptionClass
+                    (failure.cause as SQLException).sqlState shouldBeEqualTo running.contract.cancelSqlState
+                    LeaderHistoryStatus.FAILED.name
+                }
+
+                JdbcCancelTerminalOutcome.NORMAL_COMPLETION -> {
+                    resultFuture.join()
+                    LeaderHistoryStatus.COMPLETED.name
+                }
+            }
 
             val histories = transaction(db) {
                 LeaderLockHistoryTable
@@ -125,7 +136,7 @@ class JdbcTransactionInterruptionContractTest : AbstractExposedJdbcLeaderTest() 
                     .toList()
             }
             histories.size shouldBeEqualTo 1
-            histories.single()[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED.name
+            histories.single()[LeaderLockHistoryTable.status] shouldBeEqualTo expectedHistoryStatus
             terminalCount.get() shouldBeEqualTo 1
             election.runIfLeader(lockName) { "driver cancel 뒤 복구" } shouldBeEqualTo "driver cancel 뒤 복구"
         }
@@ -161,6 +172,7 @@ private class RunningJdbcTransaction private constructor(
     private val failureRef = AtomicReference<Throwable>()
     private val finished = CountDownLatch(1)
     private val terminalInterrupt = AtomicBoolean()
+    private val cancelRequested = AtomicBoolean()
     private val rollbackOnly = AtomicBoolean()
     private val executor: ExecutorService = Executors.newSingleThreadExecutor { command ->
         Thread(command, "issue-855-${contract.testDB.name.lowercase()}").also(workerRef::set)
@@ -186,11 +198,13 @@ private class RunningJdbcTransaction private constructor(
     }
 
     fun cancelStatement() {
-        checkNotNull(statementRef.get()) { "실행 중 Statement가 없습니다." }.cancel()
+        val statement = checkNotNull(statementRef.get()) { "실행 중 Statement가 없습니다." }
+        rollbackOnly.set(true)
+        cancelRequested.set(true)
+        statement.cancel()
     }
 
     fun requestRollbackAndCancel() {
-        rollbackOnly.set(true)
         cancelStatement()
     }
 
@@ -204,11 +218,25 @@ private class RunningJdbcTransaction private constructor(
         check(finished.await(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) { "JDBC transaction 종료를 기다리다 timeout이 발생했습니다." }
     }
 
-    fun assertDriverCancelOutcome() {
+    fun assertCancelOutcome(): JdbcCancelTerminalOutcome {
+        actionFuture.isDone.shouldBeTrue()
+        check(cancelRequested.get()) { "Statement.cancel() 요청이 관찰되지 않았습니다." }
+
         val failure = failureRef.get()
-        check(failure is SQLException) { "SQLException이 필요하지만 ${failure?.javaClass?.name}을 관찰했습니다." }
-        failure.javaClass.name shouldBeEqualTo contract.exceptionClass
-        failure.sqlState shouldBeEqualTo contract.cancelSqlState
+        val outcome = if (failure == null) {
+            actionFuture.isCompletedExceptionally.shouldBeFalse()
+            JdbcCancelTerminalOutcome.NORMAL_COMPLETION
+        } else {
+            actionFuture.isCompletedExceptionally.shouldBeTrue()
+            check(failure is SQLException) { "SQLException이 필요하지만 ${failure.javaClass.name}을 관찰했습니다." }
+            failure.javaClass.name shouldBeEqualTo contract.exceptionClass
+            failure.sqlState shouldBeEqualTo contract.cancelSqlState
+            JdbcCancelTerminalOutcome.DRIVER_EXCEPTION
+        }
+        check(outcome in contract.allowedCancelOutcomes) {
+            "${contract.testDB}의 허용되지 않은 Statement.cancel() terminal outcome: $outcome"
+        }
+        return outcome
     }
 
     fun assertRolledBack() {
@@ -315,24 +343,31 @@ private enum class JdbcDriverInterruptionContract(
     val cancelSqlState: String?,
     val exceptionClass: String,
     val expectedTerminalInterruptFlag: Boolean?,
+    val allowedCancelOutcomes: Set<JdbcCancelTerminalOutcome>,
 ) {
     H2(
         TestDB.H2,
         cancelSqlState = "57014",
         exceptionClass = "org.h2.jdbc.JdbcSQLTimeoutException",
         expectedTerminalInterruptFlag = true,
+        allowedCancelOutcomes = setOf(JdbcCancelTerminalOutcome.DRIVER_EXCEPTION),
     ),
     POSTGRESQL(
         TestDB.POSTGRESQL,
         cancelSqlState = "57014",
         exceptionClass = "org.postgresql.util.PSQLException",
         expectedTerminalInterruptFlag = true,
+        allowedCancelOutcomes = setOf(JdbcCancelTerminalOutcome.DRIVER_EXCEPTION),
     ),
     MYSQL(
         TestDB.MYSQL_V8,
         cancelSqlState = null,
         exceptionClass = "com.mysql.cj.jdbc.exceptions.MySQLStatementCancelledException",
         expectedTerminalInterruptFlag = null,
+        allowedCancelOutcomes = setOf(
+            JdbcCancelTerminalOutcome.DRIVER_EXCEPTION,
+            JdbcCancelTerminalOutcome.NORMAL_COMPLETION,
+        ),
     ),
     ;
 
@@ -373,4 +408,9 @@ private enum class JdbcDriverInterruptionContract(
     companion object {
         fun from(testDB: TestDB): JdbcDriverInterruptionContract = entries.single { it.testDB == testDB }
     }
+}
+
+private enum class JdbcCancelTerminalOutcome {
+    DRIVER_EXCEPTION,
+    NORMAL_COMPLETION,
 }
