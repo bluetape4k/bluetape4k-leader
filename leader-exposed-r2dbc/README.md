@@ -12,6 +12,14 @@ Coroutine-native leader election backed by a relational database — using [Expo
 
 Lock strategy: `UPDATE WHERE lockedUntil < NOW()` + `INSERT IGNORE` in a single transaction — no Redis, no external broker required. Works with H2 (in-memory), PostgreSQL, and MySQL 8.
 
+### Acquisition failures
+
+Cancellation and JVM `Error` (including wrapped causes) propagate unchanged.
+Single-lock acquisition retries only transient database failures within the existing
+wait budget; non-transient or unknown exceptions stop immediately with `false`.
+Group acquisition preserves its unavailable/`null` policy and stops slot traversal
+for database failures. Normal contention remains a skip, not an exception.
+
 ## Architecture
 
 ![leader exposed r2dbc Class Structure diagram](../docs/images/readme-diagrams/leader-exposed-r2dbc-class-01.png)
