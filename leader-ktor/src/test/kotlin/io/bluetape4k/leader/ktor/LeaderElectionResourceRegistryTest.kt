@@ -143,6 +143,23 @@ class LeaderElectionResourceRegistryTest {
         closeCount.get() shouldBeEqualTo 1
     }
 
+    @Test
+    fun `resource close가 registry close에 재진입해도 한 번만 닫힌다`() = runSuspendIO {
+        val closeCount = AtomicInteger(0)
+        val registry = LeaderElectionResourceRegistryImpl(jobJoinTimeout = 50.milliseconds)
+        registry.register(
+            AutoCloseable {
+                closeCount.incrementAndGet()
+                registry.close()
+            }
+        )
+
+        registry.close()
+        registry.awaitClosed()
+
+        closeCount.get() shouldBeEqualTo 1
+    }
+
     private class TrackingCloseable(
         private val label: String,
         private val closed: MutableList<String>,
@@ -213,5 +230,27 @@ class LeaderElectionResourceRegistryTest {
                 failureKinds = emptyMap(),
                 timeoutKinds = mapOf("resource" to 1),
             )
+    }
+
+    @Test
+    fun `비동기 resource timeout 뒤 등록한 resource는 즉시 닫힌다`() = runSuspendIO {
+        val lateCloseCount = AtomicInteger(0)
+        val registry = LeaderElectionResourceRegistryImpl(jobJoinTimeout = 25.milliseconds)
+        registry.register(
+            object : AutoCloseable, LeaderElectionCloseAwaiter {
+                override fun close() = Unit
+
+                override suspend fun awaitClosed() {
+                    awaitCancellation()
+                }
+            }
+        )
+
+        registry.close()
+        registry.awaitClosed().timedOutResources shouldBeEqualTo 1
+        registry.register(AutoCloseable { lateCloseCount.incrementAndGet() })
+
+        lateCloseCount.get() shouldBeEqualTo 1
+        registry.lastShutdownReport?.attempted shouldBeEqualTo 1
     }
 }

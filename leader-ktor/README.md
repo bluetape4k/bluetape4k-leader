@@ -451,8 +451,10 @@ Gradle (Kotlin DSL):
 
 ```kotlin
 dependencies {
-    implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:$bluetape4kLeaderVersion")
-    implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:$bluetape4kLeaderVersion") // or another backend
+    val bluetape4kVersion = "<version>"
+    implementation(platform("io.github.bluetape4k:bluetape4k-dependencies:$bluetape4kVersion"))
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor")
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson") // or another backend
     implementation("io.ktor:ktor-server-core:3.4.3")
 
     testImplementation("io.github.bluetape4k:bluetape4k-ktor-testing")
@@ -462,11 +464,10 @@ dependencies {
 The `ktor-server-core` artifact is `compileOnly` in this module — your application
 must declare it explicitly.
 
-Use `bluetape4k-ktor-core` at the application layer when the same Ktor service
-also needs shared JSON, error response, health, or readiness helpers. This module
-does not take a runtime dependency on `bluetape4k-ktor-core` because its public
-surface is the leader-election plugin and scheduler DSL, and the management route
-emits JSON text without requiring a content-negotiation plugin.
+`bluetape4k-leader-ktor` includes `bluetape4k-ktor-core` as a runtime dependency
+for the shared `ApplicationStopped` resource lifecycle. You do not need to
+declare it separately. The `ktor-server-core` artifact remains `compileOnly` in
+this module, so your application must declare it explicitly.
 
 ## License
 

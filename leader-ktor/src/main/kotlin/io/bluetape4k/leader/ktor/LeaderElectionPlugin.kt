@@ -1,15 +1,15 @@
 package io.bluetape4k.leader.ktor
 
+import io.bluetape4k.ktor.core.installApplicationResourceLifecycle
 import io.bluetape4k.leader.LeaderElectionEventPublisher
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.ktor.stream.LeaderEventStreamHub
 import io.bluetape4k.leader.ktor.stream.toLeaderEventStreamConfig
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStarted
-import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.hooks.MonitoringEvent
 import io.ktor.server.application.install
@@ -19,6 +19,7 @@ import io.ktor.util.AttributeKey
 /**
  * `LeaderElectionPlugin` 값은 Ktor integration 계약에서 사용하는 설정 또는 상태 항목입니다.
  */
+@Suppress("TooGenericExceptionCaught")
 val LeaderElectionPlugin = createApplicationPlugin(
     name = LeaderElectionPluginInternals.NAME,
     createConfiguration = ::LeaderElectionPluginConfig,
@@ -32,78 +33,8 @@ val LeaderElectionPlugin = createApplicationPlugin(
     // 외부 (예: leaderScheduled 확장) 에서 설정에 접근할 수 있도록 Application attributes 에 저장한다.
     application.attributes.put(LeaderElectionConfigKey, config)
     val resourceRegistry = LeaderElectionResourceRegistryImpl()
-    application.attributes.put(LeaderElectionResourceRegistryKey, resourceRegistry)
-
-    val eventStreamConfig = config.toLeaderEventStreamConfig()
-    if (eventStreamConfig.eventStreamRouteEnabled) {
-        val publisher = leaderElection as? LeaderElectionEventPublisher
-            ?: throw LeaderElectionConfigurationException(
-                "eventStreamRouteEnabled=true이면 leaderElection이 LeaderElectionEventPublisher여야 합니다.",
-            )
-        val hub = LeaderEventStreamHub(
-            publisher = publisher,
-            capacity = eventStreamConfig.eventStreamReplayCapacity,
-            scope = application,
-            maxConnections = eventStreamConfig.eventStreamMaxConnections,
-            allLocksEnabled = eventStreamConfig.eventStreamAllLocksEnabled,
-        )
-        val runtime = LeaderEventStreamRuntime(hub = hub, config = eventStreamConfig)
-        application.install(LeaderEventStreamRuntimePlugin) {
-            this.runtime = runtime
-        }
-        resourceRegistry.register(hub)
-    }
-
-    if (config.managementActionRouteEnabled) {
-        requireNotNull(config.managementActionRegistry) {
-            "managementActionRouteEnabled=true 이면 application-owned managementActionRegistry를 설정해야 합니다."
-        }
-        config.managementActionPath()
-    }
-
-    if (config.managementRouteEnabled) {
-        application.leaderElectionManagementRoute(
-            path = config.managementRoutePath,
-            leaderElection = leaderElection,
-            registry = config.managementRegistry,
-        )
-    }
-
-    if (config.backendDiagnosticsRouteEnabled) {
-        val diagnosticsProvider = leaderElection.resolveBackendDiagnosticsProvider()
-        requireNotNull(diagnosticsProvider) {
-            "backendDiagnosticsRouteEnabled=true 이면 leaderElection 이 backend diagnostics provider를 제공해야 합니다."
-        }
-        if (config.backendConnectivityCheckEnabled) {
-            validateBackendConnectivityCheckTimeout(
-                timeout = config.backendConnectivityCheckTimeout,
-                propertyName = "backendConnectivityCheckTimeout",
-            )
-        }
-        application.leaderBackendDiagnosticsRoute(
-            path = config.backendDiagnosticsRoutePath,
-            provider = diagnosticsProvider,
-            connectivityCheckEnabled = config.backendConnectivityCheckEnabled,
-            connectivityCheckTimeout = config.backendConnectivityCheckTimeout,
-        )
-    }
-
-    on(MonitoringEvent(ApplicationStarted)) { application ->
-        val eventStreamRuntime = application.pluginOrNull(LeaderEventStreamRuntimePlugin)
-        if (eventStreamRuntime != null &&
-            eventStreamRuntime.config.eventStreamRouteEnabled &&
-            !eventStreamRuntime.routeRegistered.get()
-        ) {
-            throw LeaderElectionConfigurationException(
-                "eventStreamRouteEnabled=true이면 caller route에서 leaderElectionEventStream()을 한 번 등록해야 합니다.",
-            )
-        }
-        LeaderElectionPluginInternals.log.info {
-            "LeaderElectionPlugin 시작 — application=${application.javaClass.simpleName}"
-        }
-    }
-
-    on(MonitoringEvent(ApplicationStopped)) { _ ->
+    try {
+        application.attributes.put(LeaderElectionResourceRegistryKey, resourceRegistry)
         resourceRegistry.observeShutdown { report ->
             LeaderElectionPluginInternals.log.info {
                 "LeaderElectionPlugin resource shutdown — " +
@@ -113,7 +44,79 @@ val LeaderElectionPlugin = createApplicationPlugin(
                     "failureKinds=${report.failureKinds}, timeoutKinds=${report.timeoutKinds}"
             }
         }
+        application.installApplicationResourceLifecycle().register(resourceRegistry)
+
+        val eventStreamConfig = config.toLeaderEventStreamConfig()
+        if (eventStreamConfig.eventStreamRouteEnabled) {
+            val publisher = leaderElection as? LeaderElectionEventPublisher
+                ?: throw LeaderElectionConfigurationException(
+                    "eventStreamRouteEnabled=true이면 leaderElection이 LeaderElectionEventPublisher여야 합니다.",
+                )
+            val hub = LeaderEventStreamHub(
+                publisher = publisher,
+                capacity = eventStreamConfig.eventStreamReplayCapacity,
+                scope = application,
+                maxConnections = eventStreamConfig.eventStreamMaxConnections,
+                allLocksEnabled = eventStreamConfig.eventStreamAllLocksEnabled,
+            )
+            val runtime = LeaderEventStreamRuntime(hub = hub, config = eventStreamConfig)
+            application.install(LeaderEventStreamRuntimePlugin) {
+                this.runtime = runtime
+            }
+            resourceRegistry.register(hub)
+        }
+
+        if (config.managementActionRouteEnabled) {
+            requireNotNull(config.managementActionRegistry) {
+                "managementActionRouteEnabled=true 이면 application-owned managementActionRegistry를 설정해야 합니다."
+            }
+            config.managementActionPath()
+        }
+
+        if (config.managementRouteEnabled) {
+            application.leaderElectionManagementRoute(
+                path = config.managementRoutePath,
+                leaderElection = leaderElection,
+                registry = config.managementRegistry,
+            )
+        }
+
+        if (config.backendDiagnosticsRouteEnabled) {
+            val diagnosticsProvider = leaderElection.resolveBackendDiagnosticsProvider()
+            requireNotNull(diagnosticsProvider) {
+                "backendDiagnosticsRouteEnabled=true 이면 leaderElection 이 backend diagnostics provider를 제공해야 합니다."
+            }
+            if (config.backendConnectivityCheckEnabled) {
+                validateBackendConnectivityCheckTimeout(
+                    timeout = config.backendConnectivityCheckTimeout,
+                    propertyName = "backendConnectivityCheckTimeout",
+                )
+            }
+            application.leaderBackendDiagnosticsRoute(
+                path = config.backendDiagnosticsRoutePath,
+                provider = diagnosticsProvider,
+                connectivityCheckEnabled = config.backendConnectivityCheckEnabled,
+                connectivityCheckTimeout = config.backendConnectivityCheckTimeout,
+            )
+        }
+
+        on(MonitoringEvent(ApplicationStarted)) { application ->
+            val eventStreamRuntime = application.pluginOrNull(LeaderEventStreamRuntimePlugin)
+            if (eventStreamRuntime != null &&
+                eventStreamRuntime.config.eventStreamRouteEnabled &&
+                !eventStreamRuntime.routeRegistered.get()
+            ) {
+                throw LeaderElectionConfigurationException(
+                    "eventStreamRouteEnabled=true이면 caller route에서 leaderElectionEventStream()을 한 번 등록해야 합니다.",
+                )
+            }
+            LeaderElectionPluginInternals.log.info {
+                "LeaderElectionPlugin 시작 — application=${application.javaClass.simpleName}"
+            }
+        }
+    } catch (cause: Throwable) {
         resourceRegistry.close()
+        throw cause
     }
 }
 
