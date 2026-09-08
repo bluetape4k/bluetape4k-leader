@@ -66,6 +66,11 @@ val job = aggregator.start(applicationScope)
 aggregator.stopGracefully(timeout = 30.seconds)
 ```
 
+`stopGracefully` requests cancellation and waits up to the timeout. A timeout is logged as a warning;
+it does not mean cleanup has finished. After timeout or caller cancellation, restarting the same instance
+is rejected until the previous job completes. Check `isCompleted` or call `join()` on the Job returned by `start`.
+A non-positive timeout still requests cancellation. This local worker lifecycle rule does not guarantee distributed lease release.
+
 ## Demo
 
 ```bash
