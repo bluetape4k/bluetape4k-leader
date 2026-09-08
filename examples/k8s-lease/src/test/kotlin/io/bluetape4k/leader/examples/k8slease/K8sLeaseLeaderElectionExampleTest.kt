@@ -18,6 +18,24 @@ class K8sLeaseLeaderElectionExampleTest {
     }
 
     @Test
+    fun `subsecond Lease create와 update 요청은 올림된 양수 초를 전달한다`() {
+        k3s.kubernetesClient().use { client ->
+            val example = K8sLeaseLeaderElectionExample(client, leaseDuration = Duration.ofMillis(500))
+            val leaseName = "leader-duration-${Base58.randomString(8).lowercase()}"
+            try {
+                example.tryAcquire(leaseName, "node-a").outcome shouldBeEqualTo LeaseOutcome.ACQUIRED
+                client.leases().inNamespace(NAMESPACE).withName(leaseName).get()
+                    .spec.leaseDurationSeconds shouldBeEqualTo 1
+                example.tryAcquire(leaseName, "node-a").outcome shouldBeEqualTo LeaseOutcome.ACQUIRED
+                client.leases().inNamespace(NAMESPACE).withName(leaseName).get()
+                    .spec.leaseDurationSeconds shouldBeEqualTo 1
+            } finally {
+                example.delete(leaseName)
+            }
+        }
+    }
+
+    @Test
     fun `Lease acquire conflict release and reacquire`() {
         k3s.kubernetesClient().use { client ->
             val example = K8sLeaseLeaderElectionExample(
