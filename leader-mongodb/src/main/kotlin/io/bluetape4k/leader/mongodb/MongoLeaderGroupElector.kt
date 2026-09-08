@@ -184,10 +184,11 @@ class MongoLeaderGroupElector private constructor(
 
         val rejectionCleanup = AsyncSlotRejectionCleanup(lockName)
         val acquisitionFuture = acquireSlotAsync(lockName, start, perSlotWait, leaseTime)
-        acquisitionFuture.whenComplete { acquired, _ ->
+        // 획득 기록을 action 제출보다 먼저 완료하여 거부 시 cleanup 소유권을 잃지 않습니다.
+        val recordedAcquisition = acquisitionFuture.whenComplete { acquired, _ ->
             if (acquired != null) rejectionCleanup.markAcquired(acquired)
         }
-        val pipelineFuture = acquisitionFuture.thenComposeAsync({ acquired ->
+        val pipelineFuture = recordedAcquisition.thenComposeAsync({ acquired ->
             if (acquired == null) {
                 log.debug { "리더 그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
                 CompletableFuture.completedFuture(null)

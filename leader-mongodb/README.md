@@ -129,6 +129,16 @@ val options = MongoLeaderElectionOptions(
 val election = MongoLeaderElector(lockCollection, options)
 ```
 
+### Async cleanup failures
+
+Single/group async election records acquisition before submitting the action. If action submission fails,
+the returned future completes only after the acquired lease has been cleaned up. Cleanup runs on
+backend-owned virtual threads, not on the caller's completion thread. If both cleanup schedulers fail,
+the future completes exceptionally without inline cleanup; this does not guarantee that the lease was released.
+The dispatcher prioritizes the original action failure and retains observed cleanup or dispatch failures as suppressed exceptions.
+The backend's existing best-effort unlock error policy is unchanged.
+Explicit `cancel()` still completes the caller's future immediately; it is not a cleanup-completion signal.
+
 ### Using SPI factories
 
 ```kotlin
