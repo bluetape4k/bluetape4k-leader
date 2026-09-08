@@ -15,6 +15,7 @@ import com.mongodb.client.model.Updates
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.ExtendOutcome
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.mongodb.internal.MonotonicDeadline
 import io.bluetape4k.logging.KLogging
@@ -28,6 +29,8 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -143,38 +146,120 @@ class MongoLock private constructor(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    @Suppress("CyclomaticComplexMethod", "TooGenericExceptionCaught")
     fun tryLockAsync(
         waitTime: Duration,
         leaseTime: Duration,
         executor: Executor = VirtualThreadExecutor,
     ): CompletableFuture<Boolean> {
         val deadline = MonotonicDeadline.fromNow(waitTime)
+        val currentStage = AtomicReference<CompletableFuture<*>?>()
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        val cancellationTarget = object : CompletableFuture<Unit>() {
+            override fun cancel(mayInterruptIfRunning: Boolean): Boolean {
+                currentStage.get()?.cancel(mayInterruptIfRunning)
+                return super.cancel(mayInterruptIfRunning)
+            }
+        }
+        cancellationRelay.invoke { cancellationTarget }
+        val resultSource = CompletableFuture<Boolean>()
+        val result = LeaderFutureBridge.propagateCancellation(resultSource, cancellationRelay)
 
-        fun attempt(): CompletableFuture<Boolean> {
-            return CompletableFuture.supplyAsync({ tryAcquireOnce(leaseTime) }, executor)
-                .thenCompose { result ->
-                    when (result) {
-                        AcquireResult.ACQUIRED -> {
-                            log.debug { "락 획득 성공 (async): lockKey=$lockKey" }
-                            CompletableFuture.completedFuture(true)
+        fun complete(value: Boolean): Boolean {
+            val completed = result.complete(value)
+            resultSource.complete(value)
+            return completed
+        }
+
+        fun completeExceptionally(failure: Throwable): Boolean {
+            val completed = result.completeExceptionally(failure)
+            resultSource.completeExceptionally(failure)
+            return completed
+        }
+
+        fun releaseLateAcquisition(released: AtomicBoolean) {
+            if (released.compareAndSet(false, true)) {
+                runCatching { unlock() }
+                    .onFailure { error -> log.warn(error) { "취소된 async 락 획득을 반납하지 못했습니다: lockKey=$lockKey" } }
+            }
+        }
+
+        fun registerStage(stage: CompletableFuture<*>): Boolean {
+            currentStage.set(stage)
+            if (result.isCancelled && currentStage.compareAndSet(stage, null)) {
+                stage.cancel(true)
+                return false
+            }
+            return true
+        }
+
+        @Suppress("CyclomaticComplexMethod", "ReturnCount")
+        fun attempt() {
+            if (result.isDone) return
+
+            val lateRelease = AtomicBoolean()
+            val acquisition = try {
+                CompletableFuture.supplyAsync({
+                    if (result.isCancelled) {
+                        AcquireResult.FAILED
+                    } else {
+                        tryAcquireOnce(leaseTime).also { acquired ->
+                            if (acquired == AcquireResult.ACQUIRED && result.isCancelled) {
+                                releaseLateAcquisition(lateRelease)
+                            }
                         }
-                        AcquireResult.FAILED -> CompletableFuture.completedFuture(false)
-                        AcquireResult.CONTENDED -> {
-                            if (!deadline.hasTimeRemaining()) {
-                                log.debug { "락 획득 실패 (타임아웃, async): lockKey=$lockKey" }
-                                CompletableFuture.completedFuture(false)
-                            } else {
-                                val jitter = Random.nextLong(1, retryDelay.inWholeMilliseconds.coerceAtLeast(2))
-                                val delayMillis = deadline.remainingMillisForDelay(jitter)
-                                val delayed = CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS)
-                                CompletableFuture.runAsync({}, delayed).thenCompose { attempt() }
+                    }
+                }, executor)
+            } catch (error: RuntimeException) {
+                completeExceptionally(error)
+                return
+            }
+            if (!registerStage(acquisition)) return
+
+            acquisition.whenComplete { acquired, failure ->
+                currentStage.compareAndSet(acquisition, null)
+                if (failure != null) {
+                    if (!result.isDone) completeExceptionally(failure)
+                    return@whenComplete
+                }
+                if (result.isCancelled) {
+                    if (acquired == AcquireResult.ACQUIRED) releaseLateAcquisition(lateRelease)
+                    return@whenComplete
+                }
+
+                when (acquired) {
+                    AcquireResult.ACQUIRED -> {
+                        log.debug { "락 획득 성공 (async): lockKey=$lockKey" }
+                        if (!complete(true) && result.isCancelled) {
+                            releaseLateAcquisition(lateRelease)
+                        }
+                    }
+                    AcquireResult.FAILED -> complete(false)
+                    AcquireResult.CONTENDED -> {
+                        if (!deadline.hasTimeRemaining()) {
+                            log.debug { "락 획득 실패 (타임아웃, async): lockKey=$lockKey" }
+                            complete(false)
+                        } else {
+                            val jitter = Random.nextLong(1, retryDelay.inWholeMilliseconds.coerceAtLeast(2))
+                            val delayMillis = deadline.remainingMillisForDelay(jitter)
+                            val delayed = CompletableFuture.runAsync(
+                                {},
+                                CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS),
+                            )
+                            if (registerStage(delayed)) {
+                                delayed.whenComplete { _, delayFailure ->
+                                    currentStage.compareAndSet(delayed, null)
+                                    if (delayFailure == null && !result.isDone) attempt()
+                                }
                             }
                         }
                     }
                 }
+            }
         }
 
-        return attempt()
+        attempt()
+        return result
     }
 
     private fun tryAcquireOnce(leaseTime: Duration): AcquireResult {

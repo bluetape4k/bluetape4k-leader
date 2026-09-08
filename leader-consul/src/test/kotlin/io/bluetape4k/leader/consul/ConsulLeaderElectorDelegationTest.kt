@@ -21,6 +21,9 @@ import io.bluetape4k.leader.consul.internal.ConsulLockClient
 import io.bluetape4k.leader.consul.internal.ConsulOwnerPayload
 import io.bluetape4k.leader.consul.internal.ConsulSessionId
 import io.bluetape4k.leader.consul.internal.ConsulSessionRenewal
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.CancellationException
@@ -395,8 +398,10 @@ class ConsulLeaderElectorDelegationTest {
 
             releaseObserved.await(2, TimeUnit.SECONDS).shouldBeTrue()
             actionInvoked.get() shouldBeEqualTo false
-            client.releaseCalls shouldBeEqualTo 1
-            client.destroyCalls shouldBeEqualTo 1
+            await.atMost(2.seconds).untilAsserted {
+                client.releaseCalls shouldBeEqualTo 1
+                client.destroyCalls shouldBeEqualTo 1
+            }
         } finally {
             executor.shutdownNow()
         }
@@ -433,8 +438,10 @@ class ConsulLeaderElectorDelegationTest {
 
             releaseObserved.await(2, TimeUnit.SECONDS).shouldBeTrue()
             actionInvoked.get() shouldBeEqualTo false
-            client.releaseCalls shouldBeEqualTo 1
-            client.destroyCalls shouldBeEqualTo 1
+            await.atMost(2.seconds).untilAsserted {
+                client.releaseCalls shouldBeEqualTo 1
+                client.destroyCalls shouldBeEqualTo 1
+            }
         } finally {
             executor.shutdownNow()
         }
@@ -472,6 +479,71 @@ class ConsulLeaderElectorDelegationTest {
             client.releaseCalls shouldBeEqualTo 2
             client.destroyCalls shouldBeEqualTo 2
         } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `runAsyncIfLeader 결과 future 취소를 실행 중인 single action에 전파한다`() {
+        val releaseObserved = CountDownLatch(1)
+        val client = FakeConsulLockClient(releaseObserved = releaseObserved)
+        val elector = ConsulLeaderElector.create(client)
+        val executor = Executors.newSingleThreadExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val resultFuture = elector.runAsyncIfLeader("lock-cancel-single", executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+
+            resultFuture.cancel(false).shouldBeTrue()
+
+            await.atMost(2.seconds).untilAsserted {
+                actionFuture.isCancelled.shouldBeTrue()
+            }
+            releaseObserved.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            client.releaseCalls shouldBeEqualTo 1
+            client.destroyCalls shouldBeEqualTo 1
+        } finally {
+            actionFuture.cancel(false)
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `runAsyncIfLeader 결과 future 취소를 실행 중인 group action에 전파한다`() {
+        val releaseObserved = CountDownLatch(1)
+        val client = FakeConsulLockClient(releaseObserved = releaseObserved)
+        val elector = ConsulLeaderGroupElector.create(
+            client,
+            ConsulLeaderGroupElectionOptions(
+                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, leaseTime = 10.seconds),
+            ),
+        )
+        val executor = Executors.newSingleThreadExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val resultFuture = elector.runAsyncIfLeader("lock-cancel-group", executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+
+            resultFuture.cancel(false).shouldBeTrue()
+
+            await.atMost(2.seconds).untilAsserted {
+                actionFuture.isCancelled.shouldBeTrue()
+            }
+            releaseObserved.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            client.releaseCalls shouldBeEqualTo 1
+            client.destroyCalls shouldBeEqualTo 1
+        } finally {
+            actionFuture.cancel(false)
             executor.shutdownNow()
         }
     }

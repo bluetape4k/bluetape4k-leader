@@ -14,6 +14,9 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
@@ -335,6 +338,34 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
             election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `runAsyncIfLeader - 결과 future 취소를 실행 중인 action과 락 정리에 전파한다`() {
+        val lockName = randomName()
+        val election = MongoLeaderElector(lockCollection)
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val resultFuture = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+
+            resultFuture.cancel(false).shouldBeTrue()
+
+            await.atMost(2.seconds).untilAsserted {
+                actionFuture.isCancelled.shouldBeTrue()
+            }
+            await.atMost(2.seconds).untilAsserted {
+                lockCollection.countDocuments(Filters.eq("_id", lockName)) shouldBeEqualTo 0L
+            }
+            election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+        } finally {
+            actionFuture.cancel(false)
         }
     }
 

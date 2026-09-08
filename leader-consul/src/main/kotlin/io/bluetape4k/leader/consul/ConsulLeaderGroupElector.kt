@@ -32,6 +32,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -185,7 +186,7 @@ class ConsulLeaderGroupElector private constructor(
         }
     }
 
-    @Suppress("TooGenericExceptionCaught")
+    @Suppress("TooGenericExceptionCaught", "CyclomaticComplexMethod")
     private fun <T> runAsyncWithSlot(
         lockName: String,
         auditLeaderId: String?,
@@ -193,16 +194,24 @@ class ConsulLeaderGroupElector private constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val acquiredRef = AtomicReference<ConsulLeaseHandle?>()
+        val cleanupStarted = AtomicBoolean()
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
-        val releaseIfUnclaimed: () -> Unit = {
-            val handle = acquiredRef.get()
-            if (handle != null && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                AsyncLeaseCleanupDispatcher.execute { release(handle) }
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        val beginCleanup: () -> Unit = {
+            if (lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
+                acquiredRef.get()?.takeIf { cleanupStarted.compareAndSet(false, true) }?.let { handle ->
+                    AsyncLeaseCleanupDispatcher.execute { release(handle) }
+                }
             }
         }
         val acquisitionFuture = CompletableFuture.supplyAsync({
             acquire(lockName, auditLeaderId).also { handle ->
-                if (handle != null) acquiredRef.set(handle)
+                if (handle != null) {
+                    acquiredRef.set(handle)
+                    if (lifecycle.get() == AsyncLifecycle.CLEANUP && cleanupStarted.compareAndSet(false, true)) {
+                        AsyncLeaseCleanupDispatcher.execute { release(handle) }
+                    }
+                }
             }
         }, executor)
         val pipelineFuture: CompletableFuture<T?> = try {
@@ -214,27 +223,29 @@ class ConsulLeaderGroupElector private constructor(
                         CancellationException("leader result future was cancelled before action"),
                     )
                 } else {
-                    runAcquiredAsync(handle, action)
+                    runAcquiredAsync(handle, cancellationRelay, action)
                 }
             }, executor)
         } catch (error: Throwable) {
             acquisitionFuture.whenComplete { handle, _ ->
-                if (handle != null) releaseIfUnclaimed()
+                if (handle != null) beginCleanup()
             }
             CompletableFuture.failedFuture(error)
         }
         pipelineFuture.whenComplete { _, failure ->
-            if (failure != null) releaseIfUnclaimed()
+            if (pipelineFuture.isCancelled) acquisitionFuture.cancel(true)
+            if (failure != null) beginCleanup()
         }
         acquisitionFuture.whenComplete { handle, _ ->
-            if (handle != null && pipelineFuture.isCancelled) releaseIfUnclaimed()
+            if (handle != null && pipelineFuture.isCancelled) beginCleanup()
         }
-        return pipelineFuture
+        return LeaderFutureBridge.propagateCancellation(pipelineFuture, cancellationRelay)
     }
 
     @Suppress("ReturnCount", "TooGenericExceptionCaught")
     private fun <T> runAcquiredAsync(
         handle: ConsulLeaseHandle,
+        cancellationRelay: LeaderFutureBridge.CancellationRelay,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val delegate = ConsulLockExtendDelegate(lockClient, handle)
@@ -250,7 +261,7 @@ class ConsulLeaderGroupElector private constructor(
             return AsyncLeaseCleanupDispatcher.failAfter(e) { release(handle) }
         }
         val actionFuture = try {
-            action()
+            cancellationRelay.invoke(action)
         } catch (e: Throwable) {
             return AsyncLeaseCleanupDispatcher.failAfter(e) {
                 watchdog.close()

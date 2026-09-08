@@ -21,6 +21,9 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import org.bson.Document
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -29,6 +32,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.util.*
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -321,5 +325,63 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
         groupLockCollection.countDocuments(
             com.mongodb.client.model.Filters.`in`("_id", ids)
         ) shouldBeEqualTo 0L
+    }
+
+    @Test
+    fun `runAsyncIfLeader - 결과 future 취소를 실행 중인 action과 그룹 슬롯 정리에 전파한다`() {
+        val lockName = randomName()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val resultFuture = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+
+            resultFuture.cancel(false).shouldBeTrue()
+
+            await.atMost(2.seconds).untilAsserted {
+                actionFuture.isCancelled.shouldBeTrue()
+            }
+            await.atMost(2.seconds).untilAsserted {
+                election.activeCount(lockName) shouldBeEqualTo 0
+            }
+            election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+        } finally {
+            actionFuture.cancel(false)
+        }
+    }
+
+    @Test
+    fun `runAsyncIfLeader - caller 취소는 group failure history를 기록하지 않는다`() {
+        val lockName = randomName()
+        val historyKey = LeaderHistoryKey(lockName = lockName, token = "cancel-history-token", slotId = "0")
+        every { historyRecorder.recordAcquired(any()) } returns historyKey
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+        val election = MongoLeaderGroupElector(groupLockCollection, options, historyRecorder)
+
+        try {
+            val resultFuture = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+
+            resultFuture.cancel(false).shouldBeTrue()
+
+            await.atMost(2.seconds).untilAsserted {
+                actionFuture.isCancelled.shouldBeTrue()
+            }
+            await.atMost(2.seconds).untilAsserted {
+                election.activeCount(lockName) shouldBeEqualTo 0
+            }
+            verify(exactly = 0) { historyRecorder.recordFailed(any(), any(), any(), any()) }
+            verify(exactly = 0) { historyRecorder.recordCompleted(any(), any(), any()) }
+        } finally {
+            actionFuture.cancel(false)
+        }
     }
 }
