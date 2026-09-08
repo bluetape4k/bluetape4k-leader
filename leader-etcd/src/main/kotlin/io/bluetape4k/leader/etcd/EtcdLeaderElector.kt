@@ -110,24 +110,22 @@ class EtcdLeaderElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        val acquiredRef = AtomicReference<EtcdLeaseHandle?>()
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
-        val beginCleanup: () -> Unit = {
-            if (lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                acquiredRef.get()?.let { handle ->
-                    AsyncLeaseCleanupDispatcher.execute { releaseAfterMinLease(handle) }
-                }
+        val cleanupBarrier = AsyncLeaseCleanupBarrier<EtcdLeaseHandle>(::releaseAfterMinLease)
+        val beginCleanup: () -> CompletableFuture<Unit> = {
+            when {
+                lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
+                lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
+                else -> CompletableFuture.completedFuture(Unit)
             }
         }
         val acquisitionFuture = CompletableFuture.supplyAsync({
-            acquire(lockName).also { handle ->
-                if (handle != null) {
-                    acquiredRef.set(handle)
-                    if (lifecycle.get() == AsyncLifecycle.CLEANUP) {
-                        AsyncLeaseCleanupDispatcher.execute { releaseAfterMinLease(handle) }
-                    }
-                }
+            var handle: EtcdLeaseHandle? = null
+            try {
+                acquire(lockName).also { handle = it }
+            } finally {
+                cleanupBarrier.completeAcquisition(handle)
             }
         }, executor)
         val pipelineFuture = acquisitionFuture.thenComposeAsync({ handle ->
@@ -140,26 +138,18 @@ class EtcdLeaderElector private constructor(
                 else -> runAcquiredAsync(handle, cancellationRelay, action)
             }
         }, executor)
-        pipelineFuture.whenComplete { _, failure ->
-            if (pipelineFuture.isCancelled) {
-                acquisitionFuture.cancel(true)
-            }
-            if (failure != null) {
-                beginCleanup()
-            }
-        }
-        acquisitionFuture.whenComplete { handle, _ ->
-            if (handle != null && pipelineFuture.isCancelled) {
-                beginCleanup()
+        val ordered = LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+            if (failure == null) {
+                CompletableFuture.completedFuture(value)
+            } else {
+                beginCleanup().handle { _, cleanupFailure ->
+                    val cause = failure.unwrapCompletionException()
+                    cleanupFailure?.unwrapCompletionException()?.let(cause::addSuppressed)
+                    throw CompletionException(cause)
+                }
             }
         }
-        return LeaderFutureBridge.map(pipelineFuture, cancellationRelay) { value, failure ->
-            val cause = failure?.unwrapCompletionException()
-            if (cause != null) {
-                throw CompletionException(cause)
-            }
-            value
-        }
+        return LeaderFutureBridge.propagateCancellation(ordered, cancellationRelay)
     }
 
     @Suppress("ReturnCount", "TooGenericExceptionCaught")

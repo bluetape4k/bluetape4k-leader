@@ -32,7 +32,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -193,25 +192,22 @@ class ConsulLeaderGroupElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        val acquiredRef = AtomicReference<ConsulLeaseHandle?>()
-        val cleanupStarted = AtomicBoolean()
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
-        val beginCleanup: () -> Unit = {
-            if (lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                acquiredRef.get()?.takeIf { cleanupStarted.compareAndSet(false, true) }?.let { handle ->
-                    AsyncLeaseCleanupDispatcher.execute { release(handle) }
-                }
+        val cleanupBarrier = AsyncLeaseCleanupBarrier<ConsulLeaseHandle>(::release)
+        val beginCleanup: () -> CompletableFuture<Unit> = {
+            when {
+                lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
+                lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
+                else -> CompletableFuture.completedFuture(Unit)
             }
         }
         val acquisitionFuture = CompletableFuture.supplyAsync({
-            acquire(lockName, auditLeaderId).also { handle ->
-                if (handle != null) {
-                    acquiredRef.set(handle)
-                    if (lifecycle.get() == AsyncLifecycle.CLEANUP && cleanupStarted.compareAndSet(false, true)) {
-                        AsyncLeaseCleanupDispatcher.execute { release(handle) }
-                    }
-                }
+            var handle: ConsulLeaseHandle? = null
+            try {
+                acquire(lockName, auditLeaderId).also { handle = it }
+            } finally {
+                cleanupBarrier.completeAcquisition(handle)
             }
         }, executor)
         val pipelineFuture: CompletableFuture<T?> = try {
@@ -227,19 +223,20 @@ class ConsulLeaderGroupElector private constructor(
                 }
             }, executor)
         } catch (error: Throwable) {
-            acquisitionFuture.whenComplete { handle, _ ->
-                if (handle != null) beginCleanup()
-            }
             CompletableFuture.failedFuture(error)
         }
-        pipelineFuture.whenComplete { _, failure ->
-            if (pipelineFuture.isCancelled) acquisitionFuture.cancel(true)
-            if (failure != null) beginCleanup()
+        val ordered = LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+            if (failure == null) {
+                CompletableFuture.completedFuture(value)
+            } else {
+                beginCleanup().handle { _, cleanupFailure ->
+                    val cause = checkNotNull(failure.unwrapCompletionException())
+                    cleanupFailure?.unwrapCompletionException()?.let(cause::addSuppressed)
+                    throw CompletionException(cause)
+                }
+            }
         }
-        acquisitionFuture.whenComplete { handle, _ ->
-            if (handle != null && pipelineFuture.isCancelled) beginCleanup()
-        }
-        return LeaderFutureBridge.propagateCancellation(pipelineFuture, cancellationRelay)
+        return LeaderFutureBridge.propagateCancellation(ordered, cancellationRelay)
     }
 
     @Suppress("ReturnCount", "TooGenericExceptionCaught")

@@ -6,14 +6,14 @@ import io.bluetape4k.logging.warn
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
-import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * 사용자 future 완료 스레드와 blocking lease cleanup 실행 컨텍스트를 분리합니다.
  *
  * caller executor와 독립된 virtual thread를 즉시 시작하므로 queue shutdown으로 cleanup이 유실되지 않습니다.
- * thread 시작이 거부되어도 마지막 inline 실행으로 exactly-once cleanup을 보장합니다.
+ * virtual thread handoff가 실패하면 결과를 terminal failure로 완료하며 caller thread에서 blocking cleanup을 실행하지 않습니다.
  */
 internal object AsyncLeaseCleanupDispatcher : KLogging() {
 
@@ -28,7 +28,7 @@ internal object AsyncLeaseCleanupDispatcher : KLogging() {
         cleanup: () -> Unit,
         transform: (T?, Throwable?) -> R,
     ): CompletableFuture<R> =
-        completeAfter(source, cleanupExecutor, cleanup, transform)
+        completeAfter(source, cleanupExecutor, cleanup, transform = transform)
 
     fun <T> failAfter(
         failure: Throwable,
@@ -38,15 +38,15 @@ internal object AsyncLeaseCleanupDispatcher : KLogging() {
             throw sourceFailure?.unwrapCompletionException() ?: failure
         }
 
-    fun execute(cleanup: () -> Unit) {
-        completeAfter(CompletableFuture.completedFuture(Unit), cleanup) { _, _ -> Unit }
-    }
+    fun execute(cleanup: () -> Unit): CompletableFuture<Unit> =
+        completeAfter(CompletableFuture.completedFuture(Unit), cleanup) { _, _ -> }
 
     @Suppress("TooGenericExceptionCaught")
     internal fun <T, R> completeAfter(
         source: CompletableFuture<T>,
         executor: Executor,
         cleanup: () -> Unit,
+        fallbackExecutor: Executor = cleanupExecutor,
         transform: (T?, Throwable?) -> R,
     ): CompletableFuture<R> {
         val result = CompletableFuture<R>()
@@ -75,13 +75,19 @@ internal object AsyncLeaseCleanupDispatcher : KLogging() {
 
             try {
                 executor.execute(cleanupTask)
-            } catch (_: RejectedExecutionException) {
-                log.debug { "Async lease cleanup executor rejected task; using backend-owned virtual-thread fallback." }
+            } catch (dispatchFailure: Throwable) {
+                log.debug(dispatchFailure) {
+                    "Async lease cleanup executor failed; using backend-owned virtual-thread fallback."
+                }
                 try {
-                    cleanupExecutor.execute(cleanupTask)
-                } catch (fallbackError: RejectedExecutionException) {
-                    log.warn(fallbackError) { "Async lease cleanup fallback rejected task; running cleanup inline." }
-                    cleanupTask.run()
+                    fallbackExecutor.execute(cleanupTask)
+                } catch (fallbackFailure: Throwable) {
+                    log.warn(fallbackFailure) {
+                        "Async lease cleanup fallback failed; completing terminally without inline cleanup."
+                    }
+                    result.completeExceptionally(
+                        terminalDispatchFailure(failure, dispatchFailure, fallbackFailure),
+                    )
                 }
             }
         }
@@ -90,4 +96,50 @@ internal object AsyncLeaseCleanupDispatcher : KLogging() {
 
     private fun Throwable.unwrapCompletionException(): Throwable =
         (this as? CompletionException)?.cause ?: this
+
+    private fun terminalDispatchFailure(
+        sourceFailure: Throwable?,
+        dispatchFailure: Throwable,
+        fallbackFailure: Throwable,
+    ): Throwable = sourceFailure?.unwrapCompletionException()?.also { original ->
+        original.addSuppressed(dispatchFailure)
+        original.addSuppressed(fallbackFailure)
+    } ?: dispatchFailure.also { it.addSuppressed(fallbackFailure) }
+}
+
+/** 획득 완료와 cleanup 요청의 race를 닫고 cleanup 완료 future를 단일 소유합니다. */
+internal class AsyncLeaseCleanupBarrier<T : Any>(
+    private val cleanup: (T) -> Unit,
+) {
+    private val acquired = AtomicReference<T?>()
+    private val acquisitionCompleted = AtomicBoolean()
+    private val cleanupRequested = AtomicBoolean()
+    private val cleanupStarted = AtomicBoolean()
+    private val completion = CompletableFuture<Unit>()
+
+    fun completeAcquisition(value: T?) {
+        if (value != null) acquired.set(value)
+        acquisitionCompleted.set(true)
+        dispatchIfReady()
+    }
+
+    fun request(): CompletableFuture<Unit> {
+        cleanupRequested.set(true)
+        dispatchIfReady()
+        return completion
+    }
+
+    private fun dispatchIfReady() {
+        if (cleanupRequested.get() && acquisitionCompleted.get() && cleanupStarted.compareAndSet(false, true)) {
+            val value = acquired.get()
+            if (value == null) {
+                completion.complete(Unit)
+            } else {
+                AsyncLeaseCleanupDispatcher.execute { cleanup(value) }
+                    .whenComplete { _, failure ->
+                        if (failure == null) completion.complete(Unit) else completion.completeExceptionally(failure)
+                    }
+            }
+        }
+    }
 }
