@@ -33,12 +33,14 @@ import kotlin.time.Duration
  * @property syncClient DynamoDB backend 계약에서 `syncClient` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  * @property asyncClient DynamoDB backend 계약에서 `asyncClient` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  * @property nowMillis DynamoDB backend 계약에서 `nowMillis` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property batchRetrySleep 미처리 키 재시도 사이의 대기 함수입니다. 테스트에서 실제 대기를 대체합니다.
  */
 internal class DynamoDbLockClient(
     private val tableName: String,
     private val syncClient: DynamoDbClient? = null,
     private val asyncClient: DynamoDbAsyncClient? = null,
     private val nowMillis: () -> Long = System::currentTimeMillis,
+    private val batchRetrySleep: (Long) -> Unit = Thread::sleep,
 ) {
     companion object : KLogging() {
         const val LockName = "lockName"
@@ -53,6 +55,9 @@ internal class DynamoDbLockClient(
         private const val LeaseAttr = "#leaseExpiry"
         private const val TtlAttr = "#ttl"
         private const val BatchGetLimit = 100
+        private const val BatchGetMaxRetries = 8
+        private const val BatchGetInitialDelayMillis = 25L
+        private const val BatchGetMaxDelayMillis = 200L
 
         fun newOwnerId(): String = Uuid.V4.nextUUID().toString()
     }
@@ -334,6 +339,9 @@ internal class DynamoDbLockClient(
 
     private fun batchRead(keys: List<String>): List<Map<String, AttributeValue>> {
         val items = mutableListOf<Map<String, AttributeValue>>()
+        // chunk마다 상한이 초기화되지 않도록 전체 조회에서 재시도 예산을 공유합니다.
+        var retries = 0
+        var retryDelayMillis = BatchGetInitialDelayMillis
         keys.chunked(BatchGetLimit).forEach { chunk ->
             var requestItems = batchRequestItems(chunk)
             do {
@@ -344,6 +352,15 @@ internal class DynamoDbLockClient(
                 items += response.responses()[tableName].orEmpty()
                 requestItems = response.unprocessedKeys().filterValues { tableKeys ->
                     !tableKeys.keys().isNullOrEmpty()
+                }
+                if (requestItems.isNotEmpty()) {
+                    check(retries < BatchGetMaxRetries) {
+                        "DynamoDB batch read exhausted $BatchGetMaxRetries retries; " +
+                            "${requestItems.values.sumOf { it.keys().size }} keys remain unprocessed"
+                    }
+                    batchRetrySleep(retryDelayMillis)
+                    retries++
+                    retryDelayMillis = (retryDelayMillis * 2).coerceAtMost(BatchGetMaxDelayMillis)
                 }
             } while (requestItems.isNotEmpty())
         }

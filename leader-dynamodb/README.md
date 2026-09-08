@@ -20,6 +20,7 @@ Preview DynamoDB-backed leader election using conditional writes and logical TTL
 - Acquire uses `PutItem` with a condition that succeeds only when the row does not exist or the logical lease has expired.
 - `ttl` is cleanup metadata only. Correctness depends on `leaseExpiry`, not on DynamoDB TTL deletion timing.
 - Normal lock contention returns `null`; AWS SDK/client failures are propagated.
+- Group state lookup shares at most 8 additional retries across all batch-get chunks, with exponential backoff from 25ms capped at 200ms. Exhaustion throws `IllegalStateException` instead of returning incomplete state. This is a retry-count bound, not a total request timeout; configure individual SDK request timeouts on the caller-owned client.
 - `minLeaseTime` retains the row until the remaining minimum lease expires instead of blocking the caller.
 - Single-leader `autoExtend` renews the lease while the action is running. Group electors require explicit `LockExtender` calls.
 
