@@ -168,6 +168,7 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         val cleanupBarrier = AsyncLeaseCleanupBarrier<AcquiredSlot> { acquired ->
             release(acquired.lock, acquired.acquiredAtNanos, lockName, acquired.slot)
         }
@@ -196,7 +197,7 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
                     )
                 } else {
                     try {
-                        runAcquiredAsync(lockName, acquired, auditLeaderId, action)
+                        runAcquiredAsync(lockName, acquired, auditLeaderId, cancellationRelay, action)
                     } catch (error: Throwable) {
                         AsyncLeaseCleanupDispatcher.failAfter(error) {
                             release(acquired.lock, acquired.acquiredAtNanos, lockName, acquired.slot)
@@ -207,7 +208,7 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         } catch (error: Throwable) {
             CompletableFuture.failedFuture(error)
         }
-        return LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+        return LeaderFutureBridge.flatMap(pipelineFuture, cancellationRelay) { value, failure ->
             if (failure == null) {
                 CompletableFuture.completedFuture(value)
             } else {
@@ -225,6 +226,7 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         lockName: String,
         acquired: AcquiredSlot,
         auditLeaderId: String?,
+        cancellationRelay: LeaderFutureBridge.CancellationRelay,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val lock = acquired.lock
@@ -243,7 +245,7 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         }
         val actionFuture = try {
             val handle = handle(lockName, lock, acquired.slot, acquired.acquiredAtNanos, delegate, auditLeaderId)
-            AopScopeAccess.withPushedSync(handle) { action() }
+            cancellationRelay.invoke { AopScopeAccess.withPushedSync(handle) { action() } }
         } catch (e: Throwable) {
             return AsyncLeaseCleanupDispatcher.failAfter(e) {
                 watchdog.close()

@@ -246,7 +246,7 @@ class LocalSuspendLeaderGroupElector private constructor(
             }
         } finally {
             withContext(NonCancellable) {
-                watchdog.close()
+                LeaderLeaseAutoExtender.closeSuspend(watchdog)
                 delayRemainingMinLeaseTime(startedAtNanos)
                 states.releaseGroup(lockName, lease)
                 if (acquired) semaphore.release()

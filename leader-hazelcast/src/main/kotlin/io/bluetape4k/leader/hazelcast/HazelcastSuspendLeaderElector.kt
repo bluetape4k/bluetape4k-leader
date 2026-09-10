@@ -98,7 +98,7 @@ class HazelcastSuspendLeaderElector private constructor(
         } finally {
             // NonCancellable: 코루틴 취소 시에도 watchdog close + 락 해제가 중단되지 않도록 보호
             withContext(NonCancellable) {
-                watchdog?.close()
+                watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }
                 try {
                     lock.unlock(options.minLeaseTime, acquiredAtNanos)
                     log.debug { "Leader 권한을 반납했습니다 (suspend). lockName=$lockName" }

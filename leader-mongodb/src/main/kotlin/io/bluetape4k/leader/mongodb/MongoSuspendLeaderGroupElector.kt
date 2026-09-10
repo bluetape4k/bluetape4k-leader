@@ -169,7 +169,7 @@ class MongoSuspendLeaderGroupElector private constructor(
         } finally {
             // NonCancellable: 코루틴 취소 시에도 watchdog close + release 가 중단되지 않도록 보호
             withContext(NonCancellable) {
-                watchdog.close()
+                LeaderLeaseAutoExtender.closeSuspend(watchdog)
                 val finishedAt = Instant.now()
                 val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                 when {

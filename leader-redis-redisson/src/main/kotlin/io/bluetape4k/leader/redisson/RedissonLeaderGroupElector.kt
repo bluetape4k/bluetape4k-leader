@@ -243,7 +243,7 @@ class RedissonLeaderGroupElector private constructor(
         }
     }
 
-    @Suppress("TooGenericExceptionCaught")
+    @Suppress("LongMethod", "TooGenericExceptionCaught")
     private fun <T> runAsyncImpl(
         lockName: String,
         auditLeaderId: String?,
@@ -254,6 +254,7 @@ class RedissonLeaderGroupElector private constructor(
             lockName.requireNotBlank("lockName")
             val semaphore = getPermitSemaphore(lockName)
             val rejectionCleanup = AsyncPermitRejectionCleanup(semaphore, lockName)
+            val cancellationRelay = LeaderFutureBridge.cancellationRelay()
             log.debug { "리더 그룹 슬롯 획득 요청 (async). lockName=$lockName" }
 
             val acquisitionFuture = semaphore
@@ -280,7 +281,15 @@ class RedissonLeaderGroupElector private constructor(
                                 CancellationException("leader group action was cancelled before start"),
                             )
                         } else try {
-                            executeAsync(semaphore, lockName, permitId, auditLeaderId, startedAtNanos, action)
+                            executeAsync(
+                                semaphore,
+                                lockName,
+                                permitId,
+                                auditLeaderId,
+                                startedAtNanos,
+                                cancellationRelay,
+                                action,
+                            )
                         } catch (error: Throwable) {
                             releaseAndPropagate(semaphore, permitId, startedAtNanos, lockName, error, null)
                         }
@@ -293,7 +302,7 @@ class RedissonLeaderGroupElector private constructor(
                     )
                 }
             }
-            LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+            LeaderFutureBridge.flatMap(pipelineFuture, cancellationRelay) { value, failure ->
                 if (failure != null) {
                     rejectionCleanup.release(failure.unwrapCompletionCause())
                 } else {
@@ -349,6 +358,7 @@ class RedissonLeaderGroupElector private constructor(
         permitId: String,
         auditLeaderId: String?,
         startedAtNanos: Long,
+        cancellationRelay: LeaderFutureBridge.CancellationRelay,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         log.debug { "슬롯 획득 성공 (async). lockName=$lockName, permitId=$permitId" }
@@ -378,12 +388,14 @@ class RedissonLeaderGroupElector private constructor(
         )
 
         val actionFuture: CompletableFuture<T> = try {
-            AopScopeAccess.withPushedSync(handle) {
-                AopScopeAccess.setCapture(handle)
-                try {
-                    action()
-                } finally {
-                    AopScopeAccess.clearCapture()
+            cancellationRelay.invoke {
+                AopScopeAccess.withPushedSync(handle) {
+                    AopScopeAccess.setCapture(handle)
+                    try {
+                        action()
+                    } finally {
+                        AopScopeAccess.clearCapture()
+                    }
                 }
             }
         } catch (e: Throwable) {

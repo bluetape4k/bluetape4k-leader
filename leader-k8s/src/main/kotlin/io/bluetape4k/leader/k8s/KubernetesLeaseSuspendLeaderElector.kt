@@ -122,7 +122,7 @@ class KubernetesLeaseSuspendLeaderElector @JvmOverloads constructor(
             throw e
         } finally {
             withContext(NonCancellable + Dispatchers.IO) {
-                watchdog?.close()
+                watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }
                 try {
                     lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos)
                     log.debug { "Kubernetes Lease released (suspend). lockName=$lockName" }

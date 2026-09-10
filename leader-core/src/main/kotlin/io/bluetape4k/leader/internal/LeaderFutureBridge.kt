@@ -37,6 +37,18 @@ object LeaderFutureBridge {
     }
 
     /**
+     * 원본 future를 비동기 cleanup stage로 변환하면서 caller cancellation을 실제 action future까지 전달합니다.
+     */
+    fun <T, R> flatMap(
+        source: CompletableFuture<T>,
+        cancellationRelay: CancellationRelay,
+        mapper: (T?, Throwable?) -> CompletableFuture<R>,
+    ): CompletableFuture<R> {
+        val transformed = source.handle { value, failure -> mapper(value, failure) }.thenCompose { it }
+        return mirror(transformed, source, cancellationRelay::cancel)
+    }
+
+    /**
      * 원본 future 변환과 함께 caller cancellation을 실제 action future까지 전달합니다.
      */
     fun <T, R> map(

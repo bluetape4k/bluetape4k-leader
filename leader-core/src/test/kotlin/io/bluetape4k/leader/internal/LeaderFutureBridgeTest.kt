@@ -92,6 +92,19 @@ class LeaderFutureBridgeTest {
     }
 
     @Test
+    fun `flatMap nullable cleanup bridge 취소를 실행 중인 action future로 전파한다`() {
+        val source = CompletableFuture<String>()
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+        val actionFuture = cancellationRelay.invoke { CompletableFuture<String>() }
+        val bridged = LeaderFutureBridge.flatMap(source, cancellationRelay) { _, _ -> actionFuture }
+
+        bridged.cancel(false).shouldBeTrue()
+
+        source.isCancelled.shouldBeTrue()
+        actionFuture.isCancelled.shouldBeTrue()
+    }
+
+    @Test
     fun `flatMap은 cleanup stage 완료 후 terminal state를 반환한다`() {
         val source = CompletableFuture.failedFuture<String>(IllegalStateException("failed"))
         val cleanup = CompletableFuture<String>()

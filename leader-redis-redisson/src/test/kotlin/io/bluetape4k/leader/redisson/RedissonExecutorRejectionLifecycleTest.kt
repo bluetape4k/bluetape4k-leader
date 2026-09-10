@@ -25,6 +25,31 @@ import kotlin.time.Duration.Companion.seconds
 class RedissonExecutorRejectionLifecycleTest: AbstractRedissonLeaderTest() {
 
     @Test
+    fun `single nullable 취소를 action과 lock lifecycle에 전파한다`() {
+        val lockName = randomName()
+        val election = RedissonLeaderElector(redissonClient)
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val result = election.runAsyncIfLeader(lockName, executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+
+            actionStarted.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+            result.cancel(false) shouldBeEqualTo true
+            actionFuture.isCancelled shouldBeEqualTo true
+            await.atMost(2.seconds).untilAsserted {
+                election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
+            }
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
     fun `single result 취소를 action과 lock lifecycle에 전파한다`() {
         val lockName = randomName()
         val election = RedissonLeaderElector(redissonClient)
@@ -62,6 +87,34 @@ class RedissonExecutorRejectionLifecycleTest: AbstractRedissonLeaderTest() {
 
         try {
             val result = election.runAsyncIfLeaderResult(LeaderSlot(lockName, "redisson-group-cancel"), executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+
+            actionStarted.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+            result.cancel(false) shouldBeEqualTo true
+            actionFuture.isCancelled shouldBeEqualTo true
+            await.atMost(2.seconds).untilAsserted {
+                election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
+            }
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `group nullable 취소를 action과 permit lifecycle에 전파한다`() {
+        val lockName = randomName()
+        val election = RedissonLeaderGroupElector(
+            redissonClient,
+            LeaderGroupElectionOptions(maxLeaders = 1),
+        )
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val result = election.runAsyncIfLeader(lockName, executor) {
                 actionStarted.countDown()
                 actionFuture
             }

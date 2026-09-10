@@ -88,6 +88,7 @@ class LettuceSuspendLeaderElector(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ThrowsCount")
     private suspend fun <T> runImpl(lockName: String, auditLeaderId: String?, action: suspend () -> T): T? {
         lockName.requireNotBlank("lockName")
 
@@ -151,7 +152,7 @@ class LettuceSuspendLeaderElector(
         } finally {
             // NonCancellable: 코루틴 취소 시에도 lease 정리가 중단되지 않도록 보호
             withContext(NonCancellable) {
-                watchdog?.close()
+                watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }
                 try {
                     if (lock.isHeldByCurrentInstance()) {
                         lock.unlock(options.minLeaseTime, acquiredAtNanos)

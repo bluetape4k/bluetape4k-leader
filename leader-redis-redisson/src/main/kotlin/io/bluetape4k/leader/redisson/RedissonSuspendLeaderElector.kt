@@ -169,7 +169,7 @@ class RedissonSuspendLeaderElector private constructor(
             } finally {
                 // NonCancellable: 코루틴 취소 시에도 lease 정리가 중단되지 않도록 보호
                 withContext(NonCancellable) {
-                    watchdog?.close()
+                    watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }
                     if (lock.isHeldByThread(lockId)) {
                         try {
                             releaseLock(lock, lockId, acquiredAtNanos)

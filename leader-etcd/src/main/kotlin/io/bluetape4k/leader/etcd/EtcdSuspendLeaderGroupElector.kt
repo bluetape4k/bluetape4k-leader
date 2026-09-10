@@ -138,7 +138,7 @@ class EtcdSuspendLeaderGroupElector private constructor(
             }
         } finally {
             withContext(NonCancellable) {
-                watchdog.close()
+                LeaderLeaseAutoExtender.closeSuspend(watchdog)
                 releaseAfterMinLease(leaseHandle)
             }
         }
