@@ -7,11 +7,19 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome.Extended
 import io.bluetape4k.leader.internal.ExtendDelegate
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
@@ -58,6 +66,91 @@ class LeaderLeaseAutoExtenderTest {
         delay(120.milliseconds)
 
         calls.get() shouldBeEqualTo afterClose
+    }
+
+    @Test
+    fun `closeAsync는 async completion thread를 blocking watchdog drain에서 격리한다`() {
+        val extensionStarted = CountDownLatch(1)
+        val releaseExtension = CountDownLatch(1)
+        val closeCompleted = CountDownLatch(1)
+        val probeRan = CountDownLatch(1)
+        val closeThread = AtomicReference<String>()
+        val delegate = object : ExtendDelegate {
+            override val lastExtendDeadline: AtomicReference<Instant> = AtomicReference(Instant.EPOCH)
+
+            override fun extend(lockAtMostFor: Duration): ExtendOutcome {
+                extensionStarted.countDown()
+                releaseExtension.await(2, TimeUnit.SECONDS)
+                return Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+            }
+
+            override fun isHeld(): Boolean = true
+        }
+        val watchdog = LeaderLeaseAutoExtender.start(true, 75.milliseconds, delegate)
+        val eventLoop = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "issue-936-event-loop") }
+
+        try {
+            extensionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            eventLoop.execute {
+                LeaderLeaseAutoExtender.closeAsync(watchdog).whenComplete { _, _ ->
+                    closeThread.set(Thread.currentThread().name)
+                    closeCompleted.countDown()
+                }
+                eventLoop.execute { probeRan.countDown() }
+            }
+
+            probeRan.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            closeCompleted.await(100, TimeUnit.MILLISECONDS).shouldBeFalse()
+            releaseExtension.countDown()
+            closeCompleted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            (closeThread.get() == "issue-936-event-loop").shouldBeFalse()
+        } finally {
+            releaseExtension.countDown()
+            LeaderLeaseAutoExtender.closeAsync(watchdog).join()
+            eventLoop.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `closeSuspend는 coroutine dispatcher를 blocking watchdog drain에서 격리한다`() = runSuspendIO {
+        val extensionStarted = CountDownLatch(1)
+        val releaseExtension = CountDownLatch(1)
+        val probeRan = CountDownLatch(1)
+        val delegate = object : ExtendDelegate {
+            override val lastExtendDeadline: AtomicReference<Instant> = AtomicReference(Instant.EPOCH)
+
+            override fun extend(lockAtMostFor: Duration): ExtendOutcome {
+                extensionStarted.countDown()
+                releaseExtension.await(2, TimeUnit.SECONDS)
+                return Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+            }
+
+            override fun isHeld(): Boolean = true
+        }
+        val watchdog = LeaderLeaseAutoExtender.start(true, 75.milliseconds, delegate)
+        val dispatcherExecutor = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "issue-936-coroutine-dispatcher")
+        }
+        val dispatcher = dispatcherExecutor.asCoroutineDispatcher()
+        val scope = CoroutineScope(dispatcher + SupervisorJob())
+
+        try {
+            extensionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            val closeJob = scope.launch {
+                LeaderLeaseAutoExtender.closeSuspend(watchdog)
+            }
+            scope.launch { probeRan.countDown() }
+
+            probeRan.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            releaseExtension.countDown()
+            closeJob.join()
+        } finally {
+            releaseExtension.countDown()
+            LeaderLeaseAutoExtender.closeAsync(watchdog).join()
+            scope.cancel()
+            dispatcher.close()
+            dispatcherExecutor.shutdownNow()
+        }
     }
 
     @Test

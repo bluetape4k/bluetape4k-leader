@@ -192,7 +192,7 @@ class LocalSuspendLeaderElector(
             }
         } finally {
             withContext(NonCancellable) {
-                watchdog.close()
+                LeaderLeaseAutoExtender.closeSuspend(watchdog)
                 delayRemainingMinLeaseTime(startedAtNanos)
                 states.releaseSingle(lockName)
                 if (acquired) mutex.unlock()

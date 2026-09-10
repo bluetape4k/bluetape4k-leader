@@ -132,7 +132,7 @@ class LettuceSuspendLeaderGroupElector(
         } finally {
             // NonCancellable: 코루틴 취소 시에도 슬롯 반납이 중단되지 않도록 보호
             withContext(NonCancellable) {
-                watchdog.close()
+                LeaderLeaseAutoExtender.closeSuspend(watchdog)
                 try {
                     val remainingMs = remainingMinLeaseTime(startedAtNanos, options.minLeaseTime).inWholeMilliseconds
                     slotGroup.releaseSuspending(token, remainingMs)

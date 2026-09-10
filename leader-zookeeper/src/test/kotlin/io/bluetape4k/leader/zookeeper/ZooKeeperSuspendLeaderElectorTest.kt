@@ -128,7 +128,7 @@ class ZooKeeperSuspendLeaderElectorTest: AbstractZooKeeperLeaderTest() {
         val tryStart = indexOf("try {", startIndex = cleanupScope.coerceAtLeast(0))
         val watchdogStart = indexOf("LeaderLeaseAutoExtender.start", startIndex = tryStart.coerceAtLeast(0))
         val finallyStart = indexOf("} finally {", startIndex = watchdogStart.coerceAtLeast(0))
-        val watchdogClose = indexOf("watchdog?.close()", startIndex = finallyStart.coerceAtLeast(0))
+        val watchdogClose = indexOf("watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }", startIndex = finallyStart.coerceAtLeast(0))
         val release = indexOf("mutex.release()", startIndex = watchdogClose.coerceAtLeast(0))
         return listOf(acquired, cleanupScope, tryStart, watchdogStart, finallyStart, watchdogClose, release).all { it >= 0 } &&
             acquired < cleanupScope &&

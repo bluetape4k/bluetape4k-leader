@@ -209,6 +209,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
         val acquiredAtNanos = AtomicLong()
         val lockAcquired = AtomicBoolean()
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         val releaseAfterRejection: (Throwable) -> CompletableFuture<T?> = { failure ->
             if (
                 lockAcquired.get() &&
@@ -239,7 +240,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
                 if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
                     CompletableFuture.failedFuture(CancellationException("leader action was cancelled before start"))
                 } else try {
-                    runAcquiredAsync(lock, lockName, auditLeaderId, acquiredAt, action)
+                    runAcquiredAsync(lock, lockName, auditLeaderId, acquiredAt, cancellationRelay, action)
                 } catch (error: Throwable) {
                     lock.unlockAsync(options.minLeaseTime, acquiredAt)
                         .exceptionally { releaseError ->
@@ -254,7 +255,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
                 releaseAfterRejection(CancellationException("leader result future was cancelled before action"))
             }
         }
-        return LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+        return LeaderFutureBridge.flatMap(pipelineFuture, cancellationRelay) { value, failure ->
             if (failure != null) {
                 releaseAfterRejection(failure.unwrapCompletionCause())
             } else {
@@ -268,6 +269,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
         lockName: String,
         auditLeaderId: String?,
         acquiredAtNanos: Long,
+        cancellationRelay: LeaderFutureBridge.CancellationRelay,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val startedAt = Instant.now()
@@ -294,7 +296,9 @@ class LettuceLeaderElector @JvmOverloads constructor(
         val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
 
         log.debug { "리더 선출 성공 (async): lockName=$lockName" }
-        val actionFuture = runCatching { AopScopeAccess.withPushedSync(handle) { action() } }
+        val actionFuture = runCatching {
+            cancellationRelay.invoke { AopScopeAccess.withPushedSync(handle) { action() } }
+        }
             .getOrElse { error ->
                 return releaseAndPropagate(lock, lockName, watchdog, acquiredAtNanos, effectiveKey, error, null)
             }
@@ -330,40 +334,50 @@ class LettuceLeaderElector @JvmOverloads constructor(
         error: Throwable?,
         value: T?,
     ): CompletableFuture<T?> {
-        watchdog.close()
-        val finishedAt = Instant.now()
-        val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-        when {
-            error == null -> historyKey?.let {
-                historyRecorder?.recordCompleted(
-                    it,
-                    finishedAt,
-                    durationMs
-                )
-            }
-            error is java.util.concurrent.CancellationException -> { /* cancelled — no audit */
-            }
-            else -> historyKey?.let {
-                historyRecorder?.recordFailed(
-                    it,
-                    finishedAt,
-                    durationMs,
-                    error
-                )
-            }
-        }
-
-        return lock.unlockAsync(options.minLeaseTime, acquiredAtNanos)
-            .exceptionally { releaseError ->
-                log.warn(releaseError) { "Fail to release lock. lockName=$lockName" }
-            }
-            .thenCompose {
-                if (error != null) {
-                    CompletableFuture.failedFuture(error)
-                } else {
-                    CompletableFuture.completedFuture<T?>(value)
+        return LeaderLeaseAutoExtender.closeAsync(watchdog)
+            .handle { _, closeFailure ->
+                val closeCause = closeFailure?.unwrapCompletionCause()
+                if (closeCause != null && error != null) {
+                    error.addSuppressed(closeCause)
                 }
+                val finishedAt = Instant.now()
+                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
+                when {
+                    error == null -> historyKey?.let {
+                        historyRecorder?.recordCompleted(
+                            it,
+                            finishedAt,
+                            durationMs
+                        )
+                    }
+                    error is java.util.concurrent.CancellationException -> { /* cancelled — no audit */
+                    }
+                    else -> historyKey?.let {
+                        historyRecorder?.recordFailed(
+                            it,
+                            finishedAt,
+                            durationMs,
+                            error
+                        )
+                    }
+                }
+                if (error == null) closeCause else null
             }
+            .thenCompose { closeFailure ->
+                lock.unlockAsync(options.minLeaseTime, acquiredAtNanos)
+                    .exceptionally { releaseError ->
+                        log.warn(releaseError) { "Fail to release lock. lockName=$lockName" }
+                    }
+                    .thenCompose {
+                        if (error != null) {
+                            CompletableFuture.failedFuture(error)
+                        } else if (closeFailure != null) {
+                            CompletableFuture.failedFuture(closeFailure)
+                        } else {
+                            CompletableFuture.completedFuture<T?>(value)
+                        }
+                    }
+                }
     }
 
     private enum class AsyncLifecycle {

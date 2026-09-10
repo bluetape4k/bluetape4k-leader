@@ -123,7 +123,7 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
             // NonCancellable: 코루틴 취소 시에도 watchdog close + release 가 중단되지 않도록 보호
             withContext(NonCancellable) {
                 try {
-                    watchdog.close()
+                    LeaderLeaseAutoExtender.closeSuspend(watchdog)
                 } catch (e: Exception) {
                     log.warn(e) { "ZooKeeper suspend group watchdog close 실패. path=$path" }
                 }

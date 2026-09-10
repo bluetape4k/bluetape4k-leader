@@ -12,6 +12,7 @@ import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +21,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executor
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
@@ -55,6 +58,7 @@ private fun publishLeaderLeaseWatchdogEvent(
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
+@Suppress("TooManyFunctions")
 object LeaderLeaseAutoExtender : KLogging() {
 
     private val threadSeq = AtomicInteger()
@@ -290,6 +294,30 @@ object LeaderLeaseAutoExtender : KLogging() {
     }
 
     /**
+     * async completion callback에서 watchdog drain을 별도 virtual thread로 이동합니다.
+     *
+     * `close()`의 in-flight extension 대기는 blocking 계약으로 유지하되, async caller가 직접
+     * blocking하지 않도록 완료 future를 반환합니다.
+     * @param watchdog 종료할 watchdog handle입니다.
+     * @return watchdog drain이 끝난 뒤 완료되는 future입니다.
+     */
+    fun closeAsync(watchdog: AutoCloseable): CompletableFuture<Unit> {
+        if (watchdog === NoopCloseable) return CompletableFuture.completedFuture(Unit)
+        return CompletableFuture.supplyAsync({ watchdog.close() }, cleanupExecutor)
+    }
+
+    /**
+     * coroutine cleanup 경계에서 watchdog drain을 suspend 방식으로 기다립니다.
+     *
+     * 실제 blocking drain은 owned cleanup virtual thread에서 수행되므로 caller dispatcher를
+     * 점유하지 않습니다. 호출부는 취소 불가능한 cleanup context에서 사용해야 합니다.
+     * @param watchdog 종료할 watchdog handle입니다.
+     */
+    suspend fun closeSuspend(watchdog: AutoCloseable) {
+        closeAsync(watchdog).await()
+    }
+
+    /**
      * `start` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
      * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
@@ -452,6 +480,11 @@ object LeaderLeaseAutoExtender : KLogging() {
     private val MIN_RENEWAL_PERIOD = 25.milliseconds
     private const val CLOSE_WAIT_TIMEOUT_MILLIS = 5_000L
     private const val CLOSE_WAIT_POLL_MILLIS = 5L
+    private val cleanupExecutor: Executor = Executor { runnable ->
+        Thread.ofVirtual()
+            .name("bluetape4k-leader-lease-cleanup-${threadSeq.incrementAndGet()}")
+            .start(runnable)
+    }
 
     private fun waitForInFlightExtend(extendInFlight: AtomicBoolean) {
         val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(CLOSE_WAIT_TIMEOUT_MILLIS)

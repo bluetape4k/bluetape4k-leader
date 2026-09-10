@@ -336,7 +336,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                 withContext(NonCancellable) {
                     try {
                         try {
-                            watchdog?.close()
+                            watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }
                         } catch (e: Exception) {
                             log.warn(e) { "그룹 슬롯 watchdog 종료 실패. lockName=$lockName, slot=$slot" }
                         }

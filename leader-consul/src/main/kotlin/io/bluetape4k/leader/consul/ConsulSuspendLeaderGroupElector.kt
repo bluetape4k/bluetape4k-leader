@@ -144,7 +144,7 @@ class ConsulSuspendLeaderGroupElector private constructor(
                 try {
                     delayBeforeRelease(handle)
                 } finally {
-                    watchdog.close()
+                    LeaderLeaseAutoExtender.closeSuspend(watchdog)
                     release(handle)
                 }
             }

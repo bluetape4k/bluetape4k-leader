@@ -98,7 +98,7 @@ internal class SuspendLeaderLeaseLifecycle(
                         // watchdog 중지는 release와 독립적으로 best-effort 처리합니다.
                     }
                 }
-                watchdog.close()
+                LeaderLeaseAutoExtender.closeSuspend(watchdog)
                 val remaining = (
                     options.minLeaseTime.inWholeNanoseconds -
                         (monotonicNanos() - backend.acquiredAtNanos)

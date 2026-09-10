@@ -38,7 +38,7 @@ class HazelcastSuspendCancellationSafetyTest {
         val tryStart = indexOf("try {", startIndex = cleanupScope.coerceAtLeast(0))
         val watchdogStart = indexOf("LeaderLeaseAutoExtender.start", startIndex = tryStart.coerceAtLeast(0))
         val finallyStart = indexOf("} finally {", startIndex = watchdogStart.coerceAtLeast(0))
-        val watchdogClose = indexOf("watchdog?.close()", startIndex = finallyStart.coerceAtLeast(0))
+        val watchdogClose = indexOf("watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }", startIndex = finallyStart.coerceAtLeast(0))
         val unlock = indexOf("lock.unlock(options.minLeaseTime, acquiredAtNanos)", startIndex = watchdogClose.coerceAtLeast(0))
         return listOf(acquiredAt, cleanupScope, tryStart, watchdogStart, finallyStart, watchdogClose, unlock).all { it >= 0 } &&
             acquiredAt < cleanupScope &&

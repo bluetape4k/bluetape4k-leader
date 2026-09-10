@@ -14,6 +14,7 @@ import io.bluetape4k.leader.hazelcast.internal.HazelcastBackendErrorClassifier
 import io.bluetape4k.leader.hazelcast.internal.HazelcastSlotExtendDelegate
 import io.bluetape4k.leader.hazelcast.lock.HazelcastLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
@@ -21,6 +22,7 @@ import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -141,7 +143,7 @@ class HazelcastLeaderGroupElector private constructor(
         }
     }
 
-    @Suppress("LongMethod", "TooGenericExceptionCaught")
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ThrowsCount", "TooGenericExceptionCaught")
     override fun <T> runAsyncIfLeader(
         lockName: String,
         executor: Executor,
@@ -154,6 +156,7 @@ class HazelcastLeaderGroupElector private constructor(
         val acquiredRef = AtomicReference<Pair<HazelcastLock, Int>?>(null)
         val acquiredAtNanosRef = AtomicLong()
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         val releaseIfUnclaimed: () -> Unit = {
             val acquired = acquiredRef.get()
             if (acquired != null && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
@@ -210,28 +213,40 @@ class HazelcastLeaderGroupElector private constructor(
                         return@thenComposeAsync CompletableFuture.failedFuture(error)
                     }
                     // async path 는 handle push 미수행 (AOP scope sync/suspend 만 지원)
-                    val actionFuture = runCatching { action() }
+                    val actionFuture = runCatching { cancellationRelay.invoke { action() } }
                         .getOrElse { error ->
-                            watchdog.close()
-                            runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
-                                .onFailure { error.addSuppressed(it) }
-                            return@thenComposeAsync CompletableFuture.failedFuture(error)
+                            return@thenComposeAsync LeaderLeaseAutoExtender.closeAsync(watchdog)
+                                .handle { _, closeFailure ->
+                                    closeFailure?.unwrapCompletionCause()?.let(error::addSuppressed)
+                                    runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
+                                        .onFailure(error::addSuppressed)
+                                    throw error
+                                }
                         }
-                    actionFuture.whenComplete { _, _ ->
-                        watchdog.close()
-                        runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
-                            .onSuccess {
+                    LeaderFutureBridge.flatMap(actionFuture) { value, failure ->
+                        LeaderLeaseAutoExtender.closeAsync(watchdog).handle { _, closeFailure ->
+                            val cleanupFailure = closeFailure?.unwrapCompletionCause()
+                            val releaseFailure = runCatching {
+                                lock.unlock(minLeaseTime, acquiredAtNanos)
+                            }.onSuccess {
                                 log.debug {
                                     "비동기 리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot"
                                 }
-                            }
-                            .onFailure { e ->
-                                log.error(e) {
+                            }.onFailure { error ->
+                                log.error(error) {
                                     "Fail to release group slot (async). lockName=$lockName, slot=$slot"
                                 }
+                            }.exceptionOrNull()
+                            if (failure != null) {
+                                cleanupFailure?.let(failure::addSuppressed)
+                                releaseFailure?.let(failure::addSuppressed)
+                                throw failure
                             }
+                            cleanupFailure?.let { throw it }
+                            releaseFailure?.let { throw it }
+                            value
+                        }
                     }
-                    actionFuture
                 }
             }, executor)
         } catch (error: Throwable) {
@@ -246,8 +261,11 @@ class HazelcastLeaderGroupElector private constructor(
         acquisitionFuture.whenComplete { acquired, _ ->
             if (acquired != null && pipelineFuture.isCancelled) releaseIfUnclaimed()
         }
-        return pipelineFuture
+        return LeaderFutureBridge.propagateCancellation(pipelineFuture, cancellationRelay)
     }
+
+    private fun Throwable.unwrapCompletionCause(): Throwable =
+        (this as? CompletionException)?.cause ?: this
 }
 
 /**

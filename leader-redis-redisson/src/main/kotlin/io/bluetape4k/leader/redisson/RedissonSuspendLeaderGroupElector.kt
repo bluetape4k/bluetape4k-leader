@@ -183,7 +183,7 @@ class RedissonSuspendLeaderGroupElector private constructor(
         } finally {
             // NonCancellable: 코루틴 취소 시에도 release/extend 가 중단되지 않도록 보호
             withContext(NonCancellable) {
-                watchdog.close()
+                LeaderLeaseAutoExtender.closeSuspend(watchdog)
                 if (auditLeaderId != null) {
                     try {
                         withContext(Dispatchers.IO) { auditMap.fastRemove(permitId) }

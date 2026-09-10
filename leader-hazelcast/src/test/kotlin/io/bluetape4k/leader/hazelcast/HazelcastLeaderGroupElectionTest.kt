@@ -242,6 +242,31 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
     }
 
     @Test
+    fun `runAsyncIfLeader nullable - caller 취소를 action과 그룹 슬롯 cleanup에 전파한다`() {
+        val lockName = randomName()
+        val singleElection = HazelcastLeaderGroupElector(
+            hazelcastClient,
+            LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 2.seconds, leaseTime = 10.seconds),
+        )
+        val actionStarted = CountDownLatch(1)
+        val actionTerminal = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>().also { future ->
+            future.whenComplete { _, _ -> actionTerminal.countDown() }
+        }
+
+        val result = singleElection.runAsyncIfLeader(lockName) {
+            actionStarted.countDown()
+            actionFuture
+        }
+
+        actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+        result.cancel(false).shouldBeTrue()
+        actionTerminal.await(3, TimeUnit.SECONDS).shouldBeTrue()
+        actionFuture.isCancelled.shouldBeTrue()
+        singleElection.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+    }
+
+    @Test
     fun `runAsyncIfLeader - 두 번째 executor 제출 거부 후 획득한 슬롯을 정리한다`() {
         val lockName = randomName()
         val singleElection = HazelcastLeaderGroupElector(

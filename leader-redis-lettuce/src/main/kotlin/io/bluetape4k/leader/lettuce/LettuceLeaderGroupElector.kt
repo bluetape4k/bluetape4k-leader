@@ -200,6 +200,7 @@ class LettuceLeaderGroupElector(
         val acquiredToken = AtomicReference<String?>()
         val acquiredAtNanos = AtomicLong()
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         val releaseAfterRejection: (Throwable) -> CompletableFuture<T?> = { failure ->
             val token = acquiredToken.get()
             if (
@@ -237,6 +238,7 @@ class LettuceLeaderGroupElector(
                         token,
                         auditLeaderId,
                         startedAtNanos,
+                        cancellationRelay,
                         action,
                     )
                 } catch (error: Throwable) {
@@ -249,7 +251,7 @@ class LettuceLeaderGroupElector(
                 releaseAfterRejection(CancellationException("leader group result future was cancelled before action"))
             }
         }
-        return LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+        return LeaderFutureBridge.flatMap(pipelineFuture, cancellationRelay) { value, failure ->
             if (failure != null) {
                 releaseAfterRejection(failure.unwrapCompletionCause())
             } else {
@@ -264,6 +266,7 @@ class LettuceLeaderGroupElector(
         token: String,
         auditLeaderId: String?,
         startedAtNanos: Long,
+        cancellationRelay: LeaderFutureBridge.CancellationRelay,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val delegate = LettuceSlotExtendDelegate(slotGroup, token)
@@ -283,12 +286,14 @@ class LettuceLeaderGroupElector(
         )
         log.debug { "리더 선출 성공 (async): lockName=$lockName, token=$token" }
         val actionFuture = runCatching {
-            AopScopeAccess.withPushedSync(handle) {
-                AopScopeAccess.setCapture(handle)
-                try {
-                    action()
-                } finally {
-                    AopScopeAccess.clearCapture()
+            cancellationRelay.invoke {
+                AopScopeAccess.withPushedSync(handle) {
+                    AopScopeAccess.setCapture(handle)
+                    try {
+                        action()
+                    } finally {
+                        AopScopeAccess.clearCapture()
+                    }
                 }
             }
         }.getOrElse { error ->

@@ -203,7 +203,7 @@ class RedissonLeaderElector private constructor(
         }
     }
 
-    @Suppress("TooGenericExceptionCaught")
+    @Suppress("LongMethod", "TooGenericExceptionCaught")
     private fun <T> runAsyncImpl(
         lockName: String,
         auditLeaderId: String?,
@@ -217,6 +217,7 @@ class RedissonLeaderElector private constructor(
         try {
             val currentThreadId = Thread.currentThread().threadId()
             val rejectionCleanup = AsyncLockRejectionCleanup(lock, currentThreadId)
+            val cancellationRelay = LeaderFutureBridge.cancellationRelay()
             log.debug { "Leader 승격을 요청합니다 ... lock=$lockName, currentThreadId=$currentThreadId" }
 
             // T8: 항상 명시적 leaseTime — Redisson 내장 watchdog 비활성화.
@@ -240,6 +241,7 @@ class RedissonLeaderElector private constructor(
                                 auditLeaderId,
                                 currentThreadId,
                                 rejectionCleanup.acquiredAtNanos,
+                                cancellationRelay,
                                 action,
                             )
                         } catch (error: Throwable) {
@@ -261,7 +263,7 @@ class RedissonLeaderElector private constructor(
                     )
                 }
             }
-            return LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+            return LeaderFutureBridge.flatMap(pipelineFuture, cancellationRelay) { value, failure ->
                 if (failure != null) {
                     rejectionCleanup.release(failure.unwrapCompletionCause())
                 } else {
@@ -317,6 +319,7 @@ class RedissonLeaderElector private constructor(
         auditLeaderId: String?,
         currentThreadId: Long,
         acquiredAtNanos: Long,
+        cancellationRelay: LeaderFutureBridge.CancellationRelay,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val lockName = lock.name
@@ -343,7 +346,7 @@ class RedissonLeaderElector private constructor(
         log.debug { "Leader로 승격하여 비동기 작업을 수행합니다. lock=$lockName, threadId=$currentThreadId" }
 
         val actionFuture = runCatching {
-            AopScopeAccess.withPushedSync(handle) { action() }
+            cancellationRelay.invoke { AopScopeAccess.withPushedSync(handle) { action() } }
         }
             .getOrElse { error ->
                 return releaseAndPropagate(lock, currentThreadId, acquiredAtNanos, watchdog, error, null)
@@ -387,18 +390,29 @@ class RedissonLeaderElector private constructor(
         error: Throwable?,
         value: T?,
     ): CompletableFuture<T?> {
-        watchdog.close()
-        return releaseLockAsync(lock, currentThreadId, acquiredAtNanos)
-            .exceptionally { releaseError ->
-                log.error(releaseError) { "Fail to release lock. lock=${lock.name}, threadId=$currentThreadId" }
+        return LeaderLeaseAutoExtender.closeAsync(watchdog)
+            .handle { _, closeFailure ->
+                val closeCause = closeFailure?.unwrapCompletionCause()
+                if (closeCause != null && error != null) error.addSuppressed(closeCause)
+                if (error == null) closeCause else null
             }
-            .thenCompose {
-                if (error != null) {
-                    CompletableFuture.failedFuture(error)
-                } else {
-                    CompletableFuture.completedFuture(value)
+            .thenCompose { closeFailure ->
+                releaseLockAsync(lock, currentThreadId, acquiredAtNanos)
+                    .exceptionally { releaseError ->
+                        log.error(releaseError) {
+                            "Fail to release lock. lock=${lock.name}, threadId=$currentThreadId"
+                        }
+                    }
+                    .thenCompose {
+                        if (error != null) {
+                            CompletableFuture.failedFuture(error)
+                        } else if (closeFailure != null) {
+                            CompletableFuture.failedFuture(closeFailure)
+                        } else {
+                            CompletableFuture.completedFuture(value)
+                        }
+                    }
                 }
-            }
     }
 
     private fun releaseLockAsync(lock: RLock, currentThreadId: Long, acquiredAtNanos: Long): CompletableFuture<Unit> {

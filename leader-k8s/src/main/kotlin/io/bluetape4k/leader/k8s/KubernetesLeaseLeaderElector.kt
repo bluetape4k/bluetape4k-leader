@@ -173,6 +173,7 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
         val lock = newLock(lockName, auditLeaderId)
 
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
+        val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         val cleanupBarrier = AsyncLeaseCleanupBarrier<Long> { acquiredAtNanos ->
             release(lock, acquiredAtNanos, lockName)
         }
@@ -205,7 +206,7 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
                     )
                 } else {
                     try {
-                        runAcquiredAsync(lockName, lock, acquiredAtNanos, action)
+                        runAcquiredAsync(lockName, lock, acquiredAtNanos, cancellationRelay, action)
                     } catch (error: Throwable) {
                         AsyncLeaseCleanupDispatcher.failAfter(error) {
                             release(lock, acquiredAtNanos, lockName)
@@ -216,7 +217,7 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
         } catch (error: Throwable) {
             CompletableFuture.failedFuture(error)
         }
-        return LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+        return LeaderFutureBridge.flatMap(pipelineFuture, cancellationRelay) { value, failure ->
             if (failure == null) {
                 CompletableFuture.completedFuture(value)
             } else {
@@ -234,6 +235,7 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
         lockName: String,
         lock: KubernetesLeaseLock,
         acquiredAtNanos: Long,
+        cancellationRelay: LeaderFutureBridge.CancellationRelay,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val delegate = KubernetesLeaseLockExtendDelegate(lock)
@@ -248,7 +250,7 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
             return AsyncLeaseCleanupDispatcher.failAfter(e) { release(lock, acquiredAtNanos, lockName) }
         }
         val actionFuture = try {
-            action()
+            cancellationRelay.invoke { action() }
         } catch (e: Throwable) {
             return AsyncLeaseCleanupDispatcher.failAfter(e) {
                 watchdog.close()

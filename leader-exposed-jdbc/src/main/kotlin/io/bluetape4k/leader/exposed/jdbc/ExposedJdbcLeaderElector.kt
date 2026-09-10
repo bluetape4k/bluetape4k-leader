@@ -22,6 +22,7 @@ import kotlinx.coroutines.CancellationException
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -219,46 +220,44 @@ class ExposedJdbcLeaderElector private constructor(
                     val terminal = AtomicBoolean()
                     var watchdog: AutoCloseable = AutoCloseable { }
                     var effectiveKey: LeaderHistoryKey? = null
-                    val finishAction: (Throwable?) -> Throwable? = { throwable ->
+                    val finishAction: (Throwable?) -> CompletableFuture<Throwable?> = { throwable ->
                         if (!terminal.compareAndSet(false, true)) {
-                            null
+                            CompletableFuture.completedFuture(null)
                         } else {
-                            var cleanupFailure: Throwable? = null
-
-                            runCatching { watchdog.close() }
-                                .onFailure { e ->
-                                    cleanupFailure = e
+                            LeaderLeaseAutoExtender.closeAsync(watchdog).handle { _, closeFailure ->
+                                var cleanupFailure = closeFailure?.unwrapCompletionCause()?.also { e ->
                                     log.warn(e) { "비동기 watchdog 종료 실패. lockName=$lockName" }
                                 }
 
-                            runCatching {
-                                val finishedAt = Instant.now()
-                                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-                                when {
-                                    throwable == null -> effectiveKey?.let {
-                                        historyRecorder?.recordCompleted(it, finishedAt, durationMs)
+                                runCatching {
+                                    val finishedAt = Instant.now()
+                                    val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
+                                    when {
+                                        throwable == null -> effectiveKey?.let {
+                                            historyRecorder?.recordCompleted(it, finishedAt, durationMs)
+                                        }
+                                        else -> effectiveKey?.let {
+                                            historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable)
+                                        }
                                     }
-                                    else -> effectiveKey?.let {
-                                        historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable)
-                                    }
-                                }
-                            }.onFailure { e ->
-                                cleanupFailure = cleanupFailure?.also { it.addSuppressed(e) } ?: e
-                                log.warn(e) { "비동기 history 기록 실패. lockName=$lockName" }
-                            }
-
-                            runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
-                                .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
-                                .onFailure { e ->
+                                }.onFailure { e ->
                                     cleanupFailure = cleanupFailure?.also { it.addSuppressed(e) } ?: e
-                                    log.warn(e) { "비동기 락 해제 실패. lockName=$lockName" }
+                                    log.warn(e) { "비동기 history 기록 실패. lockName=$lockName" }
                                 }
 
-                            if (throwable != null) {
-                                cleanupFailure?.let { throwable.addSuppressed(it) }
-                                null
-                            } else {
-                                cleanupFailure
+                                runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
+                                    .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
+                                    .onFailure { e ->
+                                        cleanupFailure = cleanupFailure?.also { it.addSuppressed(e) } ?: e
+                                        log.warn(e) { "비동기 락 해제 실패. lockName=$lockName" }
+                                    }
+
+                                if (throwable != null) {
+                                    cleanupFailure?.let { throwable.addSuppressed(it) }
+                                    null
+                                } else {
+                                    cleanupFailure
+                                }
                             }
                         }
                     }
@@ -267,8 +266,9 @@ class ExposedJdbcLeaderElector private constructor(
                         val cancellation = java.util.concurrent.CancellationException(
                             "runAsyncIfLeader result was cancelled",
                         )
-                        finishAction(cancellation)
-                        return@thenComposeAsync CompletableFuture.failedFuture(cancellation)
+                        return@thenComposeAsync finishAction(cancellation).thenCompose {
+                            CompletableFuture.failedFuture(cancellation)
+                        }
                     }
 
                     log.debug { "리더로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
@@ -296,28 +296,38 @@ class ExposedJdbcLeaderElector private constructor(
                         val key = record?.let { historyRecorder.recordAcquired(it) }
                         effectiveKey = key ?: fallbackKey
                     } catch (e: Throwable) {
-                        finishAction(e)
-                        return@thenComposeAsync CompletableFuture.failedFuture(e)
+                        return@thenComposeAsync finishAction(e).thenCompose {
+                            CompletableFuture.failedFuture(e)
+                        }
                     }
 
                     if (resultFuture.isCancelled) {
                         val cancellation = java.util.concurrent.CancellationException(
                             "runAsyncIfLeader result was cancelled before action",
                         )
-                        finishAction(cancellation)
-                        return@thenComposeAsync CompletableFuture.failedFuture(cancellation)
+                        return@thenComposeAsync finishAction(cancellation).thenCompose {
+                            CompletableFuture.failedFuture(cancellation)
+                        }
                     }
 
                     val actionFuture = runCatching { action() }
                         .getOrElse { e ->
-                            finishAction(e)
-                            return@thenComposeAsync CompletableFuture.failedFuture(e)
+                            return@thenComposeAsync finishAction(e).thenCompose {
+                                CompletableFuture.failedFuture(e)
+                            }
                         }
 
-                    val terminalFuture = actionFuture.whenComplete { _, throwable ->
-                        val cleanupFailure = finishAction(throwable)
-                        if (throwable == null && cleanupFailure != null) {
-                            throw cleanupFailure
+                    val terminalFuture = actionFuture.handle { value, throwable ->
+                        Triple(value, throwable, finishAction(throwable))
+                    }.thenCompose { (value, throwable, cleanup) ->
+                        cleanup.thenCompose { cleanupFailure ->
+                            if (throwable != null) {
+                                CompletableFuture.failedFuture<T?>(throwable)
+                            } else if (cleanupFailure != null) {
+                                CompletableFuture.failedFuture(cleanupFailure)
+                            } else {
+                                CompletableFuture.completedFuture(value)
+                            }
                         }
                     }
                     actionFutureRef.set(actionFuture)
@@ -346,3 +356,6 @@ class ExposedJdbcLeaderElector private constructor(
         return resultFuture
     }
 }
+
+private fun Throwable.unwrapCompletionCause(): Throwable =
+    if (this is CompletionException && cause != null) cause!! else this

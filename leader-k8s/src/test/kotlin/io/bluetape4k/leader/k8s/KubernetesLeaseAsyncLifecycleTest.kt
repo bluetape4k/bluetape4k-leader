@@ -17,6 +17,9 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import org.junit.jupiter.api.Test
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
@@ -56,6 +59,66 @@ class KubernetesLeaseAsyncLifecycleTest {
                     actionStarted.countDown()
                     actionFuture
                 }
+        }
+    }
+
+    @Test
+    fun `single nullable 취소가 action과 lease cleanup으로 전파된다`() {
+        val client = mockKubernetesClient(CleanupBlocker())
+        val actionStarted = CountDownLatch(1)
+        val actionTerminal = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>().also { future ->
+            future.whenComplete { _, _ -> actionTerminal.countDown() }
+        }
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+
+        try {
+            val result = KubernetesLeaseLeaderElector(client, singleOptions())
+                .runAsyncIfLeader("lock-a", executor) {
+                    actionStarted.countDown()
+                    actionFuture
+                }
+
+            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+            actionTerminal.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionFuture.isCancelled.shouldBeTrue()
+            await.atMost(2.seconds).untilAsserted {
+                KubernetesLeaseLeaderElector(client, singleOptions())
+                    .runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
+            }
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `group nullable 취소가 action과 lease cleanup으로 전파된다`() {
+        val client = mockKubernetesClient(CleanupBlocker())
+        val actionStarted = CountDownLatch(1)
+        val actionTerminal = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>().also { future ->
+            future.whenComplete { _, _ -> actionTerminal.countDown() }
+        }
+        val executor = Executors.newVirtualThreadPerTaskExecutor()
+
+        try {
+            val result = KubernetesLeaseLeaderGroupElector(client, groupOptions())
+                .runAsyncIfLeader("lock-a", executor) {
+                    actionStarted.countDown()
+                    actionFuture
+                }
+
+            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+            actionTerminal.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionFuture.isCancelled.shouldBeTrue()
+            await.atMost(2.seconds).untilAsserted {
+                KubernetesLeaseLeaderGroupElector(client, groupOptions())
+                    .runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
+            }
+        } finally {
+            executor.shutdownNow()
         }
     }
 

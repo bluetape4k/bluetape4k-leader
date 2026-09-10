@@ -263,6 +263,31 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
     }
 
     @Test
+    fun `runAsyncIfLeader nullable - caller 취소를 action과 lock cleanup에 전파한다`() {
+        val lockName = randomName()
+        val election = HazelcastLeaderElector(
+            hazelcastClient,
+            LeaderElectionOptions(waitTime = 2.seconds, leaseTime = 10.seconds, autoExtend = true),
+        )
+        val actionStarted = CountDownLatch(1)
+        val actionTerminal = CountDownLatch(1)
+        val actionFuture = CompletableFuture<Int>().also { future ->
+            future.whenComplete { _, _ -> actionTerminal.countDown() }
+        }
+
+        val result = election.runAsyncIfLeader(lockName) {
+            actionStarted.countDown()
+            actionFuture
+        }
+
+        actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+        result.cancel(false).shouldBeTrue()
+        actionTerminal.await(3, TimeUnit.SECONDS).shouldBeTrue()
+        actionFuture.isCancelled.shouldBeTrue()
+        election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+    }
+
+    @Test
     fun `runAsyncIfLeader - 두 번째 executor 제출 거부 후 획득한 락을 정리한다`() {
         val lockName = randomName()
         val election = HazelcastLeaderElector(
