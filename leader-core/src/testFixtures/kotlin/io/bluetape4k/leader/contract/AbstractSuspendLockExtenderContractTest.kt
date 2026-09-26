@@ -3,6 +3,7 @@ package io.bluetape4k.leader.contract
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
@@ -11,6 +12,7 @@ import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -53,6 +55,8 @@ import kotlin.time.Duration.Companion.seconds
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractSuspendLockExtenderContractTest {
+
+    companion object: KLoggingChannel()
 
     /** Each backend provides its own [SuspendLeaderElector] instance. */
     protected abstract val elector: SuspendLeaderElector
@@ -189,14 +193,14 @@ abstract class AbstractSuspendLockExtenderContractTest {
             outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
         }
 
-        (outcome is ExtendOutcome.Extended).shouldBeTrue()
+        outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }
 
     @Test
     fun `extendActiveLockDetailedSuspend returns NotHeld outside runIfLeader body`() = runSuspendIO {
         val outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
 
-        (outcome is ExtendOutcome.NotHeld).shouldBeTrue()
+        outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 
     // ── return value ──────────────────────────────────────────────────────

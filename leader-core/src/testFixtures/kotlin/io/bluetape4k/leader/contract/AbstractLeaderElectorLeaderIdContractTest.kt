@@ -46,8 +46,8 @@ abstract class AbstractLeaderElectorLeaderIdContractTest {
         val s = slot("audit-node")
         val result = defaultElector.runIfLeaderResult(s) { "done" }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value shouldBeEqualTo "done"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.value shouldBeEqualTo "done"
         result.leaderId shouldBeEqualTo "audit-node"
     }
 
@@ -56,8 +56,8 @@ abstract class AbstractLeaderElectorLeaderIdContractTest {
         val s = slot("null-node")
         val result = defaultElector.runIfLeaderResult(s) { null }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).leaderId shouldBeEqualTo "null-node"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.leaderId shouldBeEqualTo "null-node"
     }
 
     @Test
@@ -80,7 +80,7 @@ abstract class AbstractLeaderElectorLeaderIdContractTest {
         val r1 = defaultElector.runIfLeaderResult(s1) { 1 }
         val r2 = defaultElector.runIfLeaderResult(s2) { 2 }
 
-        (r1 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "leader-1"
-        (r2 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "leader-2"
+        r1.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "leader-1"
+        r2.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "leader-2"
     }
 }

@@ -40,7 +40,7 @@ abstract class AbstractAsyncLeaderGroupElectorLeaderIdContractTest {
     }
 
     private fun slot(leaderId: String = "node-a") =
-        LeaderSlot("lock-${Base58.randomString(8).lowercase()}", leaderId)
+        LeaderSlot("lock-${Base58.randomString(16).lowercase()}", leaderId)
 
     @Test
     fun `runAsyncIfLeaderResult(slot) - Elected 반환 및 leaderId 전파`() {
@@ -49,8 +49,8 @@ abstract class AbstractAsyncLeaderGroupElectorLeaderIdContractTest {
             CompletableFuture.completedFuture("done")
         }.join()
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value shouldBeEqualTo "done"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.value shouldBeEqualTo "done"
         result.leaderId shouldBeEqualTo "async-group-audit-node"
     }
 
@@ -61,8 +61,8 @@ abstract class AbstractAsyncLeaderGroupElectorLeaderIdContractTest {
             CompletableFuture.completedFuture(null)
         }.join()
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).leaderId shouldBeEqualTo "async-group-null-node"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.leaderId shouldBeEqualTo "async-group-null-node"
     }
 
     @Test

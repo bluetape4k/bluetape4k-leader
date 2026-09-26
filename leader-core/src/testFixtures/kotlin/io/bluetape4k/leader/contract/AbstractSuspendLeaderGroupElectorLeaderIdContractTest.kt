@@ -2,7 +2,6 @@ package io.bluetape4k.leader.contract
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
@@ -51,8 +50,8 @@ abstract class AbstractSuspendLeaderGroupElectorLeaderIdContractTest {
         val s = slot("audit-node")
         val result = defaultElector.runIfLeaderResultSuspend(s) { "done" }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value shouldBeEqualTo "done"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.value shouldBeEqualTo "done"
         result.leaderId shouldBeEqualTo "audit-node"
     }
 
@@ -61,8 +60,8 @@ abstract class AbstractSuspendLeaderGroupElectorLeaderIdContractTest {
         val s = slot("null-node")
         val result = defaultElector.runIfLeaderResultSuspend(s) { null }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).leaderId shouldBeEqualTo "null-node"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.leaderId shouldBeEqualTo "null-node"
     }
 
     @Test
@@ -88,17 +87,13 @@ abstract class AbstractSuspendLeaderGroupElectorLeaderIdContractTest {
 
         SuspendedJobTester()
             .workers(2)
-            .rounds(1)
-            .addAll(
-                { r1.set(defaultElector.runIfLeaderResultSuspend(slot1) { "result-1" }) },
-                { r2.set(defaultElector.runIfLeaderResultSuspend(slot2) { "result-2" }) },
-            )
+            .rounds(2)
+            .add { r1.set(defaultElector.runIfLeaderResultSuspend(slot1) { "result-1" }) }
+            .add { r2.set(defaultElector.runIfLeaderResultSuspend(slot2) { "result-2" }) }
             .run()
 
-        (r1.get() is LeaderRunResult.Elected).shouldBeTrue()
-        (r2.get() is LeaderRunResult.Elected).shouldBeTrue()
-        (r1.get() as LeaderRunResult.Elected).leaderId shouldBeEqualTo "node-1"
-        (r2.get() as LeaderRunResult.Elected).leaderId shouldBeEqualTo "node-2"
+        r1.get().shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "node-1"
+        r2.get().shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "node-2"
     }
 
     @Test
@@ -109,7 +104,7 @@ abstract class AbstractSuspendLeaderGroupElectorLeaderIdContractTest {
         val r1 = defaultElector.runIfLeaderResultSuspend(s1) { 1 }
         val r2 = defaultElector.runIfLeaderResultSuspend(s2) { 2 }
 
-        (r1 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "group-1"
-        (r2 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "group-2"
+        r1.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "group-1"
+        r2.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "group-2"
     }
 }

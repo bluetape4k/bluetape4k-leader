@@ -2,7 +2,6 @@ package io.bluetape4k.leader.contract
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -50,8 +49,8 @@ abstract class AbstractLeaderGroupElectorLeaderIdContractTest {
         val s = slot("audit-node")
         val result = defaultElector.runIfLeaderResult(s) { "done" }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value shouldBeEqualTo "done"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.value shouldBeEqualTo "done"
         result.leaderId shouldBeEqualTo "audit-node"
     }
 
@@ -60,8 +59,8 @@ abstract class AbstractLeaderGroupElectorLeaderIdContractTest {
         val s = slot("null-node")
         val result = defaultElector.runIfLeaderResult(s) { null }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).leaderId shouldBeEqualTo "null-node"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.leaderId shouldBeEqualTo "null-node"
     }
 
     @Test
@@ -94,10 +93,8 @@ abstract class AbstractLeaderGroupElectorLeaderIdContractTest {
             )
             .run()
 
-        (r1.get() is LeaderRunResult.Elected).shouldBeTrue()
-        (r2.get() is LeaderRunResult.Elected).shouldBeTrue()
-        (r1.get() as LeaderRunResult.Elected).leaderId shouldBeEqualTo "node-1"
-        (r2.get() as LeaderRunResult.Elected).leaderId shouldBeEqualTo "node-2"
+        r1.get().shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "node-1"
+        r2.get().shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "node-2"
     }
 
     @Test
@@ -108,7 +105,7 @@ abstract class AbstractLeaderGroupElectorLeaderIdContractTest {
         val r1 = defaultElector.runIfLeaderResult(s1) { 1 }
         val r2 = defaultElector.runIfLeaderResult(s2) { 2 }
 
-        (r1 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "group-1"
-        (r2 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "group-2"
+        r1.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "group-1"
+        r2.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "group-2"
     }
 }

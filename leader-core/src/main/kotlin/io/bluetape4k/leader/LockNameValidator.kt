@@ -33,10 +33,10 @@ fun validateLockName(lockName: String) {
  * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
  * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
-fun String.validateLockName(): String = apply {
-    this.requireNotBlank("lockName")
-    this.length.requireLe(255, "lockName.length")
+fun String.validateLockName(parameterName: String = "lockName"): String = apply {
+    this.requireNotBlank(parameterName = parameterName)
+    this.length.requireLe(255, "$parameterName.length")
     require(LOCK_NAME_PATTERN.matches(this)) {
-        "lockName contains invalid characters. Allowed: [a-zA-Z0-9_\\-:], first char must be alphanumeric, got: $this"
+        "$parameterName contains invalid characters. Allowed: [a-zA-Z0-9_\\-:], first char must be alphanumeric, got: $this"
     }
 }

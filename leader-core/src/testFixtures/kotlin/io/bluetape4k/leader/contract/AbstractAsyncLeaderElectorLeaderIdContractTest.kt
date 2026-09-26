@@ -3,6 +3,7 @@ package io.bluetape4k.leader.contract
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.AsyncLeaderElector
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
@@ -12,7 +13,6 @@ import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.util.concurrent.CompletableFuture
 
 /**
  * Backend-agnostic contract for [AsyncLeaderElector] slot-aware audit identity propagation.
@@ -46,11 +46,11 @@ abstract class AbstractAsyncLeaderElectorLeaderIdContractTest {
     fun `runAsyncIfLeaderResult(slot) - Elected 반환 및 leaderId 전파`() {
         val s = slot("async-audit-node")
         val result = defaultElector.runAsyncIfLeaderResult(s) {
-            CompletableFuture.completedFuture("done")
+            completableFutureOf("done")
         }.join()
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value shouldBeEqualTo "done"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+        result.value shouldBeEqualTo "done"
         result.leaderId shouldBeEqualTo "async-audit-node"
     }
 
@@ -58,17 +58,17 @@ abstract class AbstractAsyncLeaderElectorLeaderIdContractTest {
     fun `runAsyncIfLeaderResult(slot) - action null 반환해도 Elected with leaderId`() {
         val s = slot("async-null-node")
         val result = defaultElector.runAsyncIfLeaderResult<String?>(s) {
-            CompletableFuture.completedFuture(null)
+            completableFutureOf(null)
         }.join()
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).leaderId shouldBeEqualTo "async-null-node"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.leaderId shouldBeEqualTo "async-null-node"
     }
 
     @Test
     fun `runAsyncIfLeader(slot) - bridge log 미호출`() {
         defaultElector.runAsyncIfLeader(slot()) {
-            CompletableFuture.completedFuture(Unit)
+            completableFutureOf(Unit)
         }.join()
 
         LeaderElectorBridgeLog.global().droppedAuditCount() shouldBeEqualTo 0L
@@ -77,7 +77,7 @@ abstract class AbstractAsyncLeaderElectorLeaderIdContractTest {
     @Test
     fun `runAsyncIfLeaderResult(slot) - result bridge log 미호출`() {
         defaultElector.runAsyncIfLeaderResult(slot()) {
-            CompletableFuture.completedFuture(Unit)
+            completableFutureOf(Unit)
         }.join()
 
         LeaderElectorBridgeLog.global().droppedResultBridgeCount() shouldBeEqualTo 0L
