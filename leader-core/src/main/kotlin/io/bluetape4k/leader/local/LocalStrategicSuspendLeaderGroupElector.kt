@@ -2,12 +2,12 @@ package io.bluetape4k.leader.local
 
 import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.coroutines.StrategicSuspendLeaderGroupElector
-import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.GroupElectionStrategy
 import io.bluetape4k.leader.strategy.electValidated
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.leader.validateLockName
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
@@ -23,9 +23,9 @@ import kotlin.time.Duration
  */
 class LocalStrategicSuspendLeaderGroupElector(
     override val nodeId: String = Uuid.V7.nextIdAsString(),
-) : StrategicSuspendLeaderGroupElector {
+): StrategicSuspendLeaderGroupElector {
 
-    companion object : KLogging()
+    companion object: KLoggingChannel()
 
     private val registry = ConcurrentHashMap<String, ConcurrentHashMap<String, CandidateInfo>>()
     private val mutexes = ConcurrentHashMap<String, Mutex>()
@@ -66,6 +66,8 @@ class LocalStrategicSuspendLeaderGroupElector(
         maxLeaders: Int,
         action: suspend () -> T,
     ): T? {
+        log.debug { "runIfLeader... lockName=$lockName, strategy=$strategy, maxLeaders=$maxLeaders" }
+        
         validateLockName(lockName)
         val result = mutexFor(lockName).withLock {
             val snapshot = listCandidates(lockName)
@@ -76,7 +78,7 @@ class LocalStrategicSuspendLeaderGroupElector(
         val total = result.winners.size + result.eliminations.size
         log.info {
             "[$lockName] 전략적 그룹 선출: ${result.winners.joinToString { it.nodeId }} " +
-                "(전략: ${strategy::class.simpleName}, 후보: ${total}명)"
+                    "(전략: ${strategy::class.simpleName}, 후보: ${total}명)"
         }
         if (result.scores.isNotEmpty()) {
             log.debug {

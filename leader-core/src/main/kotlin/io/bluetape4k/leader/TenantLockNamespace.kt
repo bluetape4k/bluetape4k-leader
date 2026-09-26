@@ -13,7 +13,7 @@ import java.io.Serializable
 data class TenantLockNamespace(
     val tenantId: String,
     val prefix: String = DefaultPrefix,
-) : Serializable {
+): Serializable {
 
     init {
         validatePart(prefix, "prefix")
@@ -32,7 +32,7 @@ data class TenantLockNamespace(
         val maxLockNameLength = MaxLockNameLength - prefix.length - tenantId.length - SeparatorOverhead
         require(lockName.length <= maxLockNameLength) {
             "tenant-scoped lockName is too long. maxLockNameLength=$maxLockNameLength, " +
-                "actual=${lockName.length}, prefix=$prefix, tenantId=$tenantId"
+                    "actual=${lockName.length}, prefix=$prefix, tenantId=$tenantId"
         }
 
         return "$prefix$Separator$tenantId$Separator$lockName"

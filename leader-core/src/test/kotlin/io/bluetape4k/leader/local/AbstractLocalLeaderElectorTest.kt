@@ -1,14 +1,13 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
@@ -126,7 +125,9 @@ class AbstractLocalLeaderElectorTest {
         val lockName = randomLockName()
 
         repeat(3) {
-            runCatching { election.runIfLeader(lockName) { throw LeaderElectionException("반복 실패 $it") } }
+            assertFailsWith<LeaderElectionException> {
+                election.runIfLeader(lockName) { throw LeaderElectionException("반복 실패 $it") }
+            }
         }
 
         // 락이 정상 해제되었으면 이 호출이 블로킹 없이 완료됨

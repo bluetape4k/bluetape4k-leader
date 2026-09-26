@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractAsyncLeaderElectorLeaderIdContractTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     protected abstract fun createElector(options: LeaderElectionOptions): AsyncLeaderElector
 

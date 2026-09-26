@@ -1,15 +1,18 @@
 package io.bluetape4k.leader.contract
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
+import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds
@@ -44,6 +47,8 @@ import kotlin.time.Duration.Companion.seconds
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractSuspendGroupLockExtenderContractTest {
+
+    companion object: KLogging()
 
     /** Each backend provides its own [SuspendLeaderGroupElector] instance. */
     protected abstract val elector: SuspendLeaderGroupElector
@@ -122,22 +127,24 @@ abstract class AbstractSuspendGroupLockExtenderContractTest {
             outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
         }
 
-        (outcome is ExtendOutcome.Extended).shouldBeTrue()
+        outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }
 
     @Test
     fun `extendActiveLockDetailedSuspend returns NotHeld outside suspend group body`() = runSuspendIO {
         val outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
 
-        (outcome is ExtendOutcome.NotHeld).shouldBeTrue()
+        outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 
     // ── return value ──────────────────────────────────────────────────────
 
-    @Test
+    @RepeatedTest(5)
     fun `runIfLeader returns action return value when suspend group slot is acquired`() = runSuspendIO {
         val lockName = randomLockName()
-        val result = elector.runIfLeader(lockName) { "suspend-group-contract-ok" }
-        result shouldBeEqualTo "suspend-group-contract-ok"
+        val expected = Base58.randomString(16)
+
+        val actual = elector.runIfLeader(lockName) { expected }
+        actual shouldBeEqualTo expected
     }
 }

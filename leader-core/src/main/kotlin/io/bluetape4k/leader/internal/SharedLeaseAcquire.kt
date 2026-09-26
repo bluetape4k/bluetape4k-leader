@@ -2,7 +2,9 @@ package io.bluetape4k.leader.internal
 
 import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.logging.KLogging
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -26,9 +28,11 @@ class SharedLeaseAcquire(
     private val acquire: (LeaderSlot) -> LeaderLeaseHandle?,
     private val reserveAttempt: (() -> AutoCloseable?)? = null,
     private val onAdmissionRejected: (() -> Unit)? = null,
-) : AutoCloseable {
+): AutoCloseable {
 
-    private val attempts = java.util.concurrent.ConcurrentHashMap<LeaderSlot, Attempt>()
+    companion object: KLogging()
+
+    private val attempts = ConcurrentHashMap<LeaderSlot, Attempt>()
     private val closed = AtomicBoolean(false)
 
     val activeAttempts: Int get() = attempts.size
@@ -108,7 +112,7 @@ class SharedLeaseAcquire(
                         // 열지 않고 정상적으로 경합합니다.
                         return completedAttempt(slot)
                     }
-                    else -> {
+                    else                                                      -> {
                         existing.waiters.incrementAndGet()
                         return existing
                     }
@@ -272,7 +276,7 @@ class SharedLeaseAcquire(
     private class SharedHandle(
         private val delegate: LeaderLeaseHandle,
         private val onRelease: () -> Unit,
-    ) : LeaderLeaseHandle by delegate {
+    ): LeaderLeaseHandle by delegate {
         private val released = AtomicBoolean(false)
 
         override fun release() {

@@ -1,16 +1,17 @@
 package io.bluetape4k.leader.local
 
-import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.locks.ReentrantLock
 
 /**
  * `LocalLeaderElector` 선언은 leader election 계약에서 사용되는 class입니다.
@@ -21,6 +22,8 @@ import java.util.concurrent.locks.ReentrantLock
 class LocalLeaderElector(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
 ): AbstractLocalLeaderElector(options), LeaderElector {
+
+    companion object: KLogging()
 
     /**
      * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
@@ -47,6 +50,8 @@ class LocalLeaderElector(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
+        log.debug { "runAsyncIfLeader... lockName=$lockName" }
+
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
             CompletableFuture.supplyAsync(
@@ -62,6 +67,8 @@ class LocalLeaderElector(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
+        log.debug { "runAsyncIfLeader... slot=$slot" }
+
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
             CompletableFuture.supplyAsync(
@@ -77,6 +84,8 @@ class LocalLeaderElector(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
+        log.debug { "runAsyncIfLeaderResult... slot=$slot" }
+        
         val elected = AtomicBoolean(false)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
@@ -86,8 +95,8 @@ class LocalLeaderElector(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                elected.get()   -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else            -> LeaderRunResult.Skipped
             }
         }
     }
@@ -118,6 +127,8 @@ class LocalLeaderElector(
      * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
+        log.debug { "runAsyncIfLeaderResult... slot=$slot" }
+        
         var elected = false
         val value = try {
             tryWithLeaderLock(

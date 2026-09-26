@@ -8,6 +8,7 @@ import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.ElectionStrategy
 import io.bluetape4k.leader.strategy.GroupElectionStrategy
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -15,6 +16,15 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 class StrategicRefreshCandidateDefaultTest {
+
+    private companion object: KLogging() {
+        const val MISSING_LOCK = "strategic-refresh-missing"
+        const val EXPIRED_LOCK = "strategic-refresh-expired"
+        const val PRESERVE_LOCK = "strategic-refresh-preserve"
+        val INITIAL_TTL = 30.seconds
+        val REFRESH_TTL = 60.seconds
+        val NEW_METADATA = mapOf("version" to "new")
+    }
 
     @Test
     fun `blocking single default refresh는 missing expired 후보를 부활시키지 않고 기존 상태를 보존한다`() {
@@ -173,11 +183,11 @@ class StrategicRefreshCandidateDefaultTest {
         fun ttlFor(lockName: String, nodeId: String): Duration?
     }
 
-    private interface BlockingFixture : FixtureState
+    private interface BlockingFixture: FixtureState
 
-    private interface SuspendFixture : FixtureState
+    private interface SuspendFixture: FixtureState
 
-    private abstract class BlockingSingleFixtureBase : StrategicLeaderElector, BlockingFixture {
+    private abstract class BlockingSingleFixtureBase: StrategicLeaderElector, BlockingFixture {
         private val store = CandidateStore()
 
         override val nodeId: String = "fixture-node"
@@ -211,9 +221,9 @@ class StrategicRefreshCandidateDefaultTest {
         override fun ttlFor(lockName: String, nodeId: String): Duration? = store.ttl(lockName, nodeId)
     }
 
-    private class BlockingSingleFixture : BlockingSingleFixtureBase()
+    private class BlockingSingleFixture: BlockingSingleFixtureBase()
 
-    private abstract class BlockingGroupFixtureBase : StrategicLeaderGroupElector, BlockingFixture {
+    private abstract class BlockingGroupFixtureBase: StrategicLeaderGroupElector, BlockingFixture {
         private val store = CandidateStore()
 
         override val nodeId: String = "fixture-node"
@@ -247,9 +257,9 @@ class StrategicRefreshCandidateDefaultTest {
         override fun ttlFor(lockName: String, nodeId: String): Duration? = store.ttl(lockName, nodeId)
     }
 
-    private class BlockingGroupFixture : BlockingGroupFixtureBase()
+    private class BlockingGroupFixture: BlockingGroupFixtureBase()
 
-    private abstract class SuspendSingleFixtureBase : StrategicSuspendLeaderElector, SuspendFixture {
+    private abstract class SuspendSingleFixtureBase: StrategicSuspendLeaderElector, SuspendFixture {
         private val store = CandidateStore()
 
         override val nodeId: String = "fixture-node"
@@ -283,9 +293,9 @@ class StrategicRefreshCandidateDefaultTest {
         override fun ttlFor(lockName: String, nodeId: String): Duration? = store.ttl(lockName, nodeId)
     }
 
-    private class SuspendSingleFixture : SuspendSingleFixtureBase()
+    private class SuspendSingleFixture: SuspendSingleFixtureBase()
 
-    private abstract class SuspendGroupFixtureBase : StrategicSuspendLeaderGroupElector, SuspendFixture {
+    private abstract class SuspendGroupFixtureBase: StrategicSuspendLeaderGroupElector, SuspendFixture {
         private val store = CandidateStore()
 
         override val nodeId: String = "fixture-node"
@@ -319,7 +329,7 @@ class StrategicRefreshCandidateDefaultTest {
         override fun ttlFor(lockName: String, nodeId: String): Duration? = store.ttl(lockName, nodeId)
     }
 
-    private class SuspendGroupFixture : SuspendGroupFixtureBase()
+    private class SuspendGroupFixture: SuspendGroupFixtureBase()
 
     private class CandidateStore {
         private val entries = mutableMapOf<CandidateKey, CandidateEntry>()
@@ -362,13 +372,4 @@ class StrategicRefreshCandidateDefaultTest {
         val ttl: Duration,
         var expired: Boolean = false,
     )
-
-    private companion object {
-        const val MISSING_LOCK = "strategic-refresh-missing"
-        const val EXPIRED_LOCK = "strategic-refresh-expired"
-        const val PRESERVE_LOCK = "strategic-refresh-preserve"
-        val INITIAL_TTL = 30.seconds
-        val REFRESH_TTL = 60.seconds
-        val NEW_METADATA = mapOf("version" to "new")
-    }
 }

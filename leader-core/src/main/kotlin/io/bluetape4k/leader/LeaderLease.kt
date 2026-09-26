@@ -2,6 +2,7 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.safeLet
 import java.io.Serializable
 import java.time.Instant
 
@@ -21,9 +22,9 @@ data class LeaderLease(
     val leaseUntil: Instant? = null,
     val slot: Int? = null,
     val nodeId: String? = null,
-) : Serializable {
+): Serializable {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         private const val serialVersionUID = 2L
     }
 
@@ -31,11 +32,10 @@ data class LeaderLease(
         auditLeaderId.requireNotBlank("auditLeaderId")
         nodeId?.requireNotBlank("nodeId")
         require(slot == null || slot >= 0) { "slot must be null or non-negative: $slot" }
-        if (electedAt != null && leaseUntil != null) {
+        safeLet(electedAt, leaseUntil) { electedAt, leaseUntil ->
             require(!leaseUntil.isBefore(electedAt)) {
                 "leaseUntil must not be before electedAt: electedAt=$electedAt, leaseUntil=$leaseUntil"
             }
         }
     }
-
 }

@@ -1,21 +1,19 @@
 package io.bluetape4k.leader.local
 
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeEmpty
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
+import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -23,6 +21,8 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
 class LocalStrategicSuspendLeaderGroupElectorTest {
+
+    companion object: KLogging()
 
     private val lockName = "strategic-suspend-group-" + Base58.randomString(8)
     private lateinit var node1: LocalStrategicSuspendLeaderGroupElector
@@ -52,15 +52,13 @@ class LocalStrategicSuspendLeaderGroupElectorTest {
     fun `top two coroutine winner만 action을 실행한다`() = runTest {
         registerAll()
         val counter = AtomicInteger(0)
-        val results = coroutineScope {
-            listOf(node1, node2, node3).map { elector ->
-                async {
-                    elector.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 2) {
-                        counter.incrementAndGet()
-                    }
+        val results = listOf(node1, node2, node3).map { elector ->
+            async {
+                elector.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 2) {
+                    counter.incrementAndGet()
                 }
-            }.awaitAll()
-        }
+            }
+        }.awaitAll()
 
         results.filterNotNull().size shouldBeEqualTo 2
         results[2].shouldBeNull()
@@ -100,7 +98,7 @@ class LocalStrategicSuspendLeaderGroupElectorTest {
                 metadata = mapOf("version" to "old"),
             ),
         )
-        node1.updateResult(lockName, node1.nodeId, io.bluetape4k.leader.strategy.CandidateResult.SUCCESS)
+        node1.updateResult(lockName, node1.nodeId, CandidateResult.SUCCESS)
         val beforeRefresh = node1.listCandidates(lockName).single()
 
         node1.refreshCandidate(
@@ -122,23 +120,23 @@ class LocalStrategicSuspendLeaderGroupElectorTest {
         val rounds = 100
         node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
 
-        coroutineScope {
-            List(workers) {
-                launch(Dispatchers.Default) {
-                    repeat(rounds) {
-                        node1.updateResult(
-                            lockName,
-                            node1.nodeId,
-                            io.bluetape4k.leader.strategy.CandidateResult.SUCCESS,
-                        )
-                        node1.refreshCandidate(
-                            lockName,
-                            CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")),
-                        )
-                    }
-                }
-            }.joinAll()
-        }
+        SuspendedJobTester()
+            .workers(8)
+            .rounds(workers * rounds)
+            .add {
+                node1.updateResult(
+                    lockName,
+                    node1.nodeId,
+                    io.bluetape4k.leader.strategy.CandidateResult.SUCCESS,
+                )
+            }
+            .add {
+                node1.refreshCandidate(
+                    lockName,
+                    CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")),
+                )
+            }
+            .run()
 
         node1.listCandidates(lockName).single().successCount shouldBeEqualTo (workers * rounds).toLong()
     }
@@ -147,23 +145,18 @@ class LocalStrategicSuspendLeaderGroupElectorTest {
     fun `refreshCandidate와 unregisterCandidate 동시 호출에서도 후보를 되살리지 않는다`() = runSuspendIO {
         node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
 
-        coroutineScope {
-            listOf(
-                launch(Dispatchers.Default) {
-                    repeat(100) {
-                        node1.refreshCandidate(
-                            lockName,
-                            CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")),
-                        )
-                    }
-                },
-                launch(Dispatchers.Default) {
-                    repeat(100) {
-                        node1.unregisterCandidate(lockName, node1.nodeId)
-                    }
-                },
-            ).joinAll()
-        }
+        SuspendedJobTester()
+            .rounds(100)
+            .add {
+                node1.refreshCandidate(
+                    lockName,
+                    CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")),
+                )
+            }
+            .add {
+                node1.unregisterCandidate(lockName, node1.nodeId)
+            }
+            .run()
 
         node1.listCandidates(lockName).shouldBeEmpty()
     }

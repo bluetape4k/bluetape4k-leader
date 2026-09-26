@@ -2,16 +2,18 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.io.serializer.BinarySerializers
 import io.bluetape4k.leader.strategy.CandidateInfo
+import io.bluetape4k.logging.KLogging
+import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InvalidClassException
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.io.ObjectStreamClass
-import java.util.Base64
-import org.junit.jupiter.api.Test
+import java.util.*
 
 class LeaderSerializationCompatibilityTest {
 
@@ -23,7 +25,7 @@ class LeaderSerializationCompatibilityTest {
             ).use { input -> input.readObject() }
         }
 
-        exception.message.orEmpty().contains("serialVersionUID").shouldBeTrue()
+        exception.message shouldContain "serialVersionUID"
     }
 
     @Test
@@ -50,7 +52,15 @@ class LeaderSerializationCompatibilityTest {
         restored shouldBeEqualTo original
     }
 
-    companion object {
+    @Test
+    fun `current ExtendOutcome remains serializable for FastFory`() {
+        val original: ExtendOutcome = ExtendOutcome.WrongThread
+        val bytes = BinarySerializers.FastFory.serialize(original)
+        val restored = BinarySerializers.FastFory.deserialize<ExtendOutcome>(bytes)
+        restored shouldBeEqualTo original
+    }
+
+    companion object: KLogging() {
         private const val LEGACY_CANDIDATE_INFO =
             "rO0ABXNyACtpby5ibHVldGFwZTRrLmxlYWRlci5zdHJhdGVneS5DYW5kaWRhdGVJbmZvR4r+CyIiMA8CAAdKAAxmYWlsdXJlQ291bnRKAAxzdWNjZXNzQ291bnRMABJsYXN0Q29tcGxldGlvblRpbWV0ABNMamF2YS90aW1lL0luc3RhbnQ7TAANbGFzdFN0YXJ0VGltZXEAfgABTAAIbWV0YWRhdGF0AA9MamF2YS91dGlsL01hcDtMAAZub2RlSWR0ABJMamF2YS9sYW5nL1N0cmluZztMAAxyZWdpc3RlcmVkQXRxAH4AAXhwAAAAAAAAAAIAAAAAAAAAB3NyAA1qYXZhLnRpbWUuU2VylV2EuhsiSLIMAAB4cHcNAgAAAABpWdilAAAAAHhzcQB+AAV3DQIAAAAAaViHJQAAAAB4c3IAEWphdmEudXRpbC5Db2xsU2VyV46rtjobqBEDAAFJAAN0YWd4cAAAAAN3BAAAAAJ0AAR6b25ldAAGbGVnYWN5eHQAC2xlZ2FjeS1ub2Rlc3EAfgAFdw0CAAAAAGlXNaUAAAAAeA=="
     }

@@ -1,5 +1,8 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.AbstractValueObject
+import io.bluetape4k.ToStringBuilder
+import io.bluetape4k.support.hashOf
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import java.io.Serializable
@@ -21,7 +24,7 @@ class LockIdentity(
      */
     val factoryBeanName: String,
     val groupParams: GroupParams? = null,
-) : Serializable {
+): AbstractValueObject() {
 
     init {
         lockName.requireNotBlank("lockName")
@@ -31,6 +34,12 @@ class LockIdentity(
         }
     }
 
+    override fun equalProperties(other: Any): Boolean =
+        other is LockIdentity &&
+                lockName == other.lockName &&
+                kind == other.kind &&
+                groupParams == other.groupParams
+
     /**
      * `equals` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
@@ -38,25 +47,20 @@ class LockIdentity(
      * @param other `other` 호출 또는 상태 계산에 필요한 값입니다.
      * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is LockIdentity) return false
-        return lockName == other.lockName &&
-            kind == other.kind &&
-            groupParams == other.groupParams
+    override fun equals(other: Any?): Boolean = other != null && super.equals(other)
+
+    override fun hashCode(): Int = hashOf(lockName, kind, groupParams)
+
+    override fun toString(): String = ToStringBuilder(this)
+        .add("lockName", lockName)
+        .add("factoryBeanName", factoryBeanName)
+        .add("groupParams", groupParams)
+        .toString()
+
+    enum class AnnotationKind {
+        SINGLE,
+        GROUP
     }
-
-    override fun hashCode(): Int {
-        var result = lockName.hashCode()
-        result = 31 * result + kind.hashCode()
-        result = 31 * result + (groupParams?.hashCode() ?: 0)
-        return result
-    }
-
-    override fun toString(): String =
-        "LockIdentity(lockName='$lockName', kind=$kind, factoryBeanName='$factoryBeanName', groupParams=$groupParams)"
-
-    enum class AnnotationKind { SINGLE, GROUP }
 
     /**
      * `GroupParams` 선언은 leader election 계약에서 사용되는 data class입니다.
@@ -64,7 +68,7 @@ class LockIdentity(
      * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
      * @property maxLeaders 동시에 leadership을 획득할 수 있는 최대 슬롯 수입니다.
      */
-    data class GroupParams(val maxLeaders: Int) : Serializable {
+    data class GroupParams(val maxLeaders: Int): Serializable {
 
         init {
             maxLeaders.requirePositiveNumber("maxLeaders")

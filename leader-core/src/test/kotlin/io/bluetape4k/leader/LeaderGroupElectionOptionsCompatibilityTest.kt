@@ -1,17 +1,27 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
+import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
 import java.io.ObjectInputStream
 import java.io.ObjectStreamClass
 import java.lang.reflect.Modifier
-import java.util.Base64
-import org.junit.jupiter.api.Test
+import java.util.*
 import kotlin.jvm.internal.DefaultConstructorMarker
 import kotlin.time.Duration.Companion.seconds
 
 class LeaderGroupElectionOptionsCompatibilityTest {
+
+    companion object {
+        private val intType = Int::class.javaPrimitiveType ?: error("missing int type")
+        private val longType = Long::class.javaPrimitiveType ?: error("missing long type")
+
+        private const val LEGACY_SERIALIZED_OPTIONS =
+            "rO0ABXNyAC9pby5ibHVldGFwZTRrLmxlYWRlci5MZWFkZXJHcm91cEVsZWN0aW9uT3B0aW9ucwAAAAAAAAABAgAFSgAJbGVhc2VUaW1lSQAKbWF4TGVhZGVyc0oADG1pbkxlYXNlVGltZUoACHdhaXRUaW1lTAAGbm9kZUlkdAASTGphdmEvbGFuZy9TdHJpbmc7eHAAAAAp6NYIAAAAAAMAAAAA7msoAAAAAANCdwwAdAALbGVnYWN5LW5vZGU="
+    }
 
     @Test
     fun `기준 직렬화 payload 는 새 필드를 false 로 읽는다`() {
@@ -23,7 +33,7 @@ class LeaderGroupElectionOptionsCompatibilityTest {
 
         restored.maxLeaders shouldBeEqualTo 3
         restored.nodeId shouldBeEqualTo "legacy-node"
-        restored.useDbTime shouldBeEqualTo false
+        restored.useDbTime.shouldBeFalse()
     }
 
     @Test
@@ -75,7 +85,9 @@ class LeaderGroupElectionOptionsCompatibilityTest {
             "legacy-constructor",
             0L,
             null,
-        ).let { (it as LeaderGroupElectionOptions).useDbTime shouldBeEqualTo false }
+        ).let {
+            it.useDbTime.shouldBeFalse()
+        }
 
         val copy = type.getDeclaredMethod(
             "copy-5t7Pxr8",
@@ -92,7 +104,9 @@ class LeaderGroupElectionOptionsCompatibilityTest {
             90.seconds.inWholeNanoseconds,
             "legacy-copy",
             2.seconds.inWholeNanoseconds,
-        ).let { (it as LeaderGroupElectionOptions).useDbTime shouldBeEqualTo true }
+        ).let {
+            it.shouldBeInstanceOf<LeaderGroupElectionOptions>().useDbTime.shouldBeTrue()
+        }
 
         val default = type.getDeclaredMethod(
             "copy-5t7Pxr8\$default",
@@ -115,14 +129,9 @@ class LeaderGroupElectionOptionsCompatibilityTest {
             2.seconds.inWholeNanoseconds,
             1,
             null,
-        ).let { (it as LeaderGroupElectionOptions).maxLeaders shouldBeEqualTo 3 }
-    }
-
-    companion object {
-        private val intType = Int::class.javaPrimitiveType ?: error("missing int type")
-        private val longType = Long::class.javaPrimitiveType ?: error("missing long type")
-
-        private const val LEGACY_SERIALIZED_OPTIONS =
-            "rO0ABXNyAC9pby5ibHVldGFwZTRrLmxlYWRlci5MZWFkZXJHcm91cEVsZWN0aW9uT3B0aW9ucwAAAAAAAAABAgAFSgAJbGVhc2VUaW1lSQAKbWF4TGVhZGVyc0oADG1pbkxlYXNlVGltZUoACHdhaXRUaW1lTAAGbm9kZUlkdAASTGphdmEvbGFuZy9TdHJpbmc7eHAAAAAp6NYIAAAAAAMAAAAA7msoAAAAAANCdwwAdAALbGVnYWN5LW5vZGU="
+        ).let {
+            it.shouldBeInstanceOf<LeaderGroupElectionOptions>()
+            it.maxLeaders shouldBeEqualTo 3
+        }
     }
 }

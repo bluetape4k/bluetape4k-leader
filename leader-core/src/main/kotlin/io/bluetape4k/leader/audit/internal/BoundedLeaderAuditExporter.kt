@@ -22,12 +22,13 @@ import io.bluetape4k.leader.audit.LeaderAuditExporter
 import io.bluetape4k.leader.audit.LeaderAuditSubmitResult
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.requireGe
+import io.bluetape4k.support.requireLe
+import io.bluetape4k.support.requirePositiveNumber
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.Executor
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -37,6 +38,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.LockSupport
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import kotlin.math.min
 
 /**
@@ -48,7 +50,14 @@ import kotlin.math.min
 internal class BoundedLeaderAuditExporter(
     private val delivery: LeaderAuditDelivery,
     private val options: LeaderAuditExportOptions,
-) : LeaderAuditExporter {
+): LeaderAuditExporter {
+
+    private companion object: KLogging() {
+        const val MAX_DIAGNOSTICS_CAPACITY: Int = 1024
+        const val MAX_OBSERVERS: Int = 16
+        val MAX_ATTEMPT_TIMEOUT: Duration = Duration.ofMinutes(5)
+        val MAX_BACKOFF: Duration = Duration.ofMinutes(1)
+    }
 
     private val attemptTimeoutNanos = options.attemptTimeout.toBoundedPositiveNanos(
         "attemptTimeout",
@@ -263,14 +272,14 @@ internal class BoundedLeaderAuditExporter(
     private fun claimCloseHandoff(): Boolean {
         while (true) {
             when (workerHandoffState.get()) {
-                WorkerHandoffState.IDLE -> {
+                WorkerHandoffState.IDLE      -> {
                     if (workerHandoffState.compareAndSet(WorkerHandoffState.IDLE, WorkerHandoffState.CLOSED)) {
                         closed.set(true)
                         return true
                     }
                 }
 
-                WorkerHandoffState.CLAIMED -> {
+                WorkerHandoffState.CLAIMED   -> {
                     if (workerHandoffState.compareAndSet(WorkerHandoffState.CLAIMED, WorkerHandoffState.CLOSED)) {
                         closed.set(true)
                         return true
@@ -278,11 +287,10 @@ internal class BoundedLeaderAuditExporter(
                 }
 
                 WorkerHandoffState.EXECUTING -> {
-                    if (closed.compareAndSet(false, true)) return true
-                    return false
+                    return closed.compareAndSet(false, true)
                 }
 
-                WorkerHandoffState.CLOSED -> return false
+                WorkerHandoffState.CLOSED    -> return false
             }
         }
     }
@@ -403,14 +411,17 @@ internal class BoundedLeaderAuditExporter(
             return
         }
         when {
-            failure is Error -> {
+            failure is Error                            -> {
                 finishWork(item, LeaderAuditExportObservation.TERMINAL_FAILURE)
                 rethrowOnUncaughtBoundary(failure)
             }
-            failure != null -> completeFailure(item, attempt, failure)
+            failure != null                             -> completeFailure(item, attempt, failure)
             result == LeaderAuditDeliveryResult.SUCCESS -> finishWork(item, null)
             result == LeaderAuditDeliveryResult.RETRYABLE_FAILURE -> retryOrFail(item)
-            else -> finishWork(item, LeaderAuditExportObservation.TERMINAL_FAILURE)
+            else                                        -> finishWork(
+                item,
+                LeaderAuditExportObservation.TERMINAL_FAILURE
+            )
         }
     }
 
@@ -558,11 +569,11 @@ internal class BoundedLeaderAuditExporter(
         if (!item.terminalized.compareAndSet(false, true)) return
         if (observation != null) {
             when (observation) {
-                LeaderAuditExportObservation.TERMINAL_FAILURE -> terminalFailures.incrementAndGet()
-                LeaderAuditExportObservation.CANCELLED -> cancellations.incrementAndGet()
+                LeaderAuditExportObservation.TERMINAL_FAILURE  -> terminalFailures.incrementAndGet()
+                LeaderAuditExportObservation.CANCELLED         -> cancellations.incrementAndGet()
                 LeaderAuditExportObservation.EXECUTOR_REJECTED -> executorRejections.incrementAndGet()
                 LeaderAuditExportObservation.SCHEDULER_REJECTED -> schedulerRejections.incrementAndGet()
-                else -> Unit
+                else                                           -> Unit
             }
         }
         active.remove(item)
@@ -652,7 +663,7 @@ internal class BoundedLeaderAuditExporter(
                 work.slot.observer.onObservation(work.observation)
             } catch (e: Exception) {
                 // observer failures are isolated from admission and delivery.
-                BoundedLeaderAuditExporterLogger.log.warn {
+                log.warn {
                     "Leader audit observer failed and was isolated"
                 }
             } catch (e: Error) {
@@ -694,8 +705,12 @@ internal class BoundedLeaderAuditExporter(
 
     private class WorkItem(val event: LeaderAuditExportEvent) {
         var attempts: Int = 0
-        @Volatile var currentAttempt: Attempt? = null
-        @Volatile var retry: ScheduledFuture<*>? = null
+
+        @Volatile
+        var currentAttempt: Attempt? = null
+
+        @Volatile
+        var retry: ScheduledFuture<*>? = null
         val retryClaimed = AtomicBoolean(true)
         val terminalized = AtomicBoolean(false)
     }
@@ -703,8 +718,12 @@ internal class BoundedLeaderAuditExporter(
     private class Attempt(val number: Int) {
         val done = AtomicBoolean(false)
         val deliveryStarted = AtomicBoolean(false)
-        @Volatile var future: CompletableFuture<LeaderAuditDeliveryResult>? = null
-        @Volatile var timeout: ScheduledFuture<*>? = null
+
+        @Volatile
+        var future: CompletableFuture<LeaderAuditDeliveryResult>? = null
+
+        @Volatile
+        var timeout: ScheduledFuture<*>? = null
     }
 
     private enum class WorkerHandoffState {
@@ -724,15 +743,8 @@ internal class BoundedLeaderAuditExporter(
         val observation: LeaderAuditExportObservation,
     )
 
-    private object NoopCloseable : AutoCloseable {
+    private object NoopCloseable: AutoCloseable {
         override fun close() = Unit
-    }
-
-    private companion object {
-        const val MAX_DIAGNOSTICS_CAPACITY: Int = 1024
-        const val MAX_OBSERVERS: Int = 16
-        val MAX_ATTEMPT_TIMEOUT: Duration = Duration.ofMinutes(5)
-        val MAX_BACKOFF: Duration = Duration.ofMinutes(1)
     }
 
     private fun beginScheduling(): Boolean {
@@ -774,26 +786,17 @@ internal class BoundedLeaderAuditExporter(
     }
 }
 
-private object BoundedLeaderAuditExporterLogger : KLogging()
+private object BoundedLeaderAuditExporterLogger: KLogging()
 
 private fun Duration.toBoundedPositiveNanos(name: String, maximum: Duration): Long {
-    require(!isZero && !isNegative) { "$name must be positive: $this" }
+    this.requireGe(Duration.ZERO) { "$name must be positive: $this" }
     val nanos = try {
         toNanos()
     } catch (e: ArithmeticException) {
         throw IllegalArgumentException("$name does not fit in nanoseconds: $this", e)
     }
-    require(nanos > 0) { "$name must be positive: $this" }
+    nanos.requirePositiveNumber { "$name must be positive: $this" }
     val maximumNanos = maximum.toNanos()
-    require(nanos <= maximumNanos) { "$name must be <= $maximum: $this" }
+    nanos.requireLe(maximumNanos) { "$name must be <= $maximum: $this" }
     return nanos
-}
-
-private inline fun <T> ReentrantLock.withLock(block: () -> T): T {
-    lock()
-    return try {
-        block()
-    } finally {
-        unlock()
-    }
 }

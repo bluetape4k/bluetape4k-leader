@@ -3,6 +3,7 @@ package io.bluetape4k.leader.internal
 import io.bluetape4k.leader.LeaseCleanupBoundary
 import io.bluetape4k.leader.LeaseCleanupReservation
 import io.bluetape4k.leader.LeaseCleanupResult
+import io.bluetape4k.logging.KLogging
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
@@ -13,19 +14,28 @@ class LeaseCleanupBoundaryImpl private constructor(
     private val residualRegistry: ResidualLeaseRegistry,
     private val release: () -> LeaseCleanupResult,
     private val deadlineAwareRelease: ((Long) -> LeaseCleanupResult)?,
-) : LeaseCleanupBoundary {
+): LeaseCleanupBoundary {
 
-    constructor(
-        scheduler: LeaseOperationScheduler,
-        residualRegistry: ResidualLeaseRegistry,
-        release: () -> LeaseCleanupResult,
-    ) : this(scheduler, residualRegistry, release, null)
+    companion object: KLogging() {
+        operator fun invoke(
+            scheduler: LeaseOperationScheduler,
+            residualRegistry: ResidualLeaseRegistry,
+            release: () -> LeaseCleanupResult,
+        ): LeaseCleanupBoundaryImpl =
+            LeaseCleanupBoundaryImpl(scheduler, residualRegistry, release, null)
 
-    constructor(
-        scheduler: LeaseOperationScheduler,
-        residualRegistry: ResidualLeaseRegistry,
-        releaseWithin: (Long) -> LeaseCleanupResult,
-    ) : this(scheduler, residualRegistry, { releaseWithin(Long.MAX_VALUE) }, releaseWithin)
+        operator fun invoke(
+            scheduler: LeaseOperationScheduler,
+            residualRegistry: ResidualLeaseRegistry,
+            releaseWithin: (Long) -> LeaseCleanupResult,
+        ): LeaseCleanupBoundaryImpl =
+            LeaseCleanupBoundaryImpl(
+                scheduler,
+                residualRegistry,
+                { releaseWithin(Long.MAX_VALUE) },
+                releaseWithin
+            )
+    }
 
     @Suppress("ReturnCount")
     override fun releaseWithin(deadline: Duration, reservation: LeaseCleanupReservation): LeaseCleanupResult {

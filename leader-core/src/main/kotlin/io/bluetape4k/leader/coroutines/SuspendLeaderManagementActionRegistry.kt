@@ -2,9 +2,9 @@ package io.bluetape4k.leader.coroutines
 
 import io.bluetape4k.leader.LeaderManagementAction
 import io.bluetape4k.leader.LeaderManagementActionObservation
+import io.bluetape4k.leader.LeaderManagementActionObserver
 import io.bluetape4k.leader.LeaderManagementActionOutcome
 import io.bluetape4k.leader.LeaderManagementActionPhase
-import io.bluetape4k.leader.LeaderManagementActionObserver
 import io.bluetape4k.leader.LeaderManagementActionResult
 import io.bluetape4k.leader.LeaderManagementActionSurface
 import io.bluetape4k.leader.LeaderManagementQuarantineReason
@@ -12,19 +12,13 @@ import io.bluetape4k.leader.LeaderManagementRegistration
 import io.bluetape4k.leader.LeaderManagementRegistrationOutcome
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.isManagementActionLockName
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.support.requireGt
 import io.bluetape4k.support.requireLe
 import io.bluetape4k.support.requirePositiveNumber
-import java.util.IdentityHashMap
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -34,6 +28,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * suspend lease를 caller cancellation과 분리된 registry-owned worker로 해제합니다.
@@ -49,9 +51,9 @@ class SuspendLeaderManagementActionRegistry(
     maxInFlightActions: Int = 16,
     maxRegistrations: Int = 1_024,
     private val closeTimeout: Duration = 5.seconds,
-) : AutoCloseable {
+): AutoCloseable {
 
-    private companion object {
+    private companion object: KLoggingChannel() {
         const val MAX_TIMEOUT_SECONDS = 30L
         const val MAX_IN_FLIGHT_ACTIONS = 256
         const val MAX_REGISTRATIONS = 65_536
@@ -113,7 +115,7 @@ class SuspendLeaderManagementActionRegistry(
             return immediate(LeaderManagementActionOutcome.INVALID_LOCK_NAME, surface)
         }
         when (val selection = store.select(lockName)) {
-            SuspendLeaderManagementActionStore.Selection.Closed ->
+            SuspendLeaderManagementActionStore.Selection.Closed    ->
                 return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
             SuspendLeaderManagementActionStore.Selection.NotRegistered ->
@@ -125,13 +127,13 @@ class SuspendLeaderManagementActionRegistry(
             is SuspendLeaderManagementActionStore.Selection.Record -> {
                 val (outcome, action) = store.begin(selection.value, surface)
                 when (outcome) {
-                    SuspendLeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED ->
+                    SuspendLeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED    ->
                         return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
-                    SuspendLeaderManagementActionStore.BeginOutcome.NOT_REGISTERED ->
+                    SuspendLeaderManagementActionStore.BeginOutcome.NOT_REGISTERED     ->
                         return immediate(LeaderManagementActionOutcome.NOT_REGISTERED, surface)
 
-                    SuspendLeaderManagementActionStore.BeginOutcome.AMBIGUOUS ->
+                    SuspendLeaderManagementActionStore.BeginOutcome.AMBIGUOUS          ->
                         return immediate(LeaderManagementActionOutcome.AMBIGUOUS, surface)
 
                     SuspendLeaderManagementActionStore.BeginOutcome.ACTION_IN_PROGRESS ->
@@ -140,7 +142,7 @@ class SuspendLeaderManagementActionRegistry(
                     SuspendLeaderManagementActionStore.BeginOutcome.ACTION_ADMISSION_REJECTED ->
                         return immediate(LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED, surface)
 
-                    SuspendLeaderManagementActionStore.BeginOutcome.STARTED -> Unit
+                    SuspendLeaderManagementActionStore.BeginOutcome.STARTED            -> Unit
                 }
                 val actionRecord = checkNotNull(action)
                 val deferred = CompletableDeferred<LeaderManagementActionResult>()
@@ -166,7 +168,7 @@ class SuspendLeaderManagementActionRegistry(
     suspend fun closeAndDrain(): Boolean {
         if (!store.beginQuiescing()) return true
         val drained = withTimeoutOrNull(closeTimeout) {
-            while (store.activeActionCount() > 0) delay(POLL_MILLIS)
+            while (store.activeActionCount() > 0) delay(POLL_MILLIS.milliseconds)
             true
         } ?: false
 
@@ -237,12 +239,14 @@ class SuspendLeaderManagementActionRegistry(
                 LeaseOwnershipStatus.UNKNOWN ->
                     return terminalResult(action, result(LeaderManagementActionOutcome.OWNERSHIP_UNKNOWN, false))
 
-                LeaseOwnershipStatus.HELD -> Unit
+                LeaseOwnershipStatus.HELD    -> Unit
             }
 
-            if (action.timedOut.get() || action.cancelRequested.get() || !action.phase.compareAndSet(
+            if (action.timedOut.get() ||
+                action.cancelRequested.get() ||
+                !action.phase.compareAndSet(
                     LeaderManagementActionPhase.PRECHECK,
-                    LeaderManagementActionPhase.RELEASE_STARTED,
+                    LeaderManagementActionPhase.RELEASE_STARTED
                 )
             ) {
                 action.timedOut.set(true)
@@ -268,7 +272,7 @@ class SuspendLeaderManagementActionRegistry(
             if (action.timedOut.get()) return terminalResult(action, timeoutResult(action))
             if (!action.phase.compareAndSet(
                     LeaderManagementActionPhase.RELEASE_STARTED,
-                    LeaderManagementActionPhase.POSTCHECK,
+                    LeaderManagementActionPhase.POSTCHECK
                 )
             ) return terminalResult(action, timeoutResult(action))
 
@@ -291,7 +295,10 @@ class SuspendLeaderManagementActionRegistry(
                 when {
                     action.timedOut.get() -> timeoutResult(action)
                     postCheck == LeaseOwnershipStatus.NOT_HELD -> result(LeaderManagementActionOutcome.RELEASED, true)
-                    else -> result(LeaderManagementActionOutcome.RELEASE_UNCONFIRMED, true)
+                    else                  -> result(
+                        LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
+                        true
+                    )
                 },
             )
         } finally {
@@ -470,7 +477,7 @@ class SuspendLeaderManagementActionRegistry(
     private fun quarantineReason(phase: LeaderManagementActionPhase) = when (phase) {
         LeaderManagementActionPhase.RELEASE_STARTED,
         LeaderManagementActionPhase.POSTCHECK,
-        -> LeaderManagementQuarantineReason.NON_INTERRUPTIBLE
+            -> LeaderManagementQuarantineReason.NON_INTERRUPTIBLE
 
         else -> LeaderManagementQuarantineReason.CLEANUP_TIMEOUT
     }
@@ -495,15 +502,19 @@ private class SuspendLeaderManagementActionStore(
     private val maxInFlightActions: Int,
 ) {
 
-    internal enum class Lifecycle { OPEN, QUIESCING, CLOSED }
+    enum class Lifecycle {
+        OPEN,
+        QUIESCING,
+        CLOSED
+    }
 
-    internal class RegistrationRecord(val handle: SuspendLeaderLeaseHandle) {
+    class RegistrationRecord(val handle: SuspendLeaderLeaseHandle) {
         val lockName: String = handle.lockName
         var registrationCount: Int = 0
         val actionInProgress = AtomicBoolean(false)
     }
 
-    internal class ActionRecord(
+    class ActionRecord(
         val registration: RegistrationRecord,
         val surface: LeaderManagementActionSurface,
     ) {
@@ -515,26 +526,36 @@ private class SuspendLeaderManagementActionStore(
         val workerStarted = AtomicBoolean(false)
         val watcherStarted = AtomicBoolean(false)
         val workerFinished = CompletableDeferred<Unit>()
-        @Volatile var deferred: CompletableDeferred<LeaderManagementActionResult>? = null
-        @Volatile var job: Job? = null
-        @Volatile var result: LeaderManagementActionResult? = null
-        @Volatile var quarantined: Boolean = false
-        @Volatile var quarantineReason: LeaderManagementQuarantineReason? = null
+
+        @Volatile
+        var deferred: CompletableDeferred<LeaderManagementActionResult>? = null
+
+        @Volatile
+        var job: Job? = null
+
+        @Volatile
+        var result: LeaderManagementActionResult? = null
+
+        @Volatile
+        var quarantined: Boolean = false
+
+        @Volatile
+        var quarantineReason: LeaderManagementQuarantineReason? = null
     }
 
-    internal sealed interface RegistrationDecision {
-        data class Accepted(val record: RegistrationRecord) : RegistrationDecision
-        data class Rejected(val outcome: LeaderManagementRegistrationOutcome) : RegistrationDecision
+    sealed interface RegistrationDecision {
+        data class Accepted(val record: RegistrationRecord): RegistrationDecision
+        data class Rejected(val outcome: LeaderManagementRegistrationOutcome): RegistrationDecision
     }
 
-    internal sealed interface Selection {
-        data class Record(val value: RegistrationRecord) : Selection
-        data object NotRegistered : Selection
-        data object Ambiguous : Selection
-        data object Closed : Selection
+    sealed interface Selection {
+        data class Record(val value: RegistrationRecord): Selection
+        data object NotRegistered: Selection
+        data object Ambiguous: Selection
+        data object Closed: Selection
     }
 
-    internal enum class BeginOutcome {
+    enum class BeginOutcome {
         STARTED,
         NOT_REGISTERED,
         AMBIGUOUS,
@@ -551,7 +572,7 @@ private class SuspendLeaderManagementActionStore(
     private var registrationCount = 0
     private var lifecycle = Lifecycle.OPEN
 
-    internal fun register(handle: SuspendLeaderLeaseHandle): RegistrationDecision = lock.withLock {
+    fun register(handle: SuspendLeaderLeaseHandle): RegistrationDecision = lock.withLock {
         if (lifecycle != Lifecycle.OPEN) return@withLock RegistrationDecision.Rejected(
             LeaderManagementRegistrationOutcome.REGISTRY_CLOSED,
         )
@@ -571,72 +592,75 @@ private class SuspendLeaderManagementActionStore(
         RegistrationDecision.Accepted(record)
     }
 
-    internal fun closeRegistration(record: RegistrationRecord) = lock.withLock {
+    fun closeRegistration(record: RegistrationRecord) = lock.withLock {
         if (record.registrationCount <= 0) return@withLock
         record.registrationCount--
         registrationCount--
         removeIfDetached(record)
     }
 
-    internal fun select(lockName: String): Selection = lock.withLock {
+    fun select(lockName: String): Selection = lock.withLock {
         val records = byLockName[lockName].orEmpty().filter { it.registrationCount > 0 }
         when {
             lifecycle != Lifecycle.OPEN -> Selection.Closed
             records.isEmpty() -> Selection.NotRegistered
-            records.size > 1 -> Selection.Ambiguous
-            else -> Selection.Record(records.single())
+            records.size > 1  -> Selection.Ambiguous
+            else              -> Selection.Record(records.single())
         }
     }
 
-    internal fun begin(
+    fun begin(
         record: RegistrationRecord,
         surface: LeaderManagementActionSurface,
-    ): Pair<BeginOutcome, ActionRecord?> = lock.withLock {
-        if (lifecycle != Lifecycle.OPEN) return@withLock BeginOutcome.REGISTRY_CLOSED to null
-        if (record.registrationCount <= 0 || byHandle[record.handle] !== record) {
-            return@withLock BeginOutcome.NOT_REGISTERED to null
+    ): Pair<BeginOutcome, ActionRecord?> =
+        lock.withLock {
+            if (lifecycle != Lifecycle.OPEN) return@withLock BeginOutcome.REGISTRY_CLOSED to null
+            if (record.registrationCount <= 0 || byHandle[record.handle] !== record) {
+                return@withLock BeginOutcome.NOT_REGISTERED to null
+            }
+            if (byLockName[record.lockName]?.count { it.registrationCount > 0 } != 1) {
+                return@withLock BeginOutcome.AMBIGUOUS to null
+            }
+            if (!record.actionInProgress.compareAndSet(false, true)) {
+                return@withLock BeginOutcome.ACTION_IN_PROGRESS to null
+            }
+            if (activeActions.size >= maxInFlightActions) {
+                record.actionInProgress.set(false)
+                return@withLock BeginOutcome.ACTION_ADMISSION_REJECTED to null
+            }
+            ActionRecord(record, surface)
+                .also { activeActions[it] = true }
+                .let { BeginOutcome.STARTED to it }
         }
-        if (byLockName[record.lockName]?.count { it.registrationCount > 0 } != 1) {
-            return@withLock BeginOutcome.AMBIGUOUS to null
-        }
-        if (!record.actionInProgress.compareAndSet(false, true)) {
-            return@withLock BeginOutcome.ACTION_IN_PROGRESS to null
-        }
-        if (activeActions.size >= maxInFlightActions) {
-            record.actionInProgress.set(false)
-            return@withLock BeginOutcome.ACTION_ADMISSION_REJECTED to null
-        }
-        ActionRecord(record, surface).also { activeActions[it] = true }.let { BeginOutcome.STARTED to it }
-    }
 
-    internal fun finish(action: ActionRecord) = lock.withLock {
+    fun finish(action: ActionRecord) = lock.withLock {
         if (activeActions.remove(action) != null) action.registration.actionInProgress.set(false)
         quarantinedActions.remove(action)
         removeIfDetached(action.registration)
     }
 
-    internal fun quarantine(action: ActionRecord) = lock.withLock {
+    fun quarantine(action: ActionRecord) = lock.withLock {
         if (activeActions.containsKey(action)) {
             quarantinedActions[action] = true
             action.quarantined = true
         }
     }
 
-    internal fun beginQuiescing(): Boolean = lock.withLock {
+    fun beginQuiescing(): Boolean = lock.withLock {
         if (lifecycle == Lifecycle.CLOSED) return@withLock false
         lifecycle = Lifecycle.QUIESCING
         true
     }
 
-    internal fun closeLifecycle() = lock.withLock { lifecycle = Lifecycle.CLOSED }
+    fun closeLifecycle() = lock.withLock { lifecycle = Lifecycle.CLOSED }
 
-    internal fun activeActionCount(): Int = lock.withLock { activeActions.size }
+    fun activeActionCount(): Int = lock.withLock { activeActions.size }
 
-    internal fun activeActionRecords(): List<ActionRecord> = lock.withLock { activeActions.keys.toList() }
+    fun activeActionRecords(): List<ActionRecord> = lock.withLock { activeActions.keys.toList() }
 
-    internal fun quarantinedCount(): Int = lock.withLock { quarantinedActions.size }
+    fun quarantinedCount(): Int = lock.withLock { quarantinedActions.size }
 
-    internal fun registeredLockNames(): List<String> = lock.withLock {
+    fun registeredLockNames(): List<String> = lock.withLock {
         byLockName.asSequence()
             .filter { (_, records) -> records.any { it.registrationCount > 0 } }
             .map { it.key }
@@ -648,6 +672,9 @@ private class SuspendLeaderManagementActionStore(
         if (record.registrationCount > 0 || record.actionInProgress.get()) return
         byHandle.remove(record.handle)
         byLockName[record.lockName]?.remove(record)
-        if (byLockName[record.lockName].isNullOrEmpty()) byLockName.remove(record.lockName)
+
+        if (byLockName[record.lockName].isNullOrEmpty()) {
+            byLockName.remove(record.lockName)
+        }
     }
 }

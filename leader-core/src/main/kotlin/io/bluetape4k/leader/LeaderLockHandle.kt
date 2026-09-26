@@ -1,7 +1,9 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.support.hashOf
 import io.bluetape4k.support.requireGe
 import java.io.Serializable
 import kotlin.time.Duration
@@ -11,7 +13,7 @@ import kotlin.time.Duration
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-sealed class LeaderLockHandle : Serializable {
+sealed class LeaderLockHandle: Serializable {
 
     abstract val identity: LockIdentity
     val lockName: String get() = identity.lockName
@@ -52,7 +54,7 @@ sealed class LeaderLockHandle : Serializable {
          */
         val extendDelegate: ExtendDelegate,
         val auditLeaderId: String? = null,
-    ) : LeaderLockHandle() {
+    ): LeaderLockHandle() {
 
         /**
          * `extend`는 현재 lock 소유권을 확인한 뒤 lease를 연장합니다.
@@ -88,7 +90,9 @@ sealed class LeaderLockHandle : Serializable {
          * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
          */
         suspend fun isStillHeldSuspend(): Boolean =
-            if (extendDelegate is SuspendExtendDelegate) extendDelegate.isHeldSuspend() else extendDelegate.isHeld()
+            if (extendDelegate is SuspendExtendDelegate)
+                extendDelegate.isHeldSuspend()
+            else extendDelegate.isHeld()
 
         /**
          * `withReentryDepth` 호출은 leader election 계약의 일부 동작을 수행합니다.
@@ -109,24 +113,19 @@ sealed class LeaderLockHandle : Serializable {
             if (this === other) return true
             if (other !is Real) return false
             return identity == other.identity &&
-                token == other.token &&
-                reentryDepth == other.reentryDepth &&
-                slotId == other.slotId
+                    token == other.token &&
+                    reentryDepth == other.reentryDepth &&
+                    slotId == other.slotId
         }
 
-        override fun hashCode(): Int {
-            var result = identity.hashCode()
-            result = 31 * result + token.hashCode()
-            result = 31 * result + reentryDepth
-            result = 31 * result + (slotId?.hashCode() ?: 0)
-            return result
-        }
-
-        override fun toString(): String = buildString {
-            append("LeaderLockHandle.Real(identity=$identity, token=<redacted>, reentryDepth=$reentryDepth, slotId=$slotId")
-            if (auditLeaderId != null) append(", auditLeaderId='$auditLeaderId'")
-            append(")")
-        }
+        override fun hashCode(): Int = hashOf(identity, token, reentryDepth, slotId)
+        override fun toString(): String = ToStringBuilder(this)
+            .add("identity", identity)
+            .add("token", REDACTED)
+            .add("reentryDepth", reentryDepth)
+            .add("slotId", slotId)
+            .add("acquiringThreadId", acquiringThreadId)
+            .toString()
 
         companion object {
             private const val serialVersionUID = 1L
@@ -141,7 +140,7 @@ sealed class LeaderLockHandle : Serializable {
      */
     class FailOpen internal constructor(
         override val identity: LockIdentity,
-    ) : LeaderLockHandle() {
+    ): LeaderLockHandle() {
         override val reentryDepth: Int = 0
 
         override fun equals(other: Any?): Boolean {
@@ -185,7 +184,16 @@ sealed class LeaderLockHandle : Serializable {
             reentryDepth: Int = 0,
             extendDelegate: ExtendDelegate,
             auditLeaderId: String? = null,  // positional 끝: backward compatibility를 위해 기본값은 null입니다.
-        ): Real = Real(identity, token, acquiredAtNanos, slotId, acquiringThreadId, reentryDepth, extendDelegate, auditLeaderId)
+        ): Real = Real(
+            identity,
+            token,
+            acquiredAtNanos,
+            slotId,
+            acquiringThreadId,
+            reentryDepth,
+            extendDelegate,
+            auditLeaderId
+        )
 
         /**
          * `failOpen` 호출은 leader election 계약의 일부 동작을 수행합니다.

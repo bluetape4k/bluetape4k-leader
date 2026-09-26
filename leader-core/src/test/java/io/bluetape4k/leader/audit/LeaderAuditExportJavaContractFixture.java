@@ -2,6 +2,7 @@ package io.bluetape4k.leader.audit;
 
 import io.bluetape4k.leader.LeaderLease;
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.time.Duration;
@@ -12,7 +13,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-/** Java compile/run fixture for the stable audit exporter boundary. */
+/**
+ * Java compile/run fixture for the stable audit exporter boundary.
+ */
 public final class LeaderAuditExportJavaContractFixture {
 
     private LeaderAuditExportJavaContractFixture() {
@@ -22,7 +25,7 @@ public final class LeaderAuditExportJavaContractFixture {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         try {
             if (LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES != 32 ||
-                LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES != 8192) {
+                    LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES != 8192) {
                 return false;
             }
             if (!exerciseKindSanitizer()) {
@@ -34,21 +37,21 @@ public final class LeaderAuditExportJavaContractFixture {
 
             Executor executor = Runnable::run;
             LeaderAuditExportOptions options = new LeaderAuditExportOptions(
-                8,
-                2,
-                3,
-                Duration.ofSeconds(5),
-                Duration.ofMillis(1),
-                Duration.ofSeconds(1),
-                executor,
-                scheduler
+                    8,
+                    2,
+                    3,
+                    Duration.ofSeconds(5),
+                    Duration.ofMillis(1),
+                    Duration.ofSeconds(1),
+                    executor,
+                    scheduler
             );
             if (options.getQueueCapacity() != 8 || options.getMaxInFlight() != 2) {
                 return false;
             }
 
             LeaderAuditDelivery delivery = event ->
-                CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS);
+                    CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS);
             LeaderAuditExportObserver observer = observation -> {
             };
             LeaderAuditExporter exporter = new LeaderAuditExporter() {
@@ -96,12 +99,12 @@ public final class LeaderAuditExportJavaContractFixture {
             return false;
         }
         String truncated = new LeaderAuditValueSanitizer.Truncate(16)
-            .sanitize(LeaderAuditField.KIND, "GROUP");
+                .sanitize(LeaderAuditField.KIND, "GROUP");
         if (!"GROUP".equals(truncated)) {
             return false;
         }
         String raw = new LeaderAuditValueSanitizer.Raw(
-            java.util.Set.of(LeaderAuditField.KIND), 16
+                java.util.Set.of(LeaderAuditField.KIND), 16
         ).sanitize(LeaderAuditField.KIND, "SINGLE");
         if (!"SINGLE".equals(raw)) {
             return false;
@@ -116,27 +119,27 @@ public final class LeaderAuditExportJavaContractFixture {
 
     private static boolean exerciseFactoryOnlySnapshots() {
         try {
-            for (Class<?> eventType : new Class<?>[] {
-                LeaderAuditExportEvent.History.class,
-                LeaderAuditExportEvent.Lifecycle.class
+            for (Class<?> eventType : new Class<?>[]{
+                    LeaderAuditExportEvent.History.class,
+                    LeaderAuditExportEvent.Lifecycle.class
             }) {
                 Class<?> snapshotType = Class.forName(eventType.getName() + "$Snapshot");
                 Constructor<?>[] constructors = snapshotType.getDeclaredConstructors();
                 Constructor<?>[] nonSyntheticConstructors = java.util.Arrays.stream(constructors)
-                    .filter(constructor -> !constructor.isSynthetic())
-                    .toArray(Constructor<?>[]::new);
+                        .filter(constructor -> !constructor.isSynthetic())
+                        .toArray(Constructor<?>[]::new);
                 if (nonSyntheticConstructors.length != 1 ||
-                    !Modifier.isPrivate(nonSyntheticConstructors[0].getModifiers())) {
+                        !Modifier.isPrivate(nonSyntheticConstructors[0].getModifiers())) {
                     return false;
                 }
                 for (Constructor<?> constructor : constructors) {
                     if ((Modifier.isPublic(constructor.getModifiers()) || constructor.isSynthetic()) &&
-                        java.util.Arrays.stream(constructor.getParameterTypes()).anyMatch(
-                            parameterType -> parameterType == String.class ||
-                                parameterType == Instant.class ||
-                                parameterType == Map.class ||
-                                parameterType == LeaderLease.class ||
-                                parameterType == LeaderLockHistoryRecord.class)) {
+                            java.util.Arrays.stream(constructor.getParameterTypes()).anyMatch(
+                                    parameterType -> parameterType == String.class ||
+                                            parameterType == Instant.class ||
+                                            parameterType == Map.class ||
+                                            parameterType == LeaderLease.class ||
+                                            parameterType == LeaderLockHistoryRecord.class)) {
                         return false;
                     }
                 }

@@ -55,7 +55,7 @@ private fun sanitizeMetadata(metadata: Map<String, String>): Map<String, String>
         .take(LeaderLockHistoryRecord.MAX_METADATA_KEYS)
         .associate { (key, value) ->
             key.take(MAX_METADATA_KEY_LENGTH).sanitizeForLog() to
-                value.take(LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH).sanitizeForLog()
+                    value.take(LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH).sanitizeForLog()
         }
 }
 
@@ -66,9 +66,9 @@ private fun Map<String, String>.isAlreadySafe(): Boolean {
 
     return entries.all { (key, value) ->
         key.length <= MAX_METADATA_KEY_LENGTH &&
-            value.length <= LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH &&
-            !key.hasUnsafeLogChar() &&
-            !value.hasUnsafeLogChar()
+                value.length <= LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH &&
+                !key.hasUnsafeLogChar() &&
+                !value.hasUnsafeLogChar()
     }
 }
 

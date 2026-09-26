@@ -1,13 +1,13 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.forTenant
 import io.bluetape4k.leader.coroutines.withListeners
 import io.bluetape4k.leader.local.LocalLeaderElector
-import io.bluetape4k.junit5.coroutines.runSuspendIO
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
@@ -90,7 +90,7 @@ class LeaderElectionStateCapabilityTest {
         result shouldBeEqualTo LeaderRunResult.Elected(slot.leaderId, slot.leaderId)
     }
 
-    private class UnsupportedLeaderElector : LeaderElector {
+    private class UnsupportedLeaderElector: LeaderElector {
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? = action()
 
         override fun <T> runAsyncIfLeader(

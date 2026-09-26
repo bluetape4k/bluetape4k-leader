@@ -1,11 +1,13 @@
 package io.bluetape4k.leader.local
 
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeEmpty
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.javatimes.millis
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
@@ -14,6 +16,8 @@ import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.scorers.WeightedScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.utils.Runtimex
 import kotlinx.coroutines.CancellationException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -21,6 +25,8 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
 class LocalStrategicLeaderElectorTest {
+
+    companion object: KLogging()
 
     private val lockName = "test-lock-" + Base58.randomString(8)
 
@@ -50,15 +56,15 @@ class LocalStrategicLeaderElectorTest {
     fun `FIFO - node1 이 가장 먼저 등록하면 node1 만 action 실행`() {
         val t0 = Instant.now()
         node1.registerCandidate(lockName, CandidateInfo("node-1", registeredAt = t0))
-        node2.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0.plusMillis(10)))
-        node3.registerCandidate(lockName, CandidateInfo("node-3", registeredAt = t0.plusMillis(20)))
+        node2.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0 + 10.millis()))
+        node3.registerCandidate(lockName, CandidateInfo("node-3", registeredAt = t0 + 20.millis()))
 
         // 3개 노드 모두 같은 후보 목록 공유 (in-memory 싱글 registry 아님 → 각 노드의 registry 에 등록 필요)
         // node2, node3 에도 전체 후보 등록
         node2.registerCandidate(lockName, CandidateInfo("node-1", registeredAt = t0))
-        node2.registerCandidate(lockName, CandidateInfo("node-3", registeredAt = t0.plusMillis(20)))
+        node2.registerCandidate(lockName, CandidateInfo("node-3", registeredAt = t0 + 10.millis()))
         node3.registerCandidate(lockName, CandidateInfo("node-1", registeredAt = t0))
-        node3.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0.plusMillis(10)))
+        node3.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0 + 20.millis()))
 
         val counter = AtomicInteger(0)
         val r1 = node1.runIfLeader(lockName, FifoElectionStrategy) { counter.incrementAndGet() }
@@ -131,7 +137,7 @@ class LocalStrategicLeaderElectorTest {
 
     @Test
     fun `refreshCandidate와 updateResult 동시 호출에서도 결과 카운터를 잃지 않는다`() {
-        val workers = 8
+        val workers = 2 * Runtimex.availableProcessors
         val rounds = 100
         node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
 
@@ -155,7 +161,12 @@ class LocalStrategicLeaderElectorTest {
             .workers(2)
             .rounds(100)
             .addAll(
-                { node1.refreshCandidate(lockName, CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok"))) },
+                {
+                    node1.refreshCandidate(
+                        lockName,
+                        CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok"))
+                    )
+                },
                 { node1.unregisterCandidate(lockName, node1.nodeId) },
             )
             .run()
@@ -191,8 +202,8 @@ class LocalStrategicLeaderElectorTest {
     @Test
     fun `ScoredIdleTime - 가장 오래 쉰 노드가 선출`() {
         val now = Instant.now()
-        val longIdle = CandidateInfo("node-1", lastCompletionTime = now.minusSeconds(300))
-        val shortIdle = CandidateInfo("node-2", lastCompletionTime = now.minusSeconds(10))
+        val longIdle = CandidateInfo("node-1", lastCompletionTime = now - 300.seconds())
+        val shortIdle = CandidateInfo("node-2", lastCompletionTime = now - 10.seconds())
 
         // node1 이 오래 쉬었음
         node1.registerCandidate(lockName, longIdle)
@@ -266,8 +277,8 @@ class LocalStrategicLeaderElectorTest {
     @Test
     fun `IdleTime - updateResult 후 winner 변경됨`() {
         val now = Instant.now()
-        val c1 = CandidateInfo("node-1", lastCompletionTime = now.minusSeconds(100))
-        val c2 = CandidateInfo("node-2", lastCompletionTime = now.minusSeconds(10))
+        val c1 = CandidateInfo("node-1", lastCompletionTime = now - 100.seconds())
+        val c2 = CandidateInfo("node-2", lastCompletionTime = now - 10.seconds())
 
         node1.registerCandidate(lockName, c1)
         node1.registerCandidate(lockName, c2)
@@ -300,7 +311,7 @@ class LocalStrategicLeaderElectorTest {
         val t0 = Instant.now()
         // node2 가 나중에 등록 → FIFO 에서 탈락
         node2.registerCandidate(lockName, CandidateInfo("node-1", registeredAt = t0))
-        node2.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0.plusMillis(10)))
+        node2.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0 + 10.millis()))
 
         val result = node2.runIfLeader(lockName, FifoElectionStrategy) { "should-not-run" }
         result.shouldBeNull()
@@ -374,8 +385,8 @@ class LocalStrategicLeaderElectorTest {
         node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
 
         assertFailsWith<IllegalStateException> {
-            node1.runIfLeader(lockName, FifoElectionStrategy) {
-                error("boom")
+            node1.runIfLeader<Any?>(lockName, FifoElectionStrategy) {
+                error("Boom!")
             }
         }
 

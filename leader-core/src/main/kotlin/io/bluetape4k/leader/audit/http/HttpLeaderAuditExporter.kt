@@ -24,7 +24,7 @@ class HttpLeaderAuditExporter(
     encoder: LeaderAuditPayloadEncoder,
     exportOptions: LeaderAuditExportOptions,
     httpOptions: LeaderAuditHttpOptions,
-) : LeaderAuditExporter {
+): LeaderAuditExporter {
 
     private val delegate: LeaderAuditExporter = BoundedLeaderAuditExporter(
         delivery = HttpLeaderAuditDelivery(

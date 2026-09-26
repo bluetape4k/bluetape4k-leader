@@ -8,7 +8,7 @@ package io.bluetape4k.leader.internal
  */
 class CompositeBackendErrorClassifier(
     private val backendSpecific: BackendErrorClassifier,
-) : BackendErrorClassifier {
+): BackendErrorClassifier {
 
     /**
      * `classify` 호출은 leader election 계약의 일부 동작을 수행합니다.

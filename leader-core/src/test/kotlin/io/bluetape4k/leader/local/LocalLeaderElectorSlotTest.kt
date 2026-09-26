@@ -25,7 +25,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LocalLeaderElectorSlotTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val election = LocalLeaderElector()
 
@@ -44,9 +44,10 @@ class LocalLeaderElectorSlotTest {
         val s = slot("audit-node")
         val result = election.runIfLeaderResult(s) { "done" }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value shouldBeEqualTo "done"
-        result.leaderId shouldBeEqualTo "audit-node"
+        with(result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()) {
+            value shouldBeEqualTo "done"
+            leaderId shouldBeEqualTo "audit-node"
+        }
     }
 
     @Test
@@ -54,9 +55,10 @@ class LocalLeaderElectorSlotTest {
         val s = slot("null-node")
         val result = election.runIfLeaderResult(s) { null }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value.shouldBeNull()
-        result.leaderId shouldBeEqualTo "null-node"
+        with(result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()) {
+            value.shouldBeNull()
+            leaderId shouldBeEqualTo "null-node"
+        }
     }
 
     // --- LeaderState.leader.auditLeaderId 전파 ---
@@ -107,12 +109,10 @@ class LocalLeaderElectorSlotTest {
             "outer"
         }
 
-        outerResult shouldBeInstanceOf LeaderRunResult.Elected::class
-        (outerResult as LeaderRunResult.Elected).leaderId shouldBeEqualTo "reentrant-node"
+        outerResult.shouldBeInstanceOf<LeaderRunResult.Elected<String>>().leaderId shouldBeEqualTo "reentrant-node"
 
-        innerResult shouldBeInstanceOf LeaderRunResult.Elected::class
         // reentrant path: leaderId comes from slot parameter in override
-        (innerResult as LeaderRunResult.Elected).leaderId shouldBeEqualTo "reentrant-node"
+        innerResult.shouldBeInstanceOf<LeaderRunResult.Elected<String>>().leaderId shouldBeEqualTo "reentrant-node"
     }
 
     @Test
@@ -139,7 +139,7 @@ class LocalLeaderElectorSlotTest {
         val r1 = election.runIfLeaderResult(s1) { 1 }
         val r2 = election.runIfLeaderResult(s2) { 2 }
 
-        (r1 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "node-1"
-        (r2 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "node-2"
+        r1.shouldBeInstanceOf<LeaderRunResult.Elected<Int>>().leaderId shouldBeEqualTo "node-1"
+        r2.shouldBeInstanceOf<LeaderRunResult.Elected<Int>>().leaderId shouldBeEqualTo "node-2"
     }
 }

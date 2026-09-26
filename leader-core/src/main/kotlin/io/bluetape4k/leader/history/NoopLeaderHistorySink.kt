@@ -7,7 +7,7 @@ import java.time.Instant
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-object NoopLeaderHistorySink : LeaderHistorySink {
+object NoopLeaderHistorySink: LeaderHistorySink {
     override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? = null
     override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
     override fun recordFailed(
@@ -24,7 +24,7 @@ object NoopLeaderHistorySink : LeaderHistorySink {
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-object NoopSuspendLeaderHistorySink : SuspendLeaderHistorySink {
+object NoopSuspendLeaderHistorySink: SuspendLeaderHistorySink {
     override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? = null
     override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
     override suspend fun recordFailed(

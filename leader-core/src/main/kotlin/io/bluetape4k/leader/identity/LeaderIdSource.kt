@@ -10,14 +10,17 @@ enum class LeaderIdSource {
      * `LITERAL` 선언은 leader election 계약에서 사용되는 declaration입니다.
      */
     LITERAL,
+
     /**
      * `SPEL` 선언은 leader election 계약에서 사용되는 declaration입니다.
      */
     SPEL,
+
     /**
      * `PROPERTY` 선언은 leader election 계약에서 사용되는 declaration입니다.
      */
     PROPERTY,
+
     /**
      * `AUTO` 선언은 leader election 계약에서 사용되는 declaration입니다.
      */

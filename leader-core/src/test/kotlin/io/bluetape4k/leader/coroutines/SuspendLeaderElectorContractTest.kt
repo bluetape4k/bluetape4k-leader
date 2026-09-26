@@ -1,5 +1,8 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
@@ -7,9 +10,6 @@ import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.delay
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
@@ -63,7 +63,10 @@ class SuspendLeaderElectorContractTest {
     @Test
     fun `runIfLeader - action 예외 후에도 락이 해제되어 다음 호출이 성공한다`() = runSuspendIO {
         val lockName = randomLockName()
-        runCatching { election.runIfLeader(lockName) { throw LeaderElectionException("실패") } }
+
+        assertFailsWith<LeaderElectionException> {
+            election.runIfLeader(lockName) { throw LeaderElectionException("실패") }
+        }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"

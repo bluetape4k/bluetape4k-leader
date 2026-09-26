@@ -10,7 +10,7 @@ import io.bluetape4k.leader.strategy.Elimination
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-object FifoElectionStrategy : ElectionStrategy {
+object FifoElectionStrategy: ElectionStrategy {
 
     override fun elect(candidates: List<CandidateInfo>): ElectionResult {
         if (candidates.isEmpty()) return ElectionResult.EMPTY

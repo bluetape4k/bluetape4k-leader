@@ -7,6 +7,7 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LockStateHolder
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
@@ -29,13 +30,15 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ReactorOperatorNegativeTest {
 
+    companion object: KLoggingChannel()
+
     private fun identity(name: String = "reactor-lock") = LockIdentity(
         lockName = name,
         kind = LockIdentity.AnnotationKind.SINGLE,
         factoryBeanName = "testFactory",
     )
 
-    private fun fakeDelegate(): ExtendDelegate = object : ExtendDelegate {
+    private fun fakeDelegate(): ExtendDelegate = object: ExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
         override val lastExtendDeadline: AtomicReference<Instant> get() = deadline
         override fun extend(lockAtMostFor: Duration): ExtendOutcome = ExtendOutcome.Extended(Instant.now())

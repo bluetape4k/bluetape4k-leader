@@ -1,11 +1,13 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.leader.internal.ExtendDelegate
-import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeEqualTo
+import io.bluetape4k.leader.internal.ExtendDelegate
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -17,25 +19,29 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderLockHandleTest {
 
+    companion object: KLogging()
+
     private fun identity(name: String = "test-lock") = LockIdentity(
         lockName = name,
         kind = LockIdentity.AnnotationKind.SINGLE,
         factoryBeanName = "testFactory",
     )
 
-    private fun fakeDelegate(held: Boolean = true): ExtendDelegate = object : ExtendDelegate {
+    private fun fakeDelegate(held: Boolean = true): ExtendDelegate = object: ExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
         override val lastExtendDeadline: AtomicReference<Instant> get() = deadline
         override fun extend(lockAtMostFor: Duration): ExtendOutcome =
             if (held) ExtendOutcome.Extended(Instant.now()) else ExtendOutcome.NotHeld
+
         override fun isHeld(): Boolean = held
     }
 
-    private fun fakeSuspendDelegate(held: Boolean = true): SuspendExtendDelegate = object : SuspendExtendDelegate {
+    private fun fakeSuspendDelegate(held: Boolean = true): SuspendExtendDelegate = object: SuspendExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
         override val lastExtendDeadline: AtomicReference<Instant> get() = deadline
         override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
             if (held) ExtendOutcome.Extended(Instant.now()) else ExtendOutcome.NotHeld
+
         override suspend fun isHeldSuspend(): Boolean = held
     }
 
@@ -157,7 +163,7 @@ class LeaderLockHandleTest {
         val text = realHandle(token = token).toString()
 
         text.contains(token).shouldBeFalse()
-        text.contains("token=<redacted>").shouldBeTrue()
+        text.contains("token=$REDACTED").shouldBeTrue()
     }
 
     // --- equals / hashCode ---
@@ -169,7 +175,7 @@ class LeaderLockHandleTest {
         val h1 = LeaderLockHandle.real(id, "tok", System.nanoTime(), reentryDepth = 0, extendDelegate = delegate)
         val h2 = LeaderLockHandle.real(id, "tok", System.nanoTime() + 1000, reentryDepth = 0, extendDelegate = delegate)
         // acquiredAtNanos differs but equals ignores it
-        (h1 == h2).shouldBeTrue()
+        h1 shouldBeEqualTo h2
     }
 
     @Test
@@ -178,7 +184,7 @@ class LeaderLockHandleTest {
         val id = identity()
         val h1 = LeaderLockHandle.real(id, "tok-A", System.nanoTime(), reentryDepth = 0, extendDelegate = delegate)
         val h2 = LeaderLockHandle.real(id, "tok-B", System.nanoTime(), reentryDepth = 0, extendDelegate = delegate)
-        (h1 == h2).shouldBeFalse()
+        h1 shouldNotBeEqualTo h2
     }
 
     // --- FailOpen ---
@@ -199,6 +205,6 @@ class LeaderLockHandleTest {
         val id = identity()
         val fo1 = LeaderLockHandle.failOpen(id)
         val fo2 = LeaderLockHandle.failOpen(id)
-        (fo1 == fo2).shouldBeTrue()
+        fo1 shouldBeEqualTo fo2
     }
 }

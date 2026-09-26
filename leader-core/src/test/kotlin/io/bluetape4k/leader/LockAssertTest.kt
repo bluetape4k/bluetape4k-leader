@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LockStateHolder
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
@@ -17,6 +18,8 @@ import kotlin.time.Duration
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LockAssertTest {
 
+    companion object: KLogging()
+
     // --- helpers ---
 
     private fun identity(name: String = "test-lock") = LockIdentity(
@@ -25,11 +28,12 @@ class LockAssertTest {
         factoryBeanName = "testFactory",
     )
 
-    private fun fakeDelegate(held: Boolean = true): ExtendDelegate = object : ExtendDelegate {
+    private fun fakeDelegate(held: Boolean = true): ExtendDelegate = object: ExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
         override val lastExtendDeadline: AtomicReference<Instant> get() = deadline
         override fun extend(lockAtMostFor: Duration): ExtendOutcome =
             if (held) ExtendOutcome.Extended(Instant.now()) else ExtendOutcome.NotHeld
+
         override fun isHeld(): Boolean = held
     }
 

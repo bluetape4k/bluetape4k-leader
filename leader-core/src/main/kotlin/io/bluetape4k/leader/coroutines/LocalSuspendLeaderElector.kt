@@ -15,14 +15,14 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.internal.ExtendDelegate
-import io.bluetape4k.leader.local.AbstractLocalLeaderElector
-import io.bluetape4k.leader.local.LocalLeaderStateRegistry
-import io.bluetape4k.leader.internal.LocalRequestLeaseStore
-import io.bluetape4k.leader.internal.LocalSuspendRequestLeaseHandle
-import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
+import io.bluetape4k.leader.internal.ExtendDelegate
+import io.bluetape4k.leader.internal.LocalRequestLeaseStore
+import io.bluetape4k.leader.local.AbstractLocalLeaderElector
+import io.bluetape4k.leader.local.LocalLeaderStateRegistry
+import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.support.requireNotBlank
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -43,11 +43,13 @@ import kotlin.coroutines.cancellation.CancellationException
  */
 class LocalSuspendLeaderElector(
     private val options: LeaderElectionOptions = LeaderElectionOptions.Default,
-) : SuspendLeaderElector,
-    SuspendLeaderLeaseAcquirer,
-    LeaderElectionListenerRegistry,
-    LeaderElectionEventPublisher,
-    LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
+): SuspendLeaderElector,
+   SuspendLeaderLeaseAcquirer,
+   LeaderElectionListenerRegistry,
+   LeaderElectionEventPublisher,
+   LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
+
+    companion object: KLoggingChannel()
 
     private val mutexes = ConcurrentHashMap<String, Mutex>()
     private val listeners = LeaderElectionListenerSupport()
@@ -154,7 +156,12 @@ class LocalSuspendLeaderElector(
         }
         val startedAtNanos = System.nanoTime()
         val token = Base58.randomString(8)
-        val lease = states.acquireSingle(lockName, auditLeaderId = auditLeaderId, nodeId = nodeId, leaseTime = options.leaseTime)
+        val lease = states.acquireSingle(
+            lockName,
+            auditLeaderId = auditLeaderId,
+            nodeId = nodeId,
+            leaseTime = options.leaseTime
+        )
 
         val identity = LockIdentity(
             lockName = lockName,
@@ -162,7 +169,8 @@ class LocalSuspendLeaderElector(
             factoryBeanName = AbstractLocalLeaderElector.LOCAL_FACTORY_BEAN_NAME,
         )
         val lastExtendDeadlineRef = AtomicReference(Instant.EPOCH)
-        val delegate = object : ExtendDelegate {
+
+        val delegate = object: ExtendDelegate {
             private val _lastExtendDeadline = lastExtendDeadlineRef
             override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
             override fun extend(lockAtMostFor: kotlin.time.Duration): ExtendOutcome {
@@ -173,6 +181,7 @@ class LocalSuspendLeaderElector(
                     ExtendOutcome.NotHeld
                 }
             }
+
             override fun isHeld(): Boolean = states.singleState(lockName).isOccupied
         }
 
@@ -186,6 +195,7 @@ class LocalSuspendLeaderElector(
         val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate)
         listeners.notifyElected(lockName, lease)
         eventSubject.emit(LeaderElectionEvent.Elected.fromLease(lockName, lease))
+
         return try {
             withContext(LockHandleElement(handle)) {
                 action()

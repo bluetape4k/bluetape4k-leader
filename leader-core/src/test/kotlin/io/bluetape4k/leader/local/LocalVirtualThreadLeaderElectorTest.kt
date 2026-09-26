@@ -1,28 +1,29 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
-import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.concurrent.virtualthread.virtualThread
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletionException
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
 
 class LocalVirtualThreadLeaderElectorTest {
 
@@ -49,22 +50,23 @@ class LocalVirtualThreadLeaderElectorTest {
 
     @Test
     fun `runAsyncIfLeader - action 예외 발생 시 await 호출 시 예외가 전파된다`() {
-        val thrown = assertFailsWith<java.util.concurrent.ExecutionException> {
+        val thrown = assertFailsWith<ExecutionException> {
             election.runAsyncIfLeader(randomLockName()) {
                 throw LeaderElectionException("테스트 예외")
             }.await()
         }
-        thrown.cause shouldBeInstanceOf LeaderElectionException::class
+        thrown.cause.shouldBeInstanceOf<LeaderElectionException>()
     }
 
     @Test
     fun `runAsyncIfLeader - action 예외 후에도 락이 해제되어 다음 호출이 성공한다`() {
         val lockName = randomLockName()
-        runCatching {
+
+        assertFailsWith<ExecutionException> {
             election.runAsyncIfLeader(lockName) {
                 throw LeaderElectionException("실패")
             }.await()
-        }
+        }.cause.shouldBeInstanceOf<LeaderElectionException>()
 
         // 락이 해제된 상태여야 다음 호출이 정상 실행된다
         val result = election.runAsyncIfLeader(lockName) { "복구 성공" }.await()
@@ -89,8 +91,8 @@ class LocalVirtualThreadLeaderElectorTest {
             throw failure
         }.await()
 
-        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
-        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        result.cause shouldBeEqualTo failure
     }
 
     @Test
@@ -103,19 +105,18 @@ class LocalVirtualThreadLeaderElectorTest {
             }.toCompletableFuture().join()
         }
 
-        thrown.cause shouldBeInstanceOf CancellationException::class
+        thrown.cause.shouldBeInstanceOf<CancellationException>()
     }
 
     @Test
     fun `runAsyncIfLeader - 멀티스레드 동시 실행 시 직렬 처리를 보장한다`() {
         val lockName = randomLockName()
         val counter = AtomicInteger(0)
-        val numThreads = 8
+        val numThreads = 2 * Runtimex.availableProcessors
         val roundsPerThread = 4
 
-        MultithreadingTester()
-            .workers(numThreads)
-            .rounds(roundsPerThread)
+        StructuredTaskScopeTester()
+            .rounds(numThreads * roundsPerThread)
             .add {
                 election.runAsyncIfLeader(lockName) {
                     log.debug { "Virtual Thread 작업 1 실행. counter=${counter.get()}" }
@@ -132,7 +133,7 @@ class LocalVirtualThreadLeaderElectorTest {
             }
             .run()
 
-        counter.get() shouldBeEqualTo numThreads * roundsPerThread
+        counter.get() shouldBeEqualTo numThreads * roundsPerThread * 2
     }
 
     // ── skip-behavior (ShedLock 방식): 락 획득 실패 시 null 반환 ──────────
@@ -147,14 +148,14 @@ class LocalVirtualThreadLeaderElectorTest {
         val releaseLatch = CountDownLatch(1)
 
         // 동일 election 인스턴스로 락 점유
-        val firstThread = Thread {
+        val firstThread = virtualThread {
             skipElection.runAsyncIfLeader(lockName) {
                 latch.countDown()
                 releaseLatch.await()
             }.await()
-        }.apply { start() }
+        }
 
-        latch.await(2, TimeUnit.SECONDS)
+        latch.await(2, TimeUnit.SECONDS).shouldBeTrue()
 
         val result = skipElection.runAsyncIfLeader(lockName) { "should-skip" }.await()
         result.shouldBeNull()

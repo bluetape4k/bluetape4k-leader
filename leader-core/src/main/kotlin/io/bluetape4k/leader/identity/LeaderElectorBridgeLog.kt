@@ -25,13 +25,13 @@ class LeaderElectorBridgeLog(val cacheSize: Int = DEFAULT_CACHE_SIZE) {
     private val lock: ReentrantLock = ReentrantLock()
 
     private val warnedPairs: LinkedHashMap<String, Boolean> =
-        object : LinkedHashMap<String, Boolean>(cacheSize, LOAD_FACTOR, true) {
+        object: LinkedHashMap<String, Boolean>(cacheSize, LOAD_FACTOR, true) {
             override fun removeEldestEntry(eldest: Map.Entry<String, Boolean>): Boolean =
                 size > cacheSize
         }
 
     private val warnedResultPairs: LinkedHashMap<String, Boolean> =
-        object : LinkedHashMap<String, Boolean>(cacheSize, LOAD_FACTOR, true) {
+        object: LinkedHashMap<String, Boolean>(cacheSize, LOAD_FACTOR, true) {
             override fun removeEldestEntry(eldest: Map.Entry<String, Boolean>): Boolean =
                 size > cacheSize
         }
@@ -67,11 +67,12 @@ class LeaderElectorBridgeLog(val cacheSize: Int = DEFAULT_CACHE_SIZE) {
         droppedCounter.incrementAndGet()
         val key = "${implClass.qualifiedName}|slot|${slot.leaderId}"
         val isNew = lock.withLock { warnedPairs.putIfAbsent(key, true) == null }
+
         if (isNew) {
             log.warn {
-                "[OMC-BRIDGE-SLOT-DROP] ${implClass.qualifiedName} uses bridge default for slot " +
-                    "lockName='${slot.lockName.sanitizeForLog()}'. Override runIfLeader(LeaderSlot, action) to stamp " +
-                    "slot.leaderId into LeaderLease.auditLeaderId and avoid audit identity loss."
+                "[BRIDGE-SLOT-DROP] ${implClass.qualifiedName} uses bridge default for slot " +
+                        "lockName='${slot.lockName.sanitizeForLog()}'. Override runIfLeader(LeaderSlot, action) to stamp " +
+                        "slot.leaderId into LeaderLease.auditLeaderId and avoid audit identity loss."
             }
         }
     }
@@ -88,16 +89,17 @@ class LeaderElectorBridgeLog(val cacheSize: Int = DEFAULT_CACHE_SIZE) {
         droppedResultCounter.incrementAndGet()
         val key = "${implClass.qualifiedName}|slot|${slot.leaderId}"
         val isNew = lock.withLock { warnedResultPairs.putIfAbsent(key, true) == null }
+
         if (isNew) {
             log.warn {
-                "[OMC-BRIDGE-RESULT-DROP] ${implClass.qualifiedName} uses result bridge default for slot " +
-                    "lockName='${slot.lockName.sanitizeForLog()}'. Backend MUST override BOTH slot and result variants " +
-                    "(runIfLeader + runIfLeaderResult) to capture leader ID into LeaderRunResult.Elected.leaderId."
+                "[BRIDGE-RESULT-DROP] ${implClass.qualifiedName} uses result bridge default for slot " +
+                        "lockName='${slot.lockName.sanitizeForLog()}'. Backend MUST override BOTH slot and result variants " +
+                        "(runIfLeader + runIfLeaderResult) to capture leader ID into LeaderRunResult.Elected.leaderId."
             }
         }
     }
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         private const val DEFAULT_CACHE_SIZE: Int = 128
         private const val LOAD_FACTOR: Float = 0.75f
 
@@ -133,8 +135,8 @@ class LeaderElectorBridgeLog(val cacheSize: Int = DEFAULT_CACHE_SIZE) {
             globalInstance = instance
             log.info {
                 "[LeaderElectorBridgeLog] global instance swapped. " +
-                    "prev.droppedAuditCount=${prev.droppedAuditCount()}, " +
-                    "prev.droppedResultBridgeCount=${prev.droppedResultBridgeCount()}"
+                        "prev.droppedAuditCount=${prev.droppedAuditCount()}, " +
+                        "prev.droppedResultBridgeCount=${prev.droppedResultBridgeCount()}"
             }
         }
     }

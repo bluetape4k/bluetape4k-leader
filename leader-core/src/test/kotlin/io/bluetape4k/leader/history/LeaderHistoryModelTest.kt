@@ -11,7 +11,7 @@ import java.time.Instant
 
 class LeaderHistoryModelTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val now = Instant.parse("2026-05-14T10:00:00Z")
     private val future = now.plusSeconds(60)

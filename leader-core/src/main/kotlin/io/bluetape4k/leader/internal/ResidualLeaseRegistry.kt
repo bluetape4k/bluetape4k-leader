@@ -3,14 +3,14 @@ package io.bluetape4k.leader.internal
 import io.bluetape4k.leader.LeaderLeaseDefaults
 import io.bluetape4k.leader.LeaseCleanupReservation
 import io.bluetape4k.leader.LeaseCleanupResult
-import java.util.IdentityHashMap
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.requirePositiveNumber
+import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.nanoseconds
-import io.bluetape4k.support.requirePositiveNumber
 
 /** Residual entry lifecycle.  Unknown entries remain quarantined until proof returns. */
 enum class ResidualLeaseState {
@@ -31,6 +31,8 @@ class ResidualLeaseRegistry(
     private val maxLeaseLifetime: Duration = Duration.INFINITE,
     private val monotonicNanos: () -> Long = System::nanoTime,
 ) {
+
+    companion object: KLogging()
 
     private val lock = ReentrantLock()
     private val reservations = IdentityHashMap<ResidualReservation, ResidualEntry?>()
@@ -136,7 +138,7 @@ class ResidualLeaseRegistry(
 
     class ResidualReservation internal constructor(
         internal val owner: ResidualLeaseRegistry,
-    ) : LeaseCleanupReservation {
+    ): LeaseCleanupReservation {
         private val terminal = AtomicBoolean(false)
         private val terminalizer = AtomicReference<(() -> Unit)?>(null)
 

@@ -26,7 +26,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractSuspendLeaderElectorLeaderIdContractTest {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     protected abstract fun createElector(options: LeaderElectionOptions): SuspendLeaderElector
 

@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicReference
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractLeaderGroupElectorLeaderIdContractTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     protected abstract fun createElector(options: LeaderGroupElectionOptions): LeaderGroupElector
 

@@ -1,24 +1,27 @@
 package io.bluetape4k.leader.strategy
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeIn
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.strategy.scorers.IdleTimeScorer
 import io.bluetape4k.leader.strategy.scorers.RecentSuccessScorer
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.scorers.WeightedScorer
-import io.bluetape4k.assertions.shouldBeIn
-import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.RandomElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ElectionStrategyTest {
+
+    companion object: KLogging()
 
     private val t0 = Instant.parse("2026-01-01T00:00:00Z")
     private val t1 = t0.plusSeconds(10)
@@ -89,10 +92,11 @@ class ElectionStrategyTest {
     fun `Random - 동일 seed 동일 결과`() {
         val candidates = listOf(candidate("a"), candidate("b"), candidate("c"))
         val strategy = RandomElectionStrategy(seed = 42L)
+
         val r1 = strategy.elect(candidates).winner
         val r2 = strategy.elect(candidates).winner
-        r1.shouldNotBeNull()
-        r1.nodeId shouldBeEqualTo r2.shouldNotBeNull().nodeId
+
+        r1.shouldNotBeNull().nodeId shouldBeEqualTo r2.shouldNotBeNull().nodeId
     }
 
     @Test
@@ -104,6 +108,7 @@ class ElectionStrategyTest {
     fun `Random - 탈락자에 랜덤 선출 탈락 사유 포함`() {
         val candidates = listOf(candidate("a"), candidate("b"), candidate("c"))
         val result = RandomElectionStrategy(seed = 42L).elect(candidates)
+
         result.winner.shouldNotBeNull()
         result.eliminations.size shouldBeEqualTo 2
         result.eliminations.all { it.reason.contains("not selected by random election") }.shouldBeTrue()
@@ -119,6 +124,7 @@ class ElectionStrategyTest {
             candidate("idle", lastCompletionTime = now.minusSeconds(100)),
             candidate("medium", lastCompletionTime = now.minusSeconds(50)),
         )
+
         ScoredElectionStrategy(IdleTimeScorer)
             .elect(candidates).winner?.nodeId shouldBeEqualTo "idle"
     }
@@ -130,6 +136,7 @@ class ElectionStrategyTest {
             candidate("never-ran", registeredAt = now.minusSeconds(200)),
             candidate("ran-recently", lastCompletionTime = now.minusSeconds(10)),
         )
+
         ScoredElectionStrategy(IdleTimeScorer)
             .elect(candidates).winner?.nodeId shouldBeEqualTo "never-ran"
     }
@@ -143,6 +150,7 @@ class ElectionStrategyTest {
             candidate("high", successCount = 9, failureCount = 1),  // 90%
             candidate("mid", successCount = 5, failureCount = 5),   // 50%
         )
+
         ScoredElectionStrategy(SuccessRateScorer)
             .elect(candidates).winner?.nodeId shouldBeEqualTo "high"
     }
@@ -153,6 +161,7 @@ class ElectionStrategyTest {
             candidate("low", successCount = 1, failureCount = 9),
             candidate("high", successCount = 9, failureCount = 1),
         )
+
         val result = ScoredElectionStrategy(SuccessRateScorer).elect(candidates)
         result.winner?.nodeId shouldBeEqualTo "high"
         result.eliminations.size shouldBeEqualTo 1
@@ -270,6 +279,7 @@ class ElectionStrategyTest {
         val candidates = (1..5).map { candidate("n$it") }
         val ids = candidates.map { it.nodeId }
         val strategy = RandomElectionStrategy()
+
         repeat(50) {
             val w = strategy.elect(candidates).winner
             w.shouldNotBeNull()
@@ -281,16 +291,22 @@ class ElectionStrategyTest {
 
     @Test
     fun `WeightedScorer - 빈 scorer 목록은 require 실패`() {
-        assertFailsWith<IllegalArgumentException> { WeightedScorer(emptyList()) }
+        assertFailsWith<IllegalArgumentException> {
+            WeightedScorer(emptyList())
+        }
     }
 
     @Test
     fun `WeightedScorer - 음수 weight 는 require 실패`() {
-        assertFailsWith<IllegalArgumentException> { WeightedScorer(IdleTimeScorer to -0.5) }
+        assertFailsWith<IllegalArgumentException> {
+            WeightedScorer(IdleTimeScorer to -0.5)
+        }
     }
 
     @Test
     fun `WeightedScorer - 0 weight 는 require 실패`() {
-        assertFailsWith<IllegalArgumentException> { WeightedScorer(IdleTimeScorer to 0.0) }
+        assertFailsWith<IllegalArgumentException> {
+            WeightedScorer(IdleTimeScorer to 0.0)
+        }
     }
 }

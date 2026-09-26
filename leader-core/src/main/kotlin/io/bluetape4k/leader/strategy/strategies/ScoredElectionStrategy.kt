@@ -12,7 +12,7 @@ import io.bluetape4k.leader.strategy.Elimination
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  * @property scorer 후보 점수를 계산하는 전략 객체입니다.
  */
-class ScoredElectionStrategy(val scorer: CandidateScorer) : ElectionStrategy {
+class ScoredElectionStrategy(val scorer: CandidateScorer): ElectionStrategy {
 
     override fun elect(candidates: List<CandidateInfo>): ElectionResult {
         if (candidates.isEmpty()) return ElectionResult.EMPTY

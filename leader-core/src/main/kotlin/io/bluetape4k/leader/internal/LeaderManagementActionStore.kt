@@ -1,12 +1,13 @@
 package io.bluetape4k.leader.internal
 
 import io.bluetape4k.leader.LeaderLeaseHandle
-import io.bluetape4k.leader.LeaderManagementActionResult
 import io.bluetape4k.leader.LeaderManagementActionPhase
+import io.bluetape4k.leader.LeaderManagementActionResult
 import io.bluetape4k.leader.LeaderManagementActionSurface
 import io.bluetape4k.leader.LeaderManagementQuarantineReason
 import io.bluetape4k.leader.LeaderManagementRegistrationOutcome
-import java.util.IdentityHashMap
+import io.bluetape4k.logging.KLogging
+import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
@@ -20,6 +21,8 @@ internal class LeaderManagementActionStore(
     private val maxRegistrations: Int,
     private val maxActionReservations: Int,
 ) {
+
+    companion object: KLogging()
 
     internal enum class Lifecycle {
         OPEN,
@@ -46,26 +49,30 @@ internal class LeaderManagementActionStore(
         val workerStarted = AtomicBoolean(false)
         val watcherStarted = AtomicBoolean(false)
         val workerFinished = CountDownLatch(1)
+
         @Volatile
         var future: Future<LeaderManagementActionResult>? = null
+
         @Volatile
         var result: LeaderManagementActionResult? = null
+
         @Volatile
         var quarantineReason: LeaderManagementQuarantineReason? = null
+
         @Volatile
         var quarantined: Boolean = false
     }
 
     internal sealed interface RegistrationDecision {
-        data class Accepted(val record: RegistrationRecord) : RegistrationDecision
-        data class Rejected(val outcome: LeaderManagementRegistrationOutcome) : RegistrationDecision
+        data class Accepted(val record: RegistrationRecord): RegistrationDecision
+        data class Rejected(val outcome: LeaderManagementRegistrationOutcome): RegistrationDecision
     }
 
     internal sealed interface Selection {
-        data class Record(val value: RegistrationRecord) : Selection
-        data object NotRegistered : Selection
-        data object Ambiguous : Selection
-        data object Closed : Selection
+        data class Record(val value: RegistrationRecord): Selection
+        data object NotRegistered: Selection
+        data object Ambiguous: Selection
+        data object Closed: Selection
     }
 
     internal enum class BeginOutcome {
@@ -119,8 +126,8 @@ internal class LeaderManagementActionStore(
         when {
             lifecycle != Lifecycle.OPEN -> Selection.Closed
             activeRecords.isEmpty() -> Selection.NotRegistered
-            activeRecords.size > 1 -> Selection.Ambiguous
-            else -> Selection.Record(activeRecords.single())
+            activeRecords.size > 1  -> Selection.Ambiguous
+            else                    -> Selection.Record(activeRecords.single())
         }
     }
 

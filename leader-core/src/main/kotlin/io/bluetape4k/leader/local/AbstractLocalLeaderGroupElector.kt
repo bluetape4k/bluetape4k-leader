@@ -11,12 +11,14 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import io.bluetape4k.leader.internal.CaptureScope
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.leader.parkRemainingMinLeaseTime
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
-import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import java.time.Instant
@@ -33,11 +35,11 @@ import java.util.concurrent.atomic.AtomicReference
  */
 abstract class AbstractLocalLeaderGroupElector(
     protected val options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-) : LeaderGroupElectionState,
-    LeaderElectionListenerRegistry,
-    LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
+): LeaderGroupElectionState,
+   LeaderElectionListenerRegistry,
+   LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
 
-    companion object {
+    companion object: KLogging() {
         /**
          * `LOCAL_GROUP_FACTORY_BEAN_NAME`는 backend별 leader elector 인스턴스를 생성하는 factory 계약입니다.
          */
@@ -45,7 +47,7 @@ abstract class AbstractLocalLeaderGroupElector(
     }
 
     init {
-        options.maxLeaders.requirePositiveNumber("maxLeaders")
+        options.maxLeaders.requirePositiveNumber("options.maxLeaders")
     }
 
     override val maxLeaders: Int = options.maxLeaders
@@ -121,6 +123,8 @@ abstract class AbstractLocalLeaderGroupElector(
         nodeId: String? = options.nodeId,
         action: () -> T,
     ): T? {
+        log.debug { "tryWithPermit. lockName=$lockName auditLeaderId=$auditLeaderId" }
+        
         val semaphore = getSemaphore(lockName)
         val acquired = semaphore.tryAcquire(options.waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         if (!acquired) {
@@ -147,7 +151,7 @@ abstract class AbstractLocalLeaderGroupElector(
             groupParams = LockIdentity.GroupParams(maxLeaders),
         )
         val lastExtendDeadlineRef = AtomicReference(Instant.EPOCH)
-        val delegate = object : ExtendDelegate {
+        val delegate = object: ExtendDelegate {
             private val _lastExtendDeadline = lastExtendDeadlineRef
             override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
             override fun extend(lockAtMostFor: kotlin.time.Duration): ExtendOutcome {
@@ -158,6 +162,7 @@ abstract class AbstractLocalLeaderGroupElector(
                     ExtendOutcome.NotHeld
                 }
             }
+
             override fun isHeld(): Boolean = states.isSlotHeld(lockName, slot)
         }
 
@@ -171,6 +176,7 @@ abstract class AbstractLocalLeaderGroupElector(
         )
         val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate)
         listeners.notifyElected(lockName, lease)
+
         return try {
             LockStateHolder.withPushed(handle) {
                 CaptureScope.runWithCapture(handle) {

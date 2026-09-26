@@ -1,16 +1,17 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBe
+import io.bluetape4k.assertions.shouldNotBeEqualTo
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.coroutines.KLoggingChannel
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -47,7 +48,8 @@ class LocalSuspendLeaderElectorFactoryTest {
         val a = factory.create(LeaderElectionOptions.Default)
         val b = factory.create(LeaderElectionOptions.Default)
         // 팩토리는 매번 새 인스턴스를 반환 (동일성 보장 안 함)
-        (a !== b).shouldBeEqualTo(true)
+        a shouldNotBe b
+        a shouldNotBeEqualTo b
     }
 
     @Test
@@ -62,6 +64,6 @@ class LocalSuspendLeaderElectorFactoryTest {
         val elector = factory.create(LeaderElectionOptions.Default)
         var called = false
         elector.runIfLeader(randomLockName()) { called = true }
-        called.shouldBeEqualTo(true)
+        called.shouldBeTrue()
     }
 }

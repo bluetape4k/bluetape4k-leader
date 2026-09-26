@@ -2,7 +2,10 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeEqualTo
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.io.serializer.BinarySerializers
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.io.ByteArrayInputStream
@@ -10,10 +13,11 @@ import java.io.ByteArrayOutputStream
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.time.Instant
-import io.bluetape4k.assertions.shouldBeFalse
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionEventTest {
+
+    companion object: KLogging()
 
     @Test
     fun `Elected - default construction leaves leaderId and leaseExpiry null`() {
@@ -78,7 +82,22 @@ class LeaderElectionEventTest {
             ObjectInputStream(bais).use { ois -> ois.readObject() as LeaderElectionEvent.Elected }
         }
 
-        deserialized shouldBeEqualTo original
+        deserialized.shouldNotBeNull() shouldBeEqualTo original
+        deserialized.lockName shouldBeEqualTo "my-lock"
+        deserialized.leaderId shouldBeEqualTo "node-1"
+        deserialized.leaseExpiry shouldBeEqualTo expiry
+        deserialized.leader.shouldBeNull()
+    }
+
+    @Test
+    fun `Elected - fastFory serialization round-trip preserves all fields`() {
+        val expiry = Instant.parse("2025-06-01T00:00:00Z")
+        val original = LeaderElectionEvent.Elected("my-lock", leaderId = "node-1", leaseExpiry = expiry)
+
+        val bytes = BinarySerializers.FastFory.serialize(original)
+        val deserialized = BinarySerializers.FastFory.deserialize<LeaderElectionEvent.Elected>(bytes)
+
+        deserialized.shouldNotBeNull() shouldBeEqualTo original
         deserialized.lockName shouldBeEqualTo "my-lock"
         deserialized.leaderId shouldBeEqualTo "node-1"
         deserialized.leaseExpiry shouldBeEqualTo expiry
@@ -104,6 +123,19 @@ class LeaderElectionEventTest {
     }
 
     @Test
+    fun `Elected - fastFory serialization round-trip with null fields`() {
+        val original = LeaderElectionEvent.Elected("lock-x")
+
+        val bytes = BinarySerializers.FastFory.serialize(original)
+        val deserialized = BinarySerializers.FastFory.deserialize<LeaderElectionEvent.Elected>(bytes)
+
+        deserialized.shouldNotBeNull() shouldBeEqualTo original
+        deserialized.leaderId.shouldBeNull()
+        deserialized.leaseExpiry.shouldBeNull()
+        deserialized.leader.shouldBeNull()
+    }
+
+    @Test
     fun `Revoked - serialization round-trip preserves lock name`() {
         val original = LeaderElectionEvent.Revoked("lock-x")
 
@@ -116,6 +148,17 @@ class LeaderElectionEventTest {
         }
 
         deserialized shouldBeEqualTo original
+        deserialized.lockName shouldBeEqualTo "lock-x"
+    }
+
+    @Test
+    fun `Revoked - fastFory serialization round-trip preserves lock name`() {
+        val original = LeaderElectionEvent.Revoked("lock-x")
+
+        val bytes = BinarySerializers.FastFory.serialize(original)
+        val deserialized = BinarySerializers.FastFory.deserialize<LeaderElectionEvent.Revoked>(bytes)
+
+        deserialized.shouldNotBeNull() shouldBeEqualTo original
         deserialized.lockName shouldBeEqualTo "lock-x"
     }
 
@@ -136,6 +179,17 @@ class LeaderElectionEventTest {
     }
 
     @Test
+    fun `Skipped - fastFory serialization round-trip preserves lock name`() {
+        val original = LeaderElectionEvent.Skipped("lock-x")
+
+        val bytes = BinarySerializers.FastFory.serialize(original)
+        val deserialized = BinarySerializers.FastFory.deserialize<LeaderElectionEvent.Skipped>(bytes)
+
+        deserialized.shouldNotBeNull() shouldBeEqualTo original
+        deserialized.lockName shouldBeEqualTo "lock-x"
+    }
+
+    @Test
     fun `Elected - data class equality considers lease metadata`() {
         val expiry = Instant.parse("2025-06-01T00:00:00Z")
         val lease = LeaderLease("node-1", leaseUntil = expiry)
@@ -146,9 +200,7 @@ class LeaderElectionEventTest {
         val d = LeaderElectionEvent.Elected("lock")
 
         a shouldBeEqualTo b
-        (a == c).shouldBeFalse()
-
-        (a == d).shouldBeFalse()
-
+        a shouldNotBeEqualTo c
+        a shouldNotBeEqualTo d
     }
 }

@@ -3,21 +3,23 @@ package io.bluetape4k.leader
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.io.serializer.BinarySerializers
+import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.io.ObjectStreamClass
-import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
 
 class LeaderManagementActionModelTest {
 
     @Test
     fun `release action exposes the fixed outcome vocabulary`() {
-        LeaderManagementAction.values().toList() shouldBeEqualTo listOf(LeaderManagementAction.RELEASE)
-        LeaderManagementActionOutcome.values().map { it.name } shouldBeEqualTo listOf(
+        LeaderManagementAction.entries shouldBeEqualTo listOf(LeaderManagementAction.RELEASE)
+        LeaderManagementActionOutcome.entries.map { it.name } shouldBeEqualTo listOf(
             "RELEASED",
             "INVALID_LOCK_NAME",
             "NOT_REGISTERED",
@@ -56,6 +58,23 @@ class LeaderManagementActionModelTest {
     }
 
     @Test
+    fun `action result is serializable without internal payload for FastFory`() {
+        val original = LeaderManagementActionResult(
+            action = LeaderManagementAction.RELEASE,
+            outcome = LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
+            mutationAttempted = true,
+        )
+
+        val bytes = BinarySerializers.FastFory.serialize(original)
+        val copy = BinarySerializers.FastFory.deserialize<LeaderManagementActionResult>(bytes)
+
+        copy shouldBeEqualTo original
+        ObjectStreamClass.lookup(LeaderManagementActionResult::class.java).serialVersionUID shouldBeEqualTo 1L
+        original.toString().contains("exception", ignoreCase = true).shouldBeFalse()
+        original.toString().contains("token", ignoreCase = true).shouldBeFalse()
+    }
+
+    @Test
     fun `registration close is idempotent and only invokes its callback once`() {
         val closeCount = AtomicInteger()
         val registration = LeaderManagementRegistration(
@@ -82,7 +101,7 @@ class LeaderManagementActionModelTest {
             quarantined = false,
         )
 
-        observation.quarantineReason shouldBeEqualTo null
+        observation.quarantineReason.shouldBeNull()
         observation.toString().contains("lock", ignoreCase = true).shouldBeFalse()
         observation.toString().contains("token", ignoreCase = true).shouldBeFalse()
     }
@@ -102,12 +121,13 @@ class LeaderManagementActionModelTest {
 
     @Test
     fun `invalid registration outcome cannot be accepted`() {
-        LeaderManagementRegistrationOutcome.values()
+        LeaderManagementRegistrationOutcome.entries
             .filter { it != LeaderManagementRegistrationOutcome.ACCEPTED }
             .forEach { outcome ->
                 val registration = LeaderManagementRegistration(false, outcome)
                 registration.accepted.shouldBeFalse()
             }
+
         assertFailsWith<IllegalArgumentException> {
             LeaderManagementRegistration(true, LeaderManagementRegistrationOutcome.INVALID_LOCK_NAME)
         }

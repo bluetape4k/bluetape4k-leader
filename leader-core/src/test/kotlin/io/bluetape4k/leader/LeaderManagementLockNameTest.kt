@@ -4,9 +4,12 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 
 class LeaderManagementLockNameTest {
+
+    companion object: KLogging()
 
     @Test
     fun `management lock name accepts the ASCII allow list`() {
@@ -18,8 +21,8 @@ class LeaderManagementLockNameTest {
             "tenant:job.1",
             "a" + "b".repeat(127),
         ).forEach { lockName ->
-            isManagementActionLockName(lockName).shouldBeTrue()
-            requireManagementActionLockName(lockName) shouldBeEqualTo lockName
+            lockName.isManagementActionLockName().shouldBeTrue()
+            lockName.requireManagementActionLockName() shouldBeEqualTo lockName
         }
     }
 
@@ -39,9 +42,9 @@ class LeaderManagementLockNameTest {
             "éclair",
             "a" + "b".repeat(128),
         ).forEach { lockName ->
-            isManagementActionLockName(lockName).shouldBeFalse()
+            lockName.isManagementActionLockName().shouldBeFalse()
             assertFailsWith<IllegalArgumentException> {
-                requireManagementActionLockName(lockName)
+                lockName.requireManagementActionLockName()
             }
         }
     }

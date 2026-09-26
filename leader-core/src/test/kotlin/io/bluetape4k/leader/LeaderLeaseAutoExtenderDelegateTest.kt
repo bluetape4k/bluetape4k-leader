@@ -1,15 +1,15 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.net.SocketTimeoutException
-import java.sql.SQLNonTransientException
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -28,10 +28,12 @@ import kotlin.time.Duration.Companion.seconds
 @Suppress("NonAsciiCharacters")
 class LeaderLeaseAutoExtenderDelegateTest {
 
+    companion object: KLogging()
+
     /** 호출 횟수와 결과를 제어할 수 있는 테스트용 [ExtendDelegate]. */
     private class TestDelegate(
         private val held: Boolean = true,
-    ) : ExtendDelegate {
+    ): ExtendDelegate {
         val extendCalls = AtomicInteger(0)
         private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
         override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
@@ -48,7 +50,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
     /** 호출 횟수와 결과를 제어할 수 있는 테스트용 [SuspendExtendDelegate]. */
     private class TestSuspendDelegate(
         private val held: Boolean = true,
-    ) : SuspendExtendDelegate {
+    ): SuspendExtendDelegate {
         val suspendExtendCalls = AtomicInteger(0)
         val syncExtendCalls = AtomicInteger(0)
         private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
@@ -89,7 +91,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
         delay(250.milliseconds)
         watchdog.close()
 
-        (delegate.extendCalls.get() >= 1).shouldBeTrue()
+        delegate.extendCalls.get() shouldBeGreaterOrEqualTo 1
     }
 
     @Test
@@ -116,7 +118,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
 
         // NotHeld 반환 후 watchdog 이 스스로 종료 — 호출 횟수는 1 이상이되 계속 늘지 않음
         val calls = delegate.extendCalls.get()
-        (calls >= 1).shouldBeTrue()
+        calls shouldBeGreaterOrEqualTo 1
     }
 
     @Test
@@ -127,7 +129,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
         delay(250.milliseconds)
         watchdog.close()
 
-        (delegate.suspendExtendCalls.get() >= 1).shouldBeTrue()
+        delegate.suspendExtendCalls.get() shouldBeGreaterOrEqualTo 1
         delegate.syncExtendCalls.get() shouldBeEqualTo 0
     }
 
@@ -191,7 +193,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
         delay(200.milliseconds)
         watchdog.close()
 
-        (delegate.extendCalls.get() >= 1).shouldBeTrue()
+        delegate.extendCalls.get() shouldBeGreaterOrEqualTo 1
     }
 
     @Test
@@ -204,7 +206,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
         delay(200.milliseconds)
         watchdog.close()
 
-        (delegate.extendCalls.get() >= 1).shouldBeTrue()
+        delegate.extendCalls.get() shouldBeGreaterOrEqualTo 1 
     }
 
     // ── cadence 계산 ──────────────────────────────────────────────────────
@@ -219,7 +221,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
     fun `renewalPeriod 는 최솟값 25ms 미만이면 25ms 를 반환한다`() {
         val period = LeaderLeaseAutoExtender.renewalPeriod(30.milliseconds)
         // 30ms / 3 = 10ms < 25ms → 25ms
-        (period.inWholeMilliseconds >= 25).shouldBeTrue()
+        period.inWholeMilliseconds shouldBeGreaterOrEqualTo 25
     }
 
     // ── BackendError transient 는 watchdog 계속, non-transient 는 중단 ──────
@@ -230,7 +232,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
         var transientFired = false
 
         // 첫 번째 호출은 transient error, 이후는 성공
-        val delegate = object : ExtendDelegate {
+        val delegate = object: ExtendDelegate {
             private val _lastExtendDeadline = java.util.concurrent.atomic.AtomicReference(Instant.EPOCH)
             override val lastExtendDeadline get() = _lastExtendDeadline
             private var callCount = 0
@@ -256,7 +258,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
 
         // transient error 후 계속 호출됨
         transientFired.shouldBeTrue()
-        (callsAfterError.get() >= 1).shouldBeTrue()
+        callsAfterError.get() shouldBeGreaterOrEqualTo 1
     }
 
     @Test
@@ -264,7 +266,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
         val callsAfterError = java.util.concurrent.atomic.AtomicInteger(0)
         var errorFired = false
 
-        val delegate = object : ExtendDelegate {
+        val delegate = object: ExtendDelegate {
             private val _lastExtendDeadline = java.util.concurrent.atomic.AtomicReference(Instant.EPOCH)
             override val lastExtendDeadline get() = _lastExtendDeadline
             private var callCount = 0

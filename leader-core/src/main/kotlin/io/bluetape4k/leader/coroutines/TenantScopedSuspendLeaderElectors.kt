@@ -1,7 +1,6 @@
 package io.bluetape4k.leader.coroutines
 
 import io.bluetape4k.leader.LeaderGroupState
-import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
@@ -9,6 +8,8 @@ import io.bluetape4k.leader.TenantLockNamespace
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.resolveLeaderBackendDiagnosticsProvider
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.support.requireNotNull
 
 /**
  * `SuspendLeaderElector`는 coroutine suspend leader election 실행자입니다.
@@ -59,7 +60,9 @@ fun SuspendLeaderGroupElector.forTenant(namespace: TenantLockNamespace): Suspend
 internal class TenantScopedSuspendLeaderElector(
     private val delegate: SuspendLeaderElector,
     private val namespace: TenantLockNamespace,
-) : SuspendLeaderElector, SuspendLeaderLeaseAcquirerSupport, LeaderBackendDiagnosticsAware {
+): SuspendLeaderElector, SuspendLeaderLeaseAcquirerSupport, LeaderBackendDiagnosticsAware {
+
+    companion object: KLoggingChannel()
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveLeaderBackendDiagnosticsProvider()
@@ -68,14 +71,14 @@ internal class TenantScopedSuspendLeaderElector(
         get() = delegate.supportsAuditLeaderState
 
     override val leaseCapabilityAvailable: Boolean
-        get() = (delegate as? SuspendLeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
-            ?: delegate is SuspendLeaderLeaseAcquirer
+        get() = ((delegate as? SuspendLeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
+            ?: delegate) is SuspendLeaderLeaseAcquirer
 
     override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
         val acquirer = (delegate as? SuspendLeaderLeaseAcquirer).requireNotNull {
             "The tenant-scoped suspend elector delegate does not expose request-lease capability"
         }
-        object : SuspendLeaderLeaseAcquirer {
+        object: SuspendLeaderLeaseAcquirer {
             override val configuredOptions: io.bluetape4k.leader.LeaderElectionOptions
                 get() = acquirer.configuredOptions
 
@@ -121,7 +124,9 @@ internal class TenantScopedSuspendLeaderElector(
 internal class TenantScopedSuspendLeaderGroupElector(
     private val delegate: SuspendLeaderGroupElector,
     private val namespace: TenantLockNamespace,
-) : SuspendLeaderGroupElector, LeaderBackendDiagnosticsAware {
+): SuspendLeaderGroupElector, LeaderBackendDiagnosticsAware {
+
+    companion object: KLoggingChannel()
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveLeaderBackendDiagnosticsProvider()

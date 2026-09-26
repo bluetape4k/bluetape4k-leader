@@ -3,6 +3,7 @@ package io.bluetape4k.leader
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.LeaderLockHandleCapture
 import io.bluetape4k.leader.internal.LockStateHolder
+import io.bluetape4k.leader.internal.NoopExtendDelegate
 
 /**
  * `AopScopeAccess` 선언은 leader election 계약에서 사용되는 object입니다.
@@ -121,7 +122,7 @@ object AopScopeAccess {
             identity = identity,
             token = token,
             acquiredAtNanos = System.nanoTime(),
-            extendDelegate = io.bluetape4k.leader.internal.NoopExtendDelegate,
+            extendDelegate = NoopExtendDelegate,
         )
     }
 
@@ -154,7 +155,7 @@ object AopScopeAccess {
             token = token,
             acquiredAtNanos = System.nanoTime(),
             slotId = slotId,
-            extendDelegate = io.bluetape4k.leader.internal.NoopExtendDelegate,
+            extendDelegate = NoopExtendDelegate,
         )
     }
 

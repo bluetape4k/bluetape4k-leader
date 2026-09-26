@@ -3,13 +3,13 @@ package io.bluetape4k.leader.internal
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLeaseDefaults
 import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderSlot
-import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.LeaseCleanupBoundary
 import io.bluetape4k.leader.LeaseCleanupReservation
 import io.bluetape4k.leader.LeaseCleanupResult
-import io.bluetape4k.leader.LeaderLeaseDefaults
+import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.parkRemainingMinLeaseTime
 import io.bluetape4k.support.requireGt
 import java.time.Instant
@@ -38,8 +38,12 @@ internal class LeaderLeaseLifecycle(
         private val callbacks: LeaseBackendCallbacks,
         private val cleanupBoundary: LeaseCleanupBoundary?,
         private val monotonicNanos: () -> Long,
-    ) : LeaderLeaseHandle {
-        private enum class State { LIVE, CLOSING, CLOSED }
+    ): LeaderLeaseHandle {
+        private enum class State {
+            LIVE,
+            CLOSING,
+            CLOSED
+        }
 
         private val state = AtomicReference(State.LIVE)
         private val status = AtomicReference(LeaseOwnershipStatus.HELD)
@@ -50,7 +54,7 @@ internal class LeaderLeaseLifecycle(
         override val acquiredAt: Instant get() = backend.acquiredAt
 
         init {
-            val delegate = object : ExtendDelegate {
+            val delegate = object: ExtendDelegate {
                 override val lastExtendDeadline = AtomicReference(Instant.EPOCH)
                 override fun extend(lockAtMostFor: Duration): ExtendOutcome = extend(lockAtMostFor)
                 override fun isHeld(): Boolean = isStillHeld()
@@ -109,7 +113,8 @@ internal class LeaderLeaseLifecycle(
                     LeaseCleanupResult.NOT_HELD, BackendReleaseOutcome.NOT_HELD ->
                         status.set(LeaseOwnershipStatus.NOT_HELD)
                     LeaseCleanupResult.RESIDUAL_TRANSFERRED, BackendReleaseOutcome.ERROR,
-                    BackendReleaseOutcome.TIMEOUT ->
+                    BackendReleaseOutcome.TIMEOUT,
+                        ->
                         status.set(LeaseOwnershipStatus.UNKNOWN)
                 }
             } finally {
@@ -126,7 +131,7 @@ internal class LeaderLeaseLifecycle(
             if (second > 0 && first > Long.MAX_VALUE - second) Long.MAX_VALUE else first + second
     }
 
-    private object NoopReservation : LeaseCleanupReservation {
+    private object NoopReservation: LeaseCleanupReservation {
         override val isTerminal: Boolean = false
         override fun terminalize() = Unit
     }

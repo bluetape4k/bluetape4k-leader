@@ -17,7 +17,7 @@ import io.bluetape4k.support.requireGe
  */
 class ScoredGroupElectionStrategy(
     val scorer: CandidateScorer,
-) : GroupElectionStrategy {
+): GroupElectionStrategy {
 
     override fun elect(
         candidates: List<CandidateInfo>,

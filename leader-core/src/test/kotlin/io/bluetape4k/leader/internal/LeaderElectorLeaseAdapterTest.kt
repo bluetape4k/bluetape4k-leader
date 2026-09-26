@@ -1,9 +1,13 @@
 package io.bluetape4k.leader.internal
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseExtensionEvent
 import io.bluetape4k.leader.LeaderLeaseExtensionObservers
@@ -13,21 +17,24 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.LockHandleElement
-import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.leader.leaderLeaseExtensionDispatcher
+import io.bluetape4k.leader.local.LocalLeaderElector
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.until
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlin.coroutines.coroutineContext
 
 class LeaderElectorLeaseAdapterTest {
+
+    companion object: KLoggingChannel()
 
     @Test
     fun `blocking and suspend adapters carry observation scope to backend owner`() = runSuspendIO {
@@ -47,13 +54,14 @@ class LeaderElectorLeaseAdapterTest {
             val blockingHandle = a.withScope {
                 blocking.tryAcquire(LeaderSlot("scoped-blocking-adapter", "request-node"))
             }.shouldNotBeNull()
+
             val suspendHandle = withContext(a.asContextElement()) {
                 suspend.tryAcquire(LeaderSlot("scoped-suspend-adapter", "request-node"))
             }.shouldNotBeNull()
 
-            await.atMost(5.seconds).untilAsserted {
-                (globalEvents.count { it.source == LeaderLeaseExtensionSource.WATCHDOG } > 0).shouldBeTrue()
-                (aEvents.count { it.source == LeaderLeaseExtensionSource.WATCHDOG } > 0).shouldBeTrue()
+            await atMost 5.seconds untilSuspending {
+                (globalEvents.count { it.source == LeaderLeaseExtensionSource.WATCHDOG } > 0) &&
+                        (aEvents.count { it.source == LeaderLeaseExtensionSource.WATCHDOG } > 0)
             }
             bEvents.size shouldBeEqualTo 0
             blockingHandle.release()
@@ -85,8 +93,8 @@ class LeaderElectorLeaseAdapterTest {
             val suspendHandle = suspend.tryAcquire(LeaderSlot("direct-suspend-adapter", "request-node"))
                 .shouldNotBeNull()
 
-            await.atMost(5.seconds).untilAsserted {
-                (globalEvents.count { it.source == LeaderLeaseExtensionSource.WATCHDOG } > 0).shouldBeTrue()
+            await atMost 5.seconds untilSuspending {
+                globalEvents.count { it.source == LeaderLeaseExtensionSource.WATCHDOG } > 0
             }
             scopedEvents.size shouldBeEqualTo 0
             blockingHandle.release()
@@ -112,7 +120,8 @@ class LeaderElectorLeaseAdapterTest {
         val handle = adapter.tryAcquire(slot).shouldNotBeNull()
         handle.auditLeaderId shouldBeEqualTo "request-node"
         handle.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.HELD
-        handle.extend(500.milliseconds).let { it is io.bluetape4k.leader.ExtendOutcome.Extended }.shouldBeTrue()
+        handle.extend(500.milliseconds).shouldBeInstanceOf<ExtendOutcome.Extended>()
+
         handle.release()
         handle.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.NOT_HELD
     }
@@ -130,6 +139,7 @@ class LeaderElectorLeaseAdapterTest {
         val handle = adapter.tryAcquire(slot).shouldNotBeNull()
         handle.auditLeaderId shouldBeEqualTo "request-node"
         handle.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.HELD
+
         handle.release()
         handle.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.NOT_HELD
         adapter.close()
@@ -142,7 +152,7 @@ class LeaderElectorLeaseAdapterTest {
         val present = local.runIfLeader(LeaderSlot("context-lock", "request-node")) {
             currentContextHasLockHandle()
         }
-        present shouldBeEqualTo true
+        present.shouldBeTrue()
     }
 
     @Test
@@ -162,14 +172,14 @@ class LeaderElectorLeaseAdapterTest {
             block = { adapter.tryAcquire(LeaderSlot("admission-lock", "request-node")) },
         )
 
-        await.atMost(2.seconds).untilAsserted {
-            (rejectedTicks.get() > 0).shouldBeTrue()
+        await atMost 2.seconds until {
+            rejectedTicks.get() > 0
         }
         handle.shouldNotBeNull().release()
 
-        (rejectedTicks.get() > 0).shouldBeTrue()
+        rejectedTicks.get() shouldBeGreaterThan 0
     }
 
     private suspend fun currentContextHasLockHandle(): Boolean =
-        coroutineContext[LockHandleElement] != null
+        currentCoroutineContext()[LockHandleElement] != null
 }

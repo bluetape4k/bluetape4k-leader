@@ -1,10 +1,15 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.shouldNotBeNull
-import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.logging.KLogging
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.until
+import org.awaitility.kotlin.withPollInterval
+import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -12,9 +17,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import org.junit.jupiter.api.Test
 
 class LeaderManagementActionRegistryTest {
+
+    companion object: KLogging()
 
     @Test
     fun `held handle is released exactly once and emits sanitized terminal observation`() {
@@ -22,7 +28,7 @@ class LeaderManagementActionRegistryTest {
         val handle = FakeHandle("primary") {
             listOf(LeaseOwnershipStatus.HELD, LeaseOwnershipStatus.NOT_HELD)
         }
-        val registry = LeaderManagementActionRegistry(observer = LeaderManagementActionObserver { observations += it })
+        val registry = LeaderManagementActionRegistry(observer = { observations += it })
 
         registry.register(handle).accepted.shouldBeTrue()
         registry.release("primary") shouldBeEqualTo LeaderManagementActionResult(
@@ -45,12 +51,12 @@ class LeaderManagementActionRegistryTest {
             listOf(LeaseOwnershipStatus.HELD, LeaseOwnershipStatus.NOT_HELD)
         }
         val registry = LeaderManagementActionRegistry(
-            observer = LeaderManagementActionObserver { observations += it },
+            observer = { observations += it },
         )
         registry.register(handle)
 
         registry.release("spring-surface", LeaderManagementActionSurface.SPRING).outcome shouldBeEqualTo
-            LeaderManagementActionOutcome.RELEASED
+                LeaderManagementActionOutcome.RELEASED
         observations.single().surface shouldBeEqualTo LeaderManagementActionSurface.SPRING
         registry.close()
     }
@@ -97,12 +103,15 @@ class LeaderManagementActionRegistryTest {
         first.outcome shouldBeEqualTo LeaderManagementRegistrationOutcome.ACCEPTED
         second.outcome shouldBeEqualTo LeaderManagementRegistrationOutcome.ACCEPTED
         rejected.outcome shouldBeEqualTo LeaderManagementRegistrationOutcome.CAPACITY_REJECTED
+
         registry.registeredLockNames() shouldBeEqualTo listOf("cap")
         rejected.close()
         first.close()
+
         registry.registeredLockNames() shouldBeEqualTo listOf("cap")
         second.close()
-        registry.registeredLockNames().isEmpty().shouldBeTrue()
+
+        registry.registeredLockNames().shouldBeEmpty()
         registry.close()
     }
 
@@ -117,13 +126,16 @@ class LeaderManagementActionRegistryTest {
         })
         val fast = FakeHandle("fast") { listOf(LeaseOwnershipStatus.HELD, LeaseOwnershipStatus.NOT_HELD) }
         val registry = LeaderManagementActionRegistry(maxInFlightActions = 2, actionQueueCapacity = 1)
+
         registry.register(slow)
         registry.register(fast)
 
         val first = thread(start = true) { registry.release("slow") }
+
         entered.await(1, TimeUnit.SECONDS).shouldBeTrue()
         registry.release("slow").outcome shouldBeEqualTo LeaderManagementActionOutcome.ACTION_IN_PROGRESS
         registry.release("fast").outcome shouldBeEqualTo LeaderManagementActionOutcome.RELEASED
+
         unblock.countDown()
         first.join(2_000)
         registry.close()
@@ -131,12 +143,18 @@ class LeaderManagementActionRegistryTest {
 
     @Test
     fun `runtime release and post check failures are sanitized`() {
-        val releaseFailure = FakeHandle("release-failure", ownership = {
-            listOf(LeaseOwnershipStatus.HELD)
-        }, onRelease = { error("backend release failure") })
-        val postCheckFailure = FakeHandle("post-failure", ownership = {
-            listOf(LeaseOwnershipStatus.HELD)
-        }, onRelease = {}, postCheck = { throw IllegalStateException("post failure") })
+        val releaseFailure = FakeHandle(
+            "release-failure",
+            ownership = { listOf(LeaseOwnershipStatus.HELD) },
+            onRelease = { error("backend release failure") }
+        )
+        val postCheckFailure = FakeHandle(
+            "post-failure",
+            ownership = { listOf(LeaseOwnershipStatus.HELD) },
+            onRelease = {},
+            postCheck = { throw IllegalStateException("post failure") }
+        )
+
         val registry = LeaderManagementActionRegistry()
         registry.register(releaseFailure)
         registry.register(postCheckFailure)
@@ -176,18 +194,21 @@ class LeaderManagementActionRegistryTest {
     fun `timeout before release returns without mutation and eventually frees reservation`() {
         val entered = CountDownLatch(1)
         val unblock = CountDownLatch(1)
-        val handle = FakeHandle("timeout-before", ownership = {
-            entered.countDown()
-            while (true) {
-                try {
-                    unblock.await(5, TimeUnit.SECONDS)
-                    break
-                } catch (_: InterruptedException) {
-                    // emulate a slow pre-check that honours neither cancellation nor retry.
+        val handle = FakeHandle(
+            lockName = "timeout-before",
+            ownership = {
+                entered.countDown()
+                while (true) {
+                    try {
+                        unblock.await(5, TimeUnit.SECONDS)
+                        break
+                    } catch (_: InterruptedException) {
+                        // emulate a slow pre-check that honours neither cancellation nor retry.
+                    }
                 }
+                listOf(LeaseOwnershipStatus.HELD)
             }
-            listOf(LeaseOwnershipStatus.HELD)
-        })
+        )
         val registry = LeaderManagementActionRegistry(
             actionTimeout = 40.milliseconds,
             cleanupGrace = 100.milliseconds,
@@ -198,7 +219,11 @@ class LeaderManagementActionRegistryTest {
         result.mutationAttempted.shouldBeFalse()
         entered.await(1, TimeUnit.SECONDS).shouldBeTrue()
         unblock.countDown()
-        eventually { registry.quarantinedCount() shouldBeEqualTo 0 }
+
+        await atMost 2.seconds withPollInterval 25.milliseconds until {
+            registry.quarantinedCount() == 0
+        }
+
         handle.releaseCalls.get() shouldBeEqualTo 0
         registry.close()
     }
@@ -227,9 +252,18 @@ class LeaderManagementActionRegistryTest {
         releaseEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
         result.outcome shouldBeEqualTo LeaderManagementActionOutcome.ACTION_TIMED_OUT
         result.mutationAttempted.shouldBeTrue()
-        eventually { registry.quarantinedCount().shouldBeGreaterThan(0) }
+
+        await atMost 2.seconds until {
+            registry.quarantinedCount() > 0
+        }
+
+        // eventually { registry.quarantinedCount().shouldBeGreaterThan(0) }
         releaseDone.countDown()
-        eventually { registry.quarantinedCount() shouldBeEqualTo 0 }
+
+        await atMost 2.seconds until {
+            registry.quarantinedCount() == 0
+        }
+        // eventually { registry.quarantinedCount() shouldBeEqualTo 0 }
         registry.close()
     }
 
@@ -237,7 +271,7 @@ class LeaderManagementActionRegistryTest {
     fun `observer failure does not change result or cleanup`() {
         val handle = FakeHandle("observer") { listOf(LeaseOwnershipStatus.HELD, LeaseOwnershipStatus.NOT_HELD) }
         val registry = LeaderManagementActionRegistry(
-            observer = LeaderManagementActionObserver { throw AssertionError("observer") },
+            observer = { throw AssertionError("observer") },
         )
         registry.register(handle)
 
@@ -262,7 +296,7 @@ class LeaderManagementActionRegistryTest {
         var onRelease: () -> Unit = {},
         private val postCheck: (() -> Unit)? = null,
         private val ownership: () -> List<LeaseOwnershipStatus>,
-    ) : LeaderLeaseHandle {
+    ): LeaderLeaseHandle {
         val ownershipCalls = AtomicInteger()
         val releaseCalls = AtomicInteger()
         override val auditLeaderId: String = "test-leader"
@@ -285,20 +319,5 @@ class LeaderManagementActionRegistryTest {
             releaseCalls.incrementAndGet()
             onRelease()
         }
-    }
-
-    private fun eventually(assertion: () -> Unit) {
-        val deadline = System.nanoTime() + 2.seconds.inWholeNanoseconds
-        var last: AssertionError? = null
-        while (System.nanoTime() < deadline) {
-            try {
-                assertion()
-                return
-            } catch (error: AssertionError) {
-                last = error
-                Thread.sleep(5)
-            }
-        }
-        throw last ?: AssertionError("condition did not become true")
     }
 }

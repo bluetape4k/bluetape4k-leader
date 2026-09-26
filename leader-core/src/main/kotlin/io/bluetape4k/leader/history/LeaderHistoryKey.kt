@@ -35,7 +35,7 @@ data class LeaderHistoryKey(
      * `slotId` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
      */
     val slotId: String? = null,
-) : Serializable {
+): Serializable {
 
     init {
         lockName.requireNotBlank("lockName")
@@ -46,7 +46,7 @@ data class LeaderHistoryKey(
     override fun toString(): String =
         "LeaderHistoryKey(id=$id, historyId=$historyId, lockName=$lockName, token=***, slotId=$slotId)"
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         private const val serialVersionUID = 1L
     }
 }

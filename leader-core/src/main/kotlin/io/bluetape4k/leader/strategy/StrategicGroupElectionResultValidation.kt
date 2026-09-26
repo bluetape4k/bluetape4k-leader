@@ -43,7 +43,7 @@ internal fun StrategicGroupElectionResult.validateAgainst(
     }
     require((winnerIds + eliminationIds).toSet() == candidateIdSet) {
         "Every candidate must be a winner or elimination: candidates=$candidateIds, " +
-            "winners=$winnerIds, eliminations=$eliminationIds"
+                "winners=$winnerIds, eliminations=$eliminationIds"
     }
     require(scores.keys.all(candidateIdSet::contains)) {
         "Score nodeId must be present in candidates: ${scores.keys}"

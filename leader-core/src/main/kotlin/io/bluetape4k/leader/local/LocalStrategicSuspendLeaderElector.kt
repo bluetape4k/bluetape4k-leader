@@ -3,21 +3,19 @@ package io.bluetape4k.leader.local
 import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.StrategicSuspendLeaderElector
-import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.ElectionStrategy
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.leader.validateLockName
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration
 
 /**
  * `LocalStrategicSuspendLeaderElector` 선언은 leader election 계약에서 사용되는 class입니다.
@@ -27,9 +25,9 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class LocalStrategicSuspendLeaderElector(
     override val nodeId: String = Uuid.V7.nextIdAsString(),
-) : StrategicSuspendLeaderElector {
+): StrategicSuspendLeaderElector {
 
-    companion object : KLogging()
+    companion object: KLoggingChannel()
 
     private val registry = ConcurrentHashMap<String, ConcurrentHashMap<String, CandidateInfo>>()
     private val mutexes = ConcurrentHashMap<String, Mutex>()
@@ -69,6 +67,8 @@ class LocalStrategicSuspendLeaderElector(
         options: LeaderElectionOptions,
         action: suspend () -> T,
     ): T? {
+        log.debug { "runIfLeader... lockName=$lockName, strategy=$strategy, options=$options" }
+        
         validateLockName(lockName)
         // 선출 단계만 lockName 단위 뮤텍스로 보호
         val result = mutexFor(lockName).withLock {

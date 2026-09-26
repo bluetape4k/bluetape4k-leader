@@ -1,32 +1,34 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
-import io.bluetape4k.assertions.assertFailsWith
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeLessOrEqualTo
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.until
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LocalSuspendLeaderGroupElectorTest {
 
@@ -82,7 +84,11 @@ class LocalSuspendLeaderGroupElectorTest {
         SuspendedJobTester()
             .workers(numWorkers)
             .rounds(numWorkers)
-            .add { singleElection.runIfLeader(lockName) { counter.incrementAndGet() } }
+            .add {
+                singleElection.runIfLeader(lockName) {
+                    counter.incrementAndGet()
+                }
+            }
             .run()
 
         counter.get() shouldBeEqualTo numWorkers  // rounds(numWorkers) × 1 block = numWorkers 회 실행
@@ -104,6 +110,7 @@ class LocalSuspendLeaderGroupElectorTest {
                 election.runIfLeader(lockName) {
                     val current = currentConcurrent.incrementAndGet()
                     peakConcurrent.updateAndGet { max(it, current) }
+                    log.debug { "peakConcurrent=${peakConcurrent.get()} current=$current" }
                     delay(Random.nextLong(5, 15).milliseconds)
                     currentConcurrent.decrementAndGet()
                 }
@@ -123,18 +130,18 @@ class LocalSuspendLeaderGroupElectorTest {
             val holdSignal = CompletableDeferred<Unit>()
             val startedCount = AtomicInteger(0)
 
-            val jobs = (1..maxLeaders).map {
+            val jobs = List(maxLeaders) {
                 async {
                     election.runIfLeader(lockName) {
                         startedCount.incrementAndGet()
                         holdSignal.await()
                     }
-                }
+                }.log("Job #$it")
             }
 
             // 모든 슬롯이 점유될 때까지 대기
-            while (startedCount.get() < maxLeaders) {
-                delay(5.milliseconds)
+            await atMost 1.seconds until {
+                startedCount.get() == maxLeaders
             }
 
             election.state(lockName).isFull.shouldBeTrue()
@@ -170,8 +177,8 @@ class LocalSuspendLeaderGroupElectorTest {
     @Test
     fun `코루틴 스트레스 - 모든 실행이 완료되고 카운터가 정확하다`() = runSuspendIO {
         val lockName = randomLockName()
-        val task1 = AtomicInteger(0)
-        val task2 = AtomicInteger(0)
+        val task1RunCount = AtomicInteger(0)
+        val task2RunCount = AtomicInteger(0)
         val numWorkers = 8
         val roundsPerJob = 4
 
@@ -180,22 +187,22 @@ class LocalSuspendLeaderGroupElectorTest {
             .rounds(numWorkers * roundsPerJob)
             .add {
                 election.runIfLeader(lockName) {
-                    log.debug { "suspend 작업 1. task1=${task1.get()}" }
-                    delay(Random.nextLong(1, 5).milliseconds)
-                    task1.incrementAndGet()
+                    log.debug { "suspend 작업 1. run count=${task1RunCount.get()}" }
+                    delay(Random.nextLong(1, 10).milliseconds)
+                    task1RunCount.incrementAndGet()
                 }
             }
             .add {
                 election.runIfLeader(lockName) {
-                    log.debug { "suspend 작업 2. task2=${task2.get()}" }
-                    delay(Random.nextLong(1, 5).milliseconds)
-                    task2.incrementAndGet()
+                    log.debug { "suspend 작업 2. run count=${task2RunCount.get()}" }
+                    delay(Random.nextLong(1, 10).milliseconds)
+                    task2RunCount.incrementAndGet()
                 }
             }
             .run()
 
-        task1.get() shouldBeEqualTo numWorkers * roundsPerJob
-        task2.get() shouldBeEqualTo numWorkers * roundsPerJob
+        task1RunCount.get() shouldBeEqualTo numWorkers * roundsPerJob
+        task2RunCount.get() shouldBeEqualTo numWorkers * roundsPerJob
     }
 
     // ── skip-behavior (ShedLock 방식): 슬롯 획득 실패 시 null 반환 ──────────
@@ -206,19 +213,20 @@ class LocalSuspendLeaderGroupElectorTest {
             LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 50.milliseconds)
         )
         val lockName = randomLockName()
-        val holderReady = kotlinx.coroutines.channels.Channel<Unit>(1)
+        val holderReady = Channel<Unit>(1)
 
         // 홀더: 슬롯을 300ms 동안 점유
         val holder = async {
             skipElection.runIfLeader(lockName) {
                 holderReady.send(Unit)
-                delay(300.milliseconds)
+                delay(500.milliseconds)
                 "holder"
             }
-        }
+        }.log("Holder")
 
         holderReady.receive() // 홀더가 슬롯 획득할 때까지 대기
-        // 스키퍼: 짧은 waitTime(50ms) 으로 시도 → null 반환
+
+        // 스키퍼: 짧은 waitTime(50ms) 으로 시도 → null 반환 (Leader 선출 실패)
         val skipped = skipElection.runIfLeader(lockName) { "should-skip" }
         skipped.shouldBeNull()
 
@@ -257,7 +265,7 @@ class LocalSuspendLeaderGroupElectorTest {
                 actionReturned.send(Unit)
                 "fast"
             }
-        }
+        }.log("Holder")
 
         actionReturned.receive()
 

@@ -4,12 +4,15 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
 
 class LeaderLeaseExtensionObservationScopeTest {
+
+    companion object: KLogging()
 
     @Test
     fun `scope is restored after nested blocking and coroutine boundaries`() = runTest {
@@ -51,11 +54,9 @@ class LeaderLeaseExtensionObservationScopeTest {
     fun `scope handle does not reveal capability state`() {
         val scope = LeaderLeaseExtensionObservers.addScopedObserver { }
 
-        try {
+        scope.use { scope ->
             scope.toString().contains("observer", ignoreCase = true).shouldBeFalse()
             scope.toString().contains("scope", ignoreCase = true).shouldBeTrue()
-        } finally {
-            scope.close()
         }
     }
 }

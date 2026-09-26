@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicReference
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LocalLeaderGroupElectorSlotTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 2))
 
@@ -46,8 +46,8 @@ class LocalLeaderGroupElectorSlotTest {
         val s = slot("group-audit")
         val result = election.runIfLeaderResult(s) { "done" }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value shouldBeEqualTo "done"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+        result.value shouldBeEqualTo "done"
         result.leaderId shouldBeEqualTo "group-audit"
     }
 
@@ -56,8 +56,8 @@ class LocalLeaderGroupElectorSlotTest {
         val s = slot("null-group")
         val result = election.runIfLeaderResult(s) { null }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value.shouldBeNull()
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.value.shouldBeNull()
         result.leaderId shouldBeEqualTo "null-group"
     }
 
@@ -108,10 +108,8 @@ class LocalLeaderGroupElectorSlotTest {
             )
             .run()
 
-        (r1.get() is LeaderRunResult.Elected).shouldBeTrue()
-        (r2.get() is LeaderRunResult.Elected).shouldBeTrue()
-        (r1.get() as LeaderRunResult.Elected).leaderId shouldBeEqualTo "node-1"
-        (r2.get() as LeaderRunResult.Elected).leaderId shouldBeEqualTo "node-2"
+        r1.get().shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "node-1"
+        r2.get().shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "node-2"
     }
 
     // --- lockName 구분 ---
@@ -124,7 +122,7 @@ class LocalLeaderGroupElectorSlotTest {
         val r1 = election.runIfLeaderResult(s1) { 1 }
         val r2 = election.runIfLeaderResult(s2) { 2 }
 
-        (r1 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "group-1"
-        (r2 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "group-2"
+        r1.shouldBeInstanceOf<LeaderRunResult.Elected<Int>>().leaderId shouldBeEqualTo "group-1"
+        r2.shouldBeInstanceOf<LeaderRunResult.Elected<Int>>().leaderId shouldBeEqualTo "group-2"
     }
 }

@@ -2,11 +2,11 @@ package io.bluetape4k.leader.local
 
 import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.StrategicLeaderGroupElector
-import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.GroupElectionStrategy
 import io.bluetape4k.leader.strategy.electValidated
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
@@ -23,9 +23,9 @@ import kotlin.time.Duration
  */
 class LocalStrategicLeaderGroupElector(
     override val nodeId: String = Uuid.V7.nextIdAsString(),
-) : StrategicLeaderGroupElector {
+): StrategicLeaderGroupElector {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val registry = ConcurrentHashMap<String, ConcurrentHashMap<String, CandidateInfo>>()
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
@@ -76,7 +76,7 @@ class LocalStrategicLeaderGroupElector(
         val total = result.winners.size + result.eliminations.size
         log.info {
             "[$lockName] 전략적 그룹 선출: ${result.winners.joinToString { it.nodeId }} " +
-                "(전략: ${strategy::class.simpleName}, 후보: ${total}명)"
+                    "(전략: ${strategy::class.simpleName}, 후보: ${total}명)"
         }
         if (result.scores.isNotEmpty()) {
             log.debug {

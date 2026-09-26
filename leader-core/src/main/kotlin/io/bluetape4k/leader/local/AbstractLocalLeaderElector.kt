@@ -7,19 +7,22 @@ import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElectionState
 import io.bluetape4k.leader.LeaderLeaseAcquirer
-import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.parkRemainingMinLeaseTime
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import io.bluetape4k.leader.internal.ExtendDelegate
-import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.leader.internal.LocalRequestLeaseStore
+import io.bluetape4k.leader.internal.LockStateHolder
+import io.bluetape4k.leader.parkRemainingMinLeaseTime
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.support.requireNotBlank
+import kotlinx.atomicfu.locks.withLock
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -35,12 +38,12 @@ import kotlin.time.Duration
  */
 abstract class AbstractLocalLeaderElector(
     protected val options: LeaderElectionOptions = LeaderElectionOptions.Default,
-) : LeaderElectionListenerRegistry,
-    LeaderElectionState,
-    LeaderLeaseAcquirer,
-    LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
+): LeaderElectionListenerRegistry,
+   LeaderElectionState,
+   LeaderLeaseAcquirer,
+   LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
 
-    companion object {
+    companion object: KLogging() {
         /**
          * `LOCAL_FACTORY_BEAN_NAME`는 backend별 leader elector 인스턴스를 생성하는 factory 계약입니다.
          */
@@ -83,12 +86,8 @@ abstract class AbstractLocalLeaderElector(
      * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     protected fun <T> withLeaderLock(lockName: String, action: () -> T): T {
-        val lock = getLock(lockName)
-        lock.lock()
-        try {
-            return action()
-        } finally {
-            lock.unlock()
+        return getLock(lockName).withLock {
+            action()
         }
     }
 
@@ -128,6 +127,8 @@ abstract class AbstractLocalLeaderElector(
         waitTime: Duration,
         action: () -> T,
     ): T? {
+        log.debug { "tryWithLeaderLock. lockName=$lockName, auditLeaderId=$auditLeaderId, nodeId=$nodeId" }
+
         val lock = getLock(lockName)
 
         // reentrant: 같은 thread가 lock을 보유한 상태이므로 passthrough handle로 감쌉니다.
@@ -144,7 +145,12 @@ abstract class AbstractLocalLeaderElector(
         }
         val startedAtNanos = System.nanoTime()
         val token = Base58.randomString(8)
-        val lease = states.acquireSingle(lockName, auditLeaderId = auditLeaderId, nodeId = nodeId, leaseTime = options.leaseTime)
+        val lease = states.acquireSingle(
+            lockName,
+            auditLeaderId = auditLeaderId,
+            nodeId = nodeId,
+            leaseTime = options.leaseTime
+        )
 
         val identity = LockIdentity(
             lockName = lockName,
@@ -152,7 +158,7 @@ abstract class AbstractLocalLeaderElector(
             factoryBeanName = LOCAL_FACTORY_BEAN_NAME,
         )
         val lastExtendDeadline = AtomicReference(Instant.EPOCH)
-        val delegate = object : ExtendDelegate {
+        val delegate = object: ExtendDelegate {
             private val _lastExtendDeadline = lastExtendDeadline
             override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
             override fun extend(lockAtMostFor: Duration): io.bluetape4k.leader.ExtendOutcome {
@@ -165,6 +171,7 @@ abstract class AbstractLocalLeaderElector(
                     io.bluetape4k.leader.ExtendOutcome.NotHeld
                 }
             }
+
             override fun isHeld(): Boolean = states.singleState(lockName).isOccupied
         }
 

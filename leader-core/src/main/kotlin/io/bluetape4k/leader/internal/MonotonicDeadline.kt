@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.internal
 
+import io.bluetape4k.logging.KLogging
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
@@ -55,7 +56,7 @@ class MonotonicDeadline private constructor(
 
     fun hasTimeRemaining(): Boolean = remainingNanos() > 0L
 
-    companion object {
+    companion object: KLogging() {
         /**
          * 이미 읽은 시작 시각과 timeout으로 deadline을 만듭니다.
          *

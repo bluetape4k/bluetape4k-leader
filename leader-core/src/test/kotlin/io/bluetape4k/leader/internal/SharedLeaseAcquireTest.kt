@@ -2,22 +2,27 @@ package io.bluetape4k.leader.internal
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.virtualthread.virtualThread
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaseOwnershipStatus
-import io.bluetape4k.leader.ExtendOutcome
+import io.bluetape4k.logging.KLogging
+import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.Duration
-import org.junit.jupiter.api.Test
 
 class SharedLeaseAcquireTest {
+
+    companion object: KLogging()
 
     @Test
     fun `same slot shares one backend acquire and releases physical handle after last waiter`() {
@@ -38,20 +43,23 @@ class SharedLeaseAcquireTest {
         val slot = LeaderSlot("shared-lock", "node")
 
         val firstFuture = CompletableFuture<LeaderLeaseHandle?>()
-        Thread.startVirtualThread {
+        virtualThread {
             firstFuture.complete(shared.tryAcquire(slot, 1.seconds))
         }
         backendStarted.await(1, TimeUnit.SECONDS)
+
         val secondFuture = CompletableFuture<LeaderLeaseHandle?>()
-        Thread.startVirtualThread {
+        virtualThread {
             secondFuture.complete(shared.tryAcquire(slot, 1.seconds))
         }
+
         allowBackend.countDown()
         val first = firstFuture.get(1, TimeUnit.SECONDS)
         val second = secondFuture.get(1, TimeUnit.SECONDS)
 
         backendCalls.get() shouldBeEqualTo 1
         first.shouldNotBeNull()
+
         if (second != null) {
             shared.activeAttempts shouldBeEqualTo 1
             first.release()
@@ -72,6 +80,7 @@ class SharedLeaseAcquireTest {
         val scheduler = LeaseOperationScheduler(maxInFlight = 1, queueCapacity = 1)
         val backendCalls = AtomicInteger()
         val releases = AtomicInteger()
+
         val shared = SharedLeaseAcquire(
             scheduler = scheduler,
             acquire = {
@@ -79,6 +88,7 @@ class SharedLeaseAcquireTest {
                 TestHandle(releases)
             },
         )
+
         val slot = LeaderSlot("published-lock", "node")
 
         val first = shared.tryAcquire(slot, 1.seconds).shouldNotBeNull()
@@ -103,7 +113,9 @@ class SharedLeaseAcquireTest {
             acquire = { TestHandle(AtomicInteger()) },
         )
 
-        shared.tryAcquire(LeaderSlot("rejected-lock", "node"), 1.seconds).shouldBeNull()
+        val slot = LeaderSlot("rejected-lock", "node")
+
+        shared.tryAcquire(slot, 1.seconds).shouldBeNull()
         shared.activeAttempts shouldBeEqualTo 0
     }
 
@@ -126,7 +138,9 @@ class SharedLeaseAcquireTest {
         )
         val future = CompletableFuture<LeaderLeaseHandle?>()
         val slot = LeaderSlot("close-lock", "node")
-        Thread.startVirtualThread { future.complete(shared.tryAcquire(slot, 5.seconds)) }
+        virtualThread {
+            future.complete(shared.tryAcquire(slot, 5.seconds))
+        }
 
         backendStarted.await(1, TimeUnit.SECONDS)
         shared.close()
@@ -143,11 +157,12 @@ class SharedLeaseAcquireTest {
         val scheduler = LeaseOperationScheduler(maxInFlight = 1, queueCapacity = 1)
         val blockerStarted = CountDownLatch(1)
         val releaseBlocker = CountDownLatch(1)
+
         scheduler.submit {
             blockerStarted.countDown()
             releaseBlocker.await(1, TimeUnit.SECONDS)
         }
-        blockerStarted.await(1, TimeUnit.SECONDS)
+        blockerStarted.await(1, TimeUnit.SECONDS).shouldBeTrue()
 
         val backendCalls = AtomicInteger()
         val reservationsClosed = AtomicInteger()
@@ -161,8 +176,8 @@ class SharedLeaseAcquireTest {
                 AutoCloseable { reservationsClosed.incrementAndGet() }
             },
         )
-
-        shared.tryAcquire(LeaderSlot("queued-timeout", "node"), 20.milliseconds).shouldBeNull()
+        val slot = LeaderSlot("queued-timeout", "node")
+        shared.tryAcquire(slot, 20.milliseconds).shouldBeNull()
         shared.activeAttempts shouldBeEqualTo 0
         reservationsClosed.get() shouldBeEqualTo 1
 
@@ -176,7 +191,7 @@ class SharedLeaseAcquireTest {
 
     private class TestHandle(
         private val releases: AtomicInteger,
-    ) : LeaderLeaseHandle {
+    ): LeaderLeaseHandle {
         override val lockName: String = "shared-lock"
         override val auditLeaderId: String = "node"
         override val acquiredAt: Instant = Instant.now()

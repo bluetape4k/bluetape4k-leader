@@ -1,29 +1,31 @@
 package io.bluetape4k.leader.local
 
-import io.bluetape4k.codec.Base58
-import io.bluetape4k.junit5.concurrency.MultithreadingTester
-import io.bluetape4k.leader.LeaderGroupElectionException
-import io.bluetape4k.leader.LeaderGroupElectionOptions
-import io.bluetape4k.logging.KLogging
-import io.bluetape4k.logging.debug
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderGroupElectionException
+import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 import kotlin.math.max
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
 
 class LocalAsyncLeaderGroupElectorTest {
 
@@ -40,7 +42,7 @@ class LocalAsyncLeaderGroupElectorTest {
     @Test
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action 을 실행하고 결과를 반환한다`() {
         val result = election.runAsyncIfLeader(randomLockName()) {
-            CompletableFuture.completedFuture("async-ok")
+            completableFutureOf("async-ok")
         }.join()
 
         result shouldBeEqualTo "async-ok"
@@ -48,8 +50,8 @@ class LocalAsyncLeaderGroupElectorTest {
 
     @Test
     fun `runAsyncIfLeader - 서로 다른 lockName 은 독립적인 슬롯 풀을 가진다`() {
-        val f1 = election.runAsyncIfLeader(randomLockName()) { CompletableFuture.completedFuture("a") }
-        val f2 = election.runAsyncIfLeader(randomLockName()) { CompletableFuture.completedFuture("b") }
+        val f1 = election.runAsyncIfLeader(randomLockName()) { completableFutureOf("a") }
+        val f2 = election.runAsyncIfLeader(randomLockName()) { completableFutureOf("b") }
 
         f1.join() shouldBeEqualTo "a"
         f2.join() shouldBeEqualTo "b"
@@ -59,7 +61,7 @@ class LocalAsyncLeaderGroupElectorTest {
     fun `runAsyncIfLeader - action future 실패 시 CompletionException 이 전파된다`() {
         assertFailsWith<CompletionException> {
             election.runAsyncIfLeader(randomLockName()) {
-                CompletableFuture.failedFuture<String>(IllegalStateException("비동기 실패"))
+                failedCompletableFutureOf<String>(IllegalStateException("비동기 실패"))
             }.join()
         }
     }
@@ -69,12 +71,12 @@ class LocalAsyncLeaderGroupElectorTest {
         val lockName = randomLockName()
         runCatching {
             election.runAsyncIfLeader(lockName) {
-                CompletableFuture.failedFuture<Int>(LeaderGroupElectionException("실패"))
+                failedCompletableFutureOf<Int>(LeaderGroupElectionException("실패"))
             }.join()
         }
 
         val result = election.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture(99)
+            completableFutureOf(99)
         }.join()
 
         result shouldBeEqualTo 99
@@ -125,7 +127,7 @@ class LocalAsyncLeaderGroupElectorTest {
                 }.join()
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS)
+        startLatch.await(2, TimeUnit.SECONDS).shouldBeTrue()
 
         // 슬롯이 가득 찬 상태 검증
         election.state(lockName).isFull.shouldBeTrue()
@@ -145,7 +147,7 @@ class LocalAsyncLeaderGroupElectorTest {
         // 슬롯 해제 → 추가 요청이 실행됨
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS)
+        executor.awaitTermination(3, TimeUnit.SECONDS).shouldBeTrue()
         extraStarted.get() shouldBeEqualTo 1
     }
 
@@ -181,14 +183,14 @@ class LocalAsyncLeaderGroupElectorTest {
                 }.join()
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS)
+        startLatch.await(2, TimeUnit.SECONDS).shouldBeTrue()
 
         election.state(lockName).isFull.shouldBeTrue()
         election.availableSlots(lockName) shouldBeEqualTo 0
 
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS)
+        executor.awaitTermination(3, TimeUnit.SECONDS).shouldBeTrue()
     }
 
     // ── 스트레스 테스트 ────────────────────────────────────────────────────
@@ -197,7 +199,7 @@ class LocalAsyncLeaderGroupElectorTest {
     fun `멀티스레드 스트레스 - 모든 실행이 완료되고 카운터가 정확하다`() {
         val lockName = randomLockName()
         val counter = AtomicInteger(0)
-        val numThreads = 8
+        val numThreads = 2 * Runtimex.availableProcessors
         val roundsPerThread = 4
 
         MultithreadingTester()
@@ -238,19 +240,19 @@ class LocalAsyncLeaderGroupElectorTest {
         val releaseLatch = CountDownLatch(1)
 
         // 동일 election 인스턴스로 슬롯 점유 (maxLeaders=1 이므로 가득 참)
-        val firstThread = Thread {
+        val firstThread = thread {
             skipElection.runAsyncIfLeader(lockName) {
                 CompletableFuture.runAsync {
                     latch.countDown()
                     releaseLatch.await()
                 }
             }.join()
-        }.apply { start() }
+        }
 
         latch.await(2, TimeUnit.SECONDS)
 
         val result = skipElection.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture("should-skip")
+            completableFutureOf("should-skip")
         }.join()
         result.shouldBeNull()
 
@@ -266,12 +268,12 @@ class LocalAsyncLeaderGroupElectorTest {
         val lockName = randomLockName()
 
         val first = shortWaitElection.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture("first")
+            completableFutureOf("first")
         }.join()
         first shouldBeEqualTo "first"
 
         val second = shortWaitElection.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture("second")
+            completableFutureOf("second")
         }.join()
         second shouldBeEqualTo "second"
     }

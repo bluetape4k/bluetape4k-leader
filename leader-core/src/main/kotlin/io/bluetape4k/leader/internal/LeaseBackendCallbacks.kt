@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.internal
 
 import io.bluetape4k.leader.ExtendOutcome
-import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.LeaseOwnershipStatus
 import java.time.Instant
 import kotlin.time.Duration
 
@@ -32,6 +32,16 @@ class BackendLease internal constructor(
     }
 }
 
-enum class BackendReleaseOutcome { RELEASED, NOT_HELD, ERROR, TIMEOUT }
+enum class BackendReleaseOutcome {
+    RELEASED,
+    NOT_HELD,
+    ERROR,
+    TIMEOUT
+}
 
-enum class BackendWatchdogOutcome { STOPPED, NOT_RUNNING, ERROR, TIMEOUT }
+enum class BackendWatchdogOutcome {
+    STOPPED,
+    NOT_RUNNING,
+    ERROR,
+    TIMEOUT
+}

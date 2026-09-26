@@ -6,7 +6,7 @@ package io.bluetape4k.leader.audit
  * `submit`은 delivery 완료를 기다리지 않으며, `ACCEPTED`는 admission만 의미합니다.
  * queue가 가득 찼거나 exporter가 닫힌 경우에는 예외 대신 명시적인 drop 결과를 반환합니다.
  */
-interface LeaderAuditExporter : AutoCloseable {
+interface LeaderAuditExporter: AutoCloseable {
 
     /** event를 bounded pipeline에 non-blocking admission합니다. */
     fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult

@@ -4,11 +4,14 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaseCleanupResult
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class LeaseCleanupBoundaryTest {
+
+    companion object: KLogging()
 
     @Test
     fun `successful release terminalizes reservation`() {
@@ -30,7 +33,8 @@ class LeaseCleanupBoundaryTest {
     @Test
     fun `deadline transfers reservation to residual registry`() {
         val registry = ResidualLeaseRegistry(maxResidualLeases = 1)
-        val scheduler = LeaseOperationScheduler(maxInFlight = 1, queueCapacity = 1, threadNamePrefix = "cleanup-timeout")
+        val scheduler =
+            LeaseOperationScheduler(maxInFlight = 1, queueCapacity = 1, threadNamePrefix = "cleanup-timeout")
         val boundary = LeaseCleanupBoundaryImpl(
             scheduler = scheduler,
             residualRegistry = registry,

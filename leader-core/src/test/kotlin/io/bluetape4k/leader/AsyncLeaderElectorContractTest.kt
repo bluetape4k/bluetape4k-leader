@@ -1,17 +1,21 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.codec.Base58
-import io.bluetape4k.leader.local.LocalAsyncLeaderElector
-import io.bluetape4k.leader.local.LocalLeaderElector
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.virtualthread.VirtualFuture
+import io.bluetape4k.leader.local.LocalAsyncLeaderElector
+import io.bluetape4k.leader.local.LocalLeaderElector
+import io.bluetape4k.logging.KLogging
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.until
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CancellationException
@@ -20,6 +24,7 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -44,7 +49,7 @@ class AsyncLeaderElectorContractTest {
     fun `runAsyncIfLeader - 리더 획득 성공 시 CompletableFuture action 을 실행한다`() {
         val election: AsyncLeaderElector = LocalAsyncLeaderElector()
         val result = election.runAsyncIfLeader(randomLockName()) {
-            CompletableFuture.completedFuture("contract-ok")
+            completableFutureOf("contract-ok")
         }.join()
         result shouldBeEqualTo "contract-ok"
     }
@@ -52,8 +57,8 @@ class AsyncLeaderElectorContractTest {
     @Test
     fun `runAsyncIfLeader - 서로 다른 lockName 은 독립적으로 실행된다`() {
         val election: AsyncLeaderElector = LocalAsyncLeaderElector()
-        val f1 = election.runAsyncIfLeader(randomLockName()) { CompletableFuture.completedFuture(1) }
-        val f2 = election.runAsyncIfLeader(randomLockName()) { CompletableFuture.completedFuture(2) }
+        val f1 = election.runAsyncIfLeader(randomLockName()) { completableFutureOf(1) }
+        val f2 = election.runAsyncIfLeader(randomLockName()) { completableFutureOf(2) }
 
         f1.join() shouldBeEqualTo 1
         f2.join() shouldBeEqualTo 2
@@ -64,7 +69,7 @@ class AsyncLeaderElectorContractTest {
         val election: AsyncLeaderElector = LocalAsyncLeaderElector()
         assertFailsWith<CompletionException> {
             election.runAsyncIfLeader(randomLockName()) {
-                CompletableFuture.failedFuture<String>(RuntimeException("계약 위반 예외"))
+                failedCompletableFutureOf<String>(RuntimeException("계약 위반 예외"))
             }.join()
         }
     }
@@ -73,53 +78,59 @@ class AsyncLeaderElectorContractTest {
     fun `runAsyncIfLeader - action 실패 후에도 락이 해제되어 다음 호출이 성공한다`() {
         val election: AsyncLeaderElector = LocalAsyncLeaderElector()
         val lockName = randomLockName()
-        runCatching {
+
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader(lockName) {
-                CompletableFuture.failedFuture<Unit>(RuntimeException("실패"))
+                failedCompletableFutureOf<Unit>(RuntimeException("실패"))
             }.join()
-        }
+        }.cause.shouldBeInstanceOf<RuntimeException>()
 
         val result = election.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture("복구")
-        }.join()
+            completableFutureOf("복구")
+        }.join().shouldNotBeNull()
+
         result shouldBeEqualTo "복구"
     }
 
     @Test
     fun `runAsyncIfLeaderResult - action future 실패는 ActionFailed 로 분류한다`() {
         val election: AsyncLeaderElector = LocalAsyncLeaderElector()
+        val slot = LeaderSlot(randomLockName(), "async-node")
         val failure = IllegalStateException("async-boom")
 
-        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "async-node")) {
-            CompletableFuture.failedFuture<Any?>(failure)
-        }.join()
+        val result = election.runAsyncIfLeaderResult(slot) {
+            failedCompletableFutureOf<Any?>(failure)
+        }.join().shouldNotBeNull()
 
-        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
-        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        result.cause shouldBeEqualTo failure
     }
 
     @Test
     fun `runAsyncIfLeaderResult - CancellationException 은 ActionFailed 로 감싸지 않는다`() {
         val election: AsyncLeaderElector = LocalAsyncLeaderElector()
+        val slot = LeaderSlot(randomLockName(), "async-node")
         val cancellation = CancellationException("async-cancelled")
 
         val thrown = assertFailsWith<CompletionException> {
-            election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "async-node")) {
-                CompletableFuture.failedFuture<Any?>(cancellation)
+            election.runAsyncIfLeaderResult(slot) {
+                failedCompletableFutureOf<Any?>(cancellation)
             }.join()
         }
 
-        thrown.cause shouldBeInstanceOf CancellationException::class
+        thrown.cause.shouldBeInstanceOf<CancellationException>()
     }
 
     @Test
     fun `runAsyncIfLeader - 커스텀 executor 를 사용할 수 있다`() {
         val election: AsyncLeaderElector = LocalAsyncLeaderElector()
         val executor = Executors.newSingleThreadExecutor()
+
         try {
             val result = election.runAsyncIfLeader(randomLockName(), executor) {
-                CompletableFuture.completedFuture("custom-executor-ok")
-            }.join()
+                completableFutureOf("custom-executor-ok")
+            }.join().shouldNotBeNull()
+
             result shouldBeEqualTo "custom-executor-ok"
         } finally {
             executor.shutdown()
@@ -131,29 +142,32 @@ class AsyncLeaderElectorContractTest {
     @Test
     fun `runAsyncIfLeader - LocalLeaderElector 도 AsyncLeaderElector 계약을 준수한다`() {
         val election: AsyncLeaderElector = LocalLeaderElector()
+
         val result = election.runAsyncIfLeader(randomLockName()) {
-            CompletableFuture.completedFuture(99)
+            completableFutureOf(99)
         }.join()
+
         result shouldBeEqualTo 99
     }
 
     @Test
     fun `runAsyncIfLeaderResult - LocalLeaderElector default bridge 도 ActionFailed 를 반환한다`() {
         val election: AsyncLeaderElector = LocalLeaderElector()
+        val slot = LeaderSlot(randomLockName(), "bridge-node")
         val failure = IllegalArgumentException("bridge-boom")
 
-        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "bridge-node")) {
-            CompletableFuture.failedFuture<Any?>(failure)
-        }.join()
+        val result = election.runAsyncIfLeaderResult(slot) {
+            failedCompletableFutureOf<Any?>(failure)
+        }.join().shouldNotBeNull()
 
-        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
-        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        result.cause shouldBeEqualTo failure
     }
 
     @Test
     fun `runAsyncIfLeaderResult - 반환 future 취소가 원본 future 로 전파된다`() {
         val source = CompletableFuture<Any?>()
-        val election = object : AsyncLeaderElector {
+        val election = object: AsyncLeaderElector {
             @Suppress("UNCHECKED_CAST")
             override fun <T> runAsyncIfLeader(
                 lockName: String,
@@ -161,9 +175,10 @@ class AsyncLeaderElectorContractTest {
                 action: () -> CompletableFuture<T>,
             ): CompletableFuture<T?> = source as CompletableFuture<T?>
         }
+        val slot = LeaderSlot(randomLockName(), "bridge-cancel-node")
 
-        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "bridge-cancel-node")) {
-            CompletableFuture.completedFuture("unused")
+        val result = election.runAsyncIfLeaderResult(slot) {
+            completableFutureOf("unused")
         }
 
         result.cancel(false).shouldBeTrue()
@@ -174,25 +189,27 @@ class AsyncLeaderElectorContractTest {
     fun `runAsyncIfLeaderResult - 반환 future 취소가 action future와 lease lifecycle로 전파된다`() {
         val election: AsyncLeaderElector = LocalAsyncLeaderElector()
         val lockName = randomLockName()
+        val slot = LeaderSlot(lockName, "async-cancel-node")
         val executor = Executors.newVirtualThreadPerTaskExecutor()
         val actionStarted = CountDownLatch(1)
         val actionFuture = CompletableFuture<String>()
 
         try {
-            val result = election.runAsyncIfLeaderResult(LeaderSlot(lockName, "async-cancel-node"), executor) {
+            val result = election.runAsyncIfLeaderResult(slot, executor) {
                 actionStarted.countDown()
                 actionFuture
             }
 
             actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
-            await.atMost(2.seconds).untilAsserted {
-                actionFuture.isCancelled.shouldBeTrue()
+
+            await atMost 2.seconds until {
+                actionFuture.isCancelled
             }
-            await.atMost(2.seconds).untilAsserted {
+            await atMost 2.seconds until {
                 election.runAsyncIfLeader(lockName, executor) {
-                    CompletableFuture.completedFuture("reacquired")
-                }.get(1, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+                    completableFutureOf("reacquired")
+                }.get(1, TimeUnit.SECONDS) == "reacquired"
             }
         } finally {
             executor.shutdownNow()
@@ -201,10 +218,11 @@ class AsyncLeaderElectorContractTest {
 
     @Test
     fun `runAsyncIfLeader - nullable 반환 future 취소가 모든 Local action과 lease lifecycle로 전파된다`() {
-        listOf<AsyncLeaderElector>(LocalAsyncLeaderElector(), LocalLeaderElector()).forEach { election ->
-            assertNullableCancellationPropagates(election, useSlot = false)
-            assertNullableCancellationPropagates(election, useSlot = true)
-        }
+        listOf<AsyncLeaderElector>(LocalAsyncLeaderElector(), LocalLeaderElector())
+            .forEach { election ->
+                assertNullableCancellationPropagates(election, useSlot = false)
+                assertNullableCancellationPropagates(election, useSlot = true)
+            }
     }
 
     @Test
@@ -224,7 +242,7 @@ class AsyncLeaderElectorContractTest {
 
             val result = election.runAsyncIfLeader(randomLockName(), executor) {
                 actionInvoked.set(true)
-                CompletableFuture.completedFuture("unexpected")
+                completableFutureOf("unexpected")
             }
 
             result.cancel(false).shouldBeTrue()
@@ -239,23 +257,25 @@ class AsyncLeaderElectorContractTest {
 
     @Test
     fun `runAsyncIfLeader - nullable Local overload는 executor rejection을 즉시 전파한다`() {
+        val slot = LeaderSlot(randomLockName(), "rejected-node")
         val rejected = Executor { throw RejectedExecutionException("rejected") }
         val actionInvoked = AtomicBoolean()
 
-        listOf<AsyncLeaderElector>(LocalAsyncLeaderElector(), LocalLeaderElector()).forEach { election ->
-            assertFailsWith<RejectedExecutionException> {
-                election.runAsyncIfLeader(randomLockName(), rejected) {
-                    actionInvoked.set(true)
-                    CompletableFuture.completedFuture("unexpected")
+        listOf<AsyncLeaderElector>(LocalAsyncLeaderElector(), LocalLeaderElector())
+            .forEach { election ->
+                assertFailsWith<RejectedExecutionException> {
+                    election.runAsyncIfLeader(randomLockName(), rejected) {
+                        actionInvoked.set(true)
+                        completableFutureOf("unexpected")
+                    }.join()
+                }
+                assertFailsWith<RejectedExecutionException> {
+                    election.runAsyncIfLeader(slot, rejected) {
+                        actionInvoked.set(true)
+                        completableFutureOf("unexpected")
+                    }.join()
                 }
             }
-            assertFailsWith<RejectedExecutionException> {
-                election.runAsyncIfLeader(LeaderSlot(randomLockName(), "rejected-node"), rejected) {
-                    actionInvoked.set(true)
-                    CompletableFuture.completedFuture("unexpected")
-                }
-            }
-        }
         actionInvoked.get().shouldBeFalse()
     }
 
@@ -263,25 +283,27 @@ class AsyncLeaderElectorContractTest {
     fun `runAsyncIfLeaderResult - listener decorator도 반환 future 취소를 action future로 전파한다`() {
         val election = LocalLeaderElector().withListeners()
         val lockName = randomLockName()
+        val slot = LeaderSlot(lockName, "listener-cancel-node")
         val executor = Executors.newVirtualThreadPerTaskExecutor()
         val actionStarted = CountDownLatch(1)
         val actionFuture = CompletableFuture<String>()
 
         try {
-            val result = election.runAsyncIfLeaderResult(LeaderSlot(lockName, "listener-cancel-node"), executor) {
+            val result = election.runAsyncIfLeaderResult(slot, executor) {
                 actionStarted.countDown()
                 actionFuture
             }
 
             actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
-            await.atMost(2.seconds).untilAsserted {
-                actionFuture.isCancelled.shouldBeTrue()
+
+            await atMost 2.seconds until {
+                actionFuture.isCancelled
             }
-            await.atMost(2.seconds).untilAsserted {
+            await atMost 2.seconds until {
                 election.runAsyncIfLeader(lockName, executor) {
-                    CompletableFuture.completedFuture("reacquired")
-                }.get(1, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+                    completableFutureOf("reacquired")
+                }.get(1, TimeUnit.SECONDS) == "reacquired"
             }
         } finally {
             executor.shutdownNow()
@@ -291,16 +313,16 @@ class AsyncLeaderElectorContractTest {
     @Test
     fun `VirtualThreadLeaderElector result bridge 도 반환 future 취소를 원본으로 전파한다`() {
         val source = CompletableFuture<Any?>()
-        val election = object : VirtualThreadLeaderElector {
+        val election = object: VirtualThreadLeaderElector {
             @Suppress("UNCHECKED_CAST")
             override fun <T> runAsyncIfLeader(
                 lockName: String,
                 action: () -> T,
-            ): io.bluetape4k.concurrent.virtualthread.VirtualFuture<T?> =
-                io.bluetape4k.concurrent.virtualthread.VirtualFuture(source as java.util.concurrent.Future<T?>)
+            ): VirtualFuture<T?> = VirtualFuture(source as Future<T?>)
         }
 
-        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "virtual-bridge-cancel-node")) { "unused" }
+        val slot = LeaderSlot(randomLockName(), "virtual-bridge-cancel-node")
+        val result = election.runAsyncIfLeaderResult(slot) { "unused" }
 
         result.cancel(false).shouldBeTrue()
         source.isCancelled.shouldBeTrue()
@@ -309,9 +331,10 @@ class AsyncLeaderElectorContractTest {
     @Test
     fun `runAsyncIfLeader - action 실패 시 CompletionException 을 전파한다`() {
         val election: AsyncLeaderElector = LocalAsyncLeaderElector()
+
         assertFailsWith<CompletionException> {
             election.runAsyncIfLeader(randomLockName()) {
-                CompletableFuture.failedFuture<Int>(IllegalArgumentException("invalid"))
+                failedCompletableFutureOf<Int>(IllegalArgumentException("invalid"))
             }.join()
         }
     }
@@ -321,13 +344,14 @@ class AsyncLeaderElectorContractTest {
         useSlot: Boolean,
     ) {
         val lockName = randomLockName()
+        val slot = LeaderSlot(lockName, "nullable-cancel-node")
         val executor = Executors.newVirtualThreadPerTaskExecutor()
         val actionStarted = CountDownLatch(1)
         val actionFuture = CompletableFuture<String>()
 
         try {
             val result = if (useSlot) {
-                election.runAsyncIfLeader(LeaderSlot(lockName, "nullable-cancel-node"), executor) {
+                election.runAsyncIfLeader(slot, executor) {
                     actionStarted.countDown()
                     actionFuture
                 }
@@ -340,13 +364,13 @@ class AsyncLeaderElectorContractTest {
 
             actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
-            await.atMost(2.seconds).untilAsserted {
-                actionFuture.isCancelled.shouldBeTrue()
+            await atMost 2.seconds until {
+                actionFuture.isCancelled
             }
-            await.atMost(2.seconds).untilAsserted {
+            await atMost 2.seconds until {
                 election.runAsyncIfLeader(lockName, executor) {
-                    CompletableFuture.completedFuture("reacquired")
-                }.get(1, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+                    completableFutureOf("reacquired")
+                }.get(1, TimeUnit.SECONDS) == "reacquired"
             }
         } finally {
             actionFuture.cancel(true)

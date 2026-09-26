@@ -1,24 +1,26 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.assertions.shouldBeAfter
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import io.bluetape4k.assertions.shouldBeFalse
 
 /**
  * [LocalSuspendLeaderElector] capture integration test.
@@ -29,6 +31,8 @@ import io.bluetape4k.assertions.shouldBeFalse
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Suppress("NonAsciiCharacters")
 class LocalSuspendLeaderElectorCaptureTest {
+
+    companion object: KLoggingChannel()
 
     private val election = LocalSuspendLeaderElector()
 
@@ -128,7 +132,6 @@ class LocalSuspendLeaderElectorCaptureTest {
         // scope 밖 → NotHeld → false
         val extended = LockExtender.extendActiveLockSuspend(30.seconds)
         extended.shouldBeFalse()
-
     }
 
     // ── action 예외 시 cleanup ────────────────────────────────────────────
@@ -169,7 +172,7 @@ class LocalSuspendLeaderElectorCaptureTest {
                     holderRelease.receive()
                     extendedLeaseUntil = stateElection.state(lockName).leader?.leaseUntil
                 }
-            }
+            }.log("Holder")
 
             holderReady.receive()
             delay(250.milliseconds)
@@ -179,7 +182,7 @@ class LocalSuspendLeaderElectorCaptureTest {
 
         initialLeaseUntil.shouldNotBeNull()
         extendedLeaseUntil.shouldNotBeNull()
-        extendedLeaseUntil.shouldNotBeNull().isAfter(initialLeaseUntil.shouldNotBeNull()).shouldBeTrue()
+        extendedLeaseUntil.shouldNotBeNull() shouldBeAfter initialLeaseUntil.shouldNotBeNull()
     }
 
     // ── delay 안에서도 LockHandleElement 유지 ────────────────────────────

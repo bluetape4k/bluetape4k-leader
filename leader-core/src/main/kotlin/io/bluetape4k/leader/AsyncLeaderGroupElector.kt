@@ -72,17 +72,21 @@ interface AsyncLeaderGroupElector: LeaderGroupElectionState {
         LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         val elected = AtomicBoolean(false)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
-        return LeaderFutureBridge.map(runAsyncIfLeader(slot.lockName, executor) {
-            elected.set(true)
-            cancellationRelay.invoke(action)
-        }, cancellationRelay) { value, failure ->
-            when {
-                failure != null && elected.get() -> failure.toActionFailedResult()
-                failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value)
-                else -> LeaderRunResult.Skipped
+        return LeaderFutureBridge
+            .map(
+                runAsyncIfLeader(slot.lockName, executor) {
+                    elected.set(true)
+                    cancellationRelay.invoke(action)
+                },
+                cancellationRelay
+            ) { value, failure ->
+                when {
+                    failure != null && elected.get() -> failure.toActionFailedResult()
+                    failure != null                  -> throw failure.asCompletionException()
+                    elected.get()                    -> LeaderRunResult.Elected(value)
+                    else                             -> LeaderRunResult.Skipped
+                }
             }
-        }
     }
 
     private fun Throwable.unwrapCompletionCause(): Throwable =

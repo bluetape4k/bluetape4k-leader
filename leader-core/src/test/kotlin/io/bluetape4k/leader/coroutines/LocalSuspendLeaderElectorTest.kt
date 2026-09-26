@@ -1,15 +1,16 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeNull
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
@@ -18,7 +19,6 @@ import kotlinx.coroutines.sync.Mutex
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -126,17 +126,20 @@ class LocalSuspendLeaderElectorTest {
         // 첫 번째 코루틴: 오래 걸리는 작업 수행
         val firstJob = async {
             longWaitElection.runIfLeader(lockName) {
+                log.debug { "Leader 선출로 작업 시작. lockName=$lockName" }
+                log.debug { "외부 뮤텍스가 잠겨있는 동안 대기 ..." }
                 mutex.lock() // 외부 뮤텍스가 잠겨있는 동안 대기 (시뮬레이션)
+                log.debug { "뮤텍스 unlock ..." }
                 mutex.unlock()
                 "done"
             }
-        }
+        }.log("First Job")
 
         // 실제로는 LocalSuspendLeaderElector 내부 Mutex 를 사용하므로
         // 두 개의 전자를 순차 실행하고 waitTime 으로 테스트
         // 간단한 방법: 락 보유 중인 코루틴이 있을 때 짧은 waitTime 으로 시도
         mutex.unlock()
-        firstJob.await()
+        firstJob.await() shouldBeEqualTo "done"
 
         // 명확한 skip-behavior 테스트: 내부 Mutex 를 직접 잠근 상태에서 시도
         // LocalSuspendLeaderElector 의 내부 mutexes map 에 접근할 수 없으므로
@@ -151,11 +154,12 @@ class LocalSuspendLeaderElectorTest {
         // 홀더: short-wait 검증이 끝날 때까지 controllable gate에서 유지
         val holder = async {
             skipElection.runIfLeader(lockName2) {
+                log.debug { "Leader 선출로 작업 시작. lockName=$lockName2" }
                 holderReady.send(Unit)
                 holderRelease.await()
                 "holder"
             }
-        }
+        }.log("Holder Job")
 
         holderReady.receive() // 홀더가 락 획득할 때까지 대기
         try {
@@ -166,7 +170,7 @@ class LocalSuspendLeaderElectorTest {
             holderRelease.complete(Unit)
         }
 
-        holder.await()
+        holder.await() shouldBeEqualTo "holder"
     }
 
     @Test
@@ -200,14 +204,14 @@ class LocalSuspendLeaderElectorTest {
                 actionReturned.send(Unit)
                 "fast"
             }
-        }
+        }.log("Holder Job")
 
         actionReturned.receive()
 
         val skipped = minLeaseElection.runIfLeader(lockName) { "too-early" }
         skipped.shouldBeNull()
 
-        holder.await()
+        holder.await() shouldBeEqualTo "fast"
 
         val acquiredAfterMinLease = minLeaseElection.runIfLeader(lockName) { "after" }
         acquiredAfterMinLease shouldBeEqualTo "after"

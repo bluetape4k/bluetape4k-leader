@@ -1,16 +1,15 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldNotBe
+import io.bluetape4k.assertions.shouldNotBeEqualTo
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.coroutines.KLoggingChannel
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -28,7 +27,6 @@ class LocalSuspendLeaderGroupElectorFactoryTest {
     @Test
     fun `create - 기본 옵션으로 SuspendLeaderGroupElector 인스턴스 반환`() = runSuspendIO {
         val elector = factory.create(LeaderGroupElectionOptions.Default)
-        elector.shouldNotBeNull()
         elector.shouldBeInstanceOf<LocalSuspendLeaderGroupElector>()
     }
 
@@ -36,7 +34,6 @@ class LocalSuspendLeaderGroupElectorFactoryTest {
     fun `create - 커스텀 maxLeaders 옵션으로 인스턴스 반환`() = runSuspendIO {
         val opts = LeaderGroupElectionOptions(maxLeaders = 5, waitTime = 1.seconds, leaseTime = 10.seconds)
         val elector = factory.create(opts)
-        elector.shouldNotBeNull()
         elector.maxLeaders shouldBeEqualTo 5
     }
 
@@ -44,7 +41,8 @@ class LocalSuspendLeaderGroupElectorFactoryTest {
     fun `create - 호출마다 새 인스턴스 반환`() = runSuspendIO {
         val a = factory.create(LeaderGroupElectionOptions.Default)
         val b = factory.create(LeaderGroupElectionOptions.Default)
-        (a !== b).shouldBeEqualTo(true)
+        a shouldNotBe b
+        a shouldNotBeEqualTo b
     }
 
     @Test

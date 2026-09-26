@@ -1,23 +1,24 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.codec.Base58
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.leader.local.LocalLeaderElector
-import io.bluetape4k.leader.local.LocalLeaderGroupElector
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeEqualTo
+import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.local.LocalLeaderElector
+import io.bluetape4k.leader.local.LocalLeaderGroupElector
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CancellationException
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderRunResultTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val election = LocalLeaderElector()
     private val groupElection = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 2))
@@ -30,16 +31,16 @@ class LeaderRunResultTest {
     fun `runIfLeaderResult - 리더 선출 성공 시 Elected 반환`() {
         val result = election.runIfLeaderResult(randomLockName()) { "done" }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value shouldBeEqualTo "done"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+        result.value shouldBeEqualTo "done"
     }
 
     @Test
     fun `runIfLeaderResult - action 이 null 반환해도 Elected 로 분류`() {
         val result = election.runIfLeaderResult(randomLockName()) { null }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value.shouldBeNull()
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.value.shouldBeNull()
     }
 
     @Test
@@ -47,8 +48,8 @@ class LeaderRunResultTest {
         val failure = IllegalStateException("boom")
         val result = election.runIfLeaderResult<Any?>(randomLockName()) { throw failure }
 
-        result shouldBeInstanceOf LeaderRunResult.ActionFailed::class
-        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        result.cause shouldBeEqualTo failure
     }
 
     @Test
@@ -79,8 +80,8 @@ class LeaderRunResultTest {
     fun `runIfLeaderResult - 정수 결과도 Elected 로 반환`() {
         val result = election.runIfLeaderResult(randomLockName()) { 42 }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value shouldBeEqualTo 42
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<Int>>()
+        result.value shouldBeEqualTo 42
     }
 
     @Test
@@ -100,16 +101,16 @@ class LeaderRunResultTest {
     fun `group runIfLeaderResult - 슬롯 획득 성공 시 Elected 반환`() {
         val result = groupElection.runIfLeaderResult(randomLockName()) { "group-done" }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value shouldBeEqualTo "group-done"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+        result.value shouldBeEqualTo "group-done"
     }
 
     @Test
     fun `group runIfLeaderResult - action 이 null 반환해도 Elected 로 분류`() {
         val result = groupElection.runIfLeaderResult(randomLockName()) { null }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value.shouldBeNull()
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.value.shouldBeNull()
     }
 
     @Test
@@ -117,8 +118,8 @@ class LeaderRunResultTest {
         val failure = IllegalArgumentException("group-boom")
         val result = groupElection.runIfLeaderResult<Any?>(randomLockName()) { throw failure }
 
-        result shouldBeInstanceOf LeaderRunResult.ActionFailed::class
-        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        result.cause shouldBeEqualTo failure
     }
 
     @Test
@@ -142,7 +143,6 @@ class LeaderRunResultTest {
 
         thrown shouldBeEqualTo interrupted
         Thread.interrupted().shouldBeTrue()
-
     }
 
     // --- data class / object 특성 ---
@@ -158,8 +158,8 @@ class LeaderRunResultTest {
     fun `LeaderRunResult Skipped - singleton object`() {
         val a: LeaderRunResult<String> = LeaderRunResult.Skipped
         val b: LeaderRunResult<Int> = LeaderRunResult.Skipped
-        (a === b).shouldBeTrue()
 
+        a shouldBe b
     }
 
     // --- T58: Elected.leaderId (@JvmOverloads 호환성) ---
@@ -189,8 +189,7 @@ class LeaderRunResultTest {
     fun `Elected - leaderId 다르면 not equals`() {
         val a = LeaderRunResult.Elected("v", leaderId = "node-a")
         val b = LeaderRunResult.Elected("v", leaderId = "node-b")
-        (a == b).shouldBeFalse()
-
+        a shouldNotBeEqualTo b
     }
 
     @Test

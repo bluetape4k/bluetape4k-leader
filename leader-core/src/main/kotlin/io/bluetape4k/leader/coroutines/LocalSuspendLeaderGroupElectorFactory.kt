@@ -7,7 +7,7 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-class LocalSuspendLeaderGroupElectorFactory : SuspendLeaderGroupElectorFactory {
+class LocalSuspendLeaderGroupElectorFactory: SuspendLeaderGroupElectorFactory {
 
     override suspend fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
         LocalSuspendLeaderGroupElector(options)

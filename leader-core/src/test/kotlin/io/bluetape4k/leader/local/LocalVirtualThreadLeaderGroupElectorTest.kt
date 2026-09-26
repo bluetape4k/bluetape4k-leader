@@ -1,13 +1,5 @@
 package io.bluetape4k.leader.local
 
-import io.bluetape4k.codec.Base58
-import io.bluetape4k.junit5.concurrency.MultithreadingTester
-import io.bluetape4k.leader.LeaderGroupElectionException
-import io.bluetape4k.leader.LeaderGroupElectionOptions
-import io.bluetape4k.leader.LeaderRunResult
-import io.bluetape4k.leader.LeaderSlot
-import io.bluetape4k.logging.KLogging
-import io.bluetape4k.logging.debug
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
@@ -15,18 +7,25 @@ import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.virtualthread.virtualThread
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
+import io.bluetape4k.leader.LeaderGroupElectionException
+import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CancellationException
-import java.util.concurrent.CompletionException
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
 
 class LocalVirtualThreadLeaderGroupElectorTest {
 
@@ -57,18 +56,18 @@ class LocalVirtualThreadLeaderGroupElectorTest {
 
     @Test
     fun `runAsyncIfLeader - action 예외 발생 시 await 호출 시 예외가 전파된다`() {
-        val thrown = assertFailsWith<java.util.concurrent.ExecutionException> {
+        val thrown = assertFailsWith<ExecutionException> {
             election.runAsyncIfLeader(randomLockName()) {
                 throw LeaderGroupElectionException("테스트 예외")
             }.await()
         }
-        thrown.cause shouldBeInstanceOf LeaderGroupElectionException::class
+        thrown.cause.shouldBeInstanceOf<LeaderGroupElectionException>()
     }
 
     @Test
     fun `runAsyncIfLeader - action 예외 후에도 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomLockName()
-        runCatching {
+        assertFailsWith<ExecutionException> {
             election.runAsyncIfLeader(lockName) {
                 throw LeaderGroupElectionException("실패")
             }.await()
@@ -96,9 +95,8 @@ class LocalVirtualThreadLeaderGroupElectorTest {
         val currentConcurrent = AtomicInteger(0)
         val peakConcurrent = AtomicInteger(0)
 
-        MultithreadingTester()
-            .workers(maxLeaders * 4)
-            .rounds(2)
+        StructuredTaskScopeTester()
+            .rounds(maxLeaders * 8)
             .add {
                 election.runAsyncIfLeader(lockName) {
                     val current = currentConcurrent.incrementAndGet()
@@ -200,9 +198,8 @@ class LocalVirtualThreadLeaderGroupElectorTest {
         val numThreads = 8
         val roundsPerThread = 4
 
-        MultithreadingTester()
-            .workers(numThreads)
-            .rounds(roundsPerThread)
+        StructuredTaskScopeTester()
+            .rounds(numThreads * roundsPerThread)
             .add {
                 election.runAsyncIfLeader(lockName) {
                     log.debug { "Virtual Thread 작업 1 실행. counter=${counter.get()}" }
@@ -219,32 +216,33 @@ class LocalVirtualThreadLeaderGroupElectorTest {
             }
             .run()
 
-        counter.get() shouldBeEqualTo numThreads * roundsPerThread
+        counter.get() shouldBeEqualTo numThreads * roundsPerThread * 2
     }
 
     @Test
     fun `runAsyncIfLeaderResult - action 실패는 ActionFailed 로 분류한다`() {
         val failure = IllegalArgumentException("virtual-group-boom")
+        val slot = LeaderSlot(randomLockName(), "virtual-group-node")
 
-        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "virtual-group-node")) {
+        val result = election.runAsyncIfLeaderResult(slot) {
             throw failure
         }.await()
 
-        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
-        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>().cause shouldBeEqualTo failure
     }
 
     @Test
     fun `runAsyncIfLeaderResult - CancellationException 은 ActionFailed 로 감싸지 않는다`() {
         val cancellation = CancellationException("virtual-group-cancelled")
 
-        val thrown = assertFailsWith<CompletionException> {
-            election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "virtual-group-node")) {
+        val thrown = assertFailsWith<ExecutionException> {
+            val slot = LeaderSlot(randomLockName(), "virtual-group-node")
+            election.runAsyncIfLeaderResult(slot) {
                 throw cancellation
-            }.toCompletableFuture().join()
+            }.await()
         }
 
-        thrown.cause shouldBeInstanceOf CancellationException::class
+        thrown.cause.shouldBeInstanceOf<CancellationException>()
     }
 
     // ── skip-behavior (ShedLock 방식): 슬롯 획득 실패 시 null 반환 ──────────
@@ -259,14 +257,14 @@ class LocalVirtualThreadLeaderGroupElectorTest {
         val releaseLatch = CountDownLatch(1)
 
         // 동일 election 인스턴스로 슬롯 점유 (maxLeaders=1 이므로 가득 참)
-        val firstThread = Thread {
+        val firstThread = virtualThread {
             skipElection.runAsyncIfLeader(lockName) {
                 latch.countDown()
                 releaseLatch.await()
             }.await()
-        }.apply { start() }
+        }
 
-        latch.await(2, TimeUnit.SECONDS)
+        latch.await(2, TimeUnit.SECONDS).shouldBeTrue()
 
         val result = skipElection.runAsyncIfLeader(lockName) { "should-skip" }.await()
         result.shouldBeNull()

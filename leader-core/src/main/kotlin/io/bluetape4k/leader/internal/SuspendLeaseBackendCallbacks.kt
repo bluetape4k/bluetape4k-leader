@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.internal
 
 import io.bluetape4k.leader.ExtendOutcome
-import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.LeaseOwnershipStatus
 import kotlin.time.Duration
 
 /** [LeaseBackendCallbacks]의 coroutine 대응 callback 표입니다. */
