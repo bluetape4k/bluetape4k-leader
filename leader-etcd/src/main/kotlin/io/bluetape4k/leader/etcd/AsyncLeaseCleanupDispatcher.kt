@@ -15,12 +15,15 @@ import java.util.concurrent.atomic.AtomicReference
  * caller executor와 독립된 virtual thread를 즉시 시작하므로 queue shutdown으로 cleanup이 유실되지 않습니다.
  * virtual thread handoff가 실패하면 결과를 terminal failure로 완료하며 caller thread에서 blocking cleanup을 실행하지 않습니다.
  */
-internal object AsyncLeaseCleanupDispatcher : KLogging() {
+internal object AsyncLeaseCleanupDispatcher: KLogging() {
 
     private val cleanupThreadFactory = Thread.ofVirtual()
         .name("bluetape4k-leader-etcd-cleanup-", 0)
         .factory()
-    private val cleanupExecutor = Executor { task -> cleanupThreadFactory.newThread(task).start() }
+
+    private val cleanupExecutor = Executor { task ->
+        cleanupThreadFactory.newThread(task).start()
+    }
 
     @Suppress("TooGenericExceptionCaught")
     fun <T, R> completeAfter(
@@ -50,6 +53,7 @@ internal object AsyncLeaseCleanupDispatcher : KLogging() {
         transform: (T?, Throwable?) -> R,
     ): CompletableFuture<R> {
         val result = CompletableFuture<R>()
+
         source.whenComplete { value, failure ->
             val started = AtomicBoolean()
             val cleanupTask = Runnable {
@@ -108,7 +112,7 @@ internal object AsyncLeaseCleanupDispatcher : KLogging() {
 }
 
 /** 획득 완료와 cleanup 요청의 race를 닫고 cleanup 완료 future를 단일 소유합니다. */
-internal class AsyncLeaseCleanupBarrier<T : Any>(
+internal class AsyncLeaseCleanupBarrier<T: Any>(
     private val cleanup: (T) -> Unit,
 ) {
     private val acquired = AtomicReference<T?>()

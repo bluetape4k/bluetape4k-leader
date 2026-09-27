@@ -4,34 +4,42 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.etcd.AbstractEtcdLeaderTest
+import io.bluetape4k.leader.etcd.support.toByteSequence
+import io.bluetape4k.leader.etcd.support.toUtf8String
+import io.bluetape4k.logging.KLogging
 import io.etcd.jetcd.ByteSequence
 import io.etcd.jetcd.Client
 import io.etcd.jetcd.Watch
 import io.etcd.jetcd.options.WatchOption
 import io.etcd.jetcd.watch.WatchEvent
 import org.junit.jupiter.api.Test
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `callback can perform blocking kv get`() {
         newClient().use { client ->
-            val key = byteSequence("/bluetape4k/leader/test/${randomName()}/callback")
+            val key = "/bluetape4k/leader/test/${randomName()}/callback".toByteSequence()
             val expected = "callback-value"
             val callbackValue = CompletableFuture<String>()
             val watcher = client.readyWatcher(
                 key = key,
                 onEvent = { event ->
                     if (event.eventType == WatchEvent.EventType.PUT) {
-                        val response = client.kvClient.get(key).get(3, TimeUnit.SECONDS)
-                        callbackValue.complete(response.kvs.single().value.asString())
+                        val response = client.kvClient.get(key).get(3.seconds)
+                        callbackValue.complete(response.kvs.single().value.toUtf8String())
                     }
                 },
                 onFailure = callbackValue::completeExceptionally,
@@ -39,7 +47,7 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
 
             watcher.use {
                 watcher.awaitReady()
-                client.kvClient.put(key, byteSequence(expected)).get(10, TimeUnit.SECONDS)
+                client.kvClient.put(key, expected.toByteSequence()).get(10.seconds)
 
                 callbackValue.get(10, TimeUnit.SECONDS) shouldBeEqualTo expected
             }
@@ -49,12 +57,13 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
     @Test
     fun `slow first callback preserves put and delete order`() {
         newClient().use { client ->
-            val key = byteSequence("/bluetape4k/leader/test/${randomName()}/ordered")
+            val key = "/bluetape4k/leader/test/${randomName()}/ordered".toByteSequence()
             val firstEntered = CountDownLatch(1)
             val releaseFirst = CountDownLatch(1)
             val allEvents = CountDownLatch(3)
             val observed = CopyOnWriteArrayList<String>()
             val failure = CompletableFuture<Unit>()
+
             val watcher = client.readyWatcher(
                 key = key,
                 onEvent = { event ->
@@ -70,13 +79,13 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
 
             try {
                 watcher.awaitReady()
-                client.kvClient.put(key, byteSequence("v1")).get(10, TimeUnit.SECONDS)
+                client.kvClient.put(key, "v1".toByteSequence()).get(10.seconds)
                 firstEntered.await(10, TimeUnit.SECONDS).shouldBeTrue()
-                client.kvClient.put(key, byteSequence("v2")).get(10, TimeUnit.SECONDS)
-                client.kvClient.delete(key).get(10, TimeUnit.SECONDS)
+                client.kvClient.put(key, "v2".toByteSequence()).get(10.seconds)
+                client.kvClient.delete(key).get(10.seconds)
                 releaseFirst.countDown()
 
-                allEvents.await(10, TimeUnit.SECONDS).shouldBeTrue()
+                allEvents.await(10.seconds).shouldBeTrue()
                 failure.isDone.shouldBeFalse()
                 observed shouldBeEqualTo listOf("PUT:v1", "PUT:v2", "DELETE")
             } finally {
@@ -89,7 +98,7 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
     @Test
     fun `closed watcher stops delivery and a new watcher resumes`() {
         newClient().use { client ->
-            val key = byteSequence("/bluetape4k/leader/test/${randomName()}/restart")
+            val key = "/bluetape4k/leader/test/${randomName()}/restart".toByteSequence()
             val closedWatcherEvent = CompletableFuture<String>()
             val firstWatcher = client.readyWatcher(
                 key = key,
@@ -99,10 +108,10 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
 
             firstWatcher.awaitReady()
             firstWatcher.close()
-            client.kvClient.put(key, byteSequence("after-close")).get(10, TimeUnit.SECONDS)
+            client.kvClient.put(key, "after-close".toByteSequence()).get(10.seconds)
 
             assertFailsWith<TimeoutException> {
-                closedWatcherEvent.get(500, TimeUnit.MILLISECONDS)
+                closedWatcherEvent.get(500.milliseconds)
             }
 
             val restartedWatcherEvent = CompletableFuture<String>()
@@ -113,9 +122,9 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
             )
             restartedWatcher.use {
                 restartedWatcher.awaitReady()
-                client.kvClient.put(key, byteSequence("after-restart")).get(10, TimeUnit.SECONDS)
+                client.kvClient.put(key, "after-restart".toByteSequence()).get(10.seconds)
 
-                restartedWatcherEvent.get(10, TimeUnit.SECONDS) shouldBeEqualTo "PUT:after-restart"
+                restartedWatcherEvent.get(10.seconds) shouldBeEqualTo "PUT:after-restart"
             }
         }
     }
@@ -152,15 +161,10 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
 
     private fun WatchEvent.label(): String =
         when (eventType) {
-            WatchEvent.EventType.PUT -> "PUT:${keyValue.value.asString()}"
+            WatchEvent.EventType.PUT    -> "PUT:${keyValue.value.toUtf8String()}"
             WatchEvent.EventType.DELETE -> "DELETE"
             WatchEvent.EventType.UNRECOGNIZED -> "UNRECOGNIZED"
         }
-
-    private fun byteSequence(value: String): ByteSequence =
-        ByteSequence.from(value, StandardCharsets.UTF_8)
-
-    private fun ByteSequence.asString(): String = toString(StandardCharsets.UTF_8)
 
     private class ReadyWatcher(
         private val delegate: Watch.Watcher,
@@ -168,7 +172,7 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
     ): AutoCloseable {
 
         fun awaitReady() {
-            ready.get(10, TimeUnit.SECONDS)
+            ready.get(10.seconds)
         }
 
         override fun close() {

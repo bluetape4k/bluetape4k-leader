@@ -79,7 +79,7 @@ class SuspendLeaderManagementActionRegistry(
     /** 등록 token을 identity 기준으로 참조 계수합니다. */
     fun register(handle: SuspendLeaderLeaseHandle): LeaderManagementRegistration {
         val lockName = handle.lockName
-        if (!isManagementActionLockName(lockName)) {
+        if (!lockName.isManagementActionLockName()) {
             return LeaderManagementRegistration(
                 accepted = false,
                 outcome = LeaderManagementRegistrationOutcome.INVALID_LOCK_NAME,
@@ -111,7 +111,7 @@ class SuspendLeaderManagementActionRegistry(
         lockName: String,
         surface: LeaderManagementActionSurface,
     ): LeaderManagementActionResult {
-        if (!isManagementActionLockName(lockName)) {
+        if (!lockName.isManagementActionLockName()) {
             return immediate(LeaderManagementActionOutcome.INVALID_LOCK_NAME, surface)
         }
         when (val selection = store.select(lockName)) {

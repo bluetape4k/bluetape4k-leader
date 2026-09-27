@@ -3,6 +3,7 @@ package io.bluetape4k.leader.etcd
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.milliseconds
@@ -10,6 +11,8 @@ import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class EtcdLeaderElectionOptionsTest {
+
+    companion object: KLogging()
 
     @Test
     fun `default options use shared leader defaults and default key prefix`() {

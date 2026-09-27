@@ -22,7 +22,7 @@ import io.etcd.jetcd.Client
 class EtcdLeaderElectorFactory(
     private val client: Client,
     private val baseOptions: EtcdLeaderElectionOptions = EtcdLeaderElectionOptions.Default,
-) : LeaderElectorFactory {
+): LeaderElectorFactory {
 
     override fun create(options: LeaderElectionOptions): LeaderElector =
         EtcdLeaderElector(
@@ -41,7 +41,7 @@ class EtcdLeaderElectorFactory(
 class EtcdLeaderGroupElectorFactory(
     private val client: Client,
     private val baseOptions: EtcdLeaderGroupElectionOptions = EtcdLeaderGroupElectionOptions.Default,
-) : LeaderGroupElectorFactory {
+): LeaderGroupElectorFactory {
 
     override fun create(options: LeaderGroupElectionOptions): LeaderGroupElector =
         EtcdLeaderGroupElector(
@@ -60,7 +60,7 @@ class EtcdLeaderGroupElectorFactory(
 class EtcdSuspendLeaderElectorFactory(
     private val client: Client,
     private val baseOptions: EtcdLeaderElectionOptions = EtcdLeaderElectionOptions.Default,
-) : SuspendLeaderElectorFactory {
+): SuspendLeaderElectorFactory {
 
     override suspend fun create(options: LeaderElectionOptions): SuspendLeaderElector =
         EtcdSuspendLeaderElector(
@@ -79,7 +79,7 @@ class EtcdSuspendLeaderElectorFactory(
 class EtcdSuspendLeaderGroupElectorFactory(
     private val client: Client,
     private val baseOptions: EtcdLeaderGroupElectionOptions = EtcdLeaderGroupElectionOptions.Default,
-) : SuspendLeaderGroupElectorFactory {
+): SuspendLeaderGroupElectorFactory {
 
     override suspend fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
         EtcdSuspendLeaderGroupElector(

@@ -4,7 +4,6 @@ import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.concurrent.virtualthread.virtualFuture
 import io.bluetape4k.leader.VirtualThreadLeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
-import io.etcd.jetcd.Client
 
 /**
  * `EtcdVirtualThreadLeaderElector`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
@@ -14,18 +13,11 @@ import io.etcd.jetcd.Client
  */
 class EtcdVirtualThreadLeaderElector(
     private val delegate: EtcdLeaderElector,
-) : VirtualThreadLeaderElector,
-    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics {
+): VirtualThreadLeaderElector,
+   LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics {
 
     override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
         virtualFuture {
             delegate.runIfLeader(lockName, action)
         }
 }
-
-fun <T> Client.runVirtualIfLeader(
-    lockName: String,
-    options: EtcdLeaderElectionOptions = EtcdLeaderElectionOptions.Default,
-    action: () -> T,
-): VirtualFuture<T?> =
-    EtcdVirtualThreadLeaderElector(EtcdLeaderElector(this, options)).runAsyncIfLeader(lockName, action)

@@ -33,7 +33,7 @@ class LocalStrategicSuspendLeaderElector(
     private val mutexes = ConcurrentHashMap<String, Mutex>()
 
     private fun candidatesFor(lockName: String): ConcurrentHashMap<String, CandidateInfo> {
-        validateLockName(lockName)
+        lockName.validateLockName()
         return registry.computeIfAbsent(lockName) { ConcurrentHashMap() }
     }
 
@@ -68,8 +68,8 @@ class LocalStrategicSuspendLeaderElector(
         action: suspend () -> T,
     ): T? {
         log.debug { "runIfLeader... lockName=$lockName, strategy=$strategy, options=$options" }
-        
-        validateLockName(lockName)
+
+        lockName.validateLockName()
         // 선출 단계만 lockName 단위 뮤텍스로 보호
         val result = mutexFor(lockName).withLock {
             strategy.elect(listCandidates(lockName))

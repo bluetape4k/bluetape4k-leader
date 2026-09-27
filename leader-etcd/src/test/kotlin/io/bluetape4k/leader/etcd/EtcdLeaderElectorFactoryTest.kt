@@ -2,12 +2,15 @@ package io.bluetape4k.leader.etcd
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.etcd.jetcd.Client
+import io.mockk.clearMocks
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds
@@ -16,6 +19,11 @@ import kotlin.time.Duration.Companion.seconds
 class EtcdLeaderElectorFactoryTest {
 
     private val client = mockk<Client>(relaxed = true)
+
+    @BeforeEach
+    fun beforeEach() {
+        clearMocks(client)
+    }
 
     @Test
     fun `single leader factories merge call options into base etcd options`() {
@@ -46,7 +54,7 @@ class EtcdLeaderElectorFactoryTest {
     }
 
     @Test
-    fun `group factories merge call options into base etcd options`() {
+    fun `group factories merge call options into base etcd options`() = runSuspendIO {
         val baseOptions = EtcdLeaderGroupElectionOptions(keyPrefix = "/apps/orders/leader")
         val groupOptions = LeaderGroupElectionOptions(
             maxLeaders = 3,
@@ -61,14 +69,14 @@ class EtcdLeaderElectorFactoryTest {
         blockingElector.options.keyPrefix shouldBeEqualTo "/apps/orders/leader"
         blockingElector.options.leaderGroupOptions shouldBeEqualTo groupOptions
 
-        val suspendElector = runBlocking {
+        val suspendElector =
             EtcdSuspendLeaderGroupElectorFactory(client, baseOptions)
                 .create(groupOptions)
                 .shouldBeInstanceOf<EtcdSuspendLeaderGroupElector>()
-        }
 
         suspendElector.options.keyPrefix shouldBeEqualTo "/apps/orders/leader"
         suspendElector.options.leaderGroupOptions shouldBeEqualTo groupOptions
+
         verify(exactly = 0) { client.close() }
     }
 }

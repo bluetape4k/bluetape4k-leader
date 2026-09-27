@@ -4,13 +4,18 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
@@ -20,6 +25,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class EtcdSuspendLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
 
+    companion object: KLogging()
+
     @Test
     fun `runIfLeader allows max leaders and skips next contender`() = runSuspendIO {
         newClient().use { client ->
@@ -27,14 +34,22 @@ class EtcdSuspendLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
             val holder = EtcdSuspendLeaderGroupElector(
                 client,
                 EtcdLeaderGroupElectionOptions(
-                    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 5.seconds, leaseTime = 10.seconds),
+                    leaderGroupOptions = LeaderGroupElectionOptions(
+                        maxLeaders = 2,
+                        waitTime = 5.seconds,
+                        leaseTime = 10.seconds
+                    ),
                     keyPrefix = keyPrefix,
                 ),
             )
             val contender = EtcdSuspendLeaderGroupElector(
                 client,
                 EtcdLeaderGroupElectionOptions(
-                    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 250.milliseconds, leaseTime = 10.seconds),
+                    leaderGroupOptions = LeaderGroupElectionOptions(
+                        maxLeaders = 2,
+                        waitTime = 250.milliseconds,
+                        leaseTime = 10.seconds
+                    ),
                     keyPrefix = keyPrefix,
                 ),
             )
@@ -50,7 +65,8 @@ class EtcdSuspendLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                     release.await()
                     "first"
                 }
-            }
+            }.log("First Job")
+
             val second = async {
                 holder.runIfLeader(lockName) {
                     LockAssert.assertLockedSuspend(lockName)
@@ -58,11 +74,12 @@ class EtcdSuspendLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                     release.await()
                     "second"
                 }
-            }
+            }.log("Second Job")
 
             firstStarted.await()
             secondStarted.await()
             holder.activeCount(lockName) shouldBeEqualTo 2
+
             contender.runIfLeader(lockName) { "third" }.shouldBeNull()
 
             release.complete(Unit)
@@ -74,13 +91,17 @@ class EtcdSuspendLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
     fun `cancellation releases group slot for a later attempt`() = runSuspendIO {
         newClient().use { client ->
             val options = EtcdLeaderGroupElectionOptions(
-                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 2.seconds, leaseTime = 10.seconds),
+                leaderGroupOptions = LeaderGroupElectionOptions(
+                    maxLeaders = 1,
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds
+                ),
                 keyPrefix = "/bluetape4k/leader/test/${randomName()}",
             )
             val elector = EtcdSuspendLeaderGroupElector(client, options)
             val lockName = randomName()
 
-            assertFailsWith<kotlinx.coroutines.TimeoutCancellationException> {
+            assertFailsWith<TimeoutCancellationException> {
                 withTimeout(100.milliseconds) {
                     elector.runIfLeader(lockName) {
                         delay(10.seconds)
@@ -96,12 +117,17 @@ class EtcdSuspendLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
     fun `LeaderSlot result carries audit leader id`() = runSuspendIO {
         newClient().use { client ->
             val options = EtcdLeaderGroupElectionOptions(
-                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 2.seconds, leaseTime = 10.seconds),
+                leaderGroupOptions = LeaderGroupElectionOptions(
+                    maxLeaders = 2,
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds
+                ),
                 keyPrefix = "/bluetape4k/leader/test/${randomName()}",
             )
             val elector = EtcdSuspendLeaderGroupElector(client, options)
             val slot = LeaderSlot(randomName(), "suspend-group-node-a")
 
+            log.debug { "slot=$slot" }
             val result = elector.runIfLeaderResultSuspend(slot) {
                 "done"
             }
@@ -116,7 +142,11 @@ class EtcdSuspendLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
     fun `extendActiveLockSuspend works inside group body`() = runSuspendIO {
         newClient().use { client ->
             val options = EtcdLeaderGroupElectionOptions(
-                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 2.seconds, leaseTime = 10.seconds),
+                leaderGroupOptions = LeaderGroupElectionOptions(
+                    maxLeaders = 2,
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds
+                ),
                 keyPrefix = "/bluetape4k/leader/test/${randomName()}",
             )
             val elector = EtcdSuspendLeaderGroupElector(client, options)
@@ -125,7 +155,7 @@ class EtcdSuspendLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 LockExtender.extendActiveLockSuspend(10.seconds)
             }
 
-            extended shouldBeEqualTo true
+            extended.shouldBeTrue()
         }
     }
 }

@@ -21,7 +21,7 @@ import kotlin.time.Duration
 internal class EtcdLockExtendDelegate(
     private val lockClient: EtcdLockClient,
     private val handle: EtcdLeaseHandle,
-) : ExtendDelegate {
+): ExtendDelegate {
 
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
 
@@ -60,7 +60,7 @@ internal class EtcdLockExtendDelegate(
 internal class EtcdSuspendLockExtendDelegate(
     private val lockClient: EtcdLockClient,
     private val handle: EtcdLeaseHandle,
-) : SuspendExtendDelegate {
+): SuspendExtendDelegate {
 
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
 

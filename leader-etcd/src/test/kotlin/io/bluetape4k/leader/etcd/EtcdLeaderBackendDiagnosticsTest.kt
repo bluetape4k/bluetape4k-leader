@@ -1,7 +1,8 @@
 package io.bluetape4k.leader.etcd
 
-import io.bluetape4k.assertions.shouldBe
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
@@ -9,10 +10,26 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 
 class EtcdLeaderBackendDiagnosticsTest {
+
+    private companion object: KLogging() {
+        val supportedModes = LeaderBackendModeSupport(
+            single = LeaderBackendSupport.SUPPORTED,
+            group = LeaderBackendSupport.SUPPORTED,
+        )
+        val auditModes = LeaderBackendModeSupport(
+            single = LeaderBackendSupport.SUPPORTED,
+            group = LeaderBackendSupport.UNSUPPORTED,
+        )
+        val unsupportedModes = LeaderBackendModeSupport(
+            single = LeaderBackendSupport.UNSUPPORTED,
+            group = LeaderBackendSupport.UNSUPPORTED,
+        )
+    }
 
     @Test
     fun `descriptor는 etcd 실행 모델과 backend lease 계약을 보고한다`() {
@@ -21,6 +38,7 @@ class EtcdLeaderBackendDiagnosticsTest {
 
         descriptor.backendId shouldBeEqualTo "etcd"
         descriptor.displayName shouldBeEqualTo "etcd"
+
         capabilities.singleExecutionModels shouldBeEqualTo setOf(
             LeaderExecutionModel.BLOCKING,
             LeaderExecutionModel.ASYNC,
@@ -32,11 +50,12 @@ class EtcdLeaderBackendDiagnosticsTest {
             LeaderExecutionModel.ASYNC,
             LeaderExecutionModel.SUSPEND,
         )
+
         capabilities.leaseExtension shouldBeEqualTo supportedModes
         capabilities.auditState shouldBeEqualTo auditModes
         capabilities.clockSource shouldBeEqualTo LeaderBackendClockSource.BACKEND
         capabilities.ttlMode shouldBeEqualTo LeaderBackendTtlMode.SERVER_TTL
-        capabilities.limitations shouldBeEqualTo emptyList()
+        capabilities.limitations.shouldBeEmpty()
     }
 
     @Test
@@ -55,23 +74,7 @@ class EtcdLeaderBackendDiagnosticsTest {
             EtcdSuspendLeaderGroupElector::class.java,
             EtcdVirtualThreadLeaderElector::class.java,
         ).forEach { electorType ->
-            LeaderBackendDiagnosticsProvider::class.java
-                .isAssignableFrom(electorType) shouldBe true
+            LeaderBackendDiagnosticsProvider::class.java.isAssignableFrom(electorType).shouldBeTrue()
         }
-    }
-
-    private companion object {
-        val supportedModes = LeaderBackendModeSupport(
-            single = LeaderBackendSupport.SUPPORTED,
-            group = LeaderBackendSupport.SUPPORTED,
-        )
-        val auditModes = LeaderBackendModeSupport(
-            single = LeaderBackendSupport.SUPPORTED,
-            group = LeaderBackendSupport.UNSUPPORTED,
-        )
-        val unsupportedModes = LeaderBackendModeSupport(
-            single = LeaderBackendSupport.UNSUPPORTED,
-            group = LeaderBackendSupport.UNSUPPORTED,
-        )
     }
 }

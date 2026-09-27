@@ -69,7 +69,7 @@ class LeaderManagementActionRegistry(
     /** 등록된 handle을 identity 기준으로 참조 계수합니다. backend callback은 호출하지 않습니다. */
     fun register(handle: LeaderLeaseHandle): LeaderManagementRegistration {
         val lockName = handle.lockName
-        if (!isManagementActionLockName(lockName)) {
+        if (!lockName.isManagementActionLockName()) {
             return LeaderManagementRegistration(
                 accepted = false,
                 outcome = LeaderManagementRegistrationOutcome.INVALID_LOCK_NAME,
@@ -109,7 +109,7 @@ class LeaderManagementActionRegistry(
         surface: LeaderManagementActionSurface,
     ): LeaderManagementActionResult {
         val deadline = MonotonicDeadline.fromNow(actionTimeout)
-        if (!isManagementActionLockName(lockName)) {
+        if (!lockName.isManagementActionLockName()) {
             return immediate(LeaderManagementActionOutcome.INVALID_LOCK_NAME, surface)
         }
 

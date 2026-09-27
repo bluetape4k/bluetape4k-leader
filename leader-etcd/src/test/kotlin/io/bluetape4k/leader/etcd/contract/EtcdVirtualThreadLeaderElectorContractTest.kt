@@ -1,20 +1,22 @@
 package io.bluetape4k.leader.etcd.contract
 
-import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LeaderGroupElectionOptions
-import io.bluetape4k.leader.etcd.EtcdLeaderElector
-import io.bluetape4k.leader.etcd.EtcdLeaderGroupElector
-import io.bluetape4k.leader.etcd.EtcdLeaderGroupElectionOptions
 import io.bluetape4k.leader.etcd.EtcdLeaderElectionOptions
+import io.bluetape4k.leader.etcd.EtcdLeaderElector
+import io.bluetape4k.leader.etcd.EtcdLeaderGroupElectionOptions
+import io.bluetape4k.leader.etcd.EtcdLeaderGroupElector
 import io.bluetape4k.leader.etcd.EtcdVirtualThreadLeaderElector
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Direct etcd virtual-thread and group executor overload coverage.
@@ -24,6 +26,8 @@ import java.util.concurrent.TimeUnit
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class EtcdVirtualThreadLeaderElectorContractTest {
+
+    companion object: KLogging()
 
     @Test
     fun virtualWrapperAcquiresAndReleasesUsingLockName() {
@@ -35,12 +39,8 @@ class EtcdVirtualThreadLeaderElectorContractTest {
         )
         val lockName = "etcd-virtual-contract"
 
-        elector.runAsyncIfLeader(lockName) { "virtual-ok" }
-            .toCompletableFuture()
-            .join() shouldBeEqualTo "virtual-ok"
-        elector.runAsyncIfLeader(lockName) { "virtual-reacquired" }
-            .toCompletableFuture()
-            .join() shouldBeEqualTo "virtual-reacquired"
+        elector.runAsyncIfLeader(lockName) { "virtual-ok" }.await() shouldBeEqualTo "virtual-ok"
+        elector.runAsyncIfLeader(lockName) { "virtual-reacquired" }.await() shouldBeEqualTo "virtual-reacquired"
     }
 
     @Test
@@ -67,12 +67,13 @@ class EtcdVirtualThreadLeaderElectorContractTest {
         }
 
         try {
-            actionStarted.await(10, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(10.seconds).shouldBeTrue()
             result.cancel(true).shouldBeTrue()
-            actionInterrupted.await(10, TimeUnit.SECONDS).shouldBeTrue()
-            elector.runAsyncIfLeader(lockName) { "virtual-reacquired" }
-                .toCompletableFuture()
-                .get(10, TimeUnit.SECONDS) shouldBeEqualTo "virtual-reacquired"
+            actionInterrupted.await(10.seconds).shouldBeTrue()
+
+            elector.runAsyncIfLeader(lockName) {
+                "virtual-reacquired"
+            }.await(10.seconds()) shouldBeEqualTo "virtual-reacquired"
         } finally {
             release.countDown()
         }
@@ -89,13 +90,13 @@ class EtcdVirtualThreadLeaderElectorContractTest {
         )
         val lockName = "etcd-group-executor-contract"
         val future = elector.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-            CompletableFuture.completedFuture("group-executor-ok")
+            completableFutureOf("group-executor-ok")
         }
 
         future.join() shouldBeEqualTo "group-executor-ok"
 
         elector.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-            CompletableFuture.completedFuture("group-executor-reacquired")
+            completableFutureOf("group-executor-reacquired")
         }.join() shouldBeEqualTo "group-executor-reacquired"
     }
 }

@@ -1,8 +1,11 @@
 package io.bluetape4k.leader.etcd
 
-import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderLeaseAcquirer
+import io.bluetape4k.leader.LeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
@@ -17,6 +20,7 @@ import io.bluetape4k.leader.etcd.internal.JetcdEtcdLockClient
 import io.bluetape4k.leader.etcd.internal.etcdCleanupTimeout
 import io.bluetape4k.leader.etcd.internal.getWithinEtcdCleanupTimeout
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
@@ -24,8 +28,8 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.etcd.jetcd.ByteSequence
 import io.etcd.jetcd.Client
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
@@ -44,11 +48,11 @@ class EtcdLeaderElector private constructor(
     private val lockClient: EtcdLockClient,
     val options: EtcdLeaderElectionOptions,
 ): LeaderElector,
-    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics,
-    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics,
+   LeaderLeaseAcquirerSupport {
 
-    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
+        LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
     private val cleanupTimeout = etcdCleanupTimeout(options.leaderOptions.waitTime, options.retryDelay)
@@ -78,6 +82,8 @@ class EtcdLeaderElector private constructor(
     }
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
+        log.debug { "run if leader... lockName=$lockName" }
+
         val leaseHandle = acquire(lockName) ?: return null
         val delegate = EtcdLockExtendDelegate(lockClient, leaseHandle)
         val handle = LeaderLockHandle.real(
@@ -110,45 +116,67 @@ class EtcdLeaderElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
+        log.debug { "runAsync if leader... lockName=$lockName" }
+
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
-        val cleanupBarrier = AsyncLeaseCleanupBarrier<EtcdLeaseHandle>(::releaseAfterMinLease)
+        val cleanupBarrier = AsyncLeaseCleanupBarrier(::releaseAfterMinLease)
+
         val beginCleanup: () -> CompletableFuture<Unit> = {
             when {
-                lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
-                lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else -> CompletableFuture.completedFuture(Unit)
+                lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) ->
+                    cleanupBarrier.request()
+                lifecycle.get() == AsyncLifecycle.CLEANUP                               ->
+                    cleanupBarrier.request()
+                else                                                                    ->
+                    completableFutureOf(Unit)
             }
         }
-        val acquisitionFuture = CompletableFuture.supplyAsync({
-            var handle: EtcdLeaseHandle? = null
-            try {
-                acquire(lockName).also { handle = it }
-            } finally {
-                cleanupBarrier.completeAcquisition(handle)
-            }
-        }, executor)
-        val pipelineFuture = acquisitionFuture.thenComposeAsync({ handle ->
-            when {
-                handle == null -> CompletableFuture.completedFuture(null)
-                !lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED) ->
-                    CompletableFuture.failedFuture(
-                        CancellationException("leader result future was cancelled before action"),
-                    )
-                else -> runAcquiredAsync(handle, cancellationRelay, action)
-            }
-        }, executor)
-        val ordered = LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
-            if (failure == null) {
-                CompletableFuture.completedFuture(value)
-            } else {
-                beginCleanup().handle { _, cleanupFailure ->
-                    val cause = failure.unwrapCompletionException()
-                    cleanupFailure?.unwrapCompletionException()?.let(cause::addSuppressed)
-                    throw CompletionException(cause)
+
+        val acquisitionFuture = CompletableFuture.supplyAsync(
+            {
+                var handle: EtcdLeaseHandle? = null
+                try {
+                    acquire(lockName).also { handle = it }
+                } finally {
+                    cleanupBarrier.completeAcquisition(handle)
+                }
+            },
+            executor
+        )
+
+        val pipelineFuture = acquisitionFuture.thenComposeAsync(
+            { handle ->
+                when {
+                    handle == null                                                           ->
+                        completableFutureOf(null)
+                    !lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED) ->
+                        failedCompletableFutureOf(
+                            CancellationException("leader result future was cancelled before action"),
+                        )
+                    else                                                                     ->
+                        runAcquiredAsync(
+                            handle,
+                            cancellationRelay,
+                            action
+                        )
+                }
+            },
+            executor
+        )
+
+        val ordered = LeaderFutureBridge
+            .flatMap(pipelineFuture) { value, failure ->
+                if (failure == null) {
+                    completableFutureOf(value)
+                } else {
+                    beginCleanup().handle { _, cleanupFailure ->
+                        val cause = failure.unwrapCompletionException()
+                        cleanupFailure?.unwrapCompletionException()?.let(cause::addSuppressed)
+                        throw CompletionException(cause)
+                    }
                 }
             }
-        }
         return LeaderFutureBridge.propagateCancellation(ordered, cancellationRelay)
     }
 
@@ -159,6 +187,7 @@ class EtcdLeaderElector private constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val delegate = EtcdLockExtendDelegate(lockClient, leaseHandle)
+
         val handle = LeaderLockHandle.real(
             identity = LockIdentity(
                 lockName = leaseHandle.lockName,
@@ -169,6 +198,7 @@ class EtcdLeaderElector private constructor(
             acquiredAtNanos = leaseHandle.acquiredAtNanos,
             extendDelegate = delegate,
         )
+
         val watchdog = try {
             LeaderLeaseAutoExtender.start(
                 enabled = options.leaderOptions.autoExtend,
@@ -179,6 +209,7 @@ class EtcdLeaderElector private constructor(
         } catch (e: Throwable) {
             return AsyncLeaseCleanupDispatcher.failAfter(e) { releaseAfterMinLease(leaseHandle) }
         }
+
         val actionFuture = try {
             AopScopeAccess.withPushedSync(handle) {
                 cancellationRelay.invoke(action)
@@ -214,6 +245,7 @@ class EtcdLeaderElector private constructor(
     private fun acquire(lockName: String): EtcdLeaseHandle? {
         val ttlSeconds = EtcdLeaseTime.ttlSeconds(options.leaderOptions.leaseTime)
         val deadline = EtcdAcquisitionDeadline.fromNow(options.leaderOptions.waitTime)
+
         val leaseId = try {
             lockClient.grantLease(ttlSeconds).get(deadline.remainingMillis(), TimeUnit.MILLISECONDS)
         } catch (e: CancellationException) {
@@ -230,7 +262,10 @@ class EtcdLeaderElector private constructor(
         }
 
         val lockKey = lockClient.singleLockKey(lockName)
+        log.debug { "acquired... lockKey=$lockKey, leaseId=$leaseId" }
+
         val lockFuture = lockClient.lock(lockKey, leaseId)
+
         val ownershipKey = try {
             lockFuture.get(deadline.remainingMillis(), TimeUnit.MILLISECONDS)
         } catch (e: CancellationException) {
@@ -258,12 +293,15 @@ class EtcdLeaderElector private constructor(
             leaseId = leaseId,
             lockName = lockName,
             ownershipKey = ownershipKey,
-        )
+        ).apply {
+            log.debug { "acquired lock acquisition. lockName=$lockName, handle=$this" }
+        }
     }
 
     private fun releaseAfterMinLease(handle: EtcdLeaseHandle) {
         val remaining = remainingMinLeaseTime(handle.acquiredAtNanos, options.leaderOptions.minLeaseTime)
         var interruption: InterruptedException? = null
+
         if (remaining > Duration.ZERO) {
             try {
                 Thread.sleep(remaining.inWholeMilliseconds.coerceAtLeast(1L))
@@ -272,6 +310,7 @@ class EtcdLeaderElector private constructor(
             }
         }
         release(handle)
+
         interruption?.let {
             Thread.currentThread().interrupt()
             throw it
@@ -296,39 +335,26 @@ class EtcdLeaderElector private constructor(
     }
 
     private fun unlock(ownershipKey: ByteSequence) {
-        runCatching { lockClient.unlock(ownershipKey).getWithinEtcdCleanupTimeout(cleanupTimeout) }
-            .onFailure { e ->
-                if (EtcdBackendErrorClassifier.isExpectedCleanup(e)) {
-                    log.debug { "etcd unlock skipped because key is already gone." }
-                } else {
-                    log.warn(e) { "etcd unlock failed." }
-                }
+        runCatching {
+            lockClient.unlock(ownershipKey).getWithinEtcdCleanupTimeout(cleanupTimeout)
+        }.onFailure { e ->
+            if (EtcdBackendErrorClassifier.isExpectedCleanup(e)) {
+                log.debug { "etcd unlock skipped because key is already gone." }
+            } else {
+                log.warn(e) { "etcd unlock failed." }
             }
+        }
     }
 
     private fun revokeLease(leaseId: Long) {
-        runCatching { lockClient.revokeLease(leaseId).getWithinEtcdCleanupTimeout(cleanupTimeout) }
-            .onFailure { e ->
-                if (EtcdBackendErrorClassifier.isExpectedCleanup(e)) {
-                    log.debug { "etcd lease revoke skipped because lease is already gone. leaseId=$leaseId" }
-                } else {
-                    log.warn(e) { "etcd lease revoke failed. leaseId=$leaseId" }
-                }
+        runCatching {
+            lockClient.revokeLease(leaseId).getWithinEtcdCleanupTimeout(cleanupTimeout)
+        }.onFailure { e ->
+            if (EtcdBackendErrorClassifier.isExpectedCleanup(e)) {
+                log.debug { "etcd lease revoke skipped because lease is already gone. leaseId=$leaseId" }
+            } else {
+                log.warn(e) { "etcd lease revoke failed. leaseId=$leaseId" }
             }
+        }
     }
 }
-
-inline fun <T> Client.runIfLeader(
-    lockName: String,
-    options: EtcdLeaderElectionOptions = EtcdLeaderElectionOptions.Default,
-    crossinline action: () -> T,
-): T? =
-    EtcdLeaderElector(this, options).runIfLeader(lockName) { action() }
-
-fun <T> Client.runAsyncIfLeader(
-    lockName: String,
-    options: EtcdLeaderElectionOptions = EtcdLeaderElectionOptions.Default,
-    executor: Executor = VirtualThreadExecutor,
-    action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> =
-    EtcdLeaderElector(this, options).runAsyncIfLeader(lockName, executor, action)

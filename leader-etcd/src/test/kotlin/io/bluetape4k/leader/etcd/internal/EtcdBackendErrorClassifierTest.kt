@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.internal.BackendErrorKind
+import io.bluetape4k.logging.KLogging
 import io.etcd.jetcd.lease.NoSuchLeaseException
 import io.grpc.Status
 import org.junit.jupiter.api.Test
@@ -14,6 +15,8 @@ import java.util.concurrent.ExecutionException
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class EtcdBackendErrorClassifierTest {
+
+    companion object: KLogging()
 
     @Test
     fun `lease not found errors are expected cleanup`() {

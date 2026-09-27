@@ -1,17 +1,21 @@
 package io.bluetape4k.leader.etcd.contract
 
-import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.contract.AbstractGroupLockExtenderContractTest
-import io.bluetape4k.leader.etcd.EtcdLeaderGroupElector
 import io.bluetape4k.leader.etcd.EtcdLeaderGroupElectionOptions
+import io.bluetape4k.leader.etcd.EtcdLeaderGroupElector
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.TestInstance
 
 /**
  * etcd blocking group LockExtender contract implementation.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class EtcdGroupLockExtenderContractTest : AbstractGroupLockExtenderContractTest() {
+class EtcdGroupLockExtenderContractTest: AbstractGroupLockExtenderContractTest() {
+
+    companion object: KLogging()
+
     override val elector: LeaderGroupElector =
         EtcdLeaderGroupElector(
             EtcdContractSupport.client,
