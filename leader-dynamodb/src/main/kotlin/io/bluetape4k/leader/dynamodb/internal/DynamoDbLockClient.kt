@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.dynamodb.internal
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderLease
@@ -8,6 +9,7 @@ import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.requireNotNull
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
@@ -20,6 +22,7 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 import kotlin.math.ceil
 import kotlin.random.Random
@@ -42,7 +45,7 @@ internal class DynamoDbLockClient(
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val batchRetrySleep: (Long) -> Unit = Thread::sleep,
 ) {
-    companion object : KLogging() {
+    companion object: KLogging() {
         const val LockName = "lockName"
         const val OwnerId = "ownerId"
         const val AuditLeaderId = "auditLeaderId"
@@ -135,11 +138,11 @@ internal class DynamoDbLockClient(
                     val cause = failure?.unwrapCompletion()
                     when {
                         result.isDone && acquired != null -> releaseLate(acquired)
-                        result.isDone -> Unit
-                        cause != null -> result.completeExceptionally(cause)
-                        acquired != null -> result.complete(acquired)
+                        result.isDone                -> Unit
+                        cause != null                -> result.completeExceptionally(cause)
+                        acquired != null             -> result.complete(acquired)
                         !deadline.hasTimeRemaining() -> result.complete(null)
-                        else -> {
+                        else                         -> {
                             val delayMillis = jitterDelayMillis(deadline, retryDelay)
                             CompletableFuture.runAsync(
                                 {},
@@ -149,7 +152,7 @@ internal class DynamoDbLockClient(
                                 when {
                                     result.isDone -> Unit
                                     delayCause != null -> result.completeExceptionally(delayCause)
-                                    else -> attempt()
+                                    else          -> attempt()
                                 }
                             }
                         }
@@ -170,10 +173,20 @@ internal class DynamoDbLockClient(
         ttlPadding: Duration,
         clockSkewTolerance: Duration,
     ): AcquiredLock? {
-        val client = requireNotNull(syncClient) { "sync DynamoDbClient is required" }
+        val client = syncClient.requireNotNull { "sync DynamoDbClient is required" }
         val leaseExpiryMillis = nowMillis() + leaseTime.inWholeMilliseconds
         return try {
-            client.putItem(acquireRequest(key, ownerId, auditLeaderId, nodeId, leaseExpiryMillis, ttlPadding, clockSkewTolerance))
+            client.putItem(
+                acquireRequest(
+                    key,
+                    ownerId,
+                    auditLeaderId,
+                    nodeId,
+                    leaseExpiryMillis,
+                    ttlPadding,
+                    clockSkewTolerance
+                )
+            )
             AcquiredLock(key, ownerId, auditLeaderId, nodeId, leaseExpiryMillis)
         } catch (e: ConditionalCheckFailedException) {
             reconcileOwned(key, ownerId)
@@ -189,9 +202,20 @@ internal class DynamoDbLockClient(
         ttlPadding: Duration,
         clockSkewTolerance: Duration,
     ): CompletableFuture<AcquiredLock?> {
-        val client = requireNotNull(asyncClient) { "async DynamoDbAsyncClient is required" }
+        val client = asyncClient.requireNotNull { "async DynamoDbAsyncClient is required" }
         val leaseExpiryMillis = nowMillis() + leaseTime.inWholeMilliseconds
-        return client.putItem(acquireRequest(key, ownerId, auditLeaderId, nodeId, leaseExpiryMillis, ttlPadding, clockSkewTolerance))
+        return client
+            .putItem(
+                acquireRequest(
+                    key,
+                    ownerId,
+                    auditLeaderId,
+                    nodeId,
+                    leaseExpiryMillis,
+                    ttlPadding,
+                    clockSkewTolerance
+                )
+            )
             .thenApply<AcquiredLock?> { AcquiredLock(key, ownerId, auditLeaderId, nodeId, leaseExpiryMillis) }
             .exceptionallyCompose { failure ->
                 val cause = failure.unwrapCompletion()
@@ -337,6 +361,12 @@ internal class DynamoDbLockClient(
         }
     }
 
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("tableName", tableName)
+            .toString()
+    }
+
     private fun batchRead(keys: List<String>): List<Map<String, AttributeValue>> {
         val items = mutableListOf<Map<String, AttributeValue>>()
         // chunk마다 상한이 초기화되지 않도록 전체 조회에서 재시도 예산을 공유합니다.
@@ -345,10 +375,11 @@ internal class DynamoDbLockClient(
         keys.chunked(BatchGetLimit).forEach { chunk ->
             var requestItems = batchRequestItems(chunk)
             do {
-                val response = syncClient?.batchGetItem(BatchGetItemRequest.builder().requestItems(requestItems).build())
-                    ?: requireNotNull(asyncClient) { "DynamoDB client is required" }
-                        .batchGetItem(BatchGetItemRequest.builder().requestItems(requestItems).build())
-                        .join()
+                val response =
+                    syncClient?.batchGetItem(BatchGetItemRequest.builder().requestItems(requestItems).build())
+                        ?: requireNotNull(asyncClient) { "DynamoDB client is required" }
+                            .batchGetItem(BatchGetItemRequest.builder().requestItems(requestItems).build())
+                            .join()
                 items += response.responses()[tableName].orEmpty()
                 requestItems = response.unprocessedKeys().filterValues { tableKeys ->
                     !tableKeys.keys().isNullOrEmpty()
@@ -356,7 +387,7 @@ internal class DynamoDbLockClient(
                 if (requestItems.isNotEmpty()) {
                     check(retries < BatchGetMaxRetries) {
                         "DynamoDB batch read exhausted $BatchGetMaxRetries retries; " +
-                            "${requestItems.values.sumOf { it.keys().size }} keys remain unprocessed"
+                                "${requestItems.values.sumOf { it.keys().size }} keys remain unprocessed"
                     }
                     batchRetrySleep(retryDelayMillis)
                     retries++
@@ -496,5 +527,5 @@ internal class DynamoDbLockClient(
     private fun n(value: Long): AttributeValue = AttributeValue.builder().n(value.toString()).build()
 
     private fun Throwable.unwrapCompletion(): Throwable =
-        (this as? java.util.concurrent.CompletionException)?.cause ?: this
+        (this as? CompletionException)?.cause ?: this
 }

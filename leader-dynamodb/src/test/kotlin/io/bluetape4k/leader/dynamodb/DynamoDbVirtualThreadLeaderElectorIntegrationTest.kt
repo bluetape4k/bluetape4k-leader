@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LockAssert
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -13,7 +14,9 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class DynamoDbVirtualThreadLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
+class DynamoDbVirtualThreadLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `single virtual-thread elector acquires and releases`() {
@@ -58,9 +61,11 @@ class DynamoDbVirtualThreadLeaderElectorIntegrationTest : AbstractDynamoDbLeader
             }
 
             started.await(5, TimeUnit.SECONDS).shouldBeTrue()
+
             contender.runAsyncIfLeader(lockName) { "contender" }.await().shouldBeNull()
 
             release.countDown()
+
             holderFuture.get(5, TimeUnit.SECONDS) shouldBeEqualTo "holder"
         } finally {
             release.countDown()
@@ -113,7 +118,14 @@ class DynamoDbVirtualThreadLeaderElectorIntegrationTest : AbstractDynamoDbLeader
             contender.runAsyncIfLeader(lockName) { "third" }.await().shouldBeNull()
 
             release.countDown()
-            setOf(first.get(5, TimeUnit.SECONDS), second.get(5, TimeUnit.SECONDS)) shouldBeEqualTo setOf("first", "second")
+
+            setOf(
+                first.get(5, TimeUnit.SECONDS),
+                second.get(5, TimeUnit.SECONDS)
+            ) shouldBeEqualTo setOf(
+                "first",
+                "second"
+            )
         } finally {
             release.countDown()
             executor.shutdownNow()

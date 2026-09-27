@@ -21,7 +21,7 @@ internal object DynamoDbKeys {
     }
 
     fun validateUserLockName(lockName: String) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         require(!lockName.contains(SlotMarker)) { "lockName must not contain '$SlotMarker': $lockName" }
     }
 

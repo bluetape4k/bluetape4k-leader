@@ -5,10 +5,10 @@ import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
-import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElector
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElectionOptions
-import io.bluetape4k.leader.dynamodb.DynamoDbLeaderGroupElector
+import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElector
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderGroupElectionOptions
+import io.bluetape4k.leader.dynamodb.DynamoDbLeaderGroupElector
 import io.bluetape4k.leader.dynamodb.DynamoDbVirtualThreadLeaderElector
 import io.bluetape4k.leader.dynamodb.DynamoDbVirtualThreadLeaderGroupElector
 import org.junit.jupiter.api.Test

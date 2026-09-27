@@ -1,8 +1,9 @@
 package io.bluetape4k.leader.dynamodb
 
-import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderLeaseAcquirer
+import io.bluetape4k.leader.LeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
@@ -15,6 +16,7 @@ import io.bluetape4k.leader.dynamodb.internal.DynamoDbKeys
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbLockClient
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbLockExtendDelegate
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -37,14 +39,14 @@ class DynamoDbLeaderElector(
     private val dynamoDb: DynamoDbClient,
     val options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
 ): LeaderElector,
-    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics,
-    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics,
+   LeaderLeaseAcquirerSupport {
 
-    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
+        LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         internal const val DYNAMODB_FACTORY_BEAN_NAME = "dynamodb-leader-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(DynamoDbBackendErrorClassifier)
     }
@@ -125,10 +127,16 @@ class DynamoDbLeaderElector(
             log.debug { "DynamoDB leader acquired. lockName=$lockName" }
             return AopScopeAccess.withPushedSync(handle) { action() }
         } finally {
-            runCatching { watchdog.close() }
-                .onFailure { e -> log.warn(e) { "DynamoDB leader watchdog close failed. lockName=$lockName" } }
-            runCatching { lockClient.release(lock, options.leaderOptions.minLeaseTime, acquiredAtNanos) }
-                .onFailure { e -> log.warn(e) { "DynamoDB leader release failed. lockName=$lockName" } }
+            runCatching {
+                watchdog.close()
+            }.onFailure { e ->
+                log.warn(e) { "DynamoDB leader watchdog close failed. lockName=$lockName" }
+            }
+            runCatching {
+                lockClient.release(lock, options.leaderOptions.minLeaseTime, acquiredAtNanos)
+            }.onFailure { e ->
+                log.warn(e) { "DynamoDB leader release failed. lockName=$lockName" }
+            }
         }
     }
 
@@ -169,41 +177,22 @@ class DynamoDbLeaderElector(
     ): CompletableFuture<LeaderRunResult<T>> {
         val elected = AtomicBoolean(false)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
-        return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
-            elected.set(true)
-            cancellationRelay.invoke(action)
-        }, cancellationRelay) { value, failure ->
-            val cause = (failure as? CompletionException)?.cause ?: failure
-            when {
-                cause is CancellationException -> throw cause
-                cause != null && elected.get() -> LeaderRunResult.ActionFailed(cause)
-                cause != null -> throw CompletionException(cause)
-                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+        return LeaderFutureBridge
+            .map(
+                runAsyncIfLeader(slot, executor) {
+                    elected.set(true)
+                    cancellationRelay.invoke(action)
+                },
+                cancellationRelay
+            ) { value, failure ->
+                val cause = (failure as? CompletionException)?.cause ?: failure
+                when {
+                    cause is CancellationException -> throw cause
+                    cause != null && elected.get() -> LeaderRunResult.ActionFailed(cause)
+                    cause != null                  -> throw CompletionException(cause)
+                    elected.get()                  -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                    else                           -> LeaderRunResult.Skipped
+                }
             }
-        }
     }
 }
-
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
-fun <T> DynamoDbClient.runIfLeader(
-    lockName: String,
-    options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
-    action: () -> T,
-): T? = DynamoDbLeaderElector(this, options).runIfLeader(lockName, action)
-
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
-fun <T> DynamoDbClient.runAsyncIfLeader(
-    lockName: String,
-    executor: Executor = VirtualThreadExecutor,
-    options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
-    action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> = DynamoDbLeaderElector(this, options).runAsyncIfLeader(lockName, executor, action)

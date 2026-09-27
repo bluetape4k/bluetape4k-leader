@@ -4,14 +4,14 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.mockk.every
 import io.mockk.mockk
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import org.junit.jupiter.api.Test
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes
 import java.util.concurrent.CompletableFuture
 
@@ -71,8 +71,12 @@ class DynamoDbBatchReadRetryTest {
             when (requests.size) {
                 1 -> BatchGetItemResponse.builder()
                     .responses(mapOf("leader-locks" to listOf(item("group#slot-0", 5_000L))))
-                    .unprocessedKeys(mapOf("leader-locks" to KeysAndAttributes.builder()
-                        .consistentRead(true).keys(listOf(keys[1])).build()))
+                    .unprocessedKeys(
+                        mapOf(
+                            "leader-locks" to KeysAndAttributes.builder()
+                                .consistentRead(true).keys(listOf(keys[1])).build()
+                        )
+                    )
                     .build()
                 2 -> BatchGetItemResponse.builder()
                     .responses(mapOf("leader-locks" to listOf(item("group#slot-1", 999L))))

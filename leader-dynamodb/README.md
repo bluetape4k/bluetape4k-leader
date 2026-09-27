@@ -26,14 +26,14 @@ Preview DynamoDB-backed leader election using conditional writes and logical TTL
 
 ## Implementations
 
-| Class | Interface | Description |
-|---|---|---|
-| `DynamoDbLeaderElector` | `LeaderElector` + async facade | Blocking and `CompletableFuture` single-leader election |
-| `DynamoDbLeaderGroupElector` | `LeaderGroupElector` | Blocking slot-based multi-leader election |
-| `DynamoDbVirtualThreadLeaderElector` | `VirtualThreadLeaderElector` | Virtual-thread single-leader adapter over the blocking elector |
+| Class                                     | Interface                         | Description                                                         |
+|-------------------------------------------|-----------------------------------|---------------------------------------------------------------------|
+| `DynamoDbLeaderElector`                   | `LeaderElector` + async facade    | Blocking and `CompletableFuture` single-leader election             |
+| `DynamoDbLeaderGroupElector`              | `LeaderGroupElector`              | Blocking slot-based multi-leader election                           |
+| `DynamoDbVirtualThreadLeaderElector`      | `VirtualThreadLeaderElector`      | Virtual-thread single-leader adapter over the blocking elector      |
 | `DynamoDbVirtualThreadLeaderGroupElector` | `VirtualThreadLeaderGroupElector` | Virtual-thread multi-leader adapter over the blocking group elector |
-| `DynamoDbSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader election with `DynamoDbAsyncClient` |
-| `DynamoDbSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine slot-based multi-leader election |
+| `DynamoDbSuspendLeaderElector`            | `SuspendLeaderElector`            | Coroutine single-leader election with `DynamoDbAsyncClient`         |
+| `DynamoDbSuspendLeaderGroupElector`       | `SuspendLeaderGroupElector`       | Coroutine slot-based multi-leader election                          |
 
 ## Table
 

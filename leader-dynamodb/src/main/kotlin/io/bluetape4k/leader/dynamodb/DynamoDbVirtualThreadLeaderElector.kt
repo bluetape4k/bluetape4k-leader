@@ -7,7 +7,6 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.VirtualThreadLeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 
 /**
  * `DynamoDbVirtualThreadLeaderElector`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
@@ -17,8 +16,8 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
  */
 class DynamoDbVirtualThreadLeaderElector(
     private val delegate: DynamoDbLeaderElector,
-) : VirtualThreadLeaderElector,
-    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
+): VirtualThreadLeaderElector,
+   LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
 
     override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
         virtualFuture {
@@ -38,15 +37,3 @@ class DynamoDbVirtualThreadLeaderElector(
             delegate.runIfLeaderResult(slot, action)
         })
 }
-
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
-fun <T> DynamoDbClient.runVirtualIfLeader(
-    lockName: String,
-    options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
-    action: () -> T,
-): VirtualFuture<T?> =
-    DynamoDbVirtualThreadLeaderElector(DynamoDbLeaderElector(this, options)).runAsyncIfLeader(lockName, action)

@@ -25,7 +25,7 @@ data class DynamoDbLeaderGroupElectionOptions(
     val retryDelay: Duration = 50.milliseconds,
     val ttlPadding: Duration = 60.seconds,
     val clockSkewTolerance: Duration = 5.seconds,
-) : Serializable {
+): Serializable {
 
     val maxLeaders: Int get() = leaderGroupOptions.maxLeaders
 
@@ -37,7 +37,7 @@ data class DynamoDbLeaderGroupElectionOptions(
         require(clockSkewTolerance >= Duration.ZERO) { "clockSkewTolerance must be >= 0: $clockSkewTolerance" }
         require(leaderGroupOptions.leaseTime > clockSkewTolerance * 2) {
             "leaseTime must be greater than 2 * clockSkewTolerance: " +
-                "leaseTime=${leaderGroupOptions.leaseTime}, clockSkewTolerance=$clockSkewTolerance"
+                    "leaseTime=${leaderGroupOptions.leaseTime}, clockSkewTolerance=$clockSkewTolerance"
         }
     }
 

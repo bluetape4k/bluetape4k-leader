@@ -2,8 +2,8 @@ package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
-import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -11,9 +11,12 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import io.bluetape4k.utils.Runtimex
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.until
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
@@ -21,10 +24,13 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
+import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class DynamoDbLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
+class DynamoDbLeaderGroupElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `runIfLeader never exceeds max leaders under contention`() {
@@ -37,22 +43,25 @@ class DynamoDbLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
         val elected = AtomicInteger(0)
 
         MultithreadingTester()
-            .workers(8)
+            .workers(Runtimex.availableProcessors)
             .rounds(2)
             .add {
                 elector.runIfLeader(lockName) {
                     LockAssert.assertLocked(lockName)
                     val current = active.incrementAndGet()
                     peak.updateAndGet { max(it, current) }
-                    Thread.sleep(25)
+                    Thread.sleep(Random.nextLong(5, 30))
                     elected.incrementAndGet()
                     active.decrementAndGet()
                 }
             }
             .run()
 
-        peak.get() shouldBeLessOrEqualTo 2
+        log.debug { "peak=$peak, elected=$elected, active=$active" }
+
+        peak.get() shouldBeEqualTo 2
         elected.get() shouldBeGreaterOrEqualTo 2
+
         elector.activeCount(lockName) shouldBeEqualTo 0
         elector.availableSlots(lockName) shouldBeEqualTo 2
     }
@@ -63,8 +72,11 @@ class DynamoDbLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
         val lockName = randomName()
 
         elector.runIfLeader(lockName) {
-            LockExtender.extendActiveLock(5.seconds)
+            LockExtender.extendActiveLock(5.seconds).shouldBeTrue()
+
+            log.debug { "state=${elector.state(lockName)}" }
             elector.state(lockName).activeCount shouldBeEqualTo 1
+
             "first"
         } shouldBeEqualTo "first"
 
@@ -86,7 +98,11 @@ class DynamoDbLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
         )
         val contender = newElector(
             keyPrefix = keyPrefix,
-            groupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 150.milliseconds, leaseTime = 10.seconds),
+            groupOptions = LeaderGroupElectionOptions(
+                maxLeaders = 1,
+                waitTime = 150.milliseconds,
+                leaseTime = 10.seconds
+            ),
         )
         val slot = LeaderSlot(lockName = randomName(), leaderId = "dynamodb-group-state-audit-node-a")
         val empty = holder.state(slot.lockName)
@@ -94,6 +110,7 @@ class DynamoDbLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
         val release = CountDownLatch(1)
         val executor = Executors.newSingleThreadExecutor()
 
+        log.debug { "empty state=$empty" }
         empty.lockName shouldBeEqualTo slot.lockName
         empty.maxLeaders shouldBeEqualTo 1
         empty.activeCount shouldBeEqualTo 0
@@ -120,8 +137,10 @@ class DynamoDbLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
                 }
             }
 
-            started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+            started.await(10, TimeUnit.SECONDS).shouldBeTrue()
             contender.runIfLeader(slot.lockName) { "contender" }.shouldBeNull()
+
+            log.debug { "holder state=${holder.state(slot.lockName)}" }
             holder.state(slot.lockName).activeCount shouldBeEqualTo 1
 
             release.countDown()
@@ -131,7 +150,9 @@ class DynamoDbLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
             executor.shutdownNow()
         }
 
+        log.debug { "holder state=${holder.state(slot.lockName)}" }
         holder.state(slot.lockName).activeCount shouldBeEqualTo 0
+
         contender.runIfLeader(slot.lockName) { "takeover" } shouldBeEqualTo "takeover"
     }
 
@@ -149,6 +170,7 @@ class DynamoDbLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
 
         val result = elector.runIfLeaderResult(slot) {
             val lease = elector.state(slot.lockName).leaders.single()
+            log.debug { "lease=$lease" }
             lease.auditLeaderId shouldBeEqualTo "dynamodb-group-audit-node-a"
             lease.nodeId shouldBeEqualTo "dynamodb-group-node-a"
             "ok"
@@ -160,7 +182,11 @@ class DynamoDbLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
     @Test
     fun `runAsyncIfLeader cancellation propagates to nullable action and group cleanup`() {
         val elector = newElector(
-            groupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 100.milliseconds, leaseTime = 5.seconds),
+            groupOptions = LeaderGroupElectionOptions(
+                maxLeaders = 1,
+                waitTime = 100.milliseconds,
+                leaseTime = 5.seconds
+            ),
         )
         val lockName = randomName()
         val slot = LeaderSlot(lockName, "dynamodb-nullable-group-cancel-node")
@@ -174,11 +200,14 @@ class DynamoDbLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
-            result.cancel(false) shouldBeEqualTo true
-            actionFuture.isCancelled shouldBeEqualTo true
-            await.atMost(5.seconds).untilAsserted {
-                elector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+
+            log.debug { "result=$result" }
+            actionFuture.isCancelled.shouldBeTrue()
+
+            await atMost 5.seconds until {
+                elector.runIfLeader(lockName) { "reacquired" } == "reacquired"
             }
         } finally {
             actionFuture.cancel(true)

@@ -13,7 +13,7 @@ import kotlin.time.Duration.Companion.seconds
  * DynamoDB suspend group leader-id contract implementation.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class DynamoDbSuspendLeaderGroupElectorLeaderIdContractTest : AbstractSuspendLeaderGroupElectorLeaderIdContractTest() {
+class DynamoDbSuspendLeaderGroupElectorLeaderIdContractTest: AbstractSuspendLeaderGroupElectorLeaderIdContractTest() {
     override fun createElector(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
         DynamoDbSuspendLeaderGroupElector(
             DynamoDbContractSupport.dynamoDbAsync,
