@@ -10,20 +10,20 @@ import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionException
-import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.consul.internal.ConsulKvEntry
 import io.bluetape4k.leader.consul.internal.ConsulLeaseHandle
-import io.bluetape4k.leader.consul.internal.ConsulLockExtendDelegate
 import io.bluetape4k.leader.consul.internal.ConsulLockClient
+import io.bluetape4k.leader.consul.internal.ConsulLockExtendDelegate
 import io.bluetape4k.leader.consul.internal.ConsulOwnerPayload
 import io.bluetape4k.leader.consul.internal.ConsulSessionId
 import io.bluetape4k.leader.consul.internal.ConsulSessionRenewal
+import io.bluetape4k.logging.KLogging
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.CancellationException
@@ -42,6 +42,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class ConsulLeaderElectorDelegationTest {
+
+    companion object: KLogging()
 
     @Test
     fun `single action completion keeps named event loop free while cleanup is blocked`() {
@@ -749,7 +751,7 @@ class ConsulLeaderElectorDelegationTest {
         private val acquireStarted: CountDownLatch? = null,
         private val releaseObserved: CountDownLatch? = null,
         private val cleanupBlocker: CleanupBlocker? = null,
-    ) : ConsulLockClient {
+    ): ConsulLockClient {
 
         private var currentEntry: ConsulKvEntry? = entry
 
@@ -832,7 +834,7 @@ class ConsulLeaderElectorDelegationTest {
 
     private class RecordingFuture<T>(
         private val value: T,
-    ) : CompletableFuture<T>() {
+    ): CompletableFuture<T>() {
         var requestedTimeoutNanos: Long? = null
             private set
 
@@ -842,7 +844,7 @@ class ConsulLeaderElectorDelegationTest {
         }
     }
 
-    private class InterruptingFuture<T> : CompletableFuture<T>() {
+    private class InterruptingFuture<T>: CompletableFuture<T>() {
         override fun get(timeout: Long, unit: TimeUnit): T =
             throw InterruptedException("interrupted acquisition")
     }

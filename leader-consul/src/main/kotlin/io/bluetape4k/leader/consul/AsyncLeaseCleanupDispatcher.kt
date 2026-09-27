@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.consul
 
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -15,7 +17,7 @@ import java.util.concurrent.atomic.AtomicReference
  * caller executor와 독립된 virtual thread를 즉시 시작하므로 queue shutdown으로 cleanup이 유실되지 않습니다.
  * virtual thread handoff가 실패하면 결과를 terminal failure로 완료하며 caller thread에서 blocking cleanup을 실행하지 않습니다.
  */
-internal object AsyncLeaseCleanupDispatcher : KLogging() {
+internal object AsyncLeaseCleanupDispatcher: KLogging() {
 
     private val cleanupThreadFactory = Thread.ofVirtual()
         .name("bluetape4k-leader-consul-cleanup-", 0)
@@ -34,12 +36,12 @@ internal object AsyncLeaseCleanupDispatcher : KLogging() {
         failure: Throwable,
         cleanup: () -> Unit,
     ): CompletableFuture<T> =
-        completeAfter(CompletableFuture.failedFuture<T>(failure), cleanup) { _, sourceFailure ->
+        completeAfter(failedCompletableFutureOf<T>(failure), cleanup) { _, sourceFailure ->
             throw sourceFailure?.unwrapCompletionException() ?: failure
         }
 
     fun execute(cleanup: () -> Unit): CompletableFuture<Unit> =
-        completeAfter(CompletableFuture.completedFuture(Unit), cleanup) { _, _ -> }
+        completeAfter(completableFutureOf(Unit), cleanup) { _, _ -> }
 
     @Suppress("TooGenericExceptionCaught")
     internal fun <T, R> completeAfter(
@@ -108,7 +110,7 @@ internal object AsyncLeaseCleanupDispatcher : KLogging() {
 }
 
 /** 획득 완료와 cleanup 요청의 race를 닫고 cleanup 완료 future를 단일 소유합니다. */
-internal class AsyncLeaseCleanupBarrier<T : Any>(
+internal class AsyncLeaseCleanupBarrier<T: Any>(
     private val cleanup: (T) -> Unit,
 ) {
     private val acquired = AtomicReference<T?>()

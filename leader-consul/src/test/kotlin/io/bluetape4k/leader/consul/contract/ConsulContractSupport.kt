@@ -5,6 +5,7 @@ import io.bluetape4k.leader.consul.ConsulEndpoint
 import io.bluetape4k.testcontainers.infra.ConsulServer
 
 internal object ConsulContractSupport {
+
     val server: ConsulServer by lazy { ConsulServer.Launcher.consul }
 
     fun endpoint(): ConsulEndpoint = ConsulEndpoint(server.url)

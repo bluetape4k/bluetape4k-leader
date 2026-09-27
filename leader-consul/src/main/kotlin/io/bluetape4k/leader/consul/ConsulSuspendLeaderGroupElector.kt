@@ -48,14 +48,14 @@ class ConsulSuspendLeaderGroupElector private constructor(
     private val lockClient: ConsulLockClient,
     val options: ConsulLeaderGroupElectionOptions,
 ): SuspendLeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics {
+   LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics {
 
     constructor(
         endpoint: ConsulEndpoint,
         options: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
-    ) : this(JavaHttpConsulLockClient(endpoint, options.keyPrefix), options)
+    ): this(JavaHttpConsulLockClient(endpoint, options.keyPrefix), options)
 
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
         internal const val CONSUL_SUSPEND_GROUP_FACTORY_BEAN_NAME = "consul-suspend-leader-group-elector"
 
         internal fun create(
@@ -273,7 +273,7 @@ class ConsulSuspendLeaderGroupElector private constructor(
     }
 
     private fun currentLeaders(lockName: String): List<LeaderLease> =
-        (0 until maxLeaders).mapNotNull { slot ->
+        List(maxLeaders) { slot ->
             runCatching {
                 val entry = lockClient.read(lockClient.groupLockKey(lockName, slot)).getWithinRequestTimeout(lockClient)
                     ?: return@runCatching null
@@ -284,7 +284,7 @@ class ConsulSuspendLeaderGroupElector private constructor(
                 if (lease == null) {
                     log.warn {
                         "Consul suspend group state ignored because owner payload is missing or invalid. " +
-                            "lockName=$lockName, slot=$slot, sessionId=${entry.sessionId.value}"
+                                "lockName=$lockName, slot=$slot, sessionId=${entry.sessionId.value}"
                     }
                 }
                 lease
@@ -295,7 +295,7 @@ class ConsulSuspendLeaderGroupElector private constructor(
                 log.warn(e) { "Consul suspend group state query failed. lockName=$lockName, slot=$slot" }
                 null
             }
-        }
+        }.filterNotNull()
 }
 
 /**

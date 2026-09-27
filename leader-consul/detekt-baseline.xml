@@ -1,38 +1,51 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>CyclomaticComplexMethod:ConsulOwnerPayload.kt:private fun String.readJsonString: JsonString?</ID>
-    <ID>MagicNumber:ConsulGroupAcquirePolicy.kt:1_000_000L</ID>
-    <ID>MagicNumber:ConsulLeaderElector.kt:1_000_000L</ID>
-    <ID>MagicNumber:ConsulOwnerPayload.kt:0x20</ID>
-    <ID>MagicNumber:ConsulOwnerPayload.kt:16</ID>
-    <ID>MagicNumber:ConsulOwnerPayload.kt:4</ID>
-    <ID>MagicNumber:ConsulSuspendLeaderElector.kt:1_000_000L</ID>
-    <ID>MagicNumber:JavaHttpConsulLockClient.kt:16</ID>
-    <ID>MagicNumber:JavaHttpConsulLockClient.kt:4</ID>
-    <ID>MagicNumber:JavaHttpConsulLockClient.kt:JavaHttpConsulLockClient$200</ID>
-    <ID>MagicNumber:JavaHttpConsulLockClient.kt:JavaHttpConsulLockClient$404</ID>
-    <ID>MaxLineLength:ConsulLeaderPaths.kt:ConsulLeaderPaths.Companion$require</ID>
-    <ID>ReturnCount:ConsulLeaderElector.kt:ConsulLeaderElector$override fun state: LeaderState</ID>
-    <ID>ReturnCount:ConsulOwnerPayload.kt:private fun String.readJsonString: JsonString?</ID>
-    <ID>ReturnCount:ConsulOwnerPayload.kt:private fun parseFlatStringObject: Map&lt;String, String>?</ID>
-    <ID>ReturnCount:ConsulSuspendLeaderElector.kt:ConsulSuspendLeaderElector$override fun state: LeaderState</ID>
-    <ID>ReturnCount:JavaHttpConsulLockClient.kt:JavaHttpConsulLockClient$private fun parseKvEntry: ConsulKvEntry?</ID>
-    <ID>ThrowsCount:ConsulLeaderElector.kt:ConsulLeaderElector$override fun &lt;T> runIfLeaderResult: LeaderRunResult&lt;T></ID>
-    <ID>ThrowsCount:ConsulLeaderGroupElector.kt:ConsulLeaderGroupElector$override fun &lt;T> runIfLeaderResult: LeaderRunResult&lt;T></ID>
-    <ID>ThrowsCount:ConsulSuspendLeaderElector.kt:ConsulSuspendLeaderElector$private suspend fun acquire: ConsulLeaseHandle?</ID>
-    <ID>ThrowsCount:ConsulSuspendLeaderGroupElector.kt:ConsulSuspendLeaderGroupElector$private suspend fun acquire: ConsulLeaseHandle?</ID>
-    <ID>TooGenericExceptionCaught:ConsulLeaderElector.kt:ConsulLeaderElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:ConsulLeaderGroupElector.kt:ConsulLeaderGroupElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:ConsulSuspendLeaderElector.kt:ConsulSuspendLeaderElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:ConsulSuspendLeaderGroupElector.kt:ConsulSuspendLeaderGroupElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:ConsulSuspendLockExtendDelegate.kt:ConsulSuspendLockExtendDelegate$e: Exception</ID>
-    <ID>TooManyFunctions:ConsulLeaderElector.kt:ConsulLeaderElector : LeaderElector</ID>
-    <ID>TooManyFunctions:ConsulLeaderGroupElector.kt:ConsulLeaderGroupElector : LeaderGroupElector</ID>
-    <ID>TooManyFunctions:ConsulSuspendLeaderGroupElector.kt:ConsulSuspendLeaderGroupElector : SuspendLeaderGroupElector</ID>
-    <ID>TooManyFunctions:JavaHttpConsulLockClient.kt:JavaHttpConsulLockClient : ConsulLockClient</ID>
-    <ID>UnusedParameter:ConsulLeaderElector.kt:ConsulLeaderElector$executor: Executor</ID>
-    <ID>UnusedParameter:ConsulLeaderGroupElector.kt:ConsulLeaderGroupElector$executor: Executor</ID>
-  </CurrentIssues>
+    <ManuallySuppressedIssues/>
+    <CurrentIssues>
+        <ID>CyclomaticComplexMethod:ConsulOwnerPayload.kt:private fun String.readJsonString: JsonString?</ID>
+        <ID>MagicNumber:ConsulGroupAcquirePolicy.kt:1_000_000L</ID>
+        <ID>MagicNumber:ConsulLeaderElector.kt:1_000_000L</ID>
+        <ID>MagicNumber:ConsulOwnerPayload.kt:0x20</ID>
+        <ID>MagicNumber:ConsulOwnerPayload.kt:16</ID>
+        <ID>MagicNumber:ConsulOwnerPayload.kt:4</ID>
+        <ID>MagicNumber:ConsulSuspendLeaderElector.kt:1_000_000L</ID>
+        <ID>MagicNumber:JavaHttpConsulLockClient.kt:16</ID>
+        <ID>MagicNumber:JavaHttpConsulLockClient.kt:4</ID>
+        <ID>MagicNumber:JavaHttpConsulLockClient.kt:JavaHttpConsulLockClient$200</ID>
+        <ID>MagicNumber:JavaHttpConsulLockClient.kt:JavaHttpConsulLockClient$404</ID>
+        <ID>MaxLineLength:ConsulLeaderPaths.kt:ConsulLeaderPaths.Companion$require</ID>
+        <ID>ReturnCount:ConsulLeaderElector.kt:ConsulLeaderElector$override fun state: LeaderState</ID>
+        <ID>ReturnCount:ConsulOwnerPayload.kt:private fun String.readJsonString: JsonString?</ID>
+        <ID>ReturnCount:ConsulOwnerPayload.kt:private fun parseFlatStringObject: Map&lt;String, String>?</ID>
+        <ID>ReturnCount:ConsulSuspendLeaderElector.kt:ConsulSuspendLeaderElector$override fun state: LeaderState</ID>
+        <ID>ReturnCount:JavaHttpConsulLockClient.kt:JavaHttpConsulLockClient$private fun parseKvEntry: ConsulKvEntry?
+        </ID>
+        <ID>ThrowsCount:ConsulLeaderElector.kt:ConsulLeaderElector$override fun &lt;T> runIfLeaderResult:
+            LeaderRunResult&lt;T>
+        </ID>
+        <ID>ThrowsCount:ConsulLeaderGroupElector.kt:ConsulLeaderGroupElector$override fun &lt;T> runIfLeaderResult:
+            LeaderRunResult&lt;T>
+        </ID>
+        <ID>ThrowsCount:ConsulSuspendLeaderElector.kt:ConsulSuspendLeaderElector$private suspend fun acquire:
+            ConsulLeaseHandle?
+        </ID>
+        <ID>ThrowsCount:ConsulSuspendLeaderGroupElector.kt:ConsulSuspendLeaderGroupElector$private suspend fun acquire:
+            ConsulLeaseHandle?
+        </ID>
+        <ID>TooGenericExceptionCaught:ConsulLeaderElector.kt:ConsulLeaderElector$e: Exception</ID>
+        <ID>TooGenericExceptionCaught:ConsulLeaderGroupElector.kt:ConsulLeaderGroupElector$e: Exception</ID>
+        <ID>TooGenericExceptionCaught:ConsulSuspendLeaderElector.kt:ConsulSuspendLeaderElector$e: Exception</ID>
+        <ID>TooGenericExceptionCaught:ConsulSuspendLeaderGroupElector.kt:ConsulSuspendLeaderGroupElector$e: Exception
+        </ID>
+        <ID>TooGenericExceptionCaught:ConsulSuspendLockExtendDelegate.kt:ConsulSuspendLockExtendDelegate$e: Exception
+        </ID>
+        <ID>TooManyFunctions:ConsulLeaderElector.kt:ConsulLeaderElector : LeaderElector</ID>
+        <ID>TooManyFunctions:ConsulLeaderGroupElector.kt:ConsulLeaderGroupElector : LeaderGroupElector</ID>
+        <ID>TooManyFunctions:ConsulSuspendLeaderGroupElector.kt:ConsulSuspendLeaderGroupElector :
+            SuspendLeaderGroupElector
+        </ID>
+        <ID>TooManyFunctions:JavaHttpConsulLockClient.kt:JavaHttpConsulLockClient : ConsulLockClient</ID>
+        <ID>UnusedParameter:ConsulLeaderElector.kt:ConsulLeaderElector$executor: Executor</ID>
+        <ID>UnusedParameter:ConsulLeaderGroupElector.kt:ConsulLeaderGroupElector$executor: Executor</ID>
+    </CurrentIssues>
 </SmellBaseline>

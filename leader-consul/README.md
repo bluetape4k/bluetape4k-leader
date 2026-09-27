@@ -4,9 +4,7 @@ English | [한국어](./README.ko.md)
 
 Preview Consul backend for `bluetape4k-leader`.
 
-This module provides preview single-leader and multi-leader group electors backed
-by Consul sessions and KV `acquire`/`release`. Blocking, `CompletableFuture`,
-coroutine, and Spring Boot auto-configuration surfaces are available.
+This module provides preview single-leader and multi-leader group electors backed by Consul sessions and KV `acquire`/`release`. Blocking, `CompletableFuture`, coroutine, and Spring Boot auto-configuration surfaces are available.
 
 ## Architecture
 
@@ -18,20 +16,14 @@ coroutine, and Spring Boot auto-configuration surfaces are available.
 
 ## Behavior / Contract
 
-- Public APIs use bluetape4k-owned DTOs such as `ConsulEndpoint`; no stale
-  third-party Consul client type is exposed.
+- Public APIs use bluetape4k-owned DTOs such as `ConsulEndpoint`; no stale third-party Consul client type is exposed.
 - Consul Session TTL must be between 10 seconds and 86,400 seconds.
 - Single-leader keys use `keyPrefix/single/{encodedLockName}`.
 - Group keys use fixed slots: `keyPrefix/group/{encodedLockName}/slot-{index}`.
 - `lockDelay` defaults to zero for predictable scheduler-style reacquire.
-- A zero lock delay can overlap an old holder still running after TTL expiry;
-  actions should be idempotent or use an external fencing token when duplicate
-  execution is unsafe.
+- A zero lock delay can overlap an old holder still running after TTL expiry; actions should be idempotent or use an external fencing token when duplicate execution is unsafe.
 - Consul endpoint, ACL token, datacenter, and agent lifecycle are caller-owned.
-- Core event decorators such as `withListeners()` work with Consul electors.
-  A backend-native Consul blocking-query watch publisher is intentionally not
-  created by auto-configuration because Consul watch lifetime, backoff, and ACL
-  scope are application-owned operational choices.
+- Core event decorators such as `withListeners()` work with Consul electors. A backend-native Consul blocking-query watch publisher is intentionally not created by auto-configuration because Consul watch lifetime, backoff, and ACL scope are application-owned operational choices.
 
 ## Usage
 
@@ -80,8 +72,7 @@ val groupResult = groupElector.runIfLeader("partition-workers") {
 ## Spring Boot
 
 Register a caller-owned `ConsulEndpoint` bean. Auto-configuration then creates
-`ConsulLeaderElector`, `ConsulSuspendLeaderElector`, `ConsulLeaderGroupElector`,
-and `ConsulSuspendLeaderGroupElector` beans.
+`ConsulLeaderElector`, `ConsulSuspendLeaderElector`, `ConsulLeaderGroupElector`, and `ConsulSuspendLeaderGroupElector` beans.
 
 ```yaml
 bluetape4k:
@@ -100,37 +91,37 @@ bluetape4k:
 
 ### `ConsulEndpoint`
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `baseUrl` | `URI` | — | Consul HTTP API base URL, e.g. `http://localhost:8500` |
-| `datacenter` | `String?` | `null` | Optional target datacenter |
-| `aclToken` | `String?` | `null` | Optional ACL token sent with every request |
+| Property         | Type       | Default     | Description                                                                                                                       |
+|------------------|------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| `baseUrl`        | `URI`      | —           | Consul HTTP API base URL, e.g. `http://localhost:8500`                                                                            |
+| `datacenter`     | `String?`  | `null`      | Optional target datacenter                                                                                                        |
+| `aclToken`       | `String?`  | `null`      | Optional ACL token sent with every request                                                                                        |
 | `requestTimeout` | `Duration` | `5.seconds` | Per-request HTTP timeout. Governs all blocking waits: lock acquire, state read, session renew, lock release, and session destroy. |
 
 ### `ConsulLeaderElectionOptions`
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `leaderOptions.waitTime` | `Duration` | `5.seconds` | Maximum time budget for lock acquisition |
-| `leaderOptions.leaseTime` | `Duration` | `60.seconds` | Consul Session TTL. Must be in `[10.seconds, 86_400.seconds]`. |
-| `leaderOptions.nodeId` | `String` | process-level default | Audit node ID shared with core contracts |
-| `leaderOptions.minLeaseTime` | `Duration` | `0.seconds` | Minimum leadership hold time after quick actions |
-| `leaderOptions.autoExtend` | `Boolean` | `false` | Renews the Consul session while the action runs |
-| `keyPrefix` | `String` | `bluetape4k/leader` | Consul KV key prefix |
-| `sessionNamePrefix` | `String` | `bluetape4k-leader` | Prefix for created Consul session names |
-| `lockDelay` | `Duration` | `0.seconds` | Consul session lock delay. Zero allows immediate reacquire after TTL expiry; use idempotent actions or external fencing tokens when duplicate execution is unsafe. |
+| Option                       | Type       | Default               | Description                                                                                                                                                        |
+|------------------------------|------------|-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `leaderOptions.waitTime`     | `Duration` | `5.seconds`           | Maximum time budget for lock acquisition                                                                                                                           |
+| `leaderOptions.leaseTime`    | `Duration` | `60.seconds`          | Consul Session TTL. Must be in `[10.seconds, 86_400.seconds]`.                                                                                                     |
+| `leaderOptions.nodeId`       | `String`   | process-level default | Audit node ID shared with core contracts                                                                                                                           |
+| `leaderOptions.minLeaseTime` | `Duration` | `0.seconds`           | Minimum leadership hold time after quick actions                                                                                                                   |
+| `leaderOptions.autoExtend`   | `Boolean`  | `false`               | Renews the Consul session while the action runs                                                                                                                    |
+| `keyPrefix`                  | `String`   | `bluetape4k/leader`   | Consul KV key prefix                                                                                                                                               |
+| `sessionNamePrefix`          | `String`   | `bluetape4k-leader`   | Prefix for created Consul session names                                                                                                                            |
+| `lockDelay`                  | `Duration` | `0.seconds`           | Consul session lock delay. Zero allows immediate reacquire after TTL expiry; use idempotent actions or external fencing tokens when duplicate execution is unsafe. |
 
 ### `ConsulLeaderGroupElectionOptions`
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `leaderGroupOptions.maxLeaders` | `Int` | `2` | Maximum number of concurrent group leaders |
-| `leaderGroupOptions.waitTime` | `Duration` | `5.seconds` | Maximum time budget for group slot acquisition |
-| `leaderGroupOptions.leaseTime` | `Duration` | `60.seconds` | Consul Session TTL for group slots. Must be in `[10.seconds, 86_400.seconds]`. |
-| `leaderGroupOptions.minLeaseTime` | `Duration` | `0.seconds` | Minimum group-slot hold time after quick actions |
-| `keyPrefix` | `String` | `bluetape4k/leader` | Consul KV key prefix for group lock keys |
-| `sessionNamePrefix` | `String` | `bluetape4k-leader` | Prefix for created Consul session names |
-| `lockDelay` | `Duration` | `0.seconds` | See `ConsulLeaderElectionOptions.lockDelay`. |
+| Option                            | Type       | Default             | Description                                                                    |
+|-----------------------------------|------------|---------------------|--------------------------------------------------------------------------------|
+| `leaderGroupOptions.maxLeaders`   | `Int`      | `2`                 | Maximum number of concurrent group leaders                                     |
+| `leaderGroupOptions.waitTime`     | `Duration` | `5.seconds`         | Maximum time budget for group slot acquisition                                 |
+| `leaderGroupOptions.leaseTime`    | `Duration` | `60.seconds`        | Consul Session TTL for group slots. Must be in `[10.seconds, 86_400.seconds]`. |
+| `leaderGroupOptions.minLeaseTime` | `Duration` | `0.seconds`         | Minimum group-slot hold time after quick actions                               |
+| `keyPrefix`                       | `String`   | `bluetape4k/leader` | Consul KV key prefix for group lock keys                                       |
+| `sessionNamePrefix`               | `String`   | `bluetape4k-leader` | Prefix for created Consul session names                                        |
+| `lockDelay`                       | `Duration` | `0.seconds`         | See `ConsulLeaderElectionOptions.lockDelay`.                                   |
 
 ## Dependency
 

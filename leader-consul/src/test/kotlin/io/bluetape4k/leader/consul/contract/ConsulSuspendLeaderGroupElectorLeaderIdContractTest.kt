@@ -5,13 +5,17 @@ import io.bluetape4k.leader.consul.ConsulLeaderGroupElectionOptions
 import io.bluetape4k.leader.consul.ConsulSuspendLeaderGroupElector
 import io.bluetape4k.leader.contract.AbstractSuspendLeaderGroupElectorLeaderIdContractTest
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import org.junit.jupiter.api.TestInstance
 
 /**
  * Consul suspend group leader-id contract implementation.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ConsulSuspendLeaderGroupElectorLeaderIdContractTest : AbstractSuspendLeaderGroupElectorLeaderIdContractTest() {
+class ConsulSuspendLeaderGroupElectorLeaderIdContractTest: AbstractSuspendLeaderGroupElectorLeaderIdContractTest() {
+
+    companion object: KLoggingChannel()
+
     override fun createElector(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
         ConsulSuspendLeaderGroupElector(
             ConsulContractSupport.endpoint(),

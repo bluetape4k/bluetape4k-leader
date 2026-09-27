@@ -5,13 +5,17 @@ import io.bluetape4k.leader.consul.ConsulLeaderGroupElectionOptions
 import io.bluetape4k.leader.consul.ConsulSuspendLeaderGroupElector
 import io.bluetape4k.leader.contract.AbstractSuspendGroupLockExtenderContractTest
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import org.junit.jupiter.api.TestInstance
 
 /**
  * Consul suspend group LockExtender contract implementation.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ConsulSuspendGroupLockExtenderContractTest : AbstractSuspendGroupLockExtenderContractTest() {
+class ConsulSuspendGroupLockExtenderContractTest: AbstractSuspendGroupLockExtenderContractTest() {
+
+    companion object: KLoggingChannel()
+
     override val elector: SuspendLeaderGroupElector =
         ConsulSuspendLeaderGroupElector(
             ConsulContractSupport.endpoint(),

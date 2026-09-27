@@ -1,24 +1,27 @@
 package io.bluetape4k.leader.consul.contract
 
-import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
-import io.bluetape4k.leader.consul.ConsulLeaderElector
 import io.bluetape4k.leader.consul.ConsulLeaderElectionOptions
-import io.bluetape4k.leader.consul.ConsulLeaderGroupElector
+import io.bluetape4k.leader.consul.ConsulLeaderElector
 import io.bluetape4k.leader.consul.ConsulLeaderGroupElectionOptions
+import io.bluetape4k.leader.consul.ConsulLeaderGroupElector
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.util.concurrent.CompletableFuture
 
 /**
  * Direct Consul executor overload coverage for single and group slot paths.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ConsulExecutorOverloadContractTest {
+
+    companion object: KLogging()
 
     @Test
     fun singleExecutorOverloadPropagatesLeaderIdAndReleases() {
@@ -32,22 +35,22 @@ class ConsulExecutorOverloadContractTest {
             LeaderSlot(lockName, "consul-single-a"),
             VirtualThreadExecutor,
         ) {
-            CompletableFuture.completedFuture("single-ok")
+            completableFutureOf("single-ok")
         }.join()
 
-        first shouldBeInstanceOf LeaderRunResult.Elected::class
-        (first as LeaderRunResult.Elected).value shouldBeEqualTo "single-ok"
+        first.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        first.value shouldBeEqualTo "single-ok"
         first.leaderId shouldBeEqualTo "consul-single-a"
 
         val second = elector.runAsyncIfLeaderResult(
             LeaderSlot(lockName, "consul-single-b"),
             VirtualThreadExecutor,
         ) {
-            CompletableFuture.completedFuture("single-reacquired")
+            completableFutureOf("single-reacquired")
         }.join()
 
-        second shouldBeInstanceOf LeaderRunResult.Elected::class
-        (second as LeaderRunResult.Elected).value shouldBeEqualTo "single-reacquired"
+        second.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        second.value shouldBeEqualTo "single-reacquired"
         second.leaderId shouldBeEqualTo "consul-single-b"
     }
 
@@ -66,22 +69,22 @@ class ConsulExecutorOverloadContractTest {
             LeaderSlot(lockName, "consul-group-a"),
             VirtualThreadExecutor,
         ) {
-            CompletableFuture.completedFuture("group-ok")
+            completableFutureOf("group-ok")
         }.join()
 
-        first shouldBeInstanceOf LeaderRunResult.Elected::class
-        (first as LeaderRunResult.Elected).value shouldBeEqualTo "group-ok"
+        first.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        first.value shouldBeEqualTo "group-ok"
         first.leaderId shouldBeEqualTo "consul-group-a"
 
         val second = elector.runAsyncIfLeaderResult(
             LeaderSlot(lockName, "consul-group-b"),
             VirtualThreadExecutor,
         ) {
-            CompletableFuture.completedFuture("group-reacquired")
+            completableFutureOf("group-reacquired")
         }.join()
 
-        second shouldBeInstanceOf LeaderRunResult.Elected::class
-        (second as LeaderRunResult.Elected).value shouldBeEqualTo "group-reacquired"
+        second.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        second.value shouldBeEqualTo "group-reacquired"
         second.leaderId shouldBeEqualTo "consul-group-b"
     }
 }
