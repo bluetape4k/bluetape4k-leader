@@ -7,8 +7,11 @@ import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.local.LocalAsyncLeaderGroupElector
 import io.bluetape4k.leader.local.LocalLeaderGroupElector
 import io.bluetape4k.logging.KLogging
@@ -24,7 +27,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
@@ -151,14 +153,14 @@ class AsyncLeaderGroupElectorContractTest {
                 }.join()
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS)
+        startLatch.await(2.seconds)
 
         election.state(lockName).isFull.shouldBeTrue()
         election.availableSlots(lockName) shouldBeEqualTo 0
 
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS)
+        executor.awaitTermination(3.seconds)
     }
 
     // ── 동시 실행 제한 ────────────────────────────────────────────────────
@@ -254,7 +256,7 @@ class AsyncLeaderGroupElectorContractTest {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             await atMost 2.seconds untilAsserted {
                 actionFuture.isCancelled.shouldBeTrue()
@@ -262,7 +264,7 @@ class AsyncLeaderGroupElectorContractTest {
             await atMost 2.seconds untilAsserted {
                 election.runAsyncIfLeader(lockName, executor) {
                     completableFutureOf("reacquired")
-                }.get(1, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+                }.get(1.seconds) shouldBeEqualTo "reacquired"
             }
         } finally {
             executor.shutdownNow()
@@ -272,7 +274,7 @@ class AsyncLeaderGroupElectorContractTest {
     @Test
     fun `runAsyncIfLeader - nullable 반환 future 취소가 모든 Local group action과 slot lifecycle로 전파된다`() {
         val singleSlotOptions = LeaderGroupElectionOptions(maxLeaders = 1)
-        listOf<AsyncLeaderGroupElector>(
+        listOf(
             LocalAsyncLeaderGroupElector(singleSlotOptions),
             LocalLeaderGroupElector(singleSlotOptions),
         ).forEach { election ->
@@ -292,9 +294,9 @@ class AsyncLeaderGroupElectorContractTest {
         try {
             executor.submit {
                 blockerStarted.countDown()
-                releaseBlocker.await(2, TimeUnit.SECONDS)
+                releaseBlocker.await(2.seconds)
             }
-            blockerStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            blockerStarted.await(2.seconds).shouldBeTrue()
 
             val result = election.runAsyncIfLeader(randomLockName(), executor) {
                 actionInvoked.set(true)
@@ -303,7 +305,7 @@ class AsyncLeaderGroupElectorContractTest {
 
             result.cancel(false).shouldBeTrue()
             releaseBlocker.countDown()
-            executor.submit {}.get(2, TimeUnit.SECONDS)
+            executor.submit {}.get(2.seconds)
             actionInvoked.get().shouldBeFalse()
         } finally {
             releaseBlocker.countDown()
@@ -318,7 +320,7 @@ class AsyncLeaderGroupElectorContractTest {
         val actionInvoked = AtomicBoolean()
         val singleSlotOptions = LeaderGroupElectionOptions(maxLeaders = 1)
 
-        listOf<AsyncLeaderGroupElector>(
+        listOf(
             LocalAsyncLeaderGroupElector(singleSlotOptions),
             LocalLeaderGroupElector(singleSlotOptions),
         ).forEach { election ->
@@ -353,7 +355,7 @@ class AsyncLeaderGroupElectorContractTest {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             await.atMost(2.seconds).untilAsserted {
                 actionFuture.isCancelled.shouldBeTrue()
@@ -361,7 +363,7 @@ class AsyncLeaderGroupElectorContractTest {
             await.atMost(2.seconds).untilAsserted {
                 election.runAsyncIfLeader(lockName, executor) {
                     completableFutureOf("reacquired")
-                }.get(1, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+                }.get(1.seconds) shouldBeEqualTo "reacquired"
             }
         } finally {
             executor.shutdownNow()
@@ -419,7 +421,7 @@ class AsyncLeaderGroupElectorContractTest {
                 }
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
 
             await atMost 2.seconds untilAsserted {
@@ -428,7 +430,7 @@ class AsyncLeaderGroupElectorContractTest {
             await atMost 2.seconds untilAsserted {
                 election.runAsyncIfLeader(lockName, executor) {
                     completableFutureOf("reacquired")
-                }.get(1, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+                }.get(1.seconds) shouldBeEqualTo "reacquired"
             }
         } finally {
             actionFuture.cancel(true)

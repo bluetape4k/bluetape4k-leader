@@ -7,8 +7,10 @@ import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.leader.local.LocalAsyncLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderElector
@@ -26,7 +28,6 @@ import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.seconds
 
@@ -200,7 +201,7 @@ class AsyncLeaderElectorContractTest {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
 
             await atMost 2.seconds until {
@@ -209,7 +210,7 @@ class AsyncLeaderElectorContractTest {
             await atMost 2.seconds until {
                 election.runAsyncIfLeader(lockName, executor) {
                     completableFutureOf("reacquired")
-                }.get(1, TimeUnit.SECONDS) == "reacquired"
+                }.get(1.seconds) == "reacquired"
             }
         } finally {
             executor.shutdownNow()
@@ -236,9 +237,9 @@ class AsyncLeaderElectorContractTest {
         try {
             executor.submit {
                 blockerStarted.countDown()
-                releaseBlocker.await(2, TimeUnit.SECONDS)
+                releaseBlocker.await(2.seconds)
             }
-            blockerStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            blockerStarted.await(2.seconds).shouldBeTrue()
 
             val result = election.runAsyncIfLeader(randomLockName(), executor) {
                 actionInvoked.set(true)
@@ -247,7 +248,7 @@ class AsyncLeaderElectorContractTest {
 
             result.cancel(false).shouldBeTrue()
             releaseBlocker.countDown()
-            executor.submit {}.get(2, TimeUnit.SECONDS)
+            executor.submit {}.get(2.seconds)
             actionInvoked.get().shouldBeFalse()
         } finally {
             releaseBlocker.countDown()
@@ -294,7 +295,7 @@ class AsyncLeaderElectorContractTest {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
 
             await atMost 2.seconds until {
@@ -303,7 +304,7 @@ class AsyncLeaderElectorContractTest {
             await atMost 2.seconds until {
                 election.runAsyncIfLeader(lockName, executor) {
                     completableFutureOf("reacquired")
-                }.get(1, TimeUnit.SECONDS) == "reacquired"
+                }.get(1.seconds) == "reacquired"
             }
         } finally {
             executor.shutdownNow()
@@ -362,7 +363,7 @@ class AsyncLeaderElectorContractTest {
                 }
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             await atMost 2.seconds until {
                 actionFuture.isCancelled
@@ -370,7 +371,7 @@ class AsyncLeaderElectorContractTest {
             await atMost 2.seconds until {
                 election.runAsyncIfLeader(lockName, executor) {
                     completableFutureOf("reacquired")
-                }.get(1, TimeUnit.SECONDS) == "reacquired"
+                }.get(1.seconds) == "reacquired"
             }
         } finally {
             actionFuture.cancel(true)

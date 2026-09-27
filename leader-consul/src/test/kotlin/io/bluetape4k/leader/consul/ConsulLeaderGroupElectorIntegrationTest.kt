@@ -6,6 +6,8 @@ import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderSlot
@@ -18,7 +20,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -68,26 +69,26 @@ class ConsulLeaderGroupElectorIntegrationTest {
             val holderA = executor.submit<String?> {
                 holder.runIfLeader(lockName) {
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds)
                     "holder-a"
                 }
             }
             val holderB = executor.submit<String?> {
                 holder.runIfLeader(lockName) {
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds)
                     "holder-b"
                 }
             }
 
-            started.await(10, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(10.seconds).shouldBeTrue()
             contender.runIfLeader(lockName) { "contender" }.shouldBeNull()
             holder.state(lockName).activeCount shouldBeEqualTo 2
 
             release.countDown()
             setOf(
-                holderA.get(10, TimeUnit.SECONDS),
-                holderB.get(10, TimeUnit.SECONDS)
+                holderA.get(10.seconds),
+                holderB.get(10.seconds)
             ) shouldBeEqualTo setOf("holder-a", "holder-b")
         } finally {
             release.countDown()
@@ -142,17 +143,17 @@ class ConsulLeaderGroupElectorIntegrationTest {
                     lease.slot shouldBeEqualTo 0
                     lease.leaseUntil.shouldNotBeNull()
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS).shouldBeTrue()
+                    release.await(10.seconds).shouldBeTrue()
                     "holder"
                 }
             }
 
-            started.await(10, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(10.seconds).shouldBeTrue()
             contender.runIfLeader(slot.lockName) { "contender" }.shouldBeNull()
             holder.state(slot.lockName).activeCount shouldBeEqualTo 1
 
             release.countDown()
-            holderFuture.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+            holderFuture.get(10.seconds) shouldBeEqualTo "holder"
         } finally {
             release.countDown()
             executor.shutdownNow()

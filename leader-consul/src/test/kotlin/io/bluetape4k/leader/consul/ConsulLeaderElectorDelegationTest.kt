@@ -8,6 +8,8 @@ import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -97,7 +99,7 @@ class ConsulLeaderElectorDelegationTest {
             cleanup = { cleanupCalls.incrementAndGet() },
         ) { value, _ -> value }
 
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        result.get(2.seconds) shouldBeEqualTo "done"
         result.isDone.shouldBeTrue()
         rejectionCalls.get() shouldBeEqualTo 1
         cleanupCalls.get() shouldBeEqualTo 1
@@ -113,7 +115,7 @@ class ConsulLeaderElectorDelegationTest {
         val second = barrier.request()
 
         (first === second).shouldBeTrue()
-        first.get(2, TimeUnit.SECONDS)
+        first.get(2.seconds)
         cleanupCalls.get() shouldBeEqualTo 1
     }
 
@@ -408,11 +410,11 @@ class ConsulLeaderElectorDelegationTest {
                 CompletableFuture.completedFuture("실행되면 안 됨")
             }
 
-            acquireStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            acquireStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             acquisition.complete(true)
 
-            releaseObserved.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            releaseObserved.await(2.seconds).shouldBeTrue()
             actionInvoked.get() shouldBeEqualTo false
             await.atMost(2.seconds).untilAsserted {
                 client.releaseCalls shouldBeEqualTo 1
@@ -448,11 +450,11 @@ class ConsulLeaderElectorDelegationTest {
                 CompletableFuture.completedFuture("실행되면 안 됨")
             }
 
-            acquireStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            acquireStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             acquisition.complete(true)
 
-            releaseObserved.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            releaseObserved.await(2.seconds).shouldBeTrue()
             actionInvoked.get() shouldBeEqualTo false
             await.atMost(2.seconds).untilAsserted {
                 client.releaseCalls shouldBeEqualTo 1
@@ -485,12 +487,12 @@ class ConsulLeaderElectorDelegationTest {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
             executor.shutdown()
 
             actionFuture.complete("done")
 
-            resultFuture.get(3, TimeUnit.SECONDS) shouldBeEqualTo "done"
+            resultFuture.get(3.seconds) shouldBeEqualTo "done"
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
             client.releaseCalls shouldBeEqualTo 2
             client.destroyCalls shouldBeEqualTo 2
@@ -513,14 +515,14 @@ class ConsulLeaderElectorDelegationTest {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
 
             resultFuture.cancel(false).shouldBeTrue()
 
             await.atMost(2.seconds).untilAsserted {
                 actionFuture.isCancelled.shouldBeTrue()
             }
-            releaseObserved.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            releaseObserved.await(3.seconds).shouldBeTrue()
             client.releaseCalls shouldBeEqualTo 1
             client.destroyCalls shouldBeEqualTo 1
         } finally {
@@ -548,14 +550,14 @@ class ConsulLeaderElectorDelegationTest {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
 
             resultFuture.cancel(false).shouldBeTrue()
 
             await.atMost(2.seconds).untilAsserted {
                 actionFuture.isCancelled.shouldBeTrue()
             }
-            releaseObserved.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            releaseObserved.await(3.seconds).shouldBeTrue()
             client.releaseCalls shouldBeEqualTo 1
             client.destroyCalls shouldBeEqualTo 1
         } finally {
@@ -588,7 +590,7 @@ class ConsulLeaderElectorDelegationTest {
                 }
             }.getOrElse { CompletableFuture.failedFuture(it) }
 
-            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            blocker.started.await(2.seconds).shouldBeTrue()
             resultFuture.isDone.shouldBeFalse()
             blocker.release.countDown()
 
@@ -633,7 +635,7 @@ class ConsulLeaderElectorDelegationTest {
                 }
             }.getOrElse { CompletableFuture.failedFuture(it) }
 
-            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            blocker.started.await(2.seconds).shouldBeTrue()
             resultFuture.isDone.shouldBeFalse()
             blocker.release.countDown()
 
@@ -723,17 +725,17 @@ class ConsulLeaderElectorDelegationTest {
 
         try {
             val result = runAsync(eventLoop, actionFuture, actionStarted)
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             eventLoop.execute { actionFuture.complete("done") }
 
-            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            blocker.started.await(2.seconds).shouldBeTrue()
             eventLoop.execute { eventLoopProbe.countDown() }
-            eventLoopProbe.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            eventLoopProbe.await(1.seconds).shouldBeTrue()
             result.isDone.shouldBeFalse()
             (blocker.threadName.get() == "issue-900-consul-event-loop").shouldBeFalse()
 
             blocker.release.countDown()
-            result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+            result.get(2.seconds) shouldBeEqualTo "done"
         } finally {
             blocker.release.countDown()
             eventLoop.shutdownNow()
@@ -857,7 +859,7 @@ class ConsulLeaderElectorDelegationTest {
         fun block() {
             threadName.set(Thread.currentThread().name)
             started.countDown()
-            release.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            release.await(5.seconds).shouldBeTrue()
         }
     }
 }

@@ -3,10 +3,10 @@ package io.bluetape4k.leader.internal
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
 class LeaseOperationSchedulerTest {
@@ -25,10 +25,10 @@ class LeaseOperationSchedulerTest {
         ).use { scheduler ->
             scheduler.submit {
                 started.countDown()
-                release.await(1, TimeUnit.SECONDS)
+                release.await(1.seconds)
             }.shouldNotBeNull()
 
-            started.await(1, TimeUnit.SECONDS)
+            started.await(1.seconds)
             scheduler.submit { }.shouldNotBeNull()
             scheduler.submit { }.shouldBeNull()
             scheduler.queued shouldBeEqualTo 1

@@ -8,6 +8,7 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.logging.KLogging
 import org.awaitility.kotlin.atMost
@@ -21,7 +22,6 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -92,7 +92,7 @@ class LeaderLeaseExtensionObserversTest {
                 submitted.size shouldBeEqualTo 1
                 submitted.single().run()
 
-                delivered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+                delivered.await(1.seconds).shouldBeTrue()
                 observed.get().shouldNotBeNull() shouldBeEqualTo expected
                 calls.get() shouldBeEqualTo 1
 
@@ -145,7 +145,7 @@ class LeaderLeaseExtensionObserversTest {
 
         try {
             LeaderLeaseExtensionObservers.publish(testEvent())
-            delivered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            delivered.await(5.seconds).shouldBeTrue()
         } finally {
             healthyRegistration.close()
             failingRegistration.close()
@@ -166,7 +166,7 @@ class LeaderLeaseExtensionObserversTest {
 
         try {
             LeaderLeaseExtensionObservers.publish(testEvent())
-            delivered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            delivered.await(5.seconds).shouldBeTrue()
         } finally {
             healthyRegistration.close()
             cancellingRegistration.close()
@@ -275,7 +275,7 @@ class LeaderLeaseExtensionObserversTest {
             LeaderLeaseExtensionObservers.addObserver {
                 entered.countDown()
                 try {
-                    release.await(5, TimeUnit.SECONDS)
+                    release.await(5.seconds)
                 } finally {
                     completed.countDown()
                 }
@@ -288,7 +288,7 @@ class LeaderLeaseExtensionObserversTest {
 
         try {
             repeat(256) { LeaderLeaseExtensionObservers.publish(testEvent()) }
-            entered.await(10, TimeUnit.SECONDS).shouldBeTrue()
+            entered.await(10.seconds).shouldBeTrue()
 
             val droppedBefore = LeaderLeaseExtensionObservers.droppedCount()
             LeaderLeaseExtensionObservers.publish(testEvent(), a)
@@ -305,7 +305,7 @@ class LeaderLeaseExtensionObserversTest {
         } finally {
             release.countDown()
             val drained = try {
-                completed.await(10, TimeUnit.SECONDS)
+                completed.await(10.seconds)
             } finally {
                 wildcardRegistrations.forEach(AutoCloseable::close)
                 a.close()
@@ -410,7 +410,7 @@ class LeaderLeaseExtensionObserversTest {
         val observer = LeaderLeaseExtensionObserver {
             entered.countDown()
             try {
-                release.await(5, TimeUnit.SECONDS)
+                release.await(5.seconds)
             } finally {
                 completed.countDown()
             }
@@ -420,7 +420,7 @@ class LeaderLeaseExtensionObserversTest {
         try {
             repeat(257) { LeaderLeaseExtensionObservers.publish(testEvent()) }
 
-            entered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            entered.await(5.seconds).shouldBeTrue()
 
             await
                 .atMost(5.seconds)
@@ -431,7 +431,7 @@ class LeaderLeaseExtensionObserversTest {
         } finally {
             release.countDown()
             val drained = try {
-                completed.await(10, TimeUnit.SECONDS)
+                completed.await(10.seconds)
             } finally {
                 registration.close()
             }
@@ -448,7 +448,7 @@ class LeaderLeaseExtensionObserversTest {
             LeaderLeaseExtensionObservers.addObserver {
                 entered.countDown()
                 try {
-                    release.await(5, TimeUnit.SECONDS)
+                    release.await(5.seconds)
                 } finally {
                     completed.countDown()
                 }
@@ -461,7 +461,7 @@ class LeaderLeaseExtensionObserversTest {
                     LeaderLeaseExtensionObservers.publish(testEvent())
                 }
             }
-            entered.await(10, TimeUnit.SECONDS).shouldBeTrue()
+            entered.await(10.seconds).shouldBeTrue()
 
             val droppedBefore = LeaderLeaseExtensionObservers.droppedCount()
             LeaderLeaseExtensionObservers.publish(testEvent())
@@ -475,7 +475,7 @@ class LeaderLeaseExtensionObserversTest {
         } finally {
             release.countDown()
             val drained = try {
-                completed.await(10, TimeUnit.SECONDS)
+                completed.await(10.seconds)
             } finally {
                 registrations.forEach(AutoCloseable::close)
             }
@@ -564,7 +564,7 @@ class LeaderLeaseExtensionObserversTest {
                     throw AssertionError("fatal observer failure")
                 }
                 if (call <= 256) {
-                    release.await(5, TimeUnit.SECONDS)
+                    release.await(5.seconds)
                 } else {
                     extraEntered.countDown()
                 }
@@ -578,7 +578,7 @@ class LeaderLeaseExtensionObserversTest {
             val droppedBefore = LeaderLeaseExtensionObservers.droppedCount()
             repeat(256) { LeaderLeaseExtensionObservers.publish(testEvent()) }
 
-            entered.await(10, TimeUnit.SECONDS).shouldBeTrue()
+            entered.await(10.seconds).shouldBeTrue()
             await
                 .atMost(5.seconds)
                 .withPollInterval(25.milliseconds)
@@ -588,14 +588,14 @@ class LeaderLeaseExtensionObserversTest {
 
             LeaderLeaseExtensionObservers.publish(testEvent())
 
-            extraEntered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            extraEntered.await(5.seconds).shouldBeTrue()
             LeaderLeaseExtensionObservers.droppedCount() shouldBeEqualTo droppedBefore
             uncaught.get().shouldBeInstanceOf<AssertionError>()
         } finally {
             Thread.setDefaultUncaughtExceptionHandler(previousHandler)
             release.countDown()
             val drained = try {
-                completed.await(10, TimeUnit.SECONDS)
+                completed.await(10.seconds)
             } finally {
                 registration.close()
             }
@@ -622,8 +622,8 @@ class LeaderLeaseExtensionObserversTest {
 
         try {
             LeaderLeaseExtensionObservers.publish(testEvent())
-            initialCallback.await(5, TimeUnit.SECONDS).shouldBeTrue()
-            stableDelivered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            initialCallback.await(5.seconds).shouldBeTrue()
+            stableDelivered.await(5.seconds).shouldBeTrue()
             callbacks.set(0L)
             stableCallbacks.set(0L)
 

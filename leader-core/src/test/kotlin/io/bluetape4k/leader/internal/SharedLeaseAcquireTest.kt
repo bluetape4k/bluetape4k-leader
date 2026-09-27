@@ -4,6 +4,8 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.virtualThread
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderLeaseHandle
@@ -14,7 +16,6 @@ import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -36,7 +37,7 @@ class SharedLeaseAcquireTest {
             acquire = {
                 backendCalls.incrementAndGet()
                 backendStarted.countDown()
-                allowBackend.await(1, TimeUnit.SECONDS)
+                allowBackend.await(1.seconds)
                 TestHandle(releases)
             },
         )
@@ -46,7 +47,7 @@ class SharedLeaseAcquireTest {
         virtualThread {
             firstFuture.complete(shared.tryAcquire(slot, 1.seconds))
         }
-        backendStarted.await(1, TimeUnit.SECONDS)
+        backendStarted.await(1.seconds)
 
         val secondFuture = CompletableFuture<LeaderLeaseHandle?>()
         virtualThread {
@@ -54,8 +55,8 @@ class SharedLeaseAcquireTest {
         }
 
         allowBackend.countDown()
-        val first = firstFuture.get(1, TimeUnit.SECONDS)
-        val second = secondFuture.get(1, TimeUnit.SECONDS)
+        val first = firstFuture.get(1.seconds)
+        val second = secondFuture.get(1.seconds)
 
         backendCalls.get() shouldBeEqualTo 1
         first.shouldNotBeNull()
@@ -129,9 +130,9 @@ class SharedLeaseAcquireTest {
             acquire = {
                 backendStarted.countDown()
                 try {
-                    allowBackend.await(1, TimeUnit.SECONDS)
+                    allowBackend.await(1.seconds)
                 } catch (_: InterruptedException) {
-                    allowBackend.await(1, TimeUnit.SECONDS)
+                    allowBackend.await(1.seconds)
                 }
                 TestHandle(AtomicInteger())
             },
@@ -142,10 +143,10 @@ class SharedLeaseAcquireTest {
             future.complete(shared.tryAcquire(slot, 5.seconds))
         }
 
-        backendStarted.await(1, TimeUnit.SECONDS)
+        backendStarted.await(1.seconds)
         shared.close()
 
-        future.get(1, TimeUnit.SECONDS).shouldBeNull()
+        future.get(1.seconds).shouldBeNull()
         shared.activeAttempts shouldBeEqualTo 0
         allowBackend.countDown()
         scheduler.awaitIdle(1.seconds) shouldBeEqualTo true
@@ -160,9 +161,9 @@ class SharedLeaseAcquireTest {
 
         scheduler.submit {
             blockerStarted.countDown()
-            releaseBlocker.await(1, TimeUnit.SECONDS)
+            releaseBlocker.await(1.seconds)
         }
-        blockerStarted.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        blockerStarted.await(1.seconds).shouldBeTrue()
 
         val backendCalls = AtomicInteger()
         val reservationsClosed = AtomicInteger()

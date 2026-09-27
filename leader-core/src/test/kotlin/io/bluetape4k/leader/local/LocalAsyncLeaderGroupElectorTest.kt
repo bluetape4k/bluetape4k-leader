@@ -7,6 +7,8 @@ import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
@@ -20,12 +22,12 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.math.max
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LocalAsyncLeaderGroupElectorTest {
 
@@ -127,7 +129,7 @@ class LocalAsyncLeaderGroupElectorTest {
                 }.join()
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS).shouldBeTrue()
+        startLatch.await(2.seconds).shouldBeTrue()
 
         // 슬롯이 가득 찬 상태 검증
         election.state(lockName).isFull.shouldBeTrue()
@@ -147,7 +149,7 @@ class LocalAsyncLeaderGroupElectorTest {
         // 슬롯 해제 → 추가 요청이 실행됨
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS).shouldBeTrue()
+        executor.awaitTermination(3.seconds).shouldBeTrue()
         extraStarted.get() shouldBeEqualTo 1
     }
 
@@ -183,14 +185,14 @@ class LocalAsyncLeaderGroupElectorTest {
                 }.join()
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS).shouldBeTrue()
+        startLatch.await(2.seconds).shouldBeTrue()
 
         election.state(lockName).isFull.shouldBeTrue()
         election.availableSlots(lockName) shouldBeEqualTo 0
 
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS).shouldBeTrue()
+        executor.awaitTermination(3.seconds).shouldBeTrue()
     }
 
     // ── 스트레스 테스트 ────────────────────────────────────────────────────
@@ -249,7 +251,7 @@ class LocalAsyncLeaderGroupElectorTest {
             }.join()
         }
 
-        latch.await(2, TimeUnit.SECONDS)
+        latch.await(2.seconds)
 
         val result = skipElection.runAsyncIfLeader(lockName) {
             completableFutureOf("should-skip")

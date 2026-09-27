@@ -2,6 +2,7 @@ package io.bluetape4k.leader.etcd
 
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
@@ -39,6 +40,7 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `EtcdLeaderGroupElector`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
@@ -251,7 +253,7 @@ class EtcdLeaderGroupElector private constructor(
 
     private fun <T> runImpl(lockName: String, auditLeaderId: String?, action: () -> T): T? {
         log.debug { "runnig. lockName: $lockName, auditLeaderId: $auditLeaderId" }
-        
+
         val leaseHandle = acquire(lockName) ?: return null
         val delegate = EtcdLockExtendDelegate(lockClient, leaseHandle)
         val handle = LeaderLockHandle.real(
@@ -392,7 +394,7 @@ class EtcdLeaderGroupElector private constructor(
         List(maxLeaders) { slot ->
             runCatching {
                 lockClient.ownershipKeys(lockClient.groupSlotLockKey(lockName, slot))
-                    .get(10, TimeUnit.SECONDS)
+                    .get(10.seconds)
                     .map { key ->
                         LeaderLease(
                             auditLeaderId = EtcdLeaseHandle.ownershipToken(key),

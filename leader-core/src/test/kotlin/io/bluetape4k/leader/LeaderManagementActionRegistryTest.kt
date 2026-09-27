@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.logging.KLogging
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
@@ -12,7 +13,6 @@ import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
@@ -121,7 +121,7 @@ class LeaderManagementActionRegistryTest {
         val unblock = CountDownLatch(1)
         val slow = FakeHandle("slow", ownership = {
             entered.countDown()
-            unblock.await(1, TimeUnit.SECONDS)
+            unblock.await(1.seconds)
             listOf(LeaseOwnershipStatus.NOT_HELD)
         })
         val fast = FakeHandle("fast") { listOf(LeaseOwnershipStatus.HELD, LeaseOwnershipStatus.NOT_HELD) }
@@ -132,7 +132,7 @@ class LeaderManagementActionRegistryTest {
 
         val first = thread(start = true) { registry.release("slow") }
 
-        entered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        entered.await(1.seconds).shouldBeTrue()
         registry.release("slow").outcome shouldBeEqualTo LeaderManagementActionOutcome.ACTION_IN_PROGRESS
         registry.release("fast").outcome shouldBeEqualTo LeaderManagementActionOutcome.RELEASED
 
@@ -200,7 +200,7 @@ class LeaderManagementActionRegistryTest {
                 entered.countDown()
                 while (true) {
                     try {
-                        unblock.await(5, TimeUnit.SECONDS)
+                        unblock.await(5.seconds)
                         break
                     } catch (_: InterruptedException) {
                         // emulate a slow pre-check that honours neither cancellation nor retry.
@@ -217,7 +217,7 @@ class LeaderManagementActionRegistryTest {
         val result = registry.release("timeout-before")
         result.outcome shouldBeEqualTo LeaderManagementActionOutcome.ACTION_TIMED_OUT
         result.mutationAttempted.shouldBeFalse()
-        entered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        entered.await(1.seconds).shouldBeTrue()
         unblock.countDown()
 
         await atMost 2.seconds withPollInterval 25.milliseconds until {
@@ -237,7 +237,7 @@ class LeaderManagementActionRegistryTest {
             releaseEntered.countDown()
             while (releaseDone.count == 1L) {
                 try {
-                    releaseDone.await(5, TimeUnit.SECONDS)
+                    releaseDone.await(5.seconds)
                 } catch (_: InterruptedException) {
                     // non-interruptible callback for quarantine coverage.
                 }
@@ -249,7 +249,7 @@ class LeaderManagementActionRegistryTest {
         )
         registry.register(handle)
         val result = registry.release("timeout-after")
-        releaseEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        releaseEntered.await(1.seconds).shouldBeTrue()
         result.outcome shouldBeEqualTo LeaderManagementActionOutcome.ACTION_TIMED_OUT
         result.mutationAttempted.shouldBeTrue()
 

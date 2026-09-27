@@ -5,6 +5,8 @@ import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
@@ -21,7 +23,6 @@ import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
@@ -132,19 +133,19 @@ class DynamoDbLeaderGroupElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
                     lease.slot shouldBeEqualTo 0
                     lease.leaseUntil.shouldNotBeNull()
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds)
                     "holder"
                 }
             }
 
-            started.await(10, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(10.seconds).shouldBeTrue()
             contender.runIfLeader(slot.lockName) { "contender" }.shouldBeNull()
 
             log.debug { "holder state=${holder.state(slot.lockName)}" }
             holder.state(slot.lockName).activeCount shouldBeEqualTo 1
 
             release.countDown()
-            holderFuture.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+            holderFuture.get(10.seconds) shouldBeEqualTo "holder"
         } finally {
             release.countDown()
             executor.shutdownNow()
@@ -200,7 +201,7 @@ class DynamoDbLeaderGroupElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
 
             log.debug { "result=$result" }

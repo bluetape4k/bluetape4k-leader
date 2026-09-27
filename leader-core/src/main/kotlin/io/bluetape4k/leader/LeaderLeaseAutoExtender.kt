@@ -1,5 +1,6 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.leader.ExtendOutcome.BackendError
 import io.bluetape4k.leader.ExtendOutcome.Extended
 import io.bluetape4k.leader.ExtendOutcome.NotHeld
@@ -32,6 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 private fun publishLeaderLeaseWatchdogEvent(
     observing: Boolean,
@@ -117,7 +119,7 @@ object LeaderLeaseAutoExtender: KLogging() {
     fun shutdown() {
         val current = scheduler
         current.shutdown()
-        if (!current.awaitTermination(5, TimeUnit.SECONDS)) {
+        if (!current.awaitTermination(5.seconds)) {
             current.shutdownNow()
         }
     }

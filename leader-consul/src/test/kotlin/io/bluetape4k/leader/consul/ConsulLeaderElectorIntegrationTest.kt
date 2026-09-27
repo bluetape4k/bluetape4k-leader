@@ -6,7 +6,9 @@ import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderSlot
@@ -22,7 +24,6 @@ import org.junit.jupiter.api.Timeout
 import java.time.Instant
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -67,16 +68,16 @@ class ConsulLeaderElectorIntegrationTest {
             val holderFuture = executor.submit<String?> {
                 holder.runIfLeader(lockName) {
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds)
                     "holder"
                 }
             }
 
-            started.await(10, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(10.seconds).shouldBeTrue()
             contender.runIfLeader(lockName) { "contender" }.shouldBeNull()
 
             release.countDown()
-            holderFuture.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+            holderFuture.get(10.seconds) shouldBeEqualTo "holder"
         } finally {
             release.countDown()
             executor.shutdownNow()
@@ -120,17 +121,17 @@ class ConsulLeaderElectorIntegrationTest {
                     state.leader?.nodeId shouldBeEqualTo "consul-state-node-a"
                     state.leader?.leaseUntil.shouldNotBeNull()
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds)
                     "holder"
                 }
             }
 
-            started.await(10, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(10.seconds).shouldBeTrue()
             contender.runIfLeader(slot.lockName) { "contender" }.shouldBeNull()
             holder.state(slot.lockName).isOccupied.shouldBeTrue()
 
             release.countDown()
-            holderFuture.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+            holderFuture.get(10.seconds) shouldBeEqualTo "holder"
         } finally {
             release.countDown()
             executor.shutdownNow()
@@ -182,7 +183,7 @@ class ConsulLeaderElectorIntegrationTest {
 
         val result = elector.runAsyncIfLeader(randomName()) {
             completableFutureOf("async")
-        }.get(10, TimeUnit.SECONDS)
+        }.get(10.seconds)
 
         result shouldBeEqualTo "async"
     }
@@ -194,7 +195,7 @@ class ConsulLeaderElectorIntegrationTest {
         val lockName = randomName()
         val client = JavaHttpConsulLockClient(endpoint(), keyPrefix)
         val sessionId = client.createSession("consul-expiry-test", 10.seconds, kotlin.time.Duration.ZERO)
-            .get(10, TimeUnit.SECONDS)
+            .get(10.seconds)
         val key = client.singleLockKey(lockName)
         val now = Instant.now()
 
@@ -210,7 +211,7 @@ class ConsulLeaderElectorIntegrationTest {
             key,
             sessionId,
             payload.toJson()
-        ).get(10, TimeUnit.SECONDS).shouldBeTrue()
+        ).get(10.seconds).shouldBeTrue()
 
         val contender = newElector(
             keyPrefix = keyPrefix,

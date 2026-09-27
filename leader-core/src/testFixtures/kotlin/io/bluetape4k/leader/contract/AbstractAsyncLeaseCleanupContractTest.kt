@@ -7,8 +7,10 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeEqualTo
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -16,17 +18,17 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executor
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
+import kotlin.time.Duration.Companion.seconds
 
 /** backend별 dispatcher가 같은 완료·취소·실패 계약을 지키는지 검증합니다. */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractAsyncLeaseCleanupContractTest {
 
     companion object: KLogging()
-    
+
     /** null executor는 backend가 소유한 기본 실행기를 선택합니다. */
     protected abstract fun <T, R> completeAfter(
         source: CompletableFuture<T>,
@@ -46,7 +48,7 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
             cleanup = { throw cleanupFailure },
             transform = { value, _ -> value },
         )
-        val failure = assertFailsWith<ExecutionException> { result.get(2, TimeUnit.SECONDS) }
+        val failure = assertFailsWith<ExecutionException> { result.get(2.seconds) }
         (failure.cause === original).shouldBeTrue()
         original.suppressed.toList() shouldBeEqualTo listOf(cleanupFailure)
     }
@@ -63,7 +65,7 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
             transform = { value, _ -> value },
         )
         val failure = assertFailsWith<ExecutionException> {
-            result.get(2, TimeUnit.SECONDS)
+            result.get(2.seconds)
         }
         failure.cause shouldBe primary
         primary.suppressed.toList() shouldBeEqualTo listOf(fallback)
@@ -83,7 +85,7 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
             transform = { value, _ -> value },
         )
         val failure = assertFailsWith<ExecutionException> {
-            result.get(2, TimeUnit.SECONDS)
+            result.get(2.seconds)
         }
         failure.cause shouldBe original
         original.suppressed.toList() shouldBeEqualTo listOf(primary, fallback)
@@ -102,7 +104,7 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
         )
 
         val failure = assertFailsWith<ExecutionException> {
-            result.get(2, TimeUnit.SECONDS)
+            result.get(2.seconds)
         }
         failure.cause shouldBe original
         original.suppressed.size shouldBeEqualTo 0
@@ -117,7 +119,7 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
             transform = { value, _ -> value },
         )
         val failure = assertFailsWith<ExecutionException> {
-            result.get(2, TimeUnit.SECONDS)
+            result.get(2.seconds)
         }
         failure.cause shouldBe original
     }
@@ -132,7 +134,7 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
             transform = { value, _ -> value },
         )
 
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        result.get(2.seconds) shouldBeEqualTo "done"
         cleanupCalls.get() shouldBeEqualTo 1
     }
 
@@ -149,7 +151,7 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
                 cleanupCalls.incrementAndGet()
                 cleanupThread.set(Thread.currentThread().name)
                 cleanupStarted.countDown()
-                releaseCleanup.await(2, TimeUnit.SECONDS).shouldBeTrue()
+                releaseCleanup.await(2.seconds).shouldBeTrue()
             },
             transform = { value, _ -> value },
         )
@@ -159,14 +161,14 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
 
         try {
             caller.start()
-            cleanupStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            cleanupStarted.await(2.seconds).shouldBeTrue()
             caller.join(1_000)
             caller.isAlive.shouldBeFalse()
             cleanupThread.get() shouldNotBeEqualTo "cleanup-caller"
             result.isDone.shouldBeFalse()
 
             releaseCleanup.countDown()
-            result.get(2, TimeUnit.SECONDS).shouldBeNull()
+            result.get(2.seconds).shouldBeNull()
             cleanupCalls.get() shouldBeEqualTo 1
         } finally {
             releaseCleanup.countDown()
@@ -184,7 +186,7 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
             cleaned.get() shouldBeEqualTo 1
             value
         }
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        result.get(2.seconds) shouldBeEqualTo "done"
     }
 
     @Test
@@ -196,7 +198,7 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
         ) { value, _ -> value }
 
         val failure = assertFailsWith<ExecutionException> {
-            result.get(2, TimeUnit.SECONDS)
+            result.get(2.seconds)
         }
         failure.cause shouldBe cleanupFailure
     }
@@ -210,7 +212,7 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
             cleanup = { calls.incrementAndGet() },
         ) { value, _ -> value }
 
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        result.get(2.seconds) shouldBeEqualTo "done"
         calls.get() shouldBeEqualTo 1
     }
 
@@ -224,16 +226,16 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
             source = completableFutureOf("done"),
             cleanup = {
                 started.countDown()
-                release.await(2, TimeUnit.SECONDS).shouldBeTrue()
+                release.await(2.seconds).shouldBeTrue()
                 cleaned.countDown()
             },
         ) { value, _ -> value }
 
         try {
-            started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             release.countDown()
-            cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            cleaned.await(2.seconds).shouldBeTrue()
             result.isCancelled.shouldBeTrue()
         } finally {
             release.countDown()

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.internal
 
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -22,6 +23,7 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * 기존 blocking elector를 새 backend lock 구현 없이 request lease로 연결합니다.
@@ -59,7 +61,6 @@ class LeaderElectorLeaseAdapter(
                                 elected.complete(session)
                                 session.awaitRelease()
                             }
-                            Unit
                         }
                         if (!elected.isDone) elected.complete(null)
                         session.completed.complete(Unit)
@@ -185,7 +186,7 @@ class LeaderElectorLeaseAdapter(
             val result = CompletableFuture<LeaseOwnershipStatus>()
             if (!commands.offer(Command.Held(result))) return LeaseOwnershipStatus.UNKNOWN
             return try {
-                result.get(1, TimeUnit.SECONDS)
+                result.get(1.seconds)
             } catch (_: TimeoutException) {
                 LeaseOwnershipStatus.UNKNOWN
             } catch (_: InterruptedException) {

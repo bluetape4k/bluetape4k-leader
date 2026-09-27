@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.BackendErrorKind
@@ -130,7 +131,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 stale.withScope {
                     LockStateHolder.withPushed(realHandle(RecordingDelegate {
                         entered.countDown()
-                        release.await(5, TimeUnit.SECONDS)
+                        release.await(5.seconds)
                         ExtendOutcome.NotHeld
                     })) {
                         LockExtender.extendActiveLockDetailed(30.seconds)
@@ -141,7 +142,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
             }
         }
 
-        entered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        entered.await(5.seconds).shouldBeTrue()
         stale.close()
         val replacement = LeaderLeaseExtensionObservers.addScopedObserver(replacementEvents::add)
         try {
@@ -617,9 +618,9 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 ) { throw CancellationException("watchdog cancelled") }
                 val watchdog = LeaderLeaseAutoExtender.start(true, 75.milliseconds, delegate)
                 try {
-                    firstCall.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    firstCall.await(5.seconds).shouldBeTrue()
                     if (asyncExtend) {
-                        uncaughtLatch.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                        uncaughtLatch.await(5.seconds).shouldBeTrue()
                     }
                     secondCall.await(250, TimeUnit.MILLISECONDS).shouldBeFalse()
                 } finally {
@@ -665,8 +666,8 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 }
                 val watchdog = LeaderLeaseAutoExtender.start(true, 75.milliseconds, delegate)
                 try {
-                    firstCall.await(5, TimeUnit.SECONDS).shouldBeTrue()
-                    secondCall.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    firstCall.await(5.seconds).shouldBeTrue()
+                    secondCall.await(5.seconds).shouldBeTrue()
                     await
                         .atMost(5.seconds)
                         .withPollInterval(25.milliseconds)

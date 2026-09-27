@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -49,7 +48,7 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
                 watcher.awaitReady()
                 client.kvClient.put(key, expected.toByteSequence()).get(10.seconds)
 
-                callbackValue.get(10, TimeUnit.SECONDS) shouldBeEqualTo expected
+                callbackValue.get(10.seconds) shouldBeEqualTo expected
             }
         }
     }
@@ -69,7 +68,7 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
                 onEvent = { event ->
                     if (event.eventType == WatchEvent.EventType.PUT && observed.isEmpty()) {
                         firstEntered.countDown()
-                        releaseFirst.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                        releaseFirst.await(5.seconds).shouldBeTrue()
                     }
                     observed += event.label()
                     allEvents.countDown()
@@ -80,7 +79,7 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
             try {
                 watcher.awaitReady()
                 client.kvClient.put(key, "v1".toByteSequence()).get(10.seconds)
-                firstEntered.await(10, TimeUnit.SECONDS).shouldBeTrue()
+                firstEntered.await(10.seconds).shouldBeTrue()
                 client.kvClient.put(key, "v2".toByteSequence()).get(10.seconds)
                 client.kvClient.delete(key).get(10.seconds)
                 releaseFirst.countDown()

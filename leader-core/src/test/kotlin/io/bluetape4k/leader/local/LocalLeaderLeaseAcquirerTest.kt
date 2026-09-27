@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderSlot
@@ -14,10 +15,10 @@ import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LocalLeaderLeaseAcquirerTest {
 
@@ -53,7 +54,7 @@ class LocalLeaderLeaseAcquirerTest {
             contenderDone.countDown()
         }
         contender.start()
-        contenderDone.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        contenderDone.await(1.seconds).shouldBeTrue()
 
         skipped.get().shouldBeNull()
         val released = CountDownLatch(1)
@@ -62,7 +63,7 @@ class LocalLeaderLeaseAcquirerTest {
             released.countDown()
         }
         releaser.start()
-        released.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        released.await(1.seconds).shouldBeTrue()
         releaser.join(1_000)
         first.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.NOT_HELD
         first.close()

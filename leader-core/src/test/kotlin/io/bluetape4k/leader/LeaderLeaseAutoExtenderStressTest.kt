@@ -2,6 +2,7 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.collections.forEachCatching
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.logging.KLogging
@@ -14,7 +15,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -94,7 +94,7 @@ class LeaderLeaseAutoExtenderStressTest {
                     extendStartedCount.incrementAndGet()
                     try {
                         // A controllable gate models a slow backend without wall-clock sleep.
-                        releaseSlowExtends.get(5, TimeUnit.SECONDS)
+                        releaseSlowExtends.get(5.seconds)
                     } catch (e: TimeoutException) {
                         throw IllegalStateException(
                             "slow delegate gate timed out: started=${extendStartedCount.get()}/3",

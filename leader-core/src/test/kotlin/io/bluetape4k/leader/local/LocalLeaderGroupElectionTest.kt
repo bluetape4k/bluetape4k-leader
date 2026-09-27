@@ -8,6 +8,8 @@ import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -17,7 +19,6 @@ import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.math.max
@@ -133,7 +134,7 @@ class LocalLeaderGroupElectionTest {
                 }
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS)
+        startLatch.await(2.seconds)
 
         // 슬롯이 가득 찬 상태 검증
         election.state(lockName).isFull.shouldBeTrue()
@@ -151,7 +152,7 @@ class LocalLeaderGroupElectionTest {
         // 슬롯 해제 → 추가 요청이 실행됨
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS).shouldBeTrue()
+        executor.awaitTermination(3.seconds).shouldBeTrue()
         extraStarted.get() shouldBeEqualTo 1
     }
 
@@ -185,7 +186,7 @@ class LocalLeaderGroupElectionTest {
                 }
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS)
+        startLatch.await(2.seconds)
 
         // 2개 활성 중 상태 검증
         val activeState = election.state(lockName)
@@ -199,7 +200,7 @@ class LocalLeaderGroupElectionTest {
 
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS).shouldBeTrue()
+        executor.awaitTermination(3.seconds).shouldBeTrue()
 
         // 모두 완료 후 초기 상태로 복귀
         election.activeCount(lockName) shouldBeEqualTo 0
@@ -222,14 +223,14 @@ class LocalLeaderGroupElectionTest {
                 }
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS)
+        startLatch.await(2.seconds)
 
         election.state(lockName).isFull.shouldBeTrue()
         election.availableSlots(lockName) shouldBeEqualTo 0
 
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS)
+        executor.awaitTermination(3.seconds)
     }
 
     // ── skip-behavior (ShedLock 방식): 슬롯 획득 실패 시 null 반환 ──────────
@@ -252,7 +253,7 @@ class LocalLeaderGroupElectionTest {
             }
         }
 
-        latch.await(2, TimeUnit.SECONDS).shouldBeTrue()
+        latch.await(2.seconds).shouldBeTrue()
 
         // 슬롯이 점유 중이므로 null 반환
         val result = skipElection.runIfLeader(lockName) { "should-skip" }
@@ -296,7 +297,7 @@ class LocalLeaderGroupElectionTest {
             }
         }
 
-        actionReturned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+        actionReturned.await(2.seconds).shouldBeTrue()
 
         // 슬롯이 점유 중이므로 null 반환
         val skipped = minLeaseElection.runIfLeader(lockName) { "too-early" }

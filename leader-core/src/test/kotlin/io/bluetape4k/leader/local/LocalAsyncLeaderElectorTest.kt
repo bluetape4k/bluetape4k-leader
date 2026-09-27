@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
@@ -17,11 +18,11 @@ import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LocalAsyncLeaderElectorTest {
 
@@ -145,7 +146,7 @@ class LocalAsyncLeaderElectorTest {
             }.join()
         }
 
-        latch.await(2, TimeUnit.SECONDS).shouldBeTrue()
+        latch.await(2.seconds).shouldBeTrue()
 
         val result = skipElection.runAsyncIfLeader(lockName) {
             completableFutureOf("should-skip")

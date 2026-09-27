@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.assertions.shouldNotBeEqualTo
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome.Extended
@@ -89,7 +90,7 @@ class LeaderLeaseAutoExtenderTest {
 
             override fun extend(lockAtMostFor: Duration): ExtendOutcome {
                 extensionStarted.countDown()
-                releaseExtension.await(2, TimeUnit.SECONDS)
+                releaseExtension.await(2.seconds)
                 return Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
             }
 
@@ -101,7 +102,7 @@ class LeaderLeaseAutoExtenderTest {
         }
 
         try {
-            extensionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            extensionStarted.await(2.seconds).shouldBeTrue()
             eventLoop.execute {
                 LeaderLeaseAutoExtender.closeAsync(watchdog).whenComplete { _, _ ->
                     closeThread.set(Thread.currentThread().name)
@@ -110,10 +111,10 @@ class LeaderLeaseAutoExtenderTest {
                 eventLoop.execute { probeRan.countDown() }
             }
 
-            probeRan.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            probeRan.await(1.seconds).shouldBeTrue()
             closeCompleted.await(100, TimeUnit.MILLISECONDS).shouldBeFalse()
             releaseExtension.countDown()
-            closeCompleted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            closeCompleted.await(2.seconds).shouldBeTrue()
             closeThread.get() shouldNotBeEqualTo "issue-936-event-loop"
         } finally {
             releaseExtension.countDown()
@@ -133,7 +134,7 @@ class LeaderLeaseAutoExtenderTest {
 
             override fun extend(lockAtMostFor: Duration): ExtendOutcome {
                 extensionStarted.countDown()
-                releaseExtension.await(2, TimeUnit.SECONDS)
+                releaseExtension.await(2.seconds)
                 return Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
             }
 
@@ -147,13 +148,13 @@ class LeaderLeaseAutoExtenderTest {
         val scope = CoroutineScope(dispatcher + SupervisorJob())
 
         try {
-            extensionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            extensionStarted.await(2.seconds).shouldBeTrue()
             val closeJob = scope.launch {
                 LeaderLeaseAutoExtender.closeSuspend(watchdog)
             }
             scope.launch { probeRan.countDown() }.log("countDown Job")
 
-            probeRan.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            probeRan.await(1.seconds).shouldBeTrue()
             releaseExtension.countDown()
             closeJob.join()
         } finally {

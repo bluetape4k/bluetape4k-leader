@@ -8,6 +8,8 @@ import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.concurrent.virtualthread.virtualThread
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionException
@@ -21,11 +23,11 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LocalVirtualThreadLeaderGroupElectorTest {
 
@@ -127,7 +129,7 @@ class LocalVirtualThreadLeaderGroupElectorTest {
                 }.await()
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS)
+        startLatch.await(2.seconds)
 
         // 슬롯이 가득 찬 상태 검증
         election.state(lockName).isFull.shouldBeTrue()
@@ -145,7 +147,7 @@ class LocalVirtualThreadLeaderGroupElectorTest {
         // 슬롯 해제 → 추가 요청이 실행됨
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS)
+        executor.awaitTermination(3.seconds)
         extraStarted.get() shouldBeEqualTo 1
     }
 
@@ -179,14 +181,14 @@ class LocalVirtualThreadLeaderGroupElectorTest {
                 }.await()
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS)
+        startLatch.await(2.seconds)
 
         election.state(lockName).isFull.shouldBeTrue()
         election.availableSlots(lockName) shouldBeEqualTo 0
 
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS)
+        executor.awaitTermination(3.seconds)
     }
 
     // ── 스트레스 테스트 ────────────────────────────────────────────────────
@@ -264,7 +266,7 @@ class LocalVirtualThreadLeaderGroupElectorTest {
             }.await()
         }
 
-        latch.await(2, TimeUnit.SECONDS).shouldBeTrue()
+        latch.await(2.seconds).shouldBeTrue()
 
         val result = skipElection.runAsyncIfLeader(lockName) { "should-skip" }.await()
         result.shouldBeNull()

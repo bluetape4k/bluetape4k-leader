@@ -5,6 +5,8 @@ import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
@@ -24,7 +26,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
@@ -117,17 +118,17 @@ class DynamoDbLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
                     state.leader?.nodeId shouldBeEqualTo "dynamodb-state-node-a"
                     state.leader?.leaseUntil.shouldNotBeNull()
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds)
                     "holder"
                 }
             }
 
-            started.await(10, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(10.seconds).shouldBeTrue()
             contender.runIfLeader(slot.lockName) { "contender" }.shouldBeNull()
             holder.state(slot.lockName).isOccupied.shouldBeTrue()
 
             release.countDown()
-            holderFuture.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+            holderFuture.get(10.seconds) shouldBeEqualTo "holder"
         } finally {
             release.countDown()
             executor.shutdownNow()
@@ -238,7 +239,7 @@ class DynamoDbLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
 
         val result = elector.runAsyncIfLeader(lockName, ForkJoinPool.commonPool()) {
             CompletableFuture.completedFuture("async")
-        }.get(5, TimeUnit.SECONDS)
+        }.get(5.seconds)
 
         result shouldBeEqualTo "async"
 
@@ -262,7 +263,7 @@ class DynamoDbLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             actionFuture.isCancelled.shouldBeTrue()
 
@@ -282,7 +283,7 @@ class DynamoDbLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
 
         val result = elector.runAsyncIfLeaderResult(slot, ForkJoinPool.commonPool()) {
             CompletableFuture.completedFuture("async-result")
-        }.get(5, TimeUnit.SECONDS)
+        }.get(5.seconds)
 
         result shouldBeEqualTo LeaderRunResult.Elected("async-result", leaderId = "dynamodb-async-audit")
     }
