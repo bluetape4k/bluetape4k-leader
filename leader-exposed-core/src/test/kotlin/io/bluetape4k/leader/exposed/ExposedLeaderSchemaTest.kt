@@ -1,21 +1,21 @@
 package io.bluetape4k.leader.exposed
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.exposed.tests.withDb
 import io.bluetape4k.exposed.tests.withTables
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.exists
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
 
-class ExposedLeaderSchemaTest : AbstractExposedTableTest() {
+class ExposedLeaderSchemaTest: AbstractExposedTableTest() {
 
     companion object: KLogging()
 

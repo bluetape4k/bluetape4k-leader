@@ -1,6 +1,5 @@
 package io.bluetape4k.leader.lettuce
 
-import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.validateLockName
@@ -9,7 +8,7 @@ import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 import kotlin.time.Duration
 
 /**
@@ -82,7 +81,7 @@ internal class LettuceCandidateRegistry private constructor(
         LettuceCandidateKeyCodec.legacyCandidateKey(keyPrefix, lockName, nodeId)
 
     fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val ttlMillis = candidateTtlMillis(ttl)
         repeat(MAX_REGISTER_FENCE_ATTEMPTS) {
             val observedTombstone = commands.get(tombstoneKey(lockName, info.nodeId))
@@ -112,7 +111,7 @@ internal class LettuceCandidateRegistry private constructor(
     }
 
     fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val ttlMillis = candidateTtlMillis(ttl)
         if (commands.get(tombstoneKey(lockName, info.nodeId)) != null) return
         ensureCurrentCandidate(lockName, info.nodeId)
@@ -131,7 +130,7 @@ internal class LettuceCandidateRegistry private constructor(
     }
 
     fun unregisterCandidate(lockName: String, nodeId: String) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val reply = runWriteScript(
             operation = LettuceCandidateWriteScript.UNREGISTER,
             keys = arrayOf(
@@ -149,7 +148,7 @@ internal class LettuceCandidateRegistry private constructor(
 
     @Suppress("CyclomaticComplexMethod")
     fun listCandidates(lockName: String): List<CandidateInfo> {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val currentIndex = indexKey(lockName)
         val currentNodeIds = commands.smembers(currentIndex).toList()
         val candidates = linkedMapOf<String, CandidateInfo>()
@@ -208,7 +207,7 @@ internal class LettuceCandidateRegistry private constructor(
     }
 
     fun updateResult(lockName: String, nodeId: String, result: CandidateResult) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         if (commands.get(tombstoneKey(lockName, nodeId)) != null) return
         ensureCurrentCandidate(lockName, nodeId)
         val reply = commands.runScript<List<Any>>(

@@ -7,8 +7,8 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.hazelcast.internal.HazelcastBackendErrorClassifier
 import io.bluetape4k.leader.hazelcast.internal.HazelcastSuspendLockExtendDelegate
 import io.bluetape4k.leader.hazelcast.lock.HazelcastSuspendLock
@@ -54,7 +54,7 @@ class HazelcastSuspendLeaderElector private constructor(
     private val lockMap: IMap<String, String> = hazelcast.getMap(HazelcastLeaderElector.LOCK_MAP_NAME)
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
 
         val lock = HazelcastSuspendLock(
             lockMap = lockMap,
@@ -122,6 +122,6 @@ suspend inline fun <T> HazelcastInstance.suspendRunIfLeader(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: suspend () -> T,
 ): T? {
-    validateLockName(jobName)
+    jobName.validateLockName("jobName")
     return HazelcastSuspendLeaderElector(this, options).runIfLeader(jobName) { action() }
 }

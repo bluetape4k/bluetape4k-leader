@@ -1,12 +1,15 @@
 package io.bluetape4k.leader.exposed.tables
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.exposed.tests.withTables
 import io.bluetape4k.leader.exposed.AbstractExposedTableTest
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterThan
-import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
@@ -15,12 +18,9 @@ import org.jetbrains.exposed.v1.jdbc.exists
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
-import io.bluetape4k.assertions.shouldBeTrue
 
 class LeaderLockTableTest: AbstractExposedTableTest() {
 
@@ -31,7 +31,6 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
     fun `테이블 생성 및 삭제가 성공한다`(testDB: TestDB) {
         withTables(testDB, LeaderLockTable) {
             LeaderLockTable.exists().shouldBeTrue()
-
         }
     }
 
@@ -115,6 +114,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
             val row = LeaderLockTable.selectAll()
                 .where { LeaderLockTable.lockName eq name }
                 .single()
+
             row[LeaderLockTable.token] shouldBeEqualTo newToken
         }
     }

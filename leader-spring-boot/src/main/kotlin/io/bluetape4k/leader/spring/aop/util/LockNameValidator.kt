@@ -47,11 +47,11 @@ class LockNameValidator(
      * 못하며, 호출자는 backend에 전달할 최종 키를 그대로 사용할 수 있습니다.
      */
     fun validateEffectiveName(name: String): String {
-        validateLockName(name)
+        name.validateLockName("name")
         name.length.requireLe(maxLength, "name.length")
         return applyPrefix(name).also {
             it.length.requireLe(maxLength, "effectiveName.length")
-            validateLockName(it)
+            it.validateLockName()
         }
     }
 

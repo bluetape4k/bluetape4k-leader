@@ -39,7 +39,7 @@ suspend inline fun <T> RedissonClient.suspendRunIfLeader(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: suspend () -> T,
 ): T? {
-    validateLockName(jobName)
+    jobName.validateLockName("jobName")
 
     val leaderElection = RedissonSuspendLeaderElector(this, options)
     return leaderElection.runIfLeader(jobName) { action() }
@@ -121,7 +121,7 @@ class RedissonSuspendLeaderElector private constructor(
     }
 
     private suspend fun <T> runImpl(lockName: String, auditLeaderId: String?, action: suspend () -> T): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
 
         val lock: RLock = redissonClient.getLock(lockName)
 

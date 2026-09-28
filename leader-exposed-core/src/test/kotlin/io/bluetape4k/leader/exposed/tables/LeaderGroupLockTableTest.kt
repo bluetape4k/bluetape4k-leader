@@ -1,11 +1,14 @@
 package io.bluetape4k.leader.exposed.tables
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.exposed.tests.withTables
 import io.bluetape4k.leader.exposed.AbstractExposedTableTest
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
@@ -14,14 +17,11 @@ import org.jetbrains.exposed.v1.jdbc.exists
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
-import io.bluetape4k.assertions.shouldBeTrue
 
-class LeaderGroupLockTableTest : AbstractExposedTableTest() {
+class LeaderGroupLockTableTest: AbstractExposedTableTest() {
 
     companion object: KLogging()
 
@@ -110,7 +110,7 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
             val activeCount = LeaderGroupLockTable.selectAll()
                 .where {
                     LeaderGroupLockTable.lockName eq "test-group" and
-                        LeaderGroupLockTable.lockedUntil.greaterEq(now)
+                            LeaderGroupLockTable.lockedUntil.greaterEq(now)
                 }
                 .count()
 
@@ -137,8 +137,8 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
             val updated = LeaderGroupLockTable.update(
                 where = {
                     LeaderGroupLockTable.lockName eq "renew-group" and
-                        (LeaderGroupLockTable.slot eq 0) and
-                        LeaderGroupLockTable.lockedUntil.less(now)
+                            (LeaderGroupLockTable.slot eq 0) and
+                            LeaderGroupLockTable.lockedUntil.less(now)
                 }
             ) {
                 it[token] = newToken
@@ -169,8 +169,8 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
             val count = LeaderGroupLockTable.selectAll()
                 .where {
                     LeaderGroupLockTable.lockName eq "range-group" and
-                        (LeaderGroupLockTable.slot greaterEq 0) and
-                        (LeaderGroupLockTable.slot less maxLeaders)
+                            (LeaderGroupLockTable.slot greaterEq 0) and
+                            (LeaderGroupLockTable.slot less maxLeaders)
                 }
                 .count()
 

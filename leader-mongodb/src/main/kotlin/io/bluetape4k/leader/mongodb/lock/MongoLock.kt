@@ -16,8 +16,9 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.mongodb.internal.MonotonicDeadline
+import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
@@ -34,7 +35,6 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * `MongoLock`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -377,6 +377,6 @@ class MongoLock private constructor(
 }
 
 internal fun validateMongoLockName(lockName: String) {
-    io.bluetape4k.leader.validateLockName(lockName)
+    lockName.validateLockName()
     require(!lockName.contains(":slot:")) { "lockName must not contain ':slot:': $lockName" }
 }

@@ -51,7 +51,7 @@ class LettuceCandidateKeyCodecTest {
 
     @Test
     fun `lock names containing hash tag braces remain invalid`() {
-        assertFailsWith<IllegalArgumentException> { validateLockName("a{b") }
-        assertFailsWith<IllegalArgumentException> { validateLockName("a}b") }
+        assertFailsWith<IllegalArgumentException> { "a{b".validateLockName() }
+        assertFailsWith<IllegalArgumentException> { "a}b".validateLockName() }
     }
 }

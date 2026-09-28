@@ -15,8 +15,6 @@ import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
 import kotlinx.coroutines.CancellationException
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * `LettuceStrategicLeaderElector`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -75,7 +73,7 @@ class LettuceStrategicLeaderElector @JvmOverloads constructor(
         action: () -> T,
     ): T? {
         // 정책 위반은 정상 contention이 아니므로 후보 조회 실패 fallback보다 먼저 전파합니다.
-        validateLockName(lockName)
+        lockName.validateLockName()
         val candidates = try {
             listCandidates(lockName)
         } catch (e: CancellationException) {

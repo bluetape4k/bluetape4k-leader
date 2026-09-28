@@ -3,9 +3,9 @@ package io.bluetape4k.leader.exposed.retry
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInRange
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -53,8 +53,7 @@ class RetryStrategyTest {
         val s = RetryStrategy.Jitter(baseDelayMs = 50L)
         repeat(100) {
             val delay = s.delayMs(0, 200L)
-            (delay >= 1L).shouldBeTrue()
-            (delay <= 49L).shouldBeTrue()
+            delay shouldBeInRange (1L..49L)
         }
     }
 
@@ -222,7 +221,7 @@ class RetryStrategyTest {
             RetryStrategy.Fixed(),
         )
         strategies.forEach {
-            it shouldBeInstanceOf RetryStrategy::class
+            it.shouldBeInstanceOf<RetryStrategy>()
         }
     }
 
@@ -235,7 +234,7 @@ class RetryStrategyTest {
         )
         strategies.forEach { s ->
             repeat(20) {
-                (s.delayMs(it, 1_000L) >= 1L).shouldBeTrue()
+                s.delayMs(it, 1_000L) shouldBeGreaterOrEqualTo 1L
             }
         }
     }
@@ -250,7 +249,7 @@ class RetryStrategyTest {
         )
         strategies.forEach { s ->
             repeat(20) {
-                (s.delayMs(it, remaining) <= remaining).shouldBeTrue()
+                s.delayMs(it, remaining) shouldBeLessOrEqualTo remaining
             }
         }
     }

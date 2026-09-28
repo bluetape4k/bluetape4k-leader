@@ -55,7 +55,7 @@ class RedissonStrategicLeaderGroupElector(
         maxLeaders: Int,
         action: () -> T,
     ): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val candidates = try {
             listCandidates(lockName)
         } catch (e: CancellationException) {

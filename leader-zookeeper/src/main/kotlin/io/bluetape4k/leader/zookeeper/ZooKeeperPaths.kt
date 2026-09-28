@@ -18,7 +18,7 @@ data class ZooKeeperElectionPath(
 
     init {
         ZooKeeperPaths.validateBasePath(basePath)
-        validateLockName(lockName)
+        lockName.validateLockName()
     }
 
     companion object {
@@ -54,7 +54,7 @@ internal object ZooKeeperPaths {
 
     fun electionPath(basePath: String, lockName: String): String {
         val normalizedBase = validateBasePath(basePath)
-        validateLockName(lockName)
+        lockName.validateLockName()
 
         return if (normalizedBase == "/") {
             "/$lockName"

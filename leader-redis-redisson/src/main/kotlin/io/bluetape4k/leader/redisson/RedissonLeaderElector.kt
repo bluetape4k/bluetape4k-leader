@@ -96,7 +96,7 @@ class RedissonLeaderElector private constructor(
     }
 
     private fun <T> runImpl(lockName: String, auditLeaderId: String?, action: () -> T): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
 
         val lock: RLock = redissonClient.getLock(lockName)
 
@@ -210,7 +210,7 @@ class RedissonLeaderElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        validateLockName(lockName)
+        lockName.validateLockName()
 
         val lock: RLock = redissonClient.getLock(lockName)
 
@@ -472,7 +472,7 @@ inline fun <T> RedissonClient.runIfLeader(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: () -> T,
 ): T? {
-    validateLockName(jobName)
+    jobName.validateLockName("jobName")
     val leaderElection = RedissonLeaderElector(this, options)
     return leaderElection.runIfLeader(jobName) { action() }
 }
@@ -488,7 +488,7 @@ inline fun <T> RedissonClient.runAsyncIfLeader(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> {
-    validateLockName(jobName)
+    jobName.validateLockName("jobName")
     val leaderElection = RedissonLeaderElector(this, options)
     return leaderElection.runAsyncIfLeader(jobName, executor) { action() }
 }

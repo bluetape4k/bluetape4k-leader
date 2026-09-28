@@ -33,7 +33,7 @@ class LocalStrategicLeaderElector(
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
 
     private fun candidatesFor(lockName: String): ConcurrentHashMap<String, CandidateInfo> {
-        validateLockName(lockName)
+        lockName.validateLockName()
         return registry.computeIfAbsent(lockName) { ConcurrentHashMap() }
     }
 
@@ -68,8 +68,8 @@ class LocalStrategicLeaderElector(
         action: () -> T,
     ): T? {
         log.debug { "runIfLeader... lockName=$lockName" }
-        
-        validateLockName(lockName)
+
+        lockName.validateLockName()
         // 선출 단계만 lockName 단위 락으로 보호
         val result = lockFor(lockName).withLock {
             strategy.elect(listCandidates(lockName))

@@ -31,7 +31,7 @@ class LeaderElectionManagementRegistry(
      * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun register(lockName: String) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         lockNames.add(lockName)
     }
 
@@ -79,7 +79,7 @@ internal fun LeaderElectionManagementRegistry.toJson(leaderElection: SuspendLead
         snapshot().forEachIndexed { index, lockName ->
             if (index > 0) append(',')
             try {
-                validateLockName(lockName)
+                lockName.validateLockName()
             } catch (failure: IllegalArgumentException) {
                 throw LeaderElectionHttpException(
                     context = toErrorContext(

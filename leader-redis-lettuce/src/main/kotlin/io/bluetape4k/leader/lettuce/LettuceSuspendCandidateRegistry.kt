@@ -2,21 +2,17 @@
 
 package io.bluetape4k.leader.lettuce
 
-import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.validateLockName
-import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisCommandExecutionException
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.coroutines
-import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
 import io.lettuce.core.cluster.api.coroutines
-import kotlinx.coroutines.flow.toList
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 import kotlin.time.Duration
 
 /**
@@ -86,7 +82,7 @@ internal class LettuceSuspendCandidateRegistry private constructor(
         LettuceCandidateKeyCodec.legacyCandidateKey(keyPrefix, lockName, nodeId)
 
     suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val ttlMillis = candidateTtlMillis(ttl)
         repeat(MAX_REGISTER_FENCE_ATTEMPTS) {
             val observedTombstone = commands.get(tombstoneKey(lockName, info.nodeId))
@@ -116,7 +112,7 @@ internal class LettuceSuspendCandidateRegistry private constructor(
     }
 
     suspend fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val ttlMillis = candidateTtlMillis(ttl)
         if (commands.get(tombstoneKey(lockName, info.nodeId)) != null) return
         ensureCurrentCandidate(lockName, info.nodeId)
@@ -135,7 +131,7 @@ internal class LettuceSuspendCandidateRegistry private constructor(
     }
 
     suspend fun unregisterCandidate(lockName: String, nodeId: String) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val reply = runWriteScript(
             operation = LettuceCandidateWriteScript.UNREGISTER,
             keys = arrayOf(
@@ -153,7 +149,7 @@ internal class LettuceSuspendCandidateRegistry private constructor(
 
     @Suppress("CyclomaticComplexMethod")
     suspend fun listCandidates(lockName: String): List<CandidateInfo> {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val currentIndex = indexKey(lockName)
         val currentNodeIds = commands.smembers(currentIndex).toList()
         val candidates = linkedMapOf<String, CandidateInfo>()
@@ -210,7 +206,7 @@ internal class LettuceSuspendCandidateRegistry private constructor(
     }
 
     suspend fun updateResult(lockName: String, nodeId: String, result: CandidateResult) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         if (commands.get(tombstoneKey(lockName, nodeId)) != null) return
         ensureCurrentCandidate(lockName, nodeId)
         val reply = commands.runScript<List<Any>>(

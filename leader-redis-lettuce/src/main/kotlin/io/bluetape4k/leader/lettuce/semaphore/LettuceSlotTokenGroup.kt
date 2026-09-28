@@ -142,7 +142,7 @@ return 0
     }
 
     init {
-        validateLockName(lockName)
+        lockName.validateLockName()
         maxLeaders.requirePositiveNumber("maxLeaders")
     }
 

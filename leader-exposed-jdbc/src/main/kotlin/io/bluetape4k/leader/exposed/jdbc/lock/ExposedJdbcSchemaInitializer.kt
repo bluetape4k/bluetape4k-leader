@@ -82,5 +82,5 @@ internal object ExposedJdbcSchemaInitializer : KLogging() {
  * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 internal fun validateExposedLockName(lockName: String) {
-    validateLockName(lockName)
+    lockName.validateLockName()
 }

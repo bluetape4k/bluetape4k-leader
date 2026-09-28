@@ -1,22 +1,22 @@
 package io.bluetape4k.leader.ktor
 
-import io.bluetape4k.logging.warn
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseHandle
-import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.leader.ktor.statuspages.respondLeaderElectionError
+import io.bluetape4k.leader.validateLockName
+import io.bluetape4k.logging.warn
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.Hook
 import io.ktor.server.application.PipelineCall
-import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.call
-import io.ktor.server.auth.AuthenticationChecked
+import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.isHandled
+import io.ktor.server.auth.AuthenticationChecked
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.RouteSelector
 import io.ktor.server.routing.RouteSelectorEvaluation
@@ -76,7 +76,7 @@ fun Route.leaderGuard(
     configure: LeaderRouteGuardConfig.() -> Unit = {},
     build: Route.() -> Unit = {},
 ): Route {
-    validateLockName(lockName)
+    lockName.validateLockName()
     val configured = LeaderRouteGuardConfig().apply(configure).also { it.lockName = lockName }
     val guardedRoute = createChild(LeaderGuardRouteSelector(routeGuardIds.incrementAndGet()))
     guardedRoute.install(LeaderRouteGuardPlugin) {

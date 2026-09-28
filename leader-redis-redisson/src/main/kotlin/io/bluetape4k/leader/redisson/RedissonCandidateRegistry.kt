@@ -10,13 +10,13 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.redisson.RedissonObject
-import org.redisson.api.RedissonClient
 import org.redisson.api.RLock
 import org.redisson.api.RMapCache
 import org.redisson.api.RScript
+import org.redisson.api.RedissonClient
 import org.redisson.client.codec.Codec
 import org.redisson.client.codec.StringCodec
 import org.redisson.client.protocol.Encoder
@@ -26,11 +26,11 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
  * `RedissonCandidateRegistry`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -135,7 +135,7 @@ internal class RedissonCandidateRegistry(
     private class RefreshScriptTtl(val value: Long)
 
     private fun cacheKey(lockName: String): String {
-        validateLockName(lockName)
+        lockName.validateLockName()
         return "$keyPrefix:$lockName"
     }
 

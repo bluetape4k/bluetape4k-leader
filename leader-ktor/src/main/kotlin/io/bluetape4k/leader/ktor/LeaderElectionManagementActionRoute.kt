@@ -67,7 +67,7 @@ fun Route.leaderElectionManagementActionRoute(
             )
             return@post
         }
-        val result = if (isManagementActionLockName(lockName)) {
+        val result = if (lockName.isManagementActionLockName()) {
             actionRegistry.release(lockName, LeaderManagementActionSurface.KTOR)
         } else {
             invalidLockNameResult()

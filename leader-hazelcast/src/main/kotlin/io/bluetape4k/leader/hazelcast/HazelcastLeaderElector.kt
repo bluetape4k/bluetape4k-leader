@@ -3,8 +3,8 @@ package io.bluetape4k.leader.hazelcast
 import com.hazelcast.core.HazelcastInstance
 import com.hazelcast.map.IMap
 import io.bluetape4k.leader.AopScopeAccess
-import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
@@ -65,7 +65,7 @@ class HazelcastLeaderElector private constructor(
     private val lockMap: IMap<String, String> = hazelcast.getMap(LOCK_MAP_NAME)
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
 
         val lock = HazelcastLock(lockMap, lockName, LOCK_MAP_NAME, hazelcast::newTransactionContext)
         log.debug { "Leader 승격을 요청합니다 ... lockName=$lockName" }
@@ -117,7 +117,7 @@ class HazelcastLeaderElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        validateLockName(lockName)
+        lockName.validateLockName()
 
         val lock = HazelcastLock(lockMap, lockName, LOCK_MAP_NAME, hazelcast::newTransactionContext)
 
@@ -231,7 +231,7 @@ inline fun <T> HazelcastInstance.runIfLeader(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: () -> T,
 ): T? {
-    validateLockName(jobName)
+    jobName.validateLockName("jobName")
     return HazelcastLeaderElector(this, options).runIfLeader(jobName) { action() }
 }
 
@@ -246,6 +246,6 @@ inline fun <T> HazelcastInstance.runAsyncIfLeader(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> {
-    validateLockName(jobName)
+    jobName.validateLockName("jobName")
     return HazelcastLeaderElector(this, options).runAsyncIfLeader(jobName, executor) { action() }
 }

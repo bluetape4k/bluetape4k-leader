@@ -31,7 +31,7 @@ class LocalStrategicLeaderGroupElector(
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
 
     private fun candidatesFor(lockName: String): ConcurrentHashMap<String, CandidateInfo> {
-        validateLockName(lockName)
+        lockName.validateLockName()
         return registry.computeIfAbsent(lockName) { ConcurrentHashMap() }
     }
 
@@ -66,7 +66,7 @@ class LocalStrategicLeaderGroupElector(
         maxLeaders: Int,
         action: () -> T,
     ): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val result = lockFor(lockName).withLock {
             val snapshot = listCandidates(lockName)
             strategy.electValidated(snapshot, maxLeaders)

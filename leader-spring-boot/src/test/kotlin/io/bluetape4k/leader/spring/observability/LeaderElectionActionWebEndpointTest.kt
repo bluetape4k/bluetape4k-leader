@@ -18,7 +18,6 @@ import io.bluetape4k.leader.isManagementActionLockName
 import org.junit.jupiter.api.Test
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint
 import org.springframework.boot.actuate.endpoint.web.annotation.WebEndpoint
-import org.springframework.boot.actuate.endpoint.web.WebEndpointResponse
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -78,8 +77,8 @@ class LeaderElectionActionWebEndpointTest {
 
     @Test
     fun `selector validator accepts only the management action grammar`() {
-        isManagementActionLockName("batch-job").shouldBeTrue()
-        isManagementActionLockName("bad/job").shouldBeFalse()
+        "batch-job".isManagementActionLockName().shouldBeTrue()
+        "bad/job".isManagementActionLockName().shouldBeFalse()
     }
 
     private class FakeHandle(

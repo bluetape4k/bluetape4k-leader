@@ -3,6 +3,7 @@ package io.bluetape4k.leader.history
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
+import java.util.*
 
 /**
  * `LeaderHistoryKey`는 leader election audit/history 저장 계약을 표현합니다.
@@ -18,7 +19,7 @@ data class LeaderHistoryKey(
     /**
      * `id` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
      */
-    val id: Long? = null,
+    val id: UUID? = null,
     /**
      * `historyId`는 leader election audit/history 저장 계약을 표현합니다.
      */

@@ -78,7 +78,7 @@ class LettuceStrategicSuspendLeaderGroupElector @JvmOverloads constructor(
         maxLeaders: Int,
         action: suspend () -> T,
     ): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
         currentCoroutineContext().ensureActive()
         val candidates = try {
             listCandidates(lockName)
