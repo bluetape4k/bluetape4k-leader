@@ -22,11 +22,11 @@ Schema is created automatically on first use via `SchemaUtils.createMissingTable
 
 ## Implementations
 
-| Class | Interface | Description |
-|-------|-----------|-------------|
-| `ExposedJdbcLeaderElector` | `LeaderElector` + `AsyncLeaderElector` | Blocking / CompletableFuture single-leader |
-| `ExposedJdbcLeaderGroupElector` | `LeaderGroupElector` | Blocking multi-leader (slot semaphore) |
-| `ExposedJdbcVirtualThreadLeaderElector` | `VirtualThreadLeaderElector` | Virtual-thread single-leader |
+| Class                                   | Interface                              | Description                                |
+|-----------------------------------------|----------------------------------------|--------------------------------------------|
+| `ExposedJdbcLeaderElector`              | `LeaderElector` + `AsyncLeaderElector` | Blocking / CompletableFuture single-leader |
+| `ExposedJdbcLeaderGroupElector`         | `LeaderGroupElector`                   | Blocking multi-leader (slot semaphore)     |
+| `ExposedJdbcVirtualThreadLeaderElector` | `VirtualThreadLeaderElector`           | Virtual-thread single-leader               |
 
 ## Usage
 
@@ -80,24 +80,13 @@ val result = election.runIfLeader("parallel-batch") {
 
 ### Database server time for Exposed groups (0.6.0+ develop)
 
-Set `LeaderGroupElectionOptions.useDbTime = true` when JDBC nodes may have
-different JVM clocks. Group acquire, ownership checks, lease extension,
-minimum-lease release, and `activeCount` then use one `SELECT CURRENT_TIMESTAMP`
-inside the relevant ownership transaction. A release that only deletes the row
-does not issue a time query. The default is `false` for compatibility.
+Set `LeaderGroupElectionOptions.useDbTime = true` when JDBC nodes may have different JVM clocks. Group acquire, ownership checks, lease extension, minimum-lease release, and `activeCount` then use one `SELECT CURRENT_TIMESTAMP`
+inside the relevant ownership transaction. A release that only deletes the row does not issue a time query. The default is `false` for compatibility.
 
 If database time cannot be read, group state is fail-closed (`maxLeaders`), and
-`runIfLeader` returns `null` instead of claiming a slot. This setting belongs on
-the Exposed JDBC/R2DBC group elector; it does not change local or Redis group
-semantics.
+`runIfLeader` returns `null` instead of claiming a slot. This setting belongs on the Exposed JDBC/R2DBC group elector; it does not change local or Redis group semantics.
 
-The database connection must route all participants to the same authoritative
-clock source (including a failover/primary change). Database timestamp timezone
-and precision are provider-specific, so configure the session and schema
-consistently across nodes. DB-time adds one timestamp round trip to each
-ownership transaction; size the pool for that work, while retry waits remain
-outside the transaction. History recording is best-effort metadata and never
-overrides the lock result.
+The database connection must route all participants to the same authoritative clock source (including a failover/primary change). Database timestamp timezone and precision are provider-specific, so configure the session and schema consistently across nodes. DB-time adds one timestamp round trip to each ownership transaction; size the pool for that work, while retry waits remain outside the transaction. History recording is best-effort metadata and never overrides the lock result.
 
 ### Inspecting group state
 
@@ -142,8 +131,13 @@ val election = ExposedJdbcLeaderElector(db, options)
 
 `ExposedJdbcLock` uses an **UPDATE+INSERT+SELECT** pattern inside a single transaction:
 
-1. **UPDATE** `LeaderLockTable SET token=?, lockedUntil=? WHERE lockName=? AND lockedUntil < NOW()` — takes over an expired lock
-2. **INSERT** `LeaderLockTable (lockName, token, lockedUntil, ...)` — creates a new lock if no row exists (PK conflict on contention → silently skipped)
+1.
+
+**UPDATE** `LeaderLockTable SET token=?, lockedUntil=? WHERE lockName=? AND lockedUntil < NOW()` — takes over an expired lock
+
+2.
+
+**INSERT** `LeaderLockTable (lockName, token, lockedUntil, ...)` — creates a new lock if no row exists (PK conflict on contention → silently skipped)
 3. **SELECT** `WHERE lockName=? AND token=?` — confirms ownership
 
 This pattern works on all supported databases without database-specific syntax.
@@ -167,11 +161,11 @@ Default is `Jitter(50ms)` — suitable for most OLTP workloads.
 
 Each variant validates its parameters at construction:
 
-| Variant | Constraint |
-|---|---|
-| `Jitter` | `baseDelayMs >= 2` |
+| Variant       | Constraint                                      |
+|---------------|-------------------------------------------------|
+| `Jitter`      | `baseDelayMs >= 2`                              |
 | `Exponential` | `baseDelayMs >= 1`, `maxDelayMs >= baseDelayMs` |
-| `Fixed` | `fixedMs >= 1` |
+| `Fixed`       | `fixedMs >= 1`                                  |
 
 ## History Recording
 
@@ -183,55 +177,40 @@ val recorder = SafeLeaderHistoryRecorder(sink)
 val election = ExposedJdbcLeaderElector(db, options, recorder)
 ```
 
-| Status | When |
-|--------|------|
-| `ACQUIRED` | Lock obtained |
-| `COMPLETED` | Action returned normally |
-| `FAILED` | Action threw an exception |
+| Status      | When                      |
+|-------------|---------------------------|
+| `ACQUIRED`  | Lock obtained             |
+| `COMPLETED` | Action returned normally  |
+| `FAILED`    | Action threw an exception |
 
 History is best-effort — recording failures do not affect lock semantics.
 
 ## Database Compatibility
 
-| Database | Tested version |
-|----------|---------------|
-| H2 | 2.x (in-memory, for tests) |
-| PostgreSQL | 14+ |
-| MySQL | 8.0+ |
+| Database   | Tested version             |
+|------------|----------------------------|
+| H2         | 2.x (in-memory, for tests) |
+| PostgreSQL | 14+                        |
+| MySQL      | 8.0+                       |
 
 ## Running JDBC transaction cancellation
 
 `CompletableFuture.cancel(false)`, `Thread.interrupt()`, and `Statement.cancel()`
-have different boundaries. The first changes the caller-visible future state,
-and the second sets the worker interrupt flag; neither one guarantees that an
-already-running JDBC statement or transaction has stopped. Keep ownership of
-the `Statement` and transaction in the application adapter, invoke
-`Statement.cancel()` explicitly when that is the selected policy, wait for the
-transaction to finish, and then release application resources.
+have different boundaries. The first changes the caller-visible future state, and the second sets the worker interrupt flag; neither one guarantees that an already-running JDBC statement or transaction has stopped. Keep ownership of the `Statement` and transaction in the application adapter, invoke
+`Statement.cancel()` explicitly when that is the selected policy, wait for the transaction to finish, and then release application resources.
 
-The integration contract is pinned to the resolved test drivers below. These
-are observed driver results, not a promise for every JDBC implementation.
+The integration contract is pinned to the resolved test drivers below. These are observed driver results, not a promise for every JDBC implementation.
 
-| Database / driver | `Statement.cancel()` terminal outcome | SQLState when exceptional | Worker interrupt at terminal |
-|---|---|---|---|
-| H2 2.4.240 | `JdbcSQLTimeoutException` | `57014` | preserved |
-| pgjdbc 42.7.13 | `PSQLException` | `57014` | preserved |
-| Connector/J 9.7.0 | `MySQLStatementCancelledException` or normal completion | `null` | unspecified |
+| Database / driver | `Statement.cancel()` terminal outcome                   | SQLState when exceptional | Worker interrupt at terminal |
+|-------------------|---------------------------------------------------------|---------------------------|------------------------------|
+| H2 2.4.240        | `JdbcSQLTimeoutException`                               | `57014`                   | preserved                    |
+| pgjdbc 42.7.13    | `PSQLException`                                         | `57014`                   | preserved                    |
+| Connector/J 9.7.0 | `MySQLStatementCancelledException` or normal completion | `null`                    | unspecified                  |
 
-All interruption paths verify that the marker query is active through a database
-system view before injecting interruption. The cancellation request records
-rollback intent before invoking `Statement.cancel()`, and the action future
-must reach a terminal state. H2 and PostgreSQL require the listed exception;
-Connector/J permits that exception or normal completion because its cancel
-request can return after the statement has already completed. Both outcomes
-must roll back the probe transaction. The Leader integration test records one
-`FAILED` history row for an exceptional outcome or one `COMPLETED` row for
-normal completion, and then requires successful reacquisition of the same
-lock. Connector/J does not expose a stable terminal interrupt flag in repeated
-runs, so callers must not use that flag as transaction-completion evidence.
+All interruption paths verify that the marker query is active through a database system view before injecting interruption. The cancellation request records rollback intent before invoking `Statement.cancel()`, and the action future must reach a terminal state. H2 and PostgreSQL require the listed exception; Connector/J permits that exception or normal completion because its cancel request can return after the statement has already completed. Both outcomes must roll back the probe transaction. The Leader integration test records one
+`FAILED` history row for an exceptional outcome or one `COMPLETED` row for normal completion, and then requires successful reacquisition of the same lock. Connector/J does not expose a stable terminal interrupt flag in repeated runs, so callers must not use that flag as transaction-completion evidence.
 
-Credentials, production query selection, timeout, retry, and whether to cancel
-or let work finish remain caller-owned operational policy.
+Credentials, production query selection, timeout, retry, and whether to cancel or let work finish remain caller-owned operational policy.
 
 ## Dependency
 

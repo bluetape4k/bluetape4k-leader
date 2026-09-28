@@ -10,7 +10,7 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
 
 /** Exposed JDBC backend의 정적 capability와 안전한 connectivity 계약입니다. */
-object ExposedJdbcLeaderBackendDiagnostics : LeaderBackendDiagnosticsProvider {
+object ExposedJdbcLeaderBackendDiagnostics: LeaderBackendDiagnosticsProvider {
 
     private val SupportedModes = LeaderBackendModeSupport(
         single = LeaderBackendSupport.SUPPORTED,
@@ -33,6 +33,7 @@ object ExposedJdbcLeaderBackendDiagnostics : LeaderBackendDiagnosticsProvider {
             groupExecutionModels = setOf(
                 LeaderExecutionModel.BLOCKING,
                 LeaderExecutionModel.ASYNC,
+                LeaderExecutionModel.VIRTUAL_THREAD,
             ),
             leaseExtension = SupportedModes,
             auditState = UnsupportedModes,

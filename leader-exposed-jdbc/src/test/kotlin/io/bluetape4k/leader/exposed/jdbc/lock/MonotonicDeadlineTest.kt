@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.leader.contract.AbstractMonotonicDeadlineContractTest
 import io.bluetape4k.leader.exposed.jdbc.internal.MonotonicDeadline
@@ -7,14 +8,17 @@ import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
+import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import java.util.UUID
+import java.util.*
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 class MonotonicDeadlineTest: AbstractMonotonicDeadlineContractTest() {
+
+    companion object: KLogging()
 
     private val db: Database by lazy {
         (TestDB.H2.db ?: TestDB.H2.connect()).also(ExposedJdbcSchemaInitializer::ensureSchema)
@@ -40,7 +44,9 @@ class MonotonicDeadlineTest: AbstractMonotonicDeadlineContractTest() {
     private fun observeSingleWait(case: WaitOutcomeCase): WaitOutcome {
         val lockName = randomLockName()
         val holder = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 1L))
-        check(holder.tryLock(Duration.ZERO, 5.seconds))
+
+        holder.tryLock(Duration.ZERO, 5.seconds).shouldBeTrue()
+
         val contender = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 1L))
 
         return try {
@@ -52,10 +58,11 @@ class MonotonicDeadlineTest: AbstractMonotonicDeadlineContractTest() {
 
     private fun observeGroupWait(case: WaitOutcomeCase): WaitOutcome {
         val lockName = randomLockName()
-        val holder = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 1L))
-        check(holder.tryLock(Duration.ZERO, 5.seconds) == true)
-        val contender = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 1L))
 
+        val holder = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 1L))
+        holder.tryLock(Duration.ZERO, 5.seconds).shouldBeTrue()
+
+        val contender = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 1L))
         return try {
             observeContender(case) { contender.tryLock(case.waitTime, 5.seconds) == true }
         } finally {

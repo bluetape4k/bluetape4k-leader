@@ -1,7 +1,8 @@
 package io.bluetape4k.leader.exposed.jdbc.contract
 
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.leader.AopScopeAccess
@@ -14,6 +15,7 @@ import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElector
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -62,7 +64,7 @@ class ExposedJdbcExtendDelegateReferenceTest {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test
@@ -82,7 +84,7 @@ class ExposedJdbcExtendDelegateReferenceTest {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test
@@ -97,7 +99,9 @@ class ExposedJdbcExtendDelegateReferenceTest {
             outcomes += LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
+        outcomes.forEach { log.debug { "outcome=$it" } }
         outcomes.forEach { it.shouldBeInstanceOf<ExtendOutcome.Extended>() }
+        outcomes shouldHaveSize 3
     }
 
     @Test
@@ -107,6 +111,7 @@ class ExposedJdbcExtendDelegateReferenceTest {
 
         var preExtend: ExtendOutcome? = null
         var postExtend: ExtendOutcome? = null
+
         elector.runIfLeader(lockName) {
             preExtend = LockExtender.extendActiveLockDetailed(120.seconds)
             postExtend = LockExtender.extendActiveLockDetailed(60.seconds)

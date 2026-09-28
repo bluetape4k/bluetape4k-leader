@@ -1,11 +1,11 @@
 package io.bluetape4k.leader.exposed.jdbc
 
-import io.bluetape4k.leader.exposed.retry.RetryStrategy
-
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import io.bluetape4k.assertions.assertFailsWith
 
 /**
  * Options data class 의 init 검증 동작 확인.
@@ -14,6 +14,8 @@ import io.bluetape4k.assertions.assertFailsWith
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExposedJdbcOptionsValidationTest {
+
+    companion object: KLogging()
 
     @Test
     fun `ExposedJdbcLeaderElectionOptions - lockOwner 256자는 IllegalArgumentException 발생`() {

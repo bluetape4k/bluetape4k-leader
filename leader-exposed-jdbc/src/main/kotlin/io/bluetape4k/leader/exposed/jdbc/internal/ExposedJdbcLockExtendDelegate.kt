@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.jdbc.internal
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcLock
 import io.bluetape4k.leader.internal.ExtendDelegate
@@ -11,7 +12,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
@@ -22,9 +22,9 @@ import kotlin.time.Duration
  */
 internal class ExposedJdbcLockExtendDelegate(
     private val lock: ExposedJdbcLock,
-) : ExtendDelegate {
+): ExtendDelegate {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
@@ -61,4 +61,10 @@ internal class ExposedJdbcLockExtendDelegate(
             log.warn(e) { "Exposed JDBC isHeld failed. lockName=${lock.lockName}" }
             false
         }
+
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("lock", lock)
+            .toString()
+    }
 }

@@ -8,6 +8,8 @@ import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -15,13 +17,16 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
 
-class ExposedLeaderHistorySinkTest : AbstractExposedJdbcLeaderTest() {
+class ExposedLeaderHistorySinkTest: AbstractExposedJdbcLeaderTest() {
+
+    companion object: KLogging()
 
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `recordCompleted requires token match when id is present`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val sink = ExposedLeaderHistorySink(db)
         val record = historyRecord(lockName = randomName(), token = "token-1")
         val key = requireNotNull(sink.recordAcquired(record))
@@ -34,7 +39,15 @@ class ExposedLeaderHistorySinkTest : AbstractExposedJdbcLeaderTest() {
                 .where { LeaderLockHistoryTable.id eq keyId }
                 .single()
         }
-        row[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.ACQUIRED.name
+
+        log.debug { "row=$row" }
+
+        row[LeaderLockHistoryTable.lockName] shouldBeEqualTo record.lockName
+        row[LeaderLockHistoryTable.token] shouldBeEqualTo record.token
+        row[LeaderLockHistoryTable.kind] shouldBeEqualTo record.kind
+        row[LeaderLockHistoryTable.lockedUntil] shouldBeEqualTo record.lockedUntil
+
+        row[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.ACQUIRED
         row[LeaderLockHistoryTable.finishedAt].shouldBeNull()
     }
 

@@ -2,7 +2,7 @@
 
 [English](README.md) | 한국어
 
-[Exposed](https://github.com/JetBrains/Exposed) JDBC 기반 분산 리더 선출 구현체입니다. 블로킹과 비동기(CompletableFuture) API를 제공합니다.
+[Exposed](https://github.com/JetBrains/Exposed) JDBC 기반 분산 리더 선출 구현체입니다. 블로킹과 비동기 (CompletableFuture) API를 제공합니다.
 
 H2, PostgreSQL, MySQL 8 호환.
 
@@ -10,7 +10,7 @@ H2, PostgreSQL, MySQL 8 호환.
 
 ## 개요
 
-`leader-exposed-jdbc`는 Exposed JDBC DSL을 사용하여 `leader-core` 인터페이스를 구현합니다. `LeaderLockTable`의 단일 행(PK = `lockName`)이 분산 뮤텍스 역할을 하며, UUID fencing token으로 락 소유권을 추적합니다.
+`leader-exposed-jdbc`는 Exposed JDBC DSL을 사용하여 `leader-core` 인터페이스를 구현합니다. `LeaderLockTable`의 단일 행 (PK = `lockName`)이 분산 뮤텍스 역할을 하며, UUID fencing token으로 락 소유권을 추적합니다.
 
 락 전략: `UPDATE WHERE lockedUntil < NOW()` → `INSERT (PK 충돌 시 skip)` → `SELECT WHERE token = ?`. 세 단계 모두 하나의 트랜잭션 안에서 실행됩니다.
 
@@ -22,11 +22,11 @@ H2, PostgreSQL, MySQL 8 호환.
 
 ## 구현체 목록
 
-| 클래스 | 구현 인터페이스 | 설명 |
-|-------|--------------|------|
-| `ExposedJdbcLeaderElector` | `LeaderElector` + `AsyncLeaderElector` | 블로킹 / CompletableFuture 단일 리더 |
-| `ExposedJdbcLeaderGroupElector` | `LeaderGroupElector` | 블로킹 복수 리더 (슬롯 세마포어) |
-| `ExposedJdbcVirtualThreadLeaderElector` | `VirtualThreadLeaderElector` | 가상 스레드 단일 리더 |
+| 클래스                                  | 구현 인터페이스                        | 설명                                 |
+|-----------------------------------------|----------------------------------------|--------------------------------------|
+| `ExposedJdbcLeaderElector`              | `LeaderElector` + `AsyncLeaderElector` | 블로킹 / CompletableFuture 단일 리더 |
+| `ExposedJdbcLeaderGroupElector`         | `LeaderGroupElector`                   | 블로킹 복수 리더 (슬롯 세마포어)     |
+| `ExposedJdbcVirtualThreadLeaderElector` | `VirtualThreadLeaderElector`           | 가상 스레드 단일 리더                |
 
 ## 사용 예시
 
@@ -81,22 +81,13 @@ val result = election.runIfLeader("parallel-batch") {
 ### Exposed 그룹의 DB server time (0.6.0+ develop)
 
 JVM clock가 서로 다를 수 있는 JDBC 노드에서는
-`LeaderGroupElectionOptions.useDbTime = true`를 설정합니다. 그룹 acquire,
-소유권 확인, lease 연장, 최소 lease release, `activeCount`가 관련 ownership
-transaction 안에서 `SELECT CURRENT_TIMESTAMP` 한 번을 사용합니다. 행만
-삭제하는 release에는 time query를 추가하지 않습니다. 호환성을 위해 기본값은
+`LeaderGroupElectionOptions.useDbTime = true`를 설정합니다. 그룹 acquire, 소유권 확인, lease 연장, 최소 lease release, `activeCount`가 관련 ownership transaction 안에서 `SELECT CURRENT_TIMESTAMP` 한 번을 사용합니다. 행만 삭제하는 release에는 time query를 추가하지 않습니다. 호환성을 위해 기본값은
 `false`입니다.
 
-DB time을 읽을 수 없으면 그룹 상태는 fail-closed(`maxLeaders`)로 보고하고,
-`runIfLeader`는 슬롯을 주장하지 않고 `null`을 반환합니다. 이 설정은 Exposed
-JDBC/R2DBC 그룹 elector에만 적용되며 local 또는 Redis 그룹 동작은 바꾸지 않습니다.
+DB time을 읽을 수 없으면 그룹 상태는 fail-closed (`maxLeaders`)로 보고하고,
+`runIfLeader`는 슬롯을 주장하지 않고 `null`을 반환합니다. 이 설정은 Exposed JDBC/R2DBC 그룹 elector에만 적용되며 local 또는 Redis 그룹 동작은 바꾸지 않습니다.
 
-모든 참여 노드의 database connection은 failover/primary 전환을 포함해 같은
-권위 시계 원천으로 라우팅되어야 합니다. DB timestamp의 timezone과 precision은
-provider마다 다르므로 노드 간 session과 schema 설정을 일관되게 유지합니다.
-DB-time은 각 ownership transaction에 timestamp round trip을 하나 추가하므로
-그 비용을 고려해 pool을 구성하고, retry 대기는 transaction 밖에서 수행합니다.
-이력 기록은 best-effort metadata이며 lock 결과를 덮어쓰지 않습니다.
+모든 참여 노드의 database connection은 failover/primary 전환을 포함해 같은 권위 시계 원천으로 라우팅되어야 합니다. DB timestamp의 timezone과 precision은 provider마다 다르므로 노드 간 session과 schema 설정을 일관되게 유지합니다. DB-time은 각 ownership transaction에 timestamp round trip을 하나 추가하므로 그 비용을 고려해 pool을 구성하고, retry 대기는 transaction 밖에서 수행합니다. 이력 기록은 best-effort metadata이며 lock 결과를 덮어쓰지 않습니다.
 
 ### 그룹 상태 조회
 
@@ -166,11 +157,11 @@ sealed class RetryStrategy {
 
 각 전략은 생성 시점에 파라미터를 검증합니다:
 
-| 변형 | 제약 |
-|---|---|
-| `Jitter` | `baseDelayMs >= 2` |
+| 변형          | 제약                                            |
+|---------------|-------------------------------------------------|
+| `Jitter`      | `baseDelayMs >= 2`                              |
 | `Exponential` | `baseDelayMs >= 1`, `maxDelayMs >= baseDelayMs` |
-| `Fixed` | `fixedMs >= 1` |
+| `Fixed`       | `fixedMs >= 1`                                  |
 
 ## 이력 기록
 
@@ -182,52 +173,38 @@ val recorder = SafeLeaderHistoryRecorder(sink)
 val election = ExposedJdbcLeaderElector(db, options, recorder)
 ```
 
-| 상태 | 시점 |
-|------|------|
-| `ACQUIRED` | 락 획득 |
+| 상태        | 시점             |
+|-------------|------------------|
+| `ACQUIRED`  | 락 획득          |
 | `COMPLETED` | action 정상 반환 |
-| `FAILED` | action 예외 발생 |
+| `FAILED`    | action 예외 발생 |
 
 이력 기록은 best-effort입니다 — 기록 실패가 락 동작에 영향을 주지 않습니다.
 
 ## DB 호환성
 
-| DB | 테스트 버전 |
-|----|-----------|
-| H2 | 2.x (in-memory, 테스트용) |
-| PostgreSQL | 14+ |
-| MySQL | 8.0+ |
+| DB         | 테스트 버전               |
+|------------|---------------------------|
+| H2         | 2.x (in-memory, 테스트용) |
+| PostgreSQL | 14+                       |
+| MySQL      | 8.0+                      |
 
 ## 실행 중 JDBC transaction 취소
 
-`CompletableFuture.cancel(false)`, `Thread.interrupt()`, `Statement.cancel()`은
-서로 다른 경계를 가집니다. 첫 번째는 caller에게 보이는 future 상태를 바꾸고 두 번째는
-worker interrupt flag를 설정할 뿐, 이미 실행 중인 JDBC statement나 transaction의 종료를
-보장하지 않습니다. application adapter가 `Statement`와 transaction을 소유하고, 선택한
-정책이 취소라면 `Statement.cancel()`을 명시적으로 호출한 뒤 transaction 종료를 기다리고
-application resource를 반환해야 합니다.
+`CompletableFuture.cancel(false)`, `Thread.interrupt()`, `Statement.cancel()`은 서로 다른 경계를 가집니다. 첫 번째는 caller에게 보이는 future 상태를 바꾸고 두 번째는 worker interrupt flag를 설정할 뿐, 이미 실행 중인 JDBC statement나 transaction의 종료를 보장하지 않습니다. application adapter가 `Statement`와 transaction을 소유하고, 선택한 정책이 취소라면 `Statement.cancel()`을 명시적으로 호출한 뒤 transaction 종료를 기다리고 application resource를 반환해야 합니다.
 
-통합 계약은 아래 resolved test driver 버전에 고정됩니다. 이는 모든 JDBC 구현에 대한
-보장이 아니라 실제 driver에서 관찰한 결과입니다.
+통합 계약은 아래 resolved test driver 버전에 고정됩니다. 이는 모든 JDBC 구현에 대한 보장이 아니라 실제 driver에서 관찰한 결과입니다.
 
-| Database / driver | `Statement.cancel()` terminal outcome | 예외 발생 시 SQLState | terminal 시점 worker interrupt |
-|---|---|---|---|
-| H2 2.4.240 | `JdbcSQLTimeoutException` | `57014` | 보존 |
-| pgjdbc 42.7.13 | `PSQLException` | `57014` | 보존 |
-| Connector/J 9.7.0 | `MySQLStatementCancelledException` 또는 정상 완료 | `null` | 미보장 |
+| Database / driver | `Statement.cancel()` terminal outcome             | 예외 발생 시 SQLState | terminal 시점 worker interrupt |
+|-------------------|---------------------------------------------------|-----------------------|--------------------------------|
+| H2 2.4.240        | `JdbcSQLTimeoutException`                         | `57014`               | 보존                           |
+| pgjdbc 42.7.13    | `PSQLException`                                   | `57014`               | 보존                           |
+| Connector/J 9.7.0 | `MySQLStatementCancelledException` 또는 정상 완료 | `null`                | 미보장                         |
 
-세 driver 테스트는 database system view에서 marker query가 active임을 확인한 뒤에만
-interruption을 주입합니다. 취소 요청은 `Statement.cancel()` 호출 전에 rollback 의도를
-기록하며 action future가 terminal 상태에 도달하는지 확인합니다. H2와 PostgreSQL은 표의
-예외를 반드시 노출해야 하고, Connector/J는 취소 요청이 statement 종료 뒤 정상 반환할 수
-있으므로 해당 예외 또는 정상 완료를 허용합니다. 두 outcome 모두 probe transaction
-rollback을 보장해야 합니다. Leader 통합 테스트는 예외 outcome이면 `FAILED`, 정상 완료이면
-`COMPLETED` history row를 정확히 하나 기록하고 같은 lock을 다시 획득할 수 있어야 합니다.
-Connector/J의 terminal interrupt flag는 반복 실행에서 안정된 관찰값이 아니므로
-transaction 종료 근거로 사용하면 안 됩니다.
+세 driver 테스트는 database system view에서 marker query가 active임을 확인한 뒤에만 interruption을 주입합니다. 취소 요청은 `Statement.cancel()` 호출 전에 rollback 의도를 기록하며 action future가 terminal 상태에 도달하는지 확인합니다. H2와 PostgreSQL은 표의 예외를 반드시 노출해야 하고, Connector/J는 취소 요청이 statement 종료 뒤 정상 반환할 수 있으므로 해당 예외 또는 정상 완료를 허용합니다. 두 outcome 모두 probe transaction rollback을 보장해야 합니다. Leader 통합 테스트는 예외 outcome이면 `FAILED`, 정상 완료이면
+`COMPLETED` history row를 정확히 하나 기록하고 같은 lock을 다시 획득할 수 있어야 합니다. Connector/J의 terminal interrupt flag는 반복 실행에서 안정된 관찰값이 아니므로 transaction 종료 근거로 사용하면 안 됩니다.
 
-credential, production query 선택, timeout, retry, 취소 또는 완료 대기 정책은 계속 caller가
-소유합니다.
+credential, production query 선택, timeout, retry, 취소 또는 완료 대기 정책은 계속 caller가 소유합니다.
 
 ## 의존성 추가
 

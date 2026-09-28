@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.exposed.jdbc
 
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectorFactory
-import io.bluetape4k.leader.LeaderGroupElectionOptions
 import org.jetbrains.exposed.v1.jdbc.Database
 
 /**
@@ -15,7 +15,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 class ExposedJdbcLeaderGroupElectorFactory(
     private val db: Database,
     private val baseOptions: ExposedJdbcLeaderGroupElectionOptions = ExposedJdbcLeaderGroupElectionOptions.Default,
-) : LeaderGroupElectorFactory {
+): LeaderGroupElectorFactory {
 
     override fun create(options: LeaderGroupElectionOptions): LeaderGroupElector =
         ExposedJdbcLeaderGroupElector(db, baseOptions.copy(leaderGroupOptions = options))

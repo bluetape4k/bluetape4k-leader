@@ -57,5 +57,5 @@ abstract class AbstractExposedJdbcLeaderTest {
         }
     }
 
-    protected fun randomName(): String = "test-${Base58.randomString(8)}"
+    protected fun randomName(): String = "test-${Base58.randomString(12)}"
 }

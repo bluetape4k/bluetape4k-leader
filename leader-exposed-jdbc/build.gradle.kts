@@ -13,27 +13,28 @@ dependencies {
     implementation(platform(bt4k.bluetape4k.exposed.bom))
 
     // Exposed JDBC
+    api(bt4k.bluetape4k.exposed.jdbc)
+    testImplementation(bt4k.bluetape4k.exposed.jdbc.tests)
     api(bt4k.exposed.core)
     api(bt4k.exposed.jdbc)
     api(libs.exposed.dao)
     api(bt4k.exposed.java.time)
 
     // Coroutines (CancellationException re-throw 보장)
+    implementation(bt4k.bluetape4k.coroutines)
     implementation(libs.kotlinx.coroutines.core)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     // Connection pool + DB drivers
     implementation(bt4k.hikaricp)
     compileOnly(bt4k.postgresql)
     compileOnly(bt4k.mysql.connector.j)
+    testImplementation(bt4k.h2.v2)
 
     testImplementation(bt4k.bluetape4k.junit5)
-    testImplementation(bt4k.bluetape4k.testcontainers)
     testImplementation(bt4k.bluetape4k.virtualthread.jdk25)
-    testImplementation(bt4k.bluetape4k.exposed.jdbc.tests)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(bt4k.h2.v2)
-    testImplementation(bt4k.postgresql)
-    testImplementation(bt4k.mysql.connector.j)
+
+    testImplementation(bt4k.bluetape4k.testcontainers)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.postgresql)

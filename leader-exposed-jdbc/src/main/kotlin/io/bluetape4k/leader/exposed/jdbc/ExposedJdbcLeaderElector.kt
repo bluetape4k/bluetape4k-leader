@@ -8,9 +8,10 @@ import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcBackendErrorClassifier
 import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcLockExtendDelegate
+import io.bluetape4k.leader.exposed.jdbc.internal.unwrapCompletionCause
+import io.bluetape4k.leader.exposed.jdbc.internal.validateExposedLockName
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcLock
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
-import io.bluetape4k.leader.exposed.jdbc.lock.validateExposedLockName
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
@@ -22,7 +23,6 @@ import kotlinx.coroutines.CancellationException
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -42,14 +42,14 @@ class ExposedJdbcLeaderElector private constructor(
     val options: ExposedJdbcLeaderElectionOptions,
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
 ): LeaderElector,
-    LeaderBackendDiagnosticsProvider by ExposedJdbcLeaderBackendDiagnostics,
-    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by ExposedJdbcLeaderBackendDiagnostics,
+   io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
 
     override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
         io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
-    companion object : KLogging() {
+    companion object: KLogging() {
 
         internal const val EXPOSED_JDBC_FACTORY_BEAN_NAME = "exposed-jdbc-leader-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedJdbcBackendErrorClassifier)
@@ -77,7 +77,7 @@ class ExposedJdbcLeaderElector private constructor(
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
-        validateExposedLockName(lockName)
+        lockName.validateExposedLockName()
 
         val lock = ExposedJdbcLock(
             db = db,
@@ -171,7 +171,7 @@ class ExposedJdbcLeaderElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        validateExposedLockName(lockName)
+        lockName.validateExposedLockName()
 
         val lock = ExposedJdbcLock(
             db = db,
@@ -356,6 +356,3 @@ class ExposedJdbcLeaderElector private constructor(
         return resultFuture
     }
 }
-
-private fun Throwable.unwrapCompletionCause(): Throwable =
-    if (this is CompletionException && cause != null) cause!! else this

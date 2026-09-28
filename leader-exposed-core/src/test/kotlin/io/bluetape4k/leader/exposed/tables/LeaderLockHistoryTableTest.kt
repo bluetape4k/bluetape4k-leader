@@ -46,7 +46,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                     it[lockName] = "history-lock"
                     it[token] = Base58.randomString(8)
                     it[lockedUntil] = now.plusSeconds(60)
-                    it[status] = s.name
+                    it[status] = s
                     it[startedAt] = now
                     it[finishedAt] = if (s != LeaderHistoryStatus.ACQUIRED) now.plusSeconds(1) else null
                     it[durationMs] = if (s != LeaderHistoryStatus.ACQUIRED) 1000L else null
@@ -70,7 +70,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                 it[lockName] = "auto-inc"
                 it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
-                it[status] = LeaderHistoryStatus.ACQUIRED.name
+                it[status] = LeaderHistoryStatus.ACQUIRED
                 it[startedAt] = now
             }.value
 
@@ -91,9 +91,9 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
             repeat(3) { i ->
                 LeaderLockHistoryTable.insert {
                     it[lockName] = name
-                    it[token] = Base58.randomString(8)
+                    it[token] = Base58.randomString(16)
                     it[lockedUntil] = now.plusSeconds(60)
-                    it[status] = LeaderHistoryStatus.COMPLETED.name
+                    it[status] = LeaderHistoryStatus.COMPLETED
                     it[startedAt] = now.plusSeconds(i.toLong())
                 }
             }
@@ -115,7 +115,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                 it[lockName] = "nullable-test"
                 it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
-                it[status] = LeaderHistoryStatus.ACQUIRED.name
+                it[status] = LeaderHistoryStatus.ACQUIRED
                 it[startedAt] = now
                 // finishedAt, durationMs 미설정 — null 허용
             }
@@ -145,7 +145,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                     it[lockName] = "old-lock"
                     it[token] = Base58.randomString(8)
                     it[lockedUntil] = oldTime.plusSeconds(60)
-                    it[status] = LeaderHistoryStatus.COMPLETED.name
+                    it[status] = LeaderHistoryStatus.COMPLETED
                     it[startedAt] = oldTime
                 }
             }
@@ -154,7 +154,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                 it[lockName] = "recent-lock"
                 it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
-                it[status] = LeaderHistoryStatus.COMPLETED.name
+                it[status] = LeaderHistoryStatus.COMPLETED
                 it[startedAt] = now
             }
 

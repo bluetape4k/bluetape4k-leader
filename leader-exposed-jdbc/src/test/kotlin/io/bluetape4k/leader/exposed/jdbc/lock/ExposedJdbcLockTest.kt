@@ -1,31 +1,40 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
-import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
-import io.bluetape4k.leader.exposed.retry.RetryStrategy
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
+import io.bluetape4k.exposed.tests.TestDB
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.max
+import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
-class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
+class ExposedJdbcLockTest: AbstractExposedJdbcLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `tryLock - 빈 DB에서 첫 번째 락 획득이 성공한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
 
         val acquired = lock.tryLock(2.seconds, 10.seconds)
@@ -39,14 +48,15 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
     fun `tryLock - 동일 lockName에 이미 활성 락이 있으면 실패한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val holder = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        holder.tryLock(1.seconds, 30.seconds)
+        holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
 
         val contender = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 10L))
         val acquired = contender.tryLock(100.milliseconds, 5.seconds)
-
         acquired.shouldBeFalse()
+
         holder.unlock()
     }
 
@@ -55,6 +65,7 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
     fun `tryLock - zero와 negative wait는 한 번 시도한 뒤 경합을 건너뛴다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val holder = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
         holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
@@ -71,9 +82,11 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
     fun `tryLock - 재시도 대기 interrupt 를 재전파한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val holder = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        holder.tryLock(1.seconds, 30.seconds)
+        holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
+
         val contender = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 10L))
 
         try {
@@ -98,7 +111,7 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
 
         val leaseTime = 150.milliseconds
         val expiredLock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        expiredLock.tryLock(1.seconds, leaseTime)
+        expiredLock.tryLock(1.seconds, leaseTime).shouldBeTrue()
 
         val newLock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
         val deadlineNanos = System.nanoTime() + 2.seconds.inWholeNanoseconds
@@ -123,12 +136,14 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
     fun `unlock - 동일 token으로 해제가 성공한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
-        val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
-        lock.tryLock(1.seconds, 10.seconds)
+
+        val lockName = randomName()
+        val lock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
+        lock.tryLock(1.seconds, 10.seconds).shouldBeTrue()
 
         lock.unlock()
 
-        val reacquire = ExposedJdbcLock(db, lock.lockName, RetryStrategy.Jitter())
+        val reacquire = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
         reacquire.tryLock(1.seconds, 10.seconds).shouldBeTrue()
         reacquire.unlock()
     }
@@ -138,8 +153,9 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
     fun `unlock - 이미 해제된 락에 재호출해도 예외가 발생하지 않는다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
-        lock.tryLock(1.seconds, 10.seconds)
+        lock.tryLock(1.seconds, 10.seconds).shouldBeTrue()
         lock.unlock()
 
         lock.unlock()
@@ -163,8 +179,9 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
     fun `isHeldByCurrentInstance - unlock 이후 false 반환`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
-        lock.tryLock(1.seconds, 10.seconds)
+        lock.tryLock(1.seconds, 10.seconds).shouldBeTrue()
         lock.unlock()
 
         lock.isHeldByCurrentInstance().shouldBeFalse()
@@ -175,9 +192,10 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
     fun `isHeldByCurrentInstance - leaseTime 만료 시 false 반환`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
         val leaseTime = 150.milliseconds
-        lock.tryLock(1.seconds, leaseTime)
+        lock.tryLock(1.seconds, leaseTime).shouldBeTrue()
 
         Thread.sleep(leaseTime.inWholeMilliseconds * 2)
 
@@ -193,7 +211,7 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
 
         val original = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        original.tryLock(1.seconds, 150.milliseconds)
+        original.tryLock(1.seconds, 150.milliseconds).shouldBeTrue()
         Thread.sleep(250)
 
         val takeover = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
@@ -213,7 +231,8 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lockName = randomName()
-        val successCount = java.util.concurrent.atomic.AtomicInteger(0)
+        val successCount = AtomicInteger(0)
+
         val threads = 10
         val latch = CountDownLatch(threads)
         val executor = Executors.newFixedThreadPool(threads)
@@ -230,9 +249,44 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
             }
         }
 
-        latch.await(10, TimeUnit.SECONDS)
+        latch.await(10.seconds)
         executor.shutdown()
+        executor.awaitTermination(5.seconds)
 
         successCount.get() shouldBeGreaterOrEqualTo 1
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `tryLock - MultithreadingTester 를 이용하여 멀티스레드 경합 시 단 하나만 락 획득에 성공한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+
+        val successCount = AtomicInteger(0)
+        val currentConcurrent = AtomicInteger(0)
+        val peakConcurrent = AtomicInteger(0)
+
+        MultithreadingTester()
+            .workers(2 * Runtimex.availableProcessors)
+            .rounds(1)
+            .add {
+                val lock = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 10L))
+                if (lock.tryLock(200.milliseconds, 5.seconds)) {
+                    val current = currentConcurrent.incrementAndGet()
+                    peakConcurrent.updateAndGet { max(it, current) }
+
+                    successCount.incrementAndGet()
+                    Thread.sleep(Random.nextLong(10, 50))
+
+                    currentConcurrent.decrementAndGet()
+                    lock.unlock()
+                }
+            }
+            .run()
+
+        log.debug { "peakConcurrent=$peakConcurrent, successCount=$successCount" }
+        successCount.get() shouldBeGreaterOrEqualTo 1
+        peakConcurrent.get() shouldBeEqualTo 1
     }
 }
