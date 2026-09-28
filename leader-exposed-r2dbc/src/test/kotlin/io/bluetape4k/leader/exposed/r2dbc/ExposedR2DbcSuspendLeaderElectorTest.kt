@@ -1,14 +1,21 @@
 package io.bluetape4k.leader.exposed.r2dbc
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
-import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcLock
 import io.bluetape4k.leader.exposed.r2dbc.history.ExposedSuspendLeaderHistorySink
+import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcLock
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
 import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendLeaderHistorySink
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
@@ -19,27 +26,20 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldNotBeNull
-import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
+import org.jetbrains.exposed.v1.r2dbc.andWhere
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.statements.GlobalSuspendStatementInterceptor
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeInstanceOf
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
 
@@ -182,7 +182,10 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
                     .count()
             }
             rowCount shouldBeEqualTo 0L
-            ExposedR2DbcSuspendLeaderElector(db, options).runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+            ExposedR2DbcSuspendLeaderElector(
+                db,
+                options
+            ).runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
         }
 
     @ParameterizedTest
@@ -417,10 +420,8 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
 
         val failedCount = suspendTransaction(db) {
             LeaderLockHistoryTable.selectAll()
-                .where {
-                    (LeaderLockHistoryTable.lockName eq lockName) and
-                            (LeaderLockHistoryTable.status eq "FAILED")
-                }
+                .andWhere { LeaderLockHistoryTable.lockName eq lockName }
+                .andWhere { LeaderLockHistoryTable.status eq LeaderHistoryStatus.FAILED }
                 .count()
         }
         failedCount shouldBeGreaterOrEqualTo 1L
@@ -447,7 +448,7 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
     private class CancelAfterAcquisitionCommit(
         private val targetDb: R2dbcDatabase,
         private val onCleanupCommit: suspend () -> Unit = {},
-    ) : GlobalSuspendStatementInterceptor {
+    ): GlobalSuspendStatementInterceptor {
         private val cancelled = AtomicBoolean()
 
         override suspend fun afterCommit(transaction: R2dbcTransaction) {

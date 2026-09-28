@@ -391,7 +391,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                     it[LeaderLockHistoryTable.token] = token
                     it[LeaderLockHistoryTable.slot] = slot
                     it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(leaseTimeMs)
-                    it[LeaderLockHistoryTable.status] = LeaderHistoryStatus.ACQUIRED.name
+                    it[LeaderLockHistoryTable.status] = LeaderHistoryStatus.ACQUIRED
                     it[LeaderLockHistoryTable.startedAt] = now
                 }.value
             }
@@ -423,7 +423,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                 LeaderLockHistoryTable.update(
                     where = { (LeaderLockHistoryTable.id eq historyId) and (LeaderLockHistoryTable.token eq token) }
                 ) {
-                    it[LeaderLockHistoryTable.status] = status.name
+                    it[LeaderLockHistoryTable.status] = status
                     it[LeaderLockHistoryTable.finishedAt] = finishedAt
                     it[LeaderLockHistoryTable.durationMs] = finishedAt.toEpochMilli() - startedAt.toEpochMilli()
                 }

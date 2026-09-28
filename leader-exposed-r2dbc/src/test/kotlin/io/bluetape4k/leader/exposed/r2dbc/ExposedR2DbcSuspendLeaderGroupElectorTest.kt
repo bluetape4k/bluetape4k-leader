@@ -1,46 +1,45 @@
 package io.bluetape4k.leader.exposed.r2dbc
 
-import io.bluetape4k.junit5.coroutines.runSuspendIO
-import io.bluetape4k.leader.LeaderGroupElectionException
-import io.bluetape4k.leader.LeaderGroupElectionOptions
-import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock
-import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializer
-import io.bluetape4k.leader.exposed.retry.RetryStrategy
-import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
-import io.bluetape4k.leader.history.LeaderHistoryStatus
-import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
-import io.bluetape4k.leader.exposed.ExposedLeaderConstants.LOCK_HISTORY_TABLE_NAME
-import io.bluetape4k.logging.coroutines.KLoggingChannel
-import io.bluetape4k.logging.debug
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeout
-import org.jetbrains.exposed.v1.core.statements.StatementContext
-import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
-import org.jetbrains.exposed.v1.r2dbc.selectAll
-import org.jetbrains.exposed.v1.r2dbc.statements.GlobalSuspendStatementInterceptor
-import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeInRange
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldNotBeNull
-import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.LeaderGroupElectionException
+import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
+import io.bluetape4k.leader.exposed.ExposedLeaderConstants.LOCK_HISTORY_TABLE_NAME
+import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock
+import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializer
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.history.LeaderHistoryStatus
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeout
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.statements.StatementContext
+import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
+import org.jetbrains.exposed.v1.r2dbc.selectAll
+import org.jetbrains.exposed.v1.r2dbc.statements.GlobalSuspendStatementInterceptor
+import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest() {
 
@@ -191,7 +190,7 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
                 .where { LeaderLockHistoryTable.lockName eq lockName }
                 .first()
         }
-        history[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED.name
+        history[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED
         history[LeaderLockHistoryTable.finishedAt].shouldNotBeNull()
         history[LeaderLockHistoryTable.durationMs].shouldNotBeNull() shouldBeGreaterOrEqualTo 0L
         election.activeCount(lockName) shouldBeEqualTo 0

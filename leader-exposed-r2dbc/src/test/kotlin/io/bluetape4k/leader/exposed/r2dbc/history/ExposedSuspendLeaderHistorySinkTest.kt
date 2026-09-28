@@ -8,15 +8,15 @@ import io.bluetape4k.leader.exposed.r2dbc.TestR2dbcDB
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
-import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.r2dbc.andWhere
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
 
-class ExposedSuspendLeaderHistorySinkTest : AbstractExposedR2dbcLeaderTest() {
+class ExposedSuspendLeaderHistorySinkTest: AbstractExposedR2dbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
@@ -32,18 +32,14 @@ class ExposedSuspendLeaderHistorySinkTest : AbstractExposedR2dbcLeaderTest() {
 
         val acquiredCount = suspendTransaction(db) {
             LeaderLockHistoryTable.selectAll()
-                .where {
-                    (LeaderLockHistoryTable.id eq keyId) and
-                            (LeaderLockHistoryTable.status eq LeaderHistoryStatus.ACQUIRED.name)
-                }
+                .andWhere { LeaderLockHistoryTable.id eq keyId }
+                .andWhere { LeaderLockHistoryTable.status eq LeaderHistoryStatus.ACQUIRED }
                 .count()
         }
         val completedCount = suspendTransaction(db) {
             LeaderLockHistoryTable.selectAll()
-                .where {
-                    (LeaderLockHistoryTable.id eq keyId) and
-                            (LeaderLockHistoryTable.status eq LeaderHistoryStatus.COMPLETED.name)
-                }
+                .andWhere { LeaderLockHistoryTable.id eq keyId }
+                .andWhere { LeaderLockHistoryTable.status eq LeaderHistoryStatus.COMPLETED }
                 .count()
         }
         acquiredCount shouldBeEqualTo 1L
