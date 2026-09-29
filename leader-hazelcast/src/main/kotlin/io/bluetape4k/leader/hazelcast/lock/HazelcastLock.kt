@@ -3,6 +3,7 @@ package io.bluetape4k.leader.hazelcast.lock
 import com.hazelcast.core.HazelcastException
 import com.hazelcast.map.IMap
 import com.hazelcast.transaction.TransactionContext
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.internal.MonotonicDeadline
@@ -33,7 +34,7 @@ class HazelcastLock(
      * Preserves the two-argument JVM constructor published before transaction-aware
      * unlock support was added.
      */
-    constructor(lockMap: IMap<String, String>, lockKey: String) : this(
+    constructor(lockMap: IMap<String, String>, lockKey: String): this(
         lockMap = lockMap,
         lockKey = lockKey,
         transactionMapName = null,
@@ -111,7 +112,7 @@ class HazelcastLock(
             onTransactionUnavailable = { releaseDirectly(remaining) },
             onNotHeld = { false },
         ) { txMap ->
-            if (remaining > Duration.ZERO) {
+            if (remaining.isPositive()) {
                 txMap.put(lockKey, token, remaining.inWholeMilliseconds, TimeUnit.MILLISECONDS)
                 true
             } else {
@@ -178,7 +179,7 @@ class HazelcastLock(
         if (lockMap[lockKey] != token) {
             return false
         }
-        return if (remaining > Duration.ZERO) {
+        return if (remaining.isPositive()) {
             lockMap.set(lockKey, token, remaining.inWholeMilliseconds, TimeUnit.MILLISECONDS)
             true
         } else {
@@ -198,5 +199,13 @@ class HazelcastLock(
             log.debug { "Hazelcast extend NotHeld (setTtl 실패): lockKey=$lockKey" }
             ExtendOutcome.NotHeld
         }
+    }
+
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("lockKey", lockKey)
+            .add("transactionMapName", transactionMapName)
+            .add("lockMap", lockMap)
+            .toString()
     }
 }

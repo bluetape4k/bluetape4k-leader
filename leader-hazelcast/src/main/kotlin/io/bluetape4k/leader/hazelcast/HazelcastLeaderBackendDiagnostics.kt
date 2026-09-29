@@ -10,13 +10,14 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
+import io.bluetape4k.logging.KLogging
 import java.time.Clock
 import kotlin.time.Duration
 
 /** 기존 Hazelcast client의 lifecycle만 읽는 backend diagnostics provider입니다. */
 class HazelcastLeaderBackendDiagnostics(
     private val hazelcast: HazelcastInstance,
-) : LeaderBackendDiagnosticsProvider {
+): LeaderBackendDiagnosticsProvider {
 
     override val backendDescriptor: LeaderBackendDescriptor = Descriptor
 
@@ -37,7 +38,7 @@ class HazelcastLeaderBackendDiagnostics(
         }
     }
 
-    private companion object {
+    private companion object: KLogging() {
         val ExecutionModels = setOf(
             LeaderExecutionModel.BLOCKING,
             LeaderExecutionModel.ASYNC,

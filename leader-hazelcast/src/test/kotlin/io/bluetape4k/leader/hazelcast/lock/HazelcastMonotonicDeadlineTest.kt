@@ -1,14 +1,20 @@
 package io.bluetape4k.leader.hazelcast.lock
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.javatimes.inNanos
+import io.bluetape4k.javatimes.millis
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.contract.AbstractMonotonicDeadlineMathContractTest
 import io.bluetape4k.leader.internal.MonotonicDeadline
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 class HazelcastMonotonicDeadlineTest: AbstractMonotonicDeadlineMathContractTest() {
+
+    companion object: KLogging()
 
     override fun createDeadline(waitTime: Duration, ticker: () -> Long): DeadlineProbe {
         val deadline = MonotonicDeadline.fromNow(waitTime, ticker)
@@ -27,15 +33,15 @@ class HazelcastMonotonicDeadlineTest: AbstractMonotonicDeadlineMathContractTest(
         var wallClock = Instant.parse("2026-01-01T00:00:00Z")
         val deadline = MonotonicDeadline.fromNow(100.milliseconds) { tickerNanos }
 
-        wallClock = wallClock.plusSeconds(3_600L)
+        wallClock += 3_600L.seconds()
         wallClock shouldBeEqualTo Instant.parse("2026-01-01T01:00:00Z")
         deadline.remainingMillisForDelay(50L) shouldBeEqualTo 50L
 
-        wallClock = wallClock.minusSeconds(7_200L)
+        wallClock -= 7_200L.seconds()
         wallClock shouldBeEqualTo Instant.parse("2025-12-31T23:00:00Z")
-        deadline.remainingNanos() shouldBeEqualTo 100.milliseconds.inWholeNanoseconds
+        deadline.remainingNanos() shouldBeEqualTo 100.millis().inNanos()
 
-        tickerNanos += 40.milliseconds.inWholeNanoseconds
-        deadline.remainingNanos() shouldBeEqualTo 60.milliseconds.inWholeNanoseconds
+        tickerNanos += 40.millis().inNanos()
+        deadline.remainingNanos() shouldBeEqualTo 60.millis().inNanos()
     }
 }

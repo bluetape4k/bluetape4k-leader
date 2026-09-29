@@ -11,7 +11,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
@@ -22,9 +21,9 @@ import kotlin.time.Duration
  */
 internal class HazelcastLockExtendDelegate(
     private val lock: HazelcastLock,
-) : ExtendDelegate {
+): ExtendDelegate {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
@@ -42,17 +41,18 @@ internal class HazelcastLockExtendDelegate(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
-    override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
-        coroutineContext.ensureActive()
-        try {
-            lock.extendDetailed(lockAtMostFor)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.warn(e) { "Hazelcast extendSuspend failed. lockKey=${lock.lockKey}" }
-            ExtendOutcome.BackendError(e)
+    override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
+        withContext(Dispatchers.IO) {
+            coroutineContext.ensureActive()
+            try {
+                lock.extendDetailed(lockAtMostFor)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.warn(e) { "Hazelcast extendSuspend failed. lockKey=${lock.lockKey}" }
+                ExtendOutcome.BackendError(e)
+            }
         }
-    }
 
     override fun isHeld(): Boolean =
         try {

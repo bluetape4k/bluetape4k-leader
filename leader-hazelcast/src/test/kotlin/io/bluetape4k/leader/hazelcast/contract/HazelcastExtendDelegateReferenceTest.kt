@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.hazelcast.contract
 
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.AopScopeAccess
@@ -52,7 +52,7 @@ class HazelcastExtendDelegateReferenceTest: AbstractHazelcastLeaderTest() {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test
@@ -84,7 +84,7 @@ class HazelcastExtendDelegateReferenceTest: AbstractHazelcastLeaderTest() {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test
@@ -102,7 +102,7 @@ class HazelcastExtendDelegateReferenceTest: AbstractHazelcastLeaderTest() {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test
@@ -127,6 +127,7 @@ class HazelcastExtendDelegateReferenceTest: AbstractHazelcastLeaderTest() {
 
         var preExtend: ExtendOutcome? = null
         var postExtend: ExtendOutcome? = null
+
         elector.runIfLeader(lockName) {
             preExtend = LockExtender.extendActiveLockDetailed(120.seconds)
             postExtend = LockExtender.extendActiveLockDetailed(60.seconds)

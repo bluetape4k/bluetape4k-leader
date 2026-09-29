@@ -18,9 +18,9 @@ import kotlin.time.Duration
  */
 internal class HazelcastSuspendLockExtendDelegate(
     private val lock: HazelcastSuspendLock,
-) : SuspendExtendDelegate {
+): SuspendExtendDelegate {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline

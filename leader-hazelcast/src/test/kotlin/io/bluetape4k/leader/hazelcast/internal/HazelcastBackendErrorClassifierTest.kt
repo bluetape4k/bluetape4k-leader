@@ -14,7 +14,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HazelcastBackendErrorClassifierTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @Test
     fun `RetryableHazelcastException 은 TRANSIENT`() {
@@ -51,7 +51,7 @@ class HazelcastBackendErrorClassifierTest {
     fun `RetryableHazelcastException 하위 타입도 TRANSIENT`() {
         // RetryableHazelcastException 은 HazelcastException 의 하위 타입이지만
         // when 분기에서 먼저 매칭됨을 보장
-        val ex = object : RetryableHazelcastException("sub") {}
+        val ex = object: RetryableHazelcastException("sub") {}
         HazelcastBackendErrorClassifier.classify(ex) shouldBeEqualTo BackendErrorKind.TRANSIENT
     }
 }

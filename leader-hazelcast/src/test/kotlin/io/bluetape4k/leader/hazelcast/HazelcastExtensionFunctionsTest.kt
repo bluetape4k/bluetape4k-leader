@@ -3,7 +3,8 @@ package io.bluetape4k.leader.hazelcast
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -14,9 +15,9 @@ import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class HazelcastExtensionFunctionsTest : AbstractHazelcastLeaderTest() {
+class HazelcastExtensionFunctionsTest: AbstractHazelcastLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     // ─── HazelcastLeaderElectorFactory ──────────────────────────────────────
 
@@ -24,7 +25,7 @@ class HazelcastExtensionFunctionsTest : AbstractHazelcastLeaderTest() {
     fun `HazelcastLeaderElectorFactory - create 는 LeaderElector 인스턴스를 반환한다`() {
         val factory = HazelcastLeaderElectorFactory(hazelcastClient)
         val elector = factory.create(LeaderElectionOptions.Default)
-        elector.shouldNotBeNull()
+
         elector.shouldBeInstanceOf<LeaderElector>()
         elector.shouldBeInstanceOf<HazelcastLeaderElector>()
     }
@@ -33,7 +34,7 @@ class HazelcastExtensionFunctionsTest : AbstractHazelcastLeaderTest() {
     fun `HazelcastLeaderGroupElectorFactory - create 는 LeaderGroupElector 인스턴스를 반환한다`() {
         val factory = HazelcastLeaderGroupElectorFactory(hazelcastClient)
         val elector = factory.create(LeaderGroupElectionOptions.Default)
-        elector.shouldNotBeNull()
+
         elector.shouldBeInstanceOf<LeaderGroupElector>()
         elector.shouldBeInstanceOf<HazelcastLeaderGroupElector>()
     }
@@ -61,9 +62,9 @@ class HazelcastExtensionFunctionsTest : AbstractHazelcastLeaderTest() {
     @Test
     fun `HazelcastInstance runAsyncIfLeader - 리더로 선출되어 action 을 실행한다`() {
         val future = hazelcastClient.runAsyncIfLeader(randomName()) {
-            java.util.concurrent.CompletableFuture.completedFuture("async-done")
+            completableFutureOf("async-done")
         }
-        future.get(5, java.util.concurrent.TimeUnit.SECONDS) shouldBeEqualTo "async-done"
+        future.get(5.seconds) shouldBeEqualTo "async-done"
     }
 
     // ─── HazelcastInstance.suspendRunIfLeader 확장 함수 ────────────────────

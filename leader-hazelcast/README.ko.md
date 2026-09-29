@@ -26,13 +26,13 @@ Hazelcast 기반 분산 리더 선출 — 블로킹, 비동기, Virtual Thread, 
 
 ## 구현체
 
-| 클래스 | 인터페이스 | 설명 |
-|--------|-----------|------|
-| `HazelcastLeaderElector` | `LeaderElector` | 블로킹 + 비동기 단일 리더 |
-| `HazelcastLeaderGroupElector` | `LeaderGroupElector` | 블로킹 + 비동기 복수 리더 (슬롯 기반) |
-| `HazelcastSuspendLeaderElector` | `SuspendLeaderElector` | 코루틴 단일 리더 |
-| `HazelcastSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | 코루틴 복수 리더 (슬롯 기반) |
-| `HazelcastLeaderElectorFactory` | `LeaderElectorFactory` | 팩토리: 호출마다 `HazelcastLeaderElector` 생성 |
+| 클래스                               | 인터페이스                  | 설명                                                |
+|--------------------------------------|-----------------------------|-----------------------------------------------------|
+| `HazelcastLeaderElector`             | `LeaderElector`             | 블로킹 + 비동기 단일 리더                           |
+| `HazelcastLeaderGroupElector`        | `LeaderGroupElector`        | 블로킹 + 비동기 복수 리더 (슬롯 기반)               |
+| `HazelcastSuspendLeaderElector`      | `SuspendLeaderElector`      | 코루틴 단일 리더                                    |
+| `HazelcastSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | 코루틴 복수 리더 (슬롯 기반)                        |
+| `HazelcastLeaderElectorFactory`      | `LeaderElectorFactory`      | 팩토리: 호출마다 `HazelcastLeaderElector` 생성      |
 | `HazelcastLeaderGroupElectorFactory` | `LeaderGroupElectorFactory` | 팩토리: 호출마다 `HazelcastLeaderGroupElector` 생성 |
 
 ## 사용법
@@ -156,9 +156,10 @@ val groupElection = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 
 
 ![Hazelcast group election slot sequence diagram](../docs/images/readme-diagrams/leader-hazelcast-sequence-03.png)
 
-그룹 선출은 N개의 슬롯 키(`lockName:slot:0` … `lockName:slot:N-1`)로 세마포어를 시뮬레이션합니다. 각 호출자는 슬롯을 순서대로 시도하고, 처음 획득한 슬롯을 사용합니다.
+그룹 선출은 N개의 슬롯 키 (`lockName:slot:0` … `lockName:slot:N-1`)로 세마포어를 시뮬레이션합니다. 각 호출자는 슬롯을 순서대로 시도하고, 처음 획득한 슬롯을 사용합니다.
 
 락 맵 이름:
+
 - 단일 리더: `bluetape4k:leader:locks`
 - 그룹: `bluetape4k:leader:group:locks`
 

@@ -1,10 +1,13 @@
 package io.bluetape4k.leader.hazelcast
 
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
 
 class HazelcastSuspendCancellationSafetyTest {
+
+    companion object: KLogging()
 
     @Test
     fun `suspend elector unlock failure handling rethrows CancellationException`() {
@@ -27,9 +30,11 @@ class HazelcastSuspendCancellationSafetyTest {
             .readText()
 
     private fun String.rethrowsCancellationBeforeBroadCatch(): Boolean {
-        val cancellationCatch = indexOf("catch (e: CancellationException) {\n                    throw e\n                }")
+        val cancellationCatch =
+            indexOf("catch (e: CancellationException) {\n                    throw e\n                }")
         val broadCatch = indexOf("catch (e: Exception)", startIndex = cancellationCatch.coerceAtLeast(0))
-        return cancellationCatch >= 0 && broadCatch > cancellationCatch
+
+        return cancellationCatch in 0..<broadCatch
     }
 
     private fun String.cleanupScopeStartsImmediatelyAfterAcquire(): Boolean {
@@ -38,14 +43,27 @@ class HazelcastSuspendCancellationSafetyTest {
         val tryStart = indexOf("try {", startIndex = cleanupScope.coerceAtLeast(0))
         val watchdogStart = indexOf("LeaderLeaseAutoExtender.start", startIndex = tryStart.coerceAtLeast(0))
         val finallyStart = indexOf("} finally {", startIndex = watchdogStart.coerceAtLeast(0))
-        val watchdogClose = indexOf("watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }", startIndex = finallyStart.coerceAtLeast(0))
-        val unlock = indexOf("lock.unlock(options.minLeaseTime, acquiredAtNanos)", startIndex = watchdogClose.coerceAtLeast(0))
-        return listOf(acquiredAt, cleanupScope, tryStart, watchdogStart, finallyStart, watchdogClose, unlock).all { it >= 0 } &&
-            acquiredAt < cleanupScope &&
-            cleanupScope < tryStart &&
-            tryStart < watchdogStart &&
-            watchdogStart < finallyStart &&
-            finallyStart < watchdogClose &&
-            watchdogClose < unlock
+        val watchdogClose = indexOf(
+            "watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }",
+            startIndex = finallyStart.coerceAtLeast(0)
+        )
+        val unlock =
+            indexOf("lock.unlock(options.minLeaseTime, acquiredAtNanos)", startIndex = watchdogClose.coerceAtLeast(0))
+
+        return listOf(
+            acquiredAt,
+            cleanupScope,
+            tryStart,
+            watchdogStart,
+            finallyStart,
+            watchdogClose,
+            unlock
+        ).all { it >= 0 } &&
+                acquiredAt < cleanupScope &&
+                cleanupScope < tryStart &&
+                tryStart < watchdogStart &&
+                watchdogStart < finallyStart &&
+                finallyStart < watchdogClose &&
+                watchdogClose < unlock
     }
 }

@@ -1,13 +1,18 @@
 package io.bluetape4k.leader.hazelcast
 
-import io.bluetape4k.concurrent.futureOf
-import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeGreaterThan
-import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.get
+import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -23,7 +28,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
@@ -36,17 +40,17 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
 
     @Test
     fun `lock name validation rejects map namespace manipulation before backend calls`() {
-        val election = HazelcastLeaderElector(hazelcastClient)
+        val elector = HazelcastLeaderElector(hazelcastClient)
 
         assertFailsWith<IllegalArgumentException> {
-            election.runIfLeader("tenant{other}") { "should-not-run" }
+            elector.runIfLeader("tenant{other}") { "should-not-run" }
         }
     }
 
     @Test
     fun `runIfLeader - 리더로 선출되어 action 을 실행하고 결과를 반환한다`() {
-        val election = HazelcastLeaderElector(hazelcastClient)
-        val result = election.runIfLeader(randomName()) { "hello" }
+        val elector = HazelcastLeaderElector(hazelcastClient)
+        val result = elector.runIfLeader(randomName()) { "hello" }
         result shouldBeEqualTo "hello"
     }
 
@@ -57,21 +61,21 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             waitTime = 100.milliseconds,
             leaseTime = 5.seconds,
         )
-        val election = HazelcastLeaderElector(hazelcastClient, shortWaitOptions)
+        val elector = HazelcastLeaderElector(hazelcastClient, shortWaitOptions)
         val lockAcquired = CountDownLatch(1)
         val releaseLock = CountDownLatch(1)
         val holder = Executors.newSingleThreadExecutor()
 
         holder.submit {
-            election.runIfLeader(lockName) {
+            elector.runIfLeader(lockName) {
                 lockAcquired.countDown()
-                releaseLock.await(3, TimeUnit.SECONDS)
+                releaseLock.await(3.seconds)
             }
         }
 
         try {
-            lockAcquired.await(2, TimeUnit.SECONDS)
-            val result = election.runIfLeader(lockName) { 1 }
+            lockAcquired.await(2.seconds)
+            val result = elector.runIfLeader(lockName) { 1 }
             result.shouldBeNull()
         } finally {
             releaseLock.countDown()
@@ -82,7 +86,7 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `runIfLeader - 빠른 종료 시 minLeaseTime 동안 Hazelcast TTL 로 락을 보존한다`() {
         val lockName = randomName()
-        val election = HazelcastLeaderElector(
+        val elector = HazelcastLeaderElector(
             hazelcastClient,
             LeaderElectionOptions(
                 waitTime = 100.milliseconds,
@@ -91,12 +95,12 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             )
         )
 
-        election.runIfLeader(lockName) { "done" } shouldBeEqualTo "done"
-        election.runIfLeader(lockName) { "too-early" }.shouldBeNull()
+        elector.runIfLeader(lockName) { "done" } shouldBeEqualTo "done"
+        elector.runIfLeader(lockName) { "too-early" }.shouldBeNull()
 
         Thread.sleep(2_200)
 
-        election.runIfLeader(lockName) { "after-min" } shouldBeEqualTo "after-min"
+        elector.runIfLeader(lockName) { "after-min" } shouldBeEqualTo "after-min"
     }
 
     @Test
@@ -127,8 +131,9 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             }
             .run()
 
-        task1.get() shouldBeGreaterThan 0
-        task2.get() shouldBeGreaterThan 0
+        log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
+        task1.get() shouldBeGreaterThan 4
+        task2.get() shouldBeGreaterThan 4
     }
 
     @EnabledForJreRange(min = JRE.JAVA_21)
@@ -157,8 +162,9 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             }
             .run()
 
-        task1.get() shouldBeGreaterThan 0
-        task2.get() shouldBeGreaterThan 0
+        log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
+        task1.get() shouldBeGreaterThan 4
+        task2.get() shouldBeGreaterThan 4
     }
 
     @Test
@@ -187,7 +193,9 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
                 }
             }.join()
         }
-        latch.await(5, TimeUnit.SECONDS)
+        latch.await(5.seconds)
+
+        log.debug { "future1=${future1.get()}, future2=${future2.get()}" }
         future1.get() shouldBeEqualTo 42
         future2.get() shouldBeEqualTo 43
     }
@@ -200,13 +208,12 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
 
         runCatching {
             election.runAsyncIfLeader(lockName) {
-                CompletableFuture.failedFuture<Int>(IllegalStateException("boom"))
+                failedCompletableFutureOf<Int>(IllegalStateException("boom"))
             }.join()
         }
 
-        val result = election.runAsyncIfLeader(lockName) { futureOf { 99 } }
-            .get(3, TimeUnit.SECONDS)
-        result shouldBeEqualTo 99
+        election.runAsyncIfLeader(lockName) { futureOf { 99 } }
+            .get(3.seconds) shouldBeEqualTo 99
     }
 
     @Test
@@ -225,12 +232,12 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
             executor.shutdown()
 
             actionFuture.complete(7)
+            resultFuture.get(3.seconds) shouldBeEqualTo 7
 
-            resultFuture.get(3, TimeUnit.SECONDS) shouldBeEqualTo 7
             election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             executor.shutdownNow()
@@ -246,8 +253,8 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
         )
         val actionStarted = CountDownLatch(1)
         val actionTerminal = CountDownLatch(1)
-        val actionFuture = CompletableFuture<Int>().also { future ->
-            future.whenComplete { _, _ -> actionTerminal.countDown() }
+        val actionFuture = CompletableFuture<Int>().apply {
+            whenComplete { _, _ -> actionTerminal.countDown() }
         }
 
         val result = election.runAsyncIfLeaderResult(LeaderSlot(lockName, "hazelcast-single-cancel")) {
@@ -255,10 +262,11 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             actionFuture
         }
 
-        actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+        actionStarted.await(3.seconds).shouldBeTrue()
         result.cancel(false).shouldBeTrue()
-        actionTerminal.await(3, TimeUnit.SECONDS).shouldBeTrue()
+        actionTerminal.await(3.seconds).shouldBeTrue()
         actionFuture.isCancelled.shouldBeTrue()
+
         election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
     }
 
@@ -271,8 +279,8 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
         )
         val actionStarted = CountDownLatch(1)
         val actionTerminal = CountDownLatch(1)
-        val actionFuture = CompletableFuture<Int>().also { future ->
-            future.whenComplete { _, _ -> actionTerminal.countDown() }
+        val actionFuture = CompletableFuture<Int>().apply {
+            whenComplete { _, _ -> actionTerminal.countDown() }
         }
 
         val result = election.runAsyncIfLeader(lockName) {
@@ -280,10 +288,12 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             actionFuture
         }
 
-        actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+        actionStarted.await(3.seconds).shouldBeTrue()
         result.cancel(false).shouldBeTrue()
-        actionTerminal.await(3, TimeUnit.SECONDS).shouldBeTrue()
+
+        actionTerminal.await(3.seconds).shouldBeTrue()
         actionFuture.isCancelled.shouldBeTrue()
+
         election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
     }
 
@@ -309,13 +319,16 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             val resultFuture = runCatching {
                 election.runAsyncIfLeader(lockName, executor) {
                     actionInvoked.set(true)
-                    CompletableFuture.completedFuture("실행되면 안 됨")
+                    completableFutureOf("실행되면 안 됨")
                 }
-            }.getOrElse { CompletableFuture.failedFuture(it) }
+            }.getOrElse { failedCompletableFutureOf(it) }
 
-            val failure = assertFailsWith<CompletionException> { resultFuture.join() }
+            val failure = assertFailsWith<CompletionException> {
+                resultFuture.join()
+            }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
-            actionInvoked.get() shouldBeEqualTo false
+            actionInvoked.get().shouldBeFalse()
+
             election.runIfLeader(lockName) { "executor 거부 후 복구" } shouldBeEqualTo "executor 거부 후 복구"
         } finally {
             worker.shutdownNow()
@@ -352,8 +365,9 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             }
             .run()
 
-        task1.get() shouldBeGreaterThan 0
-        task2.get() shouldBeGreaterThan 0
+        log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
+        task1.get() shouldBeGreaterThan 4
+        task2.get() shouldBeGreaterThan 4
     }
 
     @EnabledForJreRange(min = JRE.JAVA_21)
@@ -384,7 +398,8 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             }
             .run()
 
-        task1.get() shouldBeGreaterThan 0
-        task2.get() shouldBeGreaterThan 0
+        log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
+        task1.get() shouldBeGreaterThan 4
+        task2.get() shouldBeGreaterThan 4
     }
 }

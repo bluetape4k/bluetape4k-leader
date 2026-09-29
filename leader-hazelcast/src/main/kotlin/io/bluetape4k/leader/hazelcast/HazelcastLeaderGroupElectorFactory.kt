@@ -1,9 +1,10 @@
 package io.bluetape4k.leader.hazelcast
 
 import com.hazelcast.core.HazelcastInstance
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectorFactory
-import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.logging.KLogging
 
 /**
  * `HazelcastLeaderGroupElectorFactory`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -13,7 +14,9 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
  */
 class HazelcastLeaderGroupElectorFactory(
     private val hazelcast: HazelcastInstance,
-) : LeaderGroupElectorFactory {
+): LeaderGroupElectorFactory {
+
+    companion object: KLogging()
 
     override fun create(options: LeaderGroupElectionOptions): LeaderGroupElector =
         HazelcastLeaderGroupElector(hazelcast, options)
