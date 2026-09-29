@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.benchmark
 
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.local.LocalAsyncLeaderElector
@@ -18,7 +19,6 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
 import org.openjdk.jmh.infra.Blackhole
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
