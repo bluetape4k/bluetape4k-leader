@@ -192,7 +192,7 @@
     - `if (!lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime)) return null` — **H3: `options.leaderOptions.waitTime/leaseTime` (직접 아님)**
     - `try { action() } finally { if (lock.isHeldByCurrentInstance()) runCatching { lock.unlock() }.onFailure { log.warn(...) } }` — **isHeldByCurrentInstance() 가드 필수** (H4)
   - `override fun <T> runAsyncIfLeader(lockName, executor, action): CompletableFuture<T?>` — **H3 없음, executor 파라미터 시그니처 포함** (AsyncLeaderElection: `executor: Executor = VirtualThreadExecutor`); 스펙 §2.2 세 경로:
-    1. tryLock 실패 → `CompletableFuture.completedFuture(null)` (unlock 불필요)
+      1. tryLock 실패 → `completableFutureOf(null)` (unlock 불필요)
     2. tryLock 성공 후 `action()` 동기 throw → `if (lock.isHeldByCurrentInstance()) runCatching { lock.unlock() }.onFailure { log.warn(...) }` 후 `failedFuture(e)` — **M6: isHeldByCurrentInstance() 가드 + runCatching 필수**
     3. CF 완료 시 → `cf.whenCompleteAsync { _, _ -> if (lock.isHeldByCurrentInstance()) runCatching { lock.unlock() }.onFailure { log.warn(...) } }` — **M6: cleanup 실패가 CF exceptional completion 을 유발하면 안 됨**
   - 확장 함수: `fun MongoCollection<Document>.runIfLeader(lockName, options, action): T?` 등 위임

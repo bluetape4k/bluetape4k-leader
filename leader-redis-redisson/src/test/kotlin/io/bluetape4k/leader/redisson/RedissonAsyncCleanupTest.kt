@@ -4,6 +4,9 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.mockk.every
@@ -19,8 +22,8 @@ import org.redisson.api.RMap
 import org.redisson.api.RPermitExpirableSemaphore
 import org.redisson.api.RedissonClient
 import org.redisson.misc.CompletableFutureWrapper
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executor
 import java.util.concurrent.RejectedExecutionException
@@ -43,7 +46,7 @@ class RedissonAsyncCleanupTest {
         every { client.keys } returns keys
         every { lock.name } returns "cleanup"
         every { lock.tryLockAsync(any<Long>(), any<Long>(), TimeUnit.MILLISECONDS, owner) } returns
-                CompletableFutureWrapper(CompletableFuture.completedFuture(true))
+                CompletableFutureWrapper(completableFutureOf(true))
         every { lock.isHeldByThreadAsync(owner) } returns CompletableFutureWrapper(ownership)
         every { lock.unlockAsync(owner) } returns CompletableFutureWrapper(unlocked)
         every { keys.expireAsync(any<java.time.Duration>(), "cleanup") } returns CompletableFutureWrapper(expiry)
@@ -57,9 +60,14 @@ class RedissonAsyncCleanupTest {
         result.isDone.shouldBeFalse()
         ownership.complete(true)
         result.isDone.shouldBeFalse()
-        verify(exactly = 1) { keys.expireAsync(match { !it.isNegative && it <= java.time.Duration.ofSeconds(30) }, "cleanup") }
+        verify(exactly = 1) {
+            keys.expireAsync(
+                match { !it.isNegative && it <= java.time.Duration.ofSeconds(30) },
+                "cleanup"
+            )
+        }
         expiry.complete(1)
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "ok"
+        result.get(2.seconds) shouldBeEqualTo "ok"
         verify(exactly = 0) { lock.isHeldByThread(any()); keys.expire(any<java.time.Duration>(), "cleanup") }
     }
 
@@ -67,7 +75,7 @@ class RedissonAsyncCleanupTest {
     fun `ownership이 없으면 만료나 unlock을 요청하지 않는다`() {
         val result = run()
         ownership.complete(false)
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "ok"
+        result.get(2.seconds) shouldBeEqualTo "ok"
         verify(exactly = 0) { keys.expireAsync(any<java.time.Duration>(), "cleanup"); lock.unlockAsync(any()) }
     }
 
@@ -78,7 +86,7 @@ class RedissonAsyncCleanupTest {
         result.isDone.shouldBeFalse()
         verify(exactly = 1) { lock.unlockAsync(owner) }
         unlocked.complete(null)
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "ok"
+        result.get(2.seconds) shouldBeEqualTo "ok"
     }
 
     @Test
@@ -86,15 +94,15 @@ class RedissonAsyncCleanupTest {
         val result = run()
         ownership.complete(true)
         expiry.completeExceptionally(IllegalStateException("cleanup"))
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "ok"
+        result.get(2.seconds) shouldBeEqualTo "ok"
     }
 
     @Test
     fun `ownership 조회 실패도 원래 action 오류를 보존한다`() {
         val original = IllegalArgumentException("action")
-        val result = run(action = CompletableFuture.failedFuture(original))
+        val result = run(action = failedCompletableFutureOf(original))
         ownership.completeExceptionally(IllegalStateException("ownership"))
-        val failure = assertFailsWith<ExecutionException> { result.get(2, TimeUnit.SECONDS) }
+        val failure = assertFailsWith<ExecutionException> { result.get(2.seconds) }
         (failure.cause === original).shouldBeTrue()
         original.suppressed.size shouldBeEqualTo 0
     }
@@ -106,14 +114,14 @@ class RedissonAsyncCleanupTest {
         result.isDone.shouldBeFalse()
         verify(exactly = 1) { keys.expireAsync(any<java.time.Duration>(), "cleanup") }
         expiry.completeExceptionally(IllegalStateException("cleanup"))
-        val failure = assertFailsWith<ExecutionException> { result.get(2, TimeUnit.SECONDS) }
+        val failure = assertFailsWith<ExecutionException> { result.get(2.seconds) }
         (failure.cause === rejected).shouldBeTrue()
     }
 
     private fun run(
         minLease: Duration = 30.seconds,
         executor: Executor = Executor { it.run() },
-        action: CompletableFuture<String> = CompletableFuture.completedFuture("ok"),
+        action: CompletableFuture<String> = completableFutureOf("ok"),
     ): CompletableFuture<String?> = RedissonLeaderElector(
         client, LeaderElectionOptions(leaseTime = 60.seconds, minLeaseTime = minLease),
     ).runAsyncIfLeader("cleanup", executor) { action }
@@ -123,7 +131,7 @@ class RedissonAsyncCleanupTest {
         every { keys.expireAsync(any<java.time.Duration>(), "cleanup") } throws IllegalStateException("request")
         val result = run()
         ownership.complete(true)
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "ok"
+        result.get(2.seconds) shouldBeEqualTo "ok"
     }
 
     @Test
@@ -133,7 +141,7 @@ class RedissonAsyncCleanupTest {
         action.cancel(false)
         ownership.complete(true)
         expiry.completeExceptionally(IllegalStateException("cleanup"))
-        val failure = assertFailsWith<Exception> { result.get(2, TimeUnit.SECONDS) }
+        val failure = assertFailsWith<Exception> { result.get(2.seconds) }
         (failure is CancellationException || failure.cause is CancellationException).shouldBeTrue()
     }
 
@@ -147,23 +155,23 @@ class RedissonAsyncCleanupTest {
         every { client.getMap<String, String>("lg:{cleanup}:audit") } returns audit
         every { semaphore.trySetPermits(1) } returns true
         every { semaphore.tryAcquireAsync(any<Long>(), any<Long>(), TimeUnit.MILLISECONDS) } returns
-                CompletableFutureWrapper(CompletableFuture.completedFuture("permit"))
+                CompletableFutureWrapper(completableFutureOf("permit"))
         every { semaphore.updateLeaseTimeAsync("permit", any(), TimeUnit.MILLISECONDS) } returns
                 CompletableFutureWrapper(cleanup)
         val original = IllegalArgumentException("action")
         val result = RedissonLeaderGroupElector(
             client, LeaderGroupElectionOptions(maxLeaders = 1, leaseTime = 60.seconds, minLeaseTime = 30.seconds),
         ).runAsyncIfLeader("cleanup", Executor { it.run() }) {
-            if (actionFailed) CompletableFuture.failedFuture(original) else CompletableFuture.completedFuture("ok")
+            if (actionFailed) failedCompletableFutureOf(original) else completableFutureOf("ok")
         }
         result.isDone.shouldBeFalse()
         cleanup.completeExceptionally(IllegalStateException("cleanup"))
         if (actionFailed) {
-            val failure = assertFailsWith<ExecutionException> { result.get(2, TimeUnit.SECONDS) }
+            val failure = assertFailsWith<ExecutionException> { result.get(2.seconds) }
             (failure.cause === original).shouldBeTrue()
             original.suppressed.size shouldBeEqualTo 0
         } else {
-            result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "ok"
+            result.get(2.seconds) shouldBeEqualTo "ok"
         }
     }
 }

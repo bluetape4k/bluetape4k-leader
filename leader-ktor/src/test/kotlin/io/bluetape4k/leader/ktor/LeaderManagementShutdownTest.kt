@@ -2,6 +2,7 @@ package io.bluetape4k.leader.ktor
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.SuspendLeaderManagementActionRegistry
 import io.ktor.server.application.ApplicationEnvironment
@@ -18,7 +19,7 @@ class LeaderManagementShutdownTest {
         val engine = RecordingEngine()
         val drained = engine.stopLeaderManagementGracefully(registry)
 
-        drained shouldBeEqualTo true
+        drained.shouldBeTrue()
         engine.stopCalls.get() shouldBeEqualTo 1
         registry.close()
     }

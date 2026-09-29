@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.zookeeper
 
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -19,7 +20,6 @@ import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requirePositiveNumber
 import org.apache.curator.framework.CuratorFramework
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2
-import org.apache.curator.framework.recipes.locks.Lease
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
@@ -35,8 +35,7 @@ class ZooKeeperLeaderGroupElector private constructor(
     private val client: CuratorFramework,
     private val basePath: String,
     options: LeaderGroupElectionOptions,
-): LeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client) {
+): LeaderGroupElector, LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client) {
 
     companion object: KLogging() {
         const val DEFAULT_BASE_PATH = "/leader-group-election"
@@ -68,8 +67,7 @@ class ZooKeeperLeaderGroupElector private constructor(
         }
     }
 
-    override fun availableSlots(lockName: String): Int =
-        maxLeaders - activeCount(lockName)
+    override fun availableSlots(lockName: String): Int = maxLeaders - activeCount(lockName)
 
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
@@ -155,14 +153,11 @@ class ZooKeeperLeaderGroupElector private constructor(
     ): CompletableFuture<T?> {
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
-            CompletableFuture.supplyAsync(
-                {
-                    runIfLeader(lockName) {
-                        cancellationRelay.invoke { submitZooKeeperAction(lockName, executor, action) }.join()
-                    }
-                },
-                VirtualThreadExecutor,
-            ),
+            futureOf(VirtualThreadExecutor) {
+                runIfLeader(lockName) {
+                    cancellationRelay.invoke { submitZooKeeperAction(lockName, executor, action) }.join()
+                }
+            },
             cancellationRelay,
         )
     }
@@ -180,8 +175,7 @@ inline fun <T> CuratorFramework.runIfLeaderGroup(
     path: ZooKeeperElectionPath,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     crossinline action: () -> T,
-): T? =
-    ZooKeeperLeaderGroupElector(this, options, path.basePath).runIfLeader(path.lockName) { action() }
+): T? = ZooKeeperLeaderGroupElector(this, options, path.basePath).runIfLeader(path.lockName) { action() }
 
 /**
  * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
@@ -193,8 +187,7 @@ inline fun <T> CuratorFramework.runIfLeaderGroup(
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     basePath: String = ZooKeeperLeaderGroupElector.DEFAULT_BASE_PATH,
     crossinline action: () -> T,
-): T? =
-    runIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), options, action)
+): T? = runIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), options, action)
 
 /**
  * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
@@ -220,5 +213,4 @@ fun <T> CuratorFramework.runAsyncIfLeaderGroup(
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     basePath: String = ZooKeeperLeaderGroupElector.DEFAULT_BASE_PATH,
     action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> =
-    runAsyncIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), executor, options, action)
+): CompletableFuture<T?> = runAsyncIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), executor, options, action)

@@ -1,6 +1,16 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
@@ -10,29 +20,23 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeLessOrEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
-import org.awaitility.kotlin.*
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
 import kotlin.random.Random
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
@@ -127,7 +131,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
         }
 
         try {
-            acquiredLatch.await(2, TimeUnit.SECONDS)
+            acquiredLatch.await(2.seconds)
             val result = singleElection.runIfLeader(lockName) { }
             result shouldBeEqualTo null
         } finally {
@@ -161,19 +165,19 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
         holder.submit {
             holderElection.runIfLeader(lockName) {
                 holderReady.countDown()
-                releaseHolder.await(5, TimeUnit.SECONDS)
+                releaseHolder.await(5.seconds)
             }
         }
 
         try {
-            holderReady.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+            holderReady.await(2.seconds).shouldBeTrue()
             worker.start()
-            workerStarted.await(1, TimeUnit.SECONDS) shouldBeEqualTo true
+            workerStarted.await(1.seconds).shouldBeTrue()
             worker.interrupt()
             worker.join(2_000)
 
             thrown.get() shouldBeInstanceOf InterruptedException::class
-            interrupted.get() shouldBeEqualTo true
+            interrupted.get().shouldBeTrue()
         } finally {
             worker.interrupt()
             releaseHolder.countDown()
@@ -310,14 +314,14 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
             }
         }
 
-        acquiredLatch.await(5, TimeUnit.SECONDS)
+        acquiredLatch.await(5.seconds)
         election.state(lockName).isFull.shouldBeTrue()
         election.activeCount(lockName) shouldBeEqualTo options.maxLeaders
         election.availableSlots(lockName) shouldBeEqualTo 0
 
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS)
+        executor.awaitTermination(3.seconds)
 
         election.state(lockName).isEmpty.shouldBeTrue()
     }
@@ -386,14 +390,14 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
                 val attemptLockName = "$lockName-$attempt"
 
                 val first = election.runAsyncIfLeader(attemptLockName) {
-                    CompletableFuture.completedFuture("first-$attempt")
+                    completableFutureOf("first-$attempt")
                 }
-                first.get(2, TimeUnit.SECONDS) shouldBeEqualTo "first-$attempt"
+                first.get(2.seconds) shouldBeEqualTo "first-$attempt"
 
                 val second = election.runAsyncIfLeader(attemptLockName) {
-                    CompletableFuture.completedFuture("second-$attempt")
+                    completableFutureOf("second-$attempt")
                 }
-                second.get(2, TimeUnit.SECONDS) shouldBeEqualTo "second-$attempt"
+                second.get(2.seconds) shouldBeEqualTo "second-$attempt"
             }
             .run()
 
@@ -449,8 +453,8 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
         }.cause shouldBeInstanceOf LeaderGroupElectionException::class
 
         val result = election.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture("recovered")
-        }.get(2, TimeUnit.SECONDS)
+            completableFutureOf("recovered")
+        }.get(2.seconds)
         result shouldBeEqualTo "recovered"
     }
 

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.zookeeper
 
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -34,8 +35,8 @@ class ZooKeeperLeaderElector private constructor(
     private val basePath: String,
     private val options: LeaderElectionOptions,
 ): LeaderElector,
-    LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client),
-    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client),
+   io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
 
     override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
         io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options)
@@ -108,7 +109,7 @@ class ZooKeeperLeaderElector private constructor(
         if (options.autoExtend) {
             log.warn {
                 "ZooKeeper 는 TTL 이 없는 세션 기반 락 — autoExtend=true 설정이 무시됩니다. " +
-                    "ZK 세션 keepalive 가 lease 역할을 대신합니다. lockName=$lockName"
+                        "ZK 세션 keepalive 가 lease 역할을 대신합니다. lockName=$lockName"
             }
         }
         val watchdog = LeaderLeaseAutoExtender.start(
@@ -146,14 +147,11 @@ class ZooKeeperLeaderElector private constructor(
     ): CompletableFuture<T?> {
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
-            CompletableFuture.supplyAsync(
-                {
-                    runIfLeader(lockName) {
-                        cancellationRelay.invoke { submitZooKeeperAction(lockName, executor, action) }.join()
-                    }
-                },
-                VirtualThreadExecutor,
-            ),
+            futureOf(VirtualThreadExecutor) {
+                runIfLeader(lockName) {
+                    cancellationRelay.invoke { submitZooKeeperAction(lockName, executor, action) }.join()
+                }
+            },
             cancellationRelay,
         )
     }

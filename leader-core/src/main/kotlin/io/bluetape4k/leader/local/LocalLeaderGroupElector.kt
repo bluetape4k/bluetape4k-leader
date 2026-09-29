@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderRunResult
@@ -66,10 +67,11 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
 
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
-            CompletableFuture.supplyAsync(
-                { tryWithPermit(lockName) { cancellationRelay.invoke(action).join() } },
-                executor,
-            ),
+            futureOf(executor) {
+                tryWithPermit(lockName) {
+                    cancellationRelay.invoke(action).join()
+                }
+            },
             cancellationRelay,
         )
     }

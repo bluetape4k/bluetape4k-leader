@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.lettuce.semaphore
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.lettuce.internal.MonotonicDeadline
 import io.bluetape4k.leader.lettuce.script.RedisScript
@@ -280,7 +282,7 @@ return 0
                 }
             }.thenCompose { result ->
                 when {
-                    !result.isNullOrEmpty()     -> CompletableFuture.completedFuture<String?>(result)
+                    !result.isNullOrEmpty()     -> completableFutureOf(result)
                     deadline.hasTimeRemaining() -> {
                         val delayMillis = deadline.remainingMillisForDelay(SPIN_DELAY_MS)
                         val delayed = CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS)
@@ -291,9 +293,9 @@ return 0
                         // contention (script 정상 실행 + 빈 문자열 반환) 만 null 로 반환.
                         val terminalError = lastError.get()
                         if (terminalError != null) {
-                            CompletableFuture.failedFuture(terminalError)
+                            failedCompletableFutureOf(terminalError)
                         } else {
-                            CompletableFuture.completedFuture<String?>(null)
+                            completableFutureOf(null)
                         }
                     }
                 }

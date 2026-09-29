@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.examples.k8soperator
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderState
 import org.junit.jupiter.api.Test
@@ -63,7 +64,7 @@ class OperatorControllerTest {
 
     private class FixedLeaderElector(
         private val acquire: Boolean,
-    ) : LeaderElector {
+    ): LeaderElector {
 
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
             if (acquire) action() else null
@@ -73,7 +74,7 @@ class OperatorControllerTest {
             executor: Executor,
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> =
-            if (acquire) action().thenApply { it } else CompletableFuture.completedFuture(null)
+            if (acquire) action().thenApply { it } else completableFutureOf(null)
 
         override fun state(lockName: String): LeaderState =
             if (acquire) LeaderState.occupied(lockName, io.bluetape4k.leader.LeaderLease("test-node"))

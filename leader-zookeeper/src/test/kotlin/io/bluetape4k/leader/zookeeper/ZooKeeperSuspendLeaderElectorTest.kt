@@ -1,19 +1,19 @@
 package io.bluetape4k.leader.zookeeper
 
-import io.bluetape4k.junit5.coroutines.SuspendedJobTester
-import io.bluetape4k.leader.LeaderElectionOptions
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.test.runTest
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.junit5.coroutines.SuspendedJobTester
+import io.bluetape4k.leader.LeaderElectionOptions
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.time.Duration.Companion.milliseconds
@@ -47,15 +47,16 @@ class ZooKeeperSuspendLeaderElectorTest: AbstractZooKeeperLeaderTest() {
         val holder = Executors.newSingleThreadExecutor()
 
         holder.submit {
-            val blockingElection = ZooKeeperLeaderElector(curator, options = shortWaitOptions.copy(waitTime = 5.seconds))
+            val blockingElection =
+                ZooKeeperLeaderElector(curator, options = shortWaitOptions.copy(waitTime = 5.seconds))
             blockingElection.runIfLeader(lockName) {
                 acquired.countDown()
-                release.await(5, TimeUnit.SECONDS)
+                release.await(5.seconds)
             }
         }
 
         try {
-            acquired.await(2, TimeUnit.SECONDS)
+            acquired.await(2.seconds)
             val result = election.runIfLeader(lockName) { "should-skip" }
             result.shouldBeNull()
         } finally {
@@ -128,14 +129,25 @@ class ZooKeeperSuspendLeaderElectorTest: AbstractZooKeeperLeaderTest() {
         val tryStart = indexOf("try {", startIndex = cleanupScope.coerceAtLeast(0))
         val watchdogStart = indexOf("LeaderLeaseAutoExtender.start", startIndex = tryStart.coerceAtLeast(0))
         val finallyStart = indexOf("} finally {", startIndex = watchdogStart.coerceAtLeast(0))
-        val watchdogClose = indexOf("watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }", startIndex = finallyStart.coerceAtLeast(0))
+        val watchdogClose = indexOf(
+            "watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }",
+            startIndex = finallyStart.coerceAtLeast(0)
+        )
         val release = indexOf("mutex.release()", startIndex = watchdogClose.coerceAtLeast(0))
-        return listOf(acquired, cleanupScope, tryStart, watchdogStart, finallyStart, watchdogClose, release).all { it >= 0 } &&
-            acquired < cleanupScope &&
-            cleanupScope < tryStart &&
-            tryStart < watchdogStart &&
-            watchdogStart < finallyStart &&
-            finallyStart < watchdogClose &&
-            watchdogClose < release
+        return listOf(
+            acquired,
+            cleanupScope,
+            tryStart,
+            watchdogStart,
+            finallyStart,
+            watchdogClose,
+            release
+        ).all { it >= 0 } &&
+                acquired < cleanupScope &&
+                cleanupScope < tryStart &&
+                tryStart < watchdogStart &&
+                watchdogStart < finallyStart &&
+                finallyStart < watchdogClose &&
+                watchdogClose < release
     }
 }

@@ -1,5 +1,13 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderElectionException
@@ -8,21 +16,15 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.lettuce.lock.LettuceLock
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
 
@@ -161,7 +163,7 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
     @Test
     fun `비동기 리더 선출 성공`() {
         val future = election.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture("async-done")
+            completableFutureOf("async-done")
         }
         future.get() shouldBeEqualTo "async-done"
     }
@@ -169,10 +171,10 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
     @Test
     fun `비동기 리더 선출 - 여러 번 순차 실행 가능`() {
         val r1 = election.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture(1)
+            completableFutureOf(1)
         }.get()
         val r2 = election.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture(2)
+            completableFutureOf(2)
         }.get()
         r1 shouldBeEqualTo 1
         r2 shouldBeEqualTo 2
@@ -193,12 +195,12 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
 
         try {
             val result = contender.runAsyncIfLeader(lockName, executor) {
-                CompletableFuture.completedFuture("unexpected")
+                completableFutureOf("unexpected")
             }
-            val marker = CompletableFuture.supplyAsync({ "executor-free" }, executor)
+            val marker = futureOf(executor) { "executor-free" }
 
             marker.get(300, TimeUnit.MILLISECONDS) shouldBeEqualTo "executor-free"
-            result.get(2, TimeUnit.SECONDS).shouldBeNull()
+            result.get(2.seconds).shouldBeNull()
         } finally {
             holderLock.unlock()
             executor.shutdownNow()

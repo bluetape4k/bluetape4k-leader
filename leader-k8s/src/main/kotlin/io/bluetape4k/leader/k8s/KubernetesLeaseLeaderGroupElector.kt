@@ -1,5 +1,8 @@
 package io.bluetape4k.leader.k8s
 
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElector
@@ -12,9 +15,9 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.leader.k8s.internal.KubernetesLeaseGroupAcquisitionDeadline
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
-import io.bluetape4k.leader.k8s.internal.KubernetesLeaseGroupAcquisitionDeadline
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseNames
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -44,10 +47,10 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
     private val client: KubernetesClient,
     val options: KubernetesLeaseGroupOptions = KubernetesLeaseGroupOptions.Default,
     private val clock: Clock = Clock.systemUTC(),
-) : LeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics {
+): LeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         internal const val K8S_GROUP_FACTORY_BEAN_NAME = "kubernetes-lease-leader-group-elector"
     }
 
@@ -126,9 +129,9 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
             when {
                 cause is CancellationException -> throw cause
                 cause != null && elected -> LeaderRunResult.ActionFailed(cause)
-                cause != null -> throw cause
-                elected -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                cause != null            -> throw cause
+                elected                  -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else                     -> LeaderRunResult.Skipped
             }
         }
     }
@@ -176,25 +179,24 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
             when {
                 lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
                 lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else -> CompletableFuture.completedFuture(Unit)
+                else                                      -> completableFutureOf(Unit)
             }
         }
-        val acquisitionFuture = CompletableFuture.supplyAsync({
+        val acquisitionFuture = futureOf(executor) {
             var acquired: AcquiredSlot? = null
             try {
                 acquire(lockName, auditLeaderId).also { acquired = it }
             } finally {
                 cleanupBarrier.completeAcquisition(acquired)
             }
-        }, executor)
+        }
+        
         val pipelineFuture: CompletableFuture<T?> = try {
             acquisitionFuture.thenComposeAsync({ acquired ->
                 if (acquired == null) {
-                    CompletableFuture.completedFuture(null)
+                    completableFutureOf(null)
                 } else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
-                    CompletableFuture.failedFuture(
-                        CancellationException("leader result future was cancelled before action"),
-                    )
+                    failedCompletableFutureOf(CancellationException("leader result future was cancelled before action"))
                 } else {
                     try {
                         runAcquiredAsync(lockName, acquired, auditLeaderId, cancellationRelay, action)
@@ -206,11 +208,12 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
                 }
             }, executor)
         } catch (error: Throwable) {
-            CompletableFuture.failedFuture(error)
+            failedCompletableFutureOf(error)
         }
+
         return LeaderFutureBridge.flatMap(pipelineFuture, cancellationRelay) { value, failure ->
             if (failure == null) {
-                CompletableFuture.completedFuture(value)
+                completableFutureOf(value)
             } else {
                 releaseIfUnclaimed().handle { _, cleanupFailure ->
                     val cause = checkNotNull(failure.unwrapCompletionException())

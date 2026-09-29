@@ -1,7 +1,10 @@
 package io.bluetape4k.leader.examples.etcdreconciler
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.testcontainers.infra.EtcdServer
 import io.etcd.jetcd.Client
 import org.junit.jupiter.api.Test
@@ -45,16 +48,16 @@ class ControlPlaneReconcilerTest {
                 val activeFuture = executor.submit<ReconcileReport> {
                     nodeA.reconcile {
                         started.countDown()
-                        release.await(10, TimeUnit.SECONDS)
+                        release.await(10.seconds)
                         listOf("deployment/api")
                     }
                 }
 
-                started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+                started.await(10.seconds).shouldBeTrue()
                 val skipped = nodeB.reconcile { listOf("deployment/worker") }
 
                 release.countDown()
-                val active = activeFuture.get(10, TimeUnit.SECONDS)
+                val active = activeFuture.get(10.seconds)
                 val reacquired = nodeB.reconcile { listOf("deployment/worker") }
 
                 active.status shouldBeEqualTo ReconcileStatus.APPLIED

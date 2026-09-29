@@ -3,8 +3,10 @@
 package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
@@ -31,13 +33,13 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
         val registered = run(keys, LettuceCandidateWriteScript.REGISTER, value, "0", nodeId)
         registered.status() shouldBeEqualTo LettuceCandidateWriteScript.REGISTERED
         connection.sync().get(keys.candidate).shouldNotBeNull()
-        connection.sync().sismember(keys.index, nodeId) shouldBeEqualTo true
+        connection.sync().sismember(keys.index, nodeId).shouldBeTrue()
 
         val unregistered = run(keys, LettuceCandidateWriteScript.UNREGISTER, nodeId)
         unregistered.status() shouldBeEqualTo LettuceCandidateWriteScript.UNREGISTERED
         connection.sync().get(keys.candidate).shouldBeNull()
         connection.sync().get(keys.token).shouldBeNull()
-        connection.sync().sismember(keys.index, nodeId) shouldBeEqualTo false
+        connection.sync().sismember(keys.index, nodeId).shouldBeFalse()
         connection.sync().get(keys.tombstone).shouldNotBeNull()
     }
 
@@ -73,7 +75,7 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
         removed.status() shouldBeEqualTo LettuceCandidateWriteScript.REMOVED
         connection.sync().get(keys.candidate).shouldBeNull()
         connection.sync().get(keys.token).shouldBeNull()
-        connection.sync().sismember(keys.index, nodeId) shouldBeEqualTo false
+        connection.sync().sismember(keys.index, nodeId).shouldBeFalse()
     }
 
     @Test
@@ -133,7 +135,7 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
         result.status() shouldBeEqualTo LettuceCandidateWriteScript.TOMBSTONED
         connection.sync().get(keys.candidate).shouldBeNull()
         connection.sync().get(keys.token).shouldBeNull()
-        connection.sync().sismember(keys.index, nodeId) shouldBeEqualTo false
+        connection.sync().sismember(keys.index, nodeId).shouldBeFalse()
     }
 
     @Test
@@ -179,7 +181,7 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
         )
         staleCleanup.status() shouldBeEqualTo LettuceCandidateWriteScript.ABSENT
         connection.sync().get(keys.candidate) shouldBeEqualTo raw
-        connection.sync().sismember(keys.index, nodeId) shouldBeEqualTo true
+        connection.sync().sismember(keys.index, nodeId).shouldBeTrue()
     }
 
     @Test
@@ -206,7 +208,7 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
         connection.sync().get(keys.candidate) shouldBeEqualTo raw
         connection.sync().get(keys.token).shouldNotBeNull()
         connection.sync().pttl(sourceKey) shouldBeEqualTo -1L
-        connection.sync().sismember(keys.index, nodeId) shouldBeEqualTo true
+        connection.sync().sismember(keys.index, nodeId).shouldBeTrue()
     }
 
     @Test
@@ -233,7 +235,7 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
         connection.sync().get(keys.candidate) shouldBeEqualTo raw
         connection.sync().get(keys.token).shouldNotBeNull()
         connection.sync().pttl(sourceKey) shouldBeEqualTo -1L
-        connection.sync().sismember(keys.index, nodeId) shouldBeEqualTo true
+        connection.sync().sismember(keys.index, nodeId).shouldBeTrue()
     }
 
     private fun run(keys: ScriptKeys, operation: String, vararg args: String): List<Any> =
@@ -256,7 +258,7 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
         fun persistSource(key: String, ttl: Long) {
             if (key == sourceKey && first) {
                 ttl shouldBeGreaterThan 0L
-                sync.persist(sourceKey) shouldBeEqualTo true
+                sync.persist(sourceKey).shouldBeTrue()
                 first = false
             }
         }
@@ -269,7 +271,7 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
                     ttl shouldBeGreaterThan 0L
                     first = false
                     reactive.persist(sourceKey).map { persisted ->
-                        persisted shouldBeEqualTo true
+                        persisted.shouldBeTrue()
                         ttl
                     }
                 } else {

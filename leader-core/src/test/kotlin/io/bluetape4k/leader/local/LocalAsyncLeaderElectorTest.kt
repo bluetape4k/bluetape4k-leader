@@ -8,6 +8,7 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -84,7 +85,7 @@ class LocalAsyncLeaderElectorTest {
     fun `runAsyncIfLeader - action 내부 예외 발생 시 CompletionException 이 전파된다`() {
         assertFailsWith<CompletionException> {
             election.runAsyncIfLeader(randomLockName()) {
-                CompletableFuture.supplyAsync<Int> {
+                futureOf<Int> {
                     throw LeaderElectionException("action 내부 예외")
                 }
             }.join()
@@ -104,7 +105,7 @@ class LocalAsyncLeaderElectorTest {
             .rounds(roundsPerThread)
             .add {
                 election.runAsyncIfLeader(lockName) {
-                    CompletableFuture.supplyAsync {
+                    futureOf {
                         log.debug { "비동기 작업 1 실행. counter=${counter.get()}" }
                         Thread.sleep(Random.nextLong(1, 5))
                         counter.incrementAndGet()
@@ -113,7 +114,7 @@ class LocalAsyncLeaderElectorTest {
             }
             .add {
                 election.runAsyncIfLeader(lockName) {
-                    CompletableFuture.supplyAsync {
+                    futureOf {
                         log.debug { "비동기 작업 2 실행. counter=${counter.get()}" }
                         Thread.sleep(Random.nextLong(1, 5))
                         counter.incrementAndGet()

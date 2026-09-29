@@ -5,6 +5,10 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
@@ -19,7 +23,6 @@ import java.time.Clock
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import kotlin.time.Duration
@@ -152,13 +155,13 @@ class KubernetesLeaseLeaderElectorK3sTest {
 
                 assertFailsWith<CompletionException> {
                     election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-                        CompletableFuture.failedFuture<Int>(IllegalStateException("boom"))
+                        failedCompletableFutureOf<Int>(IllegalStateException("boom"))
                     }.join()
                 }
 
                 val result = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-                    CompletableFuture.completedFuture("recovered")
-                }.get(5, TimeUnit.SECONDS)
+                    completableFutureOf("recovered")
+                }.get(5.seconds)
                 result shouldBeEqualTo "recovered"
             }
         }
@@ -179,13 +182,16 @@ class KubernetesLeaseLeaderElectorK3sTest {
                         actionStarted.countDown()
                         actionFuture
                     }
-                    actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    actionStarted.await(5.seconds).shouldBeTrue()
                     executor.shutdown()
 
                     actionFuture.complete("done")
 
-                    resultFuture.get(5, TimeUnit.SECONDS) shouldBeEqualTo "done"
-                    elector(client, nodeId = "node-b").runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+                    resultFuture.get(5.seconds) shouldBeEqualTo "done"
+                    elector(
+                        client,
+                        nodeId = "node-b"
+                    ).runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
                 } finally {
                     executor.shutdownNow()
                 }
@@ -202,8 +208,8 @@ class KubernetesLeaseLeaderElectorK3sTest {
 
                 val failure = assertFailsWith<ExecutionException> {
                     election.runAsyncIfLeaderResult(LeaderSlot(lockName, "node-a"), VirtualThreadExecutor) {
-                        CompletableFuture.failedFuture<Int>(java.util.concurrent.CancellationException("cancelled"))
-                    }.get(5, TimeUnit.SECONDS)
+                        failedCompletableFutureOf<Int>(java.util.concurrent.CancellationException("cancelled"))
+                    }.get(5.seconds)
                 }
 
                 (failure.cause is java.util.concurrent.CancellationException).shouldBeTrue()

@@ -4,7 +4,9 @@ import com.mongodb.client.model.Filters
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.logging.KLogging
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -88,7 +90,7 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
                     )
                 )
             }
-            ok shouldBeEqualTo true
+            ok.shouldBeTrue()
 
             val indexes = eventCollection.listIndexes().toList().associateBy { it.getString("name") }
             indexes.getValue(WebhookPoller.INDEX_PENDING_CLAIM).indexKeys() shouldBeEqualTo
@@ -134,9 +136,9 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
                     Filters.eq(WebhookPoller.FIELD_STATUS, WebhookEventStatus.DONE.name),
                 ) == eventIds.size.toLong()
             }
-            ok shouldBeEqualTo true
+            ok.shouldBeTrue()
             handled.size shouldBeEqualTo eventIds.size
-            eventIds.forEach { id -> handled.contains(id) shouldBeEqualTo true }
+            eventIds.forEach { id -> handled.contains(id).shouldBeTrue() }
         } finally {
             poller.stopGracefully(2.seconds)
             scope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin()
@@ -176,7 +178,7 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
                     Filters.eq(WebhookPoller.FIELD_STATUS, WebhookEventStatus.DONE.name),
                 ) == eventIds.size.toLong()
             }
-            ok shouldBeEqualTo true
+            ok.shouldBeTrue()
 
             // 모든 event 가 정확히 1번씩 처리됨
             processCount.size shouldBeEqualTo eventIds.size
@@ -220,7 +222,7 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
             val ok = waitUntil(INSTANCE_TIMEOUT) {
                 fetchEvent(eventId)?.status == WebhookEventStatus.DONE
             }
-            ok shouldBeEqualTo true
+            ok.shouldBeTrue()
             attemptCounter.get() shouldBeGreaterOrEqualTo 2
             val finalEvent = fetchEvent(eventId).shouldNotBeNull()
             finalEvent.status shouldBeEqualTo WebhookEventStatus.DONE
@@ -256,7 +258,7 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
             val ok = waitUntil(INSTANCE_TIMEOUT) {
                 fetchEvent(eventId)?.status == WebhookEventStatus.FAILED
             }
-            ok shouldBeEqualTo true
+            ok.shouldBeTrue()
             val finalEvent = fetchEvent(eventId).shouldNotBeNull()
             finalEvent.status shouldBeEqualTo WebhookEventStatus.FAILED
             finalEvent.attempts shouldBeEqualTo maxAttempts
@@ -310,7 +312,7 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
                     Filters.eq(WebhookPoller.FIELD_STATUS, WebhookEventStatus.DONE.name),
                 ) == eventIds.size.toLong()
             }
-            ok shouldBeEqualTo true
+            ok.shouldBeTrue()
         } finally {
             pollerB.stopGracefully(2.seconds)
             scope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin()
@@ -355,7 +357,7 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
         val job = poller.start(scope)
         delay(200.milliseconds)
         job.cancelAndJoin()
-        job.isCancelled shouldBeEqualTo true
+        job.isCancelled.shouldBeTrue()
     }
 
     @Test
@@ -384,7 +386,7 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
             }
 
             startGate.countDown()
-            val results = attempts.map { it.get(5, TimeUnit.SECONDS) }
+            val results = attempts.map { it.get(5.seconds) }
 
             results.count { it.isSuccess } shouldBeEqualTo 1
             results.count { it.exceptionOrNull() is IllegalStateException } shouldBeEqualTo 31
@@ -445,7 +447,7 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
             val ok = waitUntil(INSTANCE_TIMEOUT) {
                 fetchEvent(eventId)?.status == WebhookEventStatus.DONE
             }
-            ok shouldBeEqualTo true
+            ok.shouldBeTrue()
             val finalEvent = fetchEvent(eventId).shouldNotBeNull()
             finalEvent.status shouldBeEqualTo WebhookEventStatus.DONE
             // attempts: A 의 claim(1) + B 의 reclaim(1) = 최소 2

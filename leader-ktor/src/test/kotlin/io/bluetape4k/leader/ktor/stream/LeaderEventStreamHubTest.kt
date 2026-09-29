@@ -2,6 +2,7 @@ package io.bluetape4k.leader.ktor.stream
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
@@ -179,7 +180,7 @@ class LeaderEventStreamHubTest {
         val cleanup = launch { hub.awaitSubscriberCount(0) }
         runCurrent()
 
-        cleanup.isCompleted shouldBeEqualTo false
+        cleanup.isCompleted.shouldBeFalse()
         hub.releaseConnection(connection)
         cleanup.join()
         hub.subscriberCount() shouldBeEqualTo 0
@@ -234,7 +235,7 @@ class LeaderEventStreamHubTest {
         publisher.cleanupStarted.await()
         val completion = launch { hub.awaitClosed() }
         runCurrent()
-        completion.isCompleted shouldBeEqualTo false
+        completion.isCompleted.shouldBeFalse()
 
         publisher.allowCleanup.complete(Unit)
         completion.join()

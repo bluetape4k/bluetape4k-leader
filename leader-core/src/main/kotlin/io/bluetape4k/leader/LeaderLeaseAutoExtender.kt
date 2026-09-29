@@ -1,6 +1,8 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.concurrent.awaitTermination
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.ExtendOutcome.BackendError
 import io.bluetape4k.leader.ExtendOutcome.Extended
 import io.bluetape4k.leader.ExtendOutcome.NotHeld
@@ -308,8 +310,8 @@ object LeaderLeaseAutoExtender: KLogging() {
      * @return watchdog drain이 끝난 뒤 완료되는 future입니다.
      */
     fun closeAsync(watchdog: AutoCloseable): CompletableFuture<Unit> {
-        if (watchdog === NoopCloseable) return CompletableFuture.completedFuture(Unit)
-        return CompletableFuture.supplyAsync({ watchdog.close() }, cleanupExecutor)
+        if (watchdog === NoopCloseable) return completableFutureOf(Unit)
+        return futureOf(cleanupExecutor) { watchdog.close() }
     }
 
     /**

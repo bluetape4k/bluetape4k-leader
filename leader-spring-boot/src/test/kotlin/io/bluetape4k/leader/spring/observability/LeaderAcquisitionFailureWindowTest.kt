@@ -5,6 +5,8 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.awaitTermination
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.metrics.SkipReason
 import org.junit.jupiter.api.Test
@@ -14,8 +16,8 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.seconds
 
 class LeaderAcquisitionFailureWindowTest {
 
@@ -116,17 +118,17 @@ class LeaderAcquisitionFailureWindowTest {
                     }.onFailure { failures.compareAndSet(null, it) }
                 }
             }
-            tasks.forEach { it.get(5, TimeUnit.SECONDS) }
+            tasks.forEach { it.get(5.seconds) }
         } finally {
             pool.shutdownNow()
-            pool.awaitTermination(5, TimeUnit.SECONDS).shouldBeTrue()
+            pool.awaitTermination(5.seconds).shouldBeTrue()
         }
 
         failures.get().shouldBeNull()
         (window.view().count <= 64).shouldBeTrue()
     }
 
-    private class MutableClock(initial: Instant) : Clock() {
+    private class MutableClock(initial: Instant): Clock() {
         private val zone = ZoneOffset.UTC
         var current: Instant = initial
 
@@ -137,7 +139,7 @@ class LeaderAcquisitionFailureWindowTest {
         override fun withZone(zone: ZoneId): Clock = this
     }
 
-    private class ThrowingClock : Clock() {
+    private class ThrowingClock: Clock() {
         override fun instant(): Instant = throw IllegalStateException("clock unavailable")
 
         override fun getZone(): ZoneId = ZoneOffset.UTC

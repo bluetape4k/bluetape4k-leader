@@ -4,10 +4,11 @@ import com.mongodb.client.model.IndexOptions
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.coEvery
 import io.mockk.every
@@ -17,17 +18,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.test.runTest
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
+import kotlin.time.Duration.Companion.seconds
 
 class MongoLeaderHistoryIndexerTest {
 
@@ -64,7 +65,7 @@ class MongoLeaderHistoryIndexerTest {
 
         val indexer = MongoLeaderHistoryIndexer(database, MongoHistoryConfig(ttlDays = 0))
         try {
-            started.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(5.seconds).shouldBeTrue()
             val thrown = AtomicReference<Throwable?>()
             val closer = thread(start = true, name = "history-indexer-close-test") {
                 Thread.currentThread().interrupt()
@@ -235,7 +236,7 @@ class MongoLeaderHistoryIndexerTest {
         val collection = mockk<MongoCollection<Document>>()
         every { database.getCollection<Document>(any()) } returns collection
         coEvery { collection.createIndex(any<Bson>(), any<IndexOptions>()) } throws
-            IllegalStateException("index service unavailable")
+                IllegalStateException("index service unavailable")
 
         val indexer = MongoLeaderHistoryIndexer(database, MongoHistoryConfig(ttlDays = 0))
         try {

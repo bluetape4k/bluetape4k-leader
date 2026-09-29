@@ -2,9 +2,12 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.awaitility.untilSuspending
+import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
@@ -13,7 +16,6 @@ import io.bluetape4k.leader.strategy.StrategicGroupElectionResult
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredGroupElectionStrategy
-import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.support.closeSafe
 import io.lettuce.core.codec.StringCodec
 import kotlinx.coroutines.CancellationException
@@ -24,7 +26,9 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.job
-import org.awaitility.kotlin.*
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -33,7 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class LettuceStrategicSuspendLeaderGroupElectorTest : AbstractLettuceLeaderTest() {
+class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
 
     private lateinit var node1: LettuceStrategicSuspendLeaderGroupElector
     private lateinit var node2: LettuceStrategicSuspendLeaderGroupElector
@@ -97,7 +101,7 @@ class LettuceStrategicSuspendLeaderGroupElectorTest : AbstractLettuceLeaderTest(
             }
             actionStarted.await()
             deferred.cancelAndJoin()
-            deferred.isCancelled shouldBeEqualTo true
+            deferred.isCancelled.shouldBeTrue()
         }
 
         val candidate = node1.listCandidates(lockName).single()
@@ -143,7 +147,7 @@ class LettuceStrategicSuspendLeaderGroupElectorTest : AbstractLettuceLeaderTest(
             assertFailsWith<CancellationException> { deferred.await() }
         }
 
-        actionInvoked.get() shouldBeEqualTo false
+        actionInvoked.get().shouldBeFalse()
         val candidate = node1.listCandidates(lockName).single()
         candidate.successCount shouldBeEqualTo 0L
         candidate.failureCount shouldBeEqualTo 0L

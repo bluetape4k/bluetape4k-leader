@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldContainSame
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.hazelcast.HazelcastLeaderElector
@@ -14,7 +15,6 @@ import org.junit.jupiter.api.Test
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -92,7 +92,7 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
                     results.add(warmer.warmAll())
                 }
             }
-            futures.forEach { it.get(30, TimeUnit.SECONDS) }
+            futures.forEach { it.get(30.seconds) }
         } finally {
             executor.shutdown()
         }

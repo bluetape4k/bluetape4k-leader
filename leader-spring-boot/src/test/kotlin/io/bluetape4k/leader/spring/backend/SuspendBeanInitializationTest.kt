@@ -11,6 +11,8 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotBeEqualTo
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -26,6 +28,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.measureTime
 
 class SuspendBeanInitializationTest {
@@ -102,7 +105,7 @@ class SuspendBeanInitializationTest {
         releaser.schedule({ release.countDown() }, 500, TimeUnit.MILLISECONDS)
 
         try {
-            started.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(1.seconds).shouldBeTrue()
             val elapsed = measureTime {
                 assertFailsWith<TimeoutCancellationException> {
                     createSuspendBackendBean(
@@ -121,7 +124,7 @@ class SuspendBeanInitializationTest {
             dispatcher.close()
             executor.shutdownNow()
         }
-        executor.awaitTermination(1, TimeUnit.SECONDS).shouldBeTrue()
+        executor.awaitTermination(1.seconds).shouldBeTrue()
         bodyStarted.get().shouldBeFalse()
     }
 
@@ -161,12 +164,12 @@ class SuspendBeanInitializationTest {
                 }
             }
 
-            started.await(1, TimeUnit.SECONDS).shouldBeTrue()
-            cleanupStarted.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(1.seconds).shouldBeTrue()
+            cleanupStarted.await(1.seconds).shouldBeTrue()
             bridgeReturned.await(100, TimeUnit.MILLISECONDS).shouldBeFalse()
 
             cleanupRelease.countDown()
-            bridgeReturned.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            bridgeReturned.await(1.seconds).shouldBeTrue()
             (failure.get() is TimeoutCancellationException).shouldBeTrue()
         } finally {
             cleanupRelease.countDown()
@@ -174,8 +177,8 @@ class SuspendBeanInitializationTest {
             dispatcher.close()
             dispatcherExecutor.shutdownNow()
         }
-        caller.awaitTermination(1, TimeUnit.SECONDS).shouldBeTrue()
-        dispatcherExecutor.awaitTermination(1, TimeUnit.SECONDS).shouldBeTrue()
+        caller.awaitTermination(1.seconds).shouldBeTrue()
+        dispatcherExecutor.awaitTermination(1.seconds).shouldBeTrue()
     }
 
     @Test
@@ -218,10 +221,10 @@ class SuspendBeanInitializationTest {
                 }
             }
 
-            started.await(1, TimeUnit.SECONDS).shouldBeTrue()
-            cleanupStarted.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(1.seconds).shouldBeTrue()
+            cleanupStarted.await(1.seconds).shouldBeTrue()
             bridgeReturned.await(50, TimeUnit.MILLISECONDS).shouldBeFalse()
-            bridgeReturned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            bridgeReturned.await(2.seconds).shouldBeTrue()
             (failure.get() is TimeoutCancellationException).shouldBeTrue()
 
             val warning = appender.list.firstOrNull {
@@ -236,8 +239,8 @@ class SuspendBeanInitializationTest {
             dispatcher.close()
             dispatcherExecutor.shutdownNow()
         }
-        caller.awaitTermination(1, TimeUnit.SECONDS).shouldBeTrue()
-        dispatcherExecutor.awaitTermination(1, TimeUnit.SECONDS).shouldBeTrue()
+        caller.awaitTermination(1.seconds).shouldBeTrue()
+        dispatcherExecutor.awaitTermination(1.seconds).shouldBeTrue()
     }
 
     @Test
@@ -247,7 +250,7 @@ class SuspendBeanInitializationTest {
         }
 
         thrown.message shouldBeEqualTo
-            "suspend backend bean cleanup timeout must be positive and finite: 0s"
+                "suspend backend bean cleanup timeout must be positive and finite: 0s"
     }
 
     private fun startupFailure(configuration: Class<*>): Throwable {

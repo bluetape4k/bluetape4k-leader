@@ -166,9 +166,9 @@ action 자체가 `CompletableFuture` 를 반환하는 람다여야 한다:
 ```kotlin
 // ✅ 올바른 패턴
 val future = hazelcastClient.runAsyncIfLeader(randomName()) {
-    CompletableFuture.completedFuture("async-done")
+    completableFutureOf("async-done")
 }
-future.get(5, TimeUnit.SECONDS) shouldBeEqualTo "async-done"
+future.get(5.seconds) shouldBeEqualTo "async-done"
 ```
 
 **How to apply:** `runAsyncIfLeader` 는 action 이 `CompletableFuture` 를 직접 반환한다.

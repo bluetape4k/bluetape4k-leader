@@ -1,19 +1,20 @@
 package io.bluetape4k.leader.micrometer
 
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.LeaderElector
-import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderLeaseAcquirer
 import io.bluetape4k.leader.LeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnostics
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.support.requireNotNull
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
@@ -285,7 +286,7 @@ private fun Any.resolveBackendDiagnosticsProvider(): LeaderBackendDiagnosticsPro
     when (this) {
         is LeaderBackendDiagnosticsProvider -> this
         is LeaderBackendDiagnosticsAware -> backendDiagnosticsProvider
-        else -> null
+        else                             -> null
     }
 
 private fun LeaderBackendDiagnosticsProvider.instrumented(
@@ -316,7 +317,7 @@ private class InstrumentedLeaderBackendDiagnosticsProvider(
     val delegate: LeaderBackendDiagnosticsProvider,
     val registry: MeterRegistry,
     val tagOptions: LeaderMetricTagOptions,
-) : LeaderBackendDiagnosticsProvider {
+): LeaderBackendDiagnosticsProvider {
 
     private val tagSanitizer = LeaderMetricTagSanitizer.from(tagOptions)
     private val metrics = BackendConnectivityMetrics(registry, tagSanitizer) {
@@ -433,7 +434,7 @@ private class InstrumentedLeaderMetrics(
         } catch (e: Throwable) {
             durationTimer(lockName).record(mark.elapsedNow().toJavaDuration())
             active.decrementAndGet()
-            CompletableFuture.failedFuture(e)
+            failedCompletableFutureOf(e)
         }
     }
 

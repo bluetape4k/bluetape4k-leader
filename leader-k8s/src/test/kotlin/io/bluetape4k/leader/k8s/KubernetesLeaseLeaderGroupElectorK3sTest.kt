@@ -5,6 +5,9 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
@@ -17,7 +20,6 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Clock
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
@@ -123,13 +125,13 @@ class KubernetesLeaseLeaderGroupElectorK3sTest {
 
                 assertFailsWith<CompletionException> {
                     election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-                        CompletableFuture.failedFuture<Int>(IllegalStateException("boom"))
+                        failedCompletableFutureOf<Int>(IllegalStateException("boom"))
                     }.join()
                 }
 
                 val result = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-                    CompletableFuture.completedFuture("recovered")
-                }.get(5, TimeUnit.SECONDS)
+                    completableFutureOf("recovered")
+                }.get(5.seconds)
                 result shouldBeEqualTo "recovered"
             }
         }

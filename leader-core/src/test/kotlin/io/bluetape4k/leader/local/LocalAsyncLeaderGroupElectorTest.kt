@@ -11,6 +11,7 @@ import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -97,7 +98,7 @@ class LocalAsyncLeaderGroupElectorTest {
             .rounds(2)
             .add {
                 election.runAsyncIfLeader(lockName) {
-                    CompletableFuture.supplyAsync {
+                    futureOf {
                         val current = currentConcurrent.incrementAndGet()
                         peakConcurrent.updateAndGet { max(it, current) }
                         Thread.sleep(Random.nextLong(5, 15))
@@ -209,7 +210,7 @@ class LocalAsyncLeaderGroupElectorTest {
             .rounds(roundsPerThread)
             .add {
                 election.runAsyncIfLeader(lockName) {
-                    CompletableFuture.supplyAsync {
+                    futureOf {
                         log.debug { "비동기 작업 1 실행. counter=${counter.get()}" }
                         Thread.sleep(Random.nextLong(1, 5))
                         counter.incrementAndGet()
@@ -218,7 +219,7 @@ class LocalAsyncLeaderGroupElectorTest {
             }
             .add {
                 election.runAsyncIfLeader(lockName) {
-                    CompletableFuture.supplyAsync {
+                    futureOf {
                         log.debug { "비동기 작업 2 실행. counter=${counter.get()}" }
                         Thread.sleep(Random.nextLong(1, 5))
                         counter.incrementAndGet()

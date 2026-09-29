@@ -1,24 +1,24 @@
 package io.bluetape4k.leader.zookeeper
 
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.junit5.concurrency.MultithreadingTester
-import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
-import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
+import io.bluetape4k.leader.LeaderElectionOptions
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.time.Duration.Companion.milliseconds
@@ -45,15 +45,16 @@ class ZooKeeperLeaderElectorTest: AbstractZooKeeperLeaderTest() {
         val holder = Executors.newSingleThreadExecutor()
 
         holder.submit {
-            val blockingElection = ZooKeeperLeaderElector(curator, options = shortWaitOptions.copy(waitTime = 5.seconds))
+            val blockingElection =
+                ZooKeeperLeaderElector(curator, options = shortWaitOptions.copy(waitTime = 5.seconds))
             blockingElection.runIfLeader(lockName) {
                 lockAcquired.countDown()
-                releaseLock.await(3, TimeUnit.SECONDS)
+                releaseLock.await(3.seconds)
             }
         }
 
         try {
-            lockAcquired.await(2, TimeUnit.SECONDS)
+            lockAcquired.await(2.seconds)
             val result = election.runIfLeader(lockName) { "should-skip" }
             result.shouldBeNull()
         } finally {
@@ -94,7 +95,7 @@ class ZooKeeperLeaderElectorTest: AbstractZooKeeperLeaderTest() {
         val election = ZooKeeperLeaderElector(curator)
 
         val result = election.runAsyncIfLeader(randomName()) {
-            CompletableFuture.completedFuture(42)
+            completableFutureOf(42)
         }.join()
 
         result shouldBeEqualTo 42
@@ -117,7 +118,7 @@ class ZooKeeperLeaderElectorTest: AbstractZooKeeperLeaderTest() {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             actionFuture.isCancelled.shouldBeTrue()
             await.atMost(5.seconds).untilAsserted {

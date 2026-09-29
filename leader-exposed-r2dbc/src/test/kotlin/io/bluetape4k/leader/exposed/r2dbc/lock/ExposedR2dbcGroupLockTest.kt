@@ -10,6 +10,7 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.assertions.shouldNotBe
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
@@ -461,7 +462,7 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         val tableDropped = CountDownLatch(1)
         val callbackFailure = IllegalStateException("availability callback failed before compensation")
         val dropper = async(Dispatchers.IO) {
-            callbackEntered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            callbackEntered.await(5.seconds).shouldBeTrue()
             suspendTransaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
             ExposedR2dbcSchemaInitializer.resetFor(db)
             tableDropped.countDown()
@@ -475,7 +476,7 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
             onAvailabilityChanged = { available ->
                 if (available) {
                     callbackEntered.countDown()
-                    tableDropped.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    tableDropped.await(5.seconds).shouldBeTrue()
                     throw callbackFailure
                 }
             },

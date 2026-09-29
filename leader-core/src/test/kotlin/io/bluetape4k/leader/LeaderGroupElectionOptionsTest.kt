@@ -1,6 +1,8 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
@@ -20,7 +22,7 @@ class LeaderGroupElectionOptionsTest {
         options.waitTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultWaitTime
         options.leaseTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultLeaseTime
         options.minLeaseTime shouldBeEqualTo Duration.ZERO
-        options.useDbTime shouldBeEqualTo false
+        options.useDbTime.shouldBeFalse()
     }
 
     @Test
@@ -30,7 +32,7 @@ class LeaderGroupElectionOptionsTest {
         options.waitTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultWaitTime
         options.leaseTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultLeaseTime
         options.minLeaseTime shouldBeEqualTo Duration.ZERO
-        options.useDbTime shouldBeEqualTo false
+        options.useDbTime.shouldBeFalse()
     }
 
     @Test
@@ -46,7 +48,7 @@ class LeaderGroupElectionOptionsTest {
         options.waitTime shouldBeEqualTo 10.seconds
         options.leaseTime shouldBeEqualTo 120.seconds
         options.minLeaseTime shouldBeEqualTo 5.seconds
-        options.useDbTime shouldBeEqualTo true
+        options.useDbTime.shouldBeTrue()
     }
 
     @Test

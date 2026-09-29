@@ -28,6 +28,9 @@ import org.bson.Document
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
+import io.bluetape4k.concurrent.get
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -165,13 +168,13 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
         }
 
         try {
-            acquiredLatch.await(2, TimeUnit.SECONDS)
+            acquiredLatch.await(2.seconds)
             val result = singleElection.runIfLeader(lockName) { }
             result.shouldBeNull()
         } finally {
             holdLatch.countDown()
             executor.shutdown()
-            executor.awaitTermination(3, TimeUnit.SECONDS)
+            executor.awaitTermination(3.seconds)
         }
     }
 
@@ -222,7 +225,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
         }
 
         try {
-            acquiredLatch.await(10, TimeUnit.SECONDS)
+            acquiredLatch.await(10.seconds)
 
             val stateWhileHeld = fastElection.state(lockName)
             stateWhileHeld.activeCount shouldBeEqualTo maxLeaders
@@ -231,7 +234,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
         } finally {
             holdLatch.countDown()
             executor.shutdown()
-            executor.awaitTermination(5, TimeUnit.SECONDS)
+            executor.awaitTermination(5.seconds)
         }
 
         val stateAfter = fastElection.state(lockName)
@@ -256,7 +259,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action을 실행하고 결과를 반환한다`() {
         val result = election.runAsyncIfLeader(randomName(), VirtualThreadExecutor) {
             futureOf { "async 성공" }
-        }.get(5, TimeUnit.SECONDS)
+        }.get(5.seconds)
 
         result shouldBeEqualTo "async 성공"
     }
@@ -270,7 +273,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
 
         val result = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
             futureOf { "async recorded" }
-        }.get(5, TimeUnit.SECONDS)
+        }.get(5.seconds)
 
         result shouldBeEqualTo "async recorded"
         verify(exactly = 1) { historyRecorder.recordCompleted(historyKey, any(), any()) }
@@ -307,7 +310,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
 
         val result = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
             futureOf { "복구 성공" }
-        }.get(5, TimeUnit.SECONDS)
+        }.get(5.seconds)
         result shouldBeEqualTo "복구 성공"
     }
 
@@ -338,7 +341,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
 
             resultFuture.cancel(false).shouldBeTrue()
 
@@ -368,7 +371,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
 
             resultFuture.cancel(false).shouldBeTrue()
 

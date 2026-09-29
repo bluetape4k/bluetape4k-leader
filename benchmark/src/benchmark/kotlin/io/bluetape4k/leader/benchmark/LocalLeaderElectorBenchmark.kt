@@ -66,7 +66,7 @@ class LocalLeaderElectorBenchmark {
     @Benchmark
     fun completableFutureRunIfLeader(blackhole: Blackhole) {
         val result = asyncElector.runAsyncIfLeader("jmh-local-completable", directExecutor) {
-            CompletableFuture.completedFuture(counter.incrementAndGet())
+            completableFutureOf(counter.incrementAndGet())
         }.join()
         blackhole.consume(result)
     }
@@ -74,7 +74,7 @@ class LocalLeaderElectorBenchmark {
     @Benchmark
     fun asyncOnlyRunIfLeader(blackhole: Blackhole) {
         val result = asyncOnlyElector.runAsyncIfLeader("jmh-local-async-only", directExecutor) {
-            CompletableFuture.completedFuture(counter.incrementAndGet())
+            completableFutureOf(counter.incrementAndGet())
         }.join()
         blackhole.consume(result)
     }

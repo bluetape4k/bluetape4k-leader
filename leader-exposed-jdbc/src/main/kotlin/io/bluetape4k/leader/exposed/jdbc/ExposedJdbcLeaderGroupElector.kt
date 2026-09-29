@@ -1,5 +1,8 @@
 package io.bluetape4k.leader.exposed.jdbc
 
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
@@ -290,10 +293,10 @@ class ExposedJdbcLeaderGroupElector private constructor(
                 }
             }
         }
-        val acquisitionFuture = CompletableFuture.supplyAsync({
+        val acquisitionFuture = futureOf(executor) {
             var acquired: Pair<ExposedJdbcGroupLock, Int>? = null
             for (i in 0 until maxLeaders) {
-                if (resultFuture.isCancelled) return@supplyAsync null
+                if (resultFuture.isCancelled) return@futureOf null
                 val slot = (start + i) % maxLeaders
                 val lock = ExposedJdbcGroupLock(
                     db,
@@ -310,18 +313,19 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     false -> continue
                     null -> {
                         log.warn { "DB 오류로 비동기 슬롯 순회 중단: lockName=$lockName, slot=$slot" }
-                        return@supplyAsync null
+                        return@futureOf null
                     }
                 }
             }
             acquired?.also { acquiredSlotRef.set(it) }
             acquired
-        }, executor)
+        }
+        
         val pipelineFuture: CompletableFuture<T?> = try {
             acquisitionFuture.thenComposeAsync({ acquired ->
                 if (acquired == null) {
                     log.debug { "그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
-                    CompletableFuture.completedFuture(null)
+                    completableFutureOf(null)
                 } else {
                     lifecycleStarted.set(true)
                     val (lock, slot) = acquired
@@ -334,9 +338,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                             ExposedJdbcUnlockOutcome.FAILED   ->
                                 log.warn { "외부 취소 후 슬롯 해제에 실패했습니다(DB 오류). lockName=$lockName, slot=$slot" }
                         }
-                        return@thenComposeAsync CompletableFuture.failedFuture<T?>(
-                            java.util.concurrent.CancellationException("runAsyncIfLeader result was cancelled"),
-                        )
+                        return@thenComposeAsync failedCompletableFutureOf(CancellationException("runAsyncIfLeader result was cancelled"))
                     }
                     log.debug { "그룹 슬롯 비동기 작업 수행. lockName=$lockName, slot=$slot" }
 
@@ -347,10 +349,10 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     val terminal = AtomicBoolean()
                     val finishAction: (Throwable?) -> CompletableFuture<Throwable?> = { throwable ->
                         if (!terminal.compareAndSet(false, true)) {
-                            CompletableFuture.completedFuture(null)
+                            completableFutureOf(null)
                         } else {
                             val closeFuture = watchdog?.let { LeaderLeaseAutoExtender.closeAsync(it) }
-                                ?: CompletableFuture.completedFuture(null)
+                                ?: completableFutureOf(null)
                             closeFuture.handle { _, closeFailure ->
                                 var cleanupFailure = closeFailure?.unwrapCompletionCause()?.also { e ->
                                     log.warn(e) { "비동기 그룹 watchdog 종료 실패. lockName=$lockName, slot=$slot" }
@@ -427,7 +429,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                         )
                     } catch (e: Throwable) {
                         return@thenComposeAsync finishAction(e).thenCompose {
-                            CompletableFuture.failedFuture(e)
+                            failedCompletableFutureOf(e)
                         }
                     }
 
@@ -436,14 +438,14 @@ class ExposedJdbcLeaderGroupElector private constructor(
                             "runAsyncIfLeader result was cancelled before action",
                         )
                         return@thenComposeAsync finishAction(cancellation).thenCompose {
-                            CompletableFuture.failedFuture<T?>(cancellation)
+                            failedCompletableFutureOf(cancellation)
                         }
                     }
 
                     val actionFuture = runCatching { action() }
                         .getOrElse { e ->
                             return@thenComposeAsync finishAction(e).thenCompose {
-                                CompletableFuture.failedFuture(e)
+                                failedCompletableFutureOf(e)
                             }
                         }
 
@@ -452,11 +454,11 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     }.thenCompose { (value, throwable, cleanup) ->
                         cleanup.thenCompose { cleanupFailure ->
                             if (throwable != null) {
-                                CompletableFuture.failedFuture<T?>(throwable)
+                                failedCompletableFutureOf<T?>(throwable)
                             } else if (cleanupFailure != null) {
-                                CompletableFuture.failedFuture(cleanupFailure)
+                                failedCompletableFutureOf(cleanupFailure)
                             } else {
-                                CompletableFuture.completedFuture(value)
+                                completableFutureOf(value)
                             }
                         }
                     }
@@ -469,7 +471,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
             acquisitionFuture.whenComplete { acquired, _ ->
                 if (acquired != null) releaseIfUnclaimed()
             }
-            CompletableFuture.failedFuture(e)
+            failedCompletableFutureOf(e)
         }
 
         resultFuture.whenComplete { _, _ ->

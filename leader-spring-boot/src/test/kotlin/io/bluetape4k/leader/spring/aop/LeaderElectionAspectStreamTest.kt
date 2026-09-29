@@ -3,6 +3,7 @@ package io.bluetape4k.leader.spring.aop
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectorFactory
@@ -34,6 +35,7 @@ import reactor.core.publisher.Flux
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionAspectStreamTest {
@@ -238,7 +240,7 @@ class LeaderElectionAspectStreamTest {
         val aspect = newAspect(fakeFactory(elector))
         val disposable = (aspect.aroundLeader(pjp) as Flux<*>).subscribe()
 
-        subscribed.await(2, TimeUnit.SECONDS).shouldBeTrue()
+        subscribed.await(2.seconds).shouldBeTrue()
         disposable.dispose()
         eventually { elector.releaseCount.get() == 1 }.shouldBeTrue()
     }

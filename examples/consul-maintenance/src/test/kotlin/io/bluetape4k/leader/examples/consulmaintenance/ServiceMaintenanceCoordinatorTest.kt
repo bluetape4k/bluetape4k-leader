@@ -1,14 +1,16 @@
 package io.bluetape4k.leader.examples.consulmaintenance
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.consul.ConsulEndpoint
 import io.bluetape4k.testcontainers.infra.ConsulServer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -39,16 +41,16 @@ class ServiceMaintenanceCoordinatorTest {
             val activeFuture = executor.submit<MaintenanceReport> {
                 nodeA.performMaintenance {
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds)
                     listOf("drain-node-a")
                 }
             }
 
-            started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+            started.await(10.seconds).shouldBeTrue()
             val skipped = nodeB.performMaintenance { listOf("drain-node-b") }
 
             release.countDown()
-            val active = activeFuture.get(10, TimeUnit.SECONDS)
+            val active = activeFuture.get(10.seconds)
             val reacquired = nodeB.performMaintenance { listOf("drain-node-b") }
 
             active.status shouldBeEqualTo MaintenanceStatus.PERFORMED

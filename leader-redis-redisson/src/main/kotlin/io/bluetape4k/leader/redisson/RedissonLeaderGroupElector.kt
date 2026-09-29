@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -237,8 +238,8 @@ class RedissonLeaderGroupElector private constructor(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                elected.get()   -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else            -> LeaderRunResult.Skipped
             }
         }
     }
@@ -272,12 +273,12 @@ class RedissonLeaderGroupElector private constructor(
                 .thenComposeAsync({ permitId ->
                     if (permitId == null) {
                         log.debug { "슬롯 획득 실패 (async). lockName=$lockName" }
-                        CompletableFuture.completedFuture<T?>(null)
+                        completableFutureOf<T?>(null)
                     } else {
                         // Codex P2: acquire 성공 후 startedAtNanos 캡처
                         val startedAtNanos = rejectionCleanup.acquiredAtNanos
                         if (!rejectionCleanup.markLifecycleStarted()) {
-                            CompletableFuture.failedFuture(
+                            failedCompletableFutureOf(
                                 CancellationException("leader group action was cancelled before start"),
                             )
                         } else try {
@@ -306,7 +307,7 @@ class RedissonLeaderGroupElector private constructor(
                 if (failure != null) {
                     rejectionCleanup.release(failure.unwrapCompletionCause())
                 } else {
-                    CompletableFuture.completedFuture(value)
+                    completableFutureOf(value)
                 }
             }
         } catch (e: Throwable) {
@@ -339,7 +340,7 @@ class RedissonLeaderGroupElector private constructor(
                 acquiredPermitId == null ||
                 !lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)
             ) {
-                return CompletableFuture.failedFuture(failure)
+                return failedCompletableFutureOf(failure)
             }
             return releaseAndPropagate(
                 semaphore,
@@ -476,9 +477,9 @@ class RedissonLeaderGroupElector private constructor(
             }
             .thenCompose {
                 if (error != null) {
-                    CompletableFuture.failedFuture(error)
+                    failedCompletableFutureOf(error)
                 } else {
-                    CompletableFuture.completedFuture(value)
+                    completableFutureOf(value)
                 }
             }
 

@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.spring.compatibility
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.aop.LeaderBeanSelector
@@ -92,12 +94,12 @@ class PublicJvmAbiCompatibilityTest {
             intType,
             DefaultConstructorMarker::class.java,
         )
-        statusConstructor.isSynthetic shouldBeEqualTo true
+        statusConstructor.isSynthetic.shouldBeTrue()
         val status = statusConstructor.newInstance(emptyList<Any>(), null, null, true, 0b1110, null)
             as LeaderElectionStatusResponse
         status.backend shouldBeEqualTo "unknown"
         status.stateProviderBean shouldBeEqualTo ""
-        status.stateSupported shouldBeEqualTo false
+        status.stateSupported.shouldBeFalse()
 
         val healthConstructor = LeaderObservabilityHealthProperties::class.java.getConstructor(
             booleanType,
@@ -105,10 +107,10 @@ class PublicJvmAbiCompatibilityTest {
             intType,
             DefaultConstructorMarker::class.java,
         )
-        healthConstructor.isSynthetic shouldBeEqualTo true
+        healthConstructor.isSynthetic.shouldBeTrue()
         val health = healthConstructor.newInstance(true, null, 0b11, null)
             as LeaderObservabilityHealthProperties
-        health.enabled shouldBeEqualTo false
+        health.enabled.shouldBeFalse()
         health.leaseWarningThreshold shouldBeEqualTo Duration.ofSeconds(10)
     }
 
@@ -124,7 +126,7 @@ class PublicJvmAbiCompatibilityTest {
             Duration.ofSeconds(2),
             Duration.ofSeconds(8),
         ) as LeaderGroupProperties
-        legacy.useDbTime shouldBeEqualTo false
+        legacy.useDbTime.shouldBeFalse()
 
         val legacySyntheticConstructor = LeaderGroupProperties::class.java.getConstructor(
             intType,
@@ -133,14 +135,14 @@ class PublicJvmAbiCompatibilityTest {
             intType,
             DefaultConstructorMarker::class.java,
         )
-        legacySyntheticConstructor.isSynthetic shouldBeEqualTo false
+        legacySyntheticConstructor.isSynthetic.shouldBeFalse()
         val defaults = legacySyntheticConstructor.newInstance(
             *arrayOf<Any?>(0, Duration.ZERO, Duration.ZERO, 0b111, null),
         ) as LeaderGroupProperties
         defaults.maxLeaders shouldBeEqualTo LeaderGroupProperties.DefaultMaxLeaders
         defaults.waitTime shouldBeEqualTo LeaderGroupProperties.DefaultWaitTime
         defaults.leaseTime shouldBeEqualTo LeaderGroupProperties.DefaultLeaseTime
-        defaults.useDbTime shouldBeEqualTo false
+        defaults.useDbTime.shouldBeFalse()
 
         val legacyCopy = LeaderGroupProperties::class.java.getMethod(
             "copy",
@@ -155,7 +157,7 @@ class PublicJvmAbiCompatibilityTest {
             Duration.ofSeconds(9),
         ) as LeaderGroupProperties
         copied.maxLeaders shouldBeEqualTo 5
-        copied.useDbTime shouldBeEqualTo true
+        copied.useDbTime.shouldBeTrue()
 
         val legacyCopyDefault = LeaderGroupProperties::class.java.getMethod(
             "copy\$default",
@@ -171,7 +173,7 @@ class PublicJvmAbiCompatibilityTest {
             *arrayOf<Any?>(LeaderGroupProperties(useDbTime = true), 7, null, null, 0b110, null),
         ) as LeaderGroupProperties
         copiedWithDefaults.maxLeaders shouldBeEqualTo 7
-        copiedWithDefaults.useDbTime shouldBeEqualTo true
+        copiedWithDefaults.useDbTime.shouldBeTrue()
     }
 
     @Test

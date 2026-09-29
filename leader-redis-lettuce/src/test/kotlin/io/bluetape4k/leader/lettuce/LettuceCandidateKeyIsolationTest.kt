@@ -3,6 +3,7 @@ package io.bluetape4k.leader.lettuce
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
@@ -286,7 +287,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
         LettuceStrategicLeaderElector(connection, "observer").listCandidates(lockName)
 
         connection.sync().smembers(versionedIndexKey(lockName)) shouldBeEqualTo setOf(nodeId)
-        connection.sync().sismember(legacyIndexKey(lockName), nodeId) shouldBeEqualTo false
+        connection.sync().sismember(legacyIndexKey(lockName), nodeId).shouldBeFalse()
     }
 
     @Test
@@ -315,7 +316,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
         LettuceStrategicSuspendLeaderElector(connection, "observer").listCandidates(lockName)
 
         connection.sync().smembers(versionedIndexKey(lockName)) shouldBeEqualTo setOf(nodeId)
-        connection.sync().sismember(legacyIndexKey(lockName), nodeId) shouldBeEqualTo false
+        connection.sync().sismember(legacyIndexKey(lockName), nodeId).shouldBeFalse()
     }
 
     @Test

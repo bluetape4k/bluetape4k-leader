@@ -1,5 +1,6 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.resolveLeaderBackendDiagnosticsProvider
@@ -146,7 +147,7 @@ class ListeningLeaderElector(
             } catch (e: Throwable) {
                 listeners.notifyRevoked(lockName)
                 eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
-                CompletableFuture.failedFuture(e)
+                failedCompletableFutureOf(e)
             }
         }
         return LeaderFutureBridge.observe(source) { value, failure ->
@@ -176,7 +177,7 @@ class ListeningLeaderElector(
             } catch (e: Throwable) {
                 listeners.notifyRevoked(slot.lockName)
                 eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
-                CompletableFuture.failedFuture(e)
+                failedCompletableFutureOf(e)
             }
         }
         return LeaderFutureBridge.observe(source) { value, failure ->
@@ -206,7 +207,7 @@ class ListeningLeaderElector(
             } catch (e: Throwable) {
                 listeners.notifyRevoked(slot.lockName)
                 eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
-                CompletableFuture.failedFuture(e)
+                failedCompletableFutureOf(e)
             }
         }
         return LeaderFutureBridge.observe(source) { result, failure ->
@@ -297,7 +298,7 @@ class ListeningLeaderGroupElector(
             } catch (e: Throwable) {
                 listeners.notifyRevoked(lockName)
                 eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
-                CompletableFuture.failedFuture(e)
+                failedCompletableFutureOf(e)
             }
         }
         return LeaderFutureBridge.observe(source) { value, failure ->

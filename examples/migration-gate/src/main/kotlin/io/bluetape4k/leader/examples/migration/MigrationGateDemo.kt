@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.examples.migration
 
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import org.jetbrains.exposed.v1.core.Table
@@ -74,7 +75,7 @@ object MigrationGateDemo: KLogging() {
                     )
                 }
             }
-            val outcomes = futures.map { it.get(60, TimeUnit.SECONDS) }
+            val outcomes = futures.map { it.get(60.seconds) }
 
             log.info { "=== 결과 ===" }
             outcomes.forEachIndexed { idx, outcome ->

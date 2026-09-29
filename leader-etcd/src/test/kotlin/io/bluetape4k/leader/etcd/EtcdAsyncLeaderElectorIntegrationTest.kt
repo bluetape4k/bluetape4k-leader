@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -131,7 +132,7 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
 
                 contender.runAsyncIfLeader(lockName, executor) {
                     contenderInvoked.set(true)
-                    CompletableFuture.completedFuture("should-not-run")
+                    completableFutureOf("should-not-run")
                 }.get(10.seconds).shouldBeNull()
 
                 contenderInvoked.get().shouldBeFalse()
@@ -188,7 +189,7 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
 
                 contender.runAsyncIfLeader(lockName, executor) {
                     contenderInvoked.set(true)
-                    CompletableFuture.completedFuture("should-not-run")
+                    completableFutureOf("should-not-run")
                 }.get(10.seconds).shouldBeNull()
 
                 contenderInvoked.get().shouldBeFalse()
@@ -216,8 +217,8 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
 
             try {
                 elector.runAsyncIfLeader(randomName(), executor) {
-                    CompletableFuture.completedFuture(LockExtender.extendActiveLock(10.seconds))
-                }.get(10.seconds) shouldBeEqualTo true
+                    completableFutureOf(LockExtender.extendActiveLock(10.seconds))
+                }.get(10.seconds).shouldBeTrue()
             } finally {
                 executor.shutdownNow()
             }
@@ -242,7 +243,7 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
 
             try {
                 elector.runAsyncIfLeader(randomName(), executor) {
-                    CompletableFuture.completedFuture(LockExtender.extendActiveLock(10.seconds))
+                    completableFutureOf(LockExtender.extendActiveLock(10.seconds))
                 }.get(10.seconds).shouldBeTrue()
             } finally {
                 executor.shutdownNow()

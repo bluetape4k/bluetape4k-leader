@@ -2,6 +2,7 @@ package io.bluetape4k.leader.ktor
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.ktor.testing.shouldHaveStatus
@@ -89,7 +90,7 @@ class LeaderRouteGuardTest {
             val response = client.get("/")
             response shouldHaveStatus HttpStatusCode.ServiceUnavailable
             response.bodyAsText() shouldContain "\"code\":\"NOT_LEADER\""
-            response.bodyAsText().contains("\"lockName\"") shouldBeEqualTo false
+            response.bodyAsText().contains("\"lockName\"").shouldBeFalse()
         }
 
         downstream.get() shouldBeEqualTo 0
@@ -138,7 +139,7 @@ class LeaderRouteGuardTest {
             val response = client.get("/")
             response shouldHaveStatus HttpStatusCode.ServiceUnavailable
             response.bodyAsText() shouldContain "\"code\":\"BACKEND_UNAVAILABLE\""
-            response.bodyAsText().contains("backend-secret") shouldBeEqualTo false
+            response.bodyAsText().contains("backend-secret").shouldBeFalse()
         }
     }
 

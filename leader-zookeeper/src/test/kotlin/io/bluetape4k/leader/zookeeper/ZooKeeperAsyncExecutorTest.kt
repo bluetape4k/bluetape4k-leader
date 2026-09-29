@@ -1,28 +1,32 @@
 package io.bluetape4k.leader.zookeeper
 
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
-import org.awaitility.kotlin.atMost
-import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.get
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
-import io.bluetape4k.leader.AopScopeAccess
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executors
-import java.util.concurrent.Executor
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class ZooKeeperAsyncExecutorTest : AbstractZooKeeperLeaderTest() {
+class ZooKeeperAsyncExecutorTest: AbstractZooKeeperLeaderTest() {
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
@@ -30,7 +34,7 @@ class ZooKeeperAsyncExecutorTest : AbstractZooKeeperLeaderTest() {
         val executor = Executors.newSingleThreadExecutor()
         val name = randomName()
         val action = {
-            CompletableFuture.supplyAsync({ "done" }, executor)
+            futureOf(executor) { "done" }
         }
         val result = if (group) {
             ZooKeeperLeaderGroupElector(curator, LeaderGroupElectionOptions(maxLeaders = 1))
@@ -40,11 +44,11 @@ class ZooKeeperAsyncExecutorTest : AbstractZooKeeperLeaderTest() {
                 .runAsyncIfLeader(name, executor, action)
         }
         try {
-            result.get(3, TimeUnit.SECONDS) shouldBeEqualTo "done"
+            result.get(3.seconds) shouldBeEqualTo "done"
         } finally {
             result.cancel(true)
             executor.shutdownNow()
-            executor.awaitTermination(3, TimeUnit.SECONDS)
+            executor.awaitTermination(3.seconds)
         }
     }
 
@@ -54,7 +58,7 @@ class ZooKeeperAsyncExecutorTest : AbstractZooKeeperLeaderTest() {
         val name = randomName()
         val rejection = RejectedExecutionException("caller executor closed")
         val result = runAsync(group, name, Executor { throw rejection }) { error("action must not run") }
-        val failure = assertFailsWith<ExecutionException> { result.get(3, TimeUnit.SECONDS) }
+        val failure = assertFailsWith<ExecutionException> { result.get(3.seconds) }
         (failure.cause === rejection).shouldBeTrue()
         reacquire(group, name) shouldBeEqualTo "reacquired"
     }
@@ -65,9 +69,9 @@ class ZooKeeperAsyncExecutorTest : AbstractZooKeeperLeaderTest() {
         val name = randomName()
         val actionFailure = IllegalArgumentException("action failed")
         val result = runAsync(group, name, Executor { it.run() }) {
-            CompletableFuture.failedFuture(actionFailure)
+            failedCompletableFutureOf(actionFailure)
         }
-        val failure = assertFailsWith<ExecutionException> { result.get(3, TimeUnit.SECONDS) }
+        val failure = assertFailsWith<ExecutionException> { result.get(3.seconds) }
         (failure.cause === actionFailure).shouldBeTrue()
         reacquire(group, name) shouldBeEqualTo "reacquired"
     }
@@ -81,7 +85,7 @@ class ZooKeeperAsyncExecutorTest : AbstractZooKeeperLeaderTest() {
         val executor = Executor { command -> queued.set(command); submitted.countDown() }
         val result = runAsync(group, name, executor) { error("cancelled action must not run") }
         try {
-            submitted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            submitted.await(3.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             await.atMost(5.seconds).untilAsserted {
                 reacquire(group, name) shouldBeEqualTo "reacquired"
@@ -115,15 +119,15 @@ class ZooKeeperAsyncExecutorTest : AbstractZooKeeperLeaderTest() {
             val result = runAsync(group, name, executor) {
                 (AopScopeAccess.peekSyncMatching(name) != null).shouldBeTrue()
                 if (group) (AopScopeAccess.pollCapture() != null).shouldBeTrue()
-                CompletableFuture.completedFuture("done")
+                completableFutureOf("done")
             }
-            result.get(3, TimeUnit.SECONDS) shouldBeEqualTo "done"
-            CompletableFuture.supplyAsync({
+            result.get(3.seconds) shouldBeEqualTo "done"
+            futureOf(executor) {
                 AopScopeAccess.peekSyncMatching(name) == null && AopScopeAccess.pollCapture() == null
-            }, executor).get(3, TimeUnit.SECONDS).shouldBeTrue()
+            }.get(3.seconds).shouldBeTrue()
         } finally {
             executor.shutdownNow()
-            executor.awaitTermination(3, TimeUnit.SECONDS)
+            executor.awaitTermination(3.seconds)
         }
     }
 

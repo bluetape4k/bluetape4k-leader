@@ -3,6 +3,7 @@ package io.bluetape4k.leader.consul
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElectionException
@@ -210,14 +211,15 @@ class ConsulLeaderElector private constructor(
                 )
             }
         }
-        val acquisitionFuture = CompletableFuture.supplyAsync({
+        val acquisitionFuture = futureOf(executor) {
             var handle: ConsulLeaseHandle? = null
             try {
                 acquire(lockName, auditLeaderId).also { handle = it }
             } finally {
                 cleanupBarrier.completeAcquisition(handle)
             }
-        }, executor)
+        }
+
         val pipelineFuture: CompletableFuture<T?> = try {
             acquisitionFuture.thenComposeAsync({ handle ->
                 if (handle == null) {
@@ -233,6 +235,7 @@ class ConsulLeaderElector private constructor(
         } catch (error: Throwable) {
             failedCompletableFutureOf(error)
         }
+
         val ordered = LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
             if (failure == null) {
                 completableFutureOf(value)

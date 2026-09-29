@@ -1,24 +1,24 @@
 package io.bluetape4k.leader.zookeeper
 
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.junit5.concurrency.MultithreadingTester
-import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
-import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.time.Duration.Companion.milliseconds
@@ -61,12 +61,12 @@ class ZooKeeperLeaderGroupElectorTest: AbstractZooKeeperLeaderTest() {
             )
             blockingElection.runIfLeader(lockName) {
                 acquired.countDown()
-                release.await(5, TimeUnit.SECONDS)
+                release.await(5.seconds)
             }
         }
 
         try {
-            acquired.await(2, TimeUnit.SECONDS)
+            acquired.await(2.seconds)
             val result = singleElection.runIfLeader(lockName) { "should-skip" }
             result.shouldBeNull()
         } finally {
@@ -102,7 +102,7 @@ class ZooKeeperLeaderGroupElectorTest: AbstractZooKeeperLeaderTest() {
     @Test
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action 을 실행한다`() {
         val result = election.runAsyncIfLeader(randomName()) {
-            CompletableFuture.completedFuture(42)
+            completableFutureOf(42)
         }.join()
 
         result shouldBeEqualTo 42
@@ -125,7 +125,7 @@ class ZooKeeperLeaderGroupElectorTest: AbstractZooKeeperLeaderTest() {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             actionFuture.isCancelled.shouldBeTrue()
             await.atMost(5.seconds).untilAsserted {

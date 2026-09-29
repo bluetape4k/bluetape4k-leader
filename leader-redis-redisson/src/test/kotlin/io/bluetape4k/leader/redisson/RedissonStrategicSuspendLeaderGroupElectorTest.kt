@@ -2,7 +2,9 @@ package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.runSuspendIO
@@ -95,7 +97,7 @@ class RedissonStrategicSuspendLeaderGroupElectorTest : AbstractRedissonLeaderTes
             }
             actionStarted.await()
             deferred.cancelAndJoin()
-            deferred.isCancelled shouldBeEqualTo true
+            deferred.isCancelled.shouldBeTrue()
         }
 
         val candidate = node1.listCandidates(lockName).single()
@@ -141,7 +143,7 @@ class RedissonStrategicSuspendLeaderGroupElectorTest : AbstractRedissonLeaderTes
             assertFailsWith<CancellationException> { deferred.await() }
         }
 
-        actionInvoked.get() shouldBeEqualTo false
+        actionInvoked.get().shouldBeFalse()
         val candidate = node1.listCandidates(lockName).single()
         candidate.successCount shouldBeEqualTo 0L
         candidate.failureCount shouldBeEqualTo 0L

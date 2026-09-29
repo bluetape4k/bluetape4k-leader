@@ -283,7 +283,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         class SampleFuture {
             @LeaderElection(name = "future-job")
             open fun process(): java.util.concurrent.CompletableFuture<String> =
-                java.util.concurrent.CompletableFuture.completedFuture("ok")
+                completableFutureOf("ok")
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
@@ -296,7 +296,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
     fun `Future 반환 타입 strict true - startup fail (R12)`() {
         class SampleFuture {
             @LeaderElection(name = "future-job")
-            open fun process(): Future<String> = CompletableFuture.completedFuture("ok")
+            open fun process(): Future<String> = completableFutureOf("ok")
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)

@@ -13,6 +13,7 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Updates
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.internal.LeaderFutureBridge
@@ -199,7 +200,7 @@ class MongoLock private constructor(
 
             val lateRelease = AtomicBoolean()
             val acquisition = try {
-                CompletableFuture.supplyAsync({
+                futureOf(executor) {
                     if (result.isCancelled) {
                         AcquireResult.FAILED
                     } else {
@@ -209,7 +210,7 @@ class MongoLock private constructor(
                             }
                         }
                     }
-                }, executor)
+                }
             } catch (error: RuntimeException) {
                 completeExceptionally(error)
                 return

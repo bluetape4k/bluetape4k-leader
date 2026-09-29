@@ -2,6 +2,7 @@ package io.bluetape4k.leader.ktor
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.ktor.testing.shouldHaveStatus
@@ -136,7 +137,7 @@ class LeaderElectionManagementRouteTest {
             response shouldHaveStatus HttpStatusCode.ServiceUnavailable
             response.bodyAsText() shouldContain "\"code\":\"BACKEND_UNAVAILABLE\""
             response.bodyAsText() shouldContain "\"status\":503"
-            response.bodyAsText().contains("backend-secret") shouldBeEqualTo false
+            response.bodyAsText().contains("backend-secret").shouldBeFalse()
         }
     }
 

@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.etcd
 
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -37,12 +39,12 @@ internal object AsyncLeaseCleanupDispatcher: KLogging() {
         failure: Throwable,
         cleanup: () -> Unit,
     ): CompletableFuture<T> =
-        completeAfter(CompletableFuture.failedFuture<T>(failure), cleanup) { _, sourceFailure ->
+        completeAfter(failedCompletableFutureOf<T>(failure), cleanup) { _, sourceFailure ->
             throw sourceFailure?.unwrapCompletionException() ?: failure
         }
 
     fun execute(cleanup: () -> Unit): CompletableFuture<Unit> =
-        completeAfter(CompletableFuture.completedFuture(Unit), cleanup) { _, _ -> }
+        completeAfter(completableFutureOf(Unit), cleanup) { _, _ -> }
 
     @Suppress("TooGenericExceptionCaught")
     internal fun <T, R> completeAfter(

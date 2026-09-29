@@ -3,6 +3,8 @@ package io.bluetape4k.leader.spring.adapter
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Duration
@@ -37,7 +39,7 @@ class PropertiesAdapterTest {
         options.maxLeaders shouldBeEqualTo 4
         options.waitTime shouldBeEqualTo 2.seconds
         options.leaseTime shouldBeEqualTo 30.seconds
-        options.useDbTime shouldBeEqualTo true
+        options.useDbTime.shouldBeTrue()
     }
 
     @Test
@@ -51,6 +53,6 @@ class PropertiesAdapterTest {
     fun `default group 옵션은 maxLeaders 2`() {
         val options = PropertiesAdapter.toCommonGroup(LeaderProperties())
         options.maxLeaders shouldBeEqualTo 2
-        options.useDbTime shouldBeEqualTo false
+        options.useDbTime.shouldBeFalse()
     }
 }

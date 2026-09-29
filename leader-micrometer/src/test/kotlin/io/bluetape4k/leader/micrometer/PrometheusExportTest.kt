@@ -2,14 +2,14 @@ package io.bluetape4k.leader.micrometer
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
-import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.metrics.SkipReason
 import io.bluetape4k.testcontainers.infra.PrometheusServer
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.io.TempDir
@@ -184,7 +184,7 @@ class PrometheusExportTest {
 
     private class StubLeaderElector(
         private val elected: Boolean,
-    ) : LeaderElector {
+    ): LeaderElector {
 
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
             if (elected) action() else null
@@ -194,10 +194,10 @@ class PrometheusExportTest {
             executor: Executor,
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> =
-            CompletableFuture.completedFuture(if (elected) action().join() else null)
+            completableFutureOf(if (elected) action().join() else null)
     }
 
-    private class MetricsTargetContainer :
+    private class MetricsTargetContainer:
         GenericContainer<MetricsTargetContainer>(DockerImageName.parse("python:3.13-alpine")) {
 
         init {

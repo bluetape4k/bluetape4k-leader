@@ -2,6 +2,7 @@ package io.bluetape4k.leader.consul
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.coroutines.support.log
@@ -36,7 +37,7 @@ class ConsulSuspendLeaderGroupElectorIntegrationTest {
 
         elector.runIfLeader(lockName) {
             LockAssert.assertLockedSuspend(lockName)
-            LockExtender.extendActiveLockSuspend(10.seconds) shouldBeEqualTo true
+            LockExtender.extendActiveLockSuspend(10.seconds).shouldBeTrue()
             "first"
         } shouldBeEqualTo "first"
 

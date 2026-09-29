@@ -6,6 +6,8 @@ import ch.qos.logback.core.read.ListAppender
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -13,8 +15,8 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class BatchSchedulerResultTest: AbstractBatchSchedulerTest() {
     @Test
@@ -55,17 +57,17 @@ class BatchSchedulerResultTest: AbstractBatchSchedulerTest() {
                     val node = randomLockName()
                     val contender = BatchScheduler(node, contenderConnection, lock, waitTime = 10.milliseconds)
                     val holding = executor.submit {
-                        holder.run { entered.countDown(); release.await(5, TimeUnit.SECONDS).shouldBeTrue() }
+                        holder.run { entered.countDown(); release.await(5.seconds).shouldBeTrue() }
                     }
                     try {
-                        entered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                        entered.await(5.seconds).shouldBeTrue()
                         contender.run { error("경합 중 작업을 실행하면 안 됩니다") } shouldBeEqualTo null
                         appender.list.count {
                             it.formattedMessage.contains("[$node]") && it.formattedMessage.contains("skip.")
                         } shouldBeEqualTo 1
                     } finally {
                         release.countDown()
-                        holding.get(5, TimeUnit.SECONDS)
+                        holding.get(5.seconds)
                     }
                 }
             }
@@ -85,7 +87,7 @@ class BatchSchedulerResultTest: AbstractBatchSchedulerTest() {
             val original = when (mode) {
                 "cancel" -> CancellationException("cancel")
                 "interrupt" -> InterruptedException("interrupt")
-                else -> IllegalStateException("action")
+                else     -> IllegalStateException("action")
             }
             try {
                 val actual = assertFailsWith<Exception> { scheduler.run<Unit> { throw original } }

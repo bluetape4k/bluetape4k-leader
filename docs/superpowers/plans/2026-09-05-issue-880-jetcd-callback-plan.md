@@ -83,7 +83,7 @@
 
 2. `[x]` raw jetcd fixture를 먼저 추가한다. watcher는 `WatchOption.newBuilder().withCreateNotify(true).build()`를 사용하고 첫 empty `WatchResponse`의 `isCreated`를 `CompletableFuture<Unit>` 또는 `CountDownLatch` readiness로 변환한다. readiness가 10초 안에 오지 않으면 테스트를 실패시키며 임의 delay로 대체하지 않는다.
 
-3. `[x]` blocking callback 테스트를 추가한다. created barrier 이후 PUT을 발생시키고 event callback 안에서 같은 `Client.kvClient.get(key).get(10, TimeUnit.SECONDS)`를 호출해 방금 저장한 값을 읽는다. callback 결과 future가 10초 안에 완료되고 예외가 없음을 검증한다.
+3. `[x]` blocking callback 테스트를 추가한다. created barrier 이후 PUT을 발생시키고 event callback 안에서 같은 `Client.kvClient.get(key).get(10.seconds)`를 호출해 방금 저장한 값을 읽는다. callback 결과 future가 10초 안에 완료되고 예외가 없음을 검증한다.
 
 4. `[x]` ordered delivery 테스트를 별도로 추가한다. 첫 PUT callback은 latch에서 대기시키되 callback 진입을 main test에 알린다. 첫 callback이 대기 중인 동안 두 번째 PUT과 DELETE를 발행하고 latch를 해제한다. 관측 목록이 revision 증가 순서의 `PUT(v1)`, `PUT(v2)`, `DELETE`와 일치해야 한다. 병렬 callback 개수나 thread 이름은 assertion하지 않는다.
 

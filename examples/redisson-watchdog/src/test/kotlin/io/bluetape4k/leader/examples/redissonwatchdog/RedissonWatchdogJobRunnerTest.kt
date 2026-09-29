@@ -1,13 +1,16 @@
 package io.bluetape4k.leader.examples.redissonwatchdog
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class RedissonWatchdogJobRunnerTest: AbstractRedissonWatchdogTest() {
 
@@ -46,11 +49,11 @@ class RedissonWatchdogJobRunnerTest: AbstractRedissonWatchdogTest() {
             val leaderFuture = executor.submit<RedissonWatchdogNodeReport> {
                 leader.runJob {
                     leaderStarted.countDown()
-                    releaseLeader.await(2, TimeUnit.SECONDS)
+                    releaseLeader.await(2.seconds)
                 }
             }
 
-            leaderStarted.await(1, TimeUnit.SECONDS) shouldBeEqualTo true
+            leaderStarted.await(1.seconds).shouldBeTrue()
             Thread.sleep(600)
 
             val skipped = contender.runJob {
@@ -58,7 +61,7 @@ class RedissonWatchdogJobRunnerTest: AbstractRedissonWatchdogTest() {
             }
 
             releaseLeader.countDown()
-            val leaderReport = leaderFuture.get(2, TimeUnit.SECONDS)
+            val leaderReport = leaderFuture.get(2.seconds)
             val reacquired = contender.runJob {
                 contenderExecutions.incrementAndGet()
             }

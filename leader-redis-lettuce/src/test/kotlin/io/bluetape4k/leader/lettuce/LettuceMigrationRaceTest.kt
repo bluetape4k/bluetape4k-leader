@@ -4,8 +4,10 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
@@ -127,7 +129,7 @@ internal class MigrationRaceScenario(
                 MigrationRace.CHANGE_BEFORE_TTL, MigrationRace.CHANGE_AFTER_COPY -> actual.set(sourceKey, changedRaw)
                 MigrationRace.DELETE_BEFORE_TTL, MigrationRace.DELETE_AFTER_COPY -> actual.del(sourceKey)
                 MigrationRace.EXPIRE_BEFORE_TTL, MigrationRace.EXPIRE_AFTER_COPY -> {
-                    actual.pexpire(sourceKey, 0L) shouldBeEqualTo true
+                    actual.pexpire(sourceKey, 0L).shouldBeTrue()
                     actual.pttl(sourceKey) shouldBeEqualTo -2L
                 }
                 MigrationRace.SAME_BEFORE_TTL, MigrationRace.SAME_AFTER_COPY -> actual.set(sourceKey, raw)
@@ -143,7 +145,7 @@ internal class MigrationRaceScenario(
         if (beforeTtl) beforeFirstTtl = writer else afterCopy = writer
         try {
             seed()
-            actual.pexpire(sourceKey, 30_000L) shouldBeEqualTo true
+            actual.pexpire(sourceKey, 30_000L).shouldBeTrue()
             actual.pttl(sourceKey) shouldBeGreaterThan 0L
             val listed = list()
             writerCalls shouldBeEqualTo 1
@@ -155,7 +157,7 @@ internal class MigrationRaceScenario(
                 listed.shouldBeEmpty()
                 actual.get(destination).shouldBeNull()
                 actual.get(token).shouldBeNull()
-                actual.sismember(destinationIndex, nodeId) shouldBeEqualTo false
+                actual.sismember(destinationIndex, nodeId).shouldBeFalse()
                 actual.get(sourceKey).shouldBeNull()
             } else {
                 val candidate = listed.single()
@@ -166,12 +168,12 @@ internal class MigrationRaceScenario(
                     else -> candidate shouldBeEqualTo original
                 }
                 actual.get(destination) shouldBeEqualTo LettuceCandidateInfoCodec.encode(candidate)
-                actual.sismember(destinationIndex, nodeId) shouldBeEqualTo true
+                actual.sismember(destinationIndex, nodeId).shouldBeTrue()
                 if (!isCurrentWriter(race)) {
                     val changedSource = race == MigrationRace.CHANGE_BEFORE_TTL || race == MigrationRace.CHANGE_AFTER_COPY
                     actual.get(sourceKey) shouldBeEqualTo if (changedSource) changedRaw else raw
                     actual.pttl(sourceKey) shouldBeEqualTo -1L
-                    actual.sismember(sourceIndex, nodeId) shouldBeEqualTo true
+                    actual.sismember(sourceIndex, nodeId).shouldBeTrue()
                     actual.get(token).shouldNotBeNull()
                 } else {
                     actual.get(sourceKey).shouldBeNull()
@@ -205,7 +207,7 @@ internal class MigrationRaceScenario(
                 listed.shouldBeEmpty()
                 actual.get(destination).shouldBeNull()
                 actual.get(token).shouldBeNull()
-                actual.sismember(destinationIndex, nodeId) shouldBeEqualTo false
+                actual.sismember(destinationIndex, nodeId).shouldBeFalse()
             } else if (!postCopy && ttl == 1L) {
                 // 실제 Lua의 PX 1 값은 재조회 전에 만료될 수 있다. token은 복사 성공 때만 생성된다.
                 actual.get(token).shouldNotBeNull()

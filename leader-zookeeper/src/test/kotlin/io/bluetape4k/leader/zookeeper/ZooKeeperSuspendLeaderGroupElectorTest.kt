@@ -1,18 +1,18 @@
 package io.bluetape4k.leader.zookeeper
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeLessOrEqualTo
-import io.bluetape4k.assertions.shouldBeNull
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.time.Duration.Companion.milliseconds
@@ -49,12 +49,12 @@ class ZooKeeperSuspendLeaderGroupElectorTest: AbstractZooKeeperLeaderTest() {
             )
             blockingElection.runIfLeader(lockName) {
                 acquired.countDown()
-                release.await(5, TimeUnit.SECONDS)
+                release.await(5.seconds)
             }
         }
 
         try {
-            acquired.await(2, TimeUnit.SECONDS)
+            acquired.await(2.seconds)
             val result = singleElection.runIfLeader(lockName) { "should-skip" }
             result.shouldBeNull()
         } finally {

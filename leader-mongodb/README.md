@@ -87,7 +87,7 @@ val future: CompletableFuture<String?> = election.runAsyncIfLeader(
 ) {
     futureOf { doWork() }
 }
-val result = future.get(5, TimeUnit.SECONDS)
+val result = future.get(5.seconds)
 ```
 
 ### Coroutine single-leader

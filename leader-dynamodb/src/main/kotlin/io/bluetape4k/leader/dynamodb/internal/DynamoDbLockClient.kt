@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.dynamodb.internal
 
 import io.bluetape4k.ToStringBuilder
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderLease
@@ -222,7 +224,7 @@ internal class DynamoDbLockClient(
                 if (cause is ConditionalCheckFailedException) {
                     reconcileOwnedAsync(key, ownerId)
                 } else {
-                    CompletableFuture.failedFuture(cause)
+                    failedCompletableFutureOf(cause)
                 }
             }
     }
@@ -284,9 +286,9 @@ internal class DynamoDbLockClient(
             val cause = failure.unwrapCompletion()
             if (cause is ConditionalCheckFailedException) {
                 log.warn(cause) { "DynamoDB async release ignored because owner no longer matches. key=${lock.key}" }
-                CompletableFuture.completedFuture(Unit)
+                completableFutureOf(Unit)
             } else {
-                CompletableFuture.failedFuture(cause)
+                failedCompletableFutureOf(cause)
             }
         }
     }
@@ -313,9 +315,9 @@ internal class DynamoDbLockClient(
             .exceptionallyCompose { failure ->
                 val cause = failure.unwrapCompletion()
                 if (cause is ConditionalCheckFailedException) {
-                    CompletableFuture.completedFuture(ExtendOutcome.NotHeld)
+                    completableFutureOf(ExtendOutcome.NotHeld)
                 } else {
-                    CompletableFuture.failedFuture(cause)
+                    failedCompletableFutureOf(cause)
                 }
             }
     }

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.AsyncLeaderElector
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
@@ -41,10 +42,11 @@ class LocalAsyncLeaderElector(
     ): CompletableFuture<T?> {
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
-            CompletableFuture.supplyAsync(
-                { tryWithLeaderLock(lockName, options.waitTime) { cancellationRelay.invoke(action).join() } },
-                executor,
-            ),
+            futureOf(executor) {
+                tryWithLeaderLock(lockName, options.waitTime) {
+                    cancellationRelay.invoke(action).join()
+                }
+            },
             cancellationRelay,
         )
     }
@@ -64,20 +66,17 @@ class LocalAsyncLeaderElector(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         log.debug { "runAsyncIfLeader... slot=$slot" }
-        
+
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
-            CompletableFuture.supplyAsync(
-                {
-                    tryWithLeaderLock(
-                        lockName = slot.lockName,
-                        auditLeaderId = slot.leaderId,
-                        nodeId = options.nodeId,
-                        waitTime = options.waitTime,
-                    ) { cancellationRelay.invoke(action).join() }
-                },
-                executor,
-            ),
+            futureOf(executor) {
+                tryWithLeaderLock(
+                    lockName = slot.lockName,
+                    auditLeaderId = slot.leaderId,
+                    nodeId = options.nodeId,
+                    waitTime = options.waitTime,
+                ) { cancellationRelay.invoke(action).join() }
+            },
             cancellationRelay,
         )
     }
@@ -97,24 +96,22 @@ class LocalAsyncLeaderElector(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         log.debug { "runAsyncIfLeaderResult... slot=$slot" }
-        
+
         val elected = AtomicBoolean(false)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.map(
-            CompletableFuture.supplyAsync(
-                {
-                    tryWithLeaderLock(
-                        lockName = slot.lockName,
-                        auditLeaderId = slot.leaderId,
-                        nodeId = options.nodeId,
-                        waitTime = options.waitTime,
-                    ) {
-                        elected.set(true)
-                        cancellationRelay.invoke(action).join()
-                    }
-                },
-                executor
-            ), cancellationRelay
+            futureOf(executor) {
+                tryWithLeaderLock(
+                    lockName = slot.lockName,
+                    auditLeaderId = slot.leaderId,
+                    nodeId = options.nodeId,
+                    waitTime = options.waitTime,
+                ) {
+                    elected.set(true)
+                    cancellationRelay.invoke(action).join()
+                }
+            },
+            cancellationRelay
         ) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()

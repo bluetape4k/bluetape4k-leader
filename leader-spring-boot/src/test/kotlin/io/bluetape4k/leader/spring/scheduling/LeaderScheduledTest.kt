@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.spring.scheduling
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.annotation.LeaderElection
@@ -35,8 +37,8 @@ class LeaderScheduledTest {
         election.waitTime shouldBeEqualTo "PT2S"
         election.leaseTime shouldBeEqualTo "PT30S"
         election.minLeaseTime shouldBeEqualTo "PT5S"
-        election.autoExtend shouldBeEqualTo true
-        election.streamBounded shouldBeEqualTo false
+        election.autoExtend.shouldBeTrue()
+        election.streamBounded.shouldBeFalse()
         election.bean shouldBeEqualTo "redisLeaderElectionFactory"
         election.failureMode shouldBeEqualTo LeaderAspectFailureMode.SKIP
     }

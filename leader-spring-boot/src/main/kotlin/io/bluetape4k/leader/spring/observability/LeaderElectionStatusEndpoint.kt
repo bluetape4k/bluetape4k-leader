@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.observability
 
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.support.requireNotNull
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation
@@ -143,7 +144,7 @@ private class SelectedStateLeaderElector(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> =
-        CompletableFuture.failedFuture(
+        failedCompletableFutureOf(
             UnsupportedOperationException("The observability state adapter cannot execute leader work")
         )
 }

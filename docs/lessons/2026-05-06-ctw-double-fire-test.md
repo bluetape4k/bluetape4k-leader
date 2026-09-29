@@ -32,7 +32,7 @@ double-fire 방지의 구조적 보증은 `internalAutoProxyCreator` 빈 부재�
 - 이 구조적 검증이 런타임 카운팅보다 더 안정적이다
 
 **How to apply:** CTW 모듈의 AutoConfiguration에 `@EnableAspectJAutoProxy` 미포함 검증 시
-`ctx.containsBeanDefinition("org.springframework.aop.config.internalAutoProxyCreator") shouldBeEqualTo false`
+`ctx.containsBeanDefinition("org.springframework.aop.config.internalAutoProxyCreator").shouldBeFalse()`
 하나로 충분하다.
 
 ---
@@ -46,6 +46,6 @@ double-fire 방지의 구조적 보증은 `internalAutoProxyCreator` 빈 부재�
 ### 교훈
 `LeaderElector`는 `AsyncLeaderElector`를 상속한다. anonymous object로 구현 시
 `runIfLeader`뿐 아니라 `runAsyncIfLeader`도 구현해야 한다.
-`CompletableFuture.supplyAsync({ action().join() }, executor)` 패턴으로 단순 위임 구현.
+`futureOf({ action().join() }, executor)` 패턴으로 단순 위임 구현.
 
 **How to apply:** 테스트에서 `LeaderElector` anonymous object 생성 시 두 메서드 모두 구현.

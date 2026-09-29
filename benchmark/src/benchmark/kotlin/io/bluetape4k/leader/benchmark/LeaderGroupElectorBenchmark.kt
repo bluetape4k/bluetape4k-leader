@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.benchmark
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupElector
@@ -172,7 +174,7 @@ class LeaderGroupElectorBenchmark {
                 VirtualThreadExecutor,
             )
         }
-        require(ready.await(30, TimeUnit.SECONDS)) {
+        require(ready.await(30.seconds)) {
             "Benchmark group slot holders were not ready. backend=$backend, lockName=$lockName, slots=$slots"
         }
         return BlockingSlotHolders(release, futures)
@@ -235,7 +237,7 @@ class LeaderGroupElectorBenchmark {
         holders.release.countDown()
         holders.futures.forEach { future ->
             try {
-                future.get(10, TimeUnit.SECONDS)
+                future.get(10.seconds)
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
                 log.warn(e) { "Benchmark holder cleanup was interrupted. resource=$resource, backend=$backend" }
@@ -372,7 +374,7 @@ class SuspendLeaderGroupElectorBenchmark {
                 }
             }
         }
-        require(ready.await(30, TimeUnit.SECONDS)) {
+        require(ready.await(30.seconds)) {
             "Suspend benchmark group slot holders were not ready. backend=$backend, lockName=$lockName, slots=$slots"
         }
         return SuspendSlotHolders(release, jobs)

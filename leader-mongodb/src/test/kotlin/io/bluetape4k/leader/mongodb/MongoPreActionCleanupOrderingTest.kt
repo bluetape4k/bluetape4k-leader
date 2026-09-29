@@ -9,6 +9,8 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.mockk.every
 import io.mockk.mockk
@@ -22,7 +24,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executor
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 class MongoPreActionCleanupOrderingTest {
 
@@ -40,13 +42,13 @@ class MongoPreActionCleanupOrderingTest {
             collection.findOneAndUpdate(any<Bson>(), any<Bson>(), any<FindOneAndUpdateOptions>())
         } answers {
             acquired.countDown()
-            allowAcquisition.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            allowAcquisition.await(5.seconds).shouldBeTrue()
             val update = secondArg<Bson>().toBsonDocument(Document::class.java, collectionCodecRegistry)
             Document("token", update.getDocument("\$set").getString("token").value)
         }
         every { collection.deleteOne(any<Bson>()) } answers {
             cleanupStarted.countDown()
-            allowCleanup.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            allowCleanup.await(5.seconds).shouldBeTrue()
             DeleteResult.acknowledged(1)
         }
         val rejection = RejectedExecutionException("action submission rejected")
@@ -63,12 +65,12 @@ class MongoPreActionCleanupOrderingTest {
             } else {
                 MongoLeaderElector(collection).runAsyncIfLeader("job", executor, action)
             }
-            acquired.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            acquired.await(5.seconds).shouldBeTrue()
             allowAcquisition.countDown()
-            cleanupStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            cleanupStarted.await(5.seconds).shouldBeTrue()
             result.isDone.shouldBeFalse()
             allowCleanup.countDown()
-            val failure = assertFailsWith<ExecutionException> { result.get(5, TimeUnit.SECONDS) }
+            val failure = assertFailsWith<ExecutionException> { result.get(5.seconds) }
             (failure.cause === rejection).shouldBeTrue()
             verify(exactly = 1) { collection.deleteOne(any<Bson>()) }
         } finally {

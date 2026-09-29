@@ -16,6 +16,9 @@ import org.awaitility.kotlin.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -269,13 +272,13 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         }
         try {
             worker.start()
-            started.await(1, TimeUnit.SECONDS) shouldBeEqualTo true
-            completed.await(200, TimeUnit.MILLISECONDS) shouldBeEqualTo false
+            started.await(1.seconds).shouldBeTrue()
+            completed.await(200, TimeUnit.MILLISECONDS).shouldBeFalse()
         } finally {
             entryLock.unlock()
         }
 
-        completed.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+        completed.await(2.seconds).shouldBeTrue()
         worker.join(2_000)
         node1.listCandidates(lockName).first().metadata shouldBeEqualTo mapOf("heartbeat" to "new")
     }

@@ -2,17 +2,19 @@ package io.bluetape4k.leader.mongodb
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import org.junit.jupiter.api.Test
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -37,13 +39,13 @@ class MongoExecutorRejectionLifecycleTest: AbstractMongoLeaderTest() {
 
             val rejected = election.runAsyncIfLeader(lockName, rejectingExecutor.executor) {
                 actionInvoked.set(true)
-                CompletableFuture.completedFuture("must-not-run")
+                completableFutureOf("must-not-run")
             }
             val failure = assertFailsWith<CompletionException> { rejected.join() }
 
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             rejectingExecutor.submissions.get() shouldBeEqualTo 2
-            actionInvoked.get() shouldBeEqualTo false
+            actionInvoked.get().shouldBeFalse()
             election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
         } finally {
             rejectingExecutor.close()
@@ -71,13 +73,13 @@ class MongoExecutorRejectionLifecycleTest: AbstractMongoLeaderTest() {
 
             val rejected = election.runAsyncIfLeader(lockName, rejectingExecutor.executor) {
                 actionInvoked.set(true)
-                CompletableFuture.completedFuture("must-not-run")
+                completableFutureOf("must-not-run")
             }
             val failure = assertFailsWith<CompletionException> { rejected.join() }
 
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             rejectingExecutor.submissions.get() shouldBeEqualTo 2
-            actionInvoked.get() shouldBeEqualTo false
+            actionInvoked.get().shouldBeFalse()
             election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
         } finally {
             rejectingExecutor.close()
@@ -101,12 +103,12 @@ class MongoExecutorRejectionLifecycleTest: AbstractMongoLeaderTest() {
         val executor: Executor,
         private val worker: java.util.concurrent.ExecutorService,
         val submissions: AtomicInteger,
-    ) : AutoCloseable {
+    ): AutoCloseable {
 
         fun prime() {
             val primed = CountDownLatch(1)
             executor.execute { primed.countDown() }
-            primed.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+            primed.await(2.seconds).shouldBeTrue()
         }
 
         override fun close() {

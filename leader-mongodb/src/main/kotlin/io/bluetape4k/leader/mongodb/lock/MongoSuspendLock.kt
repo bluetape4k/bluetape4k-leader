@@ -14,8 +14,8 @@ import com.mongodb.client.model.Updates
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
-import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.mongodb.internal.MonotonicDeadline
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
@@ -25,12 +25,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import org.bson.Document
 import java.time.Instant
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -46,7 +45,7 @@ class MongoSuspendLock private constructor(
     val lockKey: String,
     private val retryDelay: Duration,
 ) {
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
         private val ensuredNamespaces: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
         /**
@@ -120,7 +119,7 @@ class MongoSuspendLock private constructor(
                         log.error(e) { "MongoDB 인증 오류 (code=${e.errorCode}) 발생: lockKey=$lockKey" }
                         return false
                     }
-                    else -> {
+                    else  -> {
                         log.warn(e) { "MongoDB 커맨드 오류 (code=${e.errorCode}) 발생: lockKey=$lockKey" }
                         return false
                     }

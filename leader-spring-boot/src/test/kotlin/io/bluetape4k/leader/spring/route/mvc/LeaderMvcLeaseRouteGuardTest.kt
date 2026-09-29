@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.local.LocalLeaderElector
@@ -13,17 +14,12 @@ import io.bluetape4k.leader.spring.route.LeaderRouteAuthority
 import io.bluetape4k.leader.spring.route.LeaderRouteAuthorityRuntime
 import io.bluetape4k.leader.spring.route.LeaderRouteDecision
 import io.bluetape4k.leader.spring.route.LeaderRouteLeaseRuntime
-import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.HttpServletResponse
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -57,7 +53,7 @@ class LeaderMvcLeaseRouteGuardTest {
             completed.countDown()
         }
         completionThread.start()
-        completed.await(2, TimeUnit.SECONDS).shouldBeTrue()
+        completed.await(2.seconds).shouldBeTrue()
         completionThread.join()
         awaitLeaseRelease(elector)
 

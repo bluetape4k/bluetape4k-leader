@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.examples.webhook
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.idgenerators.uuid.Uuid
 import io.mockk.every
@@ -46,7 +47,7 @@ class WebhookPollerDemoEventIdTest {
         allEventIds shouldHaveSize eventsPerRun * 2
         allEventIds.toSet() shouldHaveSize eventsPerRun * 2
         allEventIds.forEach { eventId ->
-            eventId.startsWith("evt-1-") shouldBeEqualTo true
+            eventId.startsWith("evt-1-").shouldBeTrue()
             val uuidText = eventId.removePrefix("evt-1-")
             val parsed = UUID.fromString(uuidText)
             uuidText shouldBeEqualTo parsed.toString()

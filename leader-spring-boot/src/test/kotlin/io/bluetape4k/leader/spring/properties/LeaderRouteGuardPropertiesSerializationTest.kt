@@ -1,7 +1,9 @@
 package io.bluetape4k.leader.spring.properties
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -37,7 +39,7 @@ class LeaderRouteGuardPropertiesSerializationTest {
             LeaderRouteRejectionStatus::class.java,
         ).invoke(original, false, LeaderRouteAuthorityMode.STATE, "", LeaderRouteRejectionStatus.NOT_FOUND)
             .shouldBeInstanceOf<LeaderRouteGuardProperties>()
-        copy.enabled shouldBeEqualTo false
+        copy.enabled.shouldBeFalse()
         copy.authorityMode shouldBeEqualTo LeaderRouteAuthorityMode.STATE
         copy.rejectionStatus shouldBeEqualTo LeaderRouteRejectionStatus.NOT_FOUND
         copy.redirect shouldBeEqualTo LeaderRouteRedirectProperties()
@@ -53,7 +55,7 @@ class LeaderRouteGuardPropertiesSerializationTest {
             Any::class.java,
         ).invoke(null, original, false, null, null, null, 0b1110, null)
             .shouldBeInstanceOf<LeaderRouteGuardProperties>()
-        copyDefault.enabled shouldBeEqualTo false
+        copyDefault.enabled.shouldBeFalse()
         copyDefault.authorityMode shouldBeEqualTo original.authorityMode
         copyDefault.electorBean shouldBeEqualTo original.electorBean
         copyDefault.rejectionStatus shouldBeEqualTo original.rejectionStatus
@@ -73,7 +75,7 @@ class LeaderRouteGuardPropertiesSerializationTest {
 
         val restored = roundTrip(legacyShape)
 
-        restored.enabled shouldBeEqualTo true
+        restored.enabled.shouldBeTrue()
         restored.authorityMode shouldBeEqualTo LeaderRouteAuthorityMode.CUSTOM
         restored.electorBean shouldBeEqualTo "ordersAuthority"
         restored.rejectionStatus shouldBeEqualTo LeaderRouteRejectionStatus.LOCKED

@@ -2,6 +2,7 @@
 
 package io.bluetape4k.leader.audit.http
 
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.audit.LeaderAuditDelivery
 import io.bluetape4k.leader.audit.LeaderAuditDeliveryResult
 import io.bluetape4k.leader.audit.LeaderAuditExportEvent
@@ -89,7 +90,7 @@ internal class HttpLeaderAuditDelivery(
             throw e
         } catch (e: Exception) {
             log.warn { "Leader audit HTTP request failed before enqueue; delivery classification applied" }
-            return CompletableFuture.completedFuture(classifySynchronousFailure(e))
+            return completableFutureOf(classifySynchronousFailure(e))
         }
 
         val result = CompletableFuture<LeaderAuditDeliveryResult>()
@@ -125,7 +126,7 @@ internal class HttpLeaderAuditDelivery(
     }
 
     private fun terminalFailure(): CompletableFuture<LeaderAuditDeliveryResult> =
-        CompletableFuture.completedFuture(LeaderAuditDeliveryResult.TERMINAL_FAILURE)
+        completableFutureOf(LeaderAuditDeliveryResult.TERMINAL_FAILURE)
 
     private fun buildRequest(payload: LeaderAuditHttpPayload, body: ByteArray): HttpRequest {
         val builder = HttpRequest.newBuilder(endpoint.uri)

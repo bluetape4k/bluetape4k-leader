@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.internal
 
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
@@ -98,7 +99,8 @@ object LeaderFutureBridge {
     fun <T> propagateCancellation(
         source: CompletableFuture<T>,
         cancellationRelay: CancellationRelay,
-    ): CompletableFuture<T> = mirror(source, source, cancellationRelay::cancel)
+    ): CompletableFuture<T> =
+        mirror(source, source, cancellationRelay::cancel)
 
     private fun <T> mirror(
         source: CompletableFuture<T>,
@@ -143,7 +145,7 @@ object LeaderFutureBridge {
          */
         fun <T> invoke(action: () -> CompletableFuture<T>): CompletableFuture<T> {
             if (!state.compareAndSet(State.READY, State.INVOKED)) {
-                return CompletableFuture.failedFuture(CancellationException("leader result future was cancelled"))
+                return failedCompletableFutureOf(CancellationException("leader result future was cancelled"))
             }
             return action().also { future ->
                 actionFuture.set(future)

@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldBeEmpty
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
@@ -29,6 +30,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * 각 테스트가 전용 Cluster를 소유한다. 공유 Launcher에는 장애를 주입하지 않는다.
@@ -207,7 +209,8 @@ class LettuceRedisClusterRecoveryTest {
             actualImage shouldBeEqualTo server.dockerClient.inspectImageCmd(image).exec().id
             evidence += "image_id=$actualImage;endpoints=${server.properties()["nodes"]}"
             val resources = RedisClusterServer.Launcher.LettuceLib.clientResources(server)
-            AutoCloseable { resources.shutdown().get(10, TimeUnit.SECONDS) }.use {
+
+            AutoCloseable { resources.shutdown().get(10.seconds) }.use {
                 RedisClusterClient.create(resources, server.mappedPorts.values.map {
                     RedisURI.create(server.host, it).apply { timeout = Duration.ofSeconds(1) }
                 }).use { client ->

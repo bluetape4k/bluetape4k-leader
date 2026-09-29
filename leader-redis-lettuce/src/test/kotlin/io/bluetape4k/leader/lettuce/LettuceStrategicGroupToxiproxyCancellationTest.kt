@@ -8,6 +8,7 @@ import eu.rekawek.toxiproxy.model.Toxic
 import eu.rekawek.toxiproxy.model.ToxicDirection
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.testcontainers.ReadinessEndpoint
 import io.bluetape4k.leader.testcontainers.readinessBoundaryWaitStrategy
@@ -70,7 +71,7 @@ class LettuceStrategicGroupToxiproxyCancellationTest {
                         assertFailsWith<CancellationException> { deferred.await() }
                     }
 
-                    actionInvoked.isCompleted shouldBeEqualTo false
+                    actionInvoked.isCompleted.shouldBeFalse()
                 } finally {
                     removeToxic(toxic)
                 }

@@ -2,6 +2,7 @@ package io.bluetape4k.leader.examples.virtualthread
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds
@@ -20,7 +21,7 @@ class VirtualThreadLeaderRunnerTest {
         report.skippedCount shouldBeEqualTo 63
         report.nodeReports
             .single { it.status == VirtualThreadNodeStatus.ELECTED }
-            .ranOnVirtualThread shouldBeEqualTo true
+            .ranOnVirtualThread.shouldBeTrue()
     }
 
     @Test

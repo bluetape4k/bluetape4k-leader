@@ -6,15 +6,15 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.audit.LeaderAuditExportEvent
 import io.bluetape4k.leader.audit.LeaderAuditExportObserver
 import io.bluetape4k.leader.audit.LeaderAuditExportSnapshot
 import io.bluetape4k.leader.audit.LeaderAuditExporter
 import io.bluetape4k.leader.audit.LeaderAuditSubmitResult
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
-import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.micrometer.MicrometerNames
-import io.bluetape4k.leader.micrometer.audit.MicrometerLeaderAuditExporterJavaContractTest
 import io.micrometer.core.instrument.FunctionCounter
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.Meter
@@ -27,13 +27,14 @@ import java.lang.reflect.Modifier
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
-import java.util.ArrayDeque
-import java.util.IdentityHashMap
+import java.util.*
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.ToDoubleFunction
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class MicrometerLeaderAuditExporterTest {
 
@@ -67,7 +68,15 @@ class MicrometerLeaderAuditExporterTest {
             meter.id.tags.filter { it.key == MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME }
                 .map { it.value }
         }.toSet()
-        outcomeValues shouldBeEqualTo setOf("accepted", "queue_full", "closed", "retry", "failure", "cancelled", "rejected")
+        outcomeValues shouldBeEqualTo setOf(
+            "accepted",
+            "queue_full",
+            "closed",
+            "retry",
+            "failure",
+            "cancelled",
+            "rejected"
+        )
         auditMeters.flatMap { it.id.tags }.none { tag ->
             tag.key == "source" || tag.key == "transport" || tag.key == "lock.name" || tag.key == "endpoint"
         }.shouldBeTrue()
@@ -166,7 +175,7 @@ class MicrometerLeaderAuditExporterTest {
 
         submitThread.start()
 
-        finished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        finished.await(1.seconds).shouldBeTrue()
         val thrown = failure.get().shouldNotBeNull()
         thrown.shouldBeInstanceOf<IllegalStateException>()
         thrown.message shouldBeEqualTo "close() cannot be called reentrantly from a delegate lifecycle callback"
@@ -202,7 +211,7 @@ class MicrometerLeaderAuditExporterTest {
 
         closeThread.start()
 
-        finished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        finished.await(1.seconds).shouldBeTrue()
         val thrown = failure.get().shouldNotBeNull()
         thrown.shouldBeInstanceOf<IllegalStateException>()
         thrown.message shouldBeEqualTo "snapshot() cannot be called reentrantly from a delegate close callback"
@@ -270,17 +279,17 @@ class MicrometerLeaderAuditExporterTest {
         }
 
         snapshotThread.start()
-        snapshotEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        snapshotEntered.await(1.seconds).shouldBeTrue()
         closeThread.start()
         try {
-            closeFinished.await(200, TimeUnit.MILLISECONDS).shouldBeFalse()
+            closeFinished.await(200.milliseconds).shouldBeFalse()
             delegate.closeCount shouldBeEqualTo 0
         } finally {
             snapshotRelease.countDown()
         }
 
-        snapshotFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
-        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        snapshotFinished.await(1.seconds).shouldBeTrue()
+        closeFinished.await(1.seconds).shouldBeTrue()
         snapshotThread.join(1_000)
         closeThread.join(1_000)
         exporter.snapshot().closed.shouldBeTrue()
@@ -306,13 +315,13 @@ class MicrometerLeaderAuditExporterTest {
             closeFinished.countDown()
         }
         submitThread.start()
-        entered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        entered.await(1.seconds).shouldBeTrue()
         closeThread.start()
         delegate.closeCount shouldBeEqualTo 0
 
         release.countDown()
-        submitFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
-        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        submitFinished.await(1.seconds).shouldBeTrue()
+        closeFinished.await(1.seconds).shouldBeTrue()
         submitThread.join(1_000)
         closeThread.join(1_000)
         delegate.closeCount shouldBeEqualTo 1
@@ -334,12 +343,12 @@ class MicrometerLeaderAuditExporterTest {
             closeFinished.countDown()
         }
         closeThread.start()
-        closeEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeEntered.await(1.seconds).shouldBeTrue()
 
         exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.DROPPED_CLOSED
 
         closeRelease.countDown()
-        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeFinished.await(1.seconds).shouldBeTrue()
         closeThread.join(1_000)
     }
 
@@ -438,7 +447,7 @@ class MicrometerLeaderAuditExporterTest {
             }
         }
         construction.start()
-        closeEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeEntered.await(1.seconds).shouldBeTrue()
 
         assertFailsWith<IllegalStateException> {
             MicrometerLeaderAuditExporter(delegate, secondRegistry)
@@ -604,7 +613,7 @@ class MicrometerLeaderAuditExporterTest {
         val source = Files.readString(
             Path.of(
                 "src/main/kotlin/" +
-                    "io/bluetape4k/leader/micrometer/audit/MicrometerLeaderAuditExporter.kt",
+                        "io/bluetape4k/leader/micrometer/audit/MicrometerLeaderAuditExporter.kt",
             ),
         )
         val comparison = source
@@ -679,12 +688,12 @@ class MicrometerLeaderAuditExporterTest {
             exporter.close()
             closeFinished.countDown()
         }.start()
-        closeEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeEntered.await(1.seconds).shouldBeTrue()
 
         accepted.count() shouldBeEqualTo 100.0
 
         closeRelease.countDown()
-        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeFinished.await(1.seconds).shouldBeTrue()
     }
 
     @Test
@@ -822,7 +831,7 @@ class MicrometerLeaderAuditExporterTest {
             exporter.close()
             closeFinished.countDown()
         }.start()
-        closeEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeEntered.await(1.seconds).shouldBeTrue()
 
         registry.remove(owned)
         registry.counter(
@@ -834,7 +843,7 @@ class MicrometerLeaderAuditExporterTest {
 
         delegate.setSnapshot(snapshot(accepted = 200))
         closeRelease.countDown()
-        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeFinished.await(1.seconds).shouldBeTrue()
         owned.count() shouldBeEqualTo 110.0
     }
 
@@ -962,7 +971,7 @@ class MicrometerLeaderAuditExporterTest {
 
     private class SnapshotExporter(
         initialSnapshot: LeaderAuditExportSnapshot,
-    ) : LeaderAuditExporter {
+    ): LeaderAuditExporter {
         private val current = AtomicReference(initialSnapshot)
         private val snapshotFailure = AtomicReference<Throwable?>(null)
         private val nextSnapshot = AtomicReference<(() -> LeaderAuditExportSnapshot)?>(null)
@@ -983,7 +992,7 @@ class MicrometerLeaderAuditExporterTest {
                 LeaderAuditSubmitResult.DROPPED_CLOSED
             } else {
                 submitEntered?.countDown()
-                submitRelease?.await(5, TimeUnit.SECONDS)
+                submitRelease?.await(5.seconds)
                 submitAction.get()?.invoke()
                 LeaderAuditSubmitResult.ACCEPTED
             }
@@ -1015,7 +1024,7 @@ class MicrometerLeaderAuditExporterTest {
         fun blockNextSnapshot(entered: CountDownLatch, release: CountDownLatch) {
             nextSnapshot.set {
                 entered.countDown()
-                release.await(5, TimeUnit.SECONDS)
+                release.await(5.seconds)
                 current.get()
             }
         }
@@ -1040,7 +1049,7 @@ class MicrometerLeaderAuditExporterTest {
 
         override fun close() {
             closeEntered?.countDown()
-            closeRelease?.await(5, TimeUnit.SECONDS)
+            closeRelease?.await(5.seconds)
             closeCount++
             closed = true
             closeAction.get()?.invoke()
@@ -1050,7 +1059,7 @@ class MicrometerLeaderAuditExporterTest {
 
     private class FailingMeterRegistry(
         private val failOnSuccessfulAttempt: Int,
-    ) : SimpleMeterRegistry() {
+    ): SimpleMeterRegistry() {
         private var failRegistration = true
         private val successfulIds = mutableSetOf<Meter.Id>()
         var duplicateRegistrationIds: Int = 0
@@ -1058,7 +1067,7 @@ class MicrometerLeaderAuditExporterTest {
         var removeCalls: Int = 0
             private set
 
-        override fun <T : Any> newFunctionCounter(
+        override fun <T: Any> newFunctionCounter(
             id: Meter.Id,
             obj: T,
             countFunction: ToDoubleFunction<T>,
@@ -1070,7 +1079,7 @@ class MicrometerLeaderAuditExporterTest {
             return super.newFunctionCounter(id, obj, countFunction)
         }
 
-        override fun <T : Any> newGauge(
+        override fun <T: Any> newGauge(
             id: Meter.Id,
             obj: T?,
             valueFunction: ToDoubleFunction<T>,
@@ -1117,7 +1126,7 @@ class MicrometerLeaderAuditExporterTest {
             when (root) {
                 is Map<*, *> -> return root.entries.any { entry ->
                     containsStrongReference(entry.key, target, visited) ||
-                        containsStrongReference(entry.value, target, visited)
+                            containsStrongReference(entry.value, target, visited)
                 }
                 is Iterable<*> -> return root.any { containsStrongReference(it, target, visited) }
                 is Array<*> -> return root.any { containsStrongReference(it, target, visited) }

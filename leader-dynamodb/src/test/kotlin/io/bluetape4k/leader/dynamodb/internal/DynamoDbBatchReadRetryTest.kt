@@ -2,6 +2,8 @@ package io.bluetape4k.leader.dynamodb.internal
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.completableFutureOf
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
@@ -13,7 +15,6 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes
-import java.util.concurrent.CompletableFuture
 
 class DynamoDbBatchReadRetryTest {
 
@@ -31,7 +32,7 @@ class DynamoDbBatchReadRetryTest {
         }
         every { syncClient.batchGetItem(any<BatchGetItemRequest>()) } answers { respond(firstArg()) }
         every { asyncClient.batchGetItem(any<BatchGetItemRequest>()) } answers {
-            CompletableFuture.completedFuture(respond(firstArg()))
+            completableFutureOf(respond(firstArg()))
         }
         val client = DynamoDbLockClient(
             "leader-locks",
@@ -88,7 +89,7 @@ class DynamoDbBatchReadRetryTest {
         val leases = client.activeGroupLeases("group#slot-", 101)
         leases.map { it.slot } shouldBeEqualTo listOf(0)
         requests.map { it.requestItems().getValue("leader-locks").keys().size } shouldBeEqualTo listOf(100, 1, 1)
-        requests.all { it.requestItems().getValue("leader-locks").consistentRead() } shouldBeEqualTo true
+        requests.all { it.requestItems().getValue("leader-locks").consistentRead() }.shouldBeTrue()
     }
 
     @Test
@@ -101,7 +102,7 @@ class DynamoDbBatchReadRetryTest {
         }
 
         val failure = assertFailsWith<InterruptedException> { client.activeGroupLeases("group#slot-", 1) }
-        (failure === interruption) shouldBeEqualTo true
+        (failure === interruption).shouldBeTrue()
         calls shouldBeEqualTo 1
     }
 
@@ -114,7 +115,7 @@ class DynamoDbBatchReadRetryTest {
         val asyncClient = mockk<DynamoDbAsyncClient>()
         every { syncClient.batchGetItem(any<BatchGetItemRequest>()) } answers { respond(firstArg()) }
         every { asyncClient.batchGetItem(any<BatchGetItemRequest>()) } answers {
-            CompletableFuture.completedFuture(respond(firstArg()))
+            completableFutureOf(respond(firstArg()))
         }
         return DynamoDbLockClient(
             "leader-locks",

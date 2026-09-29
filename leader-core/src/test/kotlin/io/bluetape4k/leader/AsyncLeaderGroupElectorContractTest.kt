@@ -11,6 +11,7 @@ import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.local.LocalAsyncLeaderGroupElector
 import io.bluetape4k.leader.local.LocalLeaderGroupElector
@@ -175,7 +176,7 @@ class AsyncLeaderGroupElectorContractTest {
 
         val futures = List(numTasks) {
             election.runAsyncIfLeader(lockName) {
-                CompletableFuture.supplyAsync {
+                futureOf {
                     val current = currentConcurrent.incrementAndGet()
                     peakConcurrent.updateAndGet { max(it, current) }
                     Thread.sleep(Random.nextLong(5, 15))

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -45,8 +46,8 @@ class RedissonLeaderElector private constructor(
     private val redissonClient: RedissonClient,
     private val options: LeaderElectionOptions,
 ): LeaderElector,
-    LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient),
-    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient),
+   io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
 
     override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
         io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options)
@@ -197,8 +198,8 @@ class RedissonLeaderElector private constructor(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                elected.get()   -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else            -> LeaderRunResult.Skipped
             }
         }
     }
@@ -232,7 +233,7 @@ class RedissonLeaderElector private constructor(
                 .thenComposeAsync({ acquired ->
                     if (acquired) {
                         if (!rejectionCleanup.markLifecycleStarted()) {
-                            CompletableFuture.failedFuture(
+                            failedCompletableFutureOf(
                                 CancellationException("leader action was cancelled before start"),
                             )
                         } else try {
@@ -249,11 +250,11 @@ class RedissonLeaderElector private constructor(
                                 .handle { _, releaseError ->
                                     if (releaseError != null) error.addSuppressed(releaseError.unwrapCompletionCause())
                                 }
-                                .thenCompose { CompletableFuture.failedFuture(error) }
+                                .thenCompose { failedCompletableFutureOf(error) }
                         }
                     } else {
                         log.debug { "Leader 승격 실패 (슬롯 없음). lock=$lockName" }
-                        CompletableFuture.completedFuture(null)
+                        completableFutureOf(null)
                     }
                 }, executor)
             acquisitionFuture.whenComplete { acquired, _ ->
@@ -267,7 +268,7 @@ class RedissonLeaderElector private constructor(
                 if (failure != null) {
                     rejectionCleanup.release(failure.unwrapCompletionCause())
                 } else {
-                    CompletableFuture.completedFuture(value)
+                    completableFutureOf(value)
                 }
             }
 
@@ -297,7 +298,7 @@ class RedissonLeaderElector private constructor(
 
         fun <T> release(failure: Throwable): CompletableFuture<T?> {
             if (!acquired.get() || !lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                return CompletableFuture.failedFuture(failure)
+                return failedCompletableFutureOf(failure)
             }
             return releaseAcquiredLockAsync(lock, currentThreadId, acquiredAtNanos)
                 .exceptionally { releaseError ->
@@ -305,7 +306,7 @@ class RedissonLeaderElector private constructor(
                         "Fail to release lock after executor rejection. lock=${lock.name}, threadId=$currentThreadId"
                     }
                 }
-                .thenCompose { CompletableFuture.failedFuture(failure) }
+                .thenCompose { failedCompletableFutureOf(failure) }
         }
     }
 
@@ -405,14 +406,14 @@ class RedissonLeaderElector private constructor(
                     }
                     .thenCompose {
                         if (error != null) {
-                            CompletableFuture.failedFuture(error)
+                            failedCompletableFutureOf(error)
                         } else if (closeFailure != null) {
-                            CompletableFuture.failedFuture(closeFailure)
+                            failedCompletableFutureOf(closeFailure)
                         } else {
-                            CompletableFuture.completedFuture(value)
+                            completableFutureOf(value)
                         }
                     }
-                }
+            }
     }
 
     private fun releaseLockAsync(lock: RLock, currentThreadId: Long, acquiredAtNanos: Long): CompletableFuture<Unit> {
@@ -421,7 +422,7 @@ class RedissonLeaderElector private constructor(
                 if (held) {
                     releaseAcquiredLockAsync(lock, currentThreadId, acquiredAtNanos)
                 } else {
-                    CompletableFuture.completedFuture(Unit)
+                    completableFutureOf(Unit)
                 }
             }
         } catch (e: Throwable) {

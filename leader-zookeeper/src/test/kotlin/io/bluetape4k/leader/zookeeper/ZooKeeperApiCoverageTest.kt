@@ -3,6 +3,7 @@ package io.bluetape4k.leader.zookeeper
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import kotlinx.coroutines.test.runTest
@@ -25,10 +26,10 @@ class ZooKeeperApiCoverageTest: AbstractZooKeeperLeaderTest() {
         } shouldBeEqualTo "blocking-typed"
 
         curator.runAsyncIfLeader("${lockName}-async") {
-            CompletableFuture.completedFuture("async")
+            completableFutureOf("async")
         }.join() shouldBeEqualTo "async"
         curator.runAsyncIfLeader(ZooKeeperElectionPath.single("${lockName}-async-typed")) {
-            CompletableFuture.completedFuture("async-typed")
+            completableFutureOf("async-typed")
         }.join() shouldBeEqualTo "async-typed"
 
         curator.runIfLeaderGroup(groupName, groupOptions) { "group" } shouldBeEqualTo "group"
@@ -37,10 +38,10 @@ class ZooKeeperApiCoverageTest: AbstractZooKeeperLeaderTest() {
         } shouldBeEqualTo "group-typed"
 
         curator.runAsyncIfLeaderGroup("${groupName}-async", options = groupOptions) {
-            CompletableFuture.completedFuture("group-async")
+            completableFutureOf("group-async")
         }.join() shouldBeEqualTo "group-async"
         curator.runAsyncIfLeaderGroup(ZooKeeperElectionPath.group("${groupName}-async-typed"), options = groupOptions) {
-            CompletableFuture.completedFuture("group-async-typed")
+            completableFutureOf("group-async-typed")
         }.join() shouldBeEqualTo "group-async-typed"
 
         curator.suspendRunIfLeader("${lockName}-suspend") { "suspend" } shouldBeEqualTo "suspend"

@@ -6,7 +6,10 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionException
@@ -16,7 +19,6 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
@@ -24,7 +26,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -171,18 +172,18 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
             val holder = executor.submit<String?> {
                 election.runIfLeader(lockName) {
                     started.countDown()
-                    release.await(1, TimeUnit.SECONDS)
+                    release.await(1.seconds)
                     "holder"
                 }
             }
 
-            started.await(1, TimeUnit.SECONDS)
+            started.await(1.seconds)
             Thread.sleep(450)
 
             election.runIfLeader(lockName) { "contender" }.shouldBeNull()
 
             release.countDown()
-            holder.get(2, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+            holder.get(2.seconds) shouldBeEqualTo "holder"
             election.runIfLeader(lockName) { "after-release" } shouldBeEqualTo "after-release"
         } finally {
             release.countDown()
@@ -256,7 +257,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
 
         val result = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
             futureOf { "async 성공" }
-        }.get(5, TimeUnit.SECONDS)
+        }.get(5.seconds)
 
         result shouldBeEqualTo "async 성공"
     }
@@ -280,12 +281,12 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
 
         try {
             val contender = election.runAsyncIfLeader(lockName, executor) {
-                CompletableFuture.completedFuture("unexpected")
+                completableFutureOf("unexpected")
             }
-            val marker = CompletableFuture.supplyAsync({ "executor-free" }, executor)
+            val marker = futureOf(executor) { "executor-free" }
 
             marker.get(300, TimeUnit.MILLISECONDS) shouldBeEqualTo "executor-free"
-            contender.get(2, TimeUnit.SECONDS).shouldBeNull()
+            contender.get(2.seconds).shouldBeNull()
         } finally {
             holderLock.unlock()
             executor.shutdownNow()
@@ -329,12 +330,12 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
             executor.shutdown()
 
             actionFuture.complete("done")
 
-            resultFuture.get(3, TimeUnit.SECONDS) shouldBeEqualTo "done"
+            resultFuture.get(3.seconds) shouldBeEqualTo "done"
             election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             executor.shutdownNow()
@@ -353,7 +354,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
 
             resultFuture.cancel(false).shouldBeTrue()
 
@@ -409,7 +410,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
 
         election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
             futureOf { "ok" }
-        }.get(5, TimeUnit.SECONDS) shouldBeEqualTo "ok"
+        }.get(5.seconds) shouldBeEqualTo "ok"
 
         lockCollection.countDocuments(Filters.eq("_id", lockName)) shouldBeEqualTo 0L
     }

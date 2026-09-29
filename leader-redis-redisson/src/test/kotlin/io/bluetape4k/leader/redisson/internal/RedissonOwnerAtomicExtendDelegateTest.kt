@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.redisson.internal
 
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.redisson.AbstractRedissonLeaderTest
@@ -15,7 +16,6 @@ import org.redisson.api.RKeys
 import org.redisson.api.RScript
 import org.redisson.api.RedissonClient
 import org.redisson.client.codec.StringCodec
-import java.util.concurrent.CompletableFuture
 import kotlin.time.Duration.Companion.seconds
 
 class RedissonOwnerAtomicExtendDelegateTest: AbstractRedissonLeaderTest() {
@@ -64,9 +64,9 @@ class RedissonOwnerAtomicExtendDelegateTest: AbstractRedissonLeaderTest() {
         val ownerId = 202L
         val lock = AbstractRedissonLeaderTest.redissonClient.getLock(lockName)
 
-        every { scriptResult.toCompletableFuture() } returns CompletableFuture.completedFuture(
-            RedissonOwnerAtomicExtend.NOT_HELD_RESULT,
-        )
+        every {
+            scriptResult.toCompletableFuture()
+        } returns completableFutureOf(RedissonOwnerAtomicExtend.NOT_HELD_RESULT)
         every {
             script.evalAsync<Long>(
                 lockName,

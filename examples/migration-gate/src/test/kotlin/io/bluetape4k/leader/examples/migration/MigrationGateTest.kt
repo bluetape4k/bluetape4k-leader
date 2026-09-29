@@ -2,7 +2,10 @@ package io.bluetape4k.leader.examples.migration
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.core.eq
@@ -117,7 +120,7 @@ class MigrationGateTest: AbstractMigrationGateTest() {
                         },
                     )
                 }
-            }.map { it.get(15, TimeUnit.SECONDS) }
+            }.map { it.get(15.seconds) }
 
             migrated.get() shouldBeEqualTo 1
             outcomes.count { it is Outcome.Migrated } shouldBeEqualTo 1
@@ -142,7 +145,7 @@ class MigrationGateTest: AbstractMigrationGateTest() {
         )
         outcome1.shouldBeInstanceOf<Outcome.Failed>()
         outcome1.cause.shouldBeInstanceOf<IllegalStateException>()
-        isApplied(db, migrationId) shouldBeEqualTo false
+        isApplied(db, migrationId).shouldBeFalse()
 
         // 차순위 인스턴스 takeover — 락이 해제되어 새로 획득 가능
         val migrated = AtomicInteger(0)
@@ -184,13 +187,13 @@ class MigrationGateTest: AbstractMigrationGateTest() {
                     isApplied = { isApplied(db, migrationId) },
                     migration = {
                         leaderStarted.countDown()
-                        leaderRelease.await(10, TimeUnit.SECONDS)
+                        leaderRelease.await(10.seconds)
                         // 마커 안 만들고 종료 — 후속 인스턴스가 Skipped 받도록
                     },
                 )
             }
 
-            leaderStarted.await(10, TimeUnit.SECONDS)
+            leaderStarted.await(10.seconds)
 
             // 비리더는 짧은 waitTime — 락 못 잡고 마커도 없음 → Skipped
             val followerOutcome = MigrationGate(
@@ -207,7 +210,7 @@ class MigrationGateTest: AbstractMigrationGateTest() {
             )
 
             leaderRelease.countDown()
-            leaderFuture.get(15, TimeUnit.SECONDS)
+            leaderFuture.get(15.seconds)
 
             followerOutcome.shouldBeInstanceOf<Outcome.Skipped>()
         } finally {

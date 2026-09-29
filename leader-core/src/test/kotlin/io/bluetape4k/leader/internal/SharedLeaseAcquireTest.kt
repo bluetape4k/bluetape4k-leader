@@ -149,7 +149,7 @@ class SharedLeaseAcquireTest {
         future.get(1.seconds).shouldBeNull()
         shared.activeAttempts shouldBeEqualTo 0
         allowBackend.countDown()
-        scheduler.awaitIdle(1.seconds) shouldBeEqualTo true
+        scheduler.awaitIdle(1.seconds).shouldBeTrue()
         scheduler.close()
     }
 

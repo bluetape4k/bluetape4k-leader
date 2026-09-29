@@ -5,6 +5,9 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
@@ -238,7 +241,7 @@ class LeaderElectionListenerTest {
         }
 
         val result = election.runAsyncIfLeader("decorated-async-flow-job", executor) {
-            CompletableFuture.completedFuture("done")
+            completableFutureOf("done")
         }.join()
 
         result shouldBeEqualTo "done"
@@ -259,7 +262,7 @@ class LeaderElectionListenerTest {
         }
 
         val result = election.runAsyncIfLeader("decorated-async-flow-skip-job", executor) {
-            CompletableFuture.completedFuture("not-called")
+            completableFutureOf("not-called")
         }.join()
 
         result shouldBeEqualTo null
@@ -280,7 +283,7 @@ class LeaderElectionListenerTest {
 
         assertFailsWith<CompletionException> {
             election.runAsyncIfLeader("decorated-async-flow-failure-job", executor) {
-                CompletableFuture.failedFuture<String>(IllegalStateException("boom"))
+                failedCompletableFutureOf<String>(IllegalStateException("boom"))
             }.join()
         }
         collected.await() shouldBeEqualTo listOf(
@@ -397,7 +400,7 @@ class LeaderElectionListenerTest {
         val election = StubLeaderGroupElector(elected = true).withListeners(listener)
 
         val result = election.runAsyncIfLeader("decorated-group-async-job", executor) {
-            CompletableFuture.completedFuture("done")
+            completableFutureOf("done")
         }.join()
 
         result shouldBeEqualTo "done"
@@ -414,7 +417,7 @@ class LeaderElectionListenerTest {
         val election = StubLeaderGroupElector(elected = false).withListeners(listener)
 
         val result = election.runAsyncIfLeader("decorated-group-async-skip-job", executor) {
-            CompletableFuture.completedFuture("not-called")
+            completableFutureOf("not-called")
         }.join()
 
         result shouldBeEqualTo null
@@ -432,7 +435,7 @@ class LeaderElectionListenerTest {
         }
 
         val result = election.runAsyncIfLeader("decorated-group-async-flow-job", executor) {
-            CompletableFuture.completedFuture("done")
+            completableFutureOf("done")
         }.join()
 
         result shouldBeEqualTo "done"
@@ -453,7 +456,7 @@ class LeaderElectionListenerTest {
         }
 
         val result = election.runAsyncIfLeader("decorated-group-async-flow-skip-job", executor) {
-            CompletableFuture.completedFuture("not-called")
+            completableFutureOf("not-called")
         }.join()
 
         result shouldBeEqualTo null
@@ -474,7 +477,7 @@ class LeaderElectionListenerTest {
 
         assertFailsWith<CompletionException> {
             election.runAsyncIfLeader("decorated-group-async-flow-failure-job", executor) {
-                CompletableFuture.failedFuture<String>(IllegalStateException("boom"))
+                failedCompletableFutureOf<String>(IllegalStateException("boom"))
             }.join()
         }
         collected.await() shouldBeEqualTo listOf(
@@ -642,11 +645,9 @@ class LeaderElectionListenerTest {
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> =
             if (elected) {
-                CompletableFuture.supplyAsync({ action() }, executor)
-                    .thenCompose { it }
-                    .thenApply<T?> { it }
+                futureOf(executor) { action() }.thenCompose { it }.thenApply { it }
             } else {
-                CompletableFuture.completedFuture(null)
+                completableFutureOf(null)
             }
     }
 
@@ -673,11 +674,11 @@ class LeaderElectionListenerTest {
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> =
             if (elected) {
-                CompletableFuture.supplyAsync({ action() }, executor)
+                futureOf(executor) { action() }
                     .thenCompose { it }
-                    .thenApply<T?> { it }
+                    .thenApply { it }
             } else {
-                CompletableFuture.completedFuture(null)
+                completableFutureOf(null)
             }
     }
 

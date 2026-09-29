@@ -3,6 +3,7 @@ package io.bluetape4k.leader
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.forTenant
@@ -64,10 +65,10 @@ class LeaderElectionStateCapabilityTest {
         val slot = LeaderSlot("listener-async-capability", "process-b")
 
         val observed = election.runAsyncIfLeader(slot, directExecutor) {
-            CompletableFuture.completedFuture(election.state(slot.lockName).leader?.auditLeaderId)
+            completableFutureOf(election.state(slot.lockName).leader?.auditLeaderId)
         }.join()
         val result = election.runAsyncIfLeaderResult(slot, directExecutor) {
-            CompletableFuture.completedFuture(election.state(slot.lockName).leader?.auditLeaderId)
+            completableFutureOf(election.state(slot.lockName).leader?.auditLeaderId)
         }.join()
 
         observed shouldBeEqualTo slot.leaderId

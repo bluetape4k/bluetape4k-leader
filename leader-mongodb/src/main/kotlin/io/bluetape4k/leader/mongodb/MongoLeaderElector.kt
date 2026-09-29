@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.mongodb
 
 import com.mongodb.client.MongoCollection
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
@@ -22,8 +24,8 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import org.bson.Document
 import java.time.Instant
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
@@ -44,14 +46,14 @@ class MongoLeaderElector private constructor(
     val options: MongoLeaderElectionOptions,
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
 ): LeaderElector,
-    LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics,
-    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics,
+   io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
 
     override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
         io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         internal const val MONGO_FACTORY_BEAN_NAME = "mongo-leader-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(MongoBackendErrorClassifier)
 
@@ -158,11 +160,11 @@ class MongoLeaderElector private constructor(
         val pipelineFuture = recordedAcquisition.thenComposeAsync({ acquired ->
             if (!acquired) {
                 log.debug { "리더 승격 실패 (슬롯 없음, 비동기). lockName=$lockName" }
-                CompletableFuture.completedFuture(null)
+                completableFutureOf(null)
             } else {
                 rejectionCleanup.markAcquired()
                 if (!rejectionCleanup.markLifecycleStarted()) {
-                    CompletableFuture.failedFuture(CancellationException("leader action was cancelled before start"))
+                    failedCompletableFutureOf(CancellationException("leader action was cancelled before start"))
                 } else try {
                     runAcquiredAsync(lock, lockName, rejectionCleanup.acquiredAtNanos, cancellationRelay, action)
                 } catch (error: Throwable) {
@@ -183,7 +185,7 @@ class MongoLeaderElector private constructor(
                 if (failure != null) {
                     rejectionCleanup.release(failure.unwrapCompletionCause())
                 } else {
-                    CompletableFuture.completedFuture(value)
+                    completableFutureOf(value)
                 }
             },
             cancellationRelay,
@@ -234,9 +236,22 @@ class MongoLeaderElector private constructor(
             val cause = failure?.unwrapCompletionCause()
             try {
                 when {
-                    cause == null -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
+                    cause == null -> effectiveKey?.let {
+                        historyRecorder?.recordCompleted(
+                            it,
+                            finishedAt,
+                            durationMs
+                        )
+                    }
                     cause is CancellationException -> Unit
-                    else -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, cause) }
+                    else          -> effectiveKey?.let {
+                        historyRecorder?.recordFailed(
+                            it,
+                            finishedAt,
+                            durationMs,
+                            cause
+                        )
+                    }
                 }
             } finally {
                 runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
@@ -289,12 +304,12 @@ class MongoLeaderElector private constructor(
 
         fun <T> release(failure: Throwable): CompletableFuture<T?> {
             if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                return CompletableFuture.failedFuture(failure)
+                return failedCompletableFutureOf(failure)
             }
             return if (acquired.get() && cleanupStarted.compareAndSet(false, true)) {
                 releaseAcquiredLock(lock, lockName, acquiredAtNanos, failure)
             } else {
-                CompletableFuture.failedFuture(failure)
+                failedCompletableFutureOf(failure)
             }
         }
 

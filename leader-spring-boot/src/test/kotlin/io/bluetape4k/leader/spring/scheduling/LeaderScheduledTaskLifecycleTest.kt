@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.scheduling
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
 import io.micrometer.observation.Observation
@@ -19,8 +20,8 @@ import org.springframework.scheduling.annotation.SchedulingConfigurer
 import org.springframework.scheduling.config.ScheduledTaskHolder
 import org.springframework.scheduling.config.ScheduledTaskRegistrar
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.seconds
 
 class LeaderScheduledTaskLifecycleTest {
 
@@ -69,7 +70,7 @@ class LeaderScheduledTaskLifecycleTest {
                     "bluetape4k.leader.scheduling.policies[0].name=observation-lifecycle",
                 )
                 .run { context ->
-                    latch.await(2, TimeUnit.SECONDS).shouldBeTrue()
+                    latch.await(2.seconds).shouldBeTrue()
                     handler.starts.get() shouldBeEqualTo 1
                     scheduledTasks(context).size shouldBeEqualTo 1
                 }
@@ -128,7 +129,7 @@ class LeaderScheduledTaskLifecycleTest {
         }
     }
 
-    private class CountingObservationHandler : ObservationHandler<Observation.Context> {
+    private class CountingObservationHandler: ObservationHandler<Observation.Context> {
         val starts = AtomicInteger()
 
         override fun supportsContext(context: Observation.Context): Boolean = true

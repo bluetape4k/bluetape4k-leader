@@ -4,11 +4,12 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
@@ -60,7 +61,7 @@ class AbstractLocalLeaderElectorTest {
 
         assertFailsWith<Exception> {
             election.runAsyncIfLeader("") {
-                CompletableFuture.completedFuture("should fail")
+                completableFutureOf("should fail")
             }.join()
         }
     }
@@ -99,13 +100,13 @@ class AbstractLocalLeaderElectorTest {
         val lockB = randomLockName()
 
         // lockA 와 lockB 는 독립적이므로 동시에 실행 가능
-        val fA = CompletableFuture.supplyAsync {
+        val fA = futureOf {
             election.runIfLeader(lockA) {
                 Thread.sleep(Random.nextLong(5, 15))
                 counter.incrementAndGet()
             }
         }
-        val fB = CompletableFuture.supplyAsync {
+        val fB = futureOf {
             election.runIfLeader(lockB) {
                 Thread.sleep(Random.nextLong(5, 15))
                 counter.incrementAndGet()

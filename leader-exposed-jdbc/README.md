@@ -106,11 +106,11 @@ val vtElection = ExposedJdbcVirtualThreadLeaderElector(election)
 val future: VirtualFuture<Result?> = vtElection.runAsyncIfLeader("nightly-sync") {
     syncData()
 }
-val result = future.get(5, TimeUnit.SECONDS)
+val result = future.get(5.seconds)
 
 // Or use the Database extension shortcut
 val result2 = db.runVirtualIfLeader("nightly-sync") { syncData() }
-    .get(5, TimeUnit.SECONDS)
+    .get(5.seconds)
 ```
 
 ### Custom options

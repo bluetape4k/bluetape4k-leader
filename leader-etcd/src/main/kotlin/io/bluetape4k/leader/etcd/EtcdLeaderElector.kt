@@ -2,6 +2,7 @@ package io.bluetape4k.leader.etcd
 
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAcquirer
@@ -133,17 +134,14 @@ class EtcdLeaderElector private constructor(
             }
         }
 
-        val acquisitionFuture = CompletableFuture.supplyAsync(
-            {
-                var handle: EtcdLeaseHandle? = null
-                try {
-                    acquire(lockName).also { handle = it }
-                } finally {
-                    cleanupBarrier.completeAcquisition(handle)
-                }
-            },
-            executor
-        )
+        val acquisitionFuture = futureOf(executor) {
+            var handle: EtcdLeaseHandle? = null
+            try {
+                acquire(lockName).also { handle = it }
+            } finally {
+                cleanupBarrier.completeAcquisition(handle)
+            }
+        }
 
         val pipelineFuture = acquisitionFuture.thenComposeAsync(
             { handle ->

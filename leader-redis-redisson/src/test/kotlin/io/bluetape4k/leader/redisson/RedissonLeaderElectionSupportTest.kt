@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.concurrent.virtualthread.virtualFuture
@@ -8,15 +10,14 @@ import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
-import io.bluetape4k.assertions.shouldBeEqualTo
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.seconds
 
 class RedissonLeaderElectionSupportTest: AbstractRedissonLeaderTest() {
 
@@ -48,7 +49,7 @@ class RedissonLeaderElectionSupportTest: AbstractRedissonLeaderTest() {
                 }
             }
 
-            countDownLatch.await(5, TimeUnit.SECONDS)
+            countDownLatch.await(5.seconds)
         } finally {
             executor.shutdownNow()
         }
@@ -83,7 +84,7 @@ class RedissonLeaderElectionSupportTest: AbstractRedissonLeaderTest() {
                 }
             }.join()
         }
-        countDownLatch.await(5, TimeUnit.SECONDS)
+        countDownLatch.await(5.seconds)
 
         future1.get() shouldBeEqualTo 42
         future2.get() shouldBeEqualTo 43

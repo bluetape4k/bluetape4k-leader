@@ -2,6 +2,9 @@ package io.bluetape4k.leader.examples.zookeeperscheduler
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -53,19 +56,19 @@ class ZooKeeperLegacySchedulerTest: AbstractZooKeeperSchedulerTest() {
             val activeFuture = executor.submit<SchedulerRunReport> {
                 nodeA.runOnce(runId) {
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds)
                     listOf("node-a-step")
                 }
             }
 
-            started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+            started.await(10.seconds).shouldBeTrue()
             val skipped = nodeB.runOnce(runId) {
                 nodeBExecutions.incrementAndGet()
                 listOf("node-b-step")
             }
 
             release.countDown()
-            val active = activeFuture.get(10, TimeUnit.SECONDS)
+            val active = activeFuture.get(10.seconds)
 
             active.status shouldBeEqualTo SchedulerRunStatus.EXECUTED
             active.nodeId shouldBeEqualTo SchedulerNodeId("node-a")

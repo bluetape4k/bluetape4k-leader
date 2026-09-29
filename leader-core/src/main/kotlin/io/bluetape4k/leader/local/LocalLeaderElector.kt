@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderRunResult
@@ -54,10 +55,11 @@ class LocalLeaderElector(
 
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
-            CompletableFuture.supplyAsync(
-                { tryWithLeaderLock(lockName, options.waitTime) { cancellationRelay.invoke(action).join() } },
-                executor,
-            ),
+            futureOf(executor) {
+                tryWithLeaderLock(lockName, options.waitTime) {
+                    cancellationRelay.invoke(action).join()
+                }
+            },
             cancellationRelay,
         )
     }
@@ -71,10 +73,11 @@ class LocalLeaderElector(
 
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
-            CompletableFuture.supplyAsync(
-                { runIfLeader(slot) { cancellationRelay.invoke(action).join() } },
-                executor,
-            ),
+            futureOf(executor) {
+                runIfLeader(slot) {
+                    cancellationRelay.invoke(action).join()
+                }
+            },
             cancellationRelay,
         )
     }
@@ -85,13 +88,17 @@ class LocalLeaderElector(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
         log.debug { "runAsyncIfLeaderResult... slot=$slot" }
-        
+
         val elected = AtomicBoolean(false)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
-        return LeaderFutureBridge.map(runAsyncIfLeader(slot, executor) {
-            elected.set(true)
-            cancellationRelay.invoke(action)
-        }, cancellationRelay) { value, failure ->
+
+        return LeaderFutureBridge.map(
+            runAsyncIfLeader(slot, executor) {
+                elected.set(true)
+                cancellationRelay.invoke(action)
+            },
+            cancellationRelay
+        ) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
@@ -128,7 +135,7 @@ class LocalLeaderElector(
      */
     override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
         log.debug { "runAsyncIfLeaderResult... slot=$slot" }
-        
+
         var elected = false
         val value = try {
             tryWithLeaderLock(

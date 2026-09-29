@@ -1,5 +1,8 @@
 package io.bluetape4k.leader.k8s
 
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
@@ -181,10 +184,11 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
             when {
                 lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
                 lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else -> CompletableFuture.completedFuture(Unit)
+                else -> completableFutureOf(Unit)
             }
         }
-        val acquisitionFuture = CompletableFuture.supplyAsync({
+
+        val acquisitionFuture = futureOf(executor) {
             var acquiredAtNanos: Long? = null
             try {
                 if (lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime)) {
@@ -195,13 +199,14 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
             } finally {
                 cleanupBarrier.completeAcquisition(acquiredAtNanos)
             }
-        }, executor)
+        }
+        
         val pipelineFuture: CompletableFuture<T?> = try {
             acquisitionFuture.thenComposeAsync({ acquiredAtNanos ->
                 if (acquiredAtNanos == null) {
-                    CompletableFuture.completedFuture(null)
+                    completableFutureOf(null)
                 } else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
-                    CompletableFuture.failedFuture(
+                    failedCompletableFutureOf(
                         CancellationException("leader result future was cancelled before action"),
                     )
                 } else {
@@ -215,11 +220,11 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
                 }
             }, executor)
         } catch (error: Throwable) {
-            CompletableFuture.failedFuture(error)
+            failedCompletableFutureOf(error)
         }
         return LeaderFutureBridge.flatMap(pipelineFuture, cancellationRelay) { value, failure ->
             if (failure == null) {
-                CompletableFuture.completedFuture(value)
+                completableFutureOf(value)
             } else {
                 releaseIfUnclaimed().handle { _, cleanupFailure ->
                     val cause = checkNotNull(failure.unwrapCompletionException())

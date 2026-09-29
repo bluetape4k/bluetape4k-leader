@@ -2,6 +2,8 @@ package io.bluetape4k.leader.ktor
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.ktor.testing.shouldHaveStatus
@@ -140,9 +142,9 @@ class LeaderBackendDiagnosticsRouteTest {
 
             response shouldHaveStatus HttpStatusCode.OK
             val body = response.bodyAsText()
-            body.contains("\"status\":\"UNKNOWN\"") shouldBeEqualTo true
-            body.contains("\"reason\":\"PROVIDER_EXCEPTION\"") shouldBeEqualTo true
-            body.contains("backend endpoint and credential must not escape") shouldBeEqualTo false
+            body.contains("\"status\":\"UNKNOWN\"").shouldBeTrue()
+            body.contains("\"reason\":\"PROVIDER_EXCEPTION\"").shouldBeTrue()
+            body.contains("backend endpoint and credential must not escape").shouldBeFalse()
         }
     }
 
@@ -163,8 +165,8 @@ class LeaderBackendDiagnosticsRouteTest {
             val response = client.get(LeaderElectionPluginConfig.DefaultBackendDiagnosticsRoutePath)
 
             response shouldHaveStatus HttpStatusCode.OK
-            response.bodyAsText().contains("\"status\":\"DOWN\"") shouldBeEqualTo true
-            response.bodyAsText().contains("\"reason\":\"DISCONNECTED\"") shouldBeEqualTo true
+            response.bodyAsText().contains("\"status\":\"DOWN\"").shouldBeTrue()
+            response.bodyAsText().contains("\"reason\":\"DISCONNECTED\"").shouldBeTrue()
         }
     }
 
@@ -186,8 +188,8 @@ class LeaderBackendDiagnosticsRouteTest {
             val response = client.get(LeaderElectionPluginConfig.DefaultBackendDiagnosticsRoutePath)
 
             response shouldHaveStatus HttpStatusCode.OK
-            response.bodyAsText().contains("\"status\":\"UNKNOWN\"") shouldBeEqualTo true
-            response.bodyAsText().contains("\"reason\":\"PROVIDER_UNSUPPORTED\"") shouldBeEqualTo true
+            response.bodyAsText().contains("\"status\":\"UNKNOWN\"").shouldBeTrue()
+            response.bodyAsText().contains("\"reason\":\"PROVIDER_UNSUPPORTED\"").shouldBeTrue()
         }
     }
 
@@ -286,7 +288,7 @@ class LeaderBackendDiagnosticsRouteTest {
             val response = client.get(LeaderElectionPluginConfig.DefaultBackendDiagnosticsRoutePath)
 
             response shouldHaveStatus HttpStatusCode.OK
-            response.bodyAsText().contains("\"status\":\"NOT_CHECKED\"") shouldBeEqualTo true
+            response.bodyAsText().contains("\"status\":\"NOT_CHECKED\"").shouldBeTrue()
         }
     }
 

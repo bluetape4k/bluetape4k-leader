@@ -2,6 +2,7 @@ package io.bluetape4k.leader.etcd.internal
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.etcd.support.toByteSequence
 import io.bluetape4k.leader.etcd.support.toUtf8String
 import io.bluetape4k.logging.KLogging
@@ -22,7 +23,6 @@ import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.util.concurrent.CompletableFuture
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class JetcdEtcdLockClientTest {
@@ -65,11 +65,11 @@ class JetcdEtcdLockClientTest {
 
         every { grantResponse.id } returns 11L
         every { lockResponse.key } returns ownershipKey
-        every { lease.grant(5L) } returns CompletableFuture.completedFuture(grantResponse)
-        every { lock.lock(lockKey, 11L) } returns CompletableFuture.completedFuture(lockResponse)
-        every { lock.unlock(ownershipKey) } returns CompletableFuture.completedFuture(unlockResponse)
-        every { lease.revoke(11L) } returns CompletableFuture.completedFuture(revokeResponse)
-        every { lease.keepAliveOnce(11L) } returns CompletableFuture.completedFuture(keepAliveResponse)
+        every { lease.grant(5L) } returns completableFutureOf(grantResponse)
+        every { lock.lock(lockKey, 11L) } returns completableFutureOf(lockResponse)
+        every { lock.unlock(ownershipKey) } returns completableFutureOf(unlockResponse)
+        every { lease.revoke(11L) } returns completableFutureOf(revokeResponse)
+        every { lease.keepAliveOnce(11L) } returns completableFutureOf(keepAliveResponse)
 
         lockClient.grantLease(5L).get() shouldBeEqualTo 11L
         lockClient.lock(lockKey, 11L).get() shouldBeEqualTo ownershipKey

@@ -133,8 +133,8 @@ class LockIdentityTest {
         val a = LockIdentity("X", LockIdentity.AnnotationKind.SINGLE, "f1")
         val b = LockIdentity("X", LockIdentity.AnnotationKind.SINGLE, "f1")
         val c = LockIdentity("X", LockIdentity.AnnotationKind.SINGLE, "f2")
-        (a == b) shouldBeEqualTo true
-        (a == c) shouldBeEqualTo false
+        (a == b).shouldBeTrue()
+        (a == c).shouldBeFalse()
     }
 }
 ```
@@ -212,21 +212,21 @@ class ExtendOutcomeTest {
         val out: ExtendOutcome = ExtendOutcome.Extended(now)
         out shouldBeInstanceOf ExtendOutcome.Extended::class
         (out as ExtendOutcome.Extended).observedExpireAt shouldBeEqualTo now
-        out.isExtended shouldBeEqualTo true
+        out.isExtended.shouldBeTrue()
     }
 
     @Test
     fun `NotHeld is data object singleton`() {
         val a: ExtendOutcome = ExtendOutcome.NotHeld
         val b: ExtendOutcome = ExtendOutcome.NotHeld
-        (a === b) shouldBeEqualTo true
-        a.isExtended shouldBeEqualTo false
+        (a === b).shouldBeTrue()
+        a.isExtended.shouldBeFalse()
     }
 
     @Test
     fun `WrongThread is data object singleton`() {
         val a: ExtendOutcome = ExtendOutcome.WrongThread
-        a.isExtended shouldBeEqualTo false
+        a.isExtended.shouldBeFalse()
     }
 
     @Test
@@ -234,7 +234,7 @@ class ExtendOutcomeTest {
         val cause = java.io.IOException("transient")
         val out: ExtendOutcome = ExtendOutcome.BackendError(cause)
         (out as ExtendOutcome.BackendError).cause shouldBeEqualTo cause
-        out.isExtended shouldBeEqualTo false
+        out.isExtended.shouldBeFalse()
     }
 }
 ```
@@ -299,7 +299,7 @@ class ExtendDelegateTest {
             }
             override fun isHeld(): Boolean = true
         }
-        delegate.extendSuspend(10.seconds).isExtended shouldBeEqualTo true
+        delegate.extendSuspend(10.seconds).isExtended.shouldBeTrue()
         syncCalls shouldBeEqualTo 1
     }
 }
@@ -366,7 +366,7 @@ class LeaderLockHandleTest {
         val real = LeaderLockHandle.real(id, "tok", 0L, noopDelegate)
         real shouldBeInstanceOf LeaderLockHandle.Real::class
         real.lockName shouldBeEqualTo "job-A"
-        real.isReentrant shouldBeEqualTo false
+        real.isReentrant.shouldBeFalse()
     }
 
     @Test
@@ -380,18 +380,18 @@ class LeaderLockHandleTest {
     @Test
     fun `matchesIdentity compares all 4 components`() {
         val real = LeaderLockHandle.real(id, "tok", 0L, noopDelegate)
-        real.matchesIdentity(id) shouldBeEqualTo true
-        real.matchesIdentity(id.copy(factoryBeanName = "other")) shouldBeEqualTo false
+        real.matchesIdentity(id).shouldBeTrue()
+        real.matchesIdentity(id.copy(factoryBeanName = "other")).shouldBeFalse()
     }
 
     @Test
     fun `withReentryDepth produces copy with passthrough delegate`() {
         val real = LeaderLockHandle.real(id, "tok", 0L, noopDelegate)
         val inner = real.withReentryDepth(1)
-        inner.isReentrant shouldBeEqualTo true
+        inner.isReentrant.shouldBeTrue()
         inner.reentryDepth shouldBeEqualTo 1
         // ⭐ delegate reference 동일 — passthrough extend = outer lease 갱신
-        (inner.extendDelegate === real.extendDelegate) shouldBeEqualTo true
+        (inner.extendDelegate === real.extendDelegate).shouldBeTrue()
     }
 
     @Test
@@ -648,7 +648,7 @@ class LeaderLockHandleCaptureTest {
         LeaderLockHandleCapture.set(h)
         val polled = LeaderLockHandleCapture.poll()
         polled.shouldNotBeNull()
-        (polled === h) shouldBeEqualTo true
+        (polled === h).shouldBeTrue()
         // 2nd poll = null
         LeaderLockHandleCapture.poll().shouldBeNull()
     }
@@ -1005,7 +1005,7 @@ class LockAssertTest {
         val h = LeaderLockHandle.real(id, "tok", 0L, delegate)
         LockStateHolder.withPushed(h) {
             LockAssert.assertLocked()    // does not throw
-            LockAssert.isLocked() shouldBeEqualTo true
+            LockAssert.isLocked().shouldBeTrue()
         }
     }
 
@@ -1020,7 +1020,7 @@ class LockAssertTest {
         val fo = LeaderLockHandle.failOpen(id)
         LockStateHolder.withPushed(fo) {
             assertFailsWith<IllegalStateException> { LockAssert.assertLocked() }
-            LockAssert.isLocked() shouldBeEqualTo false
+            LockAssert.isLocked().shouldBeFalse()
         }
     }
 
@@ -1190,7 +1190,7 @@ class LockExtenderTest {
     @Test
     fun `extendActiveLock returns false outside scope`() {
         calls.set(0)
-        LockExtender.extendActiveLock(30.seconds) shouldBeEqualTo false
+        LockExtender.extendActiveLock(30.seconds).shouldBeFalse()
         calls.get() shouldBeEqualTo 0
     }
 
@@ -1199,7 +1199,7 @@ class LockExtenderTest {
         calls.set(0)
         val h = LeaderLockHandle.real(id, "tok", 0L, successDelegate)
         LockStateHolder.withPushed(h) {
-            LockExtender.extendActiveLock(30.seconds) shouldBeEqualTo true
+            LockExtender.extendActiveLock(30.seconds).shouldBeTrue()
         }
         calls.get() shouldBeEqualTo 1
     }
@@ -1208,7 +1208,7 @@ class LockExtenderTest {
     fun `extendActiveLock returns false in FailOpen sentinel`() {
         val fo = LeaderLockHandle.failOpen(id)
         LockStateHolder.withPushed(fo) {
-            LockExtender.extendActiveLock(30.seconds) shouldBeEqualTo false
+            LockExtender.extendActiveLock(30.seconds).shouldBeFalse()
         }
     }
 
@@ -1224,7 +1224,7 @@ class LockExtenderTest {
     fun `mismatched lockName returns false + Detailed returns NotHeld`() {
         val h = LeaderLockHandle.real(id, "tok", 0L, successDelegate)
         LockStateHolder.withPushed(h) {
-            LockExtender.extendActiveLock("OTHER", 30.seconds) shouldBeEqualTo false
+            LockExtender.extendActiveLock("OTHER", 30.seconds).shouldBeFalse()
             LockExtender.extendActiveLockDetailed("OTHER", 30.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
         }
     }
@@ -1233,7 +1233,7 @@ class LockExtenderTest {
     fun `extendActiveLockSuspend uses coroutineContext`() = runTest {
         val h = LeaderLockHandle.real(id, "tok", 0L, successDelegate)
         withContext(LockHandleElement(h)) {
-            LockExtender.extendActiveLockSuspend(30.seconds) shouldBeEqualTo true
+            LockExtender.extendActiveLockSuspend(30.seconds).shouldBeTrue()
         }
     }
 
@@ -1241,7 +1241,7 @@ class LockExtenderTest {
     fun `Java Duration overload converts correctly`() {
         val h = LeaderLockHandle.real(id, "tok", 0L, successDelegate)
         LockStateHolder.withPushed(h) {
-            LockExtender.extendActiveLock(java.time.Duration.ofSeconds(45)) shouldBeEqualTo true
+            LockExtender.extendActiveLock(java.time.Duration.ofSeconds(45)).shouldBeTrue()
         }
     }
 }
@@ -1632,7 +1632,7 @@ class LocalExtendDelegateReferenceTest {
             val h = LeaderLockHandleCapture.peekForTestOnly() as LeaderLockHandle.Real
             capturedDelegate = h.extendDelegate
         }
-        (capturedDelegate === watchdogDelegate) shouldBeEqualTo true
+        (capturedDelegate === watchdogDelegate).shouldBeTrue()
     }
 }
 ```
@@ -1751,9 +1751,9 @@ abstract class AbstractSyncLockExtenderContractTest {
         elector.runIfLeader("contract-ext") {
             val before = probeBackendExpireAt("contract-ext")!!
             Thread.sleep(50)
-            LockExtender.extendActiveLock(30.seconds) shouldBeEqualTo true
+            LockExtender.extendActiveLock(30.seconds).shouldBeTrue()
             val after = probeBackendExpireAt("contract-ext")!!
-            (after.isAfter(before)) shouldBeEqualTo true
+            (after.isAfter(before)).shouldBeTrue()
         }
     }
 
@@ -1763,14 +1763,14 @@ abstract class AbstractSyncLockExtenderContractTest {
         elector.runIfLeader("contract-rel") { /* noop */ }
         // outside scope
         afterReleaseResult = LockExtender.extendActiveLock(30.seconds)
-        afterReleaseResult shouldBeEqualTo false
+        afterReleaseResult.shouldBeFalse()
     }
 
     @Test
     fun `extend returns false after lease expiry (takeover)`() {
         elector.runIfLeader("contract-exp") {
             forceExpire("contract-exp")
-            LockExtender.extendActiveLock(30.seconds) shouldBeEqualTo false
+            LockExtender.extendActiveLock(30.seconds).shouldBeFalse()
         }
     }
 
@@ -1778,7 +1778,7 @@ abstract class AbstractSyncLockExtenderContractTest {
     fun `extend returns false after token mismatch`() {
         elector.runIfLeader("contract-tok") {
             forceTakeover("contract-tok")
-            LockExtender.extendActiveLock(30.seconds) shouldBeEqualTo false
+            LockExtender.extendActiveLock(30.seconds).shouldBeFalse()
         }
     }
 
@@ -1800,7 +1800,7 @@ abstract class AbstractSyncLockExtenderContractTest {
             // ⭐ ThreadLocal 기반이므로 다른 thread 에서는 false (no active scope) — race-free,
             //   본 테스트는 "torn writes 없음" + "최종 expireAt 가 단조 증가 아님" 만 검증
             val finalExpire = probeBackendExpireAt("contract-race")
-            (finalExpire != null) shouldBeEqualTo true
+            (finalExpire != null).shouldBeTrue()
         }
     }
 
@@ -1857,7 +1857,7 @@ abstract class AbstractSuspendLockExtenderContractTest {
     @Test
     fun `extendActiveLockSuspend returns true when held`() = runTest {
         elector.runIfLeader("s-ext") {
-            LockExtender.extendActiveLockSuspend(30.seconds) shouldBeEqualTo true
+            LockExtender.extendActiveLockSuspend(30.seconds).shouldBeTrue()
         }
     }
 
@@ -1910,7 +1910,7 @@ abstract class AbstractGroupLockExtenderContractTest {
     fun `extend on current slot only`() {
         elector.runIfLeader("group-A") {
             LockAssert.assertLocked()
-            LockExtender.extendActiveLock(30.seconds) shouldBeEqualTo true
+            LockExtender.extendActiveLock(30.seconds).shouldBeTrue()
         }
     }
 
@@ -1945,7 +1945,7 @@ abstract class AbstractSuspendGroupLockExtenderContractTest {
     fun `extendSuspend on current slot`() = runTest {
         elector.runIfLeader("sg-A") {
             LockAssert.assertLockedSuspend()
-            LockExtender.extendActiveLockSuspend(30.seconds) shouldBeEqualTo true
+            LockExtender.extendActiveLockSuspend(30.seconds).shouldBeTrue()
         }
     }
 }
@@ -2434,7 +2434,7 @@ class RedissonThreadIdSemanticsTest {
     fun `extend after Dispatchers IO hop returns WrongThread`() = runTest {
         elector.runIfLeader("rs-io") {
             withContext(Dispatchers.IO) {
-                LockExtender.extendActiveLockSuspend(30.seconds) shouldBeEqualTo false  // WrongThread → false
+                LockExtender.extendActiveLockSuspend(30.seconds).shouldBeFalse()  // WrongThread → false
             }
         }
     }
@@ -3046,7 +3046,7 @@ class ZkLockExtenderContractTest : AbstractSyncLockExtenderContractTest() {
 @Test
 fun `AC-20 — autoExtend=true emits WARN at startup`() {
     val logs = captureLogs { ZkLeaderElector(options = options.copy(autoExtend = true)) }
-    logs.any { it.contains("autoExtend") && it.contains("no-op") } shouldBeEqualTo true
+    logs.any { it.contains("autoExtend") && it.contains("no-op") }.shouldBeTrue()
 }
 ```
 
@@ -3579,11 +3579,11 @@ class CompletableFutureRejectionTest {
 
     class CompletableFutureBean {
         @LeaderElection(name = "cf-bad")
-        fun returnsCompletableFuture(): java.util.concurrent.CompletableFuture<String> = CompletableFuture.completedFuture("x")
+        fun returnsCompletableFuture(): java.util.concurrent.CompletableFuture<String> = completableFutureOf("x")
     }
     class FutureBean {
         @LeaderElection(name = "f-bad")
-        fun returnsFuture(): java.util.concurrent.Future<String> = CompletableFuture.completedFuture("x")
+        fun returnsFuture(): java.util.concurrent.Future<String> = completableFutureOf("x")
     }
     class ListenableFutureBean {
         @LeaderElection(name = "lf-bad")
@@ -3602,7 +3602,7 @@ class CompletableFutureRejectionTest {
     fun `strict=false logs WARN`() {
         val validator = LeaderAnnotationValidatorBeanPostProcessor(strict = false, ...)
         val logs = captureLogs { validator.postProcessBeforeInitialization(CompletableFutureBean(), "cfBean") }
-        logs.any { it.contains("unsupported") && it.contains("Future") } shouldBeEqualTo true
+        logs.any { it.contains("unsupported") && it.contains("Future") }.shouldBeTrue()
     }
 
     @Test fun `Future return type rejected`() { /* same pattern */ }
@@ -3728,7 +3728,7 @@ class WatchdogOverrideWarnTest {
                 LockExtender.extendActiveLock(60.seconds)
             }
         }
-        logs.any { it.contains("lock_extender_overridden") || it.contains("watchdog will reduce") } shouldBeEqualTo true
+        logs.any { it.contains("lock_extender_overridden") || it.contains("watchdog will reduce") }.shouldBeTrue()
         // metric `lock_extender_overridden_total` increment 검증
     }
 
@@ -3766,7 +3766,7 @@ class LeaderScheduledLockAssertSmokeTest {
             install(LeaderElectionPlugin) { /* config */ }
             leaderScheduled(lockName = "ktor-bg") {
                 LockAssert.assertLockedSuspend()    // 통과해야 함
-                LockExtender.extendActiveLockSuspend(30.seconds) shouldBeEqualTo true
+                LockExtender.extendActiveLockSuspend(30.seconds).shouldBeTrue()
             }
         }
         // wait for scheduled tick
@@ -3786,14 +3786,14 @@ class AcGrepVerifyTest {
         val output = ProcessBuilder("rg", "-n", "\\.setTtl\\(", "leader-hazelcast/src/main/kotlin/")
             .redirectErrorStream(true).start().inputStream.bufferedReader().readText()
         // 0 매치 OR comments only
-        output.contains("setTtl(") shouldBeEqualTo false
+        output.contains("setTtl(").shouldBeFalse()
     }
 
     @Test
     fun `AC-16 — Lettuce group extend Lua uses server-side TIME`() {
         val output = ProcessBuilder("rg", "-n", "redis\\.call\\('TIME'\\)", "leader-redis-lettuce/src/main/kotlin/")
             .start().inputStream.bufferedReader().readText()
-        output.contains("redis.call('TIME')") shouldBeEqualTo true
+        output.contains("redis.call('TIME')").shouldBeTrue()
     }
 
     @Test
@@ -3819,7 +3819,7 @@ class AcGrepVerifyTest {
                 .start().inputStream.bufferedReader().readText().trim().toIntOrNull() ?: 0
             val overrides = ProcessBuilder("rg", "-cn", "override\\s+suspend\\s+fun\\s+extendSuspend", "$mod/src/main/kotlin/")
                 .start().inputStream.bufferedReader().readText().trim().toIntOrNull() ?: 0
-            (anonObjs == overrides) shouldBeEqualTo true   // 모든 익명 객체에 override 존재
+            (anonObjs == overrides).shouldBeTrue()   // 모든 익명 객체에 override 존재
         }
     }
 
@@ -4303,4 +4303,3 @@ Devil's Advocate scope challenge + Reliability isolation 권고 통합. Full sco
 **Estimated**: 3-4일
 
 PR 1 머지 후 → PR 2 (Lettuce) 시작.
-

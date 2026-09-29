@@ -4,6 +4,8 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.leader.exposed.jdbc.history.ExposedLeaderHistorySink
@@ -30,6 +32,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.seconds
 
 class JdbcTransactionInterruptionContractTest: AbstractExposedJdbcLeaderTest() {
 
@@ -218,7 +221,7 @@ private class RunningJdbcTransaction private constructor(
     fun workerInterrupted(): Boolean = checkNotNull(workerRef.get()).isInterrupted
 
     fun awaitFinished() {
-        check(finished.await(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) { "JDBC transaction 종료를 기다리다 timeout이 발생했습니다." }
+        check(finished.await(WAIT_TIMEOUT_SECONDS.seconds)) { "JDBC transaction 종료를 기다리다 timeout이 발생했습니다." }
     }
 
     fun assertCancelOutcome(): JdbcCancelTerminalOutcome {
@@ -256,14 +259,14 @@ private class RunningJdbcTransaction private constructor(
     override fun close() {
         rollbackOnly.set(true)
         runCatching { statementRef.get()?.cancel() }
-        if (!finished.await(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+        if (!finished.await(WAIT_TIMEOUT_SECONDS.seconds)) {
             runCatching { connectionRef.get()?.close() }
-            check(finished.await(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+            check(finished.await(WAIT_TIMEOUT_SECONDS.seconds)) {
                 "JDBC transaction을 cancel 또는 connection close로 종료하지 못했습니다."
             }
         }
         executor.shutdownNow()
-        check(executor.awaitTermination(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+        check(executor.awaitTermination(WAIT_TIMEOUT_SECONDS.seconds)) {
             "JDBC worker executor가 종료되지 않았습니다."
         }
         rawConnection().use { connection ->

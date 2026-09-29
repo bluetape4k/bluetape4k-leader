@@ -15,6 +15,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.concurrent.completableFutureOf
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -134,7 +135,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
     @Test
     fun `비동기 리더 선출 성공`() {
         val result = election.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture("async-done")
+            completableFutureOf("async-done")
         }.get()
         result shouldBeEqualTo "async-done"
     }
@@ -349,13 +350,13 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
         repeat(20) {
             val first = el.runAsyncIfLeader(lockName) {
-                CompletableFuture.completedFuture("first-$it")
+                completableFutureOf("first-$it")
             }
             first.get() shouldBeEqualTo "first-$it"
 
             // first.get() 이 반환된 시점에 release 도 완료되어 있어야 함 → 즉시 acquire 가능
             val second = el.runAsyncIfLeader(lockName) {
-                CompletableFuture.completedFuture("second-$it")
+                completableFutureOf("second-$it")
             }
             second.get() shouldBeEqualTo "second-$it"
         }
@@ -381,7 +382,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
         // future 가 fail 한 직후, slot 이 freed 되어 다음 호출 즉시 성공해야 함
         val recovered = el.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture("recovered")
+            completableFutureOf("recovered")
         }
         recovered.get() shouldBeEqualTo "recovered"
     }

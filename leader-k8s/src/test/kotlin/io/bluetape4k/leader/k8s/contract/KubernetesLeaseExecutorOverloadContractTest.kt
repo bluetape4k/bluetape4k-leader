@@ -2,7 +2,10 @@ package io.bluetape4k.leader.k8s.contract
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -17,7 +20,6 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
@@ -53,7 +55,7 @@ class KubernetesLeaseExecutorOverloadContractTest {
             LeaderSlot(lockName, "k8s-single-a"),
             VirtualThreadExecutor,
         ) {
-            CompletableFuture.completedFuture("single-ok")
+            completableFutureOf("single-ok")
         }.join()
 
         first shouldBeInstanceOf LeaderRunResult.Elected::class
@@ -64,7 +66,7 @@ class KubernetesLeaseExecutorOverloadContractTest {
             LeaderSlot(lockName, "k8s-single-b"),
             VirtualThreadExecutor,
         ) {
-            CompletableFuture.completedFuture("single-reacquired")
+            completableFutureOf("single-reacquired")
         }.join()
 
         second shouldBeInstanceOf LeaderRunResult.Elected::class
@@ -92,7 +94,7 @@ class KubernetesLeaseExecutorOverloadContractTest {
             LeaderSlot(lockName, "k8s-group-a"),
             VirtualThreadExecutor,
         ) {
-            CompletableFuture.completedFuture("group-ok")
+            completableFutureOf("group-ok")
         }.join()
 
         first shouldBeInstanceOf LeaderRunResult.Elected::class
@@ -103,7 +105,7 @@ class KubernetesLeaseExecutorOverloadContractTest {
             LeaderSlot(lockName, "k8s-group-b"),
             VirtualThreadExecutor,
         ) {
-            CompletableFuture.completedFuture("group-reacquired")
+            completableFutureOf("group-reacquired")
         }.join()
 
         second shouldBeInstanceOf LeaderRunResult.Elected::class
@@ -140,16 +142,16 @@ class KubernetesLeaseExecutorOverloadContractTest {
             val resultFuture = runCatching {
                 elector.runAsyncIfLeader(lockName, executor) {
                     actionInvoked.set(true)
-                    CompletableFuture.completedFuture("should-not-run")
+                    completableFutureOf("should-not-run")
                 }
-            }.getOrElse { CompletableFuture.failedFuture(it) }
+            }.getOrElse { failedCompletableFutureOf(it) }
 
             val failure = assertFailsWith<CompletionException> { resultFuture.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
-            actionInvoked.get() shouldBeEqualTo false
+            actionInvoked.get().shouldBeFalse()
 
             val result = elector.runAsyncIfLeaderResult(LeaderSlot(lockName, "k8s-single-b")) {
-                CompletableFuture.completedFuture("single-reacquired")
+                completableFutureOf("single-reacquired")
             }.join()
             result shouldBeInstanceOf LeaderRunResult.Elected::class
             (result as LeaderRunResult.Elected).value shouldBeEqualTo "single-reacquired"
@@ -189,16 +191,16 @@ class KubernetesLeaseExecutorOverloadContractTest {
             val resultFuture = runCatching {
                 elector.runAsyncIfLeader(lockName, executor) {
                     actionInvoked.set(true)
-                    CompletableFuture.completedFuture("should-not-run")
+                    completableFutureOf("should-not-run")
                 }
-            }.getOrElse { CompletableFuture.failedFuture(it) }
+            }.getOrElse { failedCompletableFutureOf(it) }
 
             val failure = assertFailsWith<CompletionException> { resultFuture.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
-            actionInvoked.get() shouldBeEqualTo false
+            actionInvoked.get().shouldBeFalse()
 
             val result = elector.runAsyncIfLeaderResult(LeaderSlot(lockName, "k8s-group-b")) {
-                CompletableFuture.completedFuture("group-reacquired")
+                completableFutureOf("group-reacquired")
             }.join()
             result shouldBeInstanceOf LeaderRunResult.Elected::class
             (result as LeaderRunResult.Elected).value shouldBeEqualTo "group-reacquired"

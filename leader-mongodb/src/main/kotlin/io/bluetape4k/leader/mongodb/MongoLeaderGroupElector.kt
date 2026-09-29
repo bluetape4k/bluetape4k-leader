@@ -2,6 +2,8 @@ package io.bluetape4k.leader.mongodb
 
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Filters
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElector
@@ -24,9 +26,9 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import org.bson.Document
 import java.time.Instant
-import java.util.Date
-import java.util.concurrent.CompletableFuture
+import java.util.*
 import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
@@ -52,9 +54,9 @@ class MongoLeaderGroupElector private constructor(
      * `historyRecorder` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
-) : LeaderGroupElector, LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics {
+): LeaderGroupElector, LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         internal const val MONGO_GROUP_FACTORY_BEAN_NAME = "mongo-leader-group-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(MongoBackendErrorClassifier)
 
@@ -191,13 +193,13 @@ class MongoLeaderGroupElector private constructor(
         val pipelineFuture = recordedAcquisition.thenComposeAsync({ acquired ->
             if (acquired == null) {
                 log.debug { "리더 그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
-                CompletableFuture.completedFuture(null)
+                completableFutureOf(null)
             } else {
                 val (lock, slot) = acquired
                 rejectionCleanup.markAcquired(acquired)
                 val acquiredAtNanos = rejectionCleanup.acquiredAtNanos
                 if (!rejectionCleanup.markLifecycleStarted()) {
-                    CompletableFuture.failedFuture(
+                    failedCompletableFutureOf(
                         CancellationException("leader group action was cancelled before start"),
                     )
                 } else try {
@@ -220,7 +222,7 @@ class MongoLeaderGroupElector private constructor(
                 if (failure != null) {
                     rejectionCleanup.release(failure.unwrapCompletionCause())
                 } else {
-                    CompletableFuture.completedFuture(value)
+                    completableFutureOf(value)
                 }
             },
             cancellationRelay,
@@ -259,7 +261,7 @@ class MongoLeaderGroupElector private constructor(
                 when {
                     cause == null -> recordCompleted(historyKey, finishedAt, durationMs)
                     cause is CancellationException -> Unit
-                    else -> recordFailed(historyKey, finishedAt, durationMs, cause)
+                    else          -> recordFailed(historyKey, finishedAt, durationMs, cause)
                 }
             } finally {
                 runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
@@ -314,14 +316,14 @@ class MongoLeaderGroupElector private constructor(
 
         fun <T> release(failure: Throwable): CompletableFuture<T?> {
             if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                return CompletableFuture.failedFuture(failure)
+                return failedCompletableFutureOf(failure)
             }
             val acquiredSlot = acquired.get()
             return if (acquiredSlot != null && cleanupStarted.compareAndSet(false, true)) {
                 val (lock, slot) = acquiredSlot
                 releaseAcquiredSlot(lock, lockName, slot, acquiredAtNanos, failure)
             } else {
-                CompletableFuture.failedFuture(failure)
+                failedCompletableFutureOf(failure)
             }
         }
 
@@ -354,7 +356,7 @@ class MongoLeaderGroupElector private constructor(
     ): CompletableFuture<Pair<MongoLock, Int>?> {
         val currentStage = AtomicReference<CompletableFuture<*>?>()
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
-        val cancellationTarget = object : CompletableFuture<Unit>() {
+        val cancellationTarget = object: CompletableFuture<Unit>() {
             override fun cancel(mayInterruptIfRunning: Boolean): Boolean {
                 currentStage.get()?.cancel(mayInterruptIfRunning)
                 return super.cancel(mayInterruptIfRunning)

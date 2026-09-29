@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -238,7 +239,7 @@ class DynamoDbLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
         val lockName = randomName()
 
         val result = elector.runAsyncIfLeader(lockName, ForkJoinPool.commonPool()) {
-            CompletableFuture.completedFuture("async")
+            completableFutureOf("async")
         }.get(5.seconds)
 
         result shouldBeEqualTo "async"
@@ -282,7 +283,7 @@ class DynamoDbLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
         val slot = LeaderSlot(randomName(), "dynamodb-async-audit")
 
         val result = elector.runAsyncIfLeaderResult(slot, ForkJoinPool.commonPool()) {
-            CompletableFuture.completedFuture("async-result")
+            completableFutureOf("async-result")
         }.get(5.seconds)
 
         result shouldBeEqualTo LeaderRunResult.Elected("async-result", leaderId = "dynamodb-async-audit")

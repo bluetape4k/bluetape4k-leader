@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.dynamodb
 
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAcquirer
@@ -147,10 +148,11 @@ class DynamoDbLeaderElector(
     ): CompletableFuture<T?> {
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
-            CompletableFuture.supplyAsync(
-                { runIfLeader(lockName) { cancellationRelay.invoke(action).join() } },
-                executor,
-            ),
+            futureOf(executor) {
+                runIfLeader(lockName) {
+                    cancellationRelay.invoke(action).join()
+                }
+            },
             cancellationRelay,
         )
     }
@@ -162,10 +164,11 @@ class DynamoDbLeaderElector(
     ): CompletableFuture<T?> {
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
-            CompletableFuture.supplyAsync(
-                { runIfLeader(slot) { cancellationRelay.invoke(action).join() } },
-                executor,
-            ),
+            futureOf(executor) {
+                runIfLeader(slot) {
+                    cancellationRelay.invoke(action).join()
+                }
+            },
             cancellationRelay,
         )
     }

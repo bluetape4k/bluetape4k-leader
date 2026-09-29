@@ -8,6 +8,7 @@ import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.lettuce.script.RedisScript
@@ -217,7 +218,7 @@ class LettuceStrategicRedisClusterTest {
             connection.sync().get(v2Key) shouldBeEqualTo v2Raw
             connection.sync().get(colonKey) shouldBeEqualTo colonRaw
             connection.sync().get(currentKey) shouldBeEqualTo v2Raw
-            connection.sync().sismember(currentIndex, v2NodeId) shouldBeEqualTo true
+            connection.sync().sismember(currentIndex, v2NodeId).shouldBeTrue()
             connection.sync().get(
                 LettuceCandidateKeyCodec.candidateKey(
                     LettuceCandidateRegistry.DEFAULT_KEY_PREFIX,
@@ -605,7 +606,7 @@ class LettuceStrategicRedisClusterTest {
             }
 
             connection.sync().get(fixture.sourceKey).shouldBeNull()
-            connection.sync().sismember(fixture.indexKey, fixture.nodeId) shouldBeEqualTo true
+            connection.sync().sismember(fixture.indexKey, fixture.nodeId).shouldBeTrue()
             connection.sync().get(fixture.tombstoneKey).shouldNotBeNull()
         }
     }
@@ -622,7 +623,7 @@ class LettuceStrategicRedisClusterTest {
             }
 
             connection.sync().get(fixture.sourceKey).shouldBeNull()
-            connection.sync().sismember(fixture.indexKey, fixture.nodeId) shouldBeEqualTo true
+            connection.sync().sismember(fixture.indexKey, fixture.nodeId).shouldBeTrue()
             connection.sync().get(fixture.tombstoneKey).shouldNotBeNull()
         }
     }
