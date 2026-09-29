@@ -2,6 +2,7 @@ package io.bluetape4k.leader.k8s.internal
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import io.fabric8.kubernetes.api.model.coordination.v1.Lease
 import io.fabric8.kubernetes.api.model.coordination.v1.LeaseBuilder
 import io.fabric8.kubernetes.api.model.coordination.v1.LeaseList
@@ -25,6 +26,8 @@ import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class KubernetesLeaseLockTest {
+
+    companion object: KLogging()
 
     @Test
     fun `acquire rebuilds lease annotations without mutating current lease`() {

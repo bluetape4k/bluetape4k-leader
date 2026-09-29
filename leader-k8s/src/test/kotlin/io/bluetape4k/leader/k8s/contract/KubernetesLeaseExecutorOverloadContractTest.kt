@@ -15,6 +15,8 @@ import io.bluetape4k.leader.k8s.KubernetesLeaseGroupOptions
 import io.bluetape4k.leader.k8s.KubernetesLeaseLeaderElector
 import io.bluetape4k.leader.k8s.KubernetesLeaseLeaderGroupElector
 import io.bluetape4k.leader.k8s.KubernetesLeaseOptions
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.closeSafe
 import io.fabric8.kubernetes.client.KubernetesClient
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Tag
@@ -34,7 +36,15 @@ import kotlin.time.Duration.Companion.seconds
 @Tag("k8s")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class KubernetesLeaseExecutorOverloadContractTest {
+
+    companion object: KLogging()
+    
     private val client: KubernetesClient = KubernetesContractSupport.newClient()
+
+    @AfterAll
+    fun closeClient() {
+        client.closeSafe()
+    }
 
     @Test
     fun singleExecutorOverloadPropagatesLeaderIdAndReleases() {
@@ -58,8 +68,8 @@ class KubernetesLeaseExecutorOverloadContractTest {
             completableFutureOf("single-ok")
         }.join()
 
-        first shouldBeInstanceOf LeaderRunResult.Elected::class
-        (first as LeaderRunResult.Elected).value shouldBeEqualTo "single-ok"
+        first.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+        first.value shouldBeEqualTo "single-ok"
         first.leaderId shouldBeEqualTo "k8s-single-a"
 
         val second = elector.runAsyncIfLeaderResult(
@@ -69,8 +79,8 @@ class KubernetesLeaseExecutorOverloadContractTest {
             completableFutureOf("single-reacquired")
         }.join()
 
-        second shouldBeInstanceOf LeaderRunResult.Elected::class
-        (second as LeaderRunResult.Elected).value shouldBeEqualTo "single-reacquired"
+        second.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+        second.value shouldBeEqualTo "single-reacquired"
         second.leaderId shouldBeEqualTo "k8s-single-b"
     }
 
@@ -97,8 +107,8 @@ class KubernetesLeaseExecutorOverloadContractTest {
             completableFutureOf("group-ok")
         }.join()
 
-        first shouldBeInstanceOf LeaderRunResult.Elected::class
-        (first as LeaderRunResult.Elected).value shouldBeEqualTo "group-ok"
+        first.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+        first.value shouldBeEqualTo "group-ok"
         first.leaderId shouldBeEqualTo "k8s-group-a"
 
         val second = elector.runAsyncIfLeaderResult(
@@ -108,8 +118,8 @@ class KubernetesLeaseExecutorOverloadContractTest {
             completableFutureOf("group-reacquired")
         }.join()
 
-        second shouldBeInstanceOf LeaderRunResult.Elected::class
-        (second as LeaderRunResult.Elected).value shouldBeEqualTo "group-reacquired"
+        second.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+        second.value shouldBeEqualTo "group-reacquired"
         second.leaderId shouldBeEqualTo "k8s-group-b"
     }
 
@@ -153,8 +163,8 @@ class KubernetesLeaseExecutorOverloadContractTest {
             val result = elector.runAsyncIfLeaderResult(LeaderSlot(lockName, "k8s-single-b")) {
                 completableFutureOf("single-reacquired")
             }.join()
-            result shouldBeInstanceOf LeaderRunResult.Elected::class
-            (result as LeaderRunResult.Elected).value shouldBeEqualTo "single-reacquired"
+            result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+            result.value shouldBeEqualTo "single-reacquired"
             result.leaderId shouldBeEqualTo "k8s-single-b"
         } finally {
             worker.shutdownNow()
@@ -202,16 +212,11 @@ class KubernetesLeaseExecutorOverloadContractTest {
             val result = elector.runAsyncIfLeaderResult(LeaderSlot(lockName, "k8s-group-b")) {
                 completableFutureOf("group-reacquired")
             }.join()
-            result shouldBeInstanceOf LeaderRunResult.Elected::class
-            (result as LeaderRunResult.Elected).value shouldBeEqualTo "group-reacquired"
+            result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+            result.value shouldBeEqualTo "group-reacquired"
             result.leaderId shouldBeEqualTo "k8s-group-b"
         } finally {
             worker.shutdownNow()
         }
-    }
-
-    @AfterAll
-    fun closeClient() {
-        client.close()
     }
 }

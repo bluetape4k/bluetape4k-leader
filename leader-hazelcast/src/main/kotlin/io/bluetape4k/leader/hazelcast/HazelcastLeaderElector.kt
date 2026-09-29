@@ -6,6 +6,7 @@ import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.AopScopeAccess
+import io.bluetape4k.leader.AsyncLifecycle
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAcquirer

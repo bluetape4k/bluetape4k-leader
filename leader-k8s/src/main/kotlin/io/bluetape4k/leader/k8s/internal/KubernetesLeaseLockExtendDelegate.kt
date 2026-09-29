@@ -18,7 +18,7 @@ import kotlin.time.Duration
  */
 internal class KubernetesLeaseLockExtendDelegate(
     private val lock: KubernetesLeaseLock,
-) : SuspendExtendDelegate {
+): SuspendExtendDelegate {
     private val lastDeadline = AtomicReference(Instant.EPOCH)
 
     override val lastExtendDeadline: AtomicReference<Instant> get() = lastDeadline

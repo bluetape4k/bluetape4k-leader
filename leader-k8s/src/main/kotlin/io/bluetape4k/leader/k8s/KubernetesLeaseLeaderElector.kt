@@ -3,9 +3,11 @@ package io.bluetape4k.leader.k8s
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
-import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
+import io.bluetape4k.leader.AsyncLifecycle
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderLeaseAcquirer
+import io.bluetape4k.leader.LeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
@@ -13,10 +15,12 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.k8s.internal.KubernetesBackendErrorClassifier
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
+import io.bluetape4k.leader.unwrapCompletionException
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -43,22 +47,16 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
     val options: KubernetesLeaseOptions = KubernetesLeaseOptions.Default,
     private val clock: Clock = Clock.systemUTC(),
 ): LeaderElector,
-    LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics,
-    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics,
+   LeaderLeaseAcquirerSupport {
 
-    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
+        LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         internal const val K8S_FACTORY_BEAN_NAME = "kubernetes-lease-leader-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(KubernetesBackendErrorClassifier)
-    }
-
-    private enum class AsyncLifecycle {
-        WAITING,
-        STARTED,
-        CLEANUP,
     }
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
@@ -117,9 +115,9 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
             when {
                 cause is CancellationException -> throw cause
                 cause != null && elected -> LeaderRunResult.ActionFailed(cause)
-                cause != null -> throw cause
-                elected -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                cause != null            -> throw cause
+                elected                  -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else                     -> LeaderRunResult.Skipped
             }
         }
     }
@@ -184,7 +182,7 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
             when {
                 lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
                 lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else -> completableFutureOf(Unit)
+                else                                      -> completableFutureOf(Unit)
             }
         }
 
@@ -200,15 +198,13 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
                 cleanupBarrier.completeAcquisition(acquiredAtNanos)
             }
         }
-        
+
         val pipelineFuture: CompletableFuture<T?> = try {
             acquisitionFuture.thenComposeAsync({ acquiredAtNanos ->
                 if (acquiredAtNanos == null) {
                     completableFutureOf(null)
                 } else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
-                    failedCompletableFutureOf(
-                        CancellationException("leader result future was cancelled before action"),
-                    )
+                    failedCompletableFutureOf(CancellationException("leader result future was cancelled before action"))
                 } else {
                     try {
                         runAcquiredAsync(lockName, lock, acquiredAtNanos, cancellationRelay, action)
@@ -304,30 +300,3 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
         )
     }
 }
-
-private fun Throwable?.unwrapCompletionException(): Throwable? =
-    if (this is CompletionException && cause != null) cause else this
-
-/**
- * `선언` 호출은 Kubernetes Lease backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
-fun <T> KubernetesClient.runIfLeader(
-    lockName: String,
-    options: KubernetesLeaseOptions = KubernetesLeaseOptions.Default,
-    action: () -> T,
-): T? = KubernetesLeaseLeaderElector(this, options).runIfLeader(lockName, action)
-
-/**
- * `선언` 호출은 Kubernetes Lease backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
-fun <T> KubernetesClient.runAsyncIfLeader(
-    lockName: String,
-    executor: Executor = VirtualThreadExecutor,
-    options: KubernetesLeaseOptions = KubernetesLeaseOptions.Default,
-    action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> =
-    KubernetesLeaseLeaderElector(this, options).runAsyncIfLeader(lockName, executor, action)

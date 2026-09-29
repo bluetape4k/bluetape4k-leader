@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.k8s
 
-import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
@@ -10,6 +10,7 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseNames
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.testcontainers.infra.K3sServer
 import io.fabric8.kubernetes.client.KubernetesClient
 import kotlinx.coroutines.TimeoutCancellationException
@@ -26,7 +27,7 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class KubernetesLeaseSuspendLeaderGroupElectorK3sTest {
 
-    companion object {
+    companion object: KLoggingChannel() {
         private const val NAMESPACE = "default"
 
         private val k3s: K3sServer by lazy { K3sServer.Launcher.k3s }
@@ -77,8 +78,8 @@ class KubernetesLeaseSuspendLeaderGroupElectorK3sTest {
                     "done"
                 }
 
-                (result is LeaderRunResult.Elected).shouldBeTrue()
-                (result as LeaderRunResult.Elected).value shouldBeEqualTo "done"
+                result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+                result.value shouldBeEqualTo "done"
                 result.leaderId shouldBeEqualTo leaderId
             }
         }
@@ -103,8 +104,7 @@ class KubernetesLeaseSuspendLeaderGroupElectorK3sTest {
                     }
                 }
 
-                val result = election.runIfLeader(lockName) { "recovered" }
-                result shouldBeEqualTo "recovered"
+                election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
         }
     }

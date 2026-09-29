@@ -6,8 +6,11 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -34,15 +37,15 @@ class KubernetesLeaseSuspendLeaderElector @JvmOverloads constructor(
     private val client: KubernetesClient,
     val options: KubernetesLeaseOptions = KubernetesLeaseOptions.Default,
     private val clock: Clock = Clock.systemUTC(),
-) : SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics,
-    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+): SuspendLeaderElector,
+   LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics,
+   SuspendLeaderLeaseAcquirerSupport {
 
-    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
         internal const val K8S_SUSPEND_FACTORY_BEAN_NAME = "kubernetes-lease-suspend-leader-elector"
     }
 
@@ -149,14 +152,3 @@ class KubernetesLeaseSuspendLeaderElector @JvmOverloads constructor(
         )
     }
 }
-
-/**
- * `선언` 호출은 Kubernetes Lease backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
-suspend fun <T> KubernetesClient.suspendRunIfLeader(
-    lockName: String,
-    options: KubernetesLeaseOptions = KubernetesLeaseOptions.Default,
-    action: suspend () -> T,
-): T? = KubernetesLeaseSuspendLeaderElector(this, options).runIfLeader(lockName, action)

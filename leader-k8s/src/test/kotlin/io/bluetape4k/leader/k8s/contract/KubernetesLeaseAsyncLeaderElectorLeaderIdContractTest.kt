@@ -5,6 +5,8 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.contract.AbstractAsyncLeaderElectorLeaderIdContractTest
 import io.bluetape4k.leader.k8s.KubernetesLeaseLeaderElector
 import io.bluetape4k.leader.k8s.KubernetesLeaseOptions
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.closeSafe
 import io.fabric8.kubernetes.client.KubernetesClient
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Tag
@@ -15,7 +17,10 @@ import org.junit.jupiter.api.TestInstance
  */
 @Tag("k8s")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class KubernetesLeaseAsyncLeaderElectorLeaderIdContractTest : AbstractAsyncLeaderElectorLeaderIdContractTest() {
+class KubernetesLeaseAsyncLeaderElectorLeaderIdContractTest: AbstractAsyncLeaderElectorLeaderIdContractTest() {
+
+    companion object: KLogging()
+
     private val client: KubernetesClient = KubernetesContractSupport.newClient()
 
     override fun createElector(options: LeaderElectionOptions): AsyncLeaderElector =
@@ -26,6 +31,6 @@ class KubernetesLeaseAsyncLeaderElectorLeaderIdContractTest : AbstractAsyncLeade
 
     @AfterAll
     fun closeClient() {
-        client.close()
+        client.closeSafe()
     }
 }

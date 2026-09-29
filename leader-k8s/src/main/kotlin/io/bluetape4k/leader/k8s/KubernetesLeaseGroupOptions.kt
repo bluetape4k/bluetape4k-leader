@@ -18,7 +18,7 @@ data class KubernetesLeaseGroupOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     val namespace: String = "default",
     val retryDelay: Duration = 50.milliseconds,
-) : Serializable {
+): Serializable {
 
     init {
         KubernetesLeaseNames.validateNamespace(namespace)

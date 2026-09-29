@@ -2,14 +2,13 @@ package io.bluetape4k.leader.k8s
 
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.leader.unwrapCompletionException
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
 
 /**
  * 사용자 future 완료 스레드와 blocking lease cleanup 실행 컨텍스트를 분리합니다.
@@ -22,6 +21,7 @@ internal object AsyncLeaseCleanupDispatcher: KLogging() {
     private val cleanupThreadFactory = Thread.ofVirtual()
         .name("bluetape4k-leader-k8s-cleanup-", 0)
         .factory()
+
     private val cleanupExecutor = Executor { task -> cleanupThreadFactory.newThread(task).start() }
 
     @Suppress("TooGenericExceptionCaught")
@@ -96,9 +96,6 @@ internal object AsyncLeaseCleanupDispatcher: KLogging() {
         return result
     }
 
-    private fun Throwable.unwrapCompletionException(): Throwable =
-        (this as? CompletionException)?.cause ?: this
-
     private fun terminalDispatchFailure(
         sourceFailure: Throwable?,
         dispatchFailure: Throwable,
@@ -107,41 +104,4 @@ internal object AsyncLeaseCleanupDispatcher: KLogging() {
         original.addSuppressed(dispatchFailure)
         original.addSuppressed(fallbackFailure)
     } ?: dispatchFailure.also { it.addSuppressed(fallbackFailure) }
-}
-
-/** 획득 완료와 cleanup 요청의 race를 닫고 cleanup 완료 future를 단일 소유합니다. */
-internal class AsyncLeaseCleanupBarrier<T: Any>(
-    private val cleanup: (T) -> Unit,
-) {
-    private val acquired = AtomicReference<T?>()
-    private val acquisitionCompleted = AtomicBoolean()
-    private val cleanupRequested = AtomicBoolean()
-    private val cleanupStarted = AtomicBoolean()
-    private val completion = CompletableFuture<Unit>()
-
-    fun completeAcquisition(value: T?) {
-        if (value != null) acquired.set(value)
-        acquisitionCompleted.set(true)
-        dispatchIfReady()
-    }
-
-    fun request(): CompletableFuture<Unit> {
-        cleanupRequested.set(true)
-        dispatchIfReady()
-        return completion
-    }
-
-    private fun dispatchIfReady() {
-        if (cleanupRequested.get() && acquisitionCompleted.get() && cleanupStarted.compareAndSet(false, true)) {
-            val value = acquired.get()
-            if (value == null) {
-                completion.complete(Unit)
-            } else {
-                AsyncLeaseCleanupDispatcher.execute { cleanup(value) }
-                    .whenComplete { _, failure ->
-                        if (failure == null) completion.complete(Unit) else completion.completeExceptionally(failure)
-                    }
-            }
-        }
-    }
 }

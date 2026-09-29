@@ -3,9 +3,7 @@
 [English](./README.md) | 한국어
 
 `bluetape4k-leader` 의 Kubernetes Lease 백엔드입니다. Kubernetes 기본
-`coordination.k8s.io/v1` Lease API 를 사용하므로 Redis, MongoDB, ZooKeeper,
-커스텀 CRD 없이 Kubernetes 안에서 단일 active worker 또는 제한된 수의 worker 그룹을
-선출할 수 있습니다.
+`coordination.k8s.io/v1` Lease API 를 사용하므로 Redis, MongoDB, ZooKeeper, 커스텀 CRD 없이 Kubernetes 안에서 단일 active worker 또는 제한된 수의 worker 그룹을 선출할 수 있습니다.
 
 ## Architecture
 
@@ -13,17 +11,15 @@
 
 ![leader-k8s acquire and release sequence diagram](../docs/images/readme-diagrams/leader-k8s-sequence-02.png)
 
-`holderIdentity` 에는 매 acquire 마다 새로 생성되는 fencing token 을 저장합니다.
-사람이 읽는 audit identity 는 annotation 으로 분리합니다.
+`holderIdentity` 에는 매 acquire 마다 새로 생성되는 fencing token 을 저장합니다. 사람이 읽는 audit identity 는 annotation 으로 분리합니다.
 
-| Annotation | 목적 |
-| --- | --- |
+| Annotation                             | 목적                                              |
+|----------------------------------------|---------------------------------------------------|
 | `leader.bluetape4k.io/audit-leader-id` | state/audit 표시용 slot leader id 또는 생성 token |
-| `leader.bluetape4k.io/node-id` | `LeaderElectionOptions.nodeId` |
-| `leader.bluetape4k.io/managed-by` | `bluetape4k-leader-k8s` marker |
+| `leader.bluetape4k.io/node-id`         | `LeaderElectionOptions.nodeId`                    |
+| `leader.bluetape4k.io/managed-by`      | `bluetape4k-leader-k8s` marker                    |
 
-이 설계는 같은 JVM 또는 같은 Pod 안의 두 elector 가 동일한 `nodeId` 만으로 소유권을
-잘못 공유하지 않게 합니다.
+이 설계는 같은 JVM 또는 같은 Pod 안의 두 elector 가 동일한 `nodeId` 만으로 소유권을 잘못 공유하지 않게 합니다.
 
 그룹 리더 선출은 slot 마다 하나의 Lease 를 사용합니다.
 
@@ -31,9 +27,7 @@
 <lockName>-slot-<slotIndex>
 ```
 
-각 slot 은 단일 Lease 선출과 같은 fencing token 및 owner-conditional update 의미를
-유지합니다. 그룹 state 는 관측용 metadata 이며, correctness 는 Kubernetes Lease
-소유권 검사에만 의존합니다.
+각 slot 은 단일 Lease 선출과 같은 fencing token 및 owner-conditional update 의미를 유지합니다. 그룹 state 는 관측용 metadata 이며, correctness 는 Kubernetes Lease 소유권 검사에만 의존합니다.
 
 ## Core Features
 
@@ -122,29 +116,26 @@ groupElector.runIfLeader("partition-worker") {
 
 ## Configuration
 
-| 옵션 | 타입 | 기본값 | 설명 |
-| --- | --- | --- | --- |
-| `namespace` | `String` | `default` | Lease 객체를 저장할 namespace |
-| `retryDelay` | `Duration` | `50.milliseconds` | contention 또는 `409 Conflict` 뒤 full-jitter retry 상한 |
-| `leaderOptions.waitTime` | `Duration` | `5.seconds` | leadership 획득 최대 대기 시간 |
-| `leaderOptions.leaseTime` | `Duration` | `60.seconds` | Kubernetes 에 기록하는 Lease duration |
-| `leaderOptions.nodeId` | `String` | process-level default | audit node id annotation |
-| `leaderOptions.minLeaseTime` | `Duration` | `0.seconds` | 빠른 action 뒤 최소 leadership 유지 시간 |
-| `leaderOptions.autoExtend` | `Boolean` | `false` | action 실행 중 active Lease 자동 연장 |
-| `leaderGroupOptions.maxLeaders` | `Int` | `2` | 그룹 선출에서 허용하는 최대 active Lease slot 수 |
-| `leaderGroupOptions.waitTime` | `Duration` | `5.seconds` | 그룹 slot 획득 최대 대기 시간 |
-| `leaderGroupOptions.leaseTime` | `Duration` | `60.seconds` | 각 그룹 slot 에 기록하는 Lease duration |
-| `leaderGroupOptions.nodeId` | `String` | process-level default | 그룹 slot audit node id annotation |
-| `leaderGroupOptions.minLeaseTime` | `Duration` | `0.seconds` | 빠른 group action 뒤 최소 slot 유지 시간 |
+| 옵션                              | 타입       | 기본값                | 설명                                                     |
+|-----------------------------------|------------|-----------------------|----------------------------------------------------------|
+| `namespace`                       | `String`   | `default`             | Lease 객체를 저장할 namespace                            |
+| `retryDelay`                      | `Duration` | `50.milliseconds`     | contention 또는 `409 Conflict` 뒤 full-jitter retry 상한 |
+| `leaderOptions.waitTime`          | `Duration` | `5.seconds`           | leadership 획득 최대 대기 시간                           |
+| `leaderOptions.leaseTime`         | `Duration` | `60.seconds`          | Kubernetes 에 기록하는 Lease duration                    |
+| `leaderOptions.nodeId`            | `String`   | process-level default | audit node id annotation                                 |
+| `leaderOptions.minLeaseTime`      | `Duration` | `0.seconds`           | 빠른 action 뒤 최소 leadership 유지 시간                 |
+| `leaderOptions.autoExtend`        | `Boolean`  | `false`               | action 실행 중 active Lease 자동 연장                    |
+| `leaderGroupOptions.maxLeaders`   | `Int`      | `2`                   | 그룹 선출에서 허용하는 최대 active Lease slot 수         |
+| `leaderGroupOptions.waitTime`     | `Duration` | `5.seconds`           | 그룹 slot 획득 최대 대기 시간                            |
+| `leaderGroupOptions.leaseTime`    | `Duration` | `60.seconds`          | 각 그룹 slot 에 기록하는 Lease duration                  |
+| `leaderGroupOptions.nodeId`       | `String`   | process-level default | 그룹 slot audit node id annotation                       |
+| `leaderGroupOptions.minLeaseTime` | `Duration` | `0.seconds`           | 빠른 group action 뒤 최소 slot 유지 시간                 |
 
-`lockName` 은 Kubernetes DNS-1123 label 이어야 하며 Lease 이름 제한인 63자를 넘을 수 없습니다.
-그룹 선출에서는 파생 이름인 `<lockName>-slot-<slotIndex>` 도 이 제한을 만족해야 합니다.
+`lockName` 은 Kubernetes DNS-1123 label 이어야 하며 Lease 이름 제한인 63자를 넘을 수 없습니다. 그룹 선출에서는 파생 이름인 `<lockName>-slot-<slotIndex>` 도 이 제한을 만족해야 합니다.
 
 ## RBAC
 
-애플리케이션 service account 는 선택한 namespace 안의 Lease 접근 권한이 필요합니다.
-production elector 는 정상 release 중 Lease 를 삭제하지 않지만, `delete` 는 테스트와
-운영 cleanup 도구에 유용합니다.
+애플리케이션 service account 는 선택한 namespace 안의 Lease 접근 권한이 필요합니다. production elector 는 정상 release 중 Lease 를 삭제하지 않지만, `delete` 는 테스트와 운영 cleanup 도구에 유용합니다.
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -180,17 +171,13 @@ roleRef:
 ./gradlew :bluetape4k-leader-k8s:test
 ```
 
-K3s 기반 통합 테스트는 별도 태스크로 실행합니다. 이 태스크는 단일 Lease 와
-Lease-per-slot 그룹 선출의 획득, 경합, release, 재획득, 만료 takeover,
-취소/오류 cleanup 경로를 함께 검증합니다.
+K3s 기반 통합 테스트는 별도 태스크로 실행합니다. 이 태스크는 단일 Lease 와 Lease-per-slot 그룹 선출의 획득, 경합, release, 재획득, 만료 takeover, 취소/오류 cleanup 경로를 함께 검증합니다.
 
 ```bash
 ./gradlew :bluetape4k-leader-k8s:k8sTest
 ```
 
-K3s 테스트에는 privileged container 를 지원하는 Docker daemon 이 필요합니다.
-Pull request CI 는 K3s 를 제외한 단위 테스트 slice 를 실행하고, weekly/manual
-Nightly full workflow 가 `:bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest`
+K3s 테스트에는 privileged container 를 지원하는 Docker daemon 이 필요합니다. Pull request CI 는 K3s 를 제외한 단위 테스트 slice 를 실행하고, weekly/manual Nightly full workflow 가 `:bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest`
 를 실행합니다.
 
 ## Dependency
