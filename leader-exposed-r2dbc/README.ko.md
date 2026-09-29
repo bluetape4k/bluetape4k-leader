@@ -8,17 +8,13 @@
 
 ## 개요
 
-`leader-exposed-r2dbc`는 Exposed의 R2DBC 지원을 사용하여 `leader-core` 인터페이스를 구현합니다. 모든 데이터베이스 작업은 완전히 비블로킹(`suspendTransaction`)이므로, 요청별 전용 커넥션 스레드 풀 없이 코루틴 기반 서비스에 적합합니다.
+`leader-exposed-r2dbc`는 Exposed의 R2DBC 지원을 사용하여 `leader-core` 인터페이스를 구현합니다. 모든 데이터베이스 작업은 완전히 비블로킹 (`suspendTransaction`)이므로, 요청별 전용 커넥션 스레드 풀 없이 코루틴 기반 서비스에 적합합니다.
 
-락 전략: 단일 트랜잭션 내 `UPDATE WHERE lockedUntil < NOW()` + `INSERT IGNORE` — Redis나 외부 브로커가 필요 없습니다. H2(인메모리), PostgreSQL, MySQL 8을 지원합니다.
+락 전략: 단일 트랜잭션 내 `UPDATE WHERE lockedUntil < NOW()` + `INSERT IGNORE` — Redis나 외부 브로커가 필요 없습니다. H2 (인메모리), PostgreSQL, MySQL 8을 지원합니다.
 
 ### 획득 실패 정책
 
-취소와 JVM `Error`는 wrapper 내부 원인까지 확인해 원본을 전파합니다.
-단일 락은 transient DB 오류만 기존 대기 시간 예산 안에서 재시도하며,
-non-transient 또는 미분류 예외는 즉시 `false`로 종료합니다.
-그룹 락은 DB 오류의 unavailable/`null` 정책과 슬롯 순회 중단을 유지합니다.
-정상 경합은 여전히 예외가 아닌 실행 건너뛰기로 처리합니다.
+취소와 JVM `Error`는 wrapper 내부 원인까지 확인해 원본을 전파합니다. 단일 락은 transient DB 오류만 기존 대기 시간 예산 안에서 재시도하며, non-transient 또는 미분류 예외는 즉시 `false`로 종료합니다. 그룹 락은 DB 오류의 unavailable/`null` 정책과 슬롯 순회 중단을 유지합니다. 정상 경합은 여전히 예외가 아닌 실행 건너뛰기로 처리합니다.
 
 ## 아키텍처
 
@@ -26,11 +22,11 @@ non-transient 또는 미분류 예외는 즉시 `false`로 종료합니다.
 
 ## 구현체
 
-| 클래스 | 인터페이스 | 설명 |
-|--------|-----------|------|
-| `ExposedR2DbcSuspendLeaderElector` | `SuspendLeaderElector` | `ExposedR2dbcLock` 기반 코루틴 단일 리더 |
-| `ExposedR2DbcSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | `ExposedR2dbcGroupLock` 기반 코루틴 복수 리더 |
-| `ExposedR2DbcSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `ExposedR2DbcSuspendLeaderElector` 생성 |
+| 클래스                                         | 인터페이스                         | 설명                                                          |
+|------------------------------------------------|------------------------------------|---------------------------------------------------------------|
+| `ExposedR2DbcSuspendLeaderElector`             | `SuspendLeaderElector`             | `ExposedR2dbcLock` 기반 코루틴 단일 리더                      |
+| `ExposedR2DbcSuspendLeaderGroupElector`        | `SuspendLeaderGroupElector`        | `ExposedR2dbcGroupLock` 기반 코루틴 복수 리더                 |
+| `ExposedR2DbcSuspendLeaderElectorFactory`      | `SuspendLeaderElectorFactory`      | 팩토리: 호출마다 `ExposedR2DbcSuspendLeaderElector` 생성      |
 | `ExposedR2DbcSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `ExposedR2DbcSuspendLeaderGroupElector` 생성 |
 
 ## 사용법
@@ -88,23 +84,12 @@ coroutineScope {
 ### Exposed 그룹의 DB server time (0.6.0+ develop)
 
 coroutine 노드의 JVM clock가 서로 다를 수 있으면
-`LeaderGroupElectionOptions.useDbTime = true`를 설정합니다. 그룹 acquire,
-소유권 확인, lease 연장, 최소 lease release, `activeCountSuspend`가 관련
-ownership transaction 안에서 `SELECT CURRENT_TIMESTAMP` 한 번을 사용합니다.
-행만 삭제하는 release에는 time query를 추가하지 않으며 기본값은 `false`입니다.
+`LeaderGroupElectionOptions.useDbTime = true`를 설정합니다. 그룹 acquire, 소유권 확인, lease 연장, 최소 lease release, `activeCountSuspend`가 관련 ownership transaction 안에서 `SELECT CURRENT_TIMESTAMP` 한 번을 사용합니다. 행만 삭제하는 release에는 time query를 추가하지 않으며 기본값은 `false`입니다.
 
 DB time을 읽을 수 없으면 해당 lock name을 unavailable로 표시하고 상태 조회는
-`maxLeaders`를 반환하며, `runIfLeader`는 슬롯을 주장하지 않고 `null`을 반환합니다.
-또한 history·handle·watchdog를 만드는 중 coroutine이 취소되어도 setup guard가
-슬롯을 반납합니다.
+`maxLeaders`를 반환하며, `runIfLeader`는 슬롯을 주장하지 않고 `null`을 반환합니다. 또한 history·handle·watchdog를 만드는 중 coroutine이 취소되어도 setup guard가 슬롯을 반납합니다.
 
-failover connection을 포함한 모든 connection은 같은 권위 database clock 원천으로
-라우팅해야 합니다. timestamp timezone과 precision은 provider/session 계약이므로
-일관되게 설정합니다. DB-time은 ownership transaction마다 timestamp round trip을
-하나 추가하므로 R2DBC pool을 그 비용에 맞춰 구성하며 retry delay는 transaction
-밖에 둡니다. `activeCount()`는 cache snapshot이라 권위 있는 값이 아니므로 DB
-기반 count가 필요하면 suspend refresh 경로를 사용합니다. history는 best-effort
-metadata이며 ownership 결과를 바꾸지 않습니다.
+failover connection을 포함한 모든 connection은 같은 권위 database clock 원천으로 라우팅해야 합니다. timestamp timezone과 precision은 provider/session 계약이므로 일관되게 설정합니다. DB-time은 ownership transaction마다 timestamp round trip을 하나 추가하므로 R2DBC pool을 그 비용에 맞춰 구성하며 retry delay는 transaction 밖에 둡니다. `activeCount()`는 cache snapshot이라 권위 있는 값이 아니므로 DB 기반 count가 필요하면 suspend refresh 경로를 사용합니다. history는 best-effort metadata이며 ownership 결과를 바꾸지 않습니다.
 
 ### 확장 함수
 
@@ -173,28 +158,28 @@ unlock은 token이 일치하는 경우에만 행을 삭제 — zombie unlock 방
 
 ### 데이터베이스 호환성
 
-| 데이터베이스 | INSERT 전략 | 비고 |
-|-------------|------------|------|
-| PostgreSQL | `INSERT ... ON CONFLICT DO NOTHING` | 완전 지원 |
-| MySQL 8 | `INSERT IGNORE INTO` | 완전 지원 |
-| H2 | `INSERT IGNORE INTO` (MySQL 모드) | URL에 `MODE=MySQL` 필수 |
+| 데이터베이스 | INSERT 전략                         | 비고                    |
+|--------------|-------------------------------------|-------------------------|
+| PostgreSQL   | `INSERT ... ON CONFLICT DO NOTHING` | 완전 지원               |
+| MySQL 8      | `INSERT IGNORE INTO`                | 완전 지원               |
+| H2           | `INSERT IGNORE INTO` (MySQL 모드)   | URL에 `MODE=MySQL` 필수 |
 
 ## 재시도 전략
 
-| 전략 | 설명 |
-|------|------|
-| `RetryStrategy.Jitter(baseDelayMs)` | AWS full-jitter: `random(0, baseDelay * attempt)` |
-| `RetryStrategy.Fixed(fixedMs)` | 시도 간 고정 대기 |
-| `RetryStrategy.Exponential(baseMs, factor)` | 지수 백오프 (jitter 선택 적용) |
+| 전략                                        | 설명                                              |
+|---------------------------------------------|---------------------------------------------------|
+| `RetryStrategy.Jitter(baseDelayMs)`         | AWS full-jitter: `random(0, baseDelay * attempt)` |
+| `RetryStrategy.Fixed(fixedMs)`              | 시도 간 고정 대기                                 |
+| `RetryStrategy.Exponential(baseMs, factor)` | 지수 백오프 (jitter 선택 적용)                    |
 
 ## 스키마
 
 테이블은 `leader-exposed-core`에 정의되며, `ExposedR2dbcSchemaInitializer.ensureSchema(db)`로 생성됩니다 (자동 호출됨):
 
-| 테이블 | 용도 |
-|--------|------|
-| `leader_lock` | 단일 리더 락 행 |
-| `leader_group_lock` | 복수 리더 슬롯 행 |
+| 테이블                | 용도                                      |
+|-----------------------|-------------------------------------------|
+| `leader_lock`         | 단일 리더 락 행                           |
+| `leader_group_lock`   | 복수 리더 슬롯 행                         |
 | `leader_lock_history` | 감사 로그 (`recordHistory = true` 시에만) |
 
 ## 의존성

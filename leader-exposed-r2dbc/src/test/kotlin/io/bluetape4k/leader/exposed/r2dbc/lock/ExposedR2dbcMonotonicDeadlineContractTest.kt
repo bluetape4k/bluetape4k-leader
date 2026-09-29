@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.contract.AbstractMonotonicDeadlineContractTest
 import io.bluetape4k.leader.exposed.r2dbc.internal.MonotonicDeadline
@@ -7,6 +8,7 @@ import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
@@ -15,7 +17,6 @@ import kotlinx.coroutines.supervisorScope
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.deleteAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
-import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -25,6 +26,8 @@ import kotlin.time.Duration.Companion.seconds
  */
 class ExposedR2dbcMonotonicDeadlineContractTest: AbstractMonotonicDeadlineContractTest() {
 
+    companion object: KLoggingChannel()
+
     private val db: R2dbcDatabase by lazy {
         R2dbcDatabase.connect(
             url = "r2dbc:h2:mem:///issue681_contract;MODE=MySQL;DB_CLOSE_DELAY=-1",
@@ -32,6 +35,16 @@ class ExposedR2dbcMonotonicDeadlineContractTest: AbstractMonotonicDeadlineContra
             password = "",
         )
     }
+
+    private suspend fun cleanTables() {
+        suspendTransaction(db) {
+            LeaderLockHistoryTable.deleteAll()
+            LeaderLockTable.deleteAll()
+            LeaderGroupLockTable.deleteAll()
+        }
+    }
+
+    private fun randomLockName(): String = "deadline-${Base58.randomString(16)}"
 
     override fun createDeadline(waitTime: Duration, ticker: () -> Long): DeadlineProbe {
         val deadline = MonotonicDeadline.fromNow(waitTime, ticker)
@@ -108,13 +121,5 @@ class ExposedR2dbcMonotonicDeadlineContractTest: AbstractMonotonicDeadlineContra
         }
     }
 
-    private suspend fun cleanTables() {
-        suspendTransaction(db) {
-            LeaderLockHistoryTable.deleteAll()
-            LeaderLockTable.deleteAll()
-            LeaderGroupLockTable.deleteAll()
-        }
-    }
 
-    private fun randomLockName(): String = "deadline-${UUID.randomUUID()}"
 }

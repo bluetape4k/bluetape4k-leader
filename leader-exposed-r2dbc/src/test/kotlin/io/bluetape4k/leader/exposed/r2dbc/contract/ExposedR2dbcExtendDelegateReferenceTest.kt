@@ -15,7 +15,6 @@ import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderGroupElector
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.r2dbc.TestR2dbcDB
 import io.bluetape4k.logging.coroutines.KLoggingChannel
-import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds

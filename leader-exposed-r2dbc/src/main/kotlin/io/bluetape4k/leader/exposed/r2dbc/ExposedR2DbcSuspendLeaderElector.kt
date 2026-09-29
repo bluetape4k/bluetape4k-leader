@@ -4,18 +4,21 @@ import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcBackendErrorClassifier
 import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcSuspendLockExtendDelegate
+import io.bluetape4k.leader.exposed.r2dbc.internal.validateExposedR2dbcLockName
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcLock
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializer
-import io.bluetape4k.leader.exposed.r2dbc.lock.validateExposedR2dbcLockName
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -38,15 +41,15 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
     private val db: R2dbcDatabase,
     val options: ExposedR2dbcLeaderElectionOptions,
     private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
-) : SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by ExposedR2dbcLeaderBackendDiagnostics,
-    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+): SuspendLeaderElector,
+   LeaderBackendDiagnosticsProvider by ExposedR2dbcLeaderBackendDiagnostics,
+   SuspendLeaderLeaseAcquirerSupport {
 
-    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
 
         internal const val EXPOSED_R2DBC_SUSPEND_FACTORY_BEAN_NAME = "exposed-r2dbc-suspend-leader-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedR2dbcBackendErrorClassifier)
@@ -72,7 +75,7 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
-        validateExposedR2dbcLockName(lockName)
+        lockName.validateExposedR2dbcLockName()
 
         val lock = ExposedR2dbcLock(
             db = db,

@@ -1,5 +1,10 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.exposed.r2dbc.AbstractExposedR2dbcLeaderTest
 import io.bluetape4k.leader.exposed.r2dbc.TestR2dbcDB
@@ -9,16 +14,12 @@ import io.bluetape4k.logging.debug
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.Duration.Companion.milliseconds
 
 class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
 
@@ -29,8 +30,8 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
     fun `tryLock - 빈 DB에서 첫 번째 락 획득이 성공한다`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
-        val lock = ExposedR2dbcLock(db, randomName(), RetryStrategy.Jitter())
 
+        val lock = ExposedR2dbcLock(db, randomName(), RetryStrategy.Jitter())
         val acquired = lock.tryLock(2.seconds, 10.seconds)
 
         acquired.shouldBeTrue()
@@ -42,14 +43,14 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
     fun `tryLock - 동일 lockName에 이미 활성 락이 있으면 실패한다`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val holder = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
-        holder.tryLock(1.seconds, 30.seconds)
+        holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
 
         val contender = ExposedR2dbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 10L))
-        val acquired = contender.tryLock(100.milliseconds, 5.seconds)
+        contender.tryLock(100.milliseconds, 5.seconds).shouldBeFalse()
 
-        acquired.shouldBeFalse()
         holder.unlock()
     }
 
@@ -58,6 +59,7 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
     fun `tryLock - zero와 negative wait는 한 번 시도한 뒤 경합을 건너뛴다`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val holder = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
         holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
@@ -74,19 +76,18 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
     fun `tryLock - leaseTime 만료 후 다른 인스턴스가 takeover에 성공한다`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
-        val lockName = randomName()
 
+        val lockName = randomName()
         val leaseTime = 200.milliseconds
         val expiredLock = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
-        expiredLock.tryLock(1.seconds, leaseTime)
+        expiredLock.tryLock(1.seconds, leaseTime).shouldBeTrue()
 
         // leaseTime 만료 대기
         delay(timeMillis = leaseTime.inWholeMilliseconds * 2 + 50)
 
         val newLock = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
-        val acquired = newLock.tryLock(2.seconds, 10.seconds)
+        newLock.tryLock(2.seconds, 10.seconds).shouldBeTrue()
 
-        acquired.shouldBeTrue()
         newLock.unlock()
     }
 
@@ -95,9 +96,9 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
     fun `unlock - 동일 token으로 해제가 성공하고 재획득이 가능하다`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
-        val lock = ExposedR2dbcLock(db, randomName(), RetryStrategy.Jitter())
-        lock.tryLock(1.seconds, 10.seconds)
 
+        val lock = ExposedR2dbcLock(db, randomName(), RetryStrategy.Jitter())
+        lock.tryLock(1.seconds, 10.seconds).shouldBeTrue()
         lock.unlock()
 
         val reacquire = ExposedR2dbcLock(db, lock.lockName, RetryStrategy.Jitter())
@@ -110,10 +111,12 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
     fun `unlock - 이미 해제된 락에 재호출해도 예외가 발생하지 않는다`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
+
         val lock = ExposedR2dbcLock(db, randomName(), RetryStrategy.Jitter())
-        lock.tryLock(1.seconds, 10.seconds)
+        lock.tryLock(1.seconds, 10.seconds).shouldBeTrue()
         lock.unlock()
 
+        // unlock을 재호출해도 예외가 발생하지 않는다.
         lock.unlock()
     }
 
@@ -122,11 +125,11 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
     fun `isHeldByCurrentInstance - 락 획득 후 true 반환`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
+
         val lock = ExposedR2dbcLock(db, randomName(), RetryStrategy.Jitter())
         lock.tryLock(1.seconds, 10.seconds).shouldBeTrue()
 
         lock.isHeldByCurrentInstance().shouldBeTrue()
-
         lock.unlock()
     }
 
@@ -135,10 +138,11 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
     fun `isHeldByCurrentInstance - unlock 이후 false 반환`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
-        val lock = ExposedR2dbcLock(db, randomName(), RetryStrategy.Jitter())
-        lock.tryLock(1.seconds, 10.seconds)
-        lock.unlock()
 
+        val lock = ExposedR2dbcLock(db, randomName(), RetryStrategy.Jitter())
+        lock.tryLock(1.seconds, 10.seconds).shouldBeTrue()
+
+        lock.unlock()
         lock.isHeldByCurrentInstance().shouldBeFalse()
     }
 
@@ -147,6 +151,7 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
     fun `isHeldByCurrentInstance - 다른 인스턴스 token으로는 false를 반환한다`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val holder = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
         holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
@@ -162,9 +167,10 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
     fun `isHeldByCurrentInstance - leaseTime 만료 시 false 반환`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
+
         val leaseTime = 150.milliseconds
         val lock = ExposedR2dbcLock(db, randomName(), RetryStrategy.Jitter())
-        lock.tryLock(1.seconds, leaseTime)
+        lock.tryLock(1.seconds, leaseTime).shouldBeTrue()
 
         delay(timeMillis = leaseTime.inWholeMilliseconds * 2)
 
@@ -178,10 +184,11 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
         runSuspendIO {
             val db = setupDb(testDB)
             cleanTables(db)
+
             val lockName = randomName()
 
             val original = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
-            original.tryLock(1.seconds, 150.milliseconds)
+            original.tryLock(1.seconds, 150.milliseconds).shouldBeTrue()
             delay(300.milliseconds)
 
             val takeover = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
@@ -199,11 +206,13 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
         runSuspendIO {
             val db = setupDb(testDB)
             cleanTables(db)
+
             val lockName = randomName()
 
             val zombie = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
-            zombie.tryLock(1.seconds, 150.milliseconds)
-            kotlinx.coroutines.delay(300.milliseconds)  // lease 만료 대기
+            zombie.tryLock(1.seconds, 150.milliseconds).shouldBeTrue()
+
+            delay(300.milliseconds)  // lease 만료 대기
 
             val current = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
             current.tryLock(1.seconds, 10.seconds).shouldBeTrue()
@@ -221,10 +230,11 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
     fun `tryLock - 코루틴 10개 경합 시 단 하나만 락 획득에 성공한다`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
-        val lockName = randomName()
-        val successCount = java.util.concurrent.atomic.AtomicInteger(0)
 
-        val jobs = (1..10).map {
+        val lockName = randomName()
+        val successCount = AtomicInteger(0)
+
+        val jobs = List(10) {
             async {
                 val lock = ExposedR2dbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 10L))
                 if (lock.tryLock(200.milliseconds, 5.seconds)) {
@@ -233,7 +243,7 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
                     kotlinx.coroutines.delay(300.milliseconds)
                     lock.unlock()
                 }
-            }
+            }.log("Job #$it")
         }
         jobs.awaitAll()
 

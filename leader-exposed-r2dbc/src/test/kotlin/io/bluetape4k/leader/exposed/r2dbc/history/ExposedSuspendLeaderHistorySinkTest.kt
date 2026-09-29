@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.exposed.r2dbc.history
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.exposed.r2dbc.AbstractExposedR2dbcLeaderTest
@@ -8,6 +9,7 @@ import io.bluetape4k.leader.exposed.r2dbc.TestR2dbcDB
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.r2dbc.andWhere
 import org.jetbrains.exposed.v1.r2dbc.selectAll
@@ -18,15 +20,18 @@ import java.time.Instant
 
 class ExposedSuspendLeaderHistorySinkTest: AbstractExposedR2dbcLeaderTest() {
 
+    companion object: KLoggingChannel()
+
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `recordCompleted requires token match when id is present`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
+
         val sink = ExposedSuspendLeaderHistorySink(db)
         val record = historyRecord(lockName = randomName(), token = "token-1")
-        val key = requireNotNull(sink.recordAcquired(record))
-        val keyId = requireNotNull(key.id)
+        val key = sink.recordAcquired(record).shouldNotBeNull()
+        val keyId = key.id.shouldNotBeNull()
 
         sink.recordCompleted(key.copy(token = "wrong-token"), Instant.now(), 10L)
 

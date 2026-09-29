@@ -9,11 +9,11 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcBackendErrorClassifier
 import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcSuspendSlotExtendDelegate
+import io.bluetape4k.leader.exposed.r2dbc.internal.validateExposedR2dbcLockName
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializer
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcUnlockOutcome
 import io.bluetape4k.leader.exposed.r2dbc.lock.currentTime
-import io.bluetape4k.leader.exposed.r2dbc.lock.validateExposedR2dbcLockName
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.history.LeaderHistoryStatus
@@ -215,7 +215,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
      */
     @Suppress("ReturnCount")
     suspend fun activeCountSuspend(lockName: String): Int {
-        validateExposedR2dbcLockName(lockName)
+        lockName.validateExposedR2dbcLockName()
         val snapshot = cacheSnapshot(lockName)
         val startedAtAvailabilityEpoch = availabilitySnapshot()
         val refreshedCount = try {
@@ -252,7 +252,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
      */
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
-        validateExposedR2dbcLockName(lockName)
+        lockName.validateExposedR2dbcLockName()
 
         val leaseTime = options.leaderGroupOptions.leaseTime
         val perSlotWait = (options.leaderGroupOptions.waitTime / maxLeaders).coerceAtLeast(1.milliseconds)

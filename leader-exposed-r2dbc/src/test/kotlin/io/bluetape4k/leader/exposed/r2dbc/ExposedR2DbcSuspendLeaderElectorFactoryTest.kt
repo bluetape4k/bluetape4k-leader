@@ -1,26 +1,27 @@
 package io.bluetape4k.leader.exposed.r2dbc
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBe
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 import io.bluetape4k.logging.coroutines.KLoggingChannel
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
  * [ExposedR2DbcSuspendLeaderElectorFactory] — SPI contract 테스트.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ExposedR2DbcSuspendLeaderElectorFactoryTest : AbstractExposedR2dbcLeaderTest() {
+class ExposedR2DbcSuspendLeaderElectorFactoryTest: AbstractExposedR2dbcLeaderTest() {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     private fun makeFactory(testDB: TestR2dbcDB): SuspendLeaderElectorFactory {
         val db = setupDb(testDB)
@@ -32,8 +33,10 @@ class ExposedR2DbcSuspendLeaderElectorFactoryTest : AbstractExposedR2dbcLeaderTe
     fun `create - 기본 옵션으로 ExposedR2DbcSuspendLeaderElector 인스턴스 반환`(testDB: TestR2dbcDB) = runSuspendIO {
         val factory = makeFactory(testDB)
         val elector = factory.create(LeaderElectionOptions.Default)
+
         elector.shouldNotBeNull()
         elector.shouldBeInstanceOf<ExposedR2DbcSuspendLeaderElector>()
+        log.debug { "elector options=${elector.options}" }
     }
 
     @ParameterizedTest
@@ -44,6 +47,7 @@ class ExposedR2DbcSuspendLeaderElectorFactoryTest : AbstractExposedR2dbcLeaderTe
         val elector = factory.create(opts)
         elector.shouldNotBeNull()
         elector.shouldBeInstanceOf<ExposedR2DbcSuspendLeaderElector>()
+        log.debug { "elector options=${elector.options}" }
     }
 
     @ParameterizedTest
@@ -52,7 +56,7 @@ class ExposedR2DbcSuspendLeaderElectorFactoryTest : AbstractExposedR2dbcLeaderTe
         val factory = makeFactory(testDB)
         val a = factory.create(LeaderElectionOptions.Default)
         val b = factory.create(LeaderElectionOptions.Default)
-        (a !== b).shouldBeEqualTo(true)
+        a shouldNotBe b
     }
 
     @ParameterizedTest
@@ -60,7 +64,9 @@ class ExposedR2DbcSuspendLeaderElectorFactoryTest : AbstractExposedR2dbcLeaderTe
     fun `create 후 runIfLeader - 리더 획득 성공 시 action 실행`(testDB: TestR2dbcDB) = runSuspendIO {
         val factory = makeFactory(testDB)
         val elector = factory.create(LeaderElectionOptions.Default)
+
         val result = elector.runIfLeader(randomName()) { "factory-ok" }
+
         result shouldBeEqualTo "factory-ok"
     }
 
@@ -70,7 +76,9 @@ class ExposedR2DbcSuspendLeaderElectorFactoryTest : AbstractExposedR2dbcLeaderTe
         val factory = makeFactory(testDB)
         val elector = factory.create(LeaderElectionOptions.Default)
         var called = false
+
         elector.runIfLeader(randomName()) { called = true }
-        called.shouldBeEqualTo(true)
+
+        called.shouldBeTrue()
     }
 }

@@ -5,10 +5,13 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.CancellationException
 import org.junit.jupiter.api.Test
 
 class R2dbcLockCancellationTest {
+
+    companion object: KLoggingChannel()
 
     @Test
     fun `R2DBC lock operation - CancellationException 재전파`() = runSuspendIO {

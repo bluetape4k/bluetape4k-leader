@@ -3,7 +3,6 @@ package io.bluetape4k.leader.exposed.r2dbc.lock
 import io.bluetape4k.leader.exposed.ExposedLeaderSchema
 import io.bluetape4k.leader.exposed.internal.redactDatabaseUrlForLog
 import io.bluetape4k.leader.identity.LeaderInternalApi
-import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -19,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
-internal object ExposedR2dbcSchemaInitializer : KLoggingChannel() {
+internal object ExposedR2dbcSchemaInitializer: KLoggingChannel() {
 
     private val initializedDbs = ConcurrentHashMap<String, Boolean>()
     private val initMutex = Mutex()
@@ -74,13 +73,4 @@ internal object ExposedR2dbcSchemaInitializer : KLoggingChannel() {
     internal fun resetFor(db: R2dbcDatabase) {
         initializedDbs.remove(db.url)
     }
-}
-
-/**
- * `validateExposedR2dbcLockName` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-internal fun validateExposedR2dbcLockName(lockName: String) {
-    lockName.validateLockName()
 }

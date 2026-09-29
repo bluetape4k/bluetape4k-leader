@@ -26,12 +26,6 @@ import org.jetbrains.exposed.v1.jdbc.update
 import java.time.Clock
 import kotlin.time.Duration
 
-/** 해제 결과를 DB 반영 성공, 미소유, DB 오류로 구분합니다. */
-internal enum class ExposedJdbcUnlockOutcome {
-    RELEASED,
-    NOT_HELD,
-    FAILED,
-}
 
 /**
  * `ExposedJdbcGroupLock`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.

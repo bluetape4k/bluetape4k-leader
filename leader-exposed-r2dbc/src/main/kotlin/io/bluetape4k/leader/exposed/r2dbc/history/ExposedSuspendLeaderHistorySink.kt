@@ -26,9 +26,9 @@ import java.time.Instant
  */
 class ExposedSuspendLeaderHistorySink(
     private val database: R2dbcDatabase,
-) : SuspendLeaderHistorySink {
+): SuspendLeaderHistorySink {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
         val id = suspendTransaction(database) {
