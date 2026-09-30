@@ -11,11 +11,6 @@ dependencies {
     api(bt4k.bluetape4k.lettuce)
     api(libs.lettuce.core)
 
-    // Lettuce Codecs
-    testImplementation(bt4k.bluetape4k.io)
-    testImplementation(bt4k.fory.kotlin)
-    testImplementation(bt4k.at.yawk.lz4.java)
-
     // Coroutines
     api(bt4k.bluetape4k.coroutines)
     api(libs.kotlinx.coroutines.reactive)
