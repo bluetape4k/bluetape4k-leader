@@ -21,6 +21,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.RouteSelector
 import io.ktor.server.routing.RouteSelectorEvaluation
 import io.ktor.server.routing.RoutingResolveContext
+import io.ktor.util.AttributeKey
 import io.ktor.util.pipeline.PipelineContext
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -103,7 +104,7 @@ private val routeGuardIds = AtomicLong()
 
 private class LeaderGuardRouteSelector(
     private val id: Long,
-) : RouteSelector() {
+): RouteSelector() {
     override suspend fun evaluate(
         context: RoutingResolveContext,
         segmentIndex: Int,
@@ -112,7 +113,7 @@ private class LeaderGuardRouteSelector(
     override fun toString(): String = "<leader-guard-$id>"
 }
 
-private object LeaderGuardCallHook : Hook<suspend (PipelineContext<Unit, PipelineCall>) -> Unit> {
+private object LeaderGuardCallHook: Hook<suspend (PipelineContext<Unit, PipelineCall>) -> Unit> {
     override fun install(
         pipeline: ApplicationCallPipeline,
         handler: suspend (PipelineContext<Unit, PipelineCall>) -> Unit,
@@ -157,7 +158,7 @@ private val LeaderRouteGuardPlugin = createRouteScopedPlugin(
     }
 }
 
-private val leaderLeaseHandleKey = io.ktor.util.AttributeKey<SuspendLeaderLeaseHandle>(
+private val leaderLeaseHandleKey = AttributeKey<SuspendLeaderLeaseHandle>(
     "io.bluetape4k.leader.ktor.LeaderRouteGuardLeaseHandle",
 )
 
@@ -275,14 +276,14 @@ internal suspend fun withLeaderRouteLease(
             if (!released) {
                 LeaderElectionPluginInternals.log.warn {
                     "leader route lease release timed out — lockName=${lease.lockName}, " +
-                        "timeout=$timeout, downstreamFailure=${downstreamFailure?.javaClass?.simpleName ?: "none"}"
+                            "timeout=$timeout, downstreamFailure=${downstreamFailure?.javaClass?.simpleName ?: "none"}"
                 }
             }
         } catch (failure: Throwable) {
             LeaderElectionPluginInternals.log.warn {
                 "leader route lease release failed — lockName=${lease.lockName}, " +
-                    "causeType=${failure::class.simpleName ?: "Unknown"}, " +
-                    "downstreamFailure=${downstreamFailure?.javaClass?.simpleName ?: "none"}"
+                        "causeType=${failure::class.simpleName ?: "Unknown"}, " +
+                        "downstreamFailure=${downstreamFailure?.javaClass?.simpleName ?: "none"}"
             }
         }
     }

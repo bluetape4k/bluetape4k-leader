@@ -47,7 +47,7 @@ internal fun Route.installLeaderEventStreamPreflight(
     return this
 }
 
-private object LeaderEventStreamCallHook : Hook<suspend (PipelineContext<Unit, PipelineCall>) -> Unit> {
+private object LeaderEventStreamCallHook: Hook<suspend (PipelineContext<Unit, PipelineCall>) -> Unit> {
     override fun install(
         pipeline: ApplicationCallPipeline,
         handler: suspend (PipelineContext<Unit, PipelineCall>) -> Unit,

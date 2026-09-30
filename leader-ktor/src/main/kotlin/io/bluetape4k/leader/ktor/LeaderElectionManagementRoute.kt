@@ -73,41 +73,42 @@ fun Application.leaderElectionManagementRoute(
 }
 
 @Suppress("TooGenericExceptionCaught")
-internal fun LeaderElectionManagementRegistry.toJson(leaderElection: SuspendLeaderElector): String =
-    buildString {
-        append("{\"locks\":[")
-        snapshot().forEachIndexed { index, lockName ->
-            if (index > 0) append(',')
-            try {
-                lockName.validateLockName()
-            } catch (failure: IllegalArgumentException) {
-                throw LeaderElectionHttpException(
-                    context = toErrorContext(
-                        code = LeaderElectionErrorCode.INVALID_LOCK_NAME,
-                        cause = failure,
-                    ),
+internal fun LeaderElectionManagementRegistry.toJson(
+    leaderElection: SuspendLeaderElector,
+): String = buildString {
+    append("{\"locks\":[")
+    snapshot().forEachIndexed { index, lockName ->
+        if (index > 0) append(',')
+        try {
+            lockName.validateLockName()
+        } catch (failure: IllegalArgumentException) {
+            throw LeaderElectionHttpException(
+                context = toErrorContext(
+                    code = LeaderElectionErrorCode.INVALID_LOCK_NAME,
                     cause = failure,
-                )
-            }
-            val state = try {
-                leaderElection.state(lockName)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (failure: Exception) {
-                throw LeaderElectionHttpException(
-                    context = toErrorContext(
-                        code = LeaderElectionErrorCode.BACKEND_UNAVAILABLE,
-                        cause = failure,
-                    ),
-                    cause = failure,
-                )
-            }
-            append('{')
-            append("\"name\":\"").append(lockName.jsonEscape()).append("\",")
-            append("\"status\":\"").append(state.status.name).append("\",")
-            append("\"leaderId\":").append(state.leader?.auditLeaderId?.jsonValue() ?: "null").append(',')
-            append("\"leaseExpiry\":").append(state.leader?.leaseUntil?.toString()?.jsonValue() ?: "null")
-            append('}')
+                ),
+                cause = failure,
+            )
         }
-        append("]}")
+        val state = try {
+            leaderElection.state(lockName)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            throw LeaderElectionHttpException(
+                context = toErrorContext(
+                    code = LeaderElectionErrorCode.BACKEND_UNAVAILABLE,
+                    cause = failure,
+                ),
+                cause = failure,
+            )
+        }
+        append('{')
+        append("\"name\":\"").append(lockName.jsonEscape()).append("\",")
+        append("\"status\":\"").append(state.status.name).append("\",")
+        append("\"leaderId\":").append(state.leader?.auditLeaderId?.jsonValue() ?: "null").append(',')
+        append("\"leaseExpiry\":").append(state.leader?.leaseUntil?.toString()?.jsonValue() ?: "null")
+        append('}')
     }
+    append("]}")
+}

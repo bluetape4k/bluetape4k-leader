@@ -1,11 +1,16 @@
 package io.bluetape4k.leader.ktor.stream
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
@@ -14,15 +19,16 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
 
 class LeaderEventStreamHubTest {
+
+    companion object: KLoggingChannel()
 
     @Test
     fun `sequence는 monotonic이고 capacity를 넘으면 오래된 replay를 버린다`() = runTest {
@@ -38,6 +44,7 @@ class LeaderEventStreamHubTest {
         hub.replay(afterSequence = null)
             .filterIsInstance<LeaderStreamItem.Event>()
             .map { it.sequence } shouldBeEqualTo listOf(2L, 3L)
+
         hub.replay(afterSequence = null)
             .filterIsInstance<LeaderStreamItem.Event>()
             .map { it.event.lockName } shouldBeEqualTo listOf("b", "c")
@@ -49,17 +56,22 @@ class LeaderEventStreamHubTest {
         val hub = LeaderEventStreamHub(publisher, capacity = 8, scope = backgroundScope)
         hub.awaitStarted()
         publisher.emit(LeaderElectionEvent.Skipped("job"))
+
         runCurrent()
+
         val observed = mutableListOf<Long>()
         val collector = launch {
             hub.subscribe(lockName = "job", afterSequence = null)
                 .filterIsInstance<LeaderStreamItem.Event>()
                 .take(3)
                 .collect { observed += it.sequence }
-        }
+        }.log("collector")
+
         hub.awaitSubscriberCount(1)
 
-        repeat(4) { publisher.emit(LeaderElectionEvent.Skipped("job")) }
+        repeat(4) {
+            publisher.emit(LeaderElectionEvent.Skipped("job"))
+        }
         collector.join()
 
         observed shouldBeEqualTo listOf(1L, 2L, 3L)
@@ -71,14 +83,19 @@ class LeaderEventStreamHubTest {
         val publisher = FakePublisher()
         val hub = LeaderEventStreamHub(publisher, capacity = 2, scope = backgroundScope)
         hub.awaitStarted()
-        repeat(4) { publisher.emit(LeaderElectionEvent.Skipped("job")) }
+
+        repeat(4) {
+            publisher.emit(LeaderElectionEvent.Skipped("job"))
+        }
         runCurrent()
 
         val items = hub.replay(afterSequence = 0L)
         items.first().kind shouldBeEqualTo LeaderStreamItem.Kind.REPLAY_GAP
+
         val gap = items.first() as LeaderStreamItem.Control
         gap.from shouldBeEqualTo 1L
         gap.to shouldBeEqualTo 2L
+
         items.drop(1)
             .filterIsInstance<LeaderStreamItem.Event>()
             .map { it.sequence } shouldBeEqualTo listOf(3L, 4L)
@@ -89,13 +106,16 @@ class LeaderEventStreamHubTest {
         val publisher = FakePublisher()
         val hub = LeaderEventStreamHub(publisher, capacity = 8, scope = backgroundScope)
         hub.awaitStarted()
+
         publisher.emit(LeaderElectionEvent.Skipped("job-a"))
         publisher.emit(LeaderElectionEvent.Skipped("job-b"))
+
         runCurrent()
 
         hub.replay(afterSequence = null, lockName = "job-a")
             .filterIsInstance<LeaderStreamItem.Event>()
             .map { it.event.lockName } shouldBeEqualTo listOf("job-a")
+
         assertFailsWith<IllegalArgumentException> {
             hub.acquireConnection(lockName = null, afterSequence = null)
         }
@@ -118,8 +138,8 @@ class LeaderEventStreamHubTest {
         hub.awaitStarted()
         publisher.emit(LeaderElectionEvent.Skipped("job"))
 
-        hub.replay(afterSequence = 0L) shouldBeEqualTo emptyList()
-        hub.replay(afterSequence = 1L) shouldBeEqualTo emptyList()
+        hub.replay(afterSequence = 0L).shouldBeEmpty()
+        hub.replay(afterSequence = 1L).shouldBeEmpty()
 
         val observed = mutableListOf<Long>()
         val collector = launch {
@@ -127,8 +147,10 @@ class LeaderEventStreamHubTest {
                 .filterIsInstance<LeaderStreamItem.Event>()
                 .take(1)
                 .collect { observed += it.sequence }
-        }
+        }.log("collector")
+
         hub.awaitSubscriberCount(1)
+
         publisher.emit(LeaderElectionEvent.Revoked("job"))
         collector.join()
         observed shouldBeEqualTo listOf(2L)
@@ -141,10 +163,13 @@ class LeaderEventStreamHubTest {
         hub.awaitStarted()
         val connection = hub.acquireConnection(lockName = "job", afterSequence = null)
 
-        repeat(6) { publisher.emit(LeaderElectionEvent.Skipped("job")) }
+        repeat(6) {
+            publisher.emit(LeaderElectionEvent.Skipped("job"))
+        }
         runCurrent()
 
-        (hub.droppedItemCount > 0L).shouldBeTrue()
+        hub.droppedItemCount shouldBeGreaterThan 0L
+
         hub.releaseConnection(connection)
         hub.subscriberCount() shouldBeEqualTo 0
     }
@@ -165,6 +190,7 @@ class LeaderEventStreamHubTest {
             hub.acquireConnection(lockName = "job", afterSequence = null)
         }
         hub.releaseConnection(first)
+
         val second = hub.acquireConnection(lockName = "job", afterSequence = null)
         hub.releaseConnection(second)
         hub.subscriberCount() shouldBeEqualTo 0
@@ -181,6 +207,7 @@ class LeaderEventStreamHubTest {
         runCurrent()
 
         cleanup.isCompleted.shouldBeFalse()
+
         hub.releaseConnection(connection)
         cleanup.join()
         hub.subscriberCount() shouldBeEqualTo 0
@@ -196,13 +223,16 @@ class LeaderEventStreamHubTest {
             maxConnections = 1,
         )
         hub.awaitStarted()
+
         val collector = launch {
             hub.subscribe(lockName = "job", afterSequence = null).collect { }
-        }
+        }.log("collector")
+        
         hub.awaitSubscriberCount(1)
         collector.cancelAndJoin()
 
         hub.subscriberCount() shouldBeEqualTo 0
+
         val connection = hub.acquireConnection(lockName = "job", afterSequence = null)
         hub.releaseConnection(connection)
     }
@@ -220,6 +250,7 @@ class LeaderEventStreamHubTest {
 
         hub.subscriberCount() shouldBeEqualTo 0
         connection.channel.receiveCatching().isClosed.shouldBeTrue()
+
         assertFailsWith<LeaderEventStreamClosedException> {
             hub.acquireConnection(lockName = "job", afterSequence = null)
         }
@@ -233,7 +264,8 @@ class LeaderEventStreamHubTest {
 
         hub.close()
         publisher.cleanupStarted.await()
-        val completion = launch { hub.awaitClosed() }
+        val completion = launch { hub.awaitClosed() }.log("completion")
+
         runCurrent()
         completion.isCompleted.shouldBeFalse()
 
@@ -243,15 +275,16 @@ class LeaderEventStreamHubTest {
 
     @Test
     fun `cursor parser는 blank와 non negative decimal만 허용한다`() {
-        parseLeaderEventStreamCursor(null) shouldBeEqualTo null
-        parseLeaderEventStreamCursor("") shouldBeEqualTo null
+        parseLeaderEventStreamCursor(null).shouldBeNull()
+        parseLeaderEventStreamCursor("").shouldBeNull()
         parseLeaderEventStreamCursor(" 42 ") shouldBeEqualTo 42L
+
         assertFailsWith<IllegalArgumentException> { parseLeaderEventStreamCursor("-1") }
         assertFailsWith<IllegalArgumentException> { parseLeaderEventStreamCursor("1.0") }
         assertFailsWith<IllegalArgumentException> { parseLeaderEventStreamCursor("9223372036854775808") }
     }
 
-    private class FakePublisher : LeaderElectionEventPublisher {
+    private class FakePublisher: LeaderElectionEventPublisher {
         private val source = MutableSharedFlow<LeaderElectionEvent>(extraBufferCapacity = 64)
 
         override val events: Flow<LeaderElectionEvent> = source.asSharedFlow()
@@ -261,7 +294,7 @@ class LeaderEventStreamHubTest {
         }
     }
 
-    private class SlowClosingPublisher : LeaderElectionEventPublisher {
+    private class SlowClosingPublisher: LeaderElectionEventPublisher {
         val cleanupStarted = CompletableDeferred<Unit>()
         val allowCleanup = CompletableDeferred<Unit>()
 

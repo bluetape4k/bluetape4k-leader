@@ -10,10 +10,12 @@ import io.bluetape4k.ktor.core.installApplicationResourceLifecycle
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import io.ktor.server.application.install
 import io.ktor.server.application.pluginOrNull
 import io.ktor.server.testing.testApplication
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
@@ -48,6 +50,8 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
                 }
 
                 val cfg = leaderElectionPluginConfig()
+
+                log.debug { "cfg=$cfg" }
                 cfg.leaderElection.shouldNotBeNull()
                 cfg.leaderElection shouldBeEqualTo elector
             }
@@ -108,6 +112,8 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
         }
 
         leaderRegistry.awaitClosed()
+
+        log.debug { "closeReport=${applicationRegistry.closeReport}" }
         applicationRegistry.closeReport.state shouldBeEqualTo ApplicationResourceRegistryState.CLOSED
         applicationRegistry.closeReport.attempted shouldBeEqualTo 1
         applicationRegistry.closeReport.closed shouldBeEqualTo 1
@@ -138,6 +144,8 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
         }
 
         leaderRegistry.awaitClosed()
+
+        log.debug { "closeReport=${applicationRegistry.closeReport}" }
         applicationRegistry.closeReport.attempted shouldBeEqualTo 1
         regularCloseCount.get() shouldBeEqualTo 1
         lateCloseCount.get() shouldBeEqualTo 1
@@ -171,7 +179,8 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
                     } catch (cause: Throwable) {
                         leaderRegistry = requireNotNull(leaderElectionResourceRegistryOrNull())
                         hub = requireNotNull(pluginOrNull(LeaderEventStreamRuntimePlugin)?.hub)
-                        runBlocking {
+
+                        withContext(Dispatchers.IO) {
                             withTimeout(1.seconds) {
                                 val report = leaderRegistry.awaitClosed()
                                 report.attempted shouldBeEqualTo 1
@@ -187,7 +196,7 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
         }
 
         failure.message shouldBeEqualTo
-            "managementActionRouteEnabled=true 이면 application-owned managementActionRegistry를 설정해야 합니다."
+                "managementActionRouteEnabled=true 이면 application-owned managementActionRegistry를 설정해야 합니다."
         leaderRegistry.awaitClosed().attempted shouldBeEqualTo 1
     }
 }

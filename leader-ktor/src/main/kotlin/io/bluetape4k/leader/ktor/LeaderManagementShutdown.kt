@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.ktor
 
+import io.bluetape4k.leader.coroutines.SuspendLeaderManagementActionRegistry
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
-import io.bluetape4k.leader.coroutines.SuspendLeaderManagementActionRegistry
 import io.bluetape4k.support.requirePositiveNumber
 import io.ktor.server.engine.ApplicationEngine
 
@@ -34,4 +34,4 @@ suspend fun ApplicationEngine.stopLeaderManagementGracefully(
 private const val DEFAULT_GRACE_PERIOD_MILLIS: Long = 1_000L
 private const val DEFAULT_TIMEOUT_MILLIS: Long = 5_000L
 
-private object LeaderManagementShutdownLogger : KLogging()
+private object LeaderManagementShutdownLogger: KLogging()

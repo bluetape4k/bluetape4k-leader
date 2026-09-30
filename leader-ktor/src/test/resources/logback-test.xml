@@ -12,6 +12,7 @@
     </appender>
 
     <logger name="io.bluetape4k.leader" level="DEBUG"/>
+    <logger name="bluetape4k" level="DEBUG"/>
     <logger name="io.ktor" level="WARN"/>
 
     <root level="INFO">

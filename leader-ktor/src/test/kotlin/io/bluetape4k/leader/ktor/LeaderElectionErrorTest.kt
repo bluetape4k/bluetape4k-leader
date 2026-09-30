@@ -3,11 +3,16 @@ package io.bluetape4k.leader.ktor
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.ktor.http.HttpStatusCode
 import org.junit.jupiter.api.Test
 
 class LeaderElectionErrorTest {
+
+    companion object: KLogging()
 
     @Test
     fun `기본 payload는 allow-list 필드와 stable status만 포함한다`() {
@@ -18,8 +23,10 @@ class LeaderElectionErrorTest {
             lockName = "internal-job",
         )
 
+        log.debug { "context=$context" }
+        
         context.toJson(exposeLockName = false) shouldBeEqualTo
-            """{"code":"BACKEND_UNAVAILABLE","message":"leader state is temporarily unavailable","status":503}"""
+                """{"code":"BACKEND_UNAVAILABLE","message":"leader state is temporarily unavailable","status":503}"""
     }
 
     @Test
@@ -30,6 +37,7 @@ class LeaderElectionErrorTest {
         )
         val context = contextFor(LeaderElectionErrorCode.LEADER_LOCKED)
 
+        log.debug { "context=$context" }
         context.withOverride(override).toJson(exposeLockName = true) shouldContain "\"lockName\""
         context.withOverride(override).status shouldBeEqualTo HttpStatusCode.Locked
     }
@@ -67,8 +75,9 @@ class LeaderElectionErrorTest {
                 status = status,
                 lockName = "secret-lock",
             )
+            log.debug { "context=$context" }
             context.status shouldBeEqualTo status
-            context.toJson().contains("secret-lock").shouldBeEqualTo(false)
+            context.toJson() shouldNotContain "secret-lock"
             context.toJson(exposeLockName = true) shouldContain "\\\"quotes\\\""
         }
     }
@@ -81,8 +90,9 @@ class LeaderElectionErrorTest {
             cause = IllegalStateException("backend-secret"),
         )
 
-        context.toJson(exposeLockName = false).contains("backend-secret").shouldBeEqualTo(false)
-        context.toJson(exposeLockName = false).contains("IllegalStateException").shouldBeEqualTo(false)
+        log.debug { "context=$context" }
+        context.toJson(exposeLockName = false) shouldNotContain "backend-secret"
+        context.toJson(exposeLockName = false) shouldNotContain "IllegalStateException"
         context.toJson(exposeLockName = true) shouldContain "\"lockName\":\"secret-lock\""
     }
 
@@ -93,16 +103,16 @@ class LeaderElectionErrorTest {
             status = when (code) {
                 LeaderElectionErrorCode.INVALID_LOCK_NAME,
                 LeaderElectionErrorCode.INVALID_CURSOR,
-                -> HttpStatusCode.BadRequest
+                    -> HttpStatusCode.BadRequest
 
                 LeaderElectionErrorCode.LEADER_LOCKED -> HttpStatusCode.Locked
                 LeaderElectionErrorCode.NOT_LEADER,
                 LeaderElectionErrorCode.BACKEND_UNAVAILABLE,
-                -> HttpStatusCode.ServiceUnavailable
+                    -> HttpStatusCode.ServiceUnavailable
 
                 LeaderElectionErrorCode.CONFIGURATION,
                 LeaderElectionErrorCode.INTERNAL,
-                -> HttpStatusCode.InternalServerError
+                    -> HttpStatusCode.InternalServerError
             },
             lockName = "job",
         )

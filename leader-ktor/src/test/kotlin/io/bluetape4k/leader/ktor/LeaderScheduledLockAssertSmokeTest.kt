@@ -1,7 +1,8 @@
 package io.bluetape4k.leader.ktor
 
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LockAssert
@@ -19,7 +20,6 @@ import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.toJavaDuration
 
 /**
  * AC-22b — `leader-ktor` plugin propagation smoke test (Issue #79, T13 PR 9).
@@ -65,15 +65,15 @@ class LeaderScheduledLockAssertSmokeTest: AbstractLeaderKtorTest() {
                 }
             }
             startApplication()
-            await atMost AWAIT_TIMEOUT.toJavaDuration() withPollInterval POLL_INTERVAL.toJavaDuration() until {
+            await atMost AWAIT_TIMEOUT withPollInterval POLL_INTERVAL until {
                 passes.get() >= 1 || asserted.get() != null
             }
             job?.cancel()
         }
 
         // body 내부에서 던진 예외가 있으면 실패
-        (asserted.get() == null).shouldBeTrue()
-        (passes.get() >= 1).shouldBeTrue()
+        asserted.get().shouldBeNull()
+        passes.get() shouldBeGreaterOrEqualTo 1
     }
 
     @Test
@@ -93,7 +93,7 @@ class LeaderScheduledLockAssertSmokeTest: AbstractLeaderKtorTest() {
                 }
             }
             startApplication()
-            await atMost AWAIT_TIMEOUT.toJavaDuration() withPollInterval POLL_INTERVAL.toJavaDuration() until {
+            await atMost AWAIT_TIMEOUT withPollInterval POLL_INTERVAL until {
                 captured.get() != null
             }
             job?.cancel()

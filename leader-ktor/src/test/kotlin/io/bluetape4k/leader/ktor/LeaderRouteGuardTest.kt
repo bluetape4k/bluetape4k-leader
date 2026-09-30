@@ -2,8 +2,9 @@ package io.bluetape4k.leader.ktor
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.codec.encodeBase64String
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.ktor.testing.shouldHaveStatus
 import io.bluetape4k.leader.LeaderLease
@@ -11,6 +12,9 @@ import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.HttpResponse
@@ -25,21 +29,22 @@ import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.basic
-import io.ktor.server.response.respondText
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.intercept
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import org.junit.jupiter.api.Test
 import kotlinx.coroutines.awaitCancellation
+import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import java.util.Base64
 
 class LeaderRouteGuardTest {
+
+    companion object: KLoggingChannel()
 
     @Test
     fun `Occupied STATE는 downstream을 실행한다`() = runSuspendIO {
@@ -88,9 +93,10 @@ class LeaderRouteGuardTest {
             startApplication()
 
             val response = client.get("/")
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.ServiceUnavailable
             response.bodyAsText() shouldContain "\"code\":\"NOT_LEADER\""
-            response.bodyAsText().contains("\"lockName\"").shouldBeFalse()
+            response.bodyAsText() shouldNotContain "\"lockName\""
         }
 
         downstream.get() shouldBeEqualTo 0
@@ -107,7 +113,12 @@ class LeaderRouteGuardTest {
                 routing {
                     leaderGuard(
                         lockName = "job",
-                        configure = { stateProvider = { reads.incrementAndGet(); LeaderState.occupied("job", LeaderLease("test-node")) } },
+                        configure = {
+                            stateProvider = {
+                                reads.incrementAndGet()
+                                LeaderState.occupied("job", LeaderLease("test-node"))
+                            }
+                        },
                     ) {
                         get { call.respondText("ok") }
                     }
@@ -137,9 +148,10 @@ class LeaderRouteGuardTest {
             startApplication()
 
             val response = client.get("/")
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.ServiceUnavailable
             response.bodyAsText() shouldContain "\"code\":\"BACKEND_UNAVAILABLE\""
-            response.bodyAsText().contains("backend-secret").shouldBeFalse()
+            response.bodyAsText() shouldNotContain "backend-secret"
         }
     }
 
@@ -153,6 +165,7 @@ class LeaderRouteGuardTest {
             },
         )
 
+        log.debug { "response=$response" }
         response shouldHaveStatus HttpStatusCode.Locked
         response.bodyAsText() shouldContain "\"code\":\"NOT_LEADER\""
         response.bodyAsText() shouldContain "\"lockName\":\"job\""
@@ -227,6 +240,7 @@ class LeaderRouteGuardTest {
             },
         )
 
+        log.debug { "response=$response" }
         response shouldHaveStatus HttpStatusCode.Locked
         response.bodyAsText() shouldContain "\"code\":\"LEADER_LOCKED\""
         acquirer.acquireCount.get() shouldBeEqualTo 1
@@ -245,6 +259,7 @@ class LeaderRouteGuardTest {
             },
         )
 
+        log.debug { "response=$response" }
         response shouldHaveStatus HttpStatusCode.OK
         response.bodyAsText() shouldBeEqualTo "ok"
         acquirer.acquireCount.get() shouldBeEqualTo 1
@@ -298,6 +313,7 @@ class LeaderRouteGuardTest {
             },
         )
 
+        log.debug { "response=$response" }
         response shouldHaveStatus HttpStatusCode.OK
         response.bodyAsText() shouldBeEqualTo "ok"
         handle.releaseCount shouldBeEqualTo 1
@@ -419,6 +435,8 @@ class LeaderRouteGuardTest {
             startApplication()
 
             val response = client.get("/") { testCredentials() }
+
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.ServiceUnavailable
             response.bodyAsText() shouldContain "\"code\":\"NOT_LEADER\""
         }
@@ -456,6 +474,8 @@ class LeaderRouteGuardTest {
             startApplication()
 
             val response = client.get("/") { testCredentials() }
+
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.OK
             response.bodyAsText() shouldBeEqualTo "ok"
         }
@@ -511,12 +531,12 @@ class LeaderRouteGuardTest {
         return result
     }
 
-    private fun io.ktor.client.request.HttpRequestBuilder.testCredentials() {
-        val encoded = Base64.getEncoder().encodeToString("admin:secret".toByteArray())
+    private fun HttpRequestBuilder.testCredentials() {
+        val encoded = "admin:secret".encodeBase64String()
         header(HttpHeaders.Authorization, "Basic $encoded")
     }
 
-    private class UnavailableLeaseElector :
+    private class UnavailableLeaseElector:
         SuspendLeaderElector,
         SuspendLeaderLeaseAcquirerSupport {
         override val supportsAuditLeaderState: Boolean = true
@@ -531,7 +551,7 @@ class LeaderRouteGuardTest {
 
     private class FailingStateElector(
         private val failure: Throwable,
-    ) : SuspendLeaderElector {
+    ): SuspendLeaderElector {
         override val supportsAuditLeaderState: Boolean = true
 
         override fun state(lockName: String): LeaderState = throw failure

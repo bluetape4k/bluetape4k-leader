@@ -5,19 +5,25 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.ktor.LeaderElectionPluginConfig
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import org.junit.jupiter.api.Test
 import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
-import org.junit.jupiter.api.Test
 
 class LeaderEventStreamPayloadTest {
+
+    companion object: KLogging()
 
     @Test
     fun `event stream defaults are safe and bounded`() {
         val config = LeaderEventStreamConfig()
 
+        log.debug { "config=$config" }
         config.eventStreamRouteEnabled.shouldBeFalse()
         config.eventStreamRoutePath shouldBeEqualTo "/management/leaderElection/events"
         config.eventStreamSseEnabled.shouldBeTrue()
@@ -125,7 +131,7 @@ class LeaderEventStreamPayloadTest {
         )
 
         LeaderEventStreamPayload.event(event, sequence = 7) shouldBeEqualTo
-            "{\"type\":\"Elected\",\"sequence\":7}"
+                "{\"type\":\"Elected\",\"sequence\":7}"
     }
 
     @Test
@@ -142,8 +148,9 @@ class LeaderEventStreamPayloadTest {
             sequence = 7,
             exposeLockName = true,
         )
+        log.debug { "lockNameJson=$lockNameJson" }
         lockNameJson shouldBeEqualTo
-            "{\"type\":\"Elected\",\"sequence\":7,\"lockName\":\"batch-job\"}"
+                "{\"type\":\"Elected\",\"sequence\":7,\"lockName\":\"batch-job\"}"
 
         val metadataJson = LeaderEventStreamPayload.event(
             event = event,
@@ -151,17 +158,19 @@ class LeaderEventStreamPayloadTest {
             exposeLockName = true,
             exposeLeaderMetadata = true,
         )
+        log.debug { "metadataJson=$metadataJson" }
         metadataJson shouldBeEqualTo
-            "{\"type\":\"Elected\",\"sequence\":7,\"lockName\":\"batch-job\",\"leaderId\":\"node-a\",\"leaseExpiry\":\"2026-08-26T01:02:03Z\"}"
-        metadataJson.contains("LeaderLease").shouldBeFalse()
+                "{\"type\":\"Elected\",\"sequence\":7,\"lockName\":\"batch-job\",\"leaderId\":\"node-a\",\"leaseExpiry\":\"2026-08-26T01:02:03Z\"}"
+
+        metadataJson shouldNotContain "LeaderLease"
     }
 
     @Test
     fun `Revoked와 Skipped도 안전한 type payload로 변환한다`() {
         LeaderEventStreamPayload.event(LeaderElectionEvent.Revoked("job"), sequence = 8) shouldBeEqualTo
-            "{\"type\":\"Revoked\",\"sequence\":8}"
+                "{\"type\":\"Revoked\",\"sequence\":8}"
         LeaderEventStreamPayload.event(LeaderElectionEvent.Skipped("job"), sequence = 9) shouldBeEqualTo
-            "{\"type\":\"Skipped\",\"sequence\":9}"
+                "{\"type\":\"Skipped\",\"sequence\":9}"
     }
 
     @Test
@@ -182,14 +191,14 @@ class LeaderEventStreamPayloadTest {
         json shouldContain "\\\""
         json shouldContain "\\\\"
         json shouldContain "\\n"
-        json.contains("job\"\\\n").shouldBeFalse()
+        json shouldNotContain "job\"\\\n"
     }
 
     @Test
     fun `heartbeat과 replay gap은 작은 control payload를 만든다`() {
         LeaderEventStreamPayload.heartbeat() shouldBeEqualTo "{\"event\":\"heartbeat\"}"
         LeaderEventStreamPayload.replayGap(from = 3, to = 4) shouldBeEqualTo
-            "{\"event\":\"replay_gap\",\"from\":3,\"to\":4}"
+                "{\"event\":\"replay_gap\",\"from\":3,\"to\":4}"
     }
 
     @Test

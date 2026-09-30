@@ -96,18 +96,17 @@ fun LeaderElectionPluginConfig.managementActionPath(): String =
 data class LeaderManagementRouteError(
     val code: String,
     val message: String,
-) : Serializable {
+): Serializable {
 
     init {
         require(code in ALLOWED_CODES) { "알 수 없는 management route error code입니다." }
     }
 
-    internal fun toJson(): String =
-        buildString {
-            append("{\"code\":").append(code.jsonValue())
-            append(",\"message\":").append(message.jsonValue())
-            append('}')
-        }
+    internal fun toJson(): String = buildString {
+        append("{\"code\":").append(code.jsonValue())
+        append(",\"message\":").append(message.jsonValue())
+        append('}')
+    }
 
     companion object {
         private val ALLOWED_CODES = setOf("AUTHORIZATION_DENIED", "AUTHORIZATION_FAILED")

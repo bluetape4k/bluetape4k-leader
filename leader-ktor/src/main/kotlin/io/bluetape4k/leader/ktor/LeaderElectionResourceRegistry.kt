@@ -1,12 +1,12 @@
 package io.bluetape4k.leader.ktor
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -39,7 +39,7 @@ internal interface LeaderElectionCloseAwaiter {
 /**
  * Application-owned resource의 lifecycle을 Ktor application과 연결하는 internal 계약입니다.
  */
-internal interface LeaderElectionResourceRegistry : AutoCloseable {
+internal interface LeaderElectionResourceRegistry: AutoCloseable {
     fun register(resource: AutoCloseable): AutoCloseable
     fun register(job: Job): AutoCloseable
     val lastShutdownReport: LeaderElectionShutdownReport?
@@ -55,7 +55,7 @@ internal interface LeaderElectionResourceRegistry : AutoCloseable {
  */
 internal class LeaderElectionResourceRegistryImpl(
     private val jobJoinTimeout: Duration = 2.seconds,
-) : LeaderElectionResourceRegistry {
+): LeaderElectionResourceRegistry {
 
     private val lock = ReentrantLock()
     private val entries = mutableListOf<Entry>()
@@ -63,7 +63,7 @@ internal class LeaderElectionResourceRegistryImpl(
     private val cleanupScope = CoroutineScope(
         cleanupSupervisor + Dispatchers.IO.limitedParallelism(1),
     )
-    private val closedCompletion = kotlinx.coroutines.CompletableDeferred<LeaderElectionShutdownReport>()
+    private val closedCompletion = CompletableDeferred<LeaderElectionShutdownReport>()
     private val shutdownObservers = mutableListOf<(LeaderElectionShutdownReport) -> Unit>()
 
     @Volatile
@@ -239,7 +239,7 @@ internal class LeaderElectionResourceRegistryImpl(
 
     private inner class RegistrationToken(
         private val entry: Entry,
-    ) : AutoCloseable {
+    ): AutoCloseable {
         override fun close() {
             val claimed = lock.withLock {
                 if (entry.claimed) {
@@ -260,7 +260,7 @@ internal class LeaderElectionResourceRegistryImpl(
         var claimed: Boolean = false,
     )
 
-    private object NoOpRegistrationToken : AutoCloseable {
+    private object NoOpRegistrationToken: AutoCloseable {
         override fun close() = Unit
     }
 

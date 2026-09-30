@@ -2,6 +2,7 @@ package io.bluetape4k.leader.ktor
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
@@ -11,10 +12,9 @@ import io.bluetape4k.logging.debug
 import io.ktor.server.application.install
 import io.ktor.server.testing.testApplication
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.toJavaDuration
 
 class ApplicationExtTest: AbstractLeaderKtorTest() {
 
@@ -98,9 +97,9 @@ class ApplicationExtTest: AbstractLeaderKtorTest() {
             }
             startApplication()
 
-            await.atMost(AWAIT_TIMEOUT.toJavaDuration())
-                .withPollInterval(POLL_INTERVAL.toJavaDuration())
-                .until { counter.get() >= 3 }
+            await atMost AWAIT_TIMEOUT withPollInterval POLL_INTERVAL until {
+                counter.get() >= 3
+            }
 
             counter.get() shouldBeGreaterOrEqualTo 3
         }
@@ -128,9 +127,9 @@ class ApplicationExtTest: AbstractLeaderKtorTest() {
             }
             startApplication()
 
-            await.atMost(AWAIT_TIMEOUT.toJavaDuration())
-                .withPollInterval(POLL_INTERVAL.toJavaDuration())
-                .until { cycles.get() >= 3 }
+            await atMost AWAIT_TIMEOUT withPollInterval POLL_INTERVAL until {
+                cycles.get() >= 3
+            }
 
             cycles.get() shouldBeGreaterOrEqualTo 3
             firstCycleConsumed.get().shouldBeTrue()
@@ -152,9 +151,9 @@ class ApplicationExtTest: AbstractLeaderKtorTest() {
             }
             startApplication()
 
-            await.atMost(AWAIT_TIMEOUT.toJavaDuration())
-                .withPollInterval(POLL_INTERVAL.toJavaDuration())
-                .until { counter.get() >= 2 }
+            await atMost AWAIT_TIMEOUT withPollInterval POLL_INTERVAL until {
+                counter.get() >= 2
+            }
 
             counter.get() shouldBeGreaterOrEqualTo 2
         }
@@ -238,14 +237,16 @@ class ApplicationExtTest: AbstractLeaderKtorTest() {
                 }
 
                 // 잠시 실행 후 수동 취소
-                withTimeoutOrNull(AWAIT_TIMEOUT) {
-                    while (counter.get() < 2) delay(SHORT_PERIOD)
+                await atMost AWAIT_TIMEOUT withPollInterval SHORT_PERIOD until {
+                    counter.get() >= 3
                 }
                 job.cancel()
                 val countAtCancel = counter.get()
+
                 delay(SHORT_PERIOD * 5)
+
                 // cancel 이후 거의 증가하지 않음
-                (counter.get() <= countAtCancel + 2).shouldBeTrue()
+                counter.get() shouldBeLessOrEqualTo countAtCancel + 2
                 countAtCancel shouldBeGreaterOrEqualTo 2
             }
             startApplication()

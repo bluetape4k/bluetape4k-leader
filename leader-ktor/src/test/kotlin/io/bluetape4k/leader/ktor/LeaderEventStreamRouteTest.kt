@@ -3,19 +3,22 @@ package io.bluetape4k.leader.ktor
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.codec.encodeBase64String
+import io.bluetape4k.coroutines.support.log
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.ktor.stream.LeaderEventStreamHub
 import io.bluetape4k.leader.ktor.stream.LeaderStreamItem
-import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
+import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
-import io.ktor.client.plugins.websocket.WebSockets as ClientWebSockets
-import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.install
@@ -43,8 +46,11 @@ import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import io.ktor.client.plugins.websocket.WebSockets as ClientWebSockets
 
 class LeaderEventStreamRouteTest {
+
+    companion object: KLoggingChannel()
 
     @Test
     fun `enabled stream requires publisher and caller registrar`() {
@@ -140,10 +146,13 @@ class LeaderEventStreamRouteTest {
                         received.status shouldBeEqualTo HttpStatusCode.OK
                         readSseFrame(received.bodyAsChannel())
                     }
-                }
+                }.log("GET")
+
                 hub.awaitSubscriberCount(1)
                 publisher.emit(LeaderElectionEvent.Elected("job", leaderId = "node-a"))
+
                 val frame = withTimeout(5.seconds) { response.await() }
+                log.debug { "frame=$frame" }
                 frame shouldContain "id: 1"
                 frame shouldContain "event: Elected"
                 frame shouldContain "data: {\"type\":\"Elected\",\"sequence\":1,\"lockName\":\"job\"}"
@@ -170,17 +179,22 @@ class LeaderEventStreamRouteTest {
             }
             startApplication()
 
-            val responseJob = async {
-                client.prepareGet("/management/leaderElection/events?lockName=job").execute { received ->
-                    received.status shouldBeEqualTo HttpStatusCode.OK
-                    readSseFrame(received.bodyAsChannel())
+            coroutineScope {
+                val responseJob = async {
+                    client.prepareGet("/management/leaderElection/events?lockName=job").execute { received ->
+                        received.status shouldBeEqualTo HttpStatusCode.OK
+                        readSseFrame(received.bodyAsChannel())
+                    }
                 }
-            }
-            hub.awaitSubscriberCount(1)
-            val frame = withTimeout(5.seconds) { responseJob.await() }
-            frame shouldContain "event: heartbeat"
-            withTimeout(5.seconds) {
-                hub.awaitSubscriberCount(0)
+                hub.awaitSubscriberCount(1)
+
+                val frame = withTimeout(5.seconds) { responseJob.await() }
+                log.debug { "frame=$frame" }
+                frame shouldContain "event: heartbeat"
+
+                withTimeout(5.seconds) {
+                    hub.awaitSubscriberCount(0)
+                }
             }
         }
     }
@@ -212,15 +226,17 @@ class LeaderEventStreamRouteTest {
                 received.status shouldBeEqualTo HttpStatusCode.OK
                 readSseFrame(received.bodyAsChannel())
             }
+            log.debug { "response=$response" }
             response shouldContain "id: 2"
             response shouldContain "event: Revoked"
 
             publisher.emit(LeaderElectionEvent.Skipped("job"))
             publisher.emit(LeaderElectionEvent.Elected("job", leaderId = "node-b"))
+
             withTimeout(5.seconds) {
                 while (hub.replay(afterSequence = null).none {
-                    it is LeaderStreamItem.Event && it.sequence == 4L
-                }) {
+                        it is LeaderStreamItem.Event && it.sequence == 4L
+                    }) {
                     yield()
                 }
             }
@@ -230,6 +246,7 @@ class LeaderEventStreamRouteTest {
                 received.status shouldBeEqualTo HttpStatusCode.OK
                 readSseFrame(received.bodyAsChannel())
             }
+            log.debug { "staleResponse=$staleResponse" }
             staleResponse shouldContain "event: replay_gap"
             staleResponse shouldContain "data: {\"event\":\"replay_gap\",\"from\":1,\"to\":2}"
         }
@@ -260,10 +277,12 @@ class LeaderEventStreamRouteTest {
                         received.status shouldBeEqualTo HttpStatusCode.OK
                         readSseFrame(received.bodyAsChannel())
                     }
-                }
+                }.log("GET")
                 hub.awaitSubscriberCount(1)
                 publisher.emit(LeaderElectionEvent.Skipped("all-lock-job"))
+
                 val frame = withTimeout(5.seconds) { response.await() }
+                log.debug { "frame=$frame" }
                 frame shouldContain "\"lockName\":\"all-lock-job\""
             }
         }
@@ -287,10 +306,12 @@ class LeaderEventStreamRouteTest {
             startApplication()
 
             val missingLock = client.get("/management/leaderElection/events")
+            log.debug { "missingLock=$missingLock" }
             missingLock.status shouldBeEqualTo HttpStatusCode.BadRequest
             missingLock.bodyAsText() shouldContain "\"code\":\"INVALID_LOCK_NAME\""
 
             val invalidCursor = client.get("/management/leaderElection/events?lockName=job&afterSequence=-1")
+            log.debug { "invalidCursor=$invalidCursor" }
             invalidCursor.status shouldBeEqualTo HttpStatusCode.BadRequest
             invalidCursor.bodyAsText() shouldContain "\"code\":\"INVALID_CURSOR\""
 
@@ -302,6 +323,7 @@ class LeaderEventStreamRouteTest {
                 received.status shouldBeEqualTo HttpStatusCode.BadRequest
                 received.bodyAsText()
             }
+            log.debug { "duplicateCursor=$duplicateCursor" }
             duplicateCursor shouldContain "\"code\":\"INVALID_CURSOR\""
 
             hub.subscriberCount() shouldBeEqualTo 0
@@ -327,33 +349,36 @@ class LeaderEventStreamRouteTest {
             }
             startApplication()
 
-            val first = async {
-                client.prepareGet("/management/leaderElection/events?lockName=job").execute { received ->
-                    received.status shouldBeEqualTo HttpStatusCode.OK
-                    received.bodyAsChannel().readLine()
+            coroutineScope {
+                val first = async {
+                    client.prepareGet("/management/leaderElection/events?lockName=job").execute { received ->
+                        received.status shouldBeEqualTo HttpStatusCode.OK
+                        received.bodyAsChannel().readLine()
+                    }
                 }
-            }
-            hub.awaitSubscriberCount(1)
+                hub.awaitSubscriberCount(1)
 
-            val rejected = client.get("/management/leaderElection/events?lockName=job")
-            rejected.status shouldBeEqualTo HttpStatusCode.ServiceUnavailable
-            rejected.bodyAsText() shouldContain "\"code\":\"BACKEND_UNAVAILABLE\""
+                val rejected = client.get("/management/leaderElection/events?lockName=job")
+                log.debug { "rejected=$rejected" }
+                rejected.status shouldBeEqualTo HttpStatusCode.ServiceUnavailable
+                rejected.bodyAsText() shouldContain "\"code\":\"BACKEND_UNAVAILABLE\""
 
-            first.cancelAndJoin()
-            publisher.emit(LeaderElectionEvent.Skipped("job"))
-            withTimeout(5.seconds) {
-                hub.awaitSubscriberCount(0)
-            }
-
-            val second = async {
-                client.prepareGet("/management/leaderElection/events?lockName=job").execute { received ->
-                    received.status shouldBeEqualTo HttpStatusCode.OK
-                    readSseFrame(received.bodyAsChannel())
+                first.cancelAndJoin()
+                publisher.emit(LeaderElectionEvent.Skipped("job"))
+                withTimeout(5.seconds) {
+                    hub.awaitSubscriberCount(0)
                 }
+
+                val second = async {
+                    client.prepareGet("/management/leaderElection/events?lockName=job").execute { received ->
+                        received.status shouldBeEqualTo HttpStatusCode.OK
+                        readSseFrame(received.bodyAsChannel())
+                    }
+                }.log("GET")
+                hub.awaitSubscriberCount(1)
+                publisher.emit(LeaderElectionEvent.Skipped("job"))
+                second.await() shouldContain "event: Skipped"
             }
-            hub.awaitSubscriberCount(1)
-            publisher.emit(LeaderElectionEvent.Skipped("job"))
-            second.await() shouldContain "event: Skipped"
         }
     }
 
@@ -382,6 +407,7 @@ class LeaderEventStreamRouteTest {
             startApplication()
 
             val response = client.get("/management/leaderElection/events?lockName=job")
+            log.debug { "response=$response" }
             response.status shouldBeEqualTo HttpStatusCode.Unauthorized
             hub.subscriberCount() shouldBeEqualTo 0
         }
@@ -425,21 +451,25 @@ class LeaderEventStreamRouteTest {
 
                 publisher.emit(LeaderElectionEvent.Skipped("other"))
                 publisher.emit(LeaderElectionEvent.Elected("job", leaderId = "node-ws"))
-                val event = withTimeout(5.seconds) { (incoming.receive() as Frame.Text).data.decodeToString() }
+
+                val event = withTimeout(5.seconds) {
+                    (incoming.receive() as Frame.Text).data.decodeToString()
+                }
+                log.debug { "event=$event" }
                 event shouldContain "\"sequence\":5"
                 event shouldContain "\"lockName\":\"job\""
                 event shouldContain "\"leaderId\":\"node-ws\""
                 close(CloseReason(CloseReason.Codes.NORMAL, "test"))
-                withTimeout(5.seconds) { closeReason.await() }
+                withTimeout(3.seconds) { closeReason.await() }
             }
             wsClient.close()
-            withTimeout(5.seconds) {
+            withTimeout(3.seconds) {
                 hub.awaitSubscriberCount(0)
             }
         }
     }
 
-    private class PublishingElector : SuspendLeaderElector, LeaderElectionEventPublisher {
+    private class PublishingElector: SuspendLeaderElector, LeaderElectionEventPublisher {
         private val source = MutableSharedFlow<LeaderElectionEvent>(extraBufferCapacity = 64)
 
         override val events: Flow<LeaderElectionEvent> = source.asSharedFlow()
@@ -454,7 +484,7 @@ class LeaderEventStreamRouteTest {
         }
     }
 
-    private class NonPublishingElector : SuspendLeaderElector {
+    private class NonPublishingElector: SuspendLeaderElector {
         override fun state(lockName: String): io.bluetape4k.leader.LeaderState =
             io.bluetape4k.leader.LeaderState.empty(lockName)
 
@@ -483,5 +513,5 @@ class LeaderEventStreamRouteTest {
     }
 
     private fun basicAuth(username: String, password: String): String =
-        "Basic " + java.util.Base64.getEncoder().encodeToString("$username:$password".toByteArray())
+        "Basic " + "$username:$password".encodeBase64String()
 }

@@ -61,14 +61,13 @@ internal fun validateBackendConnectivityCheckTimeout(timeout: Duration, property
     }
 }
 
-private fun LeaderBackendDiagnostics.toJson(): String =
-    buildString {
-        append("{\"descriptor\":")
-        appendDescriptor(descriptor)
-        append(",\"connectivity\":")
-        appendConnectivity(connectivity)
-        append('}')
-    }
+private fun LeaderBackendDiagnostics.toJson(): String = buildString {
+    append("{\"descriptor\":")
+    appendDescriptor(descriptor)
+    append(",\"connectivity\":")
+    appendConnectivity(connectivity)
+    append('}')
+}
 
 private fun StringBuilder.appendDescriptor(descriptor: LeaderBackendDescriptor) {
     append("{\"backendId\":").append(descriptor.backendId.jsonValue())
