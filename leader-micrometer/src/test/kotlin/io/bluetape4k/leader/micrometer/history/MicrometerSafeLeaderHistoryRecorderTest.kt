@@ -3,6 +3,7 @@ package io.bluetape4k.leader.micrometer.history
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderHistorySink
@@ -17,7 +18,7 @@ import java.time.Instant
 
 class MicrometerSafeLeaderHistoryRecorderTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val now = Instant.parse("2026-05-14T10:00:00Z")
 
@@ -26,16 +27,20 @@ class MicrometerSafeLeaderHistoryRecorderTest {
         token = "tok-abc",
         kind = LockIdentity.AnnotationKind.SINGLE,
         acquiredAt = now,
-        lockedUntil = now.plusSeconds(60),
+        lockedUntil = now + 60.seconds(),
     )
 
     private val key = LeaderHistoryKey(lockName = "test-lock", token = "tok-abc")
 
     private fun failureCount(registry: SimpleMeterRegistry, sinkName: String): Double =
-        registry.counter(MicrometerNames.HISTORY_SINK_FAILURES, "sink", sinkName).count()
+        registry
+            .counter(MicrometerNames.HISTORY_SINK_FAILURES, "sink", sinkName)
+            .count()
 
     private fun acquireMissingCount(registry: SimpleMeterRegistry, sinkName: String): Double =
-        registry.counter(MicrometerNames.HISTORY_ACQUIRE_MISSING, "sink", sinkName).count()
+        registry
+            .counter(MicrometerNames.HISTORY_ACQUIRE_MISSING, "sink", sinkName)
+            .count()
 
     // ── acquire missing counter ───────────────────────────────────────────
 
@@ -50,10 +55,16 @@ class MicrometerSafeLeaderHistoryRecorderTest {
     @Test
     fun `recordAcquired does not increment acquire-missing counter when key returned`() {
         val registry = SimpleMeterRegistry()
-        val sink = object : LeaderHistorySink {
+        val sink = object: LeaderHistorySink {
             override fun recordAcquired(record: LeaderLockHistoryRecord) = key
             override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
-            override fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, errorType: String?, errorMessage: String?) = Unit
+            override fun recordFailed(
+                key: LeaderHistoryKey,
+                finishedAt: Instant,
+                durationMs: Long,
+                errorType: String?,
+                errorMessage: String?,
+            ) = Unit
         }
         val recorder = MicrometerSafeLeaderHistoryRecorder(sink, registry)
         recorder.recordAcquired(record())
@@ -65,11 +76,18 @@ class MicrometerSafeLeaderHistoryRecorderTest {
     @Test
     fun `recordAcquired increments failure counter when sink throws Exception`() {
         val registry = SimpleMeterRegistry()
-        val sink = object : LeaderHistorySink {
+        val sink = object: LeaderHistorySink {
             override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? =
                 throw RuntimeException("storage down")
+
             override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
-            override fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, errorType: String?, errorMessage: String?) = Unit
+            override fun recordFailed(
+                key: LeaderHistoryKey,
+                finishedAt: Instant,
+                durationMs: Long,
+                errorType: String?,
+                errorMessage: String?,
+            ) = Unit
         }
         val recorder = MicrometerSafeLeaderHistoryRecorder(sink, registry)
         val result = recorder.recordAcquired(record())
@@ -80,11 +98,18 @@ class MicrometerSafeLeaderHistoryRecorderTest {
     @Test
     fun `recordCompleted increments failure counter when sink throws Exception`() {
         val registry = SimpleMeterRegistry()
-        val sink = object : LeaderHistorySink {
+        val sink = object: LeaderHistorySink {
             override fun recordAcquired(record: LeaderLockHistoryRecord) = null
             override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) =
                 throw RuntimeException("write failed")
-            override fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, errorType: String?, errorMessage: String?) = Unit
+
+            override fun recordFailed(
+                key: LeaderHistoryKey,
+                finishedAt: Instant,
+                durationMs: Long,
+                errorType: String?,
+                errorMessage: String?,
+            ) = Unit
         }
         val recorder = MicrometerSafeLeaderHistoryRecorder(sink, registry)
         recorder.recordCompleted(key, now, 100L)
@@ -96,13 +121,21 @@ class MicrometerSafeLeaderHistoryRecorderTest {
     @Test
     fun `recordAcquired does not increment counter on CancellationException and rethrows`() {
         val registry = SimpleMeterRegistry()
-        val sink = object : LeaderHistorySink {
+        val sink = object: LeaderHistorySink {
             override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? =
                 throw CancellationException("cancelled")
+
             override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
-            override fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, errorType: String?, errorMessage: String?) = Unit
+            override fun recordFailed(
+                key: LeaderHistoryKey,
+                finishedAt: Instant,
+                durationMs: Long,
+                errorType: String?,
+                errorMessage: String?,
+            ) = Unit
         }
         val recorder = MicrometerSafeLeaderHistoryRecorder(sink, registry)
+
         assertFailsWith<CancellationException> {
             recorder.recordAcquired(record())
         }

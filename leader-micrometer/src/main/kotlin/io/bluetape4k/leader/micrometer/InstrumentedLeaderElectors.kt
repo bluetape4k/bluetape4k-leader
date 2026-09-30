@@ -52,8 +52,7 @@ class InstrumentedLeaderElector private constructor(
         get() = delegate.supportsAuditLeaderState
 
     override val leaseCapabilityAvailable: Boolean
-        get() = (delegate as? LeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
-            ?: delegate is LeaderLeaseAcquirer
+        get() = ((delegate as? LeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable ?: delegate) is LeaderLeaseAcquirer
 
     override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
         (delegate as? LeaderLeaseAcquirer).requireNotNull {
@@ -229,8 +228,8 @@ class InstrumentedSuspendLeaderElector private constructor(
         get() = delegate.supportsAuditLeaderState
 
     override val leaseCapabilityAvailable: Boolean
-        get() = (delegate as? SuspendLeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
-            ?: delegate is SuspendLeaderLeaseAcquirer
+        get() = ((delegate as? SuspendLeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
+            ?: delegate) is SuspendLeaderLeaseAcquirer
 
     override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
         (delegate as? SuspendLeaderLeaseAcquirer).requireNotNull {

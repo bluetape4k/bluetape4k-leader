@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.audit
 
+import io.bluetape4k.ToStringBuilder
+
 /**
  * exporter의 bounded queue, in-flight와 누적 lifecycle counter snapshot입니다.
  *
@@ -25,7 +27,28 @@ class LeaderAuditExportSnapshot private constructor(payload: Payload) {
     val diagnosticsClosed: Boolean = payload.diagnosticsClosed
     val closed: Boolean = payload.closed
 
-    private class Payload(
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("queued", queued)
+            .add("inFlight", inFlight)
+            .add("scheduledRetries", scheduledRetries)
+            .add("admitted", admitted)
+            .add("accepted", accepted)
+            .add("droppedQueueFull", droppedQueueFull)
+            .add("droppedClosed", droppedClosed)
+            .add("retries", retries)
+            .add("terminalFailures", terminalFailures)
+            .add("cancellations", cancellations)
+            .add("schedulerRejections", schedulerRejections)
+            .add("schedulerRejections", schedulerRejections)
+            .add("observerDrops", observerDrops)
+            .add("observerRegistrationDrops", observerRegistrationDrops)
+            .add("diagnosticsFatalErrors", diagnosticsFatalErrors)
+            .add("closed", closed)
+            .toString()
+    }
+
+    private data class Payload(
         val queued: Int,
         val inFlight: Int,
         val scheduledRetries: Int,

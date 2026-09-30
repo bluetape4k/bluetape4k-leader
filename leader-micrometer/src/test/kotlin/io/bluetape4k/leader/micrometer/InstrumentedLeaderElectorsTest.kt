@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
@@ -45,10 +46,10 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderElector - default constructor redacts runtime lock names`() {
-        val election = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
+        val elector = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
 
-        election.runIfLeader("tenant-a") { "done" }
-        election.runIfLeader("tenant-b") { "done" }
+        elector.runIfLeader("tenant-a") { "done" }
+        elector.runIfLeader("tenant-b") { "done" }
 
         acquiredCount("redacted-lock") shouldBeEqualTo 2.0
         acquiredCount("tenant-a") shouldBeEqualTo 0.0
@@ -69,15 +70,14 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `instrumented decorators preserve nullable backend diagnostics provider`() {
-        val leaderDelegate = object:
-            LeaderElector by StubLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {}
-        val groupDelegate = object:
-            LeaderGroupElector by StubLeaderGroupElector(elected = true),
-            LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {}
-        val suspendDelegate = object:
-            SuspendLeaderElector by StubSuspendLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {}
+        val leaderDelegate = object: LeaderElector by StubLeaderElector(elected = true),
+                                     LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {}
+
+        val groupDelegate = object: LeaderGroupElector by StubLeaderGroupElector(elected = true),
+                                    LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {}
+
+        val suspendDelegate = object: SuspendLeaderElector by StubSuspendLeaderElector(elected = true),
+                                      LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {}
 
         val wrappers: List<Any> = listOf(
             InstrumentedLeaderElector(leaderDelegate, registry),
@@ -87,13 +87,10 @@ class InstrumentedLeaderElectorsTest {
 
         wrappers.forEach { wrapper ->
             val provider = (wrapper as? LeaderBackendDiagnosticsAware)?.backendDiagnosticsProvider
-
-            provider.shouldNotBeNull().backendDescriptor shouldBe
-                    LocalLeaderBackendDiagnostics.backendDescriptor
+            provider?.backendDescriptor shouldBe LocalLeaderBackendDiagnostics.backendDescriptor
         }
 
-        val wrapperWithoutProvider: Any =
-            InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
+        val wrapperWithoutProvider: Any = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
         (wrapperWithoutProvider as? LeaderBackendDiagnosticsAware)
             ?.backendDiagnosticsProvider
             .shouldBeNull()
@@ -105,10 +102,9 @@ class InstrumentedLeaderElectorsTest {
             connectivity = LeaderBackendConnectivity.up(Instant.EPOCH),
             backendName = "redis-prod.example:6380/token",
         )
-        val delegate = object:
-            LeaderElector by StubLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by provider {}
-        val election = InstrumentedLeaderElector(
+        val delegate = object: LeaderElector by StubLeaderElector(elected = true),
+                               LeaderBackendDiagnosticsProvider by provider {}
+        val elector = InstrumentedLeaderElector(
             delegate = delegate,
             registry = registry,
             tagOptions = LeaderMetricTagOptions(
@@ -116,12 +112,13 @@ class InstrumentedLeaderElectorsTest {
             ),
         )
 
-        val decorated = (election as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
-            .shouldNotBeNull()
+        val decorated = (elector as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider.shouldNotBeNull()
         decorated.checkConnectivity(100.milliseconds)
 
-        val meter = registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY).counter()
+        val meter = registry
+            .find(MicrometerNames.METER_BACKEND_CONNECTIVITY).counter()
             .shouldNotBeNull()
+
         meter.count() shouldBeEqualTo 1.0
         meter.id.tags.map { it.key }.toSet() shouldBeEqualTo setOf(
             LeaderMetricTagOptions.TAG_BACKEND_NAME,
@@ -136,30 +133,28 @@ class InstrumentedLeaderElectorsTest {
     @Test
     fun `passive diagnostics does not create connectivity counter`() {
         val provider = RecordingDiagnosticsProvider()
-        val delegate = object:
-            LeaderElector by StubLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by provider {}
-        val election = InstrumentedLeaderElector(delegate, registry)
+        val delegate = object: LeaderElector by StubLeaderElector(elected = true),
+                               LeaderBackendDiagnosticsProvider by provider {}
+        val elector = InstrumentedLeaderElector(delegate, registry)
 
-        (election as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
-            .shouldNotBeNull()
-            .diagnostics()
+        elector.shouldBeInstanceOf<LeaderBackendDiagnosticsAware>()
+        elector.backendDiagnosticsProvider.shouldNotBeNull().diagnostics()
 
         registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY).meters().shouldBeEmpty()
     }
 
     @Test
     fun `active diagnostics records one counter for each execution model`() {
-        val blockingDelegate = object:
-            LeaderElector by StubLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider() {}
-        val groupDelegate = object:
-            LeaderGroupElector by StubLeaderGroupElector(elected = true),
-            LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider() {}
-        val suspendDelegate = object:
-            SuspendLeaderElector by StubSuspendLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider() {}
-        val wrappers = listOf<LeaderBackendDiagnosticsAware>(
+        val blockingDelegate = object: LeaderElector by StubLeaderElector(elected = true),
+                                       LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider() {}
+
+        val groupDelegate = object: LeaderGroupElector by StubLeaderGroupElector(elected = true),
+                                    LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider() {}
+
+        val suspendDelegate = object: SuspendLeaderElector by StubSuspendLeaderElector(elected = true),
+                                      LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider() {}
+
+        val wrappers = listOf(
             InstrumentedLeaderElector(blockingDelegate, registry),
             InstrumentedLeaderGroupElector(groupDelegate, registry),
             InstrumentedSuspendLeaderElector(suspendDelegate, registry),
@@ -171,7 +166,8 @@ class InstrumentedLeaderElectorsTest {
                 .diagnostics(probe = true, timeout = 100.milliseconds)
         }
 
-        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+        registry
+            .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
             .tag(LeaderMetricTagOptions.TAG_BACKEND_NAME, "test-backend")
             .tag(MicrometerNames.TAG_BACKEND_STATUS, LeaderBackendConnectivityStatus.UP.name)
             .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.CONNECTED.name)
@@ -183,12 +179,11 @@ class InstrumentedLeaderElectorsTest {
     @Test
     fun `concurrent active diagnostics creates one meter and counts every probe`() {
         val provider = RecordingDiagnosticsProvider()
-        val delegate = object:
-            LeaderElector by StubLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by provider {}
-        val election = InstrumentedLeaderElector(delegate, registry)
-        val decorated = (election as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
-            .shouldNotBeNull()
+        val delegate = object: LeaderElector by StubLeaderElector(elected = true),
+                               LeaderBackendDiagnosticsProvider by provider {}
+
+        val elector = InstrumentedLeaderElector(delegate, registry)
+        val decorated = (elector as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider.shouldNotBeNull()
 
         MultithreadingTester()
             .workers(8)
@@ -196,12 +191,15 @@ class InstrumentedLeaderElectorsTest {
             .add { decorated.checkConnectivity(100.milliseconds) }
             .run()
 
-        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+        registry
+            .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
             .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.CONNECTED.name)
             .counter()
             .shouldNotBeNull()
             .count() shouldBeEqualTo 200.0
-        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+
+        registry
+            .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
             .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.CONNECTED.name)
             .meters()
             .size shouldBeEqualTo 1
@@ -211,9 +209,9 @@ class InstrumentedLeaderElectorsTest {
     fun `decorated provider preserves exception identity and records bounded fallback reason`() {
         val failure = IllegalStateException("endpoint=https://redis-prod.example token=secret")
         val provider = RecordingDiagnosticsProvider(failure = failure)
-        val delegate = object:
-            LeaderElector by StubLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by provider {}
+        val delegate = object: LeaderElector by StubLeaderElector(elected = true),
+                               LeaderBackendDiagnosticsProvider by provider {}
+
         val decorated = (InstrumentedLeaderElector(delegate, registry) as LeaderBackendDiagnosticsAware)
             .backendDiagnosticsProvider
             .shouldNotBeNull()
@@ -223,7 +221,9 @@ class InstrumentedLeaderElectorsTest {
         }
 
         thrown shouldBeSameInstanceAs failure
-        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+
+        registry
+            .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
             .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.PROVIDER_EXCEPTION.name)
             .counter()
             .shouldNotBeNull()
@@ -234,9 +234,9 @@ class InstrumentedLeaderElectorsTest {
     fun `active diagnostics preserves ordinary exception identity and records one fallback`() {
         val failure = IllegalArgumentException("endpoint=https://redis-prod.example token=secret")
         val provider = RecordingDiagnosticsProvider(failure = failure)
-        val delegate = object:
-            LeaderElector by StubLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by provider {}
+        val delegate = object: LeaderElector by StubLeaderElector(elected = true),
+                               LeaderBackendDiagnosticsProvider by provider {}
+
         val decorated = (InstrumentedLeaderElector(delegate, registry) as LeaderBackendDiagnosticsAware)
             .backendDiagnosticsProvider
             .shouldNotBeNull()
@@ -246,7 +246,8 @@ class InstrumentedLeaderElectorsTest {
         }
 
         thrown shouldBeSameInstanceAs failure
-        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+        registry
+            .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
             .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.PROVIDER_EXCEPTION.name)
             .counter()
             .shouldNotBeNull()
@@ -255,16 +256,15 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `interruption and Error are rethrown without fallback metric`() {
-        val failures = listOf<Throwable>(
+        val failures = listOf(
             InterruptedException("interrupted"),
             AssertionError("fatal"),
         )
 
         failures.forEach { failure ->
             val provider = RecordingDiagnosticsProvider(failure = failure)
-            val delegate = object:
-                LeaderElector by StubLeaderElector(elected = true),
-                LeaderBackendDiagnosticsProvider by provider {}
+            val delegate = object: LeaderElector by StubLeaderElector(elected = true),
+                                   LeaderBackendDiagnosticsProvider by provider {}
             val decorated = (InstrumentedLeaderElector(delegate, registry) as LeaderBackendDiagnosticsAware)
                 .backendDiagnosticsProvider
                 .shouldNotBeNull()
@@ -276,7 +276,8 @@ class InstrumentedLeaderElectorsTest {
             thrown shouldBeSameInstanceAs failure
         }
 
-        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+        registry
+            .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
             .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.PROVIDER_EXCEPTION.name)
             .counter()
             .shouldBeNull()
@@ -294,9 +295,9 @@ class InstrumentedLeaderElectorsTest {
             operations.forEach { operation ->
                 Thread.interrupted()
                 val provider = RecordingDiagnosticsProvider(failure = interrupted)
-                val delegate = object:
-                    LeaderElector by StubLeaderElector(elected = true),
-                    LeaderBackendDiagnosticsProvider by provider {}
+                val delegate = object: LeaderElector by StubLeaderElector(elected = true),
+                                       LeaderBackendDiagnosticsProvider by provider {}
+
                 val decorated = (InstrumentedLeaderElector(delegate, registry) as LeaderBackendDiagnosticsAware)
                     .backendDiagnosticsProvider
                     .shouldNotBeNull()
@@ -316,9 +317,8 @@ class InstrumentedLeaderElectorsTest {
     @Test
     fun `decorating an instrumented provider does not double count`() {
         val provider = RecordingDiagnosticsProvider()
-        val delegate = object:
-            LeaderElector by StubLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by provider {}
+        val delegate = object: LeaderElector by StubLeaderElector(elected = true),
+                               LeaderBackendDiagnosticsProvider by provider {}
         val inner = InstrumentedLeaderElector(delegate, registry)
         val outer = InstrumentedLeaderElector(inner, registry)
 
@@ -326,7 +326,8 @@ class InstrumentedLeaderElectorsTest {
             .shouldNotBeNull()
             .checkConnectivity(100.milliseconds)
 
-        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+        registry
+            .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
             .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.CONNECTED.name)
             .counter()
             .shouldNotBeNull()
@@ -338,9 +339,9 @@ class InstrumentedLeaderElectorsTest {
         val innerRegistry = SimpleMeterRegistry()
         val outerRegistry = SimpleMeterRegistry()
         val provider = RecordingDiagnosticsProvider(backendName = "redis-prod.example:6380/token")
-        val delegate = object:
-            LeaderElector by StubLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by provider {}
+        val delegate = object: LeaderElector by StubLeaderElector(elected = true),
+                               LeaderBackendDiagnosticsProvider by provider {}
+
         val inner = InstrumentedLeaderElector(delegate, innerRegistry, LeaderMetricTagOptions.Raw)
         val outer = InstrumentedLeaderElector(inner, outerRegistry, LeaderMetricTagOptions.Raw)
 
@@ -349,10 +350,13 @@ class InstrumentedLeaderElectorsTest {
             .checkConnectivity(100.milliseconds)
 
         connectivityCount(outerRegistry, "redis-prod.example:6380/token") shouldBeEqualTo 1.0
-        outerRegistry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+        outerRegistry
+            .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
             .meters()
             .size shouldBeEqualTo 1
-        innerRegistry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+
+        innerRegistry
+            .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
             .meters()
             .shouldBeEmpty()
     }
@@ -366,13 +370,15 @@ class InstrumentedLeaderElectorsTest {
             backendName = LeaderMetricTagRule(redactedValue = "outer-backend"),
         )
         val provider = RecordingDiagnosticsProvider(backendName = "redis-prod.example:6380/token")
-        val delegate = object:
-            LeaderElector by StubLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by provider {}
+
+        val delegate = object: LeaderElector by StubLeaderElector(elected = true),
+                               LeaderBackendDiagnosticsProvider by provider {}
         val inner = InstrumentedLeaderElector(delegate, registry, innerOptions)
+
         (inner as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
             .shouldNotBeNull()
             .checkConnectivity(100.milliseconds)
+
         val outer = InstrumentedLeaderElector(inner, registry, outerOptions)
 
         (outer as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
@@ -389,15 +395,14 @@ class InstrumentedLeaderElectorsTest {
             backendName = LeaderMetricTagRule(redactedValue = "shared-backend"),
         )
         val provider = RecordingDiagnosticsProvider(backendName = "redis-prod.example:6380/token")
-        val delegate = object:
-            LeaderElector by StubLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by provider {}
+        val delegate = object: LeaderElector by StubLeaderElector(elected = true),
+                               LeaderBackendDiagnosticsProvider by provider {}
         val inner = InstrumentedLeaderElector(delegate, registry, options)
-        val innerProvider = (inner as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
-            .shouldNotBeNull()
+
+        val innerProvider = (inner as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider.shouldNotBeNull()
+
         val outer = InstrumentedLeaderElector(inner, registry, options.copy())
-        val outerProvider = (outer as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
-            .shouldNotBeNull()
+        val outerProvider = (outer as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider.shouldNotBeNull()
 
         outerProvider shouldBeSameInstanceAs innerProvider
     }
@@ -407,15 +412,13 @@ class InstrumentedLeaderElectorsTest {
         val innerRegistry = SimpleMeterRegistry()
         val outerRegistry = SimpleMeterRegistry()
         val options = LeaderMetricTagOptions.Raw
-        val blockingDelegate = object:
-            LeaderElector by StubLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider(backendName = "blocking") {}
-        val groupDelegate = object:
-            LeaderGroupElector by StubLeaderGroupElector(elected = true),
-            LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider(backendName = "group") {}
-        val suspendDelegate = object:
-            SuspendLeaderElector by StubSuspendLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider(backendName = "suspend") {}
+
+        val blockingDelegate = object: LeaderElector by StubLeaderElector(elected = true),
+                                       LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider(backendName = "blocking") {}
+        val groupDelegate = object: LeaderGroupElector by StubLeaderGroupElector(elected = true),
+                                    LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider(backendName = "group") {}
+        val suspendDelegate = object: SuspendLeaderElector by StubSuspendLeaderElector(elected = true),
+                                      LeaderBackendDiagnosticsProvider by RecordingDiagnosticsProvider(backendName = "suspend") {}
 
         val blocking = InstrumentedLeaderElector(
             InstrumentedLeaderElector(blockingDelegate, innerRegistry, options),
@@ -433,15 +436,17 @@ class InstrumentedLeaderElectorsTest {
             options,
         )
 
-        blocking.runIfLeader("blocking-lock") { "done" }
+        blocking.runIfLeader("blocking-lock") { "done" } shouldBeEqualTo "done"
         blocking.runAsyncIfLeader("blocking-async-lock", sameThreadExecutor) {
             completableFutureOf("done")
-        }.join()
-        group.runIfLeader("group-lock") { "done" }
+        }.join() shouldBeEqualTo "done"
+
+        group.runIfLeader("group-lock") { "done" } shouldBeEqualTo "done"
         group.runAsyncIfLeader("group-async-lock", sameThreadExecutor) {
             completableFutureOf("done")
-        }.join()
-        suspend.runIfLeader("suspend-lock") { "done" }
+        }.join() shouldBeEqualTo "done"
+
+        suspend.runIfLeader("suspend-lock") { "done" } shouldBeEqualTo "done"
 
         listOf(blocking, group, suspend).forEach { wrapper ->
             wrapper.backendDiagnosticsProvider
@@ -452,7 +457,8 @@ class InstrumentedLeaderElectorsTest {
         listOf("blocking", "group", "suspend").forEach { backendName ->
             connectivityCount(outerRegistry, backendName) shouldBeEqualTo 1.0
         }
-        innerRegistry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+        innerRegistry
+            .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
             .meters()
             .shouldBeEmpty()
     }
@@ -461,9 +467,10 @@ class InstrumentedLeaderElectorsTest {
     fun `cancellation is rethrown without synthetic provider exception metric`() {
         val cancellation = CancellationException("cancelled")
         val provider = RecordingDiagnosticsProvider(failure = cancellation)
-        val delegate = object:
-            LeaderElector by StubLeaderElector(elected = true),
-            LeaderBackendDiagnosticsProvider by provider {}
+
+        val delegate = object: LeaderElector by StubLeaderElector(elected = true),
+                               LeaderBackendDiagnosticsProvider by provider {}
+
         val decorated = (InstrumentedLeaderElector(delegate, registry) as LeaderBackendDiagnosticsAware)
             .backendDiagnosticsProvider
             .shouldNotBeNull()
@@ -473,7 +480,8 @@ class InstrumentedLeaderElectorsTest {
         }
 
         thrown shouldBeSameInstanceAs cancellation
-        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+        registry
+            .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
             .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.PROVIDER_EXCEPTION.name)
             .counter()
             .shouldBeNull()
@@ -481,41 +489,44 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderElector - fixed lockName is sanitized after selection`() {
-        val election = InstrumentedLeaderElector(
+        val elector = InstrumentedLeaderElector(
             delegate = StubLeaderElector(elected = true),
             registry = registry,
             lockName = "configured-lock",
         )
 
-        election.runIfLeader("runtime-lock") { "done" }
+        elector.runIfLeader("runtime-lock") { "done" } shouldBeEqualTo "done"
 
         acquiredCount("redacted-lock") shouldBeEqualTo 1.0
         acquiredCount("configured-lock") shouldBeEqualTo 0.0
     }
 
     @Test
-    fun `LeaderElector - concurrent redacted first use creates one acquired meter`(): Unit {
-        val election = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
+    fun `LeaderElector - concurrent redacted first use creates one acquired meter`() {
+        val elector = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
         val sequence = AtomicInteger()
 
         MultithreadingTester()
             .workers(8)
             .rounds(50)
             .add {
-                election.runIfLeader("tenant-${sequence.incrementAndGet()}") { "done" }
+                elector.runIfLeader("tenant-${sequence.incrementAndGet()}") { "done" } shouldBeEqualTo "done"
             }
             .run()
 
-        acquiredCount("redacted-lock") shouldBeEqualTo 400.0
+        acquiredCount("redacted-lock") shouldBeEqualTo 8 * 50.0
         acquiredCounters("redacted-lock") shouldBeEqualTo 1
     }
 
     @Test
     fun `LeaderElector - action 실행 시 acquired duration active 기록`() {
-        val election =
-            InstrumentedLeaderElector(StubLeaderElector(elected = true), registry, LeaderMetricTagOptions.Raw)
+        val elector = InstrumentedLeaderElector(
+            StubLeaderElector(elected = true),
+            registry,
+            LeaderMetricTagOptions.Raw
+        )
 
-        val result = election.runIfLeader("job-lock") { "done" }
+        val result = elector.runIfLeader("job-lock") { "done" }
 
         result shouldBeEqualTo "done"
         acquiredCount("job-lock") shouldBeEqualTo 1.0
@@ -525,10 +536,13 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderElector - action 이 null 을 반환해도 acquired 로 기록`() {
-        val election =
-            InstrumentedLeaderElector(StubLeaderElector(elected = true), registry, LeaderMetricTagOptions.Raw)
+        val elector = InstrumentedLeaderElector(
+            StubLeaderElector(elected = true),
+            registry,
+            LeaderMetricTagOptions.Raw
+        )
 
-        val result = election.runIfLeader<String?>("nullable-job") { null }
+        val result = elector.runIfLeader<String?>("nullable-job") { null }
 
         result.shouldBeNull()
         acquiredCount("nullable-job") shouldBeEqualTo 1.0
@@ -537,10 +551,13 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderElector - 리더 미획득 시 not_acquired 기록`() {
-        val election =
-            InstrumentedLeaderElector(StubLeaderElector(elected = false), registry, LeaderMetricTagOptions.Raw)
+        val elector = InstrumentedLeaderElector(
+            StubLeaderElector(elected = false),
+            registry,
+            LeaderMetricTagOptions.Raw
+        )
 
-        val result = election.runIfLeader("skip-job") { "not-called" }
+        val result = elector.runIfLeader("skip-job") { "not-called" }
 
         result.shouldBeNull()
         notAcquiredCount("skip-job") shouldBeEqualTo 1.0
@@ -550,10 +567,13 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderElector - async action 실행 시 acquired duration active 기록`() {
-        val election =
-            InstrumentedLeaderElector(StubLeaderElector(elected = true), registry, LeaderMetricTagOptions.Raw)
+        val elector = InstrumentedLeaderElector(
+            StubLeaderElector(elected = true),
+            registry,
+            LeaderMetricTagOptions.Raw
+        )
 
-        val result = election.runAsyncIfLeader("async-job", sameThreadExecutor) {
+        val result = elector.runAsyncIfLeader("async-job", sameThreadExecutor) {
             completableFutureOf("done")
         }.join()
 
@@ -565,10 +585,13 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderElector - async 리더 미획득 시 not_acquired 기록`() {
-        val election =
-            InstrumentedLeaderElector(StubLeaderElector(elected = false), registry, LeaderMetricTagOptions.Raw)
+        val elector = InstrumentedLeaderElector(
+            StubLeaderElector(elected = false),
+            registry,
+            LeaderMetricTagOptions.Raw
+        )
 
-        val result = election.runAsyncIfLeader("async-skip-job", sameThreadExecutor) {
+        val result = elector.runAsyncIfLeader("async-skip-job", sameThreadExecutor) {
             completableFutureOf("not-called")
         }.join()
 
@@ -579,14 +602,14 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderElector - 고정 lockName 태그를 사용`() {
-        val election = InstrumentedLeaderElector(
+        val elector = InstrumentedLeaderElector(
             delegate = StubLeaderElector(elected = true),
             registry = registry,
             lockName = "configured-lock",
             tagOptions = LeaderMetricTagOptions.Raw,
         )
 
-        election.runIfLeader("runtime-lock") { "done" }
+        elector.runIfLeader("runtime-lock") { "done" } shouldBeEqualTo "done"
 
         acquiredCount("configured-lock") shouldBeEqualTo 1.0
         acquiredCount("runtime-lock") shouldBeEqualTo 0.0
@@ -594,11 +617,14 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderElector - action 예외 전파 후 active 가 0 으로 복구`() {
-        val election =
-            InstrumentedLeaderElector(StubLeaderElector(elected = true), registry, LeaderMetricTagOptions.Raw)
+        val elector = InstrumentedLeaderElector(
+            StubLeaderElector(elected = true),
+            registry,
+            LeaderMetricTagOptions.Raw
+        )
 
         assertFailsWith<IllegalStateException> {
-            election.runIfLeader("failed-job") {
+            elector.runIfLeader("failed-job") {
                 throw IllegalStateException("boom")
             }
         }
@@ -610,10 +636,13 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderGroupElector - action 실행 시 acquired duration active 기록`() {
-        val election =
-            InstrumentedLeaderGroupElector(StubLeaderGroupElector(elected = true), registry, LeaderMetricTagOptions.Raw)
+        val elector = InstrumentedLeaderGroupElector(
+            StubLeaderGroupElector(elected = true),
+            registry,
+            LeaderMetricTagOptions.Raw
+        )
 
-        val result = election.runIfLeader("group-lock") { 42 }
+        val result = elector.runIfLeader("group-lock") { 42 }
 
         result shouldBeEqualTo 42
         acquiredCount("group-lock") shouldBeEqualTo 1.0
@@ -623,10 +652,13 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderGroupElector - async action 실행 시 acquired duration active 기록`() {
-        val election =
-            InstrumentedLeaderGroupElector(StubLeaderGroupElector(elected = true), registry, LeaderMetricTagOptions.Raw)
+        val elector = InstrumentedLeaderGroupElector(
+            StubLeaderGroupElector(elected = true),
+            registry,
+            LeaderMetricTagOptions.Raw
+        )
 
-        val result = election.runAsyncIfLeader("group-async-lock", sameThreadExecutor) {
+        val result = elector.runAsyncIfLeader("group-async-lock", sameThreadExecutor) {
             completableFutureOf(42)
         }.join()
 
@@ -638,13 +670,13 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderGroupElector - 슬롯 미획득 시 not_acquired 기록`() {
-        val election = InstrumentedLeaderGroupElector(
+        val elector = InstrumentedLeaderGroupElector(
             StubLeaderGroupElector(elected = false),
             registry,
             LeaderMetricTagOptions.Raw
         )
 
-        val result = election.runIfLeader("group-skip-lock") { 42 }
+        val result = elector.runIfLeader("group-skip-lock") { 42 }
 
         result.shouldBeNull()
         notAcquiredCount("group-skip-lock") shouldBeEqualTo 1.0
@@ -653,13 +685,13 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `SuspendLeaderElector - action 실행 시 acquired duration active 기록`() = runSuspendIO {
-        val election = InstrumentedSuspendLeaderElector(
+        val elector = InstrumentedSuspendLeaderElector(
             StubSuspendLeaderElector(elected = true),
             registry,
             LeaderMetricTagOptions.Raw
         )
 
-        val result = election.runIfLeader("suspend-lock") { "done" }
+        val result = elector.runIfLeader("suspend-lock") { "done" }
 
         result shouldBeEqualTo "done"
         acquiredCount("suspend-lock") shouldBeEqualTo 1.0
@@ -669,13 +701,13 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `SuspendLeaderElector - 리더 미획득 시 not_acquired 기록`() = runSuspendIO {
-        val election = InstrumentedSuspendLeaderElector(
+        val elector = InstrumentedSuspendLeaderElector(
             StubSuspendLeaderElector(elected = false),
             registry,
             LeaderMetricTagOptions.Raw
         )
 
-        val result = election.runIfLeader("suspend-skip-lock") { "not-called" }
+        val result = elector.runIfLeader("suspend-skip-lock") { "not-called" }
 
         result.shouldBeNull()
         notAcquiredCount("suspend-skip-lock") shouldBeEqualTo 1.0
@@ -683,37 +715,43 @@ class InstrumentedLeaderElectorsTest {
     }
 
     private fun acquiredCount(lockName: String): Double =
-        registry.find(MicrometerNames.METER_LEADER_ACQUIRED)
+        registry
+            .find(MicrometerNames.METER_LEADER_ACQUIRED)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .counter()
             ?.count() ?: 0.0
 
     private fun acquiredCounters(lockName: String): Int =
-        registry.find(MicrometerNames.METER_LEADER_ACQUIRED)
+        registry
+            .find(MicrometerNames.METER_LEADER_ACQUIRED)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .counters()
             .size
 
     private fun notAcquiredCount(lockName: String): Double =
-        registry.find(MicrometerNames.METER_LEADER_NOT_ACQUIRED)
+        registry
+            .find(MicrometerNames.METER_LEADER_NOT_ACQUIRED)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .counter()
             ?.count() ?: 0.0
 
     private fun durationCount(lockName: String): Long =
-        registry.find(MicrometerNames.METER_LEADER_DURATION)
+        registry
+            .find(MicrometerNames.METER_LEADER_DURATION)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .timer()
             ?.count() ?: 0L
 
     private fun activeValue(lockName: String): Double =
-        registry.find(MicrometerNames.METER_LEADER_ACTIVE)
+        registry
+            .find(MicrometerNames.METER_LEADER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .gauge()
             ?.value() ?: 0.0
 
     private fun connectivityCount(registry: SimpleMeterRegistry, backendName: String): Double =
-        registry.find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
+        registry
+            .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
             .tag(LeaderMetricTagOptions.TAG_BACKEND_NAME, backendName)
             .tag(MicrometerNames.TAG_BACKEND_STATUS, LeaderBackendConnectivityStatus.UP.name)
             .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.CONNECTED.name)

@@ -94,11 +94,11 @@ bluetape4k:
               - tenant-debug-job
 ```
 
-| Mode | 동작 | 주 사용처 |
-|---|---|---|
-| `REDACT` | 설정한 sentinel 값으로 export | 동적 이름 기본값 |
-| `RAW` | 원본 값을 그대로 export | 작고 정적인 job set |
-| `HASH` | 결정적인 SHA-256 hex prefix export | 상관관계 확인용, 익명화 아님 |
+| Mode       | 동작                                        | 주 사용처                       |
+|------------|---------------------------------------------|---------------------------------|
+| `REDACT`   | 설정한 sentinel 값으로 export               | 동적 이름 기본값                |
+| `RAW`      | 원본 값을 그대로 export                     | 작고 정적인 job set             |
+| `HASH`     | 결정적인 SHA-256 hex prefix export          | 상관관계 확인용, 익명화 아님    |
 | `TRUNCATE` | 제한된 prefix export, `max-length > 0` 필요 | 길이 제한이 있는 기존 dashboard |
 
 Denylist가 항상 우선 redaction됩니다. allowlist가 비어 있지 않으면 정확히 일치하는 값만 raw로 통과하고 나머지는 redaction됩니다. 단 `TRUNCATE`는 allow된 값에도 최대 길이를 적용합니다. 프로세스별 custom rule source가 필요하면 `LeaderMetricTagSanitizer`를 Spring bean이나 생성자 인자로 제공할 수 있습니다.
@@ -144,8 +144,7 @@ val election = LocalLeaderElector().apply {
 
 `MicrometerObservationLeaderLeaseExtensionObserver`는 core의
 `LeaderLeaseExtensionEvent`를 짧은 terminal Observation으로 변환합니다.
-`LockExtender`와 `LeaderLeaseAutoExtender`가 사용하는 process-local core registry에
-등록하세요.
+`LockExtender`와 `LeaderLeaseAutoExtender`가 사용하는 process-local core registry에 등록하세요.
 
 ```kotlin
 val observer = MicrometerObservationLeaderLeaseExtensionObserver(
@@ -164,36 +163,21 @@ try {
 }
 ```
 
-Observation 이름은 `bluetape4k.leader.lease.extension`입니다. bounded
-low-cardinality tag는 `source`, `execution`, `outcome`, `result`입니다.
+Observation 이름은 `bluetape4k.leader.lease.extension`입니다. bounded low-cardinality tag는 `source`, `execution`, `outcome`, `result`입니다.
 
-| `ExtendOutcome` | `outcome` | `result` |
-|---|---|---|
-| `Extended` | `extended` | `success` |
-| `Rejected` | `rejected` | `skipped` |
-| `NotHeld` | `not_held` | `skipped` |
-| `WrongThread` | `wrong_thread` | `error` |
-| `BackendError` | `backend_error` | `error` |
+| `ExtendOutcome` | `outcome`       | `result`  |
+|-----------------|-----------------|-----------|
+| `Extended`      | `extended`      | `success` |
+| `Rejected`      | `rejected`      | `skipped` |
+| `NotHeld`       | `not_held`      | `skipped` |
+| `WrongThread`   | `wrong_thread`  | `error`   |
+| `BackendError`  | `backend_error` | `error`   |
 
-`elapsedNanos`는 tag로 기록하지 않습니다. `includeLockName`과 `includeLeaderId`는
-명시적으로 켰을 때만 sanitised high-cardinality 값을 추가하고,
+`elapsedNanos`는 tag로 기록하지 않습니다. `includeLockName`과 `includeLeaderId`는 명시적으로 켰을 때만 sanitised high-cardinality 값을 추가하고,
 `includeExceptionDetails`는 tag sanitiser를 거치지 않은 원본 backend 예외를
-`Observation.error(...)`로 연결합니다. 기본 옵션에서는 세 값이 모두 꺼져 있습니다.
-Downstream observation 또는 tracing 시스템이 raw exception message와 stack trace를
-받아도 되는 경우에만 exception detail을 켜세요. `NOOP ObservationRegistry`에서는
-Observation을 만들지 않습니다. 이 모듈은 Micrometer Observation만 발생시키며 tracing
-bridge, exporter, collector, OpenTelemetry SDK는 애플리케이션이 추가해야 합니다.
-Issue #529는 acquire/execution observation을 담당하고, 이 Issue #559 adapter는
-terminal lease-extension 시도를 담당합니다. Spring Boot auto-configuration을
-사용하는 경우 `addObserver`를 수동으로 다시 호출하지 마세요. Spring manager가
-registry identity마다 registration 하나를 공유합니다.
-위 snippet은 하나의 명시적 `USER` 시도 뒤에 registration을 닫습니다. `WATCHDOG` tick이 필요하면
-`autoExtend = true`인 단일 리더 action 또는 component 전체 수명 동안 registration을 유지하고 종료 시 닫으세요.
-Group election slot은 active body 안의 명시적 `LockExtender` 호출은 지원하지만 group auto-extension이 꺼져
-있으므로 `WATCHDOG` event를 만들지 않습니다.
-전체 core 계약과 Spring lifecycle은
-[미배포 lease-extension 관찰 초안](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)에서
-확인할 수 있습니다.
+`Observation.error(...)`로 연결합니다. 기본 옵션에서는 세 값이 모두 꺼져 있습니다. Downstream observation 또는 tracing 시스템이 raw exception message와 stack trace를 받아도 되는 경우에만 exception detail을 켜세요. `NOOP ObservationRegistry`에서는 Observation을 만들지 않습니다. 이 모듈은 Micrometer Observation만 발생시키며 tracing bridge, exporter, collector, OpenTelemetry SDK는 애플리케이션이 추가해야 합니다. Issue #529는 acquire/execution observation을 담당하고, 이 Issue #559 adapter는 terminal lease-extension 시도를 담당합니다. Spring Boot auto-configuration을 사용하는 경우 `addObserver`를 수동으로 다시 호출하지 마세요. Spring manager가 registry identity마다 registration 하나를 공유합니다. 위 snippet은 하나의 명시적 `USER` 시도 뒤에 registration을 닫습니다. `WATCHDOG` tick이 필요하면
+`autoExtend = true`인 단일 리더 action 또는 component 전체 수명 동안 registration을 유지하고 종료 시 닫으세요. Group election slot은 active body 안의 명시적 `LockExtender` 호출은 지원하지만 group auto-extension이 꺼져 있으므로 `WATCHDOG` event를 만들지 않습니다. 전체 core 계약과 Spring lifecycle은
+[미배포 lease-extension 관찰 초안](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)에서 확인할 수 있습니다.
 
 ## 직접 Elector 메트릭
 
@@ -237,16 +221,10 @@ val election = InstrumentedLeaderElector(
 세 instrumented elector decorator는 delegate의
 `LeaderBackendDiagnosticsProvider`도 노출합니다. Active
 `checkConnectivity`와 `diagnostics(probe = true)` 호출은
-`backend.name`, `status`, `reason` tag와 함께 `leader.backend.connectivity`를
-호출마다 한 번 증가시킵니다. Passive `diagnostics()`는 meter를 만들지
-않습니다. Decorator는 제한된 enum 값만 기록하고 provider의 원래 예외를
-재전파하며, 예외 원문·endpoint·credential·lock name을 export하지 않습니다.
+`backend.name`, `status`, `reason` tag와 함께 `leader.backend.connectivity`를 호출마다 한 번 증가시킵니다. Passive `diagnostics()`는 meter를 만들지 않습니다. Decorator는 제한된 enum 값만 기록하고 provider의 원래 예외를 재전파하며, 예외 원문·endpoint·credential·lock name을 export하지 않습니다.
 
 Instrumented decorator를 중첩하면 두 decorator가 같은 `MeterRegistry`
-인스턴스를 참조하고 `LeaderMetricTagOptions`가 같을 때만 기존 diagnostics
-provider를 재사용합니다. 둘 중 하나라도 다르면 바깥 decorator가 요청한
-registry와 tag policy로 underlying provider를 다시 계측합니다. 따라서 같은
-설정은 중복 기록하지 않으면서 registry와 tag policy의 경계를 보존합니다.
+인스턴스를 참조하고 `LeaderMetricTagOptions`가 같을 때만 기존 diagnostics provider를 재사용합니다. 둘 중 하나라도 다르면 바깥 decorator가 요청한 registry와 tag policy로 underlying provider를 다시 계측합니다. 따라서 같은 설정은 중복 기록하지 않으면서 registry와 tag policy의 경계를 보존합니다.
 
 ## Listener 이벤트 메트릭
 
@@ -267,46 +245,46 @@ election.runIfLeader("daily-report") {
 
 ### AOP Meter
 
-| Meter | 타입 | 태그 | 설명 |
-|-------|------|------|------|
-| `leader.aop.attempts` | Counter | `lock.name` | 락 획득 시도 |
-| `leader.aop.acquired` | Counter | `lock.name` | 리더 실행 성공 |
-| `leader.aop.lock.not.acquired` | Counter | `lock.name`, `reason` | 경쟁, backend 오류, fail-open 경로에 의한 skip |
-| `leader.aop.execution.duration` | Timer | `lock.name` | 성공한 본문 실행 시간 |
-| `leader.aop.task.failed` | Counter | `lock.name`, `exception` | 사용자 본문 예외 |
-| `leader.aop.active` | Gauge | `lock.name` | 현재 JVM에서 실행 중인 리더 본문 수 |
+| Meter                           | 타입    | 태그                     | 설명                                           |
+|---------------------------------|---------|--------------------------|------------------------------------------------|
+| `leader.aop.attempts`           | Counter | `lock.name`              | 락 획득 시도                                   |
+| `leader.aop.acquired`           | Counter | `lock.name`              | 리더 실행 성공                                 |
+| `leader.aop.lock.not.acquired`  | Counter | `lock.name`, `reason`    | 경쟁, backend 오류, fail-open 경로에 의한 skip |
+| `leader.aop.execution.duration` | Timer   | `lock.name`              | 성공한 본문 실행 시간                          |
+| `leader.aop.task.failed`        | Counter | `lock.name`, `exception` | 사용자 본문 예외                               |
+| `leader.aop.active`             | Gauge   | `lock.name`              | 현재 JVM에서 실행 중인 리더 본문 수            |
 
 ### 직접 Elector Meter
 
-| Meter | 타입 | 태그 | 설명 |
-|-------|------|------|------|
-| `shedlock.leader.acquired` | Counter | `lock.name` | 데코레이터 실행 성공 |
-| `shedlock.leader.not_acquired` | Counter | `lock.name` | 데코레이터 skip |
-| `shedlock.leader.duration` | Timer | `lock.name` | 데코레이터 본문 실행 시간 |
-| `shedlock.leader.active` | Gauge | `lock.name` | 현재 JVM에서 실행 중인 데코레이터 본문 수 |
-| `leader.backend.connectivity` | Counter | `backend.name`, `status`, `reason` | active backend connectivity probe마다 한 번 기록 |
+| Meter                          | 타입    | 태그                               | 설명                                             |
+|--------------------------------|---------|------------------------------------|--------------------------------------------------|
+| `shedlock.leader.acquired`     | Counter | `lock.name`                        | 데코레이터 실행 성공                             |
+| `shedlock.leader.not_acquired` | Counter | `lock.name`                        | 데코레이터 skip                                  |
+| `shedlock.leader.duration`     | Timer   | `lock.name`                        | 데코레이터 본문 실행 시간                        |
+| `shedlock.leader.active`       | Gauge   | `lock.name`                        | 현재 JVM에서 실행 중인 데코레이터 본문 수        |
+| `leader.backend.connectivity`  | Counter | `backend.name`, `status`, `reason` | active backend connectivity probe마다 한 번 기록 |
 
 ### Listener 이벤트 Meter
 
-| Meter | 타입 | 태그 | 설명 |
-|-------|------|------|------|
+| Meter                    | 타입    | 태그                 | 설명                                               |
+|--------------------------|---------|----------------------|----------------------------------------------------|
 | `leader.election.events` | Counter | `lock.name`, `event` | 생명주기 callback: `elected`, `revoked`, `skipped` |
 
 ### Observation 이름
 
-| Observation | Low-cardinality key | High-cardinality key |
-|---|---|---|
-| `leader.aop.acquire` | `leader.operation`, `outcome`, `reason` | `acquire.elapsed.ms`, 옵션을 켠 경우에만 `lock.name`, `leader.id` |
-| `leader.aop.execution` | `leader.operation`, `outcome`, `exception` | `execution.elapsed.ms`, 옵션을 켠 경우에만 `lock.name`, `leader.id` |
-| `leader.election.event` | `event` | 옵션을 켠 경우에만 `lock.name` |
+| Observation             | Low-cardinality key                        | High-cardinality key                                                |
+|-------------------------|--------------------------------------------|---------------------------------------------------------------------|
+| `leader.aop.acquire`    | `leader.operation`, `outcome`, `reason`    | `acquire.elapsed.ms`, 옵션을 켠 경우에만 `lock.name`, `leader.id`   |
+| `leader.aop.execution`  | `leader.operation`, `outcome`, `exception` | `execution.elapsed.ms`, 옵션을 켠 경우에만 `lock.name`, `leader.id` |
+| `leader.election.event` | `event`                                    | 옵션을 켠 경우에만 `lock.name`                                      |
 
 `CancellationException`은 `outcome=cancelled`로 기록하고 `Observation.error(...)`로 넘기지 않습니다. cancellation이 아닌 실패는 기본적으로 예외 simple class name만 남깁니다. raw throwable은 `LeaderObservationOptions(includeExceptionDetails = true)`를 명시한 경우에만 첨부합니다.
 
 ### History Sink Meter
 
-| Meter | 타입 | 태그 | 설명 |
-|-------|------|------|------|
-| `leader.history.sink.failures` | Counter | `sink` | cancellation/interruption 경로를 제외한 history sink 호출 실패 |
+| Meter                            | 타입    | 태그   | 설명                                                                           |
+|----------------------------------|---------|--------|--------------------------------------------------------------------------------|
+| `leader.history.sink.failures`   | Counter | `sink` | cancellation/interruption 경로를 제외한 history sink 호출 실패                 |
 | `leader.history.acquire.missing` | Counter | `sink` | 사용할 수 없거나 중복된 acquire record 때문에 `recordAcquired`가 `null`을 반환 |
 
 ## Audit Export 메트릭
@@ -321,8 +299,7 @@ exporter.submit(event)
 exporter.close() // delegate를 정확히 한 번 소유하고 닫습니다.
 ```
 
-core 모듈의 JDK HTTP transport와 Micrometer decorator를 조합하면 webhook 결과와
-queue gauge를 함께 export할 수 있습니다.
+core 모듈의 JDK HTTP transport와 Micrometer decorator를 조합하면 webhook 결과와 queue gauge를 함께 export할 수 있습니다.
 
 ```kotlin
 val exporter = MicrometerLeaderAuditExporter(
@@ -344,62 +321,31 @@ val exporter = MicrometerLeaderAuditExporter(
 )
 ```
 
-`HttpLeaderAuditExporter`는 신뢰한 HTTPS endpoint만 받고 redirect를 끄며 응답 body를
-폐기합니다. 직렬화, endpoint allow-list, idempotency는 애플리케이션의 책임입니다.
-이 모듈은 메트릭만 추가하고 JSON 또는 OpenTelemetry transport는 추가하지 않습니다.
+`HttpLeaderAuditExporter`는 신뢰한 HTTPS endpoint만 받고 redirect를 끄며 응답 body를 폐기합니다. 직렬화, endpoint allow-list, idempotency는 애플리케이션의 책임입니다. 이 모듈은 메트릭만 추가하고 JSON 또는 OpenTelemetry transport는 추가하지 않습니다.
 
-decorator는 고정 aggregate metric catalog 하나만 제공합니다. lock name,
-leader ID, endpoint, error message, `source`, `transport`를 tag로 복사하지
-않습니다. 유일한 tag는 아래의 제한된 `outcome` 값입니다. registry는 close 후
-replacement generation에서도 meter identity를 유지하므로 `MeterRegistry.remove`
-를 호출하거나 다른 컴포넌트에서 고정 ID를 등록하지 마세요. 동일 registry에서
-active wrapper를 중복 생성하거나 foreign fixed-ID가 발견되면 즉시 실패합니다.
-non-owning observation이 필요하면 같은 delegate를 두 번 wrapping하지 말고
+decorator는 고정 aggregate metric catalog 하나만 제공합니다. lock name, leader ID, endpoint, error message, `source`, `transport`를 tag로 복사하지 않습니다. 유일한 tag는 아래의 제한된 `outcome` 값입니다. registry는 close 후 replacement generation에서도 meter identity를 유지하므로 `MeterRegistry.remove`
+를 호출하거나 다른 컴포넌트에서 고정 ID를 등록하지 마세요. 동일 registry에서 active wrapper를 중복 생성하거나 foreign fixed-ID가 발견되면 즉시 실패합니다. non-owning observation이 필요하면 같은 delegate를 두 번 wrapping하지 말고
 `delegate.observe(...)`로 observer를 등록하세요.
 
-| Meter | 타입 | Tag / outcome | Snapshot source |
-|---|---|---|---|
-| `leader.audit.export.accepted` | FunctionCounter | `outcome=accepted` | `accepted` |
-| `leader.audit.export.dropped` | FunctionCounter | `outcome=queue_full` 또는 `closed` | `droppedQueueFull`, `droppedClosed` |
-| `leader.audit.export.retries` | FunctionCounter | `outcome=retry` | `retries` |
-| `leader.audit.export.failures` | FunctionCounter | `outcome=failure` | `terminalFailures` |
-| `leader.audit.export.queue.depth` | Gauge | 없음 | `queued` |
-| `leader.audit.export.in.flight` | Gauge | 없음 | `inFlight` |
-| `leader.audit.export.cancelled` | FunctionCounter | `outcome=cancelled` | `cancellations` |
-| `leader.audit.export.rejections` | FunctionCounter | `outcome=rejected` | executor + scheduler rejection 합계 |
-| `leader.audit.export.observer.dropped` | FunctionCounter | 없음 | `observerDrops` |
-| `leader.audit.export.observer.registration.dropped` | FunctionCounter | 없음 | `observerRegistrationDrops` |
-| `leader.audit.export.diagnostics.failures` | FunctionCounter | 없음 | `diagnosticsFatalErrors` |
-| `leader.audit.export.diagnostics.closed` | Gauge | 없음 | `diagnosticsClosed` |
+| Meter                                               | 타입            | Tag / outcome                      | Snapshot source                     |
+|-----------------------------------------------------|-----------------|------------------------------------|-------------------------------------|
+| `leader.audit.export.accepted`                      | FunctionCounter | `outcome=accepted`                 | `accepted`                          |
+| `leader.audit.export.dropped`                       | FunctionCounter | `outcome=queue_full` 또는 `closed` | `droppedQueueFull`, `droppedClosed` |
+| `leader.audit.export.retries`                       | FunctionCounter | `outcome=retry`                    | `retries`                           |
+| `leader.audit.export.failures`                      | FunctionCounter | `outcome=failure`                  | `terminalFailures`                  |
+| `leader.audit.export.queue.depth`                   | Gauge           | 없음                               | `queued`                            |
+| `leader.audit.export.in.flight`                     | Gauge           | 없음                               | `inFlight`                          |
+| `leader.audit.export.cancelled`                     | FunctionCounter | `outcome=cancelled`                | `cancellations`                     |
+| `leader.audit.export.rejections`                    | FunctionCounter | `outcome=rejected`                 | executor + scheduler rejection 합계 |
+| `leader.audit.export.observer.dropped`              | FunctionCounter | 없음                               | `observerDrops`                     |
+| `leader.audit.export.observer.registration.dropped` | FunctionCounter | 없음                               | `observerRegistrationDrops`         |
+| `leader.audit.export.diagnostics.failures`          | FunctionCounter | 없음                               | `diagnosticsFatalErrors`            |
+| `leader.audit.export.diagnostics.closed`            | Gauge           | 없음                               | `diagnosticsClosed`                 |
 
-dropped meter는 두 개의 outcome-tagged ID를 가지므로 고정 catalog는 총 13개
-meter ID입니다. Counter 값은 detached generation offset과 active delegate
-기준 데이터 값을 합산해 replacement 후에도 감소하지 않습니다. close 중 delegate
-기준 데이터를 읽다가 예외가 나면 마지막으로 신뢰한 offset을 유지하고 source를
-degraded로 표시한 뒤 delegate reference를 분리하고 원래 예외를 전달합니다. 기준 데이터가
-더 낮은 cumulative 값을 반환하는 경우에는 trusted baseline을 유지하고 degraded warning만
-기록한 뒤 정상 반환하며, 예외를 새로 만들지 않습니다.
-degraded 경로는 `leader.audit.export.meter-source-degraded` fixed warning을 사용하며
-응답 payload나 exception message를 로그에 남기지 않습니다.
-고정 catalog를 일부만 등록한 뒤 registration이 실패하면 manager는 이미 등록한 소유
-meter와 identity를 보존합니다. 다음 acquire에서는 누락된 ID만 등록하고 foreign meter는
-제거하지 않습니다. 각 scrape의 cumulative 비교는 scalar 연산으로 수행하므로 hot path에서
-임시 Boolean collection을 만들지 않습니다.
-open generation에서 metric polling 중 `delegate.snapshot()`을 읽지 못하면
-decorator는 마지막으로 신뢰한 cumulative·gauge 값을 유지하고
-`diagnosticsClosed=0`을 보존하며 해당 generation에서 fixed warning을 최대 한 번만
-기록합니다.
-각 metric read는 decorator가 소유한 13개 meter의 identity도 다시 확인합니다. 다른
-컴포넌트가 고정 ID를 제거하거나 교체하면 manager는 마지막으로 신뢰한 detached 값을
-고정하고 `leader.audit.export.meter-ownership-conflict` warning을 한 번만 기록하며
-foreign meter를 읽거나 제거하지 않습니다. compromised manager는 재사용하지 않으므로
-충돌 등록을 제거한 뒤 새 `MeterRegistry`를 사용해야 복구할 수 있습니다. registry가
-달라도 동일 delegate를 두 decorator가 감쌀 수 없으며, 실패한 wrapper는 active owner를
-닫지 않습니다.
+dropped meter는 두 개의 outcome-tagged ID를 가지므로 고정 catalog는 총 13개 meter ID입니다. Counter 값은 detached generation offset과 active delegate 기준 데이터 값을 합산해 replacement 후에도 감소하지 않습니다. close 중 delegate 기준 데이터를 읽다가 예외가 나면 마지막으로 신뢰한 offset을 유지하고 source를 degraded로 표시한 뒤 delegate reference를 분리하고 원래 예외를 전달합니다. 기준 데이터가 더 낮은 cumulative 값을 반환하는 경우에는 trusted baseline을 유지하고 degraded warning만 기록한 뒤 정상 반환하며, 예외를 새로 만들지 않습니다. degraded 경로는 `leader.audit.export.meter-source-degraded` fixed warning을 사용하며 응답 payload나 exception message를 로그에 남기지 않습니다. 고정 catalog를 일부만 등록한 뒤 registration이 실패하면 manager는 이미 등록한 소유 meter와 identity를 보존합니다. 다음 acquire에서는 누락된 ID만 등록하고 foreign meter는 제거하지 않습니다. 각 scrape의 cumulative 비교는 scalar 연산으로 수행하므로 hot path에서 임시 Boolean collection을 만들지 않습니다. open generation에서 metric polling 중 `delegate.snapshot()`을 읽지 못하면 decorator는 마지막으로 신뢰한 cumulative·gauge 값을 유지하고
+`diagnosticsClosed=0`을 보존하며 해당 generation에서 fixed warning을 최대 한 번만 기록합니다. 각 metric read는 decorator가 소유한 13개 meter의 identity도 다시 확인합니다. 다른 컴포넌트가 고정 ID를 제거하거나 교체하면 manager는 마지막으로 신뢰한 detached 값을 고정하고 `leader.audit.export.meter-ownership-conflict` warning을 한 번만 기록하며 foreign meter를 읽거나 제거하지 않습니다. compromised manager는 재사용하지 않으므로 충돌 등록을 제거한 뒤 새 `MeterRegistry`를 사용해야 복구할 수 있습니다. registry가 달라도 동일 delegate를 두 decorator가 감쌀 수 없으며, 실패한 wrapper는 active owner를 닫지 않습니다.
 
-이번 slice는 Micrometer 메트릭만 제공합니다. JSONL 출력과 OpenTelemetry
-SDK/bridge/exporter는 별도 후속 범위이며 애플리케이션이 해당 의존성과 transport를
-명시적으로 추가해야 합니다.
+이번 slice는 Micrometer 메트릭만 제공합니다. JSONL 출력과 OpenTelemetry SDK/bridge/exporter는 별도 후속 범위이며 애플리케이션이 해당 의존성과 transport를 명시적으로 추가해야 합니다.
 
 Micrometer naming convention이 export backend에 맞춰 이름을 바꿉니다. Prometheus에서는 `leader_aop_attempts_total`, `leader_aop_execution_duration_seconds`, `shedlock_leader_acquired_total` 같은 이름으로 노출됩니다.
 
@@ -440,8 +386,7 @@ max by (lock_name) (leader_aop_active)
 
 `leader.aop.active`, `shedlock.leader.active`는 JVM 로컬 gauge입니다. 여러 인스턴스를 볼 때는 의도적으로 합산해야 하는 경우가 아니라면 `max by (lock_name)`을 우선 사용하세요.
 
-`PrometheusExportTest`는 Micrometer text exposition과 `bluetape4k-testcontainers`의 `PrometheusServer`를 사용한 실제 Prometheus scrape를 함께 검증합니다.
-검증 대상은 `leader_aop_acquired_total`, `shedlock_leader_acquired_total` 같은 Prometheus 이름과 변환된 `lock_name` label을 포함합니다.
+`PrometheusExportTest`는 Micrometer text exposition과 `bluetape4k-testcontainers`의 `PrometheusServer`를 사용한 실제 Prometheus scrape를 함께 검증합니다. 검증 대상은 `leader_aop_acquired_total`, `shedlock_leader_acquired_total` 같은 Prometheus 이름과 변환된 `lock_name` label을 포함합니다.
 
 ## 사전 등록
 
@@ -451,7 +396,7 @@ max by (lock_name) (leader_aop_active)
 @Component
 class MetricsPreRegistrar(
     private val recorder: MicrometerLeaderAopMetricsRecorder,
-) : SmartInitializingSingleton {
+): SmartInitializingSingleton {
     override fun afterSingletonsInstantiated() {
         recorder.registerMetricsFor("daily-report", "nightly-cleanup")
     }

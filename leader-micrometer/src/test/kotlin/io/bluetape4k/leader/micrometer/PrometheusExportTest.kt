@@ -6,6 +6,7 @@ import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.metrics.SkipReason
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.infra.PrometheusServer
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
@@ -34,6 +35,12 @@ import kotlin.time.toJavaDuration
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PrometheusExportTest {
+
+    private companion object: KLogging() {
+        const val METRICS_TARGET_ALIAS = "leader-metrics-target"
+        const val METRICS_TARGET_PORT = 8000
+        const val REDACTED_LOCK_NAME = "redacted-lock"
+    }
 
     @Test
     fun `Prometheus registry scrape exports AOP and direct elector metrics`() {
@@ -65,6 +72,7 @@ class PrometheusExportTest {
 
         val scrapeFile = writeScrapeFile(tempDir, registry.scrape())
         val prometheusConfig = writePrometheusConfig(tempDir)
+
         Network.newNetwork().use { network ->
             MetricsTargetContainer().apply {
                 withNetwork(network)
@@ -229,11 +237,5 @@ class PrometheusExportTest {
             )
             waitingFor(Wait.forHttp("/metrics").forPort(METRICS_TARGET_PORT))
         }
-    }
-
-    private companion object {
-        const val METRICS_TARGET_ALIAS = "leader-metrics-target"
-        const val METRICS_TARGET_PORT = 8000
-        const val REDACTED_LOCK_NAME = "redacted-lock"
     }
 }

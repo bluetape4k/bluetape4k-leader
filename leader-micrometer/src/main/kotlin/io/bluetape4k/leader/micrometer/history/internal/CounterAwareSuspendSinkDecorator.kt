@@ -20,9 +20,9 @@ internal class CounterAwareSuspendSinkDecorator(
     private val delegate: SuspendLeaderHistorySink,
     registry: MeterRegistry,
     sinkSimpleName: String,
-) : SuspendLeaderHistorySink {
+): SuspendLeaderHistorySink {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val failureCounter: Counter = registry.counter(
         MicrometerNames.HISTORY_SINK_FAILURES,

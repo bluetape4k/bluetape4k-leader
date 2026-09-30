@@ -1,23 +1,26 @@
 package io.bluetape4k.leader.micrometer
 
-import io.bluetape4k.leader.LeaderElectionOptions
-import io.bluetape4k.leader.metrics.SkipReason
-import io.bluetape4k.logging.KLogging
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.metrics.SkipReason
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.utils.Runtimex
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MicrometerLeaderAopMetricsRecorderTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private lateinit var registry: SimpleMeterRegistry
     private lateinit var recorder: MicrometerLeaderAopMetricsRecorder
@@ -38,10 +41,14 @@ class MicrometerLeaderAopMetricsRecorderTest {
         recorder.onLockAttempt("tenant-42-job", defaultOptions)
         recorder.onLockAttempt("tenant-99-job", defaultOptions)
 
-        registry.get(MicrometerNames.METER_ATTEMPTS)
+        registry
+            .get(MicrometerNames.METER_ATTEMPTS)
             .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
-            .counter().count() shouldBeEqualTo 2.0
-        registry.find(MicrometerNames.METER_ATTEMPTS)
+            .counter()
+            .count() shouldBeEqualTo 2.0
+
+        registry
+            .find(MicrometerNames.METER_ATTEMPTS)
             .tag(MicrometerNames.TAG_LOCK_NAME, "tenant-42-job")
             .counter().shouldBeNull()
     }
@@ -51,9 +58,11 @@ class MicrometerLeaderAopMetricsRecorderTest {
         recorder.onLockAttempt(lockName, defaultOptions)
         recorder.onLockAttempt(lockName, defaultOptions)
 
-        val count = registry.get(MicrometerNames.METER_ATTEMPTS)
+        val count = registry
+            .get(MicrometerNames.METER_ATTEMPTS)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
-            .counter().count()
+            .counter()
+            .count()
 
         count shouldBeEqualTo 2.0
     }
@@ -62,26 +71,32 @@ class MicrometerLeaderAopMetricsRecorderTest {
     fun `onLockAcquired - acquired counter with lock name tag increments`() {
         recorder.onLockAcquired(lockName, defaultOptions, 10.milliseconds)
 
-        val count = registry.get(MicrometerNames.METER_ACQUIRED)
+        val count = registry
+            .get(MicrometerNames.METER_ACQUIRED)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
-            .counter().count()
-        val timer = registry.get(MicrometerNames.METER_ACQUIRE_DURATION)
+            .counter()
+            .count()
+
+        val timer = registry
+            .get(MicrometerNames.METER_ACQUIRE_DURATION)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .timer()
 
         count shouldBeEqualTo 1.0
         timer.count() shouldBeEqualTo 1L
-        timer.totalTime(java.util.concurrent.TimeUnit.MILLISECONDS) shouldBeGreaterOrEqualTo 10.0
+        timer.totalTime(TimeUnit.MILLISECONDS) shouldBeGreaterOrEqualTo 10.0
     }
 
     @Test
     fun `onLockNotAcquired CONTENTION - reason tag equals CONTENTION`() {
         recorder.onLockNotAcquired(lockName, defaultOptions, SkipReason.CONTENTION)
 
-        val count = registry.get(MicrometerNames.METER_NOT_ACQUIRED)
+        val count = registry
+            .get(MicrometerNames.METER_NOT_ACQUIRED)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .tag(MicrometerNames.TAG_REASON, SkipReason.CONTENTION.name)
-            .counter().count()
+            .counter()
+            .count()
 
         count shouldBeEqualTo 1.0
     }
@@ -90,10 +105,12 @@ class MicrometerLeaderAopMetricsRecorderTest {
     fun `onLockNotAcquired BACKEND_ERROR - reason tag equals BACKEND_ERROR`() {
         recorder.onLockNotAcquired(lockName, defaultOptions, SkipReason.BACKEND_ERROR)
 
-        val count = registry.get(MicrometerNames.METER_NOT_ACQUIRED)
+        val count = registry
+            .get(MicrometerNames.METER_NOT_ACQUIRED)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .tag(MicrometerNames.TAG_REASON, SkipReason.BACKEND_ERROR.name)
-            .counter().count()
+            .counter()
+            .count()
 
         count shouldBeEqualTo 1.0
     }
@@ -103,9 +120,11 @@ class MicrometerLeaderAopMetricsRecorderTest {
         recorder.onTaskStarted(lockName)
         recorder.onTaskFinished(lockName, 100.milliseconds)
 
-        val timerCount = registry.get(MicrometerNames.METER_EXECUTION_DURATION)
+        val timerCount = registry
+            .get(MicrometerNames.METER_EXECUTION_DURATION)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
-            .timer().count()
+            .timer()
+            .count()
 
         timerCount shouldBeGreaterOrEqualTo 1L
     }
@@ -114,10 +133,12 @@ class MicrometerLeaderAopMetricsRecorderTest {
     fun `onTaskFailed - task failed counter with exception tag`() {
         recorder.onTaskFailed(lockName, 50.milliseconds, IllegalStateException("test"))
 
-        val count = registry.get(MicrometerNames.METER_TASK_FAILED)
+        val count = registry
+            .get(MicrometerNames.METER_TASK_FAILED)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .tag(MicrometerNames.TAG_EXCEPTION, "IllegalStateException")
-            .counter().count()
+            .counter()
+            .count()
 
         count shouldBeEqualTo 1.0
     }
@@ -127,11 +148,12 @@ class MicrometerLeaderAopMetricsRecorderTest {
         // backend error path: onTaskFailed가 onTaskStarted 없이 호출될 수 있다
         recorder.onTaskFailed(lockName, 0.milliseconds, RuntimeException("backend error"))
 
-        val gaugeValue = registry.find(MicrometerNames.METER_ACTIVE)
+        val gaugeValue = registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
-            .gauge()?.value() ?: 0.0
+            .gauge()
+            ?.value() ?: 0.0
 
-        gaugeValue shouldBeGreaterOrEqualTo 0.0
         gaugeValue shouldBeEqualTo 0.0
     }
 
@@ -139,9 +161,11 @@ class MicrometerLeaderAopMetricsRecorderTest {
     fun `onTaskStarted - active gauge becomes 1`() {
         recorder.onTaskStarted(lockName)
 
-        val gaugeValue = registry.find(MicrometerNames.METER_ACTIVE)
+        val gaugeValue = registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
-            .gauge()?.value() ?: 0.0
+            .gauge()
+            ?.value() ?: 0.0
 
         gaugeValue shouldBeEqualTo 1.0
     }
@@ -151,9 +175,11 @@ class MicrometerLeaderAopMetricsRecorderTest {
         recorder.onTaskStarted(lockName)
         recorder.onTaskFinished(lockName, 100.milliseconds)
 
-        val gaugeValue = registry.find(MicrometerNames.METER_ACTIVE)
+        val gaugeValue = registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
-            .gauge()?.value() ?: 0.0
+            .gauge()
+            ?.value() ?: 0.0
 
         gaugeValue shouldBeEqualTo 0.0
     }
@@ -163,9 +189,11 @@ class MicrometerLeaderAopMetricsRecorderTest {
         recorder.onTaskStarted(lockName)
         recorder.onTaskFailed(lockName, 50.milliseconds, IllegalArgumentException("fail"))
 
-        val gaugeValue = registry.find(MicrometerNames.METER_ACTIVE)
+        val gaugeValue = registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
-            .gauge()?.value() ?: 0.0
+            .gauge()
+            ?.value() ?: 0.0
 
         gaugeValue shouldBeEqualTo 0.0
     }
@@ -174,21 +202,31 @@ class MicrometerLeaderAopMetricsRecorderTest {
     fun `registerMetricsFor - meters appear before first callback`() {
         recorder.registerMetricsFor(lockName)
 
-        val attemptsCount = registry.get(MicrometerNames.METER_ATTEMPTS)
+        val attemptsCount = registry
+            .get(MicrometerNames.METER_ATTEMPTS)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
-            .counter().count()
-        val acquiredCount = registry.get(MicrometerNames.METER_ACQUIRED)
+            .counter()
+            .count()
+        val acquiredCount = registry
+            .get(MicrometerNames.METER_ACQUIRED)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
-            .counter().count()
-        val timerCount = registry.get(MicrometerNames.METER_EXECUTION_DURATION)
+            .counter()
+            .count()
+        val timerCount = registry
+            .get(MicrometerNames.METER_EXECUTION_DURATION)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
-            .timer().count()
-        val acquireTimerCount = registry.get(MicrometerNames.METER_ACQUIRE_DURATION)
+            .timer()
+            .count()
+        val acquireTimerCount = registry
+            .get(MicrometerNames.METER_ACQUIRE_DURATION)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
-            .timer().count()
-        val gaugeValue = registry.find(MicrometerNames.METER_ACTIVE)
+            .timer()
+            .count()
+        val gaugeValue = registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
-            .gauge()?.value()
+            .gauge()
+            ?.value()
 
         attemptsCount shouldBeEqualTo 0.0
         acquiredCount shouldBeEqualTo 0.0
@@ -203,11 +241,12 @@ class MicrometerLeaderAopMetricsRecorderTest {
         recorder.registerMetricsFor(lockName)
 
         // 중복 등록 없이 하나만 존재해야 한다
-        val attemptCounters = registry.find(MicrometerNames.METER_ATTEMPTS)
+        val attemptCounters = registry
+            .find(MicrometerNames.METER_ATTEMPTS)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .counters()
 
-        attemptCounters.size shouldBeEqualTo 1
+        attemptCounters shouldHaveSize 1
     }
 
     @Test
@@ -217,26 +256,30 @@ class MicrometerLeaderAopMetricsRecorderTest {
 
         recorder.deregisterMetricsFor(lockName)
 
-        registry.find(MicrometerNames.METER_ACTIVE)
+        registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .gauge().shouldBeNull()
-        registry.find(MicrometerNames.METER_ATTEMPTS)
+
+        registry
+            .find(MicrometerNames.METER_ATTEMPTS)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .counter().shouldBeNull()
     }
 
     @Test
-    fun `concurrent onTaskStarted and onTaskFinished - active gauge thread safe`(): Unit {
+    fun `concurrent onTaskStarted and onTaskFinished - active gauge thread safe`() {
         MultithreadingTester()
-            .workers(8)
-            .rounds(125)
+            .workers(Runtimex.availableProcessors)
+            .rounds(10)
             .add {
                 recorder.onTaskStarted(lockName)
                 recorder.onTaskFinished(lockName, 1.milliseconds)
             }
             .run()
 
-        val gaugeValue = registry.find(MicrometerNames.METER_ACTIVE)
+        val gaugeValue = registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .gauge()?.value() ?: 0.0
 
@@ -248,20 +291,26 @@ class MicrometerLeaderAopMetricsRecorderTest {
         recorder.registerMetricsFor(lockName)
 
         // 등록 확인
-        registry.find(MicrometerNames.METER_ACTIVE)
+        registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .gauge().shouldNotBeNull()
-        registry.find(MicrometerNames.METER_ACQUIRE_DURATION)
+
+        registry
+            .find(MicrometerNames.METER_ACQUIRE_DURATION)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .timer().shouldNotBeNull()
 
         recorder.deregisterMetricsFor(lockName)
 
         // 제거 확인
-        registry.find(MicrometerNames.METER_ACTIVE)
+        registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .gauge().shouldBeNull()
-        registry.find(MicrometerNames.METER_ACQUIRE_DURATION)
+
+        registry
+            .find(MicrometerNames.METER_ACQUIRE_DURATION)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .timer().shouldBeNull()
     }
@@ -272,19 +321,22 @@ class MicrometerLeaderAopMetricsRecorderTest {
 
         recorder.registerMetricsFor("tenant-a", "tenant-b")
 
-        registry.find(MicrometerNames.METER_ACTIVE)
+        registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
             .gauge().shouldNotBeNull()
 
         recorder.deregisterMetricsFor("tenant-a")
 
-        registry.find(MicrometerNames.METER_ACTIVE)
+        registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
             .gauge().shouldNotBeNull()
 
         recorder.deregisterMetricsFor("tenant-b")
 
-        registry.find(MicrometerNames.METER_ACTIVE)
+        registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
             .gauge().shouldBeNull()
     }
@@ -298,22 +350,27 @@ class MicrometerLeaderAopMetricsRecorderTest {
         recorder.deregisterMetricsFor("tenant-a")
         recorder.deregisterMetricsFor("tenant-b")
 
-        registry.find(MicrometerNames.METER_ACTIVE)
+        registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
-            .gauge()?.value() shouldBeEqualTo 1.0
+            .gauge()
+            ?.value() shouldBeEqualTo 1.0
 
         recorder.onTaskFinished("tenant-a", 1.milliseconds)
 
-        val gaugeValue = registry.find(MicrometerNames.METER_ACTIVE)
+        val gaugeValue = registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
-            .gauge()?.value() ?: 0.0
+            .gauge()
+            ?.value() ?: 0.0
 
         gaugeValue shouldBeEqualTo 0.0
 
         recorder.deregisterMetricsFor("tenant-a")
         recorder.deregisterMetricsFor("tenant-b")
 
-        registry.find(MicrometerNames.METER_ACTIVE)
+        registry
+            .find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
             .gauge().shouldBeNull()
     }

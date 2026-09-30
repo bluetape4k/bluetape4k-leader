@@ -3,9 +3,10 @@ package io.bluetape4k.leader.micrometer
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderLeaseExtensionEvent
 import io.bluetape4k.leader.LeaderLeaseExtensionObserver
+import io.bluetape4k.logging.KLogging
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationRegistry
-import java.util.Locale
+import java.util.*
 
 /**
  * lease-extension event를 Micrometer terminal Observation으로 변환합니다.
@@ -16,7 +17,7 @@ import java.util.Locale
 class MicrometerObservationLeaderLeaseExtensionObserver(
     private val registry: ObservationRegistry,
     val options: LeaderObservationOptions = LeaderObservationOptions(),
-) : LeaderLeaseExtensionObserver {
+): LeaderLeaseExtensionObserver {
 
     private val tagSanitizer = LeaderMetricTagSanitizer.from(options.tagOptions)
 
@@ -54,7 +55,7 @@ class MicrometerObservationLeaderLeaseExtensionObserver(
         observation.start().stop()
     }
 
-    private companion object {
+    private companion object: KLogging() {
         private const val OBSERVATION_NAME = "bluetape4k.leader.lease.extension"
         private const val TAG_SOURCE = "source"
         private const val TAG_EXECUTION = "execution"
@@ -68,11 +69,10 @@ private data class LeaseExtensionObservationMapping(
     val result: String,
 )
 
-private fun ExtendOutcome.toObservationMapping(): LeaseExtensionObservationMapping =
-    when (this) {
-        is ExtendOutcome.Extended -> LeaseExtensionObservationMapping("extended", "success")
-        ExtendOutcome.Rejected -> LeaseExtensionObservationMapping("rejected", "skipped")
-        ExtendOutcome.NotHeld -> LeaseExtensionObservationMapping("not_held", "skipped")
-        ExtendOutcome.WrongThread -> LeaseExtensionObservationMapping("wrong_thread", "error")
-        is ExtendOutcome.BackendError -> LeaseExtensionObservationMapping("backend_error", "error")
-    }
+private fun ExtendOutcome.toObservationMapping(): LeaseExtensionObservationMapping = when (this) {
+    is ExtendOutcome.Extended     -> LeaseExtensionObservationMapping("extended", "success")
+    ExtendOutcome.Rejected        -> LeaseExtensionObservationMapping("rejected", "skipped")
+    ExtendOutcome.NotHeld         -> LeaseExtensionObservationMapping("not_held", "skipped")
+    ExtendOutcome.WrongThread     -> LeaseExtensionObservationMapping("wrong_thread", "error")
+    is ExtendOutcome.BackendError -> LeaseExtensionObservationMapping("backend_error", "error")
+}

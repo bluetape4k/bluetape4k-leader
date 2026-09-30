@@ -1,13 +1,13 @@
 package io.bluetape4k.leader.micrometer
 
-import io.bluetape4k.leader.LeaderManagementActionObserver
 import io.bluetape4k.leader.LeaderManagementActionObservation
+import io.bluetape4k.leader.LeaderManagementActionObserver
 import io.bluetape4k.leader.LeaderManagementActionPhase
 import io.bluetape4k.leader.LeaderManagementQuarantineReason
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
-import java.util.Locale
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 class MicrometerLeaderManagementActionObserver(
     private val registry: MeterRegistry,
-) : LeaderManagementActionObserver {
+): LeaderManagementActionObserver {
 
     private val counters = ConcurrentHashMap<MetricKey, Counter>()
     private val active = ConcurrentHashMap<MetricKey, AtomicInteger>()
