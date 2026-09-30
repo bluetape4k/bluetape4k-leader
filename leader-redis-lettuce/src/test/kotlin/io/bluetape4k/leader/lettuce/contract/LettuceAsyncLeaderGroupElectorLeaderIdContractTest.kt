@@ -14,9 +14,9 @@ import org.junit.jupiter.api.TestInstance
  * Verifies slot-aware audit identity propagation for async [LettuceLeaderGroupElector].
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LettuceAsyncLeaderGroupElectorLeaderIdContractTest : AbstractAsyncLeaderGroupElectorLeaderIdContractTest() {
+class LettuceAsyncLeaderGroupElectorLeaderIdContractTest: AbstractAsyncLeaderGroupElectorLeaderIdContractTest() {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         val redis = AbstractLettuceLeaderTest.redis
     }
 

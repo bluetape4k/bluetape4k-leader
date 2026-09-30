@@ -1,4 +1,3 @@
-import org.gradle.api.tasks.testing.Test
 import java.time.Instant
 
 configurations {
@@ -7,17 +6,27 @@ configurations {
 
 dependencies {
     api(project(":bluetape4k-leader-core"))
+
+    // Lettuce
     api(bt4k.bluetape4k.lettuce)
     api(libs.lettuce.core)
 
+    // Lettuce Codecs
+    testImplementation(bt4k.bluetape4k.io)
+    testImplementation(bt4k.fory.kotlin)
+    testImplementation(bt4k.at.yawk.lz4.java)
+
+    // Coroutines
     api(bt4k.bluetape4k.coroutines)
     api(libs.kotlinx.coroutines.reactive)
+    testImplementation(libs.kotlinx.coroutines.test)
 
-
+    // Test
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(bt4k.bluetape4k.testcontainers)
     testImplementation(bt4k.bluetape4k.virtualthread.jdk25)
-    testImplementation(libs.kotlinx.coroutines.test)
+
+    // Testcontainers
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.toxiproxy)
@@ -115,11 +124,13 @@ val clusterTest = tasks.register<Test>("clusterTest") {
             }
         }
         val missingTestNames = expectedClusterTestNames.filterNot(observedTestNames::contains)
-        require(tests >= expectedClusterTestCount && missingTestNames.isEmpty() &&
-            skipped == 0 && failures == 0 && errors == 0) {
+        require(
+            tests >= expectedClusterTestCount && missingTestNames.isEmpty() &&
+                    skipped == 0 && failures == 0 && errors == 0
+        ) {
             "Redis Cluster test scope invalid: expected at least $expectedClusterTestCount tests and " +
-                "all matrix names, actual=$tests, missing=$missingTestNames, skipped=$skipped, " +
-                "failures=$failures, errors=$errors"
+                    "all matrix names, actual=$tests, missing=$missingTestNames, skipped=$skipped, " +
+                    "failures=$failures, errors=$errors"
         }
 
         val runtimeProvenance = diagnosticsDirectory.get().asFile.resolve("cluster-runtime.txt")
@@ -131,8 +142,10 @@ val clusterTest = tasks.register<Test>("clusterTest") {
         val clusterState = provenanceLines.firstOrNull { it.startsWith("cluster_state=") }
         val endpoints = provenanceLines.firstOrNull { it.startsWith("endpoints=") }
         val endpointCount = endpoints?.substringAfter('=')?.split(',')?.count { it.isNotBlank() } ?: 0
-        require(imageDigest == "image_digest=$clusterImage" && clusterState == "cluster_state=ok" &&
-            endpointCount >= 6) {
+        require(
+            imageDigest == "image_digest=$clusterImage" && clusterState == "cluster_state=ok" &&
+                    endpointCount >= 6
+        ) {
             "Redis Cluster runtime provenance is incomplete: $provenanceLines"
         }
     }

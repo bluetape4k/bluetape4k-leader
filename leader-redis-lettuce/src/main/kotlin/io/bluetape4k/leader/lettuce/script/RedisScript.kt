@@ -3,6 +3,7 @@ package io.bluetape4k.leader.lettuce.script
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.support.toUtf8Bytes
 import io.lettuce.core.RedisNoScriptException
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.async.RedisAsyncCommands
@@ -30,14 +31,15 @@ class RedisScript(val source: String) {
 
     companion object: KLogging() {
         private fun sha1Hex(text: String): String {
-            val digest = MessageDigest.getInstance("SHA-1").digest(text.toByteArray(Charsets.UTF_8))
-            val sb = StringBuilder(digest.size * 2)
-            for (b in digest) {
-                val v = b.toInt() and 0xff
-                sb.append(Character.forDigit(v ushr 4, 16))
-                sb.append(Character.forDigit(v and 0x0f, 16))
+            val digest = MessageDigest.getInstance("SHA-1").digest(text.toUtf8Bytes())
+
+            return buildString(digest.size * 2) {
+                for (b in digest) {
+                    val v = b.toInt() and 0xff
+                    append(Character.forDigit(v ushr 4, 16))
+                    append(Character.forDigit(v and 0x0f, 16))
+                }
             }
-            return sb.toString()
         }
     }
 }

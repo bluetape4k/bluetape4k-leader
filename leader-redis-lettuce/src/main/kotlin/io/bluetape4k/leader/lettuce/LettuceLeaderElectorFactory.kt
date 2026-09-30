@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectorFactory
-import io.bluetape4k.leader.LeaderElectionOptions
 import io.lettuce.core.api.StatefulRedisConnection
 
 /**
@@ -13,7 +13,7 @@ import io.lettuce.core.api.StatefulRedisConnection
  */
 class LettuceLeaderElectorFactory(
     private val connection: StatefulRedisConnection<String, String>,
-) : LeaderElectorFactory {
+): LeaderElectorFactory {
 
     override fun create(options: LeaderElectionOptions): LeaderElector =
         LettuceLeaderElector(connection, options)

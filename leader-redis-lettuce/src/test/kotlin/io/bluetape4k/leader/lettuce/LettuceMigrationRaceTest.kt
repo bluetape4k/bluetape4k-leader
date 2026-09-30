@@ -1,5 +1,3 @@
-@file:OptIn(io.lettuce.core.ExperimentalLettuceCoroutinesApi::class)
-
 package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.assertions.shouldBeEmpty
@@ -11,8 +9,10 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
+import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.reactive.RedisReactiveCommands
 import io.lettuce.core.api.sync.RedisCommands
@@ -27,7 +27,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LettuceMigrationRaceTest : AbstractLettuceLeaderTest() {
+class LettuceMigrationRaceTest: AbstractLettuceLeaderTest() {
 
     @TestFactory
     fun `blocking과 suspend의 실제 source 및 v3 writer 경합`() =
@@ -70,13 +70,24 @@ class LettuceMigrationRaceTest : AbstractLettuceLeaderTest() {
         }
 }
 
-internal enum class MigrationSource { V2, COLON }
+internal enum class MigrationSource {
+    V2,
+    COLON
+}
 
 internal enum class MigrationRace {
-    CHANGE_BEFORE_TTL, DELETE_BEFORE_TTL, EXPIRE_BEFORE_TTL, SAME_BEFORE_TTL,
-    CHANGE_AFTER_COPY, DELETE_AFTER_COPY, EXPIRE_AFTER_COPY, SAME_AFTER_COPY,
-    REGISTER_SAME_AFTER_COPY, REGISTER_CHANGED_AFTER_COPY,
-    REFRESH_SAME_AFTER_COPY, RESULT_AFTER_COPY,
+    CHANGE_BEFORE_TTL,
+    DELETE_BEFORE_TTL,
+    EXPIRE_BEFORE_TTL,
+    SAME_BEFORE_TTL,
+    CHANGE_AFTER_COPY,
+    DELETE_AFTER_COPY,
+    EXPIRE_AFTER_COPY,
+    SAME_AFTER_COPY,
+    REGISTER_SAME_AFTER_COPY,
+    REGISTER_CHANGED_AFTER_COPY,
+    REFRESH_SAME_AFTER_COPY,
+    RESULT_AFTER_COPY,
 }
 
 /**
@@ -133,7 +144,7 @@ internal class MigrationRaceScenario(
                     actual.pttl(sourceKey) shouldBeEqualTo -2L
                 }
                 MigrationRace.SAME_BEFORE_TTL, MigrationRace.SAME_AFTER_COPY -> actual.set(sourceKey, raw)
-                else -> {
+                else                                                         -> {
                     // 복사 후 일반 writer와 source 삭제를 완료한 다음 이전 migration의 cleanup을 재개한다.
                     writeCurrent(race)
                     actual.get(token).shouldBeNull()
@@ -165,12 +176,13 @@ internal class MigrationRaceScenario(
                 when (race) {
                     MigrationRace.REGISTER_CHANGED_AFTER_COPY -> candidate shouldBeEqualTo changed
                     MigrationRace.RESULT_AFTER_COPY -> candidate.successCount shouldBeEqualTo 1L
-                    else -> candidate shouldBeEqualTo original
+                    else                            -> candidate shouldBeEqualTo original
                 }
                 actual.get(destination) shouldBeEqualTo LettuceCandidateInfoCodec.encode(candidate)
                 actual.sismember(destinationIndex, nodeId).shouldBeTrue()
                 if (!isCurrentWriter(race)) {
-                    val changedSource = race == MigrationRace.CHANGE_BEFORE_TTL || race == MigrationRace.CHANGE_AFTER_COPY
+                    val changedSource =
+                        race == MigrationRace.CHANGE_BEFORE_TTL || race == MigrationRace.CHANGE_AFTER_COPY
                     actual.get(sourceKey) shouldBeEqualTo if (changedSource) changedRaw else raw
                     actual.pttl(sourceKey) shouldBeEqualTo -1L
                     actual.sismember(sourceIndex, nodeId).shouldBeTrue()
@@ -259,22 +271,23 @@ internal class MigrationRaceScenario(
         val keys = arrayOf(destination, destinationIndex, tombstone, token)
         when (race) {
             MigrationRace.REGISTER_SAME_AFTER_COPY, MigrationRace.REGISTER_CHANGED_AFTER_COPY ->
-                io.bluetape4k.leader.lettuce.script.RedisScriptRunner.run<List<Any>>(
-                    actual, LettuceCandidateWriteScript.WRITE, io.lettuce.core.ScriptOutputType.MULTI,
-                    keys, LettuceCandidateWriteScript.REGISTER,
+                RedisScriptRunner.run(
+                    actual, LettuceCandidateWriteScript.WRITE, ScriptOutputType.MULTI,
+                    keys, REGISTER,
                     if (race == MigrationRace.REGISTER_CHANGED_AFTER_COPY) changedRaw else raw, "0", nodeId,
                 )
-            MigrationRace.REFRESH_SAME_AFTER_COPY ->
-                io.bluetape4k.leader.lettuce.script.RedisScriptRunner.run<List<Any>>(
-                    actual, LettuceCandidateRefreshScript.REFRESH, io.lettuce.core.ScriptOutputType.MULTI,
+            MigrationRace.REFRESH_SAME_AFTER_COPY                                             ->
+                RedisScriptRunner.run(
+                    actual, LettuceCandidateRefreshScript.REFRESH, ScriptOutputType.MULTI,
                     arrayOf(destination, destinationIndex, token), raw, "0",
                 )
-            MigrationRace.RESULT_AFTER_COPY ->
-                io.bluetape4k.leader.lettuce.script.RedisScriptRunner.run<List<Any>>(
-                    actual, LettuceCandidateResultScript.UPDATE, io.lettuce.core.ScriptOutputType.MULTI,
+            MigrationRace.RESULT_AFTER_COPY                                                   ->
+                RedisScriptRunner.run<List<Any>>(
+                    actual, LettuceCandidateResultScript.UPDATE, ScriptOutputType.MULTI,
                     arrayOf(destination, token), CandidateResult.SUCCESS.name, "123",
                 )
-            else -> error("v3 writer 시나리오가 아님: $race")
+            else                                                                              ->
+                error("v3 writer 시나리오가 아님: $race")
         }
     }
 
@@ -286,16 +299,21 @@ internal class MigrationRaceScenario(
     fun wrap(connection: StatefulRedisConnection<String, String>): StatefulRedisConnection<String, String> {
         val sync = connection.sync()
         val reactive = connection.reactive()
-        val syncCommands = object : RedisCommands<String, String> by sync {
-            override fun get(key: String): String? { beforeGet(key); return sync.get(key) }
-            override fun pttl(key: String): Long { beforeTtl(key); return observedTtl(key, sync.pttl(key)) }
+        val syncCommands = object: RedisCommands<String, String> by sync {
+            override fun get(key: String): String? {
+                beforeGet(key); return sync.get(key)
+            }
+
+            override fun pttl(key: String): Long {
+                beforeTtl(key); return observedTtl(key, sync.pttl(key))
+            }
         }
-        val reactiveCommands = object : RedisReactiveCommands<String, String> by reactive {
+        val reactiveCommands = object: RedisReactiveCommands<String, String> by reactive {
             override fun get(key: String): Mono<String> = beforeRead { beforeGet(key) }.then(reactive.get(key))
             override fun pttl(key: String): Mono<Long> = beforeRead { beforeTtl(key) }
                 .then(reactive.pttl(key)).map { observedTtl(key, it) }
         }
-        return object : StatefulRedisConnection<String, String> by connection {
+        return object: StatefulRedisConnection<String, String> by connection {
             override fun sync(): RedisCommands<String, String> = syncCommands
             override fun reactive(): RedisReactiveCommands<String, String> = reactiveCommands
         }
@@ -304,16 +322,21 @@ internal class MigrationRaceScenario(
     fun wrap(connection: StatefulRedisClusterConnection<String, String>): StatefulRedisClusterConnection<String, String> {
         val sync = connection.sync()
         val reactive = connection.reactive()
-        val syncCommands = object : RedisAdvancedClusterCommands<String, String> by sync {
-            override fun get(key: String): String? { beforeGet(key); return sync.get(key) }
-            override fun pttl(key: String): Long { beforeTtl(key); return observedTtl(key, sync.pttl(key)) }
+        val syncCommands = object: RedisAdvancedClusterCommands<String, String> by sync {
+            override fun get(key: String): String? {
+                beforeGet(key); return sync.get(key)
+            }
+
+            override fun pttl(key: String): Long {
+                beforeTtl(key); return observedTtl(key, sync.pttl(key))
+            }
         }
-        val reactiveCommands = object : RedisAdvancedClusterReactiveCommands<String, String> by reactive {
+        val reactiveCommands = object: RedisAdvancedClusterReactiveCommands<String, String> by reactive {
             override fun get(key: String): Mono<String> = beforeRead { beforeGet(key) }.then(reactive.get(key))
             override fun pttl(key: String): Mono<Long> = beforeRead { beforeTtl(key) }
                 .then(reactive.pttl(key)).map { observedTtl(key, it) }
         }
-        return object : StatefulRedisClusterConnection<String, String> by connection {
+        return object: StatefulRedisClusterConnection<String, String> by connection {
             override fun sync(): RedisAdvancedClusterCommands<String, String> = syncCommands
             override fun reactive(): RedisAdvancedClusterReactiveCommands<String, String> = reactiveCommands
         }

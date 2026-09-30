@@ -1,5 +1,3 @@
-@file:OptIn(io.lettuce.core.ExperimentalLettuceCoroutinesApi::class)
-
 package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.assertions.assertFailsWith
@@ -257,7 +255,7 @@ class LettuceCandidateGenerationFenceTest: AbstractLettuceLeaderTest() {
         private fun shouldFailLegacyCas(keys: Array<out String>, args: Array<out String>): Boolean =
             failure == CleanupFailure.LEGACY_CAS &&
                     sourceKey in keys &&
-                    args.firstOrNull() == LettuceCandidateWriteScript.REMOVE_LEGACY_IF_VALUE &&
+                    args.firstOrNull() == REMOVE_LEGACY_IF_VALUE &&
                     triggerOnce()
 
         private fun shouldFailSrem(key: String, members: Array<out String>): Boolean =
@@ -364,7 +362,7 @@ class LettuceCandidateGenerationFenceTest: AbstractLettuceLeaderTest() {
                     fixture.tombstoneKey,
                     fixture.migrationTokenKey,
                 ),
-                LettuceCandidateWriteScript.UNREGISTER,
+                UNREGISTER,
                 fixture.nodeId,
                 "race-${System.nanoTime()}",
             )

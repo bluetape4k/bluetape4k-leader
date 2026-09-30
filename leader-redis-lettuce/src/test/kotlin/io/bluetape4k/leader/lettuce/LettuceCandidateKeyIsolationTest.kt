@@ -9,10 +9,14 @@ import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
+import org.testcontainers.utility.Base58
 import kotlin.time.Duration
 
-class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
+class LettuceCandidateKeyIsolationTest: AbstractLettuceLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `blocking candidate lifecycle preserves lock and node boundaries`() {
@@ -78,7 +82,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `legacy candidate with exact node id is read through and migrated`() {
-        val lockName = "issue-845-legacy-${System.nanoTime()}"
+        val lockName = "issue-845-legacy-${Base58.randomString(8)}"
         val nodeId = "hostname:pid"
         val candidate = CandidateInfo(nodeId, metadata = mapOf("source" to "legacy"))
         val legacyIndexKey = legacyIndexKey(lockName)
@@ -95,7 +99,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `legacy candidate with a different node id is never exposed`() {
-        val lockName = "issue-845-legacy-mismatch-${System.nanoTime()}"
+        val lockName = "issue-845-legacy-mismatch-${Base58.randomString(8)}"
         val expectedNodeId = "hostname:pid"
         val actualNodeId = "other-node"
         val legacyIndexKey = legacyIndexKey(lockName)
@@ -114,7 +118,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `malformed v3 destination is surfaced instead of hiding a valid legacy source`() {
-        val lockName = "issue-854-malformed-v3-${System.nanoTime()}"
+        val lockName = "issue-854-malformed-v3-${Base58.randomString(8)}"
         val nodeId = "hostname:pid"
         val v3Key = currentCandidateKey(lockName, nodeId)
         val v2Key = LettuceCandidateKeyCodec.v2CandidateKey(
@@ -134,6 +138,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
         assertFailsWith<IllegalArgumentException> {
             LettuceStrategicLeaderElector(connection, "observer").listCandidates(lockName)
         }
+
         connection.sync().get(v3Key) shouldBeEqualTo "malformed-v3-payload"
     }
 
@@ -142,7 +147,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
         val nodeId = "hostname:pid"
         val elector = LettuceStrategicLeaderElector(connection, "observer")
 
-        val refreshLock = "issue-845-legacy-refresh-${System.nanoTime()}"
+        val refreshLock = "issue-845-legacy-refresh-${Base58.randomString(8)}"
         seedLegacy(refreshLock, CandidateInfo(nodeId, metadata = mapOf("source" to "old")))
         elector.refreshCandidate(
             refreshLock,
@@ -151,12 +156,12 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
         )
         elector.listCandidates(refreshLock).single().metadata shouldBeEqualTo mapOf("source" to "fresh")
 
-        val updateLock = "issue-845-legacy-update-${System.nanoTime()}"
+        val updateLock = "issue-845-legacy-update-${Base58.randomString(8)}"
         seedLegacy(updateLock, CandidateInfo(nodeId))
         elector.updateResult(updateLock, nodeId, CandidateResult.SUCCESS)
         elector.listCandidates(updateLock).single().successCount shouldBeEqualTo 1L
 
-        val unregisterLock = "issue-845-legacy-unregister-${System.nanoTime()}"
+        val unregisterLock = "issue-845-legacy-unregister-${Base58.randomString(8)}"
         seedLegacy(unregisterLock, CandidateInfo(nodeId))
         elector.unregisterCandidate(unregisterLock, nodeId)
         elector.listCandidates(unregisterLock).shouldBeEmpty()
@@ -168,7 +173,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
         val nodeId = "hostname:pid"
         val elector = LettuceStrategicSuspendLeaderElector(connection, "observer")
 
-        val refreshLock = "issue-845-suspend-legacy-refresh-${System.nanoTime()}"
+        val refreshLock = "issue-845-suspend-legacy-refresh-${Base58.randomString(8)}"
         seedLegacy(refreshLock, CandidateInfo(nodeId, metadata = mapOf("source" to "old")))
         elector.refreshCandidate(
             refreshLock,
@@ -177,12 +182,12 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
         )
         elector.listCandidates(refreshLock).single().metadata shouldBeEqualTo mapOf("source" to "fresh")
 
-        val updateLock = "issue-845-suspend-legacy-update-${System.nanoTime()}"
+        val updateLock = "issue-845-suspend-legacy-update-${Base58.randomString(8)}"
         seedLegacy(updateLock, CandidateInfo(nodeId))
         elector.updateResult(updateLock, nodeId, CandidateResult.SUCCESS)
         elector.listCandidates(updateLock).single().successCount shouldBeEqualTo 1L
 
-        val unregisterLock = "issue-845-suspend-legacy-unregister-${System.nanoTime()}"
+        val unregisterLock = "issue-845-suspend-legacy-unregister-${Base58.randomString(8)}"
         seedLegacy(unregisterLock, CandidateInfo(nodeId))
         elector.unregisterCandidate(unregisterLock, nodeId)
         elector.listCandidates(unregisterLock).shouldBeEmpty()
@@ -205,7 +210,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `blocking list removes a stale v2 index while preserving the migrated colon source`() {
-        val lockName = "issue-845-stale-migration-${System.nanoTime()}"
+        val lockName = "issue-845-stale-migration-${Base58.randomString(8)}"
         val nodeId = "hostname:pid"
         seedLegacy(lockName, CandidateInfo(nodeId, metadata = mapOf("source" to "legacy")))
         connection.sync().sadd(versionedIndexKey(lockName), nodeId)
@@ -218,7 +223,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `suspend list removes a stale v2 index while preserving the migrated colon source`() = runSuspendIO {
-        val lockName = "issue-845-suspend-stale-migration-${System.nanoTime()}"
+        val lockName = "issue-845-suspend-stale-migration-${Base58.randomString(8)}"
         val nodeId = "hostname:pid"
         seedLegacy(lockName, CandidateInfo(nodeId, metadata = mapOf("source" to "legacy")))
         connection.sync().sadd(versionedIndexKey(lockName), nodeId)
@@ -231,7 +236,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `blocking list prefers an existing v2 value while promoting the v3 index`() {
-        val lockName = "issue-845-v2-precedence-${System.nanoTime()}"
+        val lockName = "issue-845-v2-precedence-${Base58.randomString(8)}"
         val nodeId = "hostname:pid"
         seedLegacy(lockName, CandidateInfo(nodeId, metadata = mapOf("source" to "legacy")))
         connection.sync().set(
@@ -247,7 +252,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `suspend list prefers an existing v2 value while promoting the v3 index`() = runSuspendIO {
-        val lockName = "issue-845-suspend-v2-precedence-${System.nanoTime()}"
+        val lockName = "issue-845-suspend-v2-precedence-${Base58.randomString(8)}"
         val nodeId = "hostname:pid"
         seedLegacy(lockName, CandidateInfo(nodeId, metadata = mapOf("source" to "legacy")))
         connection.sync().set(
@@ -263,7 +268,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `blocking list removes only the stale legacy version index`() {
-        val lockName = "issue-854-stale-version-${System.nanoTime()}"
+        val lockName = "issue-854-stale-version-${Base58.randomString(8)}"
         val nodeId = "hostname:pid"
         val currentRaw = LettuceCandidateInfoCodec.encode(
             CandidateInfo(nodeId, metadata = mapOf("source" to "v3")),
@@ -292,7 +297,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `suspend list removes only the stale legacy version index`() = runSuspendIO {
-        val lockName = "issue-854-suspend-stale-version-${System.nanoTime()}"
+        val lockName = "issue-854-suspend-stale-version-${Base58.randomString(8)}"
         val nodeId = "hostname:pid"
         val currentRaw = LettuceCandidateInfoCodec.encode(
             CandidateInfo(nodeId, metadata = mapOf("source" to "v3")),
@@ -321,9 +326,10 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `blocking list surfaces malformed legacy source even when v3 is current`() {
-        val lockName = "issue-854-malformed-legacy-current-${System.nanoTime()}"
+        val lockName = "issue-854-malformed-legacy-current-${Base58.randomString(8)}"
         val nodeId = "hostname:pid"
-        connection.sync().set(currentCandidateKey(lockName, nodeId), LettuceCandidateInfoCodec.encode(CandidateInfo(nodeId)))
+        connection.sync()
+            .set(currentCandidateKey(lockName, nodeId), LettuceCandidateInfoCodec.encode(CandidateInfo(nodeId)))
         connection.sync().sadd(currentIndexKey(lockName), nodeId)
         val v2Key = LettuceCandidateKeyCodec.v2CandidateKey(
             LettuceCandidateRegistry.DEFAULT_KEY_PREFIX,
@@ -345,9 +351,10 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `suspend list surfaces malformed legacy source even when v3 is current`() = runSuspendIO {
-        val lockName = "issue-854-suspend-malformed-legacy-current-${System.nanoTime()}"
+        val lockName = "issue-854-suspend-malformed-legacy-current-${Base58.randomString(8)}"
         val nodeId = "hostname:pid"
-        connection.sync().set(currentCandidateKey(lockName, nodeId), LettuceCandidateInfoCodec.encode(CandidateInfo(nodeId)))
+        connection.sync()
+            .set(currentCandidateKey(lockName, nodeId), LettuceCandidateInfoCodec.encode(CandidateInfo(nodeId)))
         connection.sync().sadd(currentIndexKey(lockName), nodeId)
         val v2Key = LettuceCandidateKeyCodec.v2CandidateKey(
             LettuceCandidateRegistry.DEFAULT_KEY_PREFIX,
@@ -368,7 +375,7 @@ class LettuceCandidateKeyIsolationTest : AbstractLettuceLeaderTest() {
     }
 
     private fun collisionPair(): CollisionPair {
-        val suffix = System.nanoTime().toString()
+        val suffix = Base58.randomString(8)
         val lockName = "issue-845-$suffix"
         val nodeId = "hostname:pid"
         return CollisionPair(

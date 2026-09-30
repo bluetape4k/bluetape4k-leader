@@ -20,9 +20,9 @@ import kotlin.time.Duration
 internal class LettuceSuspendSlotExtendDelegate(
     private val group: LettuceSlotTokenGroup,
     private val token: String,
-) : SuspendExtendDelegate {
+): SuspendExtendDelegate {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline

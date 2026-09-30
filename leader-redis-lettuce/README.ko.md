@@ -8,7 +8,7 @@
 
 ## 개요
 
-`leader-redis-lettuce`는 Lettuce 리액티브 Redis 클라이언트를 사용하여 `leader-core` 인터페이스를 구현합니다. 락 프리미티브(`LettuceLock`, `LettuceSlotTokenGroup`)는 이 모듈에 직접 이식되어 있어 `bluetape4k-lettuce`에 대한 런타임 의존이 없습니다.
+`leader-redis-lettuce`는 Lettuce 리액티브 Redis 클라이언트를 사용하여 `leader-core` 인터페이스를 구현합니다. 락 프리미티브 (`LettuceLock`, `LettuceSlotTokenGroup`)는 이 모듈에 직접 이식되어 있어 `bluetape4k-lettuce`에 대한 런타임 의존이 없습니다.
 
 단일 리더 전략: Redis `SET key value NX PX ttl` (원자적 compare-and-set). `LeaderElectionOptions(autoExtend = true)`를 사용하면 단일 리더 elector가 action 실행 중 token 조건부 `PEXPIRE`로 TTL을 갱신합니다.
 
@@ -34,14 +34,14 @@ slot-token TTL 모델은 두 시나리오로 가장 잘 이해할 수 있습니�
 
 ## 구현체 목록
 
-| 클래스 | 구현 인터페이스 | 설명 |
-|-------|--------------|------|
-| `LettuceLeaderElector` | `LeaderElector` | `LettuceLock` 기반 블로킹 단일 리더 |
-| `LettuceLeaderGroupElector` | `LeaderGroupElector` | `LettuceSlotTokenGroup` (slot-token TTL) 기반 블로킹 복수 리더 |
-| `LettuceSuspendLeaderElector` | `SuspendLeaderElector` | `LettuceSuspendLock` 기반 코루틴 단일 리더 |
-| `LettuceSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | `LettuceSlotTokenGroup` 기반 코루틴 복수 리더 |
-| `LettuceSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `LettuceSuspendLeaderElector` 생성 |
-| `LettuceSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `LettuceSuspendLeaderGroupElector` 생성 |
+| 클래스                                    | 구현 인터페이스                    | 설명                                                           |
+|-------------------------------------------|------------------------------------|----------------------------------------------------------------|
+| `LettuceLeaderElector`                    | `LeaderElector`                    | `LettuceLock` 기반 블로킹 단일 리더                            |
+| `LettuceLeaderGroupElector`               | `LeaderGroupElector`               | `LettuceSlotTokenGroup` (slot-token TTL) 기반 블로킹 복수 리더 |
+| `LettuceSuspendLeaderElector`             | `SuspendLeaderElector`             | `LettuceSuspendLock` 기반 코루틴 단일 리더                     |
+| `LettuceSuspendLeaderGroupElector`        | `SuspendLeaderGroupElector`        | `LettuceSlotTokenGroup` 기반 코루틴 복수 리더                  |
+| `LettuceSuspendLeaderElectorFactory`      | `SuspendLeaderElectorFactory`      | 팩토리: 호출마다 `LettuceSuspendLeaderElector` 생성            |
+| `LettuceSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `LettuceSuspendLeaderGroupElector` 생성       |
 
 ## 사용 예시
 
@@ -56,8 +56,7 @@ val connection = redisClient.connect()
 
 네 `LettuceStrategic*Elector` 클래스는 standalone용
 `StatefulRedisConnection`과 Redis Cluster용
-`StatefulRedisClusterConnection`을 모두 받습니다. connection과 client의
-생명주기는 caller가 소유하며 elector가 닫지 않습니다.
+`StatefulRedisClusterConnection`을 모두 받습니다. connection과 client의 생명주기는 caller가 소유하며 elector가 닫지 않습니다.
 
 ```kotlin
 val clusterClient = RedisClusterClient.create("redis://localhost:7000")
@@ -69,28 +68,15 @@ val result = elector.runIfLeader("daily-report", FifoElectionStrategy) {
 }
 ```
 
-Cluster 후보는 v3 hash-tag key layout을 사용하므로 하나의 lock에 속한
-index, candidate, tombstone, migration token이 같은 Redis slot에 배치됩니다.
-기존 v2와 colon layout key는 single-key 연산으로 읽고 source를 삭제하지 않은
-채 승격합니다. persistent tombstone은 unregister와 migration의 race에서
-부활을 막으며, 만료 cleanup은 migration token과 raw value가 모두 일치할 때만
-destination을 삭제합니다.
+Cluster 후보는 v3 hash-tag key layout을 사용하므로 하나의 lock에 속한 index, candidate, tombstone, migration token이 같은 Redis slot에 배치됩니다. 기존 v2와 colon layout key는 single-key 연산으로 읽고 source를 삭제하지 않은 채 승격합니다. persistent tombstone은 unregister와 migration의 race에서 부활을 막으며, 만료 cleanup은 migration token과 raw value가 모두 일치할 때만 destination을 삭제합니다.
 
-`lockName`에 Redis hash-tag brace가 들어가면 거부합니다. v3 write가 한 번이라도
-발생한 뒤에는 구버전 binary로 rollback하지 마십시오. writer를 중지하고
-v2/colon 및 v3 상태를 보존·진단한 뒤 forward fix를 배포해야 합니다. Redis의
-`MOVED`/`ASK` 처리와 failover 수렴은 Lettuce topology refresh에 위임되며,
-정상 Cluster 자체를 대신하지 않습니다.
+`lockName`에 Redis hash-tag brace가 들어가면 거부합니다. v3 write가 한 번이라도 발생한 뒤에는 구버전 binary로 rollback하지 마십시오. writer를 중지하고 v2/colon 및 v3 상태를 보존·진단한 뒤 forward fix를 배포해야 합니다. Redis의
+`MOVED`/`ASK` 처리와 failover 수렴은 Lettuce topology refresh에 위임되며, 정상 Cluster 자체를 대신하지 않습니다.
 
-Migration은 한 방향으로만 진행합니다. 구버전과 신버전 writer를 동시에
-운영하지 말고, 구버전 writer를 quiesce한 뒤 v3를 지원하는 reader/writer를
-배포하고 v2 또는 colon source 승격을 완료한 후 정상 스케줄링을 재개합니다.
-v3 write가 관찰된 이후 장애가 발생하면 새 binary를 유지한 채
-중지·상태 보존·진단·forward fix 순서로 복구합니다.
+Migration은 한 방향으로만 진행합니다. 구버전과 신버전 writer를 동시에 운영하지 말고, 구버전 writer를 quiesce한 뒤 v3를 지원하는 reader/writer를 배포하고 v2 또는 colon source 승격을 완료한 후 정상 스케줄링을 재개합니다. v3 write가 관찰된 이후 장애가 발생하면 새 binary를 유지한 채 중지·상태 보존·진단·forward fix 순서로 복구합니다.
 
 저장소는 Lettuce `7.6.0.RELEASE`를 resolve하고 검증합니다. `clusterTest`
-Gradle task는 일반 PR test와 분리된 Nightly/manual 통합 검증 게이트이며
-benchmark가 아닙니다.
+Gradle task는 일반 PR test와 분리된 Nightly/manual 통합 검증 게이트이며 benchmark가 아닙니다.
 
 ### 블로킹 단일 리더
 
@@ -212,7 +198,7 @@ end
 
 ## 감사 정체성 (`LeaderSlot`)
 
-`lockName` 대신 `LeaderSlot`을 전달하면 각 선출 라운드마다 사람이 읽을 수 있는 노드 식별자를 전파할 수 있습니다. 식별자는 슬롯이 유지되는 동안 Redis Hash(`lg:{lockName}:meta` — `LettuceSlotTokenGroup.metaKey`)에 저장되고, release 시 원자적으로 삭제됩니다.
+`lockName` 대신 `LeaderSlot`을 전달하면 각 선출 라운드마다 사람이 읽을 수 있는 노드 식별자를 전파할 수 있습니다. 식별자는 슬롯이 유지되는 동안 Redis Hash (`lg:{lockName}:meta` — `LettuceSlotTokenGroup.metaKey`)에 저장되고, release 시 원자적으로 삭제됩니다.
 
 ```kotlin
 val slot = LeaderSlot("batch-job", leaderId = "node-a")
@@ -227,8 +213,7 @@ if (result is LeaderRunResult.Elected) {
 val result2 = suspendElector.runIfLeaderResultSuspend(slot) { doWork() }
 ```
 
-`leaderId`는 acquire 시 `HSET lg:{lockName}:meta <token> <leaderId>`로 기록되고,
-release 시 `HDEL`로 삭제됩니다. `leaderId`가 빈 문자열이면 기록을 생략합니다.
+`leaderId`는 acquire 시 `HSET lg:{lockName}:meta <token> <leaderId>`로 기록되고, release 시 `HDEL`로 삭제됩니다. `leaderId`가 빈 문자열이면 기록을 생략합니다.
 
 ## 의존성 추가
 

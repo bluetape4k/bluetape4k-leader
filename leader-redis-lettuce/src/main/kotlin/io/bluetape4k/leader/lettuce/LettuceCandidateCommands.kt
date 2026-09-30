@@ -14,6 +14,7 @@ import io.lettuce.core.cluster.api.sync.RedisClusterCommands
  * 동일한 mutation 경계를 공유하고, 일괄 조회만 별도 reader capability로 분리합니다.
  */
 internal interface BlockingCandidateCommands {
+
     fun get(key: String): String?
     fun set(key: String, value: String): String?
     fun set(key: String, value: String, args: SetArgs): String?
@@ -37,7 +38,7 @@ internal interface BlockingCandidateCommands {
 /** standalone/Cluster sync API의 공통 command adapter입니다. */
 internal class LettuceBlockingCandidateCommands(
     private val commands: RedisClusterCommands<String, String>,
-) : BlockingCandidateCommands {
+): BlockingCandidateCommands {
 
     override fun get(key: String): String? = commands.get(key)
 
@@ -83,7 +84,7 @@ internal fun interface BlockingCandidateValueReader {
 /** standalone에서도 Lettuce sync API가 제공하는 MGET으로 후보를 일괄 조회합니다. */
 internal class StandaloneBlockingCandidateValueReader(
     private val commands: RedisCommands<String, String>,
-) : BlockingCandidateValueReader {
+): BlockingCandidateValueReader {
     override fun read(keys: List<String>): Map<String, String?> =
         commands.mget(*keys.toTypedArray()).associate { value ->
             value.key to if (value.hasValue()) value.value else null
@@ -93,11 +94,9 @@ internal class StandaloneBlockingCandidateValueReader(
 /** Cluster에서는 같은 lock hash-tag를 가진 v3 key만 MGET합니다. */
 internal class ClusterBlockingCandidateValueReader(
     private val commands: io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands<String, String>,
-) : BlockingCandidateValueReader {
+): BlockingCandidateValueReader {
     override fun read(keys: List<String>): Map<String, String?> =
         commands.mget(*keys.toTypedArray()).associate { value ->
             value.key to if (value.hasValue()) value.value else null
         }
 }
-
-private const val REDIS_KEY_ABSENT_TTL = -2L

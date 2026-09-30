@@ -1,5 +1,10 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionException
@@ -10,26 +15,20 @@ import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendLeaderHistorySink
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.delay
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldNotBeNull
-import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.random.Random
+import kotlin.time.Duration.Companion.seconds
 
 class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
 
-    companion object: KLogging()
+    companion object: KLoggingChannel()
 
     private val options = LeaderElectionOptions(waitTime = 2.seconds, 10.seconds)
 
@@ -75,25 +74,23 @@ class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
             throw failure
         }
 
-        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
-        val cause = (result as LeaderRunResult.ActionFailed).cause
-        cause.shouldBeInstanceOf<LeaderElectionException>()
-        cause.message shouldBeEqualTo failure.message
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        result.cause.shouldBeInstanceOf<LeaderElectionException>()
+        result.cause.message shouldBeEqualTo failure.message
     }
 
     @Test
-    fun `runIfLeaderResultSuspend - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() =
-        runSuspendIO {
-            val cancellation = CancellationException("lettuce-suspend-cancelled")
+    fun `runIfLeaderResultSuspend - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() = runSuspendIO {
+        val cancellation = CancellationException("lettuce-suspend-cancelled")
 
-            val thrown = assertFailsWith<CancellationException> {
-                suspendElection.runIfLeaderResultSuspend<Any?>(LeaderSlot(lockName, "lettuce-suspend-node")) {
-                    throw cancellation
-                }
+        val thrown = assertFailsWith<CancellationException> {
+            suspendElection.runIfLeaderResultSuspend<Any?>(LeaderSlot(lockName, "lettuce-suspend-node")) {
+                throw cancellation
             }
-
-            thrown.message shouldBeEqualTo cancellation.message
         }
+
+        thrown.message shouldBeEqualTo cancellation.message
+    }
 
     @Test
     fun `runIfLeader - recordAcquired 취소 후에도 lock 이 해제되어 다음 호출이 성공한다`() = runSuspendIO {
@@ -115,6 +112,7 @@ class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
     fun `확장 함수로 LettuceLeaderElector 생성`() {
         val el = connection.leaderElection(options)
         el.shouldNotBeNull()
+
         val result = el.runIfLeader(lockName) { "ext" }
         result shouldBeEqualTo "ext"
     }
@@ -123,6 +121,7 @@ class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
     fun `확장 함수로 LettuceSuspendLeaderElector 생성`() = runSuspendIO {
         val el = connection.suspendLeaderElector(options)
         el.shouldNotBeNull()
+
         val result = el.runIfLeader(lockName) { "ext-suspend" }
         result shouldBeEqualTo "ext-suspend"
     }
@@ -139,19 +138,19 @@ class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
         val executed = AtomicInteger(0)
 
         SuspendedJobTester()
-            .workers(5)
-            .rounds(3)
+            .rounds(15)
             .add {
                 el.runIfLeader(lockName) {
                     val current = concurrent.incrementAndGet()
                     maxConcurrent.updateAndGet { max -> maxOf(max, current) }
-                    delay(10.milliseconds)
+                    delay(timeMillis = Random.nextLong(10, 20))
                     concurrent.decrementAndGet()
                     executed.incrementAndGet()
                 }
             }
             .run()
 
+        log.debug { "maxConcurrent=${maxConcurrent.get()}, executed=${executed.get()}" }
         maxConcurrent.get() shouldBeEqualTo 1
         executed.get() shouldBeGreaterOrEqualTo 1
     }
@@ -162,8 +161,7 @@ class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
         val counter = AtomicInteger(0)
 
         SuspendedJobTester()
-            .workers(4)
-            .rounds(3)
+            .rounds(12)
             .add {
                 el.runIfLeader(lockName) {
                     counter.incrementAndGet()
@@ -171,6 +169,7 @@ class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
             }
             .run()
 
+        log.debug { "counter=${counter.get()}" }
         counter.get() shouldBeGreaterOrEqualTo 1
     }
 

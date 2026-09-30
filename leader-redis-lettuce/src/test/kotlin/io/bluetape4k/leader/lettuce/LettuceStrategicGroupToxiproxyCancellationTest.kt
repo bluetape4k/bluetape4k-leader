@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalLettuceCoroutinesApi::class)
-
 package io.bluetape4k.leader.lettuce
 
 import eu.rekawek.toxiproxy.Proxy
@@ -9,19 +7,21 @@ import eu.rekawek.toxiproxy.model.ToxicDirection
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
-import io.bluetape4k.leader.testcontainers.ReadinessEndpoint
-import io.bluetape4k.leader.testcontainers.readinessBoundaryWaitStrategy
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
+import io.bluetape4k.leader.testcontainers.ReadinessEndpoint
+import io.bluetape4k.leader.testcontainers.readinessBoundaryWaitStrategy
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.testcontainers.infra.ToxiproxyServer
 import io.bluetape4k.testcontainers.storage.RedisServer
-import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.codec.StringCodec
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -32,7 +32,7 @@ import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
 import org.testcontainers.containers.Network
 import org.testcontainers.toxiproxy.ToxiproxyContainer
-import java.util.UUID
+import org.testcontainers.utility.Base58
 
 /**
  * Lettuce strategic group의 Redis 후보 조회·결과 갱신 I/O 대기 중 취소 회귀입니다.
@@ -43,6 +43,17 @@ import java.util.UUID
 @Execution(ExecutionMode.SAME_THREAD)
 class LettuceStrategicGroupToxiproxyCancellationTest {
 
+    private companion object: KLogging() {
+        const val NODE_ID = "toxiproxy-lettuce-node"
+        const val REDIS_ALIAS = "redis"
+        const val PROXY_PORT = 8666
+        const val CANCEL_SETTLE_MILLIS = 250L
+        const val CANCEL_SETTLE_ROUNDS = 5
+        val TOXIPROXY_READINESS_ENDPOINT =
+            ReadinessEndpoint(ToxiproxyServer.NAME, ToxiproxyServer.CONTROL_PORT, "/version")
+    }
+
+
     @Test
     fun `후보 조회 응답이 보류된 동안 Job 취소는 action 전에 재전파된다`() = runSuspendIO {
         withRedisProxy { redis, toxiproxy, proxy ->
@@ -51,6 +62,7 @@ class LettuceStrategicGroupToxiproxyCancellationTest {
                 val elector = LettuceStrategicSuspendLeaderGroupElector(connection, NODE_ID)
                 val observer = LettuceStrategicSuspendLeaderGroupElector(observerConnection, NODE_ID)
                 elector.registerCandidate(lockName, CandidateInfo(NODE_ID))
+
                 val toxic = proxy.toxics().timeout(
                     "hold-candidate-response",
                     ToxicDirection.DOWNSTREAM,
@@ -65,10 +77,14 @@ class LettuceStrategicGroupToxiproxyCancellationTest {
                                 actionInvoked.complete(Unit)
                                 "unexpected"
                             }
-                        }
-                        delay(CANCEL_SETTLE_MILLIS)
+                        }.log("Deferred")
+                        delay(timeMillis = CANCEL_SETTLE_MILLIS)
+                        log.debug { "작업 취소 요청 ..." }
                         deferred.cancel(CancellationException("cancel during candidate lookup"))
-                        assertFailsWith<CancellationException> { deferred.await() }
+
+                        assertFailsWith<CancellationException> {
+                            deferred.await()
+                        }
                     }
 
                     actionInvoked.isCompleted.shouldBeFalse()
@@ -77,6 +93,7 @@ class LettuceStrategicGroupToxiproxyCancellationTest {
                 }
 
                 val candidate = observer.listCandidates(lockName).single()
+                log.debug { "candidate=$candidate" }
                 candidate.successCount shouldBeEqualTo 0L
                 candidate.failureCount shouldBeEqualTo 0L
             }
@@ -106,20 +123,25 @@ class LettuceStrategicGroupToxiproxyCancellationTest {
                                 toxicInstalled.complete(Unit)
                                 "success-before-cancel"
                             }
-                        }
+                        }.log("Deferred")
                         toxicInstalled.await()
                         repeat(CANCEL_SETTLE_ROUNDS) {
                             yield()
-                            delay(CANCEL_SETTLE_MILLIS / CANCEL_SETTLE_ROUNDS)
+                            delay(timeMillis = CANCEL_SETTLE_MILLIS / CANCEL_SETTLE_ROUNDS)
                         }
+                        log.debug { "작업 취소 요청 ..." }
                         deferred.cancel(CancellationException("cancel during result update"))
-                        assertFailsWith<CancellationException> { deferred.await() }
+
+                        assertFailsWith<CancellationException> {
+                            deferred.await()
+                        }
                     }
                 } finally {
                     removeToxic(toxic)
                 }
 
                 val candidate = observer.listCandidates(lockName).single()
+                log.debug { "candidate=$candidate" }
                 candidate.failureCount shouldBeEqualTo 0L
             }
         }
@@ -168,7 +190,7 @@ class LettuceStrategicGroupToxiproxyCancellationTest {
 
     private fun createRedisProxy(toxiproxy: ToxiproxyContainer): Proxy =
         ToxiproxyClient(toxiproxy.host, toxiproxy.controlPort).createProxy(
-            "redis-strategic-${UUID.randomUUID()}",
+            "redis-strategic-${Base58.randomString(16)}",
             "0.0.0.0:$PROXY_PORT",
             "$REDIS_ALIAS:${RedisServer.PORT}",
         )
@@ -177,15 +199,5 @@ class LettuceStrategicGroupToxiproxyCancellationTest {
         runCatching { toxic?.remove() }
     }
 
-    private fun randomLockName(): String = "toxiproxy:lettuce:${UUID.randomUUID()}"
-
-    private companion object {
-        const val NODE_ID = "toxiproxy-lettuce-node"
-        const val REDIS_ALIAS = "redis"
-        const val PROXY_PORT = 8666
-        const val CANCEL_SETTLE_MILLIS = 250L
-        const val CANCEL_SETTLE_ROUNDS = 5
-        val TOXIPROXY_READINESS_ENDPOINT =
-            ReadinessEndpoint(ToxiproxyServer.NAME, ToxiproxyServer.CONTROL_PORT, "/version")
-    }
+    private fun randomLockName(): String = "toxiproxy:lettuce:${Base58.randomString(16)}"
 }

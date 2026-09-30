@@ -8,10 +8,12 @@ import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
+import io.bluetape4k.logging.KLogging
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.reactive.RedisReactiveCommands
@@ -19,24 +21,26 @@ import io.lettuce.core.api.sync.RedisCommands
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 
-class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
+class LettuceCandidateWriteScriptTest: AbstractLettuceLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `register and unregister fence a candidate in one slot`() {
-        val lockName = "write-script-${System.nanoTime()}"
+        val lockName = "write-script-${Base58.randomString(8)}"
         val nodeId = "node-1"
         val keys = keys(lockName, nodeId)
         val value = LettuceCandidateInfoCodec.encode(
             io.bluetape4k.leader.strategy.CandidateInfo(nodeId),
         )
 
-        val registered = run(keys, LettuceCandidateWriteScript.REGISTER, value, "0", nodeId)
-        registered.status() shouldBeEqualTo LettuceCandidateWriteScript.REGISTERED
+        val registered = run(keys, REGISTER, value, "0", nodeId)
+        registered.status() shouldBeEqualTo REGISTERED
         connection.sync().get(keys.candidate).shouldNotBeNull()
         connection.sync().sismember(keys.index, nodeId).shouldBeTrue()
 
-        val unregistered = run(keys, LettuceCandidateWriteScript.UNREGISTER, nodeId)
-        unregistered.status() shouldBeEqualTo LettuceCandidateWriteScript.UNREGISTERED
+        val unregistered = run(keys, UNREGISTER, nodeId)
+        unregistered.status() shouldBeEqualTo UNREGISTERED
         connection.sync().get(keys.candidate).shouldBeNull()
         connection.sync().get(keys.token).shouldBeNull()
         connection.sync().sismember(keys.index, nodeId).shouldBeFalse()
@@ -45,34 +49,34 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `migration claims source payload with a token and matching cleanup removes only its value`() {
-        val lockName = "write-script-migrate-${System.nanoTime()}"
+        val lockName = "write-script-migrate-${Base58.randomString(8)}"
         val nodeId = "node-1"
         val keys = keys(lockName, nodeId)
         val raw = LettuceCandidateInfoCodec.encode(
             io.bluetape4k.leader.strategy.CandidateInfo(nodeId),
         )
-        val token = "migration-token-${System.nanoTime()}"
+        val token = "migration-token-${Base58.randomString(8)}"
 
         val migrated = run(
             keys,
-            LettuceCandidateWriteScript.MIGRATE,
+            MIGRATE,
             raw,
             "-1",
             nodeId,
             token,
         )
-        migrated.status() shouldBeEqualTo LettuceCandidateWriteScript.MIGRATED
+        migrated.status() shouldBeEqualTo MIGRATED
         connection.sync().get(keys.candidate) shouldBeEqualTo raw
         connection.sync().get(keys.token) shouldBeEqualTo token
 
         val removed = run(
             keys.copyWithoutTombstone(),
-            LettuceCandidateWriteScript.REMOVE_IF_VALUE,
+            REMOVE_IF_VALUE,
             raw,
             token,
             nodeId,
         )
-        removed.status() shouldBeEqualTo LettuceCandidateWriteScript.REMOVED
+        removed.status() shouldBeEqualTo REMOVED
         connection.sync().get(keys.candidate).shouldBeNull()
         connection.sync().get(keys.token).shouldBeNull()
         connection.sync().sismember(keys.index, nodeId).shouldBeFalse()
@@ -80,7 +84,7 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `regular refresh and result writers clear migration ownership token`() {
-        val lockName = "write-script-token-${System.nanoTime()}"
+        val lockName = "write-script-token-${Base58.randomString(8)}"
         val nodeId = "node-1"
         val keys = keys(lockName, nodeId)
         val original = CandidateInfo(nodeId)
@@ -97,7 +101,7 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
             LettuceCandidateInfoCodec.encode(original.copy(metadata = mapOf("phase" to "refresh"))),
             "0",
         )
-        refreshed.first().toString().toLong() shouldBeEqualTo LettuceCandidateRefreshScript.UPDATED
+        refreshed.first().toString().toLong() shouldBeEqualTo UPDATED
         connection.sync().get(keys.token).shouldBeNull()
 
         connection.sync().set(keys.token, "stale-token-2")
@@ -109,14 +113,16 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
             CandidateResult.SUCCESS.name,
             "123",
         )
-        updated.first().toString().toLong() shouldBeEqualTo LettuceCandidateResultScript.UPDATED
+        updated.first().toString().toLong() shouldBeEqualTo UPDATED
         connection.sync().get(keys.token).shouldBeNull()
-        LettuceCandidateInfoCodec.decode(connection.sync().get(keys.candidate).shouldNotBeNull()).successCount shouldBeEqualTo 1L
+        LettuceCandidateInfoCodec.decode(
+            connection.sync().get(keys.candidate).shouldNotBeNull()
+        ).successCount shouldBeEqualTo 1L
     }
 
     @Test
     fun `migration refuses a tombstoned node and does not resurrect source`() {
-        val lockName = "write-script-tombstone-${System.nanoTime()}"
+        val lockName = "write-script-tombstone-${Base58.randomString(8)}"
         val nodeId = "node-1"
         val keys = keys(lockName, nodeId)
         val raw = LettuceCandidateInfoCodec.encode(
@@ -126,13 +132,13 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
 
         val result = run(
             keys,
-            LettuceCandidateWriteScript.MIGRATE,
+            MIGRATE,
             raw,
             "-1",
             nodeId,
             "token",
         )
-        result.status() shouldBeEqualTo LettuceCandidateWriteScript.TOMBSTONED
+        result.status() shouldBeEqualTo TOMBSTONED
         connection.sync().get(keys.candidate).shouldBeNull()
         connection.sync().get(keys.token).shouldBeNull()
         connection.sync().sismember(keys.index, nodeId).shouldBeFalse()
@@ -140,53 +146,53 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `unregister barrier blocks migration until a fresh register clears the tombstone`() {
-        val lockName = "write-script-barrier-${System.nanoTime()}"
+        val lockName = "write-script-barrier-${Base58.randomString(8)}"
         val nodeId = "node-1"
         val keys = keys(lockName, nodeId)
         val raw = LettuceCandidateInfoCodec.encode(CandidateInfo(nodeId))
 
-        run(keys, LettuceCandidateWriteScript.UNREGISTER, nodeId)
+        run(keys, UNREGISTER, nodeId)
         val blocked = run(
             keys,
-            LettuceCandidateWriteScript.MIGRATE,
+            MIGRATE,
             raw,
             "-1",
             nodeId,
             "blocked-token",
         )
-        blocked.status() shouldBeEqualTo LettuceCandidateWriteScript.TOMBSTONED
+        blocked.status() shouldBeEqualTo TOMBSTONED
         connection.sync().get(keys.candidate).shouldBeNull()
 
-        run(keys, LettuceCandidateWriteScript.REGISTER, raw, "0", nodeId)
+        run(keys, REGISTER, raw, "0", nodeId)
         connection.sync().get(keys.tombstone).shouldBeNull()
         connection.sync().get(keys.candidate) shouldBeEqualTo raw
     }
 
     @Test
     fun `matching payload with a replaced writer token cannot be cleaned by an old migration`() {
-        val lockName = "write-script-token-owner-${System.nanoTime()}"
+        val lockName = "write-script-token-owner-${Base58.randomString(8)}"
         val nodeId = "node-1"
         val keys = keys(lockName, nodeId)
         val raw = LettuceCandidateInfoCodec.encode(CandidateInfo(nodeId))
 
-        run(keys, LettuceCandidateWriteScript.MIGRATE, raw, "-1", nodeId, "old-token")
-        run(keys, LettuceCandidateWriteScript.REGISTER, raw, "0", nodeId)
+        run(keys, MIGRATE, raw, "-1", nodeId, "old-token")
+        run(keys, REGISTER, raw, "0", nodeId)
 
         val staleCleanup = run(
             keys,
-            LettuceCandidateWriteScript.REMOVE_IF_VALUE,
+            REMOVE_IF_VALUE,
             raw,
             "old-token",
             nodeId,
         )
-        staleCleanup.status() shouldBeEqualTo LettuceCandidateWriteScript.ABSENT
+        staleCleanup.status() shouldBeEqualTo ABSENT
         connection.sync().get(keys.candidate) shouldBeEqualTo raw
         connection.sync().sismember(keys.index, nodeId).shouldBeTrue()
     }
 
     @Test
     fun `persistent source after a positive migration snapshot is not treated as expired`() {
-        val lockName = "write-script-persistent-source-${System.nanoTime()}"
+        val lockName = "write-script-persistent-source-${Base58.randomString(8)}"
         val nodeId = "node-1"
         val keys = keys(lockName, nodeId)
         val sourceKey = LettuceCandidateKeyCodec.v2CandidateKey(
@@ -213,7 +219,7 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
 
     @Test
     fun `suspend persistent source after a positive migration snapshot is not treated as expired`() = runSuspendIO {
-        val lockName = "write-script-suspend-persistent-source-${System.nanoTime()}"
+        val lockName = "write-script-suspend-persistent-source-${Base58.randomString(8)}"
         val nodeId = "node-1"
         val keys = keys(lockName, nodeId)
         val sourceKey = LettuceCandidateKeyCodec.v2CandidateKey(
@@ -262,10 +268,11 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
                 first = false
             }
         }
-        val syncCommands = object : RedisCommands<String, String> by sync {
+
+        val syncCommands = object: RedisCommands<String, String> by sync {
             override fun pttl(key: String): Long = sync.pttl(key).also { persistSource(key, it) }
         }
-        val reactiveCommands = object : RedisReactiveCommands<String, String> by reactive {
+        val reactiveCommands = object: RedisReactiveCommands<String, String> by reactive {
             override fun pttl(key: String): Mono<Long> = reactive.pttl(key).flatMap { ttl ->
                 if (key == sourceKey && first) {
                     ttl shouldBeGreaterThan 0L
@@ -279,7 +286,7 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
                 }
             }
         }
-        return object : StatefulRedisConnection<String, String> by connection {
+        return object: StatefulRedisConnection<String, String> by connection {
             override fun sync(): RedisCommands<String, String> = syncCommands
             override fun reactive(): RedisReactiveCommands<String, String> = reactiveCommands
         }
@@ -304,7 +311,7 @@ class LettuceCandidateWriteScriptTest : AbstractLettuceLeaderTest() {
         val token: String,
     ) {
         fun forOperation(operation: String): Array<String> =
-            if (operation == LettuceCandidateWriteScript.REMOVE_IF_VALUE) {
+            if (operation == REMOVE_IF_VALUE) {
                 arrayOf(candidate, index, token)
             } else {
                 arrayOf(candidate, index, tombstone, token)

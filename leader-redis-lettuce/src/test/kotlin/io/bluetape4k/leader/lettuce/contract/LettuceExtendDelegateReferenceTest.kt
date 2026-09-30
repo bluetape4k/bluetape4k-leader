@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.lettuce.contract
 
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.AopScopeAccess
@@ -36,9 +36,11 @@ import kotlin.time.Duration.Companion.seconds
  * - suspend group ([LettuceSuspendLeaderGroupElector])
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LettuceExtendDelegateReferenceTest : AbstractLettuceLeaderTest() {
+class LettuceExtendDelegateReferenceTest: AbstractLettuceLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging() {
+        private val LockAtMostFor = 60.seconds
+    }
 
     private fun randomLockName(): String = "extdelref-${Base58.randomString(8)}"
 
@@ -50,12 +52,12 @@ class LettuceExtendDelegateReferenceTest : AbstractLettuceLeaderTest() {
         var outcome: ExtendOutcome? = null
         elector.runIfLeader(lockName) {
             LockAssert.assertLocked()
-            outcome = LockExtender.extendActiveLockDetailed(60.seconds)
+            outcome = LockExtender.extendActiveLockDetailed(LockAtMostFor)
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         // capture 는 finally 에서 clear 되어야 함 (single elector 는 capture 미사용이지만 idempotent 검증)
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test
@@ -66,7 +68,7 @@ class LettuceExtendDelegateReferenceTest : AbstractLettuceLeaderTest() {
         var outcome: ExtendOutcome? = null
         elector.runIfLeader(lockName) {
             LockAssert.assertLockedSuspend()
-            outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
+            outcome = LockExtender.extendActiveLockDetailedSuspend(LockAtMostFor)
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
@@ -83,30 +85,31 @@ class LettuceExtendDelegateReferenceTest : AbstractLettuceLeaderTest() {
         var outcome: ExtendOutcome? = null
         elector.runIfLeader(lockName) {
             LockAssert.assertLocked()
-            outcome = LockExtender.extendActiveLockDetailed(60.seconds)
+            outcome = LockExtender.extendActiveLockDetailed(LockAtMostFor)
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         // group elector 는 setCapture 를 호출했으므로 finally 에서 clearCapture() 가 호출되었어야 함
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test
-    fun `suspend group — extendActiveLockDetailedSuspend uses server-side TIME Lua and Extended is returned`() = runSuspendIO {
-        val elector = LettuceSuspendLeaderGroupElector(
-            connection,
-            LeaderGroupElectionOptions(maxLeaders = 2),
-        )
-        val lockName = randomLockName()
+    fun `suspend group — extendActiveLockDetailedSuspend uses server-side TIME Lua and Extended is returned`() =
+        runSuspendIO {
+            val elector = LettuceSuspendLeaderGroupElector(
+                connection,
+                LeaderGroupElectionOptions(maxLeaders = 2),
+            )
+            val lockName = randomLockName()
 
-        var outcome: ExtendOutcome? = null
-        elector.runIfLeader(lockName) {
-            LockAssert.assertLockedSuspend()
-            outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
+            var outcome: ExtendOutcome? = null
+            elector.runIfLeader(lockName) {
+                LockAssert.assertLockedSuspend()
+                outcome = LockExtender.extendActiveLockDetailedSuspend(LockAtMostFor)
+            }
+
+            outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         }
-
-        outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-    }
 
     @Test
     fun `multiple sequential extends on same handle return Extended every time`() {
@@ -143,10 +146,11 @@ class LettuceExtendDelegateReferenceTest : AbstractLettuceLeaderTest() {
         var postExtend: ExtendOutcome? = null
         elector.runIfLeader(lockName) {
             // user explicit extend — delegate.lastExtendDeadline 갱신
-            preExtend = LockExtender.extendActiveLockDetailed(120.seconds)
+            preExtend = LockExtender.extendActiveLockDetailed(LockAtMostFor * 2)
+            
             // 동일 delegate reference 가 watchdog 와 handle 양쪽에서 공유된다는 invariant 검증.
             // 즉시 다시 extend 호출 — 토큰이 유지되어 있으므로 Extended 반환되어야 함.
-            postExtend = LockExtender.extendActiveLockDetailed(60.seconds)
+            postExtend = LockExtender.extendActiveLockDetailed(LockAtMostFor)
         }
 
         preExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()

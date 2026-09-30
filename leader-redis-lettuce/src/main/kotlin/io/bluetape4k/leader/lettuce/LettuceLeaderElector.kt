@@ -5,6 +5,8 @@ import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderLeaseAcquirer
+import io.bluetape4k.leader.LeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
@@ -15,6 +17,7 @@ import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceLockExtendDelegate
@@ -60,10 +63,10 @@ class LettuceLeaderElector @JvmOverloads constructor(
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
 ): LeaderElector,
    LeaderBackendDiagnosticsProvider by LettuceLeaderBackendDiagnostics(connection),
-   io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+   LeaderLeaseAcquirerSupport {
 
-    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options)
+    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
+        LeaderElectorLeaseAdapter({ this }, options)
     }
 
     companion object: KLogging() {
@@ -160,7 +163,9 @@ class LettuceLeaderElector @JvmOverloads constructor(
                 if (lock.isHeldByCurrentInstance()) {
                     lock.unlock(options.minLeaseTime, acquiredAtNanos)
                 }
-            }.onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
+            }.onFailure {
+                log.warn(it) { "Fail to release lock. lockName=$lockName" }
+            }
         }
     }
 

@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
@@ -16,6 +17,8 @@ import io.bluetape4k.leader.strategy.StrategicGroupElectionResult
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredGroupElectionStrategy
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.support.closeSafe
 import io.lettuce.core.codec.StringCodec
 import kotlinx.coroutines.CancellationException
@@ -39,6 +42,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
 
+    companion object: KLogging()
+
     private lateinit var node1: LettuceStrategicSuspendLeaderGroupElector
     private lateinit var node2: LettuceStrategicSuspendLeaderGroupElector
     private lateinit var node3: LettuceStrategicSuspendLeaderGroupElector
@@ -59,17 +64,25 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
             CandidateInfo("node-2", registeredAt = t0.plusSeconds(1)),
             CandidateInfo("node-3", registeredAt = t0.plusSeconds(2)),
         )
+
         listOf(node1, node2, node3).forEach { elector ->
             candidates.forEach { elector.registerCandidate(lockName, it) }
         }
 
+        candidates.forEach { log.debug { "candidate=$it" } }
+
         val counter = AtomicInteger(0)
-        node1.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 2) { counter.incrementAndGet() }
-            .shouldNotBeNull()
-        node2.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 2) { counter.incrementAndGet() }
-            .shouldNotBeNull()
-        node3.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 2) { counter.incrementAndGet() }
-            .shouldBeNull()
+        node1.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 2) {
+            counter.incrementAndGet()
+        }.shouldNotBeNull()
+
+        node2.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 2) {
+            counter.incrementAndGet()
+        }.shouldNotBeNull()
+
+        node3.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 2) {
+            counter.incrementAndGet()
+        }.shouldBeNull()
 
         counter.get() shouldBeEqualTo 2
     }
@@ -81,7 +94,8 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
         node1.runIfLeader(lockName, FifoGroupElectionStrategy) { "ok" }
 
         node1.listCandidates(lockName).size shouldBeEqualTo 1
-        await.atMost(2.seconds).withPollInterval(50.milliseconds) untilSuspending {
+
+        await atMost 2.seconds withPollInterval 50.milliseconds untilSuspending {
             node1.listCandidates(lockName).isEmpty()
         }
     }
@@ -98,13 +112,15 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
                     actionStarted.complete(Unit)
                     awaitCancellation()
                 }
-            }
+            }.log("Cancelling Job")
+            
             actionStarted.await()
             deferred.cancelAndJoin()
             deferred.isCancelled.shouldBeTrue()
         }
 
         val candidate = node1.listCandidates(lockName).single()
+        log.debug { "candidate=$candidate" }
         candidate.failureCount shouldBeEqualTo 0L
     }
 
@@ -120,11 +136,12 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
                     currentCoroutineContext().job.cancel(cancellation)
                     "cancelled"
                 }
-            }
+            }.log("Cancelling job")
             assertFailsWith<CancellationException> { deferred.await() }
         }
 
         val candidate = node1.listCandidates(lockName).single()
+        log.debug { "candidate=$candidate" }
         candidate.successCount shouldBeEqualTo 0L
         candidate.failureCount shouldBeEqualTo 0L
     }
@@ -143,12 +160,16 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
                     actionInvoked.set(true)
                     "must-not-run"
                 }
+            }.log("Job")
+
+            assertFailsWith<CancellationException> {
+                deferred.await()
             }
-            assertFailsWith<CancellationException> { deferred.await() }
         }
 
         actionInvoked.get().shouldBeFalse()
         val candidate = node1.listCandidates(lockName).single()
+        log.debug { "candidate=$candidate" }
         candidate.successCount shouldBeEqualTo 0L
         candidate.failureCount shouldBeEqualTo 0L
     }
@@ -167,6 +188,7 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
 
         thrown.message shouldBeEqualTo failure.message
         val candidate = node1.listCandidates(lockName).single()
+        log.debug { "candidate=$candidate" }
         candidate.successCount shouldBeEqualTo 0L
         candidate.failureCount shouldBeEqualTo 1L
     }
@@ -180,6 +202,7 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
             .shouldBeEqualTo("ok")
 
         val candidate = node1.listCandidates(lockName).single()
+        log.debug { "candidate=$candidate" }
         candidate.successCount shouldBeEqualTo 1L
         candidate.failureCount shouldBeEqualTo 0L
     }
@@ -190,7 +213,7 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
         node1.registerCandidate(lockName, CandidateInfo("persistent-node"))
         node1.registerCandidate(lockName, CandidateInfo("finite-node"), 300.milliseconds)
 
-        await.atMost(2.seconds).withPollInterval(50.milliseconds) untilSuspending {
+        await atMost 2.seconds withPollInterval 50.milliseconds untilSuspending {
             node1.listCandidates(lockName).map { it.nodeId } == listOf("persistent-node")
         }
     }
@@ -201,9 +224,11 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
         node1.registerCandidate(lockName, CandidateInfo("node-2", successCount = 1, failureCount = 9))
 
-        val connections = (1..8).map { client.connect(StringCodec.UTF8) }
+        val connections = List(8) { client.connect(StringCodec.UTF8) }
         try {
-            val electors = connections.map { LettuceStrategicSuspendLeaderGroupElector(it, "node-1") }
+            val electors = connections.map {
+                LettuceStrategicSuspendLeaderGroupElector(it, "node-1")
+            }
             val actions = electors.flatMap { elector ->
                 listOf<suspend () -> Unit>(
                     { elector.updateResult(lockName, "node-1", CandidateResult.SUCCESS) },
@@ -212,6 +237,7 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
             }
             val workers = actions.size
             val rounds = 20
+
             SuspendedJobTester()
                 .workers(workers)
                 .rounds(rounds)
@@ -219,16 +245,22 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
                 .run()
 
             val candidates = node1.listCandidates(lockName)
+            candidates.forEach { log.debug { "candidate=$it" } }
+            
             val updated = candidates.first { it.nodeId == "node-1" }
+            log.debug { "updated=$updated" }
+            
             val expectedEach = (workers * rounds / 2).toLong()
             updated.successCount shouldBeEqualTo expectedEach
             updated.failureCount shouldBeEqualTo expectedEach
             updated.successRate shouldBeEqualTo 0.5
+
             ScoredGroupElectionStrategy(SuccessRateScorer)
                 .elect(candidates, maxLeaders = 1)
                 .winners
                 .first()
                 .nodeId shouldBeEqualTo "node-1"
+
         } finally {
             connections.forEach { it.closeSafe() }
         }
@@ -238,6 +270,7 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
     fun `custom strategy가 후보 기준 목록 밖 winner를 반환하면 action 전에 거부한다`() = runSuspendIO {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+
         val invalidStrategy = GroupElectionStrategy { _, _ ->
             StrategicGroupElectionResult(
                 winners = listOf(CandidateInfo("ghost")),

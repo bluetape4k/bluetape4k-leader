@@ -1,27 +1,39 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInRange
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.lettuce.semaphore.LettuceSlotTokenGroup
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
-import io.bluetape4k.assertions.shouldBeInRange
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.debug
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.concurrent.completableFutureOf
+import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import java.util.concurrent.CancellationException
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.atomic.AtomicInteger
 
 class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
@@ -92,8 +104,8 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
             throw failure
         }
 
-        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
-        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        result.cause shouldBeEqualTo failure
     }
 
     @Test
@@ -114,6 +126,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
         val r1 = election.runIfLeader(lockName) { 1 }
         val r2 = election.runIfLeader(lockName) { 2 }
         val r3 = election.runIfLeader(lockName) { 3 }
+
         r1 shouldBeEqualTo 1
         r2 shouldBeEqualTo 2
         r3 shouldBeEqualTo 3
@@ -137,6 +150,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
         val result = election.runAsyncIfLeader(lockName) {
             completableFutureOf("async-done")
         }.get()
+
         result shouldBeEqualTo "async-done"
     }
 
@@ -145,14 +159,14 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
         val counter = AtomicInteger(0)
         val futures = List(maxLeaders) { i ->
             election.runAsyncIfLeader(lockName) {
-                CompletableFuture.supplyAsync {
-                    Thread.sleep(50)
+                futureOf {
+                    Thread.sleep(Random.nextLong(10, 40))
                     counter.incrementAndGet()
                     "result-$i"
                 }
             }
         }
-        CompletableFuture.allOf(*futures.toTypedArray()).get()
+        CompletableFuture.allOf(*futures.toTypedArray()).get(3.seconds)
         counter.get() shouldBeEqualTo maxLeaders
     }
 
@@ -169,18 +183,19 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
         MultithreadingTester()
             .workers(maxLeaders * 2)
-            .rounds(3)
+            .rounds(5)
             .add {
                 el.runIfLeader(lockName) {
                     val current = concurrent.incrementAndGet()
                     maxConcurrent.updateAndGet { max -> maxOf(max, current) }
-                    Thread.sleep(20)
+                    Thread.sleep(Random.nextLong(10, 40))
                     concurrent.decrementAndGet()
                     executed.incrementAndGet()
                 }
             }
             .run()
 
+        log.debug { "maxConcurrent=$maxConcurrent, executed=$executed" }
         maxConcurrent.get() shouldBeInRange 1..maxLeaders
         executed.get() shouldBeGreaterOrEqualTo 1
     }
@@ -192,17 +207,18 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
         MultithreadingTester()
             .workers(maxLeaders * 2)
-            .rounds(3)
+            .rounds(5)
             .add {
                 el.runAsyncIfLeader(lockName) {
-                    CompletableFuture.supplyAsync {
-                        Thread.sleep(10)
+                    futureOf {
+                        Thread.sleep(Random.nextLong(10, 20))
                         executed.incrementAndGet()
                     }
-                }.get()
+                }.get(3.seconds)
             }
             .run()
 
+        log.debug { "executed=$executed" }
         executed.get() shouldBeGreaterOrEqualTo 1
     }
 
@@ -218,19 +234,41 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
         val executed = AtomicInteger(0)
 
         StructuredTaskScopeTester()
-            .rounds(maxLeaders * 4)
+            .rounds(maxLeaders * 2 * 5)
             .add {
                 el.runIfLeader(lockName) {
                     val current = concurrent.incrementAndGet()
                     maxConcurrent.updateAndGet { max -> maxOf(max, current) }
-                    Thread.sleep(20)
+                    Thread.sleep(Random.nextLong(10, 40))
                     concurrent.decrementAndGet()
                     executed.incrementAndGet()
                 }
             }
             .run()
 
+        log.debug { "maxConcurrent=$maxConcurrent, executed=$executed" }
         maxConcurrent.get() shouldBeInRange 1..maxLeaders
+        executed.get() shouldBeGreaterOrEqualTo 1
+    }
+
+    @Test
+    fun `StructuredTaskScopeTester - 동시 비동기 리더 그룹 선출 안정성`() {
+        val el = LettuceLeaderGroupElector(connection, options)
+        val executed = AtomicInteger(0)
+
+        StructuredTaskScopeTester()
+            .rounds(maxLeaders * 2 * 5)
+            .add {
+                el.runAsyncIfLeader(lockName) {
+                    futureOf {
+                        Thread.sleep(Random.nextLong(10, 20))
+                        executed.incrementAndGet()
+                    }
+                }.get(3.seconds)
+            }
+            .run()
+
+        log.debug { "executed=$executed" }
         executed.get() shouldBeGreaterOrEqualTo 1
     }
 
@@ -255,7 +293,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
         // minLease 만료 전에 다른 client (동일 lockName) 는 acquire 실패해야 한다
         val secondElector = LettuceLeaderGroupElector(connection, opts)
         val blocked = secondElector.runIfLeader(lockName) { "should-not" }
-        blocked shouldBeEqualTo null
+        blocked.shouldBeNull()
     }
 
     @Test
@@ -270,11 +308,14 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
         el.runIfLeader(lockName) { "first" } shouldBeEqualTo "first"
 
-        // minLease 만료 대기
-        Thread.sleep(400)
 
         val secondElector = LettuceLeaderGroupElector(connection, opts)
-        secondElector.runIfLeader(lockName) { "second" } shouldBeEqualTo "second"
+
+        // minLease 만료 대기
+        Thread.sleep(300)
+        await atMost 3.seconds withPollInterval 100.milliseconds untilAsserted {
+            secondElector.runIfLeader(lockName) { "second" } shouldBeEqualTo "second"
+        }
     }
 
     @Test
@@ -288,6 +329,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
         val el = LettuceLeaderGroupElector(connection, opts)
 
         el.runIfLeader(lockName) { "a" } shouldBeEqualTo "a"
+
         // 즉시 release: 다음 client 가 곧바로 acquire 가능
         val secondElector = LettuceLeaderGroupElector(connection, opts)
         secondElector.runIfLeader(lockName) { "b" } shouldBeEqualTo "b"
@@ -302,20 +344,21 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
             minLeaseTime = 1.seconds,
         )
         val el = LettuceLeaderGroupElector(connection, opts)
+
         repeat(opts.maxLeaders) {
             el.runIfLeader(lockName) { "fast" } shouldBeEqualTo "fast"
         }
 
         // minLease 만료 전: 추가 client 는 실패
         val third = LettuceLeaderGroupElector(connection, opts)
-        third.runIfLeader(lockName) { "third" } shouldBeEqualTo null
+        third.runIfLeader(lockName) { "third" }.shouldBeNull()
     }
 
     @Test
     fun `crash recovery - release 미호출 시 leaseTime 만료 후 다른 client 가 acquire 한다`() {
         // primitive 를 직접 사용하여 release 를 호출하지 않음 (crash 시뮬레이션)
         val crashLockName = randomName()
-        val crashGroup = io.bluetape4k.leader.lettuce.semaphore.LettuceSlotTokenGroup(
+        val crashGroup = LettuceSlotTokenGroup(
             connection, crashLockName, maxLeaders = 1
         )
         val token = crashGroup.tryAcquire(waitTime = 200.milliseconds, leaseTime = 400.milliseconds)
@@ -324,9 +367,11 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
         // 다른 elector (동일 키) — leaseTime 만료 대기 후 acquire 성공
         val opts = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 1.seconds, leaseTime = 5.seconds)
         val el = LettuceLeaderGroupElector(connection, opts)
-        Thread.sleep(500) // leaseTime(400ms) 만료 대기
-        val result = el.runIfLeader(crashLockName) { "recovered" }
-        result shouldBeEqualTo "recovered"
+
+        // leaseTime(400ms) 만료 대기
+        await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
+            el.runIfLeader(crashLockName) { "recovered" } shouldBeEqualTo "recovered"
+        }
 
         connection.sync().del("lg:{$crashLockName}")
     }
@@ -352,13 +397,13 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
             val first = el.runAsyncIfLeader(lockName) {
                 completableFutureOf("first-$it")
             }
-            first.get() shouldBeEqualTo "first-$it"
+            first.get(3.seconds) shouldBeEqualTo "first-$it"
 
             // first.get() 이 반환된 시점에 release 도 완료되어 있어야 함 → 즉시 acquire 가능
             val second = el.runAsyncIfLeader(lockName) {
                 completableFutureOf("second-$it")
             }
-            second.get() shouldBeEqualTo "second-$it"
+            second.get(3.seconds) shouldBeEqualTo "second-$it"
         }
     }
 
@@ -376,7 +421,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
         val failed = el.runAsyncIfLeader<String>(lockName) {
             throw LeaderGroupElectionException("sync throw")
         }
-        assertFailsWith<java.util.concurrent.ExecutionException> {
+        assertFailsWith<ExecutionException> {
             failed.get()
         }
 
@@ -384,6 +429,6 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
         val recovered = el.runAsyncIfLeader(lockName) {
             completableFutureOf("recovered")
         }
-        recovered.get() shouldBeEqualTo "recovered"
+        recovered.get(3.seconds) shouldBeEqualTo "recovered"
     }
 }

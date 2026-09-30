@@ -3,8 +3,8 @@
 package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeEmpty
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
@@ -20,9 +20,9 @@ import io.bluetape4k.testcontainers.storage.RedisClusterServer
 import io.lettuce.core.RedisFuture
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.SetArgs
-import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands
 import io.lettuce.core.cluster.SlotHash
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
+import io.lettuce.core.cluster.api.async.RedisAdvancedClusterAsyncCommands
 import io.lettuce.core.cluster.api.coroutines
 import io.lettuce.core.cluster.api.reactive.RedisAdvancedClusterReactiveCommands
 import io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands
@@ -47,6 +47,7 @@ class LettuceStrategicRedisClusterTest {
 
     private val clusterImage = checkNotNull(javaClass.getResource("/redis-cluster-image.txt"))
         .readText().trim()
+
     // digest를 지정할 수 없는 전역 launcher 대신 기존 서버 factory를 재사용하고 이 테스트가 수명을 소유한다.
     private val server = RedisClusterServer(DockerImageName.parse(clusterImage))
 
@@ -57,13 +58,23 @@ class LettuceStrategicRedisClusterTest {
         } catch (failure: Throwable) {
             // 호스트 전달 경로와 Redis 내부 상태를 종료 전에 보존한다.
             try {
-                val output = Path.of(System.getProperty("redis.cluster.diagnostics.dir", "build/redis-cluster-diagnostics"))
+                val output =
+                    Path.of(System.getProperty("redis.cluster.diagnostics.dir", "build/redis-cluster-diagnostics"))
                 Files.createDirectories(output)
                 val diagnostic = buildString {
                     appendLine("failure=${failure.javaClass.name}:${failure.message}")
                     appendLine("endpoints=${server.properties()["nodes"]}")
                     RedisClusterServer.PORTS.forEach { port ->
-                        val result = server.execInContainer("timeout", "2", "redis-cli", "--raw", "-p", "$port", "CLUSTER", "INFO")
+                        val result = server.execInContainer(
+                            "timeout",
+                            "2",
+                            "redis-cli",
+                            "--raw",
+                            "-p",
+                            "$port",
+                            "CLUSTER",
+                            "INFO"
+                        )
                         appendLine("port=$port;exit=${result.exitCode};info=${result.stdout};stderr=${result.stderr}")
                     }
                     appendLine(server.logs.lines().takeLast(100).joinToString("\n"))
@@ -122,9 +133,12 @@ class LettuceStrategicRedisClusterTest {
                 elector.registerCandidate(lockName, CandidateInfo(elector.nodeId))
             }
 
-            electors.flatMap { it.listCandidates(lockName) }.map(CandidateInfo::nodeId).distinct().size shouldBeEqualTo 3
+            electors.flatMap { it.listCandidates(lockName) }.map(CandidateInfo::nodeId)
+                .distinct().size shouldBeEqualTo 3
+
             electors[0].runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 2) { "winner" }
                 .shouldBeEqualTo("winner")
+
             electors[2].runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 2) {
                 error("탈락한 후보의 action은 실행되면 안 됨")
             }.shouldBeNull()
@@ -739,17 +753,17 @@ class LettuceStrategicRedisClusterTest {
         private val async = connection.async()
         private val reactive = connection.reactive()
 
-        private val syncCommands = object : RedisAdvancedClusterCommands<String, String> by sync {
+        private val syncCommands = object: RedisAdvancedClusterCommands<String, String> by sync {
             override fun srem(key: String, vararg members: String): Long =
                 if (key == sourceIndexKey) error(INJECTED_CLUSTER_FAILURE) else sync.srem(key, *members)
         }
 
-        private val asyncCommands = object : RedisAdvancedClusterAsyncCommands<String, String> by async {
+        private val asyncCommands = object: RedisAdvancedClusterAsyncCommands<String, String> by async {
             override fun srem(key: String, vararg members: String): RedisFuture<Long> =
                 if (key == sourceIndexKey) error(INJECTED_CLUSTER_FAILURE) else async.srem(key, *members)
         }
 
-        private val reactiveCommands = object : RedisAdvancedClusterReactiveCommands<String, String> by reactive {
+        private val reactiveCommands = object: RedisAdvancedClusterReactiveCommands<String, String> by reactive {
             override fun srem(key: String, vararg members: String): Mono<Long> =
                 if (key == sourceIndexKey) {
                     Mono.error(IllegalStateException(INJECTED_CLUSTER_FAILURE))
@@ -759,7 +773,7 @@ class LettuceStrategicRedisClusterTest {
         }
 
         val wrappedConnection: StatefulRedisClusterConnection<String, String> =
-            object : StatefulRedisClusterConnection<String, String> by connection {
+            object: StatefulRedisClusterConnection<String, String> by connection {
                 override fun sync(): RedisAdvancedClusterCommands<String, String> = syncCommands
                 override fun async(): RedisAdvancedClusterAsyncCommands<String, String> = asyncCommands
                 override fun reactive(): RedisAdvancedClusterReactiveCommands<String, String> = reactiveCommands

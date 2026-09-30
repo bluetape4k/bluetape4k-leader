@@ -2,14 +2,15 @@
 
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.storage.RedisClusterServer
 import io.lettuce.core.RedisException
 import io.lettuce.core.RedisURI
@@ -18,6 +19,7 @@ import io.lettuce.core.cluster.ClusterTopologyRefreshOptions
 import io.lettuce.core.cluster.RedisClusterClient
 import io.lettuce.core.cluster.SlotHash
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
+import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Tag
@@ -39,6 +41,8 @@ import kotlin.time.Duration.Companion.seconds
 @Tag("redis-cluster")
 @Timeout(180)
 class LettuceRedisClusterRecoveryTest {
+
+    companion object: KLogging()
 
     @Test
     fun `slot migration emits real ASK and MOVED before client topology converges`() {
@@ -69,7 +73,15 @@ class LettuceRedisClusterRecoveryTest {
             cli(server, sourcePort, "CLUSTER", "SETSLOT", "$slot", "NODE", destination.nodeId) shouldBeEqualTo "OK"
             client.partitions.filter { it.slots.isNotEmpty() && it.nodeId !in setOf(source.nodeId, destination.nodeId) }
                 .forEach { node ->
-                    cli(server, portOf(server, node.nodeId), "CLUSTER", "SETSLOT", "$slot", "NODE", destination.nodeId) shouldBeEqualTo "OK"
+                    cli(
+                        server,
+                        portOf(server, node.nodeId),
+                        "CLUSTER",
+                        "SETSLOT",
+                        "$slot",
+                        "NODE",
+                        destination.nodeId
+                    ) shouldBeEqualTo "OK"
                 }
             val moved = cli(server, sourcePort, "GET", key)
             moved shouldBeEqualTo "MOVED $slot 127.0.0.1:$destinationPort"
@@ -125,7 +137,7 @@ class LettuceRedisClusterRecoveryTest {
                 evidence += "owner_before=${source.nodeId};owner_after=${replica.nodeId};slot=$slot"
                 samples("recovered", evidence) { connection.sync().get(key) shouldBeEqualTo "replicated" }
             }
-            await.atMost(Duration.ofSeconds(30)).untilAsserted {
+            await atMost 30.seconds untilAsserted {
                 cli(server, sourcePort, "INFO", "replication").contains("role:slave").shouldBeTrue()
             }
             verifyElectors(connection, slot)
@@ -201,7 +213,11 @@ class LettuceRedisClusterRecoveryTest {
     ) {
         val image = checkNotNull(javaClass.getResource("/redis-cluster-image.txt")).readText().trim()
         val server = RedisClusterServer(DockerImageName.parse(image))
-        val evidence = mutableListOf("scenario=$scenario", "image_digest=$image", "periodic_refresh_ms=1000;adaptive_refresh_ms=100;command_timeout_ms=1000")
+        val evidence = mutableListOf(
+            "scenario=$scenario",
+            "image_digest=$image",
+            "periodic_refresh_ms=1000;adaptive_refresh_ms=100;command_timeout_ms=1000"
+        )
         val output = Path.of(System.getProperty("redis.cluster.diagnostics.dir", "build/redis-cluster-diagnostics"))
         try {
             server.start()
@@ -215,12 +231,18 @@ class LettuceRedisClusterRecoveryTest {
                     RedisURI.create(server.host, it).apply { timeout = Duration.ofSeconds(1) }
                 }).use { client ->
                     // 옵션은 caller가 소유한다. fixture 기본값이나 생산 코드의 설정을 바꾸지 않는다.
-                    client.setOptions(ClusterClientOptions.builder().topologyRefreshOptions(
-                        ClusterTopologyRefreshOptions.builder()
-                            .adaptiveRefreshTriggersTimeout(Duration.ofMillis(100))
-                            .enablePeriodicRefresh(Duration.ofSeconds(1)).build(),
-                    ).build())
-                    client.connect().use { connection -> block(server, client, connection, evidence) }
+                    client.setOptions(
+                        ClusterClientOptions.builder()
+                            .topologyRefreshOptions(
+                                ClusterTopologyRefreshOptions.builder()
+                                    .adaptiveRefreshTriggersTimeout(Duration.ofMillis(100))
+                                    .enablePeriodicRefresh(Duration.ofSeconds(1)).build(),
+                            )
+                            .build()
+                    )
+                    client.connect().use { connection ->
+                        block(server, client, connection, evidence)
+                    }
                 }
             }
         } catch (failure: Throwable) {
@@ -243,10 +265,17 @@ class LettuceRedisClusterRecoveryTest {
                     }.getOrElse { "${it.javaClass.simpleName}:${it.message}" }
                     evidence += "host_port=$hostPort;raw_ping=$response"
                 }
-            }.onFailure { failure.addSuppressed(it) }
-            runCatching { server.logs.lines().takeLast(100).joinToString("\n") }
-                .onSuccess { evidence += "container_log_tail:\n$it" }
-                .onFailure { failure.addSuppressed(it) }
+            }.onFailure {
+                failure.addSuppressed(it)
+            }
+
+            runCatching {
+                server.logs.lines().takeLast(100).joinToString("\n")
+            }.onSuccess {
+                evidence += "container_log_tail:\n$it"
+            }.onFailure {
+                failure.addSuppressed(it)
+            }
             throw failure
         } finally {
             try {

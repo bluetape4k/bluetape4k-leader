@@ -28,7 +28,7 @@ import kotlin.time.Duration
 class LettuceStrategicSuspendLeaderElector @JvmOverloads constructor(
     connection: StatefulRedisConnection<String, String>,
     override val nodeId: String = Uuid.V7.nextBase62(),
-) : StrategicSuspendLeaderElector {
+): StrategicSuspendLeaderElector {
 
     private lateinit var registry: LettuceSuspendCandidateRegistry
 
@@ -42,11 +42,11 @@ class LettuceStrategicSuspendLeaderElector @JvmOverloads constructor(
     constructor(
         connection: StatefulRedisClusterConnection<String, String>,
         nodeId: String = Uuid.V7.nextBase62(),
-    ) : this(LettuceStrategicConstructorSupport.clusterPrimaryConnection, nodeId) {
+    ): this(LettuceStrategicConstructorSupport.clusterPrimaryConnection, nodeId) {
         registry = LettuceSuspendCandidateRegistry(connection)
     }
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     override suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
         registry.registerCandidate(lockName, info, ttl)

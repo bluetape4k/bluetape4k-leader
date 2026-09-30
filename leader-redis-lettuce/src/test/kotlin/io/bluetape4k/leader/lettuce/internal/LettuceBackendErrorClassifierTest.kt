@@ -13,7 +13,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LettuceBackendErrorClassifierTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @Test
     fun `RedisCommandTimeoutException 은 TRANSIENT`() {
@@ -42,7 +42,7 @@ class LettuceBackendErrorClassifierTest {
 
     @Test
     fun `RedisCommandExecutionException 하위 타입도 NON_TRANSIENT`() {
-        val ex = object : RedisCommandExecutionException("Lua error") {}
+        val ex = object: RedisCommandExecutionException("Lua error") {}
         LettuceBackendErrorClassifier.classify(ex) shouldBeEqualTo BackendErrorKind.NON_TRANSIENT
     }
 }

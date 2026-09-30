@@ -1,5 +1,11 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
@@ -8,26 +14,28 @@ import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.scorers.WeightedScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldNotBeNull
-import org.awaitility.kotlin.*
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import io.bluetape4k.support.closeSafe
+import io.lettuce.core.codec.StringCodec
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.until
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.junit5.concurrency.MultithreadingTester
-import io.bluetape4k.support.closeSafe
-import io.lettuce.core.codec.StringCodec
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.microseconds
-import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.microseconds
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
+
+    companion object: KLogging()
 
     private lateinit var node1: LettuceStrategicLeaderElector
     private lateinit var node2: LettuceStrategicLeaderElector
@@ -52,6 +60,8 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         candidates.forEach { node1.registerCandidate(lockName, it) }
         candidates.forEach { node2.registerCandidate(lockName, it) }
         candidates.forEach { node3.registerCandidate(lockName, it) }
+
+        candidates.forEach { log.debug { "candidate=$it" } }
 
         val counter = AtomicInteger(0)
         val r1 = node1.runIfLeader(lockName, FifoElectionStrategy) { counter.incrementAndGet() }
@@ -93,8 +103,9 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
         node1.listCandidates(lockName).size shouldBeEqualTo 1
 
-        await.atMost(2.seconds).withPollInterval(50.milliseconds)
-            .until { node1.listCandidates(lockName).isEmpty() }
+        await atMost 2.seconds withPollInterval 50.milliseconds until {
+            node1.listCandidates(lockName).isEmpty()
+        }
     }
 
     @Test
@@ -106,8 +117,10 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         node1.runIfLeader(lockName, FifoElectionStrategy) { "ok" }
 
         node1.listCandidates(lockName).size shouldBeEqualTo 1
-        await.atMost(2.seconds).withPollInterval(50.milliseconds)
-            .until { node1.listCandidates(lockName).isEmpty() }
+
+        await atMost 2.seconds withPollInterval 50.milliseconds until {
+            node1.listCandidates(lockName).isEmpty()
+        }
     }
 
     @Test
@@ -118,6 +131,8 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         node1.unregisterCandidate(lockName, "node-1")
 
         val candidates = node1.listCandidates(lockName)
+
+        candidates.forEach { log.debug { "candidate=$it" } }
         candidates.size shouldBeEqualTo 1
         candidates.first().nodeId shouldBeEqualTo "node-2"
     }
@@ -241,6 +256,7 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("node-1", successCount = 10))
 
         val candidates = node1.listCandidates(lockName)
+        candidates.forEach { log.debug { "candidate=$it" } }
         candidates.size shouldBeEqualTo 1
         candidates.first().successCount shouldBeEqualTo 10L
     }
@@ -332,17 +348,18 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
         node1.registerCandidate(lockName, CandidateInfo("node-2", successCount = 1, failureCount = 9))
 
-        val connections = (1..8).map { client.connect(StringCodec.UTF8) }
+        val connections = List(8) { client.connect(StringCodec.UTF8) }
         try {
             val electors = connections.map { LettuceStrategicLeaderElector(it, "node-1") }
             val actions = electors.flatMap { elector ->
-                listOf<() -> Unit>(
+                listOf(
                     { elector.updateResult(lockName, "node-1", CandidateResult.SUCCESS) },
                     { elector.updateResult(lockName, "node-1", CandidateResult.FAILURE) },
                 )
             }
             val workers = actions.size
             val rounds = 20
+
             MultithreadingTester()
                 .workers(workers)
                 .rounds(rounds)
@@ -350,10 +367,50 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
                 .run()
 
             val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+            log.debug { "updated=$updated" }
             val expectedEach = (workers * rounds / 2).toLong()
             updated.successCount shouldBeEqualTo expectedEach
             updated.failureCount shouldBeEqualTo expectedEach
             updated.successRate shouldBeEqualTo 0.5
+
+            ScoredElectionStrategy(SuccessRateScorer)
+                .elect(node1.listCandidates(lockName))
+                .winner?.nodeId shouldBeEqualTo "node-1"
+        } finally {
+            connections.forEach { it.closeSafe() }
+        }
+    }
+
+    @Test
+    fun `Virtual Threads 환경에서 동시 결과 갱신은 성공과 실패 카운터를 모두 보존한다`() {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        node1.registerCandidate(lockName, CandidateInfo("node-2", successCount = 1, failureCount = 9))
+
+        val connections = List(8) { client.connect(StringCodec.UTF8) }
+        try {
+            val electors = connections.map { LettuceStrategicLeaderElector(it, "node-1") }
+            val actions = electors.flatMap { elector ->
+                listOf(
+                    { elector.updateResult(lockName, "node-1", CandidateResult.SUCCESS) },
+                    { elector.updateResult(lockName, "node-1", CandidateResult.FAILURE) },
+                )
+            }
+            val workers = actions.size
+            val rounds = 20
+
+            StructuredTaskScopeTester()
+                .rounds(rounds)
+                .addAll(*actions.toTypedArray())
+                .run()
+
+            val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+            log.debug { "updated=$updated" }
+            val expectedEach = (workers * rounds / 2).toLong()
+            updated.successCount shouldBeEqualTo expectedEach
+            updated.failureCount shouldBeEqualTo expectedEach
+            updated.successRate shouldBeEqualTo 0.5
+
             ScoredElectionStrategy(SuccessRateScorer)
                 .elect(node1.listCandidates(lockName))
                 .winner?.nodeId shouldBeEqualTo "node-1"
@@ -372,9 +429,11 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
             CandidateInfo("node-b", registeredAt = t0),
         )
         candidates.forEach { node1.registerCandidate(lockName, it) }
+        candidates.forEach { log.debug { "candidate=$it" } }
 
-        val winner = FifoElectionStrategy.elect(node1.listCandidates(lockName)).winner
-        winner?.nodeId shouldBeEqualTo "node-a"
+        val winner = FifoElectionStrategy.elect(node1.listCandidates(lockName)).winner.shouldNotBeNull()
+        log.debug { "winner=$winner" }
+        winner.nodeId shouldBeEqualTo "node-a"
     }
 
     @Test
@@ -392,6 +451,7 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         node1.registerCandidate(lockName, original)
 
         val retrieved = node1.listCandidates(lockName).first()
+        log.debug { "retrieved=$retrieved" }
         retrieved.nodeId shouldBeEqualTo original.nodeId
         retrieved.successCount shouldBeEqualTo original.successCount
         retrieved.failureCount shouldBeEqualTo original.failureCount
@@ -413,6 +473,7 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         node1.registerCandidate(lockName, original)
 
         val retrieved = node1.listCandidates(lockName).first()
+        log.debug { "retrieved=$retrieved" }
         retrieved.metadata shouldBeEqualTo original.metadata
     }
 
@@ -428,9 +489,12 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         candidates.forEach { node2.registerCandidate(lockName, it) }
         candidates.forEach { node3.registerCandidate(lockName, it) }
 
+        candidates.forEach { log.debug { "candidate=$it" } }
+
         val strategy = ScoredElectionStrategy(SuccessRateScorer)
-        val winner = strategy.elect(node1.listCandidates(lockName)).winner
-        winner?.nodeId shouldBeEqualTo "node-2"
+        val winner = strategy.elect(node1.listCandidates(lockName)).winner.shouldNotBeNull()
+        log.debug { "winner=$winner" }
+        winner.nodeId shouldBeEqualTo "node-2"
 
         val counter = AtomicInteger(0)
         node1.runIfLeader(lockName, strategy) { counter.incrementAndGet() }
@@ -452,10 +516,14 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         candidates.forEach { node2.registerCandidate(lockName, it) }
         candidates.forEach { node3.registerCandidate(lockName, it) }
 
+        candidates.forEach { log.debug { "candidate=$it" } }
+
         val scorer = WeightedScorer(IdleTimeScorer to 0.1, SuccessRateScorer to 0.9)
         val strategy = ScoredElectionStrategy(scorer)
-        val winner = strategy.elect(node1.listCandidates(lockName)).winner
-        winner?.nodeId shouldBeEqualTo "node-1"
+
+        val winner = strategy.elect(node1.listCandidates(lockName)).winner.shouldNotBeNull()
+        log.debug { "winner=$winner" }
+        winner.nodeId shouldBeEqualTo "node-1"
 
         val counter = AtomicInteger(0)
         node1.runIfLeader(lockName, strategy) { counter.incrementAndGet() }

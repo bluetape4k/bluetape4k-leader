@@ -22,27 +22,27 @@ internal object LettuceCandidateKeyCodec {
 
     fun indexKey(keyPrefix: String, lockName: String): String =
         "$keyPrefix$NAMESPACE_SEPARATOR$V3_VERSION$NAMESPACE_SEPARATOR$INDEX_TYPE$NAMESPACE_SEPARATOR" +
-            hashTag(lockName)
+                hashTag(lockName)
 
     fun candidateKey(keyPrefix: String, lockName: String, nodeId: String): String =
         "$keyPrefix$NAMESPACE_SEPARATOR$V3_VERSION$NAMESPACE_SEPARATOR$CANDIDATE_TYPE$NAMESPACE_SEPARATOR" +
-            hashTag(lockName) + lengthDelimited(nodeId)
+                hashTag(lockName) + lengthDelimited(nodeId)
 
     fun tombstoneKey(keyPrefix: String, lockName: String, nodeId: String): String =
         "$keyPrefix$NAMESPACE_SEPARATOR$V3_VERSION$NAMESPACE_SEPARATOR$TOMBSTONE_TYPE$NAMESPACE_SEPARATOR" +
-            hashTag(lockName) + lengthDelimited(nodeId)
+                hashTag(lockName) + lengthDelimited(nodeId)
 
     fun migrationTokenKey(keyPrefix: String, lockName: String, nodeId: String): String =
         "$keyPrefix$NAMESPACE_SEPARATOR$V3_VERSION$NAMESPACE_SEPARATOR$MIGRATION_TOKEN_TYPE$NAMESPACE_SEPARATOR" +
-            hashTag(lockName) + lengthDelimited(nodeId)
+                hashTag(lockName) + lengthDelimited(nodeId)
 
     fun v2IndexKey(keyPrefix: String, lockName: String): String =
         "$keyPrefix$NAMESPACE_SEPARATOR$V2_VERSION$NAMESPACE_SEPARATOR$INDEX_TYPE$NAMESPACE_SEPARATOR" +
-            lengthDelimited(lockName)
+                lengthDelimited(lockName)
 
     fun v2CandidateKey(keyPrefix: String, lockName: String, nodeId: String): String =
         "$keyPrefix$NAMESPACE_SEPARATOR$V2_VERSION$NAMESPACE_SEPARATOR$CANDIDATE_TYPE$NAMESPACE_SEPARATOR" +
-            lengthDelimited(lockName) + lengthDelimited(nodeId)
+                lengthDelimited(lockName) + lengthDelimited(nodeId)
 
     fun legacyIndexKey(keyPrefix: String, lockName: String): String =
         "$keyPrefix:$lockName"

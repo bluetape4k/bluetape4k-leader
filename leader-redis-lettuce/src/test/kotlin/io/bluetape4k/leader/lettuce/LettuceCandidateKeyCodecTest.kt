@@ -3,10 +3,14 @@ package io.bluetape4k.leader.lettuce
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.leader.validateLockName
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.lettuce.core.cluster.SlotHash
 import org.junit.jupiter.api.Test
 
 class LettuceCandidateKeyCodecTest {
+
+    companion object: KLogging()
 
     @Test
     fun `v3 index and candidate keys use the same hash slot`() {
@@ -16,6 +20,9 @@ class LettuceCandidateKeyCodecTest {
 
         val index = LettuceCandidateKeyCodec.indexKey(prefix, lockName)
         val candidate = LettuceCandidateKeyCodec.candidateKey(prefix, lockName, nodeId)
+
+        log.debug { "index=$index" }
+        log.debug { "candidate=$candidate" }
 
         index shouldBeEqualTo "leader:strategy:candidates|v3|i|{11:결정:lock}"
         candidate shouldBeEqualTo "leader:strategy:candidates|v3|c|{11:결정:lock}6:node:1"
@@ -44,9 +51,10 @@ class LettuceCandidateKeyCodecTest {
         val nodeId = "legacy:node"
 
         LettuceCandidateKeyCodec.legacyIndexKey(prefix, lockName) shouldBeEqualTo
-            "leader:strategy:candidates:legacy:lock"
+                "leader:strategy:candidates:legacy:lock"
+
         LettuceCandidateKeyCodec.legacyCandidateKey(prefix, lockName, nodeId) shouldBeEqualTo
-            "leader:strategy:candidates:legacy:lock:legacy:node"
+                "leader:strategy:candidates:legacy:lock:legacy:node"
     }
 
     @Test
