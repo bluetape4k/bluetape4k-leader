@@ -1,25 +1,24 @@
 package io.bluetape4k.leader.mongodb
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBe
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
  * [MongoSuspendLeaderElectorFactory] — SPI contract 테스트.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class MongoSuspendLeaderElectorFactoryTest : AbstractMongoLeaderTest() {
+class MongoSuspendLeaderElectorFactoryTest: AbstractMongoLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val factory: SuspendLeaderElectorFactory =
         MongoSuspendLeaderElectorFactory(coroutineLockCollection)
@@ -27,7 +26,6 @@ class MongoSuspendLeaderElectorFactoryTest : AbstractMongoLeaderTest() {
     @Test
     fun `create - 기본 옵션으로 MongoSuspendLeaderElector 인스턴스 반환`() = runSuspendIO {
         val elector = factory.create(LeaderElectionOptions.Default)
-        elector.shouldNotBeNull()
         elector.shouldBeInstanceOf<MongoSuspendLeaderElector>()
     }
 
@@ -35,7 +33,6 @@ class MongoSuspendLeaderElectorFactoryTest : AbstractMongoLeaderTest() {
     fun `create - 커스텀 옵션으로 인스턴스 반환`() = runSuspendIO {
         val opts = LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 10.seconds)
         val elector = factory.create(opts)
-        elector.shouldNotBeNull()
         elector.shouldBeInstanceOf<MongoSuspendLeaderElector>()
     }
 
@@ -43,7 +40,7 @@ class MongoSuspendLeaderElectorFactoryTest : AbstractMongoLeaderTest() {
     fun `create - 호출마다 새 인스턴스 반환`() = runSuspendIO {
         val a = factory.create(LeaderElectionOptions.Default)
         val b = factory.create(LeaderElectionOptions.Default)
-        (a !== b).shouldBeEqualTo(true)
+        a shouldNotBe b
     }
 
     @Test
@@ -58,6 +55,6 @@ class MongoSuspendLeaderElectorFactoryTest : AbstractMongoLeaderTest() {
         val elector = factory.create(LeaderElectionOptions.Default)
         var called = false
         elector.runIfLeader(randomName()) { called = true }
-        called.shouldBeEqualTo(true)
+        called.shouldBeTrue()
     }
 }

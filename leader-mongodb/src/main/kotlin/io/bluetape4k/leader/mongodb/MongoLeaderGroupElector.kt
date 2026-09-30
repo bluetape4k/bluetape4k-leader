@@ -4,8 +4,8 @@ import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Filters
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
-import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
+import io.bluetape4k.leader.AsyncLifecycle
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
@@ -20,7 +20,7 @@ import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoSlotExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoLock
-import io.bluetape4k.leader.mongodb.lock.validateMongoLockName
+import io.bluetape4k.leader.unwrapCompletionException
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -29,7 +29,6 @@ import java.time.Instant
 import java.util.*
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -54,7 +53,8 @@ class MongoLeaderGroupElector private constructor(
      * `historyRecorder` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
-): LeaderGroupElector, LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics {
+): LeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics {
 
     companion object: KLogging() {
         internal const val MONGO_GROUP_FACTORY_BEAN_NAME = "mongo-leader-group-elector"
@@ -96,7 +96,7 @@ class MongoLeaderGroupElector private constructor(
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
-        validateMongoLockName(lockName)
+        lockName.validateMonoLockName()
 
         val leaseTime = options.leaderGroupOptions.leaseTime
         val perSlotWait = options.leaderGroupOptions.waitTime / maxLeaders
@@ -161,9 +161,13 @@ class MongoLeaderGroupElector private constructor(
                     actionSucceeded -> recordCompleted(historyKey, finishedAt, durationMs)
                     capturedError != null -> recordFailed(historyKey, finishedAt, durationMs, capturedError)
                 }
-                runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
-                    .onSuccess { log.debug { "리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
-                    .onFailure { e -> log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
+                runCatching {
+                    lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
+                }.onSuccess {
+                    log.debug { "리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
+                }.onFailure {
+                    log.warn(it) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+                }
             }
         }
 
@@ -177,7 +181,7 @@ class MongoLeaderGroupElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        validateMongoLockName(lockName)
+        lockName.validateMonoLockName()
 
         val leaseTime = options.leaderGroupOptions.leaseTime
         val perSlotWait = options.leaderGroupOptions.waitTime / maxLeaders
@@ -190,25 +194,29 @@ class MongoLeaderGroupElector private constructor(
         val recordedAcquisition = acquisitionFuture.whenComplete { acquired, _ ->
             if (acquired != null) rejectionCleanup.markAcquired(acquired)
         }
-        val pipelineFuture = recordedAcquisition.thenComposeAsync({ acquired ->
-            if (acquired == null) {
-                log.debug { "리더 그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
-                completableFutureOf(null)
-            } else {
-                val (lock, slot) = acquired
-                rejectionCleanup.markAcquired(acquired)
-                val acquiredAtNanos = rejectionCleanup.acquiredAtNanos
-                if (!rejectionCleanup.markLifecycleStarted()) {
-                    failedCompletableFutureOf(
-                        CancellationException("leader group action was cancelled before start"),
-                    )
-                } else try {
-                    runAcquiredAsync(lock, lockName, slot, acquiredAtNanos, leaseTime, cancellationRelay, action)
-                } catch (error: Throwable) {
-                    releaseAcquiredSlot(lock, lockName, slot, acquiredAtNanos, error)
+        val pipelineFuture = recordedAcquisition.thenComposeAsync(
+            { acquired ->
+                if (acquired == null) {
+                    log.debug { "리더 그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
+                    completableFutureOf(null)
+                } else {
+                    val (lock, slot) = acquired
+                    rejectionCleanup.markAcquired(acquired)
+                    val acquiredAtNanos = rejectionCleanup.acquiredAtNanos
+                    if (!rejectionCleanup.markLifecycleStarted()) {
+                        failedCompletableFutureOf(
+                            CancellationException("leader group action was cancelled before start"),
+                        )
+                    } else try {
+                        runAcquiredAsync(lock, lockName, slot, acquiredAtNanos, leaseTime, cancellationRelay, action)
+                    } catch (error: Throwable) {
+                        releaseAcquiredSlot(lock, lockName, slot, acquiredAtNanos, error)
+                    }
                 }
-            }
-        }, executor)
+            },
+            executor
+        )
+
         pipelineFuture.whenComplete { _, _ ->
             if (pipelineFuture.isCancelled) {
                 acquisitionFuture.cancel(true)
@@ -220,7 +228,7 @@ class MongoLeaderGroupElector private constructor(
         return LeaderFutureBridge.propagateCancellation(
             LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
                 if (failure != null) {
-                    rejectionCleanup.release(failure.unwrapCompletionCause())
+                    rejectionCleanup.release(failure.unwrapCompletionException()!!)
                 } else {
                     completableFutureOf(value)
                 }
@@ -240,35 +248,41 @@ class MongoLeaderGroupElector private constructor(
     ): CompletableFuture<T?> {
         val startedAt = Instant.now()
         log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName, slot=$slot" }
+
         val delegate = MongoSlotExtendDelegate(lock)
         val historyKey = recordAcquired(lockName, lock.token, slot, startedAt, leaseTime)
         val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
-        val actionFuture = runCatching { cancellationRelay.invoke(action) }.getOrElse { error ->
+        val actionFuture = runCatching {
+            cancellationRelay.invoke(action)
+        }.getOrElse { error ->
             val finishedAt = Instant.now()
             val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
             recordFailed(historyKey, finishedAt, durationMs, error)
             watchdog.close()
             return releaseAcquiredSlot(lock, lockName, slot, acquiredAtNanos, error)
         }
+
         return AsyncLeaseCleanupDispatcher.completeAfter(
             source = actionFuture,
             cleanup = { watchdog.close() },
         ) { value, failure ->
             val finishedAt = Instant.now()
             val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-            val cause = failure?.unwrapCompletionCause()
+            val cause = failure?.unwrapCompletionException()
             try {
-                when {
-                    cause == null -> recordCompleted(historyKey, finishedAt, durationMs)
-                    cause is CancellationException -> Unit
-                    else          -> recordFailed(historyKey, finishedAt, durationMs, cause)
+                when (cause) {
+                    null                     -> recordCompleted(historyKey, finishedAt, durationMs)
+                    is CancellationException -> Unit
+                    else                     -> recordFailed(historyKey, finishedAt, durationMs, cause)
                 }
             } finally {
-                runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
-                    .onSuccess { log.debug { "비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
-                    .onFailure { error ->
-                        log.warn(error) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
-                    }
+                runCatching {
+                    lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
+                }.onSuccess {
+                    log.debug { "비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
+                }.onFailure {
+                    log.warn(it) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+                }
             }
             if (cause != null) throw cause
             value
@@ -283,12 +297,14 @@ class MongoLeaderGroupElector private constructor(
         failure: Throwable,
     ): CompletableFuture<T?> {
         return AsyncLeaseCleanupDispatcher.failAfter(failure) {
-            runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
-                .onSuccess { log.debug { "비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
-                .onFailure { error ->
-                    failure.addSuppressed(error)
-                    log.warn(error) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
-                }
+            runCatching {
+                lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
+            }.onSuccess {
+                log.debug { "비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
+            }.onFailure {
+                failure.addSuppressed(it)
+                log.warn(it) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+            }
         }
     }
 
@@ -330,21 +346,13 @@ class MongoLeaderGroupElector private constructor(
         private fun scheduleLateCleanup(acquiredSlot: Pair<MongoLock, Int>) {
             val (lock, slot) = acquiredSlot
             AsyncLeaseCleanupDispatcher.execute {
-                runCatching { lock.unlock() }
-                    .onFailure { error ->
-                        log.warn(error) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
-                    }
+                runCatching {
+                    lock.unlock()
+                }.onFailure {
+                    log.warn(it) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+                }
             }
         }
-    }
-
-    private fun Throwable.unwrapCompletionCause(): Throwable =
-        if (this is CompletionException) cause ?: this else this
-
-    private enum class AsyncLifecycle {
-        WAITING,
-        STARTED,
-        CLEANUP,
     }
 
     @Suppress("CyclomaticComplexMethod")
@@ -390,10 +398,11 @@ class MongoLeaderGroupElector private constructor(
         fun releaseLateAcquisition(lock: MongoLock, released: AtomicBoolean) {
             if (released.compareAndSet(false, true)) {
                 AsyncLeaseCleanupDispatcher.execute {
-                    runCatching { lock.unlock() }
-                        .onFailure { error ->
-                            log.warn(error) { "취소된 async 그룹 슬롯 획득을 반납하지 못했습니다." }
-                        }
+                    runCatching {
+                        lock.unlock()
+                    }.onFailure {
+                        log.warn(it) { "취소된 async 그룹 슬롯 획득을 반납하지 못했습니다." }
+                    }
                 }
             }
         }
@@ -460,26 +469,3 @@ class MongoLeaderGroupElector private constructor(
     private fun recordFailed(historyKey: LeaderHistoryKey?, finishedAt: Instant, durationMs: Long, error: Throwable?) =
         historyKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, error) }
 }
-
-/**
- * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-fun <T> MongoCollection<Document>.runIfLeaderGroup(
-    lockName: String,
-    options: MongoLeaderGroupElectionOptions = MongoLeaderGroupElectionOptions.Default,
-    action: () -> T,
-): T? = MongoLeaderGroupElector(this, options).runIfLeader(lockName, action)
-
-/**
- * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-fun <T> MongoCollection<Document>.runAsyncIfLeaderGroup(
-    lockName: String,
-    executor: Executor = VirtualThreadExecutor,
-    options: MongoLeaderGroupElectionOptions = MongoLeaderGroupElectionOptions.Default,
-    action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> = MongoLeaderGroupElector(this, options).runAsyncIfLeader(lockName, executor, action)

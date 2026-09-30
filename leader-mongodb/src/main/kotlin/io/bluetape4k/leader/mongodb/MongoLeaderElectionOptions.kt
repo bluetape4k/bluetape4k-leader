@@ -5,7 +5,6 @@ import io.bluetape4k.support.requireGt
 import java.io.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * `MongoLeaderElectionOptions`는 MongoDB leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
@@ -16,7 +15,7 @@ import kotlin.time.Duration.Companion.seconds
 data class MongoLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
     val retryDelay: Duration = 50.milliseconds,
-) : Serializable {
+): Serializable {
     init {
         retryDelay.requireGt(Duration.ZERO, "retryDelay")
     }
@@ -27,5 +26,7 @@ data class MongoLeaderElectionOptions(
          */
         @JvmField
         val Default = MongoLeaderElectionOptions()
+
+        private const val serialVersionUID = 1L
     }
 }

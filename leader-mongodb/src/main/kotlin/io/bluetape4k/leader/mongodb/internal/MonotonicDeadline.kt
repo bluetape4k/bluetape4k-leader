@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.mongodb.internal
 
-import io.bluetape4k.leader.internal.MonotonicDeadline as CoreMonotonicDeadline
 import kotlin.time.Duration
+import io.bluetape4k.leader.internal.MonotonicDeadline as CoreMonotonicDeadline
 
 /**
  * `MonotonicDeadline`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -13,18 +13,17 @@ internal class MonotonicDeadline private constructor(
     private val ticker: () -> Long,
 ) {
 
-    private var delegate = CoreMonotonicDeadline.fromStart(deadlineNanos, 0L, ticker)
+    private var delegate = CoreMonotonicDeadline
+        .fromStart(deadlineNanos, 0L, ticker)
 
-    private fun withTimeout(timeoutNanos: Long): MonotonicDeadline {
+    private fun withTimeout(timeoutNanos: Long): MonotonicDeadline = apply {
         delegate = CoreMonotonicDeadline.fromStart(deadlineNanos, timeoutNanos, ticker)
-        return this
     }
 
     fun remainingNanos(): Long = delegate.remainingNanos()
 
     fun remainingMillisForDelay(maxDelayMillis: Long): Long {
         require(maxDelayMillis >= 1L) { "maxDelayMillis must be at least 1" }
-
         return delegate.remainingMillisForDelay(maxDelayMillis)
     }
 

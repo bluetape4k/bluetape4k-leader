@@ -3,7 +3,6 @@ package io.bluetape4k.leader.mongodb
 import com.mongodb.client.model.Filters
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.await
@@ -17,14 +16,16 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.utils.Runtimex
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -37,7 +38,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     fun `MongoLock token uses 128-bit Base58 length`() {
         val lock = MongoLock(lockCollection, randomName())
 
-        lock.token.length shouldBeEqualTo 22
+        lock.token.length shouldBeEqualTo MongoLock.DEFAULT_TOKEN_LENGTH
     }
 
     @Test
@@ -45,7 +46,6 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
         val election = MongoLeaderElector(lockCollection)
 
         val result = election.runIfLeader(randomName()) { "hello" }
-
         result shouldBeEqualTo "hello"
     }
 
@@ -62,8 +62,8 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
         val successCount = AtomicInteger(0)
 
         MultithreadingTester()
-            .workers(10)
-            .rounds(1)
+            .workers(Runtimex.availableProcessors)
+            .rounds(2)
             .add {
                 election.runIfLeader(lockName) {
                     Thread.sleep(10)
@@ -73,7 +73,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
             }
             .run()
 
-        successCount.get() shouldBeGreaterOrEqualTo 1
+        successCount.get() shouldBeEqualTo Runtimex.availableProcessors * 2
     }
 
     @Test
@@ -146,9 +146,9 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
         election.runIfLeader(lockName) { "done" } shouldBeEqualTo "done"
         election.runIfLeader(lockName) { "too-early" }.shouldBeNull()
 
-        Thread.sleep(450)
-
-        election.runIfLeader(lockName) { "after-min" } shouldBeEqualTo "after-min"
+        await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
+            election.runIfLeader(lockName) { "after-min" } shouldBeEqualTo "after-min"
+        }
     }
 
     @Test
@@ -184,6 +184,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
 
             release.countDown()
             holder.get(2.seconds) shouldBeEqualTo "holder"
+
             election.runIfLeader(lockName) { "after-release" } shouldBeEqualTo "after-release"
         } finally {
             release.countDown()
@@ -207,7 +208,6 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
             val election = MongoLeaderElector(lockCollection, shortWaitOptions)
 
             val result = election.runIfLeader(lockName) { "실행하면 안 됨" }
-
             result.shouldBeNull()
         } finally {
             holderLock.unlock()
@@ -222,7 +222,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
 
         Thread.sleep(350)
 
-        val election = MongoLeaderElector(
+        val elector = MongoLeaderElector(
             lockCollection,
             MongoLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
@@ -231,7 +231,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
                 )
             )
         )
-        val result = election.runIfLeader(lockName) { "takeover 성공" }
+        val result = elector.runIfLeader(lockName) { "takeover 성공" }
         result shouldBeEqualTo "takeover 성공"
     }
 
@@ -245,17 +245,17 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
 
         lock.unlock()
 
-        val election = MongoLeaderElector(lockCollection)
-        val result = election.runIfLeader(lockName) { "재획득 성공" }
+        val elector = MongoLeaderElector(lockCollection)
+        val result = elector.runIfLeader(lockName) { "재획득 성공" }
         result shouldBeEqualTo "재획득 성공"
     }
 
     @Test
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action을 실행하고 결과를 반환한다`() {
         val lockName = randomName()
-        val election = MongoLeaderElector(lockCollection)
+        val elector = MongoLeaderElector(lockCollection)
 
-        val result = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+        val result = elector.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
             futureOf { "async 성공" }
         }.get(5.seconds)
 
@@ -268,7 +268,8 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
         val holderLock = MongoLock(lockCollection, lockName)
         holderLock.tryLock(100.milliseconds, 2.seconds).shouldBeTrue()
         val executor = Executors.newSingleThreadExecutor()
-        val election = MongoLeaderElector(
+
+        val elector = MongoLeaderElector(
             lockCollection,
             MongoLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
@@ -280,12 +281,12 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
         )
 
         try {
-            val contender = election.runAsyncIfLeader(lockName, executor) {
+            val contender = elector.runAsyncIfLeader(lockName, executor) {
                 completableFutureOf("unexpected")
             }
             val marker = futureOf(executor) { "executor-free" }
 
-            marker.get(300, TimeUnit.MILLISECONDS) shouldBeEqualTo "executor-free"
+            marker.get(300.milliseconds) shouldBeEqualTo "executor-free"
             contender.get(2.seconds).shouldBeNull()
         } finally {
             holderLock.unlock()
@@ -296,22 +297,22 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     @Test
     fun `runAsyncIfLeader - action이 CF 반환 전 throw하면 CompletionException으로 전파되고 락이 해제된다`() {
         val lockName = randomName()
-        val election = MongoLeaderElector(lockCollection)
+        val elector = MongoLeaderElector(lockCollection)
 
         assertFailsWith<CompletionException> {
-            election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
+            elector.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
                 throw IllegalStateException("action 동기 예외")
             }.join()
         }
 
-        val result = election.runIfLeader(lockName) { "복구 성공" }
+        val result = elector.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
     }
 
     @Test
     fun `runAsyncIfLeader - caller executor shutdown 후 action 완료되어도 cleanup 이 실행된다`() {
         val lockName = randomName()
-        val election = MongoLeaderElector(
+        val elector = MongoLeaderElector(
             lockCollection,
             MongoLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
@@ -326,7 +327,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
         val actionFuture = CompletableFuture<String>()
 
         try {
-            val resultFuture = election.runAsyncIfLeader(lockName, executor) {
+            val resultFuture = elector.runAsyncIfLeader(lockName, executor) {
                 actionStarted.countDown()
                 actionFuture
             }
@@ -334,9 +335,9 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
             executor.shutdown()
 
             actionFuture.complete("done")
-
             resultFuture.get(3.seconds) shouldBeEqualTo "done"
-            election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+
+            elector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             executor.shutdownNow()
         }
@@ -345,12 +346,12 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     @Test
     fun `runAsyncIfLeader - 결과 future 취소를 실행 중인 action과 락 정리에 전파한다`() {
         val lockName = randomName()
-        val election = MongoLeaderElector(lockCollection)
+        val elector = MongoLeaderElector(lockCollection)
         val actionStarted = CountDownLatch(1)
         val actionFuture = CompletableFuture<String>()
 
         try {
-            val resultFuture = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+            val resultFuture = elector.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
                 actionStarted.countDown()
                 actionFuture
             }
@@ -358,13 +359,14 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
 
             resultFuture.cancel(false).shouldBeTrue()
 
-            await.atMost(2.seconds).untilAsserted {
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
                 actionFuture.isCancelled.shouldBeTrue()
             }
-            await.atMost(2.seconds).untilAsserted {
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
                 lockCollection.countDocuments(Filters.eq("_id", lockName)) shouldBeEqualTo 0L
             }
-            election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+
+            elector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             actionFuture.cancel(false)
         }
@@ -374,7 +376,6 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     fun `ensureIndexes - resetEnsuredFor 후 재호출 시 에러 없이 완료된다`() {
         val namespace = lockCollection.namespace.fullName
         MongoLock.resetEnsuredFor(namespace)
-
         MongoLock.ensureIndexes(lockCollection)
     }
 
@@ -406,9 +407,9 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     @Test
     fun `runAsyncIfLeader - 정상 완료 후 락 문서가 삭제된다`() {
         val lockName = randomName()
-        val election = MongoLeaderElector(lockCollection)
+        val elector = MongoLeaderElector(lockCollection)
 
-        election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+        elector.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
             futureOf { "ok" }
         }.get(5.seconds) shouldBeEqualTo "ok"
 

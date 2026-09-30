@@ -5,7 +5,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -13,22 +13,24 @@ import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendLeaderHistorySink
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
+import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
 import java.time.Instant
-import kotlin.time.Duration
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import java.util.concurrent.atomic.AtomicInteger
 
 class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
 
@@ -38,28 +40,27 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
     fun `MongoSuspendLock token uses 128-bit Base58 length`() = runSuspendIO {
         val lock = MongoSuspendLock(coroutineLockCollection, randomName())
 
-        lock.token.length shouldBeEqualTo 22
+        lock.token.length shouldBeEqualTo MongoLock.DEFAULT_TOKEN_LENGTH
     }
 
     @Test
     fun `runIfLeader - 리더로 선출되어 suspend action을 실행하고 결과를 반환한다`() = runSuspendIO {
-        val election = MongoSuspendLeaderElector(coroutineLockCollection)
+        val elector = MongoSuspendLeaderElector(coroutineLockCollection)
         val lockName = randomName()
 
-        val result = election.runIfLeader(lockName) { "success" }
-
+        val result = elector.runIfLeader(lockName) { "success" }
         result shouldBeEqualTo "success"
     }
 
     @Test
     fun `runIfLeader - 코루틴 10개 동시 실행 시 최소 1개 이상 성공한다`() = runSuspendIO {
-        val election = MongoSuspendLeaderElector(coroutineLockCollection)
+        val elector = MongoSuspendLeaderElector(coroutineLockCollection)
         val lockName = randomName()
         val successCount = AtomicInteger(0)
 
         val jobs = (1..10).map {
             async {
-                election.runIfLeader(lockName) {
+                elector.runIfLeader(lockName) {
                     successCount.incrementAndGet()
                     delay(10.milliseconds)
                 }
@@ -73,10 +74,12 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - 빈 lockName은 IllegalArgumentException을 던진다`() = runSuspendIO {
-        val election = MongoSuspendLeaderElector(coroutineLockCollection)
+        val elector = MongoSuspendLeaderElector(coroutineLockCollection)
 
         assertFailsWith<IllegalArgumentException> {
-            runBlocking { election.runIfLeader("") { "never" } }
+            withContext(Dispatchers.IO) {
+                elector.runIfLeader("") { "never" }
+            }
         }
     }
 
@@ -85,7 +88,9 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
         val election = MongoSuspendLeaderElector(coroutineLockCollection)
 
         assertFailsWith<IllegalArgumentException> {
-            runBlocking { election.runIfLeader("a.b") { "never" } }
+            withContext(Dispatchers.IO) {
+                election.runIfLeader("a.b") { "never" }
+            }
         }
     }
 
@@ -94,15 +99,17 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
         val election = MongoSuspendLeaderElector(coroutineLockCollection)
 
         assertFailsWith<IllegalArgumentException> {
-            runBlocking { election.runIfLeader("a:slot:b") { "never" } }
+            withContext(Dispatchers.IO) {
+                election.runIfLeader("a:slot:b") { "never" }
+            }
         }
     }
 
     @Test
     fun `runIfLeader - 락 보유 중 짧은 waitTime으로 경합하면 null을 반환한다`() = runSuspendIO {
         val lockName = randomName()
-        val holdingElection = MongoSuspendLeaderElector(coroutineLockCollection)
-        val shortWaitElection = MongoSuspendLeaderElector(
+        val holdingElector = MongoSuspendLeaderElector(coroutineLockCollection)
+        val shortWaitElector = MongoSuspendLeaderElector(
             coroutineLockCollection,
             MongoLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
@@ -116,7 +123,7 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
         val release = CompletableDeferred<Unit>()
 
         val holder = launch {
-            holdingElection.runIfLeader(lockName) {
+            holdingElector.runIfLeader(lockName) {
                 acquired.complete(Unit)
                 release.await()
             }
@@ -124,7 +131,7 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
 
         acquired.await()
 
-        val result = shortWaitElection.runIfLeader(lockName) { "should-not-run" }
+        val result = shortWaitElector.runIfLeader(lockName) { "should-not-run" }
         result.shouldBeNull()
 
         release.complete(Unit)
@@ -133,11 +140,11 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - action이 예외를 던지면 예외가 호출자에게 전파된다`() = runSuspendIO {
-        val election = MongoSuspendLeaderElector(coroutineLockCollection)
+        val elector = MongoSuspendLeaderElector(coroutineLockCollection)
         val lockName = randomName()
 
         val thrown = assertFailsWith<LeaderElectionException> {
-            election.runIfLeader(lockName) { throw LeaderElectionException("테스트 예외") }
+            elector.runIfLeader(lockName) { throw LeaderElectionException("테스트 예외") }
         }
 
         thrown.message shouldBeEqualTo "테스트 예외"
@@ -145,30 +152,30 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - action 예외 발생 후 lock이 해제되어 다음 호출이 성공한다`() = runSuspendIO {
-        val election = MongoSuspendLeaderElector(coroutineLockCollection)
+        val elector = MongoSuspendLeaderElector(coroutineLockCollection)
         val lockName = randomName()
 
         runCatching {
-            election.runIfLeader(lockName) { throw LeaderElectionException("실패") }
+            elector.runIfLeader(lockName) { throw LeaderElectionException("실패") }
         }
 
-        val result = election.runIfLeader(lockName) { "복구 성공" }
+        val result = elector.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
     }
 
     @Test
     fun `runIfLeader - 코루틴 취소 시 락 문서가 삭제된다`() = runSuspendIO {
-        val election = MongoSuspendLeaderElector(coroutineLockCollection)
+        val elector = MongoSuspendLeaderElector(coroutineLockCollection)
         val lockName = randomName()
 
         val acquired = CompletableDeferred<Unit>()
 
         val job = launch {
-            election.runIfLeader(lockName) {
+            elector.runIfLeader(lockName) {
                 acquired.complete(Unit)
                 delay(Long.MAX_VALUE.milliseconds)
             }
-        }
+        }.log("Job")
 
         acquired.await()
         job.cancel()
@@ -182,24 +189,26 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
     fun `runIfLeader - recordAcquired 취소 후에도 lock 이 해제되어 다음 호출이 성공한다`() = runSuspendIO {
         val lockName = randomName()
         val cancelingRecorder = SuspendSafeLeaderHistoryRecorder(CancelOnAcquiredHistorySink)
-        val election = MongoSuspendLeaderElector(coroutineLockCollection, historyRecorder = cancelingRecorder)
+        val elector = MongoSuspendLeaderElector(coroutineLockCollection, historyRecorder = cancelingRecorder)
 
         assertFailsWith<CancellationException> {
-            election.runIfLeader(lockName) { "should-not-run" }
+            elector.runIfLeader(lockName) { "should-not-run" }
         }
 
         val doc = lockCollection.find(Filters.eq("_id", lockName)).first()
         doc.shouldBeNull()
-        MongoSuspendLeaderElector(coroutineLockCollection).runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+
+        MongoSuspendLeaderElector(coroutineLockCollection)
+            .runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
     }
 
     @Test
     fun `runIfLeader - 반복 실행 시 매번 성공한다`() = runSuspendIO {
-        val election = MongoSuspendLeaderElector(coroutineLockCollection)
+        val elector = MongoSuspendLeaderElector(coroutineLockCollection)
         val lockName = randomName()
 
         repeat(5) { i ->
-            val result = election.runIfLeader(lockName) { "round-$i" }
+            val result = elector.runIfLeader(lockName) { "round-$i" }
             result shouldBeEqualTo "round-$i"
         }
     }
@@ -207,17 +216,18 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
     @Test
     fun `ensureIndexes - resetEnsuredFor 후 재호출 시 에러 없이 완료된다 (suspend)`() = runSuspendIO {
         val namespace = coroutineLockCollection.namespace.fullName
-        io.bluetape4k.leader.mongodb.lock.MongoSuspendLock.resetEnsuredFor(namespace)
-
-        io.bluetape4k.leader.mongodb.lock.MongoSuspendLock.ensureIndexes(coroutineLockCollection)
+        MongoSuspendLock.resetEnsuredFor(namespace)
+        MongoSuspendLock.ensureIndexes(coroutineLockCollection)
     }
 
-    private object CancelOnAcquiredHistorySink: SuspendLeaderHistorySink {
+    private object CancelOnAcquiredHistorySink: SuspendLeaderHistorySink, KLoggingChannel() {
+
         override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
             throw CancellationException("cancel after acquire")
         }
 
         override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
+            log.debug { "record completed for $key, finishedAt=$finishedAt durationMs=$durationMs" }
         }
 
         override suspend fun recordFailed(
@@ -227,6 +237,9 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
             errorType: String?,
             errorMessage: String?,
         ) {
+            log.debug {
+                "Fail to record. key=$key, finishedAt=$finishedAt, durationMs=$durationMs, errorType=$errorType, errorMessage=$errorMessage"
+            }
         }
     }
 }

@@ -87,7 +87,7 @@ class MongoSuspendLock private constructor(
         }
     }
 
-    internal val token: String = Base58.randomString(22)
+    internal val token: String = Base58.randomString(MongoLock.DEFAULT_TOKEN_LENGTH)
 
     /**
      * `tryLock` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
@@ -167,7 +167,10 @@ class MongoSuspendLock private constructor(
      */
     suspend fun isHeldByCurrentInstance(): Boolean =
         collection.countDocuments(
-            Filters.and(Filters.eq("_id", lockKey), Filters.eq("token", token))
+            Filters.and(
+                Filters.eq("_id", lockKey),
+                Filters.eq("token", token)
+            )
         ) > 0
 
     /**
@@ -182,12 +185,18 @@ class MongoSuspendLock private constructor(
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
         val matched = if (remaining > Duration.ZERO) {
             collection.updateOne(
-                Filters.and(Filters.eq("_id", lockKey), Filters.eq("token", token)),
+                Filters.and(
+                    Filters.eq("_id", lockKey),
+                    Filters.eq("token", token)
+                ),
                 Updates.set("expireAt", Date(System.currentTimeMillis() + remaining.inWholeMilliseconds))
             ).matchedCount
         } else {
             collection.deleteOne(
-                Filters.and(Filters.eq("_id", lockKey), Filters.eq("token", token))
+                Filters.and(
+                    Filters.eq("_id", lockKey),
+                    Filters.eq("token", token)
+                )
             ).deletedCount
         }
         if (matched == 0L) {

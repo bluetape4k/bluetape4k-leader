@@ -6,7 +6,6 @@ import io.bluetape4k.support.requirePositiveNumber
 import java.io.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * `MongoLeaderGroupElectionOptions`는 MongoDB leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
@@ -17,7 +16,7 @@ import kotlin.time.Duration.Companion.seconds
 data class MongoLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     val retryDelay: Duration = 50.milliseconds,
-) : Serializable {
+): Serializable {
 
     /**
      * `maxLeaders` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
@@ -35,5 +34,7 @@ data class MongoLeaderGroupElectionOptions(
          */
         @JvmField
         val Default = MongoLeaderGroupElectionOptions()
+
+        private const val serialVersionUID = 1L
     }
 }

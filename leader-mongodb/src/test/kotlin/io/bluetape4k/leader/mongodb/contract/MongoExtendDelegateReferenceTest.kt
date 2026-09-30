@@ -40,9 +40,9 @@ import kotlin.time.Duration.Companion.seconds
  * `extendDetailed` 가 `expireAt > now` filter 를 사용하므로 acquire 직후 (lease 미만료) 항상 Extended 가 반환됩니다.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class MongoExtendDelegateReferenceTest : AbstractMongoLeaderTest() {
+class MongoExtendDelegateReferenceTest: AbstractMongoLeaderTest() {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     private fun randomLockName(): String = "extdelref-mongo-${Base58.randomString(8)}"
 

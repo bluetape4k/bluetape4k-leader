@@ -2,11 +2,11 @@ package io.bluetape4k.leader.mongodb
 
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.leader.unwrapCompletionException
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -38,7 +38,7 @@ internal object AsyncLeaseCleanupDispatcher: KLogging() {
         cleanup: () -> Unit,
     ): CompletableFuture<T> =
         completeAfter(failedCompletableFutureOf<T>(failure), cleanup) { _, sourceFailure ->
-            throw sourceFailure?.unwrapCompletionCause() ?: failure
+            throw sourceFailure?.unwrapCompletionException() ?: failure
         }
 
     fun execute(cleanup: () -> Unit): CompletableFuture<Unit> =
@@ -59,7 +59,7 @@ internal object AsyncLeaseCleanupDispatcher: KLogging() {
                 if (started.compareAndSet(false, true)) {
                     val cleanupFailure = runCatching(cleanup).exceptionOrNull()
                     if (cleanupFailure != null) {
-                        val originalFailure = failure?.unwrapCompletionCause()
+                        val originalFailure = failure?.unwrapCompletionException()
                         if (originalFailure != null) {
                             originalFailure.addSuppressed(cleanupFailure)
                             result.completeExceptionally(originalFailure)
@@ -99,15 +99,13 @@ internal object AsyncLeaseCleanupDispatcher: KLogging() {
         return result
     }
 
-    private fun Throwable.unwrapCompletionCause(): Throwable =
-        (this as? CompletionException)?.cause ?: this
-
     private fun terminalDispatchFailure(
         sourceFailure: Throwable?,
         dispatchFailure: Throwable,
         fallbackFailure: Throwable,
-    ): Throwable = sourceFailure?.unwrapCompletionCause()?.also { original ->
-        original.addSuppressed(dispatchFailure)
-        original.addSuppressed(fallbackFailure)
-    } ?: dispatchFailure.also { it.addSuppressed(fallbackFailure) }
+    ): Throwable =
+        sourceFailure?.unwrapCompletionException()?.also { original ->
+            original.addSuppressed(dispatchFailure)
+            original.addSuppressed(fallbackFailure)
+        } ?: dispatchFailure.also { it.addSuppressed(fallbackFailure) }
 }

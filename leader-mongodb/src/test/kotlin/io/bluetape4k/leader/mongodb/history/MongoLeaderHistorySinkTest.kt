@@ -20,7 +20,7 @@ import kotlinx.coroutines.test.runTest
 import org.bson.Document
 import org.junit.jupiter.api.Test
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 
 class MongoLeaderHistorySinkTest {
 
@@ -53,7 +53,7 @@ class MongoLeaderHistorySinkTest {
     }
 }
 
-class MongoLeaderHistorySinkIntegrationTest : AbstractMongoLeaderTest() {
+class MongoLeaderHistorySinkIntegrationTest: AbstractMongoLeaderTest() {
 
     @Test
     fun `MongoDB history document는 canonical UUID와 update 경로를 보존한다`() = runSuspendIO {

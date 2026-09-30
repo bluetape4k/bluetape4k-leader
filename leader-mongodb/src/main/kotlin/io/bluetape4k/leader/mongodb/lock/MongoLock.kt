@@ -15,11 +15,11 @@ import com.mongodb.client.model.Updates
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
+import io.bluetape4k.leader.AcquireResult
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.mongodb.internal.MonotonicDeadline
 import io.bluetape4k.leader.remainingMinLeaseTime
-import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
@@ -50,11 +50,13 @@ class MongoLock private constructor(
     val lockKey: String,
     private val retryDelay: Duration,
 ) {
-    companion object : KLogging() {
+    companion object: KLogging() {
         /**
          * `LOCK_COLLECTION_NAME` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         const val LOCK_COLLECTION_NAME = "bluetape4k_leader_locks"
+
+        const val DEFAULT_TOKEN_LENGTH = 22
 
         /**
          * `GROUP_LOCK_COLLECTION_NAME` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
@@ -102,13 +104,8 @@ class MongoLock private constructor(
         }
     }
 
-    internal val token: String = Base58.randomString(22)
+    internal val token: String = Base58.randomString(DEFAULT_TOKEN_LENGTH)
 
-    private enum class AcquireResult {
-        ACQUIRED,
-        CONTENDED,
-        FAILED,
-    }
 
     /**
      * `tryLock` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
@@ -125,7 +122,7 @@ class MongoLock private constructor(
                     return true
                 }
                 AcquireResult.CONTENDED -> Unit
-                AcquireResult.FAILED -> return false
+                AcquireResult.FAILED   -> return false
             }
 
             if (deadline.hasTimeRemaining()) {
@@ -156,7 +153,7 @@ class MongoLock private constructor(
         val deadline = MonotonicDeadline.fromNow(waitTime)
         val currentStage = AtomicReference<CompletableFuture<*>?>()
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
-        val cancellationTarget = object : CompletableFuture<Unit>() {
+        val cancellationTarget = object: CompletableFuture<Unit>() {
             override fun cancel(mayInterruptIfRunning: Boolean): Boolean {
                 currentStage.get()?.cancel(mayInterruptIfRunning)
                 return super.cancel(mayInterruptIfRunning)
@@ -180,8 +177,11 @@ class MongoLock private constructor(
 
         fun releaseLateAcquisition(released: AtomicBoolean) {
             if (released.compareAndSet(false, true)) {
-                runCatching { unlock() }
-                    .onFailure { error -> log.warn(error) { "취소된 async 락 획득을 반납하지 못했습니다: lockKey=$lockKey" } }
+                runCatching {
+                    unlock()
+                }.onFailure {
+                    log.warn(it) { "취소된 async 락 획득을 반납하지 못했습니다: lockKey=$lockKey" }
+                }
             }
         }
 
@@ -224,7 +224,9 @@ class MongoLock private constructor(
                     return@whenComplete
                 }
                 if (result.isCancelled) {
-                    if (acquired == AcquireResult.ACQUIRED) releaseLateAcquisition(lateRelease)
+                    if (acquired == AcquireResult.ACQUIRED) {
+                        releaseLateAcquisition(lateRelease)
+                    }
                     return@whenComplete
                 }
 
@@ -235,7 +237,7 @@ class MongoLock private constructor(
                             releaseLateAcquisition(lateRelease)
                         }
                     }
-                    AcquireResult.FAILED -> complete(false)
+                    AcquireResult.FAILED   -> complete(false)
                     AcquireResult.CONTENDED -> {
                         if (!deadline.hasTimeRemaining()) {
                             log.debug { "락 획득 실패 (타임아웃, async): lockKey=$lockKey" }
@@ -283,7 +285,7 @@ class MongoLock private constructor(
                     log.error(e) { "MongoDB 인증 오류 (code=${e.errorCode}) 발생: lockKey=$lockKey" }
                     AcquireResult.FAILED
                 }
-                else -> {
+                else  -> {
                     log.warn(e) { "MongoDB 커맨드 오류 (code=${e.errorCode}) 발생: lockKey=$lockKey" }
                     AcquireResult.FAILED
                 }
@@ -320,7 +322,10 @@ class MongoLock private constructor(
      */
     fun isHeldByCurrentInstance(): Boolean =
         collection.find(
-            Filters.and(Filters.eq("_id", lockKey), Filters.eq("token", token))
+            Filters.and(
+                Filters.eq("_id", lockKey),
+                Filters.eq("token", token)
+            )
         ).first() != null
 
     /**
@@ -335,12 +340,18 @@ class MongoLock private constructor(
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
         val matched = if (remaining > Duration.ZERO) {
             collection.updateOne(
-                Filters.and(Filters.eq("_id", lockKey), Filters.eq("token", token)),
+                Filters.and(
+                    Filters.eq("_id", lockKey),
+                    Filters.eq("token", token)
+                ),
                 Updates.set("expireAt", Date(System.currentTimeMillis() + remaining.inWholeMilliseconds))
             ).matchedCount
         } else {
             collection.deleteOne(
-                Filters.and(Filters.eq("_id", lockKey), Filters.eq("token", token))
+                Filters.and(
+                    Filters.eq("_id", lockKey),
+                    Filters.eq("token", token)
+                )
             ).deletedCount
         }
         if (matched == 0L) {
@@ -375,9 +386,4 @@ class MongoLock private constructor(
             ExtendOutcome.NotHeld
         }
     }
-}
-
-internal fun validateMongoLockName(lockName: String) {
-    lockName.validateLockName()
-    require(!lockName.contains(":slot:")) { "lockName must not contain ':slot:': $lockName" }
 }

@@ -16,7 +16,7 @@ class MongoHistoryTtlGauge(
     registry: MeterRegistry,
 ) {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         private const val GAUGE_TTL_DISABLED = "leader.history.mongodb.ttl.disabled"
     }
 

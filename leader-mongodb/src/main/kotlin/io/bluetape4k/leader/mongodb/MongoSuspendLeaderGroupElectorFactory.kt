@@ -1,11 +1,11 @@
 package io.bluetape4k.leader.mongodb
 
 import com.mongodb.client.MongoCollection
-import com.mongodb.kotlin.client.coroutine.MongoCollection as CoroutineMongoCollection
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import org.bson.Document
+import com.mongodb.kotlin.client.coroutine.MongoCollection as CoroutineMongoCollection
 
 /**
  * `MongoSuspendLeaderGroupElectorFactory`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -19,7 +19,7 @@ class MongoSuspendLeaderGroupElectorFactory(
     private val groupCollection: MongoCollection<Document>,
     private val coroutineGroupCollection: CoroutineMongoCollection<Document>,
     private val baseOptions: MongoLeaderGroupElectionOptions = MongoLeaderGroupElectionOptions.Default,
-) : SuspendLeaderGroupElectorFactory {
+): SuspendLeaderGroupElectorFactory {
 
     override suspend fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
         MongoSuspendLeaderGroupElector(

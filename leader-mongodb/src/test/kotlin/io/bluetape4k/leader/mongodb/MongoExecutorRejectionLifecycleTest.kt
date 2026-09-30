@@ -9,6 +9,7 @@ import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
@@ -21,6 +22,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class MongoExecutorRejectionLifecycleTest: AbstractMongoLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `single async executor 거부 후 획득한 lock을 정리한다`() {
@@ -41,11 +44,15 @@ class MongoExecutorRejectionLifecycleTest: AbstractMongoLeaderTest() {
                 actionInvoked.set(true)
                 completableFutureOf("must-not-run")
             }
-            val failure = assertFailsWith<CompletionException> { rejected.join() }
+
+            val failure = assertFailsWith<CompletionException> {
+                rejected.join()
+            }
 
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             rejectingExecutor.submissions.get() shouldBeEqualTo 2
             actionInvoked.get().shouldBeFalse()
+
             election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
         } finally {
             rejectingExecutor.close()
@@ -75,11 +82,13 @@ class MongoExecutorRejectionLifecycleTest: AbstractMongoLeaderTest() {
                 actionInvoked.set(true)
                 completableFutureOf("must-not-run")
             }
-            val failure = assertFailsWith<CompletionException> { rejected.join() }
-
+            val failure = assertFailsWith<CompletionException> {
+                rejected.join()
+            }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             rejectingExecutor.submissions.get() shouldBeEqualTo 2
             actionInvoked.get().shouldBeFalse()
+
             election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
         } finally {
             rejectingExecutor.close()
