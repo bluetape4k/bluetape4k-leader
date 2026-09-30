@@ -12,8 +12,11 @@ import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.logging.KLogging
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
@@ -27,6 +30,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class RedissonExecutorRejectionLifecycleTest: AbstractRedissonLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `single nullable 취소를 action과 lock lifecycle에 전파한다`() {
@@ -45,7 +50,8 @@ class RedissonExecutorRejectionLifecycleTest: AbstractRedissonLeaderTest() {
             actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             actionFuture.isCancelled.shouldBeTrue()
-            await.atMost(2.seconds).untilAsserted {
+
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
         } finally {
@@ -62,15 +68,17 @@ class RedissonExecutorRejectionLifecycleTest: AbstractRedissonLeaderTest() {
         val actionFuture = CompletableFuture<String>()
 
         try {
-            val result = election.runAsyncIfLeaderResult(LeaderSlot(lockName, "redisson-cancel"), executor) {
-                actionStarted.countDown()
-                actionFuture
-            }
+            val result = election
+                .runAsyncIfLeaderResult(LeaderSlot(lockName, "redisson-cancel"), executor) {
+                    actionStarted.countDown()
+                    actionFuture
+                }
 
             actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             actionFuture.isCancelled.shouldBeTrue()
-            await.atMost(2.seconds).untilAsserted {
+
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
         } finally {
@@ -90,15 +98,17 @@ class RedissonExecutorRejectionLifecycleTest: AbstractRedissonLeaderTest() {
         val actionFuture = CompletableFuture<String>()
 
         try {
-            val result = election.runAsyncIfLeaderResult(LeaderSlot(lockName, "redisson-group-cancel"), executor) {
-                actionStarted.countDown()
-                actionFuture
-            }
+            val result = election
+                .runAsyncIfLeaderResult(LeaderSlot(lockName, "redisson-group-cancel"), executor) {
+                    actionStarted.countDown()
+                    actionFuture
+                }
 
             actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             actionFuture.isCancelled.shouldBeTrue()
-            await.atMost(2.seconds).untilAsserted {
+
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
         } finally {
@@ -126,7 +136,8 @@ class RedissonExecutorRejectionLifecycleTest: AbstractRedissonLeaderTest() {
             actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             actionFuture.isCancelled.shouldBeTrue()
-            await.atMost(2.seconds).untilAsserted {
+
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
         } finally {
@@ -161,12 +172,17 @@ class RedissonExecutorRejectionLifecycleTest: AbstractRedissonLeaderTest() {
                 actionInvoked.set(true)
                 completableFutureOf("must-not-run")
             }
-            val failure = assertFailsWith<CompletionException> { rejected.join() }
+            val failure = assertFailsWith<CompletionException> {
+                rejected.join()
+            }
 
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             submissions.get() shouldBeEqualTo 2
             actionInvoked.get().shouldBeFalse()
-            futureOf { election.runIfLeader(lockName) { "recovered" } }.get(2.seconds) shouldBeEqualTo "recovered"
+
+            futureOf {
+                election.runIfLeader(lockName) { "recovered" }
+            }.get(2.seconds) shouldBeEqualTo "recovered"
         } finally {
             worker.shutdownNow()
         }
@@ -203,11 +219,14 @@ class RedissonExecutorRejectionLifecycleTest: AbstractRedissonLeaderTest() {
                 actionInvoked.set(true)
                 completableFutureOf("must-not-run")
             }
-            val failure = assertFailsWith<CompletionException> { rejected.join() }
+            val failure = assertFailsWith<CompletionException> {
+                rejected.join()
+            }
 
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             submissions.get() shouldBeEqualTo 2
             actionInvoked.get().shouldBeFalse()
+
             election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
         } finally {
             worker.shutdownNow()

@@ -26,9 +26,9 @@ import kotlin.time.Duration
 class RedissonStrategicSuspendLeaderElector(
     redissonClient: RedissonClient,
     override val nodeId: String = Uuid.V7.nextBase62(),
-) : StrategicSuspendLeaderElector {
+): StrategicSuspendLeaderElector {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val registry = RedissonCandidateRegistry(redissonClient)
 
@@ -68,6 +68,7 @@ class RedissonStrategicSuspendLeaderElector(
 
         val total = result.eliminations.size + 1
         log.info { "[$lockName] 선출: ${winner.nodeId} (전략: ${strategy::class.simpleName}, 후보: ${total}명)" }
+
         if (result.scores.isNotEmpty()) {
             log.debug {
                 val scoreText = result.scores.entries
@@ -76,9 +77,7 @@ class RedissonStrategicSuspendLeaderElector(
                 "[$lockName] 점수: $scoreText"
             }
         }
-        result.eliminations.forEach { e ->
-            log.debug { "[$lockName] 탈락: ${e.candidate.nodeId} — ${e.reason}" }
-        }
+        result.eliminations.forEach { log.debug { "[$lockName] 탈락: ${it.candidate.nodeId} — ${it.reason}" } }
 
         if (winner.nodeId != nodeId) return null
 

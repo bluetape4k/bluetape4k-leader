@@ -3,11 +3,11 @@ package io.bluetape4k.leader.redisson
 import io.bluetape4k.leader.diagnostics.LeaderBackendCapabilities
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
-import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDescriptor
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
@@ -18,7 +18,7 @@ import kotlin.time.Duration
 /** Redis Redisson backend의 정적 capability와 기존 client 기반 connectivity 계약입니다. */
 class RedissonLeaderBackendDiagnostics(
     private val redissonClient: RedissonClient,
-) : LeaderBackendDiagnosticsProvider {
+): LeaderBackendDiagnosticsProvider {
 
     override val backendDescriptor: LeaderBackendDescriptor = DESCRIPTOR
 

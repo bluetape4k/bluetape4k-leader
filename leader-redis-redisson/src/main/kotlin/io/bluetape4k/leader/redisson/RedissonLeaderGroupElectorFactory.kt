@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectorFactory
-import io.bluetape4k.leader.LeaderGroupElectionOptions
 import org.redisson.api.RedissonClient
 
 /**
@@ -13,7 +13,7 @@ import org.redisson.api.RedissonClient
  */
 class RedissonLeaderGroupElectorFactory(
     private val redissonClient: RedissonClient,
-) : LeaderGroupElectorFactory {
+): LeaderGroupElectorFactory {
 
     override fun create(options: LeaderGroupElectionOptions): LeaderGroupElector =
         RedissonLeaderGroupElector(redissonClient, options)

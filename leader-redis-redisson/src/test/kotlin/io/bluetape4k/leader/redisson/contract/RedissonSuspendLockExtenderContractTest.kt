@@ -13,9 +13,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RedissonSuspendLockExtenderContractTest: AbstractSuspendLockExtenderContractTest() {
 
-    companion object: KLogging() {
-        val redis = AbstractRedissonLeaderTest.redis
-    }
+    companion object: KLogging()
 
     override val elector: SuspendLeaderElector =
         RedissonSuspendLeaderElector(AbstractRedissonLeaderTest.redissonClient)

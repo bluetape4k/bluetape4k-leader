@@ -7,9 +7,12 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
+import io.bluetape4k.logging.KLogging
+import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.redisson.api.RMapCache
 import org.redisson.api.RedissonClient
@@ -17,6 +20,23 @@ import org.redisson.misc.CompletableFutureWrapper
 import java.util.concurrent.atomic.AtomicBoolean
 
 class RedissonStrategicCandidateLookupFailureTest {
+
+    companion object: KLogging()
+
+    private val client = mockk<RedissonClient>()
+    private val cache = mockk<RMapCache<String, CandidateInfo>>()
+
+    @BeforeEach
+    fun beforeEach() {
+        clearMocks(client, cache)
+    }
+
+    private fun redissonClient(failure: Throwable): RedissonClient {
+        every { client.getMapCache<String, CandidateInfo>(any<String>()) } returns cache
+        every { cache.readAllValues() } throws failure
+        every { cache.readAllValuesAsync() } returns CompletableFutureWrapper(failure)
+        return client
+    }
 
     @Test
     fun `blocking single candidate lookup backend exception is rethrown`() {
@@ -160,14 +180,5 @@ class RedissonStrategicCandidateLookupFailureTest {
 
         thrown.message shouldBeEqualTo failure.message
         actionInvoked.get().shouldBeFalse()
-    }
-
-    private fun redissonClient(failure: Throwable): RedissonClient {
-        val client = mockk<RedissonClient>()
-        val cache = mockk<RMapCache<String, CandidateInfo>>()
-        every { client.getMapCache<String, CandidateInfo>(any<String>()) } returns cache
-        every { cache.readAllValues() } throws failure
-        every { cache.readAllValuesAsync() } returns CompletableFutureWrapper(failure)
-        return client
     }
 }

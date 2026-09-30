@@ -3,6 +3,7 @@ package io.bluetape4k.leader.redisson
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
+import io.bluetape4k.logging.KLogging
 import org.redisson.api.RedissonClient
 
 /**
@@ -13,7 +14,9 @@ import org.redisson.api.RedissonClient
  */
 class RedissonSuspendLeaderElectorFactory(
     private val redissonClient: RedissonClient,
-) : SuspendLeaderElectorFactory {
+): SuspendLeaderElectorFactory {
+
+    companion object: KLogging()
 
     override suspend fun create(options: LeaderElectionOptions): SuspendLeaderElector =
         RedissonSuspendLeaderElector(redissonClient, options)

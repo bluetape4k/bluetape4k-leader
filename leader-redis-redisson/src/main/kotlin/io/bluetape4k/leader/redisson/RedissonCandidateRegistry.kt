@@ -1,10 +1,12 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.coroutines.support.awaitUntil
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.toUtf8Bytes
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -13,6 +15,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.redisson.RedissonObject
+import org.redisson.api.RFuture
 import org.redisson.api.RLock
 import org.redisson.api.RMapCache
 import org.redisson.api.RScript
@@ -20,7 +23,6 @@ import org.redisson.api.RedissonClient
 import org.redisson.client.codec.Codec
 import org.redisson.client.codec.StringCodec
 import org.redisson.client.protocol.Encoder
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -44,7 +46,7 @@ internal class RedissonCandidateRegistry(
     private val keyPrefix: String = DEFAULT_KEY_PREFIX,
 ) {
     /** 기존 internal JVM constructor descriptor를 보존합니다. */
-    internal constructor(redissonClient: RedissonClient) : this(
+    internal constructor(redissonClient: RedissonClient): this(
         redissonClient,
         DEFAULT_KEY_PREFIX,
     )
@@ -55,6 +57,7 @@ internal class RedissonCandidateRegistry(
         private val ENTRY_LOCK_ATTEMPT_TIMEOUT = 500.milliseconds
         private val ENTRY_LOCK_SOURCE_DEADLINE = 2.seconds
         private val ENTRY_LOCK_CLEANUP_TIMEOUT = 1.seconds
+
         // Redisson은 owner ID를 lock hash의 `clientId:threadId`로 저장한다.
         // Blocking 경로는 JVM thread ID(양수)를 사용하므로 같은 client에서도
         // coroutine entry lock은 충돌하지 않는 음수 namespace를 사용한다.
@@ -212,17 +215,18 @@ internal class RedissonCandidateRegistry(
         refreshed: CandidateInfo,
         ttl: Duration,
     ): Boolean {
-        val result = redissonClient.getScript(refreshScriptCodec(cache)).eval<Long>(
-            cache.name,
-            RScript.Mode.READ_WRITE,
-            REFRESH_CANDIDATE_SCRIPT,
-            RScript.ReturnType.LONG,
-            mapCacheScriptKeys(cache),
-            RefreshScriptMapKey(current.nodeId),
-            RefreshScriptMapValue(current),
-            RefreshScriptMapValue(refreshed),
-            RefreshScriptTtl(ttl.inWholeMilliseconds),
-        )
+        val result = redissonClient.getScript(refreshScriptCodec(cache))
+            .eval<Long>(
+                cache.name,
+                RScript.Mode.READ_WRITE,
+                REFRESH_CANDIDATE_SCRIPT,
+                RScript.ReturnType.LONG,
+                mapCacheScriptKeys(cache),
+                RefreshScriptMapKey(current.nodeId),
+                RefreshScriptMapValue(current),
+                RefreshScriptMapValue(refreshed),
+                RefreshScriptTtl(ttl.inWholeMilliseconds),
+            )
         return result == 1L
     }
 
@@ -245,7 +249,7 @@ internal class RedissonCandidateRegistry(
                 RefreshScriptTtl(ttl.inWholeMilliseconds),
             )
             .toCompletableFuture()
-            .await()
+            .awaitUntil(ENTRY_LOCK_SOURCE_DEADLINE)
         return result == 1L
     }
 
@@ -255,13 +259,13 @@ internal class RedissonCandidateRegistry(
      */
     private fun refreshScriptCodec(cache: RMapCache<String, CandidateInfo>): Codec {
         val delegate = cache.codec
-        return object : Codec by delegate {
+        return object: Codec by delegate {
             private val valueEncoder = Encoder { value ->
                 when (value) {
                     is RefreshScriptMapKey -> delegate.mapKeyEncoder.encode(value.value)
                     is RefreshScriptMapValue -> delegate.mapValueEncoder.encode(value.value)
-                    is RefreshScriptTtl -> StringCodec.INSTANCE.valueEncoder.encode(value.value.toString())
-                    else -> error("지원하지 않는 refresh script 인자입니다: ${value::class.qualifiedName}")
+                    is RefreshScriptTtl    -> StringCodec.INSTANCE.valueEncoder.encode(value.value.toString())
+                    else                   -> error("지원하지 않는 refresh script 인자입니다: ${value::class.qualifiedName}")
                 }
             }
 
@@ -281,7 +285,7 @@ internal class RedissonCandidateRegistry(
             RedissonObject.prefixName("redisson__idle__set", name),
             RedissonObject.prefixName("redisson__map_cache__last_access__set", name),
             RedissonObject.suffixName(name, "redisson_options"),
-        ).map { it.toByteArray(StandardCharsets.UTF_8) }
+        ).map { it.toUtf8Bytes() }
     }
 
     /** Redisson `RFuture` 기반 후보 해제입니다. */
@@ -301,7 +305,7 @@ internal class RedissonCandidateRegistry(
         val cache = mapCacheFor(lockName)
         withEntryLockSuspending(cache, nodeId) {
             val current = cache.getAsync(nodeId).await() ?: return@withEntryLockSuspending
-            cache.fastPutIfExistsAsync(nodeId, current.withResult(result)).await()
+            cache.fastPutIfExistsAsync(nodeId, current.withResult(result)).awaitUntil(ENTRY_LOCK_SOURCE_DEADLINE)
         }
     }
 
@@ -384,7 +388,8 @@ internal class RedissonCandidateRegistry(
                         }
                     } else if (acquired == true) {
                         when {
-                            state.compareAndSet(LOCK_WAITING, LOCK_ACQUIRED) -> continuation.resume(true)
+                            state.compareAndSet(LOCK_WAITING, LOCK_ACQUIRED) ->
+                                continuation.resume(true)
                             state.compareAndSet(LOCK_CANCELLED, LOCK_CLEANUP_SCHEDULED) ->
                                 scheduleLateEntryLockCleanup(lock, threadId)
                         }
@@ -404,7 +409,7 @@ internal class RedissonCandidateRegistry(
                                 scheduleLateEntryLockCleanup(lock, threadId)
                                 return@invokeOnCancellation
                             }
-                            else -> return@invokeOnCancellation
+                            else         -> return@invokeOnCancellation
                         }
                     }
                 }
@@ -462,7 +467,7 @@ internal class RedissonCandidateRegistry(
     }
 
     /** Unlock 응답은 취소하지 않고 관찰하여 backend의 늦은 정리를 보존합니다. */
-    private suspend fun <T> org.redisson.api.RFuture<T>.awaitWithoutCancellingSource(): T =
+    private suspend fun <T> RFuture<T>.awaitWithoutCancellingSource(): T =
         suspendCancellableCoroutine { continuation ->
             whenComplete { value, failure ->
                 if (!continuation.isActive) {

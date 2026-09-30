@@ -5,9 +5,7 @@ import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -95,18 +93,4 @@ interface AsyncLeaderElector: LeaderElectionState {
                 }
             }
     }
-
-    private fun Throwable.unwrapCompletionCause(): Throwable =
-        (this as? CompletionException)?.cause ?: this
-
-    private fun Throwable.toActionFailedResult(): LeaderRunResult.ActionFailed {
-        val cause = unwrapCompletionCause()
-        if (cause is CancellationException) {
-            throw cause
-        }
-        return LeaderRunResult.ActionFailed(cause)
-    }
-
-    private fun Throwable.asCompletionException(): CompletionException =
-        this as? CompletionException ?: CompletionException(this)
 }

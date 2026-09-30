@@ -14,11 +14,9 @@ import org.junit.jupiter.api.TestInstance
  * Verifies slot-aware audit identity propagation for suspend [RedissonSuspendLeaderElector].
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class RedissonSuspendLeaderElectorLeaderIdContractTest : AbstractSuspendLeaderElectorLeaderIdContractTest() {
+class RedissonSuspendLeaderElectorLeaderIdContractTest: AbstractSuspendLeaderElectorLeaderIdContractTest() {
 
-    companion object : KLoggingChannel() {
-        val redis = AbstractRedissonLeaderTest.redis
-    }
+    companion object: KLoggingChannel() 
 
     override fun createElector(options: LeaderElectionOptions): SuspendLeaderElector =
         RedissonSuspendLeaderElector(AbstractRedissonLeaderTest.redissonClient, options)

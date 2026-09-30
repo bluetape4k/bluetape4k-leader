@@ -3,8 +3,11 @@ package io.bluetape4k.leader.redisson
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeLessThan
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
@@ -15,15 +18,29 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeout
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.redisson.api.RFuture
 import org.redisson.api.RLock
 import org.redisson.api.RMapCache
 import org.redisson.api.RedissonClient
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 class RedissonCandidateRegistryCancellationTest {
+
+    companion object: KLoggingChannel()
+
+    private val lock = mockk<RLock>(relaxed = true)
+    private val cache = mockk<RMapCache<String, CandidateInfo>>(relaxed = true)
+    private val client = mockk<RedissonClient>(relaxed = true)
+
+    @BeforeEach
+    fun beforeEach() {
+        clearMocks(lock, cache, client)
+    }
 
     @Test
     fun `entry lock cancellation unlocks a late server-side acquisition`() = runSuspendIO {
@@ -36,9 +53,6 @@ class RedissonCandidateRegistryCancellationTest {
         val acquisition = ControlledRFuture<Boolean>(ignoreCancellation = true) {
             sourceCancellationRequested.complete(Unit)
         }
-        val lock = mockk<RLock>()
-        val cache = mockk<RMapCache<String, CandidateInfo>>()
-        val client = mockk<RedissonClient>()
 
         every { client.getMapCache<String, CandidateInfo>(any<String>()) } returns cache
         every { cache.getLock(nodeId) } returns lock
@@ -46,7 +60,7 @@ class RedissonCandidateRegistryCancellationTest {
             lock.tryLockAsync(
                 any<Long>(),
                 any<Long>(),
-                any<java.util.concurrent.TimeUnit>(),
+                any<TimeUnit>(),
                 any<Long>(),
             )
         } answers {
@@ -67,16 +81,20 @@ class RedissonCandidateRegistryCancellationTest {
                 registry.registerCandidateSuspending(
                     lockName = "issue-826-late-acquire",
                     info = CandidateInfo(nodeId),
-                    ttl = kotlin.time.Duration.ZERO,
+                    ttl = Duration.ZERO,
                 )
-            }
+            }.log("Job")
 
             lockRequested.await()
             lockLease.await() shouldBeEqualTo -1L
             lockOwnerId.await() shouldBeLessThan 0L
             val cancellation = CancellationException("caller cancelled while waiting for entry lock")
             job.cancel(cancellation)
-            val thrown = assertFailsWith<CancellationException> { job.await() }
+
+            val thrown = assertFailsWith<CancellationException> {
+                job.await()
+            }
+
             thrown.message shouldBeEqualTo cancellation.message
             withTimeout(1.seconds) { sourceCancellationRequested.await() }
 
@@ -95,9 +113,6 @@ class RedissonCandidateRegistryCancellationTest {
             lockRequested.complete(Unit)
             sourceCancellationRequested.complete(Unit)
         }
-        val lock = mockk<RLock>()
-        val cache = mockk<RMapCache<String, CandidateInfo>>()
-        val client = mockk<RedissonClient>()
 
         every { client.getMapCache<String, CandidateInfo>(any<String>()) } returns cache
         every { cache.getLock(nodeId) } returns lock
@@ -119,7 +134,7 @@ class RedissonCandidateRegistryCancellationTest {
                 registry.registerCandidateSuspending(
                     lockName = "issue-826-source-timeout",
                     info = CandidateInfo(nodeId),
-                    ttl = kotlin.time.Duration.ZERO,
+                    ttl = Duration.ZERO,
                 )
             }
 
@@ -141,9 +156,6 @@ class RedissonCandidateRegistryCancellationTest {
         val acquisition = completedFuture(true)
         val action = ControlledRFuture<CandidateInfo>(ignoreCancellation = true)
         val unlock = ControlledRFuture<Void>(ignoreCancellation = true)
-        val lock = mockk<RLock>()
-        val cache = mockk<RMapCache<String, CandidateInfo>>()
-        val client = mockk<RedissonClient>()
 
         every { client.getMapCache<String, CandidateInfo>(any<String>()) } returns cache
         every { cache.getLock(nodeId) } returns lock
@@ -151,7 +163,7 @@ class RedissonCandidateRegistryCancellationTest {
             lock.tryLockAsync(
                 any<Long>(),
                 any<Long>(),
-                any<java.util.concurrent.TimeUnit>(),
+                any<TimeUnit>(),
                 any<Long>(),
             )
         } returns acquisition
@@ -167,7 +179,7 @@ class RedissonCandidateRegistryCancellationTest {
                 registry.registerCandidateSuspending(
                     lockName = "issue-826-unlock-timeout",
                     info = CandidateInfo(nodeId),
-                    ttl = kotlin.time.Duration.ZERO,
+                    ttl = Duration.ZERO,
                 )
             }
 
@@ -176,7 +188,7 @@ class RedissonCandidateRegistryCancellationTest {
             job.cancel(cancellation)
             try {
                 withTimeout(2.seconds) {
-                    val thrown = io.bluetape4k.assertions.assertFailsWith<CancellationException> {
+                    val thrown = assertFailsWith<CancellationException> {
                         job.await()
                     }
                     thrown.message shouldBeEqualTo cancellation.message
@@ -192,7 +204,7 @@ class RedissonCandidateRegistryCancellationTest {
     private class ControlledRFuture<T>(
         private val ignoreCancellation: Boolean = false,
         private val onCancellation: () -> Unit = {},
-    ) : CompletableFuture<T>(), RFuture<T> {
+    ): CompletableFuture<T>(), RFuture<T> {
         override fun cancel(mayInterruptIfRunning: Boolean): Boolean =
             if (ignoreCancellation) {
                 onCancellation()

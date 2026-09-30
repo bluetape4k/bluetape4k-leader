@@ -1,28 +1,28 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
-import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class RedissonSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
 
@@ -40,7 +40,7 @@ class RedissonSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
                     randomDelay()
                     log.debug { "작업 1 을 종료합니다." }
                 }
-            }
+            }.log("Job 1")
 
             launch {
                 leaderElection.runIfLeader(lockName) {
@@ -48,7 +48,7 @@ class RedissonSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
                     randomDelay()
                     log.debug { "작업 2 을 종료합니다." }
                 }
-            }
+            }.log("Job 2")
         }
     }
 
@@ -99,8 +99,7 @@ class RedissonSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
 
         lock.lock(3, TimeUnit.SECONDS)
         try {
-            val result = leaderElection.runIfLeader(lockName) { 1 }
-            result shouldBeEqualTo null
+            leaderElection.runIfLeader(lockName) { 1 }.shouldBeNull()
         } finally {
             if (lock.isHeldByCurrentThread) {
                 lock.unlock()
@@ -114,31 +113,30 @@ class RedissonSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
         val leaderElection = RedissonSuspendLeaderElector(redissonClient)
         val failure = IllegalStateException("redisson-suspend-result-boom")
 
-        val result = leaderElection.runIfLeaderResultSuspend(LeaderSlot(lockName, "redisson-suspend-node")) {
+        val slot = LeaderSlot(lockName, "redisson-suspend-node")
+        val result = leaderElection.runIfLeaderResultSuspend(slot) {
             throw failure
         }
 
-        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
-        val cause = (result as LeaderRunResult.ActionFailed).cause
-        cause.shouldBeInstanceOf<IllegalStateException>()
-        cause.message shouldBeEqualTo failure.message
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        result.cause.shouldBeInstanceOf<IllegalStateException>()
+        result.cause.message shouldBeEqualTo failure.message
     }
 
     @Test
-    fun `runIfLeaderResultSuspend - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() =
-        runSuspendIO {
-            val lockName = randomName()
-            val leaderElection = RedissonSuspendLeaderElector(redissonClient)
-            val cancellation = CancellationException("redisson-suspend-cancelled")
+    fun `runIfLeaderResultSuspend - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() = runSuspendIO {
+        val lockName = randomName()
+        val leaderElection = RedissonSuspendLeaderElector(redissonClient)
+        val cancellation = CancellationException("redisson-suspend-cancelled")
 
-            val thrown = assertFailsWith<CancellationException> {
-                leaderElection.runIfLeaderResultSuspend<Any?>(LeaderSlot(lockName, "redisson-suspend-node")) {
-                    throw cancellation
-                }
+        val thrown = assertFailsWith<CancellationException> {
+            leaderElection.runIfLeaderResultSuspend<Any?>(LeaderSlot(lockName, "redisson-suspend-node")) {
+                throw cancellation
             }
-
-            thrown.message shouldBeEqualTo cancellation.message
         }
+
+        thrown.message shouldBeEqualTo cancellation.message
+    }
 
     @Test
     fun `suspend elector opens cleanup scope immediately after acquisition`() {
@@ -180,10 +178,7 @@ class RedissonSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
             .run()
 
         log.debug { "총 성공 횟수: ${successCount.get()}" }
-    }
-
-    private suspend fun randomDelay(from: Long = 5L, until: Long = 10L) {
-        delay(Random.nextLong(from, until).milliseconds)
+        successCount.get() shouldBeGreaterThan 0
     }
 
     private fun String.cleanupScopeStartsImmediatelyAfterAcquire(): Boolean {
@@ -192,14 +187,25 @@ class RedissonSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
         val tryStart = indexOf("try {", startIndex = cleanupScope.coerceAtLeast(0))
         val watchdogStart = indexOf("LeaderLeaseAutoExtender.start", startIndex = tryStart.coerceAtLeast(0))
         val finallyStart = indexOf("} finally {", startIndex = watchdogStart.coerceAtLeast(0))
-        val watchdogClose = indexOf("watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }", startIndex = finallyStart.coerceAtLeast(0))
+        val watchdogClose = indexOf(
+            "watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }",
+            startIndex = finallyStart.coerceAtLeast(0)
+        )
         val release = indexOf("releaseLock(lock, lockId, acquiredAtNanos)", startIndex = watchdogClose.coerceAtLeast(0))
-        return listOf(acquiredAt, cleanupScope, tryStart, watchdogStart, finallyStart, watchdogClose, release).all { it >= 0 } &&
-            acquiredAt < cleanupScope &&
-            cleanupScope < tryStart &&
-            tryStart < watchdogStart &&
-            watchdogStart < finallyStart &&
-            finallyStart < watchdogClose &&
-            watchdogClose < release
+        return listOf(
+            acquiredAt,
+            cleanupScope,
+            tryStart,
+            watchdogStart,
+            finallyStart,
+            watchdogClose,
+            release
+        ).all { it >= 0 } &&
+                acquiredAt < cleanupScope &&
+                cleanupScope < tryStart &&
+                tryStart < watchdogStart &&
+                watchdogStart < finallyStart &&
+                finallyStart < watchdogClose &&
+                watchdogClose < release
     }
 }

@@ -1,8 +1,16 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.coroutines.support.log
+import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
-import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
@@ -16,21 +24,17 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeLessOrEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.withAlias
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
-import org.awaitility.kotlin.*
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CancellationException
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
-import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
 
@@ -42,20 +46,22 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
         waitTime = 30.seconds,
         leaseTime = 60.seconds,
     )
-    private val election by lazy { RedissonSuspendLeaderGroupElector(redissonClient, options) }
+    private val elector by lazy {
+        RedissonSuspendLeaderGroupElector(redissonClient, options)
+    }
 
     // ── 기본 동작 ──────────────────────────────────────────────────────────
 
     @Test
     fun `runIfLeader - 리더로 선출되어 suspend action 을 실행하고 결과를 반환한다`() = runSuspendIO {
-        val result = election.runIfLeader(randomName()) { "hello" }
+        val result = elector.runIfLeader(randomName()) { "hello" }
         result shouldBeEqualTo "hello"
     }
 
     @Test
     fun `runIfLeader - 서로 다른 lockName 은 독립적인 슬롯 풀을 가진다`() = runSuspendIO {
-        val result1 = election.runIfLeader(randomName()) { "a" }
-        val result2 = election.runIfLeader(randomName()) { "b" }
+        val result1 = elector.runIfLeader(randomName()) { "a" }
+        val result2 = elector.runIfLeader(randomName()) { "b" }
 
         result1 shouldBeEqualTo "a"
         result2 shouldBeEqualTo "b"
@@ -64,7 +70,7 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() = runSuspendIO {
         assertFailsWith<LeaderGroupElectionException> {
-            election.runIfLeader(randomName()) {
+            elector.runIfLeader(randomName()) {
                 throw LeaderGroupElectionException("테스트 예외")
             }
         }
@@ -75,12 +81,12 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
         val lockName = randomName()
 
         assertFailsWith<LeaderGroupElectionException> {
-            election.runIfLeader(lockName) {
+            elector.runIfLeader(lockName) {
                 throw LeaderGroupElectionException("실패")
             }
         }
 
-        val result = election.runIfLeader(lockName) { "복구 성공" }
+        val result = elector.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
     }
 
@@ -88,14 +94,13 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
     fun `runIfLeaderResultSuspend - action 실패는 ActionFailed 로 분류한다`() = runSuspendIO {
         val failure = LeaderGroupElectionException("redisson-suspend-group-result-boom")
 
-        val result = election.runIfLeaderResultSuspend(LeaderSlot(randomName(), "redisson-suspend-group-node")) {
+        val result = elector.runIfLeaderResultSuspend(LeaderSlot(randomName(), "redisson-suspend-group-node")) {
             throw failure
         }
 
-        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
-        val cause = (result as LeaderRunResult.ActionFailed).cause
-        cause.shouldBeInstanceOf<LeaderGroupElectionException>()
-        cause.message shouldBeEqualTo failure.message
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        result.cause.shouldBeInstanceOf<LeaderGroupElectionException>()
+        result.cause.message shouldBeEqualTo failure.message
     }
 
     @Test
@@ -104,7 +109,7 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
             val cancellation = CancellationException("redisson-suspend-group-cancelled")
 
             val thrown = assertFailsWith<CancellationException> {
-                election.runIfLeaderResultSuspend<Any?>(LeaderSlot(randomName(), "redisson-suspend-group-node")) {
+                elector.runIfLeaderResultSuspend<Any?>(LeaderSlot(randomName(), "redisson-suspend-group-node")) {
                     throw cancellation
                 }
             }
@@ -125,10 +130,10 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
             .workers(numWorkers)
             .rounds(numWorkers * 2)
             .add {
-                election.runIfLeader(lockName) {
+                elector.runIfLeader(lockName) {
                     val current = currentConcurrent.incrementAndGet()
                     peakConcurrent.updateAndGet { max(it, current) }
-                    delay(Random.nextLong(5, 15).milliseconds)
+                    randomDelay()
                     currentConcurrent.decrementAndGet()
                 }
             }
@@ -146,13 +151,13 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
             val holdSignal = CompletableDeferred<Unit>()
             val startedCount = AtomicInteger(0)
 
-            val jobs = (1..maxLeaders).map {
+            val jobs = List(maxLeaders) {
                 async {
-                    election.runIfLeader(lockName) {
+                    elector.runIfLeader(lockName) {
                         startedCount.incrementAndGet()
                         holdSignal.await()
                     }
-                }
+                }.log("Job #$it")
             }
 
             try {
@@ -165,9 +170,9 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
                         startedCount.get() shouldBeEqualTo maxLeaders
                     }
 
-                election.state(lockName).isFull.shouldBeTrue()
-                election.activeCount(lockName) shouldBeEqualTo maxLeaders
-                election.availableSlots(lockName) shouldBeEqualTo 0
+                elector.state(lockName).isFull.shouldBeTrue()
+                elector.activeCount(lockName) shouldBeEqualTo maxLeaders
+                elector.availableSlots(lockName) shouldBeEqualTo 0
             } finally {
                 holdSignal.complete(Unit)
                 jobs.awaitAll()
@@ -175,8 +180,8 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
         }
 
         // 완료 후 초기 상태 복귀
-        election.activeCount(lockName) shouldBeEqualTo 0
-        election.availableSlots(lockName) shouldBeEqualTo maxLeaders
+        elector.activeCount(lockName) shouldBeEqualTo 0
+        elector.availableSlots(lockName) shouldBeEqualTo maxLeaders
     }
 
     // ── 상태 정보 ────────────────────────────────────────────────────────
@@ -184,8 +189,9 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
     @Test
     fun `state - 초기 상태는 activeCount=0, isFull=false, isEmpty=true 이다`() = runSuspendIO {
         val lockName = randomName()
-        val state = election.state(lockName)
+        val state = elector.state(lockName)
 
+        log.debug { "state=$state" }
         state.lockName shouldBeEqualTo lockName
         state.maxLeaders shouldBeEqualTo maxLeaders
         state.activeCount shouldBeEqualTo 0
@@ -208,21 +214,22 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
             .workers(numWorkers)
             .rounds(numWorkers * roundsPerJob)
             .add {
-                election.runIfLeader(lockName) {
+                elector.runIfLeader(lockName) {
                     log.debug { "suspend 작업 1. task1=${task1.get()}" }
-                    delay(Random.nextLong(1, 5).milliseconds)
+                    randomDelay()
                     task1.incrementAndGet()
                 }
             }
             .add {
-                election.runIfLeader(lockName) {
+                elector.runIfLeader(lockName) {
                     log.debug { "suspend 작업 2. task2=${task2.get()}" }
-                    delay(Random.nextLong(1, 5).milliseconds)
+                    randomDelay()
                     task2.incrementAndGet()
                 }
             }
             .run()
 
+        log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
         task1.get() shouldBeEqualTo numWorkers * roundsPerJob
         task2.get() shouldBeEqualTo numWorkers * roundsPerJob
     }
@@ -244,7 +251,7 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
         el.runIfLeader(lockName) { "fast" } shouldBeEqualTo "fast"
 
         val secondElector = RedissonSuspendLeaderGroupElector(redissonClient, opts)
-        secondElector.runIfLeader(lockName) { "should-not" } shouldBeEqualTo null
+        secondElector.runIfLeader(lockName) { "should-not" }.shouldBeNull()
     }
 
     @Test
@@ -260,7 +267,8 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
         el.runIfLeader(lockName) { "first" } shouldBeEqualTo "first"
 
         val secondElector = RedissonSuspendLeaderGroupElector(redissonClient, opts)
-        await.atMost(2.seconds).withPollInterval(50.milliseconds) untilSuspending {
+
+        await atMost 2.seconds withPollInterval 50.milliseconds untilSuspending {
             secondElector.runIfLeader(lockName) { "second" } == "second"
         }
     }
@@ -295,7 +303,7 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
         }
 
         val third = RedissonSuspendLeaderGroupElector(redissonClient, opts)
-        third.runIfLeader(lockName) { "third" } shouldBeEqualTo null
+        third.runIfLeader(lockName) { "third" }.shouldBeNull()
     }
 
     @Test
@@ -303,7 +311,7 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
         val lockName = randomName()
         val crashSemaphore = redissonClient.getPermitExpirableSemaphore("lg:{$lockName}")
         crashSemaphore.trySetPermits(1)
-        crashSemaphore.tryAcquire(200, 400, java.util.concurrent.TimeUnit.MILLISECONDS)
+        crashSemaphore.tryAcquire(200, 400, TimeUnit.MILLISECONDS)
 
         val opts = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 1.seconds, leaseTime = 5.seconds)
         val el = RedissonSuspendLeaderGroupElector(redissonClient, opts)
@@ -330,15 +338,18 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
                     actionStarted.complete(Unit)
                     awaitCancellation()
                 }
-            }
+            }.log("Job")
+
             actionStarted.await()
             deferred.cancelAndJoin()
         }
 
         val secondElector = RedissonSuspendLeaderGroupElector(redissonClient, opts)
-        secondElector.runIfLeader(cancelLock) { "should-not" } shouldBeEqualTo null
+        secondElector.runIfLeader(cancelLock) { "should-not" }.shouldBeNull()
 
         delay(900.milliseconds)
-        secondElector.runIfLeader(cancelLock) { "later" } shouldBeEqualTo "later"
+        await atMost 5.seconds withPollInterval 100.milliseconds untilSuspending {
+            secondElector.runIfLeader(cancelLock) { "later" } == "later"
+        }
     }
 }

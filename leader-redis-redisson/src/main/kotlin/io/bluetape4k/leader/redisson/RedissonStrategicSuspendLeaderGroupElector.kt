@@ -26,9 +26,9 @@ import kotlin.time.Duration
 class RedissonStrategicSuspendLeaderGroupElector(
     redissonClient: RedissonClient,
     override val nodeId: String = Uuid.V7.nextBase62(),
-) : StrategicSuspendLeaderGroupElector {
+): StrategicSuspendLeaderGroupElector {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val registry = RedissonCandidateRegistry(
         redissonClient,
@@ -72,7 +72,7 @@ class RedissonStrategicSuspendLeaderGroupElector(
 
         log.info {
             "[$lockName] 전략적 그룹 선출: ${result.winners.joinToString { it.nodeId }} " +
-                "(전략: ${strategy::class.simpleName}, 후보: ${result.winners.size + result.eliminations.size}명)"
+                    "(전략: ${strategy::class.simpleName}, 후보: ${result.winners.size + result.eliminations.size}명)"
         }
         if (result.scores.isNotEmpty()) {
             log.debug {

@@ -2,7 +2,9 @@ package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.javatimes.millis
 import io.bluetape4k.leader.AopScopeAccess
+import io.bluetape4k.leader.AsyncLifecycle
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
@@ -11,12 +13,15 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.asCompletionException
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonSemaphoreExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.toActionFailedResult
+import io.bluetape4k.leader.unwrapCompletionException
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
@@ -29,7 +34,6 @@ import org.redisson.api.RedissonClient
 import org.redisson.client.RedisException
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -157,7 +161,7 @@ class RedissonLeaderGroupElector private constructor(
         if (auditLeaderId != null) {
             runCatching {
                 auditMap.fastPut(permitId, auditLeaderId)
-                auditMap.expire(java.time.Duration.ofMillis(leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS))
+                auditMap.expire((leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS).millis())
             }.onFailure { log.warn(it) { "Failed to write audit map. lockName=$lockName, permitId=$permitId" } }
         }
 
@@ -305,7 +309,7 @@ class RedissonLeaderGroupElector private constructor(
             }
             LeaderFutureBridge.flatMap(pipelineFuture, cancellationRelay) { value, failure ->
                 if (failure != null) {
-                    rejectionCleanup.release(failure.unwrapCompletionCause())
+                    rejectionCleanup.release(failure.unwrapCompletionException()!!)
                 } else {
                     completableFutureOf(value)
                 }
@@ -368,7 +372,7 @@ class RedissonLeaderGroupElector private constructor(
         if (auditLeaderId != null) {
             runCatching {
                 auditMap.fastPut(permitId, auditLeaderId)
-                auditMap.expire(java.time.Duration.ofMillis(leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS))
+                auditMap.expire((leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS).millis())
             }.onFailure { log.warn(it) { "Failed to write audit map. lockName=$lockName, permitId=$permitId" } }
         }
 
@@ -423,20 +427,6 @@ class RedissonLeaderGroupElector private constructor(
                 .onFailure { log.warn(it) { "Failed to remove audit map. lockName=$lockName, permitId=$permitId" } }
         }
     }
-
-    private fun Throwable.unwrapCompletionCause(): Throwable =
-        (this as? CompletionException)?.cause ?: this
-
-    private fun Throwable.toActionFailedResult(): LeaderRunResult.ActionFailed {
-        val cause = unwrapCompletionCause()
-        if (cause is CancellationException) {
-            throw cause
-        }
-        return LeaderRunResult.ActionFailed(cause)
-    }
-
-    private fun Throwable.asCompletionException(): CompletionException =
-        this as? CompletionException ?: CompletionException(this)
 
     private fun releaseOrExtend(
         semaphore: RPermitExpirableSemaphore,
@@ -496,27 +486,4 @@ class RedissonLeaderGroupElector private constructor(
             semaphore.releaseAsync(permitId).toCompletableFuture()
         }
     }
-
-    private enum class AsyncLifecycle {
-        WAITING,
-        STARTED,
-        CLEANUP,
-    }
-}
-
-/**
- * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-inline fun <T> RedissonClient.runIfLeaderGroup(
-    lockName: String,
-    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-    crossinline action: () -> T,
-): T? {
-    lockName.requireNotBlank("lockName")
-    return RedissonLeaderGroupElector(this, options)
-        .runIfLeader(lockName) {
-            action()
-        }
 }

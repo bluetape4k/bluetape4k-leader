@@ -8,15 +8,18 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.coroutines.support.awaitUntil
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
-import io.bluetape4k.leader.testcontainers.ReadinessEndpoint
-import io.bluetape4k.leader.testcontainers.readinessBoundaryWaitStrategy
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
+import io.bluetape4k.leader.testcontainers.ReadinessEndpoint
+import io.bluetape4k.leader.testcontainers.readinessBoundaryWaitStrategy
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.infra.ToxiproxyServer
 import io.bluetape4k.testcontainers.storage.RedisServer
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -34,7 +37,8 @@ import org.redisson.Redisson
 import org.redisson.api.RedissonClient
 import org.testcontainers.containers.Network
 import org.testcontainers.toxiproxy.ToxiproxyContainer
-import java.util.UUID
+import org.testcontainers.utility.Base58
+import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -47,6 +51,24 @@ import kotlin.time.Duration.Companion.seconds
  */
 @Execution(ExecutionMode.SAME_THREAD)
 class RedissonStrategicGroupToxiproxyCancellationTest {
+
+    private companion object: KLogging() {
+        const val NODE_ID = "toxiproxy-redisson-node"
+        const val REDIS_ALIAS = "redis"
+        const val PROXY_PORT = 8666
+        const val REDIS_COMMAND_TIMEOUT_MILLIS = 3_000
+        const val REDISSON_SHUTDOWN_TIMEOUT_SECONDS = 3L
+        const val CANCEL_SETTLE_MILLIS = 250L
+        const val CANCEL_SETTLE_ROUNDS = 5
+        const val LATE_ACQUISITION_COMMAND_DELAY_MILLIS = 500L
+        const val LATE_ACQUISITION_RACE_DELAY_MILLIS = 50L
+        const val REACQUIRE_WAIT_MILLIS = 100L
+        const val REACQUIRE_LEASE_MILLIS = 30_000L
+        const val OWNER_THREAD_ID = 826_001L
+        const val REACQUIRE_THREAD_ID = 826_002L
+        val TOXIPROXY_READINESS_ENDPOINT =
+            ReadinessEndpoint(ToxiproxyServer.NAME, ToxiproxyServer.CONTROL_PORT, "/version")
+    }
 
     @Test
     fun `entry lock waiter cancellation cleans up late acquisition and allows reacquisition`() = runSuspendIO {
@@ -70,37 +92,40 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
                     coroutineScope {
                         val deferred = async(start = CoroutineStart.UNDISPATCHED) {
                             elector.registerCandidate(lockName, CandidateInfo(candidateNode))
-                        }
-                        delay(CANCEL_SETTLE_MILLIS)
+                        }.log("Register Candidate $lockName to $toxic")
+
+                        delay(CANCEL_SETTLE_MILLIS.milliseconds)
                         val cancellation = CancellationException("cancel while waiting for entry lock")
                         deferred.cancel(cancellation)
-                        val thrown = assertFailsWith<CancellationException> { deferred.await() }
+
+                        val thrown = assertFailsWith<CancellationException> {
+                            deferred.await()
+                        }
                         thrown.message shouldBeEqualTo cancellation.message
                     }
 
                     // bounded attempt window 안에 owner를 해제해 실제 late acquisition 경합을 만든다.
                     // 취소된 Redisson waiter가 늦게 획득하더라도 반드시 자체 unlock되어야 한다.
-                    delay(LATE_ACQUISITION_RACE_DELAY_MILLIS)
+                    delay(LATE_ACQUISITION_RACE_DELAY_MILLIS.milliseconds)
                     entryLock.unlockAsync(OWNER_THREAD_ID).await()
                     // Upstream latency로 취소된 acquire 명령이 owner 해제 뒤 Redis에 도착하게
                     // 한다. 지연된 cleanup이 늦은 owner를 충분히 관찰 가능하게 만든다.
-                    await.atMost(2.seconds).withPollInterval(20.milliseconds).untilAsserted {
-                        entryLock.isLocked().shouldBeTrue()
+                    await atMost 2.seconds withPollInterval 20.milliseconds untilAsserted {
+                        entryLock.isLocked.shouldBeTrue()
                     }
 
                     removeToxic(toxic)
-                    await.atMost(2.seconds).withPollInterval(20.milliseconds).untilAsserted {
-                        entryLock.isLocked().shouldBeFalse()
+                    await atMost 2.seconds withPollInterval 20.milliseconds untilAsserted {
+                        entryLock.isLocked.shouldBeFalse()
                     }
 
-                    val reacquired = kotlinx.coroutines.withTimeout(1.seconds) {
-                        entryLock.tryLockAsync(
-                            REACQUIRE_WAIT_MILLIS,
-                            REACQUIRE_LEASE_MILLIS,
-                            TimeUnit.MILLISECONDS,
-                            REACQUIRE_THREAD_ID,
-                        ).await()
-                    }
+                    val reacquired = entryLock.tryLockAsync(
+                        REACQUIRE_WAIT_MILLIS,
+                        REACQUIRE_LEASE_MILLIS,
+                        TimeUnit.MILLISECONDS,
+                        REACQUIRE_THREAD_ID,
+                    ).awaitUntil(1.seconds)
+
                     reacquired.shouldBeTrue()
                     entryLock.unlockAsync(REACQUIRE_THREAD_ID).await()
                 } finally {
@@ -138,10 +163,14 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
                                 actionInvoked.complete(Unit)
                                 "unexpected"
                             }
-                        }
-                        delay(CANCEL_SETTLE_MILLIS)
+                        }.log("FifoGroup election run")
+
+                        delay(CANCEL_SETTLE_MILLIS.milliseconds)
                         deferred.cancel(CancellationException("cancel during candidate lookup"))
-                        assertFailsWith<CancellationException> { deferred.await() }
+
+                        assertFailsWith<CancellationException> {
+                            deferred.await()
+                        }
                     }
 
                     actionInvoked.isCompleted.shouldBeFalse()
@@ -179,14 +208,18 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
                                 toxicInstalled.complete(Unit)
                                 "success-before-cancel"
                             }
-                        }
+                        }.log("FifoGroup election run")
                         toxicInstalled.await()
+
                         repeat(CANCEL_SETTLE_ROUNDS) {
                             yield()
-                            delay(CANCEL_SETTLE_MILLIS / CANCEL_SETTLE_ROUNDS)
+                            delay(timeMillis = CANCEL_SETTLE_MILLIS / CANCEL_SETTLE_ROUNDS)
                         }
                         deferred.cancel(CancellationException("cancel during result update"))
-                        assertFailsWith<CancellationException> { deferred.await() }
+
+                        assertFailsWith<CancellationException> {
+                            deferred.await()
+                        }
                     }
                 } finally {
                     removeToxic(toxic)
@@ -227,6 +260,7 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
     ): T {
         val operationClient = createRedisson("redis://${toxiproxy.host}:${toxiproxy.getMappedPort(PROXY_PORT)}")
         val observerClient = createRedisson(redis.url)
+
         return try {
             block(operationClient, observerClient)
         } finally {
@@ -236,7 +270,9 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
     }
 
     private fun shutdown(client: RedissonClient) {
-        runCatching { client.shutdown(0, REDISSON_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS) }
+        runCatching {
+            client.shutdown(0, REDISSON_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        }
     }
 
     private fun createRedisson(address: String): RedissonClient =
@@ -267,23 +303,6 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
         runCatching { toxic?.remove() }
     }
 
-    private fun randomLockName(): String = "toxiproxy:redisson:${UUID.randomUUID()}"
+    private fun randomLockName(): String = "toxiproxy:redisson:${Base58.randomString(8)}"
 
-    private companion object {
-        const val NODE_ID = "toxiproxy-redisson-node"
-        const val REDIS_ALIAS = "redis"
-        const val PROXY_PORT = 8666
-        const val REDIS_COMMAND_TIMEOUT_MILLIS = 3_000
-        const val REDISSON_SHUTDOWN_TIMEOUT_SECONDS = 1L
-        const val CANCEL_SETTLE_MILLIS = 250L
-        const val CANCEL_SETTLE_ROUNDS = 5
-        const val LATE_ACQUISITION_COMMAND_DELAY_MILLIS = 500L
-        const val LATE_ACQUISITION_RACE_DELAY_MILLIS = 50L
-        const val REACQUIRE_WAIT_MILLIS = 100L
-        const val REACQUIRE_LEASE_MILLIS = 30_000L
-        const val OWNER_THREAD_ID = 826_001L
-        const val REACQUIRE_THREAD_ID = 826_002L
-        val TOXIPROXY_READINESS_ENDPOINT =
-            ReadinessEndpoint(ToxiproxyServer.NAME, ToxiproxyServer.CONTROL_PORT, "/version")
-    }
 }
