@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.properties
 
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.support.requireGt
 import io.bluetape4k.support.requireLe
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -19,7 +20,7 @@ data class LeaderManagementActionProperties(
     val enabled: Boolean = false,
     /** 한 번의 release action에 허용하는 bounded timeout입니다. */
     val timeout: Duration = DEFAULT_TIMEOUT,
-) : Serializable {
+): Serializable {
 
     init {
         timeout.requireGt(Duration.ZERO, "management action timeout")
@@ -27,8 +28,8 @@ data class LeaderManagementActionProperties(
     }
 
     companion object {
-        val DEFAULT_TIMEOUT: Duration = Duration.ofSeconds(5)
-        val MAX_TIMEOUT: Duration = Duration.ofSeconds(30)
+        val DEFAULT_TIMEOUT: Duration = 5.seconds()
+        val MAX_TIMEOUT: Duration = 30.seconds()
 
         private const val serialVersionUID = 1L
     }

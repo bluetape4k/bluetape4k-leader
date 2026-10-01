@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.route
 
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.logging.KLogging
 import java.time.Clock
 import java.util.concurrent.CancellationException
 
@@ -13,7 +14,9 @@ import java.util.concurrent.CancellationException
  */
 class StateLeaderRouteAuthority(
     private val elector: LeaderElector,
-) : LeaderRouteAuthority {
+): LeaderRouteAuthority {
+
+    companion object: KLogging()
 
     init {
         if (!elector.supportsAuditLeaderState) {

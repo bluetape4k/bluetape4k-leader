@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.aop.autoconfigure
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -17,8 +18,9 @@ import io.bluetape4k.leader.consul.ConsulSuspendLeaderGroupElector
 import io.bluetape4k.leader.consul.ConsulSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
-import kotlinx.coroutines.runBlocking
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.getBean
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
@@ -26,6 +28,8 @@ import org.springframework.context.annotation.Configuration
 import kotlin.time.Duration.Companion.seconds
 
 class ConsulAopFactoryAutoConfigurationTest {
+
+    companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(LeaderAopFactoryAutoConfiguration::class.java))
@@ -49,10 +53,10 @@ class ConsulAopFactoryAutoConfigurationTest {
             ctx.getBean("consulSuspendLeaderElectorFactory").shouldBeInstanceOf<SuspendLeaderElectorFactory>()
             ctx.getBean("consulSuspendLeaderGroupElectorFactory").shouldBeInstanceOf<SuspendLeaderGroupElectorFactory>()
 
-            val leaderFactory = ctx.getBean(ConsulLeaderElectorFactory::class.java)
-            val groupFactory = ctx.getBean(ConsulLeaderGroupElectorFactory::class.java)
-            val suspendFactory = ctx.getBean(ConsulSuspendLeaderElectorFactory::class.java)
-            val suspendGroupFactory = ctx.getBean(ConsulSuspendLeaderGroupElectorFactory::class.java)
+            val leaderFactory = ctx.getBean<ConsulLeaderElectorFactory>()
+            val groupFactory = ctx.getBean<ConsulLeaderGroupElectorFactory>()
+            val suspendFactory = ctx.getBean<ConsulSuspendLeaderElectorFactory>()
+            val suspendGroupFactory = ctx.getBean<ConsulSuspendLeaderGroupElectorFactory>()
 
             leaderFactory.create(LeaderElectionOptions(leaseTime = 10.seconds))
                 .shouldBeInstanceOf<ConsulLeaderElector>()
@@ -62,7 +66,7 @@ class ConsulAopFactoryAutoConfigurationTest {
                 .shouldBeInstanceOf<ConsulLeaderGroupElector>()
                 .options.keyPrefix shouldBeEqualTo "apps/orders/leader"
 
-            runBlocking {
+            runSuspendIO {
                 suspendFactory.create(LeaderElectionOptions(leaseTime = 10.seconds))
                     .shouldBeInstanceOf<ConsulSuspendLeaderElector>()
                     .options.keyPrefix shouldBeEqualTo "apps/orders/leader"

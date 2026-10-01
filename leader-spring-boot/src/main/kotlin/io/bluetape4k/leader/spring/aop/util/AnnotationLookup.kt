@@ -15,7 +15,7 @@ object AnnotationLookup {
      *
      * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
-    inline fun <reified A : Annotation> findAnnotationWithTargetFallback(
+    inline fun <reified A: Annotation> findAnnotationWithTargetFallback(
         method: Method,
         target: Any,
     ): A? {

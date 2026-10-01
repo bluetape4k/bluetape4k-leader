@@ -1,5 +1,11 @@
 package io.bluetape4k.leader.spring.aop
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElector
@@ -13,9 +19,8 @@ import io.bluetape4k.leader.metrics.SkipReason
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -25,9 +30,6 @@ import org.aspectj.lang.reflect.MethodSignature
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.shouldNotBeNull
 
 /**
  * 6-cell failure mode matrix 검증:
@@ -42,7 +44,7 @@ import io.bluetape4k.assertions.shouldNotBeNull
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionAspectFailureModeTest {
 
-    companion object {
+    companion object: KLogging() {
         private const val SAMPLE_RESULT = "ok"
     }
 
@@ -54,15 +56,15 @@ class LeaderElectionAspectFailureModeTest {
         fun runFailOpen(): String?
     }
 
-    private class SampleServiceImpl : SampleService {
+    private class SampleServiceImpl: SampleService {
         @LeaderElection(name = "rethrow-job", failureMode = LeaderAspectFailureMode.RETHROW)
-        override fun runRethrow(): String? = SAMPLE_RESULT
+        override fun runRethrow(): String = SAMPLE_RESULT
 
         @LeaderElection(name = "skip-job", failureMode = LeaderAspectFailureMode.SKIP)
-        override fun runSkip(): String? = SAMPLE_RESULT
+        override fun runSkip(): String = SAMPLE_RESULT
 
         @LeaderElection(name = "fail-open-job", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
-        override fun runFailOpen(): String? = SAMPLE_RESULT
+        override fun runFailOpen(): String = SAMPLE_RESULT
     }
 
     private val election: LeaderElector = mockk(relaxed = true)
@@ -86,8 +88,10 @@ class LeaderElectionAspectFailureModeTest {
 
     private fun newAspect(recorders: List<LeaderAopMetricsRecorder> = emptyList()): LeaderElectionAspect {
         every { factoryMock.create(any()) } returns election
-        every { beanSelector.selectElectionFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected("testFactory", factoryMock)
+        every {
+            beanSelector.selectElectionFactory(any(), any())
+        } returns LeaderBeanSelector.Selected("testFactory", factoryMock)
+
         return LeaderElectionAspect(
             beanSelector = beanSelector,
             props = LeaderAopProperties(),
@@ -104,12 +108,17 @@ class LeaderElectionAspectFailureModeTest {
         val target = SampleServiceImpl()
         val method = SampleService::class.java.getDeclaredMethod("runRethrow")
         configureJoinPoint(method, target)
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } returns LeaderRunResult.Skipped
+
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } returns LeaderRunResult.Skipped
 
         val aspect = newAspect(listOf(recorder))
         aspect.aroundLeader(pjp).shouldBeNull()
 
-        verify(exactly = 1) { recorder.onLockNotAcquired("rethrow-job", any(), SkipReason.CONTENTION) }
+        verify(exactly = 1) {
+            recorder.onLockNotAcquired("rethrow-job", any(), SkipReason.CONTENTION)
+        }
     }
 
     @Test
@@ -117,12 +126,17 @@ class LeaderElectionAspectFailureModeTest {
         val target = SampleServiceImpl()
         val method = SampleService::class.java.getDeclaredMethod("runSkip")
         configureJoinPoint(method, target)
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } returns LeaderRunResult.Skipped
+
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } returns LeaderRunResult.Skipped
 
         val aspect = newAspect(listOf(recorder))
         aspect.aroundLeader(pjp).shouldBeNull()
 
-        verify(exactly = 1) { recorder.onLockNotAcquired("skip-job", any(), SkipReason.CONTENTION) }
+        verify(exactly = 1) {
+            recorder.onLockNotAcquired("skip-job", any(), SkipReason.CONTENTION)
+        }
     }
 
     @Test
@@ -130,13 +144,18 @@ class LeaderElectionAspectFailureModeTest {
         val target = SampleServiceImpl()
         val method = SampleService::class.java.getDeclaredMethod("runFailOpen")
         configureJoinPoint(method, target)
+
         every { pjp.proceed() } returns SAMPLE_RESULT
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } returns LeaderRunResult.Skipped
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } returns LeaderRunResult.Skipped
 
         val aspect = newAspect(listOf(recorder))
         val result = aspect.aroundLeader(pjp)
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
+
         verify(exactly = 1) { recorder.onLockNotAcquired("fail-open-job", any(), SkipReason.FAIL_OPEN_FORCED) }
         verify(exactly = 1) { recorder.onTaskStarted("fail-open-job") }
         verify(exactly = 1) { recorder.onTaskFinished("fail-open-job", any()) }
@@ -147,10 +166,15 @@ class LeaderElectionAspectFailureModeTest {
         val target = SampleServiceImpl()
         val method = SampleService::class.java.getDeclaredMethod("runFailOpen")
         configureJoinPoint(method, target)
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } returns LeaderRunResult.Skipped
+
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } returns LeaderRunResult.Skipped
 
         var isLockedInsideBody = true  // default true to detect if not set
-        every { pjp.proceed() } answers {
+        every {
+            pjp.proceed()
+        } answers {
             isLockedInsideBody = LockAssert.isLocked()
             SAMPLE_RESULT
         }
@@ -168,20 +192,28 @@ class LeaderElectionAspectFailureModeTest {
         val target = SampleServiceImpl()
         val method = SampleService::class.java.getDeclaredMethod("runRethrow")
         configureJoinPoint(method, target)
+
         val backendEx = RuntimeException("redis-prod-01:6379 timeout")
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } throws backendEx
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } throws backendEx
 
         val aspect = newAspect(listOf(recorder))
-        val wrapped = assertFailsWith<LeaderElectionException> { aspect.aroundLeader(pjp) }
 
+        val wrapped = assertFailsWith<LeaderElectionException> {
+            aspect.aroundLeader(pjp)
+        }
+
+        log.debug { "wrapped=$wrapped" }
         wrapped.cause shouldBeEqualTo backendEx
-        wrapped.message.shouldNotBeNull().contains("rethrow-job").shouldBeTrue()
+        wrapped.message shouldContain "rethrow-job"
 
         // host info must NOT leak (R-33)
-        wrapped.message.shouldNotBeNull().contains("redis-prod-01").shouldBeFalse()
+        wrapped.message shouldNotContain "redis-prod-01"
 
-
-        verify(exactly = 1) { recorder.onLockNotAcquired("rethrow-job", any(), SkipReason.BACKEND_ERROR) }
+        verify(exactly = 1) {
+            recorder.onLockNotAcquired("rethrow-job", any(), SkipReason.BACKEND_ERROR)
+        }
     }
 
     @Test
@@ -189,13 +221,18 @@ class LeaderElectionAspectFailureModeTest {
         val target = SampleServiceImpl()
         val method = SampleService::class.java.getDeclaredMethod("runSkip")
         configureJoinPoint(method, target)
+
         val backendEx = RuntimeException("backend down")
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } throws backendEx
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } throws backendEx
 
         val aspect = newAspect(listOf(recorder))
         aspect.aroundLeader(pjp).shouldBeNull()
 
-        verify(exactly = 1) { recorder.onLockNotAcquired("skip-job", any(), SkipReason.BACKEND_ERROR) }
+        verify(exactly = 1) {
+            recorder.onLockNotAcquired("skip-job", any(), SkipReason.BACKEND_ERROR)
+        }
     }
 
     @Test
@@ -203,14 +240,20 @@ class LeaderElectionAspectFailureModeTest {
         val target = SampleServiceImpl()
         val method = SampleService::class.java.getDeclaredMethod("runFailOpen")
         configureJoinPoint(method, target)
+
         every { pjp.proceed() } returns SAMPLE_RESULT
+
         val backendEx = RuntimeException("redis down")
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } throws backendEx
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } throws backendEx
 
         val aspect = newAspect(listOf(recorder))
         val result = aspect.aroundLeader(pjp)
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
+
         verify(exactly = 1) { recorder.onLockNotAcquired("fail-open-job", any(), SkipReason.FAIL_OPEN_FORCED) }
         verify(exactly = 1) { recorder.onTaskStarted("fail-open-job") }
         verify(exactly = 1) { recorder.onTaskFinished("fail-open-job", any()) }
@@ -221,12 +264,17 @@ class LeaderElectionAspectFailureModeTest {
         val target = SampleServiceImpl()
         val method = SampleService::class.java.getDeclaredMethod("runFailOpen")
         configureJoinPoint(method, target)
+
         val bodyEx = IllegalStateException("body failure in fail-open")
         every { pjp.proceed() } throws bodyEx
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } throws RuntimeException("backend error")
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } throws RuntimeException("backend error")
 
         val aspect = newAspect()
-        val ex = assertFailsWith<IllegalStateException> { aspect.aroundLeader(pjp) }
+        val ex = assertFailsWith<IllegalStateException> {
+            aspect.aroundLeader(pjp)
+        }
         ex shouldBeEqualTo bodyEx
     }
 
@@ -235,10 +283,15 @@ class LeaderElectionAspectFailureModeTest {
         val target = SampleServiceImpl()
         val method = SampleService::class.java.getDeclaredMethod("runFailOpen")
         configureJoinPoint(method, target)
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } throws RuntimeException("backend down")
+
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } throws RuntimeException("backend down")
 
         var isLockedInsideBody = true
-        every { pjp.proceed() } answers {
+        every {
+            pjp.proceed()
+        } answers {
             isLockedInsideBody = LockAssert.isLocked()
             SAMPLE_RESULT
         }
@@ -247,7 +300,6 @@ class LeaderElectionAspectFailureModeTest {
         aspect.aroundLeader(pjp)
 
         isLockedInsideBody.shouldBeFalse()
-
     }
 
     // ── FailOpen scope handle cleanup ──
@@ -258,7 +310,9 @@ class LeaderElectionAspectFailureModeTest {
         val method = SampleService::class.java.getDeclaredMethod("runFailOpen")
         configureJoinPoint(method, target)
         every { pjp.proceed() } returns SAMPLE_RESULT
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } returns LeaderRunResult.Skipped
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } returns LeaderRunResult.Skipped
 
         val aspect = newAspect()
         aspect.aroundLeader(pjp)  // first call — FAIL_OPEN_RUN body executed

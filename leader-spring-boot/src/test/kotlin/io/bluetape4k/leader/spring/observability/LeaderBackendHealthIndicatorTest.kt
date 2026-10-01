@@ -1,34 +1,39 @@
 package io.bluetape4k.leader.spring.observability
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import io.bluetape4k.ToStringBuilder
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.jackson3.Jackson
 import io.bluetape4k.leader.LeaderElector
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
-import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDescriptor
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnostics
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import io.bluetape4k.leader.spring.LeaderTestApplication
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.beans.factory.getBean
 import org.springframework.beans.factory.getBeansOfType
 import org.springframework.boot.autoconfigure.AutoConfigurations
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.boot.health.contributor.HealthIndicator
 import org.springframework.boot.health.contributor.Status
-import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.FilteredClassLoader
+import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.boot.test.system.CapturedOutput
 import org.springframework.boot.test.system.OutputCaptureExtension
@@ -52,10 +57,40 @@ import kotlin.time.Duration.Companion.milliseconds
 @ExtendWith(OutputCaptureExtension::class)
 class LeaderBackendHealthIndicatorTest {
 
+    private companion object: KLogging() {
+        const val RAW_PROBE_MESSAGE =
+            "probe failed endpoint=https://redis-prod.example:6380 token=secret credential=credential cause=connection"
+
+        const val WARNING_MESSAGE =
+            "leader.spring.health backend probe failed; status=UNKNOWN"
+
+        val SENSITIVE_DETAIL_KEYS = setOf(
+            "error",
+            "exception",
+            "exceptionClass",
+            "class",
+            "message",
+            "cause",
+            "stackTrace",
+            "endpoint",
+            "token",
+            "credential",
+        )
+
+        val SENSITIVE_RAW_VALUES = setOf(
+            RAW_PROBE_MESSAGE,
+            "IllegalStateException",
+            "redis-prod.example",
+            "token=secret",
+            "credential=credential",
+            "cause=connection",
+        )
+    }
+
     @Test
     fun `backend health는 기본적으로 등록하지 않는다`() {
         runner().run { context ->
-            context.getBeansOfType<LeaderBackendHealthIndicator>().isEmpty().shouldBeTrue()
+            context.getBeansOfType<LeaderBackendHealthIndicator>().shouldBeEmpty()
         }
     }
 
@@ -78,8 +113,10 @@ class LeaderBackendHealthIndicatorTest {
             )
             .run { context ->
                 val elector = context.getBean<RecordingDiagnosticsElector>()
+                log.debug { "elector=$elector" }
 
                 val health = context.getBean<LeaderBackendHealthIndicator>().health()
+                log.debug { "health=$health" }
 
                 health.status shouldBeEqualTo Status.UP
                 elector.probeCalls.get() shouldBeEqualTo 1
@@ -94,7 +131,7 @@ class LeaderBackendHealthIndicatorTest {
             .withUserConfiguration(PlainElectorConfig::class.java)
             .withPropertyValues("bluetape4k.leader.observability.backend-health.enabled=true")
             .run { context ->
-                context.getBeansOfType<HealthIndicator>().isEmpty().shouldBeTrue()
+                context.getBeansOfType<HealthIndicator>().shouldBeEmpty()
             }
     }
 
@@ -105,7 +142,7 @@ class LeaderBackendHealthIndicatorTest {
             .withUserConfiguration(NullDiagnosticsAwareElectorConfig::class.java)
             .withPropertyValues("bluetape4k.leader.observability.backend-health.enabled=true")
             .run { context ->
-                context.getBeansOfType<HealthIndicator>().isEmpty().shouldBeTrue()
+                context.getBeansOfType<HealthIndicator>().shouldBeEmpty()
             }
     }
 
@@ -120,9 +157,10 @@ class LeaderBackendHealthIndicatorTest {
 
         mappings.forEach { (connectivityStatus, expectedHealthStatus) ->
             val provider = RecordingDiagnosticsElector(connectivityStatus)
+            log.debug { "provider = $provider" }
 
             val health = LeaderBackendHealthIndicator(provider, 100.milliseconds).health()
-
+            log.debug { "health=$health" }
             health.status shouldBeEqualTo expectedHealthStatus
             provider.probeCalls.get() shouldBeEqualTo 1
         }
@@ -135,6 +173,7 @@ class LeaderBackendHealthIndicatorTest {
             100.milliseconds,
         ).health()
 
+        log.debug { "health=$health" }
         health.details["reason"] shouldBeEqualTo LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED.name
         health.details.values.none { it.toString().contains(RAW_PROBE_MESSAGE) }.shouldBeTrue()
     }
@@ -147,6 +186,7 @@ class LeaderBackendHealthIndicatorTest {
             100.milliseconds,
         ).health()
 
+        log.debug { "health=$health" }
         health.status shouldBeEqualTo Status.UNKNOWN
         health.details.keys.none { it in SENSITIVE_DETAIL_KEYS }.shouldBeTrue()
         health.details.values.none { it.toString().contains(rawMessage) }.shouldBeTrue()
@@ -159,6 +199,7 @@ class LeaderBackendHealthIndicatorTest {
             100.milliseconds,
         ).health()
 
+        log.debug { "health=$health" }
         health.status shouldBeEqualTo Status.UNKNOWN
         output.out.contains(WARNING_MESSAGE).shouldBeFalse()
         output.out.contains(RAW_PROBE_MESSAGE).shouldBeFalse()
@@ -171,6 +212,7 @@ class LeaderBackendHealthIndicatorTest {
             100.milliseconds,
         ).health()
 
+        log.debug { "health=$health" }
         health.status shouldBeEqualTo Status.UNKNOWN
         health.details.keys.none { it in SENSITIVE_DETAIL_KEYS }.shouldBeTrue()
         health.details.values.none { it.toString().contains(RAW_PROBE_MESSAGE) }.shouldBeTrue()
@@ -183,6 +225,7 @@ class LeaderBackendHealthIndicatorTest {
             100.milliseconds,
         ).health()
 
+        log.debug { "health=$health" }
         health.status shouldBeEqualTo Status.UNKNOWN
         output.out shouldContain WARNING_MESSAGE
         output.out.contains(RAW_PROBE_MESSAGE).shouldBeFalse()
@@ -197,6 +240,7 @@ class LeaderBackendHealthIndicatorTest {
                 100.milliseconds,
             ).health()
 
+            log.debug { "health=$health" }
             health.status shouldBeEqualTo Status.UNKNOWN
             health.details.keys.none { it in SENSITIVE_DETAIL_KEYS }.shouldBeTrue()
             health.details.values.none { it.toString().contains(RAW_PROBE_MESSAGE) }.shouldBeTrue()
@@ -211,7 +255,10 @@ class LeaderBackendHealthIndicatorTest {
         val fatal = AssertionError("fatal backend probe")
 
         val thrown = assertFailsWith<AssertionError> {
-            LeaderBackendHealthIndicator(ThrowingDiagnosticsElector(fatal), 100.milliseconds).health()
+            LeaderBackendHealthIndicator(
+                ThrowingDiagnosticsElector(fatal),
+                100.milliseconds
+            ).health()
         }
 
         thrown shouldBeSameInstanceAs fatal
@@ -224,6 +271,7 @@ class LeaderBackendHealthIndicatorTest {
             100.milliseconds,
         ).health()
 
+        log.debug { "health=$health" }
         health.status shouldBeEqualTo Status.UNKNOWN
         output.out shouldContain WARNING_MESSAGE
     }
@@ -235,6 +283,7 @@ class LeaderBackendHealthIndicatorTest {
             100.milliseconds,
         ).health()
 
+        log.debug { "health=$health" }
         health.status shouldBeEqualTo Status.UNKNOWN
         output.out.contains(WARNING_MESSAGE).shouldBeFalse()
     }
@@ -274,26 +323,31 @@ class LeaderBackendHealthIndicatorTest {
                 .uri(URI.create("http://localhost:$port/actuator/health"))
                 .GET()
                 .build()
-            val response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString())
+
+            val response = HttpClient.newHttpClient()
+                .send(request, HttpResponse.BodyHandlers.ofString())
 
             response.statusCode() shouldBeEqualTo 200
-            response.body().shouldContain("\"status\":\"UNKNOWN\"")
+            response.body() shouldContain "\"status\":\"UNKNOWN\""
             val body = response.body()
+
             SENSITIVE_DETAIL_KEYS.forEach { key ->
-                body.contains("\"$key\"").shouldBeFalse()
-            }
-            SENSITIVE_RAW_VALUES.forEach { value ->
-                body.contains(value).shouldBeFalse()
+                body shouldNotContain "\"$key\""
             }
 
-            val leaderBackend = ObjectMapper().readTree(body).path("components").path("leaderBackend")
-            leaderBackend.isObject.shouldBeTrue()
-            leaderBackend.path("status").asText() shouldBeEqualTo "UNKNOWN"
-            val leaderBackendFields = mutableSetOf<String>()
-            val fields = leaderBackend.fieldNames()
-            while (fields.hasNext()) {
-                leaderBackendFields += fields.next()
+            SENSITIVE_RAW_VALUES.forEach { value ->
+                body shouldNotContain value
             }
+
+            val leaderBackend = Jackson.defaultJsonMapper.readTree(body)
+                .path("components")
+                .path("leaderBackend")
+
+            log.debug { "leaderBackend=$leaderBackend" }
+
+            leaderBackend.isObject.shouldBeTrue()
+            leaderBackend.path("status").asString() shouldBeEqualTo "UNKNOWN"
+            val leaderBackendFields = leaderBackend.propertyNames().toSet()
             leaderBackendFields shouldBeEqualTo setOf("status")
         }
     }
@@ -330,11 +384,11 @@ class LeaderBackendHealthIndicatorTest {
 
     class DiagnosticsAwareElector(
         override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?,
-    ) : PlainLeaderElector(), LeaderBackendDiagnosticsAware
+    ): PlainLeaderElector(), LeaderBackendDiagnosticsAware
 
     class RecordingDiagnosticsElector(
         private val connectivityStatus: LeaderBackendConnectivityStatus = LeaderBackendConnectivityStatus.UP,
-    ) : PlainLeaderElector(), LeaderBackendDiagnosticsProvider {
+    ): PlainLeaderElector(), LeaderBackendDiagnosticsProvider {
         val probeCalls = AtomicInteger()
         var lastTimeout: Duration? = null
 
@@ -344,17 +398,26 @@ class LeaderBackendHealthIndicatorTest {
             probeCalls.incrementAndGet()
             lastTimeout = timeout
             return when (connectivityStatus) {
-                LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivity.up(Instant.EPOCH)
-                LeaderBackendConnectivityStatus.DOWN -> LeaderBackendConnectivity.down(Instant.EPOCH)
+                LeaderBackendConnectivityStatus.UP      -> LeaderBackendConnectivity.up(Instant.EPOCH)
+                LeaderBackendConnectivityStatus.DOWN    -> LeaderBackendConnectivity.down(Instant.EPOCH)
                 LeaderBackendConnectivityStatus.UNKNOWN -> LeaderBackendConnectivity.unknown(Instant.EPOCH)
                 LeaderBackendConnectivityStatus.NOT_CHECKED -> LeaderBackendConnectivity.notChecked()
             }
+        }
+
+        override fun toString(): String {
+            return ToStringBuilder(this)
+                .add("connectivityStatus", connectivityStatus)
+                .add("probeCalls", probeCalls.get())
+                .add("lastTimeout", lastTimeout)
+                .add("backendDescriptor", backendDescriptor)
+                .toString()
         }
     }
 
     class ThrowingDiagnosticsElector(
         private val failure: Throwable,
-    ) : PlainLeaderElector(), LeaderBackendDiagnosticsProvider {
+    ): PlainLeaderElector(), LeaderBackendDiagnosticsProvider {
         override val backendDescriptor: LeaderBackendDescriptor = LocalLeaderBackendDiagnostics.backendDescriptor
 
         override fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity = throw failure
@@ -362,7 +425,7 @@ class LeaderBackendHealthIndicatorTest {
 
     class ProbeBackedDiagnosticsElector(
         private val probe: (Duration) -> LeaderBackendConnectivityStatus,
-    ) : PlainLeaderElector(), LeaderBackendDiagnosticsProvider {
+    ): PlainLeaderElector(), LeaderBackendDiagnosticsProvider {
         override val backendDescriptor: LeaderBackendDescriptor = LocalLeaderBackendDiagnostics.backendDescriptor
 
         override fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity =
@@ -373,14 +436,14 @@ class LeaderBackendHealthIndicatorTest {
             )
     }
 
-    class NotCheckedDiagnosticsElector : PlainLeaderElector(), LeaderBackendDiagnosticsProvider {
+    class NotCheckedDiagnosticsElector: PlainLeaderElector(), LeaderBackendDiagnosticsProvider {
         override val backendDescriptor: LeaderBackendDescriptor = LocalLeaderBackendDiagnostics.backendDescriptor
 
         override fun diagnostics(probe: Boolean, timeout: Duration): LeaderBackendDiagnostics =
             LeaderBackendDiagnostics(backendDescriptor, LeaderBackendConnectivity.notChecked())
     }
 
-    open class PlainLeaderElector : LeaderElector {
+    open class PlainLeaderElector: LeaderElector {
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? = action()
 
         override fun <T> runAsyncIfLeader(
@@ -388,35 +451,5 @@ class LeaderBackendHealthIndicatorTest {
             executor: Executor,
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> = action().thenApply { it }
-    }
-
-    private companion object {
-        const val RAW_PROBE_MESSAGE =
-            "probe failed endpoint=https://redis-prod.example:6380 token=secret credential=credential cause=connection"
-
-        const val WARNING_MESSAGE =
-            "leader.spring.health backend probe failed; status=UNKNOWN"
-
-        val SENSITIVE_DETAIL_KEYS = setOf(
-            "error",
-            "exception",
-            "exceptionClass",
-            "class",
-            "message",
-            "cause",
-            "stackTrace",
-            "endpoint",
-            "token",
-            "credential",
-        )
-
-        val SENSITIVE_RAW_VALUES = setOf(
-            RAW_PROBE_MESSAGE,
-            "IllegalStateException",
-            "redis-prod.example",
-            "token=secret",
-            "credential=credential",
-            "cause=connection",
-        )
     }
 }

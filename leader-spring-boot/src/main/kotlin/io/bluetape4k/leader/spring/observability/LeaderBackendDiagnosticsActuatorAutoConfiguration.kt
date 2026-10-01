@@ -38,8 +38,7 @@ class LeaderBackendDiagnosticsActuatorAutoConfiguration {
         beanFactory: ConfigurableListableBeanFactory,
         properties: LeaderProperties,
     ): LeaderBackendDiagnosticsEndpoint? =
-        LeaderBackendDiagnosticsSelector(
-            beanFactory,
-            properties.observability.stateProviderBean,
-        ).selectedOrNull()?.let(::LeaderBackendDiagnosticsEndpoint)
+        LeaderBackendDiagnosticsSelector(beanFactory, properties.observability.stateProviderBean)
+            .selectedOrNull()
+            ?.let(::LeaderBackendDiagnosticsEndpoint)
 }

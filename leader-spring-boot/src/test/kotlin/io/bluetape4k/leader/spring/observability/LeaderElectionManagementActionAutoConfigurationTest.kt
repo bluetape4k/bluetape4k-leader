@@ -1,14 +1,15 @@
 package io.bluetape4k.leader.spring.observability
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldNotBeNull
-import io.bluetape4k.leader.LeaderManagementActionRegistry
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LeaderManagementActionObserver
+import io.bluetape4k.leader.LeaderManagementActionRegistry
 import io.bluetape4k.leader.spring.properties.LeaderManagementActionProperties
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.getBean
 import org.springframework.beans.factory.getBeansOfType
@@ -21,6 +22,8 @@ import java.time.Duration
 
 class LeaderElectionManagementActionAutoConfigurationTest {
 
+    companion object: KLogging()
+
     private val runner = ApplicationContextRunner()
         .withConfiguration(
             AutoConfigurations.of(LeaderElectionManagementActionAutoConfiguration::class.java),
@@ -29,8 +32,8 @@ class LeaderElectionManagementActionAutoConfigurationTest {
     @Test
     fun `action is disabled by default`() {
         runner.run { context ->
-            context.getBeansOfType<LeaderElectionActionWebEndpoint>().isEmpty().shouldBeTrue()
-            context.getBeansOfType<LeaderManagementActionRegistry>().isEmpty().shouldBeTrue()
+            context.getBeansOfType<LeaderElectionActionWebEndpoint>().shouldBeEmpty()
+            context.getBeansOfType<LeaderManagementActionRegistry>().shouldBeEmpty()
         }
     }
 
@@ -42,8 +45,8 @@ class LeaderElectionManagementActionAutoConfigurationTest {
                 "management.endpoint.leaderElection.actions.enabled=true",
             )
             .run { context ->
-                context.getBeansOfType<LeaderElectionActionWebEndpoint>().isEmpty().shouldBeTrue()
-                context.getBeansOfType<LeaderManagementActionRegistry>().isEmpty().shouldBeTrue()
+                context.getBeansOfType<LeaderElectionActionWebEndpoint>().shouldBeEmpty()
+                context.getBeansOfType<LeaderManagementActionRegistry>().shouldBeEmpty()
             }
     }
 
@@ -58,7 +61,7 @@ class LeaderElectionManagementActionAutoConfigurationTest {
                 context.getBeansOfType<LeaderElectionActionWebEndpoint>().size shouldBeEqualTo 1
                 context.getBeansOfType<LeaderManagementActionRegistry>().size shouldBeEqualTo 1
                 context.getBeansOfType<LeaderManagementActionLifecycle>().size shouldBeEqualTo 1
-                context.getBean(LeaderManagementActionProperties::class.java).timeout shouldBeEqualTo
+                context.getBean<LeaderManagementActionProperties>().timeout shouldBeEqualTo
                         LeaderManagementActionProperties.DEFAULT_TIMEOUT
             }
     }
@@ -74,23 +77,23 @@ class LeaderElectionManagementActionAutoConfigurationTest {
             .run { context ->
                 context.getBeansOfType<LeaderManagementActionRegistry>().size shouldBeEqualTo 1
                 context.getBean<LeaderManagementActionRegistry>()
-                    .shouldNotBeNull().shouldBeSameInstanceAs(
-                        context.getBean<LeaderManagementActionRegistry>("customRegistry"),
-                    )
-                context.getBeansOfType<LeaderManagementActionLifecycle>().isEmpty().shouldBeTrue()
+                    .shouldNotBeNull() shouldBeSameInstanceAs
+                        context.getBean<LeaderManagementActionRegistry>("customRegistry")
+
+                context.getBeansOfType<LeaderManagementActionLifecycle>().shouldBeEmpty()
                 context.getBeansOfType<LeaderElectionActionWebEndpoint>().size shouldBeEqualTo 1
             }
     }
 
     @Test
     fun `property timeout is positive and bounded`() {
-        LeaderManagementActionProperties(timeout = Duration.ofSeconds(5)).timeout shouldBeEqualTo
-                Duration.ofSeconds(5)
+        LeaderManagementActionProperties(timeout = 5.seconds()).timeout shouldBeEqualTo 5.seconds()
+
         assertFailsWith<IllegalArgumentException> {
             LeaderManagementActionProperties(timeout = Duration.ZERO)
         }
         assertFailsWith<IllegalArgumentException> {
-            LeaderManagementActionProperties(timeout = Duration.ofSeconds(31))
+            LeaderManagementActionProperties(timeout = 31.seconds())
         }
     }
 
@@ -109,7 +112,7 @@ class LeaderElectionManagementActionAutoConfigurationTest {
             )
             .run { context ->
                 context.getBeansOfType<LeaderManagementActionRegistry>().size shouldBeEqualTo 1
-                context.getBeansOfType<LeaderManagementActionObserver>().isEmpty().shouldBeTrue()
+                context.getBeansOfType<LeaderManagementActionObserver>().shouldBeEmpty()
             }
     }
 

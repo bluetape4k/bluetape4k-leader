@@ -1,10 +1,13 @@
 package io.bluetape4k.leader.spring.scheduling
 
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
+import io.bluetape4k.logging.KLogging
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationHandler
 import io.micrometer.observation.ObservationRegistry
@@ -25,6 +28,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class LeaderScheduledTaskLifecycleTest {
 
+    companion object: KLogging()
+
     private val runner = ApplicationContextRunner()
         .withConfiguration(
             AutoConfigurations.of(
@@ -36,9 +41,11 @@ class LeaderScheduledTaskLifecycleTest {
 
     @Test
     fun `property policy preserves one Spring scheduled task and context close cancels it`() {
-        runner.withUserConfiguration(SchedulingConfiguration::class.java).run { context ->
-            scheduledTasks(context).size shouldBeEqualTo 1
-        }
+        runner
+            .withUserConfiguration(SchedulingConfiguration::class.java)
+            .run { context ->
+                scheduledTasks(context).size shouldBeEqualTo 1
+            }
 
         runner
             .withUserConfiguration(SchedulingConfiguration::class.java)
@@ -48,10 +55,10 @@ class LeaderScheduledTaskLifecycleTest {
                 "bluetape4k.leader.scheduling.policies[0].name=scheduled-lifecycle",
             )
             .run { context ->
-                scheduledTasks(context).size shouldBeEqualTo 1
+                scheduledTasks(context) shouldHaveSize 1
                 val holder = context.getBeansOfType<ScheduledTaskHolder>().values.single()
                 context.close()
-                holder.scheduledTasks.size shouldBeEqualTo 0
+                holder.scheduledTasks.shouldBeEmpty()
             }
     }
 
@@ -61,6 +68,7 @@ class LeaderScheduledTaskLifecycleTest {
         val latch = CountDownLatch(1)
         LifecycleState.handler = handler
         LifecycleState.latch = latch
+
         try {
             runner
                 .withUserConfiguration(ObservationSchedulingConfiguration::class.java)
@@ -72,7 +80,7 @@ class LeaderScheduledTaskLifecycleTest {
                 .run { context ->
                     latch.await(2.seconds).shouldBeTrue()
                     handler.starts.get() shouldBeEqualTo 1
-                    scheduledTasks(context).size shouldBeEqualTo 1
+                    scheduledTasks(context) shouldHaveSize 1
                 }
         } finally {
             LifecycleState.handler = null
@@ -81,7 +89,8 @@ class LeaderScheduledTaskLifecycleTest {
     }
 
     private fun scheduledTasks(context: org.springframework.context.ConfigurableApplicationContext) =
-        context.getBeansOfType<ScheduledTaskHolder>().values
+        context.getBeansOfType<ScheduledTaskHolder>()
+            .values
             .flatMap { it.scheduledTasks }
             .toSet()
 

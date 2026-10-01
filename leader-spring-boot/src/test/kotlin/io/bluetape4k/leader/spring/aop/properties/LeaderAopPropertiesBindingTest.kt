@@ -1,18 +1,22 @@
 package io.bluetape4k.leader.spring.aop.properties
 
-import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import java.time.Duration
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderAopPropertiesBindingTest {
+
+    companion object: KLogging()
 
     @Test
     fun `bluetape4k_leader_aop_ YAML 키가 LeaderAopProperties에 바인딩된다`() {
@@ -35,8 +39,12 @@ class LeaderAopPropertiesBindingTest {
                 "bluetape4k.leader.aop.spel.allow-method-invocation" to "true",
             ),
         )
-        val props = Binder(source).bind(LeaderAopProperties.PREFIX, LeaderAopProperties::class.java).get()
+        val props = Binder(source)
+            .bind(LeaderAopProperties.PREFIX, LeaderAopProperties::class.java)
+            .get()
 
+        log.debug { "props=$props" }
+        
         props.enabled.shouldBeFalse()
 
         props.strict.shouldBeTrue()
@@ -64,6 +72,8 @@ class LeaderAopPropertiesBindingTest {
         val props = Binder(source)
             .bindOrCreate(LeaderAopProperties.PREFIX, LeaderAopProperties::class.java)
 
+        log.debug { "props=$props" }
+
         props.enabled.shouldBeTrue()
 
         props.strict.shouldBeFalse()
@@ -89,6 +99,7 @@ class LeaderAopPropertiesBindingTest {
         val props = Binder(source)
             .bindOrCreate(LeaderAopProperties.PREFIX, LeaderAopProperties::class.java)
 
+        log.debug { "props=$props" }
         props.metrics.enabled.shouldBeFalse()
 
     }
@@ -103,7 +114,8 @@ class LeaderAopPropertiesBindingTest {
         )
 
         assertFailsWith<Exception> {
-            Binder(source).bindOrCreate(LeaderAopProperties.PREFIX, LeaderAopProperties::class.java)
+            Binder(source)
+                .bindOrCreate(LeaderAopProperties.PREFIX, LeaderAopProperties::class.java)
         }
     }
 }

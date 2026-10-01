@@ -1,13 +1,12 @@
 package io.bluetape4k.leader.spring.backend
 
 import com.mongodb.client.MongoDatabase
-import com.mongodb.kotlin.client.coroutine.MongoDatabase as CoroutineMongoDatabase
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
-import io.bluetape4k.leader.mongodb.MongoLeaderElector
 import io.bluetape4k.leader.mongodb.MongoLeaderElectionOptions
-import io.bluetape4k.leader.mongodb.MongoLeaderGroupElector
+import io.bluetape4k.leader.mongodb.MongoLeaderElector
 import io.bluetape4k.leader.mongodb.MongoLeaderGroupElectionOptions
+import io.bluetape4k.leader.mongodb.MongoLeaderGroupElector
 import io.bluetape4k.leader.mongodb.MongoSuspendLeaderElector
 import io.bluetape4k.leader.mongodb.MongoSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
@@ -19,6 +18,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import com.mongodb.kotlin.client.coroutine.MongoDatabase as CoroutineMongoDatabase
 
 /**
  * `MongoLeaderConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.

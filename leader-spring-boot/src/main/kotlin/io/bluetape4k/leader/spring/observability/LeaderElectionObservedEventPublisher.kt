@@ -16,10 +16,10 @@ import kotlinx.coroutines.flow.asSharedFlow
  */
 class LeaderElectionObservedEventPublisher(
     private val registry: LeaderElectionStatusRegistry,
-) : LeaderElectionListener, LeaderElectionEventPublisher {
+): LeaderElectionListener, LeaderElectionEventPublisher {
 
     private val eventSubject = MutableSharedFlow<LeaderElectionEvent>(
-        extraBufferCapacity = 64,
+        extraBufferCapacity = 128,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 

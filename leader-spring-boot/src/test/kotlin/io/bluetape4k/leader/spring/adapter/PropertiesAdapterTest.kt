@@ -1,10 +1,12 @@
 package io.bluetape4k.leader.spring.adapter
 
-import io.bluetape4k.leader.spring.LeaderProperties
-import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.leader.spring.LeaderProperties
+import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Duration
@@ -14,6 +16,8 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PropertiesAdapterTest {
 
+    companion object: KLogging()
+
     @Test
     fun `toCommonElection 가 properties로부터 LeaderElectionOptions 생성`() {
         val props = LeaderProperties(
@@ -21,6 +25,8 @@ class PropertiesAdapterTest {
             leaseTime = Duration.ofMinutes(1),
         )
         val options = PropertiesAdapter.toCommonElection(props)
+
+        log.debug { "options=$options" }
         options.waitTime shouldBeEqualTo 7.seconds
         options.leaseTime shouldBeEqualTo 1.minutes
     }
@@ -36,6 +42,8 @@ class PropertiesAdapterTest {
             ),
         )
         val options = PropertiesAdapter.toCommonGroup(props)
+
+        log.debug { "options=$options" }
         options.maxLeaders shouldBeEqualTo 4
         options.waitTime shouldBeEqualTo 2.seconds
         options.leaseTime shouldBeEqualTo 30.seconds
@@ -45,6 +53,8 @@ class PropertiesAdapterTest {
     @Test
     fun `default LeaderProperties 가 5초 wait, 60초 lease 변환`() {
         val options = PropertiesAdapter.toCommonElection(LeaderProperties())
+
+        log.debug { "options=$options" }
         options.waitTime shouldBeEqualTo 5.seconds
         options.leaseTime shouldBeEqualTo 60.seconds
     }
@@ -52,6 +62,8 @@ class PropertiesAdapterTest {
     @Test
     fun `default group 옵션은 maxLeaders 2`() {
         val options = PropertiesAdapter.toCommonGroup(LeaderProperties())
+
+        log.debug { "options=$options" }
         options.maxLeaders shouldBeEqualTo 2
         options.useDbTime.shouldBeFalse()
     }

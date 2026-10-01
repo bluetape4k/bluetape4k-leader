@@ -28,6 +28,7 @@ import io.bluetape4k.leader.spring.scheduling.LeaderScheduledPolicyRegistry
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.hashOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -78,6 +79,14 @@ class LeaderElectionAspect(
     private val scheduledPolicyRegistry: LeaderScheduledPolicyRegistry? = null,
 ): SmartInitializingSingleton, DisposableBean {
 
+    companion object: KLogging() {
+        private val LITERAL_PATTERN = Regex("^[A-Za-z0-9_:.\\-]+$")
+        private const val LEASE_WARN_RATIO = 0.8
+        private const val MONO_RETURN_TYPE = "reactor.core.publisher.Mono"
+        private const val FLUX_RETURN_TYPE = "reactor.core.publisher.Flux"
+        private const val FLOW_RETURN_TYPE = "kotlinx.coroutines.flow.Flow"
+    }
+
     /** JVM/source compatibility constructor retained for existing direct users and tests. */
     constructor(
         beanSelector: LeaderBeanSelector,
@@ -102,6 +111,7 @@ class LeaderElectionAspect(
     )
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount", "ThrowsCount")
     fun aroundLeader(pjp: ProceedingJoinPoint): Any? {
+        log.debug { "around leader... pjp=$pjp" }
         val scope = observationScopeOwner?.current() ?: return aroundLeaderInternal(pjp)
         return scope.withScope { aroundLeaderInternal(pjp) }
     }
@@ -1083,7 +1093,8 @@ class LeaderElectionAspect(
         override fun equals(other: Any?): Boolean =
             other is TargetMethodCacheKey && target === other.target && method == other.method
 
-        override fun hashCode(): Int = 31 * System.identityHashCode(target) + method.hashCode()
+        override fun hashCode(): Int = hashOf(target, method)
+        // 31 * System.identityHashCode(target) + method.hashCode()
     }
 
     private fun AdviceMetadata.isStreamAllowed(): Boolean =
@@ -1105,13 +1116,5 @@ class LeaderElectionAspect(
             runCatching { action(recorder) }
                 .onFailure { log.warn(it) { "metrics recorder threw" } }
         }
-    }
-
-    companion object: KLogging() {
-        private val LITERAL_PATTERN = Regex("^[A-Za-z0-9_:.\\-]+$")
-        private const val LEASE_WARN_RATIO = 0.8
-        private const val MONO_RETURN_TYPE = "reactor.core.publisher.Mono"
-        private const val FLUX_RETURN_TYPE = "reactor.core.publisher.Flux"
-        private const val FLOW_RETURN_TYPE = "kotlinx.coroutines.flow.Flow"
     }
 }

@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.spring.observability
 
 import io.bluetape4k.leader.LeaderManagementActionRegistry
-import org.slf4j.LoggerFactory
+import io.bluetape4k.logging.KLogging
 import org.springframework.beans.factory.DisposableBean
 
 /**
@@ -12,22 +12,24 @@ import org.springframework.beans.factory.DisposableBean
  */
 class LeaderManagementActionLifecycle(
     private val registry: LeaderManagementActionRegistry,
-) : DisposableBean {
+): DisposableBean {
+
+    private companion object: KLogging()
 
     override fun destroy() {
-        val drained = runCatching { registry.closeAndDrain() }
-            .getOrElse {
-                logger.warn("leader management action registry drain failed; continuing shutdown")
-                false
-            }
-        if (!drained) {
-            logger.warn("leader management action registry drain timed out; continuing shutdown")
+        val drained = runCatching {
+            registry.closeAndDrain()
+        }.getOrElse {
+            log.warn("leader management action registry drain failed; continuing shutdown")
+            false
         }
-        runCatching { registry.close() }
-            .onFailure { logger.warn("leader management action registry close failed; continuing shutdown") }
-    }
-
-    private companion object {
-        private val logger = LoggerFactory.getLogger(LeaderManagementActionLifecycle::class.java)
+        if (!drained) {
+            log.warn("leader management action registry drain timed out; continuing shutdown")
+        }
+        runCatching {
+            registry.close()
+        }.onFailure {
+            log.warn("leader management action registry close failed; continuing shutdown")
+        }
     }
 }

@@ -2,14 +2,17 @@ package io.bluetape4k.leader.spring.observability
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.metrics.SkipReason
 import io.bluetape4k.leader.spring.properties.LeaderObservabilityHealthProperties
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -27,10 +30,12 @@ import java.util.concurrent.Executor
 
 class LeaderElectionReadinessHealthIndicatorTest {
 
+    companion object: KLogging()
+
     private val now = Instant.parse("2026-07-15T00:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
-    private val warningThreshold = Duration.ofSeconds(10)
-    private val elector = mockk<LeaderElector>()
+    private val warningThreshold = 10.seconds()
+    private val elector = mockk<LeaderElector>(relaxed = true)
 
     @BeforeEach
     fun clearElector() {
@@ -68,13 +73,14 @@ class LeaderElectionReadinessHealthIndicatorTest {
 
         val health = indicator(acquisitionFailureWindow = window).health()
 
+        log.debug { "health=$health" }
         health.status shouldBeEqualTo Status.UP
         health.details["recentAcquisitionFailures"] shouldBeEqualTo 1
         health.details["lastAcquisitionFailureAt"] shouldBeEqualTo now
         health.details["acquisitionFailureWindow"] shouldBeEqualTo "PT5M"
         health.details["acquisitionFailureWindowCapacity"] shouldBeEqualTo 4
         health.details["acquisitionFailureWindowOverflowed"] shouldBeEqualTo false
-        health.details.toString().contains("redis-prod-01").shouldBeFalse()
+        health.details.toString() shouldNotContain "redis-prod-01"
     }
 
     @Test
@@ -84,6 +90,7 @@ class LeaderElectionReadinessHealthIndicatorTest {
 
         val health = indicator(acquisitionFailureWindow = window).health()
 
+        log.debug { "health=$health" }
         health.details["recentAcquisitionFailures"] shouldBeEqualTo 0
         health.details["lastAcquisitionFailureAt"].shouldBeNull()
     }
@@ -97,6 +104,7 @@ class LeaderElectionReadinessHealthIndicatorTest {
             clock = clock,
         ).health()
 
+        log.debug { "health=$health" }
         health.status shouldBeEqualTo Status.UNKNOWN
     }
 
@@ -106,10 +114,12 @@ class LeaderElectionReadinessHealthIndicatorTest {
 
         val health = indicator("healthy-job").health()
 
+        log.debug { "health=$health" }
         health.status shouldBeEqualTo Status.UP
         health.details["knownLocks"] shouldBeEqualTo 1
         health.details["occupiedLocks"] shouldBeEqualTo 1
         health.details["expiringLeases"] shouldBeEqualTo 0
+
         verify(exactly = 1) { elector.state("healthy-job") }
     }
 
@@ -119,6 +129,7 @@ class LeaderElectionReadinessHealthIndicatorTest {
 
         val health = indicator("expiring-job").health()
 
+        log.debug { "health=$health" }
         health.status shouldBeEqualTo Status.OUT_OF_SERVICE
         health.details["expiringLeases"] shouldBeEqualTo 1
         health.details["expiringLockNames"] shouldBeEqualTo listOf("expiring-job")
@@ -133,6 +144,7 @@ class LeaderElectionReadinessHealthIndicatorTest {
 
         val health = indicator("unknown-job").health()
 
+        log.debug { "health=$health" }
         health.status shouldBeEqualTo Status.UP
         health.details["unknownLeaseExpiry"] shouldBeEqualTo 1
         health.details["expiringLeases"] shouldBeEqualTo 0
@@ -145,10 +157,12 @@ class LeaderElectionReadinessHealthIndicatorTest {
 
         val health = indicator("unavailable-job", "healthy-job").health()
 
+        log.debug { "health=$health" }
         health.status shouldBeEqualTo Status.DOWN
         health.details["knownLocks"] shouldBeEqualTo 2
         health.details["failedLockNames"] shouldBeEqualTo listOf("unavailable-job")
-        health.details.toString().contains("backend unavailable").shouldBeFalse()
+        health.details.toString() shouldNotContain "backend unavailable"
+
         verify(exactly = 1) { elector.state("healthy-job") }
         verify(exactly = 1) { elector.state("unavailable-job") }
     }
@@ -173,8 +187,13 @@ class LeaderElectionReadinessHealthIndicatorTest {
         unknown.status shouldBeEqualTo Status.UNKNOWN
         unknown.details["recentAcquisitionFailures"] shouldBeEqualTo 1
 
-        every { elector.state("expiring-job") } returns occupied("expiring-job", now.plus(warningThreshold))
+        every {
+            elector.state("expiring-job")
+        } returns occupied("expiring-job", now.plus(warningThreshold))
+
         val outOfService = indicator("expiring-job", acquisitionFailureWindow = window).health()
+
+        log.debug { "outOfService=$outOfService" }
         outOfService.status shouldBeEqualTo Status.OUT_OF_SERVICE
         outOfService.details["recentAcquisitionFailures"] shouldBeEqualTo 1
     }
@@ -185,6 +204,7 @@ class LeaderElectionReadinessHealthIndicatorTest {
 
         val health = indicator(acquisitionFailureWindow = window).health()
 
+        log.debug { "health=$health" }
         health.status shouldBeEqualTo Status.UP
         health.details["recentAcquisitionFailures"] shouldBeEqualTo 0
         health.details["lastAcquisitionFailureAt"].shouldBeNull()
@@ -223,7 +243,7 @@ class LeaderElectionReadinessHealthIndicatorTest {
             LeaderLease(auditLeaderId = "node-1", leaseUntil = leaseUntil),
         )
 
-    private class DefaultStateLeaderElector : LeaderElector {
+    private class DefaultStateLeaderElector: LeaderElector {
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? = action()
 
         override fun <T> runAsyncIfLeader(
@@ -233,7 +253,7 @@ class LeaderElectionReadinessHealthIndicatorTest {
         ): CompletableFuture<T?> = action().thenApply { it }
     }
 
-    private class ThrowingClock : Clock() {
+    private class ThrowingClock: Clock() {
         override fun instant(): Instant = throw IllegalStateException("clock unavailable")
 
         override fun getZone(): ZoneId = ZoneOffset.UTC

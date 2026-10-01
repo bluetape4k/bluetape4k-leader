@@ -9,12 +9,12 @@ import io.bluetape4k.leader.consul.ConsulSuspendLeaderElector
 import io.bluetape4k.leader.consul.ConsulSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
-import kotlin.time.toKotlinDuration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import kotlin.time.toKotlinDuration
 
 /**
  * `ConsulLeaderConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.

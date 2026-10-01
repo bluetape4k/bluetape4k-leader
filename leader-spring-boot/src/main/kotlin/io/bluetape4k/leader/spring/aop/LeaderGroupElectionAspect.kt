@@ -19,12 +19,12 @@ import io.bluetape4k.leader.spring.aop.cache.GroupFactoryCacheKey
 import io.bluetape4k.leader.spring.aop.internal.AdviceBranch
 import io.bluetape4k.leader.spring.aop.internal.BodyThrownMarker
 import io.bluetape4k.leader.spring.aop.internal.InvalidLockNameException
-import io.bluetape4k.leader.spring.metrics.LeaseExtensionObservationScopeOwner
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.AnnotationLookup
 import io.bluetape4k.leader.spring.aop.util.DurationParser
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
+import io.bluetape4k.leader.spring.metrics.LeaseExtensionObservationScopeOwner
 import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -42,6 +42,7 @@ import org.aspectj.lang.reflect.MethodSignature
 import org.springframework.beans.factory.SmartInitializingSingleton
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.io.Serializable
 import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.Continuation
@@ -74,6 +75,13 @@ class LeaderGroupElectionAspect(
     private val groupProperties: LeaderGroupProperties = LeaderGroupProperties(),
 ): SmartInitializingSingleton {
 
+    companion object: KLogging() {
+        private val LITERAL_PATTERN = Regex("^[A-Za-z0-9_:.\\-]+$")
+        private const val LEASE_WARN_RATIO = 0.8
+        private const val FLUX_RETURN_TYPE = "reactor.core.publisher.Flux"
+        private const val FLOW_RETURN_TYPE = "kotlinx.coroutines.flow.Flow"
+    }
+
     /** `useDbTime` 정책 추가 전에 공개된 다섯 인자 생성자 descriptor를 보존합니다. */
     constructor(
         beanSelector: LeaderBeanSelector,
@@ -81,7 +89,7 @@ class LeaderGroupElectionAspect(
         spel: SpelExpressionEvaluator,
         lockNameValidator: LockNameValidator,
         recorders: List<LeaderAopMetricsRecorder>,
-    ) : this(beanSelector, props, spel, lockNameValidator, recorders, LeaderGroupProperties())
+    ): this(beanSelector, props, spel, lockNameValidator, recorders, LeaderGroupProperties())
 
     private val metadataCache = ConcurrentHashMap<Method, GroupAdviceMetadata>()
     private val factoryCache = ConcurrentHashMap<GroupFactoryCacheKey, LeaderGroupElector>()
@@ -92,6 +100,7 @@ class LeaderGroupElectionAspect(
 
     @Around("@annotation(io.bluetape4k.leader.annotation.LeaderGroupElection)")
     fun aroundLeader(pjp: ProceedingJoinPoint): Any? {
+        log.debug { "around leaderGroup: pjp=$pjp" }
         val scope = observationScopeOwner?.current() ?: return aroundLeaderInternal(pjp)
         return scope.withScope { aroundLeaderInternal(pjp) }
     }
@@ -407,7 +416,7 @@ class LeaderGroupElectionAspect(
         val scopedSuspendBlock: suspend () -> Any? = if (scope == null) {
             suspendBlock
         } else {
-            { withContext(scope.asContextElement()) { suspendBlock() } }
+            suspend { withContext(scope.asContextElement()) { suspendBlock() } }
         }
         return scopedSuspendBlock.startCoroutineUninterceptedOrReturn(continuation)
     }
@@ -660,8 +669,11 @@ class LeaderGroupElectionAspect(
     private inline fun fanOut(crossinline action: (LeaderAopMetricsRecorder) -> Unit) {
         if (!hasRecorders) return
         for (recorder in recorders) {
-            runCatching { action(recorder) }
-                .onFailure { log.warn(it) { "metrics recorder threw" } }
+            runCatching {
+                action(recorder)
+            }.onFailure {
+                log.warn(it) { "metrics recorder threw" }
+            }
         }
     }
 
@@ -690,7 +702,7 @@ class LeaderGroupElectionAspect(
         val isMono: Boolean,
         val suspendElectorFactory: SuspendLeaderGroupElectorFactory?,
         val suspendElectorFactoryBeanName: String,
-    ) {
+    ): Serializable {
 
         /**
          * `resolveLockIdentity` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
@@ -709,12 +721,9 @@ class LeaderGroupElectionAspect(
                 groupParams = LockIdentity.GroupParams(maxLeaders = options.maxLeaders),
             )
         }
-    }
 
-    companion object: KLogging() {
-        private val LITERAL_PATTERN = Regex("^[A-Za-z0-9_:.\\-]+$")
-        private const val LEASE_WARN_RATIO = 0.8
-        private const val FLUX_RETURN_TYPE = "reactor.core.publisher.Flux"
-        private const val FLOW_RETURN_TYPE = "kotlinx.coroutines.flow.Flow"
+        companion object {
+            private const val serialVersionUID = 1L
+        }
     }
 }

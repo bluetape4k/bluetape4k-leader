@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.scheduling
 
+import java.io.Serializable
 import java.lang.reflect.Method
 
 /**
@@ -19,20 +20,21 @@ class LeaderScheduledPolicyRegistry(
         }.also { policies ->
             check(policies.size == configured.size) {
                 "Duplicate scheduled policy selector(s): " +
-                    configured.groupingBy { it.selector }.eachCount().filterValues { it > 1 }.keys
+                        configured.groupingBy { it.selector }.eachCount().filterValues { it > 1 }.keys
             }
-    }
+        }
 
     private val observedSelectors = linkedSetOf<String>()
-    private val mutableBindings = linkedMapOf<
-        TargetIdentity,
-        MutableMap<MethodSignature, LeaderScheduledPolicyProperties.Policy>,
-    >()
-    private val mutableSelectors = linkedMapOf<TargetIdentity, MutableMap<String, MethodSignature>>()
+
+    private val mutableBindings =
+        linkedMapOf<TargetIdentity, MutableMap<MethodSignature, LeaderScheduledPolicyProperties.Policy>>()
+
+    private val mutableSelectors =
+        linkedMapOf<TargetIdentity, MutableMap<String, MethodSignature>>()
 
     private var frozen = false
     private var frozenBindings:
-        Map<TargetIdentity, Map<MethodSignature, LeaderScheduledPolicyProperties.Policy>> = emptyMap()
+            Map<TargetIdentity, Map<MethodSignature, LeaderScheduledPolicyProperties.Policy>> = emptyMap()
 
     /** user bean의 scheduled method와 property binding을 registry에 추가합니다. */
     fun register(
@@ -59,7 +61,7 @@ class LeaderScheduledPolicyRegistry(
             previousSignature != signature -> error(
                 "Ambiguous scheduled policy selector '$selector': overloaded methods are not supported",
             )
-            else -> error("Duplicate scheduled policy registration for selector '$selector'")
+            else                      -> error("Duplicate scheduled policy registration for selector '$selector'")
         }
 
         mutableBindings.getOrPut(targetIdentity) { linkedMapOf() }[signature] = policy
@@ -127,13 +129,14 @@ class LeaderScheduledPolicyRegistry(
         val declaringClass: Class<*>,
         val name: String,
         val parameterTypes: List<Class<*>>,
-    ) {
+    ): Serializable {
         companion object {
             fun from(method: Method): MethodSignature = MethodSignature(
                 declaringClass = method.declaringClass,
                 name = method.name,
                 parameterTypes = method.parameterTypes.toList(),
             )
+            private const val serialVersionUID: Long = 1L
         }
     }
 }

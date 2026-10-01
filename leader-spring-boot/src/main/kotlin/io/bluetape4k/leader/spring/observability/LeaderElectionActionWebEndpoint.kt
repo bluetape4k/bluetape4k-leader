@@ -52,7 +52,7 @@ data class LeaderManagementActionHttpResponse(
     val action: String,
     val outcome: String,
     val mutationAttempted: Boolean,
-) : Serializable {
+): Serializable {
 
     companion object {
         fun from(result: LeaderManagementActionResult): LeaderManagementActionHttpResponse =

@@ -9,4 +9,4 @@ import org.springframework.boot.SpringBootConfiguration
  * `@ImportAutoConfiguration` 으로 명시한 AutoConfig 만 로딩.
  */
 @SpringBootConfiguration
-open class LeaderTestApplication
+class LeaderTestApplication

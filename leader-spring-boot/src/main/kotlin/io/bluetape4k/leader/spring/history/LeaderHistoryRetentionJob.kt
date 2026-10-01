@@ -1,14 +1,15 @@
 package io.bluetape4k.leader.spring.history
 
+import io.bluetape4k.javatimes.days
 import io.bluetape4k.leader.history.LeaderHistorySink
 import io.bluetape4k.leader.history.NoopLeaderHistorySink
 import io.bluetape4k.leader.spring.scheduling.LeaderScheduled
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.beans.factory.annotation.Value
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 
 /**
  * `LeaderHistoryRetentionJob`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -21,14 +22,14 @@ import java.time.temporal.ChronoUnit
  */
 class LeaderHistoryRetentionJob(
     private val sink: LeaderHistorySink,
-    @Value("\${bluetape4k.leader.history.retention.days:30}")
+    @Value($$"${bluetape4k.leader.history.retention.days:30}")
     private val retentionDays: Long = 30L,
-    @Value("\${bluetape4k.leader.history.retention.chunk-size:1000}")
+    @Value($$"${bluetape4k.leader.history.retention.chunk-size:1000}")
     private val chunkSize: Int = 1000,
-    @Value("\${bluetape4k.leader.history.retention.max-duration-ms:300000}")
+    @Value($$"${bluetape4k.leader.history.retention.max-duration-ms:300000}")
     private val maxDurationMs: Long = 300_000L,
-) : InitializingBean {
-    companion object : KLogging()
+): InitializingBean {
+    companion object: KLogging()
 
     override fun afterPropertiesSet() {
         if (sink === NoopLeaderHistorySink) {
@@ -38,14 +39,15 @@ class LeaderHistoryRetentionJob(
 
     @LeaderScheduled(
         name = "bluetape4k-leader-history-retention",
-        cron = "\${bluetape4k.leader.history.retention.cron:0 0 2 * * ?}",
+        cron = $$"${bluetape4k.leader.history.retention.cron:0 0 2 * * ?}",
         autoExtend = true,
     )
     fun runRetention() {
-        val cutoff = Instant.now().minus(retentionDays, ChronoUnit.DAYS)
+        val cutoff = Instant.now() - retentionDays.days() //.minus(retentionDays, ChronoUnit.DAYS)
         val deadline = System.currentTimeMillis() + maxDurationMs
         var deleted: Int
         do {
+            log.debug { "delete older than $cutoff, chunkSize=$chunkSize" }
             deleted = sink.deleteOlderThan(cutoff, chunkSize)
         } while (deleted >= chunkSize && System.currentTimeMillis() < deadline)
 

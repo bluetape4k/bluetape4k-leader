@@ -1,6 +1,10 @@
 package io.bluetape4k.leader.spring.observability
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.leader.LeaderElectionState
+import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotNull
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation
@@ -9,8 +13,6 @@ import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import kotlin.jvm.internal.DefaultConstructorMarker
-import io.bluetape4k.leader.LeaderElectionState
-import io.bluetape4k.leader.LeaderElector
 
 /**
  * `LeaderElectionStatusEndpoint`는 Spring Boot integration의 leader election,
@@ -29,16 +31,53 @@ class LeaderElectionStatusEndpoint private constructor(
     constructorMarker: Any?,
 ) {
 
+    companion object: KLogging() {
+        /** `0.5.0`에서 공개된 내부 JVM descriptor를 새 failure window 경계 뒤로 연결합니다. */
+        @JvmSynthetic
+        internal fun fromSelectedState(
+            backendName: String,
+            stateProviderBean: String,
+            state: io.bluetape4k.leader.LeaderElectionState,
+            registry: LeaderElectionStatusRegistry,
+        ): LeaderElectionStatusEndpoint = fromSelectedState(
+            backendName = backendName,
+            stateProviderBean = stateProviderBean,
+            state = state,
+            registry = registry,
+            acquisitionFailureWindow = null,
+        )
+
+        @JvmSynthetic
+        internal fun fromSelectedState(
+            backendName: String,
+            stateProviderBean: String,
+            state: io.bluetape4k.leader.LeaderElectionState,
+            registry: LeaderElectionStatusRegistry,
+            acquisitionFailureWindow: LeaderAcquisitionFailureWindow? = null,
+        ): LeaderElectionStatusEndpoint = acquisitionFailureWindow?.let { window ->
+            LeaderElectionStatusEndpoint(
+                SelectedStateLeaderElector(backendName, stateProviderBean, state),
+                registry,
+                window,
+            )
+        } ?: LeaderElectionStatusEndpoint(
+            SelectedStateLeaderElector(backendName, stateProviderBean, state),
+            registry,
+        )
+
+        private const val STATUS_UNSUPPORTED = "Unsupported"
+    }
+
     constructor(
         leaderElector: LeaderElector,
         registry: LeaderElectionStatusRegistry,
-    ) : this(leaderElector, registry, null, null)
+    ): this(leaderElector, registry, null, null)
 
     internal constructor(
         leaderElector: LeaderElector,
         registry: LeaderElectionStatusRegistry,
         acquisitionFailureWindow: LeaderAcquisitionFailureWindow,
-    ) : this(leaderElector, registry, acquisitionFailureWindow, Unit)
+    ): this(leaderElector, registry, acquisitionFailureWindow, Unit)
 
     private val stateProvider: LeaderElectionState = leaderElector
     private val selectedBackend: String =
@@ -86,43 +125,6 @@ class LeaderElectionStatusEndpoint private constructor(
             acquisitionFailures = acquisitionFailures,
         )
     }
-
-    companion object {
-        /** `0.5.0`에서 공개된 내부 JVM descriptor를 새 failure window 경계 뒤로 연결합니다. */
-        @JvmSynthetic
-        internal fun fromSelectedState(
-            backendName: String,
-            stateProviderBean: String,
-            state: io.bluetape4k.leader.LeaderElectionState,
-            registry: LeaderElectionStatusRegistry,
-        ): LeaderElectionStatusEndpoint = fromSelectedState(
-            backendName = backendName,
-            stateProviderBean = stateProviderBean,
-            state = state,
-            registry = registry,
-            acquisitionFailureWindow = null,
-        )
-
-        @JvmSynthetic
-        internal fun fromSelectedState(
-            backendName: String,
-            stateProviderBean: String,
-            state: io.bluetape4k.leader.LeaderElectionState,
-            registry: LeaderElectionStatusRegistry,
-            acquisitionFailureWindow: LeaderAcquisitionFailureWindow? = null,
-        ): LeaderElectionStatusEndpoint = acquisitionFailureWindow?.let { window ->
-            LeaderElectionStatusEndpoint(
-                SelectedStateLeaderElector(backendName, stateProviderBean, state),
-                registry,
-                window,
-            )
-        } ?: LeaderElectionStatusEndpoint(
-            SelectedStateLeaderElector(backendName, stateProviderBean, state),
-            registry,
-        )
-
-        private const val STATUS_UNSUPPORTED = "Unsupported"
-    }
 }
 
 /** Internal adapter that keeps selector details out of the public endpoint constructor. */
@@ -130,7 +132,7 @@ private class SelectedStateLeaderElector(
     val backendName: String,
     val beanName: String,
     private val delegate: LeaderElectionState,
-) : LeaderElector {
+): LeaderElector {
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
 
@@ -147,6 +149,14 @@ private class SelectedStateLeaderElector(
         failedCompletableFutureOf(
             UnsupportedOperationException("The observability state adapter cannot execute leader work")
         )
+
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("backendName", backendName)
+            .add("beanName", beanName)
+            .add("supportsAuditLeaderState", delegate.supportsAuditLeaderState)
+            .toString()
+    }
 }
 
 /**
@@ -164,7 +174,7 @@ data class LeaderElectionStatusResponse(
     val stateProviderBean: String = "",
     val stateSupported: Boolean = false,
     val acquisitionFailures: LeaderAcquisitionFailureView = LeaderAcquisitionFailureView.empty(),
-) : Serializable {
+): Serializable {
     /** `0.5.0`에서 Kotlin 기본 인자 호출자가 사용한 synthetic constructor를 보존합니다. */
     @Deprecated("0.5.0 JVM ABI 호환성 생성자", level = DeprecationLevel.HIDDEN)
     @Suppress("UNUSED_PARAMETER")
@@ -175,7 +185,7 @@ data class LeaderElectionStatusResponse(
         stateSupported: Boolean,
         mask: Int,
         marker: DefaultConstructorMarker?,
-    ) : this(
+    ): this(
         locks = locks,
         backend = if (mask and 0x002 != 0) "unknown" else backend.requireNotNull("backend"),
         stateProviderBean = if (mask and 0x004 != 0) "" else stateProviderBean.requireNotNull("stateProviderBean"),
@@ -189,7 +199,7 @@ data class LeaderElectionStatusResponse(
         backend: String,
         stateProviderBean: String,
         stateSupported: Boolean,
-    ) : this(
+    ): this(
         locks = locks,
         backend = backend,
         stateProviderBean = stateProviderBean,
@@ -198,7 +208,7 @@ data class LeaderElectionStatusResponse(
     )
 
     /** 0.4.0 공개 API의 단일 인자 생성자 호환성을 유지합니다. */
-    constructor(locks: List<LeaderElectionLockStatus>) : this(
+    constructor(locks: List<LeaderElectionLockStatus>): this(
         locks = locks,
         backend = "unknown",
         stateProviderBean = "",
@@ -229,7 +239,7 @@ data class LeaderElectionStatusResponse(
         acquisitionFailures = acquisitionFailures,
     )
 
-    companion object {
+    companion object: KLogging() {
         /** Preserves Kotlin's published single-argument `copy$default` descriptor. */
         @JvmStatic
         @Suppress("UNUSED_PARAMETER", "FunctionNaming")
@@ -278,7 +288,7 @@ data class LeaderElectionLockStatus(
     val status: String,
     val leaderId: String?,
     val leaseExpiry: Instant?,
-) : Serializable {
+): Serializable {
     companion object {
         private const val serialVersionUID = 1L
     }

@@ -4,8 +4,7 @@ import com.hazelcast.config.Config
 import com.hazelcast.core.Hazelcast
 import com.hazelcast.core.HazelcastInstance
 import com.mongodb.client.MongoDatabase
-import com.mongodb.kotlin.client.coroutine.MongoDatabase as CoroutineMongoDatabase
-import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
@@ -29,6 +28,7 @@ import io.bluetape4k.leader.mongodb.MongoSuspendLeaderElector
 import io.bluetape4k.leader.redisson.RedissonLeaderElector
 import io.bluetape4k.leader.spring.backend.LocalLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.createSuspendBackendBean
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.storage.MongoDBServer
 import io.bluetape4k.testcontainers.storage.RedisServer
 import io.etcd.jetcd.Client
@@ -42,7 +42,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.redisson.Redisson
 import org.redisson.api.RedissonClient
-import org.redisson.config.Config as RedissonConfig
 import org.springframework.beans.factory.getBean
 import org.springframework.beans.factory.getBeanNamesForType
 import org.springframework.boot.autoconfigure.AutoConfigurations
@@ -51,20 +50,25 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import com.mongodb.kotlin.client.coroutine.MongoDatabase as CoroutineMongoDatabase
+import org.redisson.config.Config as RedissonConfig
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BackendConditionalTest {
 
-    companion object {
-        private val redis: RedisServer = RedisServer.Launcher.redis
+    companion object: KLogging() {
+        private val redis: RedisServer by lazy { RedisServer.Launcher.redis }
         private val redisUrl: String get() = redis.url
 
-        private val mongo: MongoDBServer = MongoDBServer.Launcher.mongoDB
+        private val mongo: MongoDBServer by lazy { MongoDBServer.Launcher.mongoDB }
         private val sharedDbName = "test_leader_${Base58.randomString(8)}"
 
         private fun newRedissonClient(): RedissonClient = Redisson.create(
             RedissonConfig().apply {
-                useSingleServer().setAddress(redisUrl).setConnectionPoolSize(2).setConnectionMinimumIdleSize(1)
+                useSingleServer()
+                    .setAddress(redisUrl)
+                    .setConnectionPoolSize(2)
+                    .setConnectionMinimumIdleSize(1)
             },
         )
     }
@@ -82,7 +86,7 @@ class BackendConditionalTest {
     @Test
     fun `백엔드 빈 미설정 시 Local 4 빈만 활성`() {
         contextRunner.run { ctx ->
-            ctx.getBean("localLeaderElector") shouldBeInstanceOf LocalLeaderElector::class
+            ctx.getBean("localLeaderElector").shouldBeInstanceOf<LocalLeaderElector>()
             ctx.getBeanNamesForType<LeaderElector>() shouldHaveSize 1
             ctx.getBeanNamesForType<SuspendLeaderElector>() shouldHaveSize 1
             ctx.getBeanNamesForType<LeaderGroupElector>() shouldHaveSize 1
@@ -97,13 +101,12 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(RedissonClientConfig::class.java)
             .run { ctx ->
-                ctx.getBean("redissonLeaderElector") shouldBeInstanceOf RedissonLeaderElector::class
+                ctx.getBean("redissonLeaderElector").shouldBeInstanceOf<RedissonLeaderElector>()
                 ctx.getBeanNamesForType<LeaderElector>() shouldHaveSize 1
                 ctx.getBeanNamesForType<SuspendLeaderElector>() shouldHaveSize 1
                 ctx.getBeanNamesForType<LeaderGroupElector>() shouldHaveSize 1
                 ctx.getBeanNamesForType<SuspendLeaderGroupElector>() shouldHaveSize 1
                 ctx.containsBean("localLeaderElector").shouldBeFalse()
-
             }
     }
 
@@ -114,9 +117,8 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(LettuceConnectionConfig::class.java)
             .run { ctx ->
-                ctx.getBean("lettuceLeaderElector") shouldBeInstanceOf LettuceLeaderElector::class
+                ctx.getBean("lettuceLeaderElector").shouldBeInstanceOf<LettuceLeaderElector>()
                 ctx.containsBean("localLeaderElector").shouldBeFalse()
-
             }
     }
 
@@ -128,15 +130,10 @@ class BackendConditionalTest {
             .withUserConfiguration(HazelcastInstanceConfig::class.java)
             .run { ctx ->
                 ctx.containsBean("hazelcastLeaderElector").shouldBeTrue()
-
                 ctx.containsBean("hazelcastSuspendLeaderElector").shouldBeTrue()
-
                 ctx.containsBean("hazelcastLeaderGroupElector").shouldBeTrue()
-
                 ctx.containsBean("hazelcastSuspendLeaderGroupElector").shouldBeTrue()
-
                 ctx.containsBean("localLeaderElector").shouldBeFalse()
-
             }
     }
 
@@ -147,13 +144,11 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(ExposedJdbcConfig::class.java)
             .run { ctx ->
-                ctx.getBean("exposedJdbcLeaderElector") shouldBeInstanceOf ExposedJdbcLeaderElector::class
+                ctx.getBean("exposedJdbcLeaderElector").shouldBeInstanceOf<ExposedJdbcLeaderElector>()
+
                 ctx.containsBean("exposedJdbcLeaderGroupElector").shouldBeTrue()
-
                 ctx.containsBean("exposedJdbcVirtualThreadLeaderElector").shouldBeTrue()
-
                 ctx.containsBean("localLeaderElector").shouldBeFalse()
-
             }
     }
 
@@ -164,11 +159,10 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(ExposedR2dbcConfig::class.java)
             .run { ctx ->
-                ctx.getBean("exposedR2dbcSuspendLeaderElector") shouldBeInstanceOf ExposedR2DbcSuspendLeaderElector::class
+                ctx.getBean("exposedR2dbcSuspendLeaderElector").shouldBeInstanceOf<ExposedR2DbcSuspendLeaderElector>()
+
                 ctx.containsBean("exposedR2dbcSuspendLeaderGroupElector").shouldBeTrue()
-
                 ctx.containsBean("localSuspendLeaderElector").shouldBeFalse()
-
             }
     }
 
@@ -179,11 +173,10 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(MongoSyncConfig::class.java)
             .run { ctx ->
-                ctx.getBean("mongoLeaderElector") shouldBeInstanceOf MongoLeaderElector::class
+                ctx.getBean("mongoLeaderElector").shouldBeInstanceOf<MongoLeaderElector>()
+
                 ctx.containsBean("mongoLeaderGroupElector").shouldBeTrue()
-
                 ctx.containsBean("localLeaderElector").shouldBeFalse()
-
             }
     }
 
@@ -193,13 +186,9 @@ class BackendConditionalTest {
             .withUserConfiguration(MongoSyncConfig::class.java, MongoCoroutineConfig::class.java)
             .run { ctx ->
                 ctx.containsBean("mongoLeaderElector").shouldBeTrue()
-
                 ctx.containsBean("mongoSuspendLeaderElector").shouldBeTrue()
-
                 ctx.containsBean("mongoLeaderGroupElector").shouldBeTrue()
-
                 ctx.containsBean("mongoSuspendLeaderGroupElector").shouldBeTrue()
-
             }
     }
 
@@ -213,8 +202,7 @@ class BackendConditionalTest {
             )
             .run { ctx ->
                 val config = ctx.getBean<UserOverrideMongoSuspendConfig>()
-                (ctx.getBean<MongoSuspendLeaderElector>("mongoSuspendLeaderElector") === config.custom)
-                    .shouldBeTrue()
+                ctx.getBean<MongoSuspendLeaderElector>("mongoSuspendLeaderElector") shouldBe config.custom
             }
     }
 
@@ -224,8 +212,7 @@ class BackendConditionalTest {
             .withUserConfiguration(ExposedR2dbcConfig::class.java, UserOverrideExposedR2dbcConfig::class.java)
             .run { ctx ->
                 val config = ctx.getBean<UserOverrideExposedR2dbcConfig>()
-                (ctx.getBean<ExposedR2DbcSuspendLeaderElector>("exposedR2dbcSuspendLeaderElector") === config.custom)
-                    .shouldBeTrue()
+                ctx.getBean<ExposedR2DbcSuspendLeaderElector>("exposedR2dbcSuspendLeaderElector") shouldBe config.custom
             }
     }
 
@@ -237,15 +224,12 @@ class BackendConditionalTest {
             .withUserConfiguration(EtcdClientConfig::class.java)
             .withPropertyValues("bluetape4k.leader.etcd.key-prefix=/apps/orders/leader")
             .run { ctx ->
-                ctx.getBean("etcdLeaderElector") shouldBeInstanceOf EtcdLeaderElector::class
+                ctx.getBean("etcdLeaderElector").shouldBeInstanceOf<EtcdLeaderElector>()
+
                 ctx.containsBean("etcdSuspendLeaderElector").shouldBeTrue()
-
                 ctx.containsBean("etcdLeaderGroupElector").shouldBeTrue()
-
                 ctx.containsBean("etcdSuspendLeaderGroupElector").shouldBeTrue()
-
                 ctx.containsBean("localLeaderElector").shouldBeFalse()
-
             }
     }
 
@@ -262,15 +246,12 @@ class BackendConditionalTest {
                 "bluetape4k.leader.consul.session-name-prefix=orders-leader",
             )
             .run { ctx ->
-                ctx.getBean("consulLeaderElector") shouldBeInstanceOf ConsulLeaderElector::class
+                ctx.getBean("consulLeaderElector").shouldBeInstanceOf<ConsulLeaderElector>()
+
                 ctx.containsBean("consulSuspendLeaderElector").shouldBeTrue()
-
                 ctx.containsBean("consulLeaderGroupElector").shouldBeTrue()
-
                 ctx.containsBean("consulSuspendLeaderGroupElector").shouldBeTrue()
-
                 ctx.containsBean("localLeaderElector").shouldBeFalse()
-
             }
     }
 
@@ -286,19 +267,15 @@ class BackendConditionalTest {
                 "bluetape4k.leader.dynamodb.clock-skew-tolerance=100ms",
             )
             .run { ctx ->
-                ctx.getBean("dynamoDbLeaderElector") shouldBeInstanceOf DynamoDbLeaderElector::class
+                ctx.getBean("dynamoDbLeaderElector").shouldBeInstanceOf<DynamoDbLeaderElector>()
                 ctx.containsBean("dynamoDbLeaderGroupElector").shouldBeTrue()
 
-                ctx.getBean("dynamoDbVirtualThreadLeaderElector") shouldBeInstanceOf
-                    DynamoDbVirtualThreadLeaderElector::class
+                ctx.getBean("dynamoDbVirtualThreadLeaderElector")
+                    .shouldBeInstanceOf<DynamoDbVirtualThreadLeaderElector>()
                 ctx.containsBean("dynamoDbVirtualThreadLeaderGroupElector").shouldBeTrue()
-
                 ctx.containsBean("dynamoDbSuspendLeaderElector").shouldBeTrue()
-
                 ctx.containsBean("dynamoDbSuspendLeaderGroupElector").shouldBeTrue()
-
                 ctx.containsBean("localLeaderElector").shouldBeFalse()
-
             }
     }
 
@@ -310,11 +287,8 @@ class BackendConditionalTest {
             .withUserConfiguration(RedissonClientConfig::class.java, LettuceConnectionConfig::class.java)
             .run { ctx ->
                 ctx.containsBean("redissonLeaderElector").shouldBeTrue()
-
                 ctx.containsBean("lettuceLeaderElector").shouldBeTrue()
-
                 ctx.containsBean("localLeaderElector").shouldBeFalse()
-
                 ctx.getBeanNamesForType<LeaderElector>() shouldHaveSize 2
             }
     }
@@ -325,8 +299,7 @@ class BackendConditionalTest {
             .withUserConfiguration(UserOverrideRedissonConfig::class.java)
             .run { ctx ->
                 val bean = ctx.getBean("redissonLeaderElector")
-                (bean === ctx.getBean<UserOverrideRedissonConfig>().custom).shouldBeTrue()
-
+                bean shouldBe ctx.getBean<UserOverrideRedissonConfig>().custom
             }
     }
 

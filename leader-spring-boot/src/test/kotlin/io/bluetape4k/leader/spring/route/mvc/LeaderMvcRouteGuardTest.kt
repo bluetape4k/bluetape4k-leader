@@ -10,11 +10,12 @@ import io.bluetape4k.leader.spring.properties.LeaderRouteRejectionStatus
 import io.bluetape4k.leader.spring.route.LeaderRouteAuthority
 import io.bluetape4k.leader.spring.route.LeaderRouteAuthorityRuntime
 import io.bluetape4k.leader.spring.route.LeaderRouteDecision
-import io.bluetape4k.leader.spring.route.NullLeaderRouteAuthority
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectRequestMetadata
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectRequestMetadataProvider
-import io.bluetape4k.leader.spring.route.LeaderRouteRedirectResolver
+import io.bluetape4k.leader.spring.route.NullLeaderRouteAuthority
+import io.bluetape4k.logging.KLogging
 import io.mockk.mockk
+import jakarta.servlet.http.HttpServletRequest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -24,11 +25,12 @@ import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
-import jakarta.servlet.http.HttpServletRequest
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicInteger
 
 class LeaderMvcRouteGuardTest {
+
+    companion object: KLogging()
 
     private val slot = LeaderSlot("orders-route", "node-a")
     private val invocations = AtomicInteger()
@@ -41,7 +43,7 @@ class LeaderMvcRouteGuardTest {
 
     @Test
     fun `allowed request invokes handler exactly once`() {
-        mockMvc(LeaderRouteAuthority { LeaderRouteDecision.Allowed })
+        mockMvc({ LeaderRouteDecision.Allowed })
             .get("/guarded")
             .andExpect {
                 status { isOk() }
@@ -53,13 +55,14 @@ class LeaderMvcRouteGuardTest {
 
     @Test
     fun `route-scoped registration leaves unguarded route unaffected`() {
-        val interceptor = factory(LeaderRouteAuthority { LeaderRouteDecision.NotLeader }).interceptor(slot)
+        val interceptor = factory({ LeaderRouteDecision.NotLeader }).interceptor(slot)
         val mockMvc = MockMvcBuilders
             .standaloneSetup(controller)
             .addMappedInterceptors(arrayOf("/guarded"), interceptor)
             .build()
 
-        mockMvc.get("/unguarded")
+        mockMvc
+            .get("/unguarded")
             .andExpect {
                 status { isOk() }
                 content { string("served") }
@@ -73,7 +76,7 @@ class LeaderMvcRouteGuardTest {
     fun `rejected request returns configured status and empty sanitized response`(
         rejectionStatus: LeaderRouteRejectionStatus,
     ) {
-        mockMvc(LeaderRouteAuthority { LeaderRouteDecision.NotLeader }, rejectionStatus)
+        mockMvc({ LeaderRouteDecision.NotLeader }, rejectionStatus)
             .get("/guarded")
             .andExpect {
                 status { isEqualTo(rejectionStatus.value) }
@@ -105,9 +108,9 @@ class LeaderMvcRouteGuardTest {
     @Test
     fun `resolver-only relative target returns temporary redirect without invoking handler`() {
         factory(
-            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            { LeaderRouteDecision.NotLeader },
             redirect = LeaderRouteRedirectProperties(enabled = true),
-        ).interceptor(slot, LeaderRouteRedirectResolver { java.net.URI("/leader/orders") })
+        ).interceptor(slot) { java.net.URI("/leader/orders") }
             .let { interceptor ->
                 MockMvcBuilders
                     .standaloneSetup(controller)
@@ -126,9 +129,9 @@ class LeaderMvcRouteGuardTest {
     @Test
     fun `resolver-only absolute target is rejected without location`() {
         factory(
-            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            { LeaderRouteDecision.NotLeader },
             redirect = LeaderRouteRedirectProperties(enabled = true, allowedHosts = listOf("leader.example")),
-        ).interceptor(slot, LeaderRouteRedirectResolver { java.net.URI("https://leader.example/orders") })
+        ).interceptor(slot) { java.net.URI("https://leader.example/orders") }
             .let { interceptor ->
                 MockMvcBuilders
                     .standaloneSetup(controller)
@@ -148,7 +151,7 @@ class LeaderMvcRouteGuardTest {
             LeaderRouteRedirectRequestMetadata(true, "10.0.0.10")
         }
         factory(
-            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            { LeaderRouteDecision.NotLeader },
             redirect = LeaderRouteRedirectProperties(
                 enabled = true,
                 allowedHosts = listOf("leader.example"),
@@ -156,7 +159,7 @@ class LeaderMvcRouteGuardTest {
             ),
         ).interceptor(
             slot,
-            LeaderRouteRedirectResolver { java.net.URI("https://leader.example/orders") },
+            { java.net.URI("https://leader.example/orders") },
             metadataProvider,
         ).let { interceptor ->
             MockMvcBuilders
@@ -175,14 +178,14 @@ class LeaderMvcRouteGuardTest {
     fun `redirect disabled never calls resolver or metadata provider`() {
         val resolverCalls = AtomicInteger()
         val providerCalls = AtomicInteger()
-        val interceptor = factory(LeaderRouteAuthority { LeaderRouteDecision.NotLeader })
+        val interceptor = factory({ LeaderRouteDecision.NotLeader })
             .interceptor(
                 slot,
-                LeaderRouteRedirectResolver {
+                {
                     resolverCalls.incrementAndGet()
                     java.net.URI("/leader/orders")
                 },
-                LeaderRouteRedirectRequestMetadataProvider {
+                {
                     providerCalls.incrementAndGet()
                     LeaderRouteRedirectRequestMetadata(false, null)
                 },
@@ -214,12 +217,12 @@ class LeaderMvcRouteGuardTest {
     @Test
     fun `runtime metadata provider exception rejects without location`() {
         val interceptor = factory(
-            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            { LeaderRouteDecision.NotLeader },
             redirect = LeaderRouteRedirectProperties(enabled = true),
         ).interceptor(
             slot,
-            LeaderRouteRedirectResolver { java.net.URI("/leader/orders") },
-            LeaderRouteRedirectRequestMetadataProvider { throw RuntimeException("metadata unavailable") },
+            { java.net.URI("/leader/orders") },
+            { throw RuntimeException("metadata unavailable") },
         )
 
         MockMvcBuilders
@@ -236,12 +239,12 @@ class LeaderMvcRouteGuardTest {
     @Test
     fun `checked metadata provider exception rejects without location`() {
         val interceptor = factory(
-            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            { LeaderRouteDecision.NotLeader },
             redirect = LeaderRouteRedirectProperties(enabled = true),
         ).interceptor(
             slot,
-            LeaderRouteRedirectResolver { java.net.URI("/leader/orders") },
-            LeaderRouteRedirectRequestMetadataProvider { throw Exception("metadata unavailable") },
+            { java.net.URI("/leader/orders") },
+            { throw Exception("metadata unavailable") },
         )
 
         MockMvcBuilders
@@ -257,7 +260,7 @@ class LeaderMvcRouteGuardTest {
 
     @Test
     fun `cancellation from authority is preserved`() {
-        val interceptor = factory(LeaderRouteAuthority { throw CancellationException("cancelled") }).interceptor(slot)
+        val interceptor = factory({ throw CancellationException("cancelled") }).interceptor(slot)
 
         assertFailsWith<CancellationException> {
             interceptor.preHandle(mockk(), mockk(relaxed = true), Any())
@@ -266,7 +269,7 @@ class LeaderMvcRouteGuardTest {
 
     @Test
     fun `interruption from authority is preserved and restores interrupt flag`() {
-        val interceptor = factory(LeaderRouteAuthority { throw InterruptedException("interrupted") }).interceptor(slot)
+        val interceptor = factory({ throw InterruptedException("interrupted") }).interceptor(slot)
 
         try {
             assertFailsWith<InterruptedException> {

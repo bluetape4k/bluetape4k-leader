@@ -1,8 +1,9 @@
 package io.bluetape4k.leader.spring.diagnostics
 
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaderElector
@@ -13,6 +14,8 @@ import io.bluetape4k.leader.spring.LeaderElectionAutoConfiguration
 import io.bluetape4k.leader.spring.backend.LocalLeaderConfiguration
 import io.bluetape4k.leader.spring.observability.LeaderElectionActuatorAutoConfiguration
 import io.bluetape4k.leader.spring.observability.LeaderElectionObservabilityAutoConfiguration
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.getBean
@@ -24,10 +27,11 @@ import org.springframework.context.annotation.Configuration
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
-import io.bluetape4k.assertions.shouldBeFalse
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderStartupDiagnosticsAutoConfigurationTest {
+
+    companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(
@@ -46,10 +50,10 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
             val diagnostics = ctx.getBean<LeaderStartupDiagnostics>()
             val report = diagnostics.lastReport().shouldNotBeNull()
 
+            log.debug { "report=$report" }
             report.activeBackends shouldBeEqualTo listOf("local")
             report.warningCodes shouldBeEqualTo emptyList()
             report.strict.shouldBeFalse()
-
             report.leaderElectorBeans shouldContain "localLeaderElector"
         }
     }
@@ -59,7 +63,7 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
         runner
             .withPropertyValues("bluetape4k.leader.diagnostics.enabled=false")
             .run { ctx ->
-                ctx.getBeansOfType<LeaderStartupDiagnostics>().isEmpty().shouldBeTrue()
+                ctx.getBeansOfType<LeaderStartupDiagnostics>().shouldBeEmpty()
             }
     }
 
@@ -70,6 +74,7 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
             .run { ctx ->
                 val report = ctx.getBean<LeaderStartupDiagnostics>().lastReport().shouldNotBeNull()
 
+                log.debug { "report=$report" }
                 report.warningCodes shouldContain LeaderStartupDiagnostics.WarningCode.MULTIPLE_NON_LOCAL_BACKENDS.name
                 report.activeBackends shouldBeEqualTo listOf("custom-a", "custom-b")
             }
@@ -80,8 +85,7 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
         runner
             .withPropertyValues("bluetape4k.leader.observability.state-provider-bean=missingStateProvider")
             .run { ctx ->
-                ctx.startupFailure.shouldNotBeNull()
-                    .shouldBeInstanceOf<IllegalStateException>()
+                ctx.startupFailure.shouldBeInstanceOf<IllegalStateException>()
             }
     }
 
@@ -92,6 +96,7 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
             .run { ctx ->
                 val report = ctx.getBean<LeaderStartupDiagnostics>().lastReport().shouldNotBeNull()
 
+                log.debug { "report=$report" }
                 report.activeBackends shouldBeEqualTo listOf("exposed-r2dbc")
             }
     }
@@ -102,8 +107,7 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
             .withUserConfiguration(MultipleNonLocalLeaderElectorConfig::class.java)
             .withPropertyValues("bluetape4k.leader.diagnostics.strict=true")
             .run { ctx ->
-                ctx.startupFailure.shouldNotBeNull()
-                    .shouldBeInstanceOf<LeaderStartupDiagnosticsException>()
+                ctx.startupFailure.shouldBeInstanceOf<LeaderStartupDiagnosticsException>()
             }
     }
 
@@ -114,6 +118,7 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
             .run { ctx ->
                 val report = ctx.getBean<LeaderStartupDiagnostics>().lastReport().shouldNotBeNull()
 
+                log.debug { "report=$report" }
                 report.warningCodes shouldContain LeaderStartupDiagnostics.WarningCode.MANAGEMENT_ENDPOINT_NOT_EXPOSED.name
             }
     }
@@ -128,6 +133,7 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
             .run { ctx ->
                 val report = ctx.getBean<LeaderStartupDiagnostics>().lastReport().shouldNotBeNull()
 
+                log.debug { "report=$report" }
                 report.warningCodes shouldContain LeaderStartupDiagnostics.WarningCode.MANAGEMENT_REGISTRY_NOT_SEEDED.name
             }
     }
@@ -143,7 +149,8 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
             .run { ctx ->
                 val report = ctx.getBean<LeaderStartupDiagnostics>().lastReport().shouldNotBeNull()
 
-                report.warningCodes shouldBeEqualTo emptyList()
+                log.debug { "report=$report" }
+                report.warningCodes.shouldBeEmpty()
             }
     }
 
@@ -154,6 +161,7 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
             .run { ctx ->
                 val report = ctx.getBean<LeaderStartupDiagnostics>().lastReport().shouldNotBeNull()
 
+                log.debug { "report=$report" }
                 report.warningCodes shouldContain LeaderStartupDiagnostics.WarningCode.RAW_LOCK_NAME_TAGS.name
             }
     }
@@ -176,7 +184,7 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
         fun exposedR2dbcSuspendLeaderElector(): SuspendLeaderElector = NamedSuspendLeaderElector()
     }
 
-    private class NamedLeaderElector(private val backendName: String) : LeaderElector {
+    private class NamedLeaderElector(private val backendName: String): LeaderElector {
 
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
             action()
@@ -198,8 +206,7 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
             )
     }
 
-
-    private class NamedSuspendLeaderElector : SuspendLeaderElector {
+    private class NamedSuspendLeaderElector: SuspendLeaderElector {
         override val supportsAuditLeaderState: Boolean = true
 
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = action()

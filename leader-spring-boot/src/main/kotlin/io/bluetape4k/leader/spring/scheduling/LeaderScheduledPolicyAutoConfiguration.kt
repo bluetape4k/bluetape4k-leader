@@ -22,10 +22,12 @@ import org.springframework.context.annotation.Role
     after = [LeaderAopFactoryAutoConfiguration::class],
     before = [LeaderAopAutoConfiguration::class],
 )
-@ConditionalOnClass(name = [
-    "org.aspectj.lang.annotation.Aspect",
-    "org.springframework.scheduling.annotation.Scheduled",
-])
+@ConditionalOnClass(
+    name = [
+        "org.aspectj.lang.annotation.Aspect",
+        "org.springframework.scheduling.annotation.Scheduled",
+    ]
+)
 @ConditionalOnBean(LeaderElectorFactory::class)
 @ConditionalOnProperty(
     prefix = LeaderScheduledPolicyProperties.PREFIX,

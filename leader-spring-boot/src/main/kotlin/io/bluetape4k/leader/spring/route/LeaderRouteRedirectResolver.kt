@@ -1,6 +1,5 @@
 package io.bluetape4k.leader.spring.route
 
-import io.bluetape4k.leader.LeaderSlot
 import java.net.URI
 
 /**

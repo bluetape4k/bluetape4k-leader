@@ -28,9 +28,9 @@ class LeaderHistoryRetentionAutoConfiguration {
     @ConditionalOnBean(LeaderElectorFactory::class, LeaderHistorySink::class)
     fun leaderHistoryRetentionJob(
         sink: LeaderHistorySink,
-        @Value("\${bluetape4k.leader.history.retention.days:30}") retentionDays: Long,
-        @Value("\${bluetape4k.leader.history.retention.chunk-size:1000}") chunkSize: Int,
-        @Value("\${bluetape4k.leader.history.retention.max-duration-ms:300000}") maxDurationMs: Long,
+        @Value($$"${bluetape4k.leader.history.retention.days:30}") retentionDays: Long,
+        @Value($$"${bluetape4k.leader.history.retention.chunk-size:1000}") chunkSize: Int,
+        @Value($$"${bluetape4k.leader.history.retention.max-duration-ms:300000}") maxDurationMs: Long,
     ): LeaderHistoryRetentionJob =
         LeaderHistoryRetentionJob(sink, retentionDays, chunkSize, maxDurationMs)
 
@@ -43,9 +43,9 @@ class LeaderHistoryRetentionAutoConfiguration {
     )
     fun suspendLeaderHistoryRetentionJob(
         sink: SuspendLeaderHistorySink,
-        @Value("\${bluetape4k.leader.history.retention.days:30}") retentionDays: Long,
-        @Value("\${bluetape4k.leader.history.retention.chunk-size:1000}") chunkSize: Int,
-        @Value("\${bluetape4k.leader.history.retention.max-duration-ms:300000}") maxDurationMs: Long,
+        @Value($$"${bluetape4k.leader.history.retention.days:30}") retentionDays: Long,
+        @Value($$"${bluetape4k.leader.history.retention.chunk-size:1000}") chunkSize: Int,
+        @Value($$"${bluetape4k.leader.history.retention.max-duration-ms:300000}") maxDurationMs: Long,
     ): SuspendLeaderHistoryRetentionJob =
         SuspendLeaderHistoryRetentionJob(sink, retentionDays, chunkSize, maxDurationMs)
 }

@@ -2,6 +2,10 @@ package io.bluetape4k.leader.spring.properties
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.io.lookup
+import io.bluetape4k.io.serializer.BinarySerializers
+import io.bluetape4k.javatimes.minutes
 import io.bluetape4k.leader.LeaderElectionState
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
@@ -9,6 +13,8 @@ import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.observability.LeaderAcquisitionFailureWindowAutoConfiguration
 import io.bluetape4k.leader.spring.observability.LeaderBackendHealthAutoConfiguration
 import io.bluetape4k.leader.spring.observability.LeaderBackendHealthIndicator
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import org.springframework.boot.health.contributor.Status
@@ -16,7 +22,7 @@ import java.io.ByteArrayInputStream
 import java.io.ObjectInputStream
 import java.io.ObjectStreamClass
 import java.time.Duration
-import java.util.Base64
+import java.util.*
 
 class LeaderObservabilityPropertiesSerializationTest {
 
@@ -24,6 +30,7 @@ class LeaderObservabilityPropertiesSerializationTest {
     fun `0_5_0 serialized properties restore backend health defaults`() {
         val restored = deserializeLegacyProperties()
 
+        log.debug { "restored: $restored" }
         restored.backendHealth shouldBeEqualTo LeaderBackendHealthProperties()
     }
 
@@ -31,7 +38,8 @@ class LeaderObservabilityPropertiesSerializationTest {
     fun `0_5_0 serialized health restores acquisition failure window default`() {
         val restored = deserializeLegacyProperties()
 
-        restored.health.acquisitionFailureWindow shouldBeEqualTo Duration.ofMinutes(5)
+        log.debug { "restored: $restored" }
+        restored.health.acquisitionFailureWindow shouldBeEqualTo 5.minutes()
     }
 
     @Test
@@ -41,15 +49,19 @@ class LeaderObservabilityPropertiesSerializationTest {
 
         val acquisitionFailureWindow = LeaderAcquisitionFailureWindowAutoConfiguration()
             .leaderAcquisitionFailureWindow(properties)
-        acquisitionFailureWindow.view().window shouldBeEqualTo Duration.ofMinutes(5)
 
-        val beanFactory = DefaultListableBeanFactory().apply {
-            registerSingleton("legacyStateProvider", LegacyDiagnosticsState())
-        }
+        log.debug { "acquisitionFailureWindow=$acquisitionFailureWindow" }
+        acquisitionFailureWindow.view().window shouldBeEqualTo 5.minutes()
+
+        val beanFactory = DefaultListableBeanFactory()
+            .apply {
+                registerSingleton("legacyStateProvider", LegacyDiagnosticsState())
+            }
         val backendHealthIndicator = LeaderBackendHealthAutoConfiguration()
             .leaderBackendHealthIndicator(beanFactory, properties)
             .shouldBeInstanceOf<LeaderBackendHealthIndicator>()
 
+        log.debug { "backendHealthIndicator.health()=${backendHealthIndicator.health()}" }
         backendHealthIndicator.health().status shouldBeEqualTo Status.UNKNOWN
     }
 
@@ -72,8 +84,8 @@ class LeaderObservabilityPropertiesSerializationTest {
         val restored = roundTrip(original)
 
         restored shouldBeEqualTo original
-        ObjectStreamClass.lookup(LeaderObservabilityProperties::class.java).serialVersionUID shouldBeEqualTo 1L
-        ObjectStreamClass.lookup(LeaderObservabilityHealthProperties::class.java).serialVersionUID shouldBeEqualTo 1L
+        LeaderObservabilityProperties::class.lookup().serialVersionUID shouldBeEqualTo 1L
+        LeaderObservabilityHealthProperties::class.lookup().serialVersionUID shouldBeEqualTo 1L
     }
 
     private fun deserializeLegacyProperties(): LeaderObservabilityProperties =
@@ -85,22 +97,18 @@ class LeaderObservabilityPropertiesSerializationTest {
             input.readObject().shouldBeInstanceOf<LeaderObservabilityProperties>()
         }
 
-    private fun <T> roundTrip(value: T): T {
-        val bytes = java.io.ByteArrayOutputStream()
-        java.io.ObjectOutputStream(bytes).use { it.writeObject(value) }
-        return ObjectInputStream(ByteArrayInputStream(bytes.toByteArray())).use {
-            @Suppress("UNCHECKED_CAST")
-            it.readObject() as T
-        }
+    private fun <T: Any> roundTrip(value: T): T {
+        val bytes = BinarySerializers.Jdk.serialize(value)
+        return BinarySerializers.Jdk.deserialize<T>(bytes).shouldNotBeNull()
     }
 
-    private companion object {
+    private companion object: KLogging() {
         val LEGACY_0_5_0_SERIALIZED_PROPERTIES = """
             rO0ABXNyAERpby5ibHVldGFwZTRrLmxlYWRlci5zcHJpbmcucHJvcGVydGllcy5MZWFkZXJPYnNlcnZhYmlsaXR5UHJvcGVydGllcwAAAAAAAAABAgAFWgAHZW5hYmxlZEwABmhlYWx0aHQATExpby9ibHVldGFwZTRrL2xlYWRlci9zcHJpbmcvcHJvcGVydGllcy9MZWFkZXJPYnNlcnZhYmlsaXR5SGVhbHRoUHJvcGVydGllcztMAAlsb2NrTmFtZXN0AA9MamF2YS91dGlsL1NldDtMABFzdGF0ZVByb3ZpZGVyQmVhbnQAEkxqYXZhL2xhbmcvU3RyaW5nO0wAB3RyYWNpbmd0AEBMaW8vYmx1ZXRhcGU0ay9sZWFkZXIvc3ByaW5nL3Byb3BlcnRpZXMvTGVhZGVyVHJhY2luZ1Byb3BlcnRpZXM7eHABc3IASmlvLmJsdWV0YXBlNGsubGVhZGVyLnNwcmluZy5wcm9wZXJ0aWVzLkxlYWRlck9ic2VydmFiaWxpdHlIZWFsdGhQcm9wZXJ0aWVzAAAAAAAAAAECAAJaAAdlbmFibGVkTAAVbGVhc2VXYXJuaW5nVGhyZXNob2xkdAAUTGphdmEvdGltZS9EdXJhdGlvbjt4cAFzcgANamF2YS50aW1lLlNlcpVdhLobIkiyDAAAeHB3DQEAAAAAAAAAEQAAAAB4c3IAF2phdmEudXRpbC5MaW5rZWRIYXNoU2V02GzXWpXdKh4CAAB4cgARamF2YS51dGlsLkhhc2hTZXS6RIWVlri3NAMAAHhwdwwAAAAEP0AAAAAAAAJ0AAZvcmRlcnN0AAhwYXltZW50c3h0ABNsZWdhY3lTdGF0ZVByb3ZpZGVyc3IAPmlvLmJsdWV0YXBlNGsubGVhZGVyLnNwcmluZy5wcm9wZXJ0aWVzLkxlYWRlclRyYWNpbmdQcm9wZXJ0aWVzAAAAAAAAAAECAARaAAdlbmFibGVkWgAXaW5jbHVkZUV4Y2VwdGlvbkRldGFpbHNaAA9pbmNsdWRlTGVhZGVySWRaAA9pbmNsdWRlTG9ja05hbWV4cAEBAQE=
         """.trimIndent()
     }
 
-    private class LegacyDiagnosticsState : LeaderElectionState, LeaderBackendDiagnosticsProvider {
+    private class LegacyDiagnosticsState: LeaderElectionState, LeaderBackendDiagnosticsProvider {
         override val backendDescriptor = LocalLeaderBackendDiagnostics.backendDescriptor
     }
 }

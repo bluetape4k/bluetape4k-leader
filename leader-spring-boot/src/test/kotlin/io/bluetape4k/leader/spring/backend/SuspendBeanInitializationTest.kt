@@ -7,12 +7,15 @@ import ch.qos.logback.core.read.ListAppender
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeLessThan
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotBeEqualTo
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.awaitTermination
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -32,6 +35,10 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.measureTime
 
 class SuspendBeanInitializationTest {
+
+    companion object: KLogging() {
+        private const val BACKEND_LOGGER_NAME = "io.bluetape4k.leader.spring.backend"
+    }
 
     @Test
     fun `bounded bridge는 suspend 초기화 결과를 반환한다`() {
@@ -74,7 +81,7 @@ class SuspendBeanInitializationTest {
     fun `bounded bridge는 timeout을 호출자에게 전파한다`() {
         assertFailsWith<TimeoutCancellationException> {
             createSuspendBackendBean(timeout = 20.milliseconds) {
-                delay(Long.MAX_VALUE)
+                delay(timeMillis = Long.MAX_VALUE)
             }
         }
     }
@@ -98,6 +105,7 @@ class SuspendBeanInitializationTest {
         val started = CountDownLatch(1)
         val release = CountDownLatch(1)
         val bodyStarted = AtomicBoolean()
+
         executor.submit {
             started.countDown()
             release.await()
@@ -106,6 +114,7 @@ class SuspendBeanInitializationTest {
 
         try {
             started.await(1.seconds).shouldBeTrue()
+
             val elapsed = measureTime {
                 assertFailsWith<TimeoutCancellationException> {
                     createSuspendBackendBean(
@@ -113,11 +122,11 @@ class SuspendBeanInitializationTest {
                         dispatcher = dispatcher,
                     ) {
                         bodyStarted.set(true)
-                        "never-started"
+                        // "never-started"
                     }
                 }
             }
-            (elapsed < 250.milliseconds).shouldBeTrue()
+            elapsed shouldBeLessThan 250.milliseconds
         } finally {
             release.countDown()
             releaser.shutdownNow()
@@ -149,7 +158,7 @@ class SuspendBeanInitializationTest {
                     ) {
                         started.countDown()
                         try {
-                            delay(Long.MAX_VALUE)
+                            delay(timeMillis = Long.MAX_VALUE)
                         } finally {
                             cleanupStarted.countDown()
                             // coroutine 취소에 응답하지 않는 cleanup을 재현하기 위해
@@ -170,7 +179,7 @@ class SuspendBeanInitializationTest {
 
             cleanupRelease.countDown()
             bridgeReturned.await(1.seconds).shouldBeTrue()
-            (failure.get() is TimeoutCancellationException).shouldBeTrue()
+            failure.get().shouldBeInstanceOf<TimeoutCancellationException>()
         } finally {
             cleanupRelease.countDown()
             caller.shutdownNow()
@@ -206,7 +215,7 @@ class SuspendBeanInitializationTest {
                     ) {
                         started.countDown()
                         try {
-                            delay(Long.MAX_VALUE)
+                            delay(timeMillis = Long.MAX_VALUE)
                         } finally {
                             cleanupStarted.countDown()
                             // coroutine 취소에 응답하지 않는 cleanup을 재현하기 위해
@@ -223,9 +232,9 @@ class SuspendBeanInitializationTest {
 
             started.await(1.seconds).shouldBeTrue()
             cleanupStarted.await(1.seconds).shouldBeTrue()
-            bridgeReturned.await(50, TimeUnit.MILLISECONDS).shouldBeFalse()
+            bridgeReturned.await(50.milliseconds).shouldBeFalse()
             bridgeReturned.await(2.seconds).shouldBeTrue()
-            (failure.get() is TimeoutCancellationException).shouldBeTrue()
+            failure.get().shouldBeInstanceOf<TimeoutCancellationException>()
 
             val warning = appender.list.firstOrNull {
                 it.level == Level.WARN && "operationName=test-suspend-bean" in it.formattedMessage
@@ -246,7 +255,7 @@ class SuspendBeanInitializationTest {
     @Test
     fun `bounded bridge는 cleanup timeout을 positive finite으로 검증한다`() {
         val thrown = assertFailsWith<IllegalArgumentException> {
-            createSuspendBackendBean(cleanupTimeout = 0.milliseconds) { "never" }
+            createSuspendBackendBean(cleanupTimeout = 0.milliseconds) { /* "never" */ }
         }
 
         thrown.message shouldBeEqualTo
@@ -272,21 +281,19 @@ class SuspendBeanInitializationTest {
     @Configuration(proxyBeanMethods = false)
     class TimeoutSuspendBeanConfiguration {
         @Bean
-        fun timeoutSuspendBean(): String = createSuspendBackendBean(timeout = 20.milliseconds) {
-            delay(Long.MAX_VALUE)
-            "never"
-        }
+        fun timeoutSuspendBean(): String =
+            createSuspendBackendBean(timeout = 20.milliseconds) {
+                delay(timeMillis = Long.MAX_VALUE)
+                "never"
+            }
     }
 
     @Configuration(proxyBeanMethods = false)
     class CancelledSuspendBeanConfiguration {
         @Bean
-        fun cancelledSuspendBean(): String = createSuspendBackendBean {
-            throw CancellationException("context bean initialization cancelled")
-        }
-    }
-
-    companion object {
-        private const val BACKEND_LOGGER_NAME = "io.bluetape4k.leader.spring.backend"
+        fun cancelledSuspendBean(): String =
+            createSuspendBackendBean {
+                throw CancellationException("context bean initialization cancelled")
+            }
     }
 }

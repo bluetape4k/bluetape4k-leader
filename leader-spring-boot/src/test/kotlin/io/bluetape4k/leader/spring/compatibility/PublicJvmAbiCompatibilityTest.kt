@@ -3,10 +3,11 @@ package io.bluetape4k.leader.spring.compatibility
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
+import io.bluetape4k.io.lookup
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.aop.LeaderBeanSelector
 import io.bluetape4k.leader.spring.aop.LeaderElectionAspect
+import io.bluetape4k.leader.spring.aop.LeaderGroupElectionAspect
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
@@ -14,22 +15,29 @@ import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.bluetape4k.leader.spring.observability.LeaderElectionActuatorAutoConfiguration
 import io.bluetape4k.leader.spring.observability.LeaderElectionReadinessHealthAutoConfiguration
 import io.bluetape4k.leader.spring.observability.LeaderElectionReadinessHealthIndicator
+import io.bluetape4k.leader.spring.observability.LeaderElectionStatusEndpoint
 import io.bluetape4k.leader.spring.observability.LeaderElectionStatusRegistry
 import io.bluetape4k.leader.spring.observability.LeaderElectionStatusResponse
-import io.bluetape4k.leader.spring.observability.LeaderElectionStatusEndpoint
 import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.leader.spring.properties.LeaderObservabilityHealthProperties
 import io.bluetape4k.leader.spring.route.LeaderRouteGuardConfigurationException
-import java.io.ObjectStreamClass
-import java.time.Clock
-import java.time.Duration
-import kotlin.jvm.internal.DefaultConstructorMarker
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.health.contributor.HealthIndicator
+import java.time.Clock
+import java.time.Duration
+import kotlin.jvm.internal.DefaultConstructorMarker
 
 class PublicJvmAbiCompatibilityTest {
+
+    companion object: KLogging() {
+        private val booleanType = Boolean::class.javaPrimitiveType ?: error("missing boolean type")
+        private val intType = Int::class.javaPrimitiveType ?: error("missing int type")
+        private const val LEGACY_ROUTE_GUARD_SERIAL_VERSION_UID = 2956475360686774009L
+    }
 
     @Test
     fun `0_5_0에 공개된 Spring auto configuration 메서드 descriptor를 유지한다`() {
@@ -49,7 +57,7 @@ class PublicJvmAbiCompatibilityTest {
             SpelExpressionEvaluator::class.java,
             LockNameValidator::class.java,
             ObjectProvider::class.java,
-        ).returnType shouldBeEqualTo io.bluetape4k.leader.spring.aop.LeaderGroupElectionAspect::class.java
+        ).returnType shouldBeEqualTo LeaderGroupElectionAspect::class.java
 
         LeaderElectionActuatorAutoConfiguration::class.java.getMethod(
             "leaderElectionStatusEndpoint",
@@ -96,7 +104,7 @@ class PublicJvmAbiCompatibilityTest {
         )
         statusConstructor.isSynthetic.shouldBeTrue()
         val status = statusConstructor.newInstance(emptyList<Any>(), null, null, true, 0b1110, null)
-            as LeaderElectionStatusResponse
+                as LeaderElectionStatusResponse
         status.backend shouldBeEqualTo "unknown"
         status.stateProviderBean shouldBeEqualTo ""
         status.stateSupported.shouldBeFalse()
@@ -108,8 +116,11 @@ class PublicJvmAbiCompatibilityTest {
             DefaultConstructorMarker::class.java,
         )
         healthConstructor.isSynthetic.shouldBeTrue()
+
         val health = healthConstructor.newInstance(true, null, 0b11, null)
-            as LeaderObservabilityHealthProperties
+                as LeaderObservabilityHealthProperties
+
+        log.debug { "health=$health" }
         health.enabled.shouldBeFalse()
         health.leaseWarningThreshold shouldBeEqualTo Duration.ofSeconds(10)
     }
@@ -139,6 +150,7 @@ class PublicJvmAbiCompatibilityTest {
         val defaults = legacySyntheticConstructor.newInstance(
             *arrayOf<Any?>(0, Duration.ZERO, Duration.ZERO, 0b111, null),
         ) as LeaderGroupProperties
+
         defaults.maxLeaders shouldBeEqualTo LeaderGroupProperties.DefaultMaxLeaders
         defaults.waitTime shouldBeEqualTo LeaderGroupProperties.DefaultWaitTime
         defaults.leaseTime shouldBeEqualTo LeaderGroupProperties.DefaultLeaseTime
@@ -172,19 +184,15 @@ class PublicJvmAbiCompatibilityTest {
             null,
             *arrayOf<Any?>(LeaderGroupProperties(useDbTime = true), 7, null, null, 0b110, null),
         ) as LeaderGroupProperties
+
+        log.debug { "copiedWithDefaults=$copiedWithDefaults" }
         copiedWithDefaults.maxLeaders shouldBeEqualTo 7
         copiedWithDefaults.useDbTime.shouldBeTrue()
     }
 
     @Test
     fun `route guard 예외의 기존 serialVersionUID를 유지한다`() {
-        ObjectStreamClass.lookup(LeaderRouteGuardConfigurationException::class.java)
-            .serialVersionUID shouldBeEqualTo LEGACY_ROUTE_GUARD_SERIAL_VERSION_UID
-    }
-
-    companion object {
-        private val booleanType = Boolean::class.javaPrimitiveType ?: error("missing boolean type")
-        private val intType = Int::class.javaPrimitiveType ?: error("missing int type")
-        private const val LEGACY_ROUTE_GUARD_SERIAL_VERSION_UID = 2956475360686774009L
+        LeaderRouteGuardConfigurationException::class
+            .lookup().serialVersionUID shouldBeEqualTo LEGACY_ROUTE_GUARD_SERIAL_VERSION_UID
     }
 }

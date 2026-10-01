@@ -1,21 +1,23 @@
 package io.bluetape4k.leader.spring.route.webflux
 
-import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderLeaseHandle
+import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseHandle
+import io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode
 import io.bluetape4k.leader.spring.properties.LeaderRouteGuardProperties
 import io.bluetape4k.leader.spring.route.LeaderRouteAuthorityRuntime
-import io.bluetape4k.leader.spring.route.LeaderRouteLeaseRuntime
 import io.bluetape4k.leader.spring.route.LeaderRouteDecision
 import io.bluetape4k.leader.spring.route.LeaderRouteEvaluation
+import io.bluetape4k.leader.spring.route.LeaderRouteLeaseRuntime
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectFramework
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectPolicy
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectRequestMetadataProvider
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectResolver
 import io.bluetape4k.leader.spring.route.LeaseObservationCode
-import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseHandle
-import kotlinx.coroutines.reactor.mono
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.reactor.mono
 import org.springframework.http.HttpStatusCode
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
@@ -26,9 +28,11 @@ import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * `LeaderWebFluxRouteGuardFactory`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -52,17 +56,19 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         runtime: LeaderRouteAuthorityRuntime,
         properties: LeaderRouteGuardProperties,
         redirectPolicy: LeaderRouteRedirectPolicy?,
-    ) : this(runtime, properties, Schedulers.boundedElastic(), redirectPolicy)
+    ): this(runtime, properties, Schedulers.boundedElastic(), redirectPolicy)
 
     internal constructor(
         runtime: LeaderRouteAuthorityRuntime,
         properties: LeaderRouteGuardProperties,
-    ) : this(
+    ): this(
         runtime,
         properties,
         Schedulers.boundedElastic(),
         properties.redirect.takeIf { it.enabled }?.let(::LeaderRouteRedirectPolicy),
     )
+
+    private val lock = ReentrantLock()
 
     /**
      * `filter` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
@@ -87,7 +93,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         resolver: LeaderRouteRedirectResolver?,
         metadataProvider: LeaderRouteRedirectRequestMetadataProvider<ServerWebExchange>?,
     ): WebFilter = WebFilter { exchange, chain ->
-        if (properties.authorityMode == io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode.LEASE) {
+        if (properties.authorityMode == LeaderRouteAuthorityMode.LEASE) {
             return@WebFilter leaseFilter(slot, exchange, chain)
         }
         Mono.fromCallable {
@@ -117,8 +123,8 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
                         Thread.currentThread().interrupt()
                         Mono.error(unwrapped)
                     }
-                    is Error -> Mono.error(unwrapped)
-                    else -> Mono.just(
+                    is Error                -> Mono.error(unwrapped)
+                    else                    -> Mono.just(
                         RedirectResult(
                             LeaderRouteEvaluation(LeaderRouteDecision.Unavailable, null, java.time.Instant.now()),
                             null,
@@ -170,9 +176,9 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         exchange: ServerWebExchange,
         chain: org.springframework.web.server.WebFilterChain,
     ): Mono<Void>? {
-        val existing = synchronized(exchange.attributes) { exchange.attributes[LEASE_HANDLE_ATTRIBUTE] }
+        val existing = lock.withLock { exchange.attributes[LEASE_HANDLE_ATTRIBUTE] }
         return when (existing) {
-            null -> null
+            null                  -> null
             is LeaseExchangeHolder -> if (
                 existing.fingerprint == requestedFingerprint && retainHolderUse(exchange, existing)
             ) {
@@ -193,14 +199,14 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
             } else {
                 staleRejection(runtime, exchange)
             }
-            else -> staleRejection(runtime, exchange)
+            else                  -> staleRejection(runtime, exchange)
         }
     }
 
     private fun installAcquireMarker(
         exchange: ServerWebExchange,
         marker: LeaseAcquireMarker,
-    ): Boolean = synchronized(exchange.attributes) {
+    ): Boolean = lock.withLock {
         if (exchange.attributes.containsKey(LEASE_HANDLE_ATTRIBUTE)) {
             false
         } else {
@@ -214,7 +220,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
             when {
                 failure != null -> sink.error(failure)
                 holder != null -> sink.success(holder)
-                else -> sink.success()
+                else           -> sink.success()
             }
         }
     }
@@ -302,7 +308,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         marker: LeaseAcquireMarker,
         fingerprint: Int,
     ): Mono<Void> = when (resource) {
-        LeaseResource.Rejected -> {
+        LeaseResource.Rejected   -> {
             clearAcquireMarker(exchange, marker)
             reject(exchange)
         }
@@ -360,8 +366,8 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         return when {
             !resource.released.compareAndSet(false, true) -> Mono.empty()
             resource is LeaseResource.Rejected -> Mono.empty()
-            else -> {
-                val physical = synchronized(exchange.attributes) {
+            else                               -> {
+                val physical = lock.withLock {
                     if (!resource.published.get()) {
                         true
                     } else {
@@ -374,7 +380,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
     }
 
     private fun releasePhysicalResource(resource: LeaseResource): Mono<Void> = when (resource) {
-        LeaseResource.Rejected -> Mono.empty()
+        LeaseResource.Rejected   -> Mono.empty()
         is LeaseResource.Blocking -> Mono.fromRunnable { resource.handle.release() }
         is LeaseResource.Suspend -> mono<Void> {
             resource.handle.release()
@@ -383,10 +389,10 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
     }
 
     private fun releaseHolderUse(exchange: ServerWebExchange, token: Any): Mono<Void> {
-        val resource = synchronized(exchange.attributes) {
+        val resource = lock.withLock {
             val holder = exchange.attributes[LEASE_HANDLE_ATTRIBUTE] as? LeaseExchangeHolder
-                ?: return@synchronized null
-            if (holder.token !== token || !holder.releaseUse()) return@synchronized null
+                ?: return@withLock null
+            if (holder.token !== token || !holder.releaseUse()) return@withLock null
             exchange.attributes.remove(LEASE_HANDLE_ATTRIBUTE)
             holder.resource
         }
@@ -404,13 +410,13 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
     }
 
     private fun retainHolderUse(exchange: ServerWebExchange, holder: LeaseExchangeHolder): Boolean =
-        synchronized(exchange.attributes) {
-            if (exchange.attributes[LEASE_HANDLE_ATTRIBUTE] !== holder) return@synchronized false
+        lock.withLock {
+            if (exchange.attributes[LEASE_HANDLE_ATTRIBUTE] !== holder) return@withLock false
             holder.tryRetain()
         }
 
     private fun clearAcquireMarker(exchange: ServerWebExchange, marker: LeaseAcquireMarker) {
-        synchronized(exchange.attributes) {
+        lock.withLock {
             if (exchange.attributes[LEASE_HANDLE_ATTRIBUTE] === marker) {
                 exchange.attributes.remove(LEASE_HANDLE_ATTRIBUTE)
                 marker.published.complete(null)
@@ -423,9 +429,9 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         marker: LeaseAcquireMarker,
         holder: LeaseExchangeHolder,
         resource: LeaseResource,
-    ): Boolean = synchronized(exchange.attributes) {
+    ): Boolean = lock.withLock {
         if (resource.released.get() || exchange.attributes[LEASE_HANDLE_ATTRIBUTE] !== marker) {
-            return@synchronized false
+            return@withLock false
         }
         exchange.attributes[LEASE_HANDLE_ATTRIBUTE] = holder
         resource.published.set(true)
@@ -437,19 +443,19 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         FINGERPRINT_MULTIPLIER * slot.lockName.hashCode() + slot.leaderId.hashCode()
 
     private sealed interface LeaseResource {
-        data object Rejected : LeaseResource {
+        data object Rejected: LeaseResource {
             override val token: Any get() = this
             override val released: AtomicBoolean = AtomicBoolean(true)
             override val published: AtomicBoolean = AtomicBoolean(false)
         }
 
-        data class Blocking(val handle: LeaderLeaseHandle) : LeaseResource {
+        data class Blocking(val handle: LeaderLeaseHandle): LeaseResource {
             override val token: Any get() = handle
             override val released: AtomicBoolean = AtomicBoolean(false)
             override val published: AtomicBoolean = AtomicBoolean(false)
         }
 
-        data class Suspend(val handle: SuspendLeaderLeaseHandle) : LeaseResource {
+        data class Suspend(val handle: SuspendLeaderLeaseHandle): LeaseResource {
             override val token: Any get() = handle
             override val released: AtomicBoolean = AtomicBoolean(false)
             override val published: AtomicBoolean = AtomicBoolean(false)
@@ -498,7 +504,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         val location: java.net.URI?,
     )
 
-    private companion object {
+    private companion object: KLogging() {
         const val TEMPORARY_REDIRECT_STATUS = 307
         const val FINGERPRINT_MULTIPLIER = 31
         const val LEASE_HANDLE_ATTRIBUTE = "io.bluetape4k.leader.spring.route.webflux.LEASE_HANDLE"

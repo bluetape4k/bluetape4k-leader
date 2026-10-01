@@ -14,7 +14,7 @@ abstract class AbstractRedissonAutoConfigurationTest {
 
     companion object: KLogging() {
         @JvmStatic
-        protected val redis: RedisServer = RedisServer.Launcher.redis
+        protected val redis: RedisServer by lazy { RedisServer.Launcher.redis }
 
         @JvmStatic
         protected val redisUrl: String get() = redis.url

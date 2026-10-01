@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.spring.properties
 
 import io.bluetape4k.support.requireNotNull
-import java.io.Serializable
 import org.springframework.boot.context.properties.NestedConfigurationProperty
+import java.io.Serializable
 
 /**
  * `LeaderRouteAuthorityMode`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -57,92 +57,7 @@ data class LeaderRouteGuardProperties(
     val redirect: LeaderRouteRedirectProperties = LeaderRouteRedirectProperties(),
     @field:NestedConfigurationProperty
     val lease: LeaderRouteLeaseProperties = LeaderRouteLeaseProperties(),
-) : Serializable {
-    /** Preserves the four-argument constructor published before redirect policy support. */
-    constructor(
-        enabled: Boolean,
-        authorityMode: LeaderRouteAuthorityMode,
-        electorBean: String,
-        rejectionStatus: LeaderRouteRejectionStatus,
-    ) : this(enabled, authorityMode, electorBean, rejectionStatus, LeaderRouteRedirectProperties())
-
-    /** Preserves Kotlin's four-argument default-constructor descriptor. */
-    @Suppress("UNUSED_PARAMETER")
-    constructor(
-        enabled: Boolean,
-        authorityMode: LeaderRouteAuthorityMode,
-        electorBean: String,
-        rejectionStatus: LeaderRouteRejectionStatus,
-        redirect: LeaderRouteRedirectProperties,
-    ) : this(enabled, authorityMode, electorBean, rejectionStatus, redirect, LeaderRouteLeaseProperties())
-
-    /** Preserves the five-argument constructor published with redirect policy support. */
-    @Suppress("UNUSED_PARAMETER")
-    constructor(
-        enabled: Boolean,
-        authorityMode: LeaderRouteAuthorityMode,
-        electorBean: String,
-        rejectionStatus: LeaderRouteRejectionStatus,
-        redirect: LeaderRouteRedirectProperties,
-        mask: Int,
-        marker: kotlin.jvm.internal.DefaultConstructorMarker?,
-    ) : this(
-        enabled = if (mask and 0x001 != 0) false else enabled,
-        authorityMode = if (mask and 0x002 != 0) LeaderRouteAuthorityMode.STATE else authorityMode,
-        electorBean = if (mask and 0x004 != 0) "" else electorBean,
-        rejectionStatus = if (mask and 0x008 != 0) LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE else rejectionStatus,
-        redirect = if (mask and 0x010 != 0) LeaderRouteRedirectProperties() else redirect,
-        lease = LeaderRouteLeaseProperties(),
-    )
-
-    /** Preserves Kotlin's five-argument data-class copy entry point. */
-    fun copy(
-        enabled: Boolean,
-        authorityMode: LeaderRouteAuthorityMode,
-        electorBean: String,
-        rejectionStatus: LeaderRouteRejectionStatus,
-        redirect: LeaderRouteRedirectProperties,
-    ): LeaderRouteGuardProperties = copy(
-        enabled = enabled,
-        authorityMode = authorityMode,
-        electorBean = electorBean,
-        rejectionStatus = rejectionStatus,
-        redirect = redirect,
-        lease = lease,
-    )
-
-    /** Preserves the four-argument constructor published before redirect policy support. */
-    @Suppress("UNUSED_PARAMETER")
-    constructor(
-        enabled: Boolean,
-        authorityMode: LeaderRouteAuthorityMode,
-        electorBean: String,
-        rejectionStatus: LeaderRouteRejectionStatus,
-        mask: Int,
-        marker: kotlin.jvm.internal.DefaultConstructorMarker?,
-    ) : this(
-        enabled = if (mask and 0x001 != 0) false else enabled,
-        authorityMode = if (mask and 0x002 != 0) LeaderRouteAuthorityMode.STATE else authorityMode,
-        electorBean = if (mask and 0x004 != 0) "" else electorBean,
-        rejectionStatus = if (mask and 0x008 != 0) LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE else rejectionStatus,
-        redirect = LeaderRouteRedirectProperties(),
-        lease = LeaderRouteLeaseProperties(),
-    )
-
-    /** Preserves the four-argument data-class copy entry point. */
-    fun copy(
-        enabled: Boolean,
-        authorityMode: LeaderRouteAuthorityMode,
-        electorBean: String,
-        rejectionStatus: LeaderRouteRejectionStatus,
-    ): LeaderRouteGuardProperties = copy(
-        enabled = enabled,
-        authorityMode = authorityMode,
-        electorBean = electorBean,
-        rejectionStatus = rejectionStatus,
-        redirect = redirect,
-        lease = lease,
-    )
+): Serializable {
 
     companion object {
         private const val serialVersionUID = 1L
@@ -204,7 +119,93 @@ data class LeaderRouteGuardProperties(
 
     }
 
-    @Suppress("SENSELESS_COMPARISON", "UNNECESSARY_SAFE_CALL")
+    /** Preserves the four-argument constructor published before redirect policy support. */
+    constructor(
+        enabled: Boolean,
+        authorityMode: LeaderRouteAuthorityMode,
+        electorBean: String,
+        rejectionStatus: LeaderRouteRejectionStatus,
+    ): this(enabled, authorityMode, electorBean, rejectionStatus, LeaderRouteRedirectProperties())
+
+    /** Preserves Kotlin's four-argument default-constructor descriptor. */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(
+        enabled: Boolean,
+        authorityMode: LeaderRouteAuthorityMode,
+        electorBean: String,
+        rejectionStatus: LeaderRouteRejectionStatus,
+        redirect: LeaderRouteRedirectProperties,
+    ): this(enabled, authorityMode, electorBean, rejectionStatus, redirect, LeaderRouteLeaseProperties())
+
+    /** Preserves the five-argument constructor published with redirect policy support. */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(
+        enabled: Boolean,
+        authorityMode: LeaderRouteAuthorityMode,
+        electorBean: String,
+        rejectionStatus: LeaderRouteRejectionStatus,
+        redirect: LeaderRouteRedirectProperties,
+        mask: Int,
+        marker: kotlin.jvm.internal.DefaultConstructorMarker?,
+    ): this(
+        enabled = if (mask and 0x001 != 0) false else enabled,
+        authorityMode = if (mask and 0x002 != 0) LeaderRouteAuthorityMode.STATE else authorityMode,
+        electorBean = if (mask and 0x004 != 0) "" else electorBean,
+        rejectionStatus = if (mask and 0x008 != 0) LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE else rejectionStatus,
+        redirect = if (mask and 0x010 != 0) LeaderRouteRedirectProperties() else redirect,
+        lease = LeaderRouteLeaseProperties(),
+    )
+
+    /** Preserves Kotlin's five-argument data-class copy entry point. */
+    fun copy(
+        enabled: Boolean,
+        authorityMode: LeaderRouteAuthorityMode,
+        electorBean: String,
+        rejectionStatus: LeaderRouteRejectionStatus,
+        redirect: LeaderRouteRedirectProperties,
+    ): LeaderRouteGuardProperties = copy(
+        enabled = enabled,
+        authorityMode = authorityMode,
+        electorBean = electorBean,
+        rejectionStatus = rejectionStatus,
+        redirect = redirect,
+        lease = lease,
+    )
+
+    /** Preserves the four-argument constructor published before redirect policy support. */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(
+        enabled: Boolean,
+        authorityMode: LeaderRouteAuthorityMode,
+        electorBean: String,
+        rejectionStatus: LeaderRouteRejectionStatus,
+        mask: Int,
+        marker: kotlin.jvm.internal.DefaultConstructorMarker?,
+    ): this(
+        enabled = if (mask and 0x001 != 0) false else enabled,
+        authorityMode = if (mask and 0x002 != 0) LeaderRouteAuthorityMode.STATE else authorityMode,
+        electorBean = if (mask and 0x004 != 0) "" else electorBean,
+        rejectionStatus = if (mask and 0x008 != 0) LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE else rejectionStatus,
+        redirect = LeaderRouteRedirectProperties(),
+        lease = LeaderRouteLeaseProperties(),
+    )
+
+    /** Preserves the four-argument data-class copy entry point. */
+    fun copy(
+        enabled: Boolean,
+        authorityMode: LeaderRouteAuthorityMode,
+        electorBean: String,
+        rejectionStatus: LeaderRouteRejectionStatus,
+    ): LeaderRouteGuardProperties = copy(
+        enabled = enabled,
+        authorityMode = authorityMode,
+        electorBean = electorBean,
+        rejectionStatus = rejectionStatus,
+        redirect = redirect,
+        lease = lease,
+    )
+
+    @Suppress("SENSELESS_COMPARISON", "UNNECESSARY_SAFE_CALL", "USELESS_ELVIS")
     private fun readResolve(): Any =
         if (redirect == null || lease == null) {
             LeaderRouteGuardProperties(

@@ -1,12 +1,14 @@
 package io.bluetape4k.leader.spring
 
-import io.bluetape4k.leader.spring.properties.LeaderElectionProperties
 import io.bluetape4k.leader.spring.properties.LeaderDiagnosticsProperties
+import io.bluetape4k.leader.spring.properties.LeaderElectionProperties
 import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.leader.spring.properties.LeaderObservabilityProperties
 import io.bluetape4k.leader.spring.properties.LeaderRouteGuardProperties
+import io.bluetape4k.support.requireNotNull
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
+import java.io.Serializable
 import java.time.Duration
 
 /**
@@ -26,23 +28,6 @@ import java.time.Duration
  * @property dynamodb Spring Boot integration 계약에서 `dynamodb` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 @ConfigurationProperties(prefix = "bluetape4k.leader")
-/**
- * `LeaderProperties`는 Spring Boot integration에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
- * @property waitTime Spring Boot integration 계약에서 `waitTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property leaseTime Spring Boot integration 계약에서 `leaseTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property watchdogThreads Spring Boot integration 계약에서 `watchdogThreads` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property watchdogAsyncExtend Spring Boot integration 계약에서 `watchdogAsyncExtend` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property diagnostics Spring Boot integration 계약에서 `diagnostics` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property routeGuard Spring Boot integration 계약에서 `routeGuard` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property observability Spring Boot integration 계약에서 `observability` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property group Spring Boot integration 계약에서 `group` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property mongo Spring Boot integration 계약에서 `mongo` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property etcd Spring Boot integration 계약에서 `etcd` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property consul Spring Boot integration 계약에서 `consul` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property dynamodb Spring Boot integration 계약에서 `dynamodb` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- */
 data class LeaderProperties(
     val waitTime: Duration = LeaderElectionProperties.DefaultWaitTime,
     val leaseTime: Duration = LeaderElectionProperties.DefaultLeaseTime,
@@ -64,7 +49,7 @@ data class LeaderProperties(
     val diagnostics: LeaderDiagnosticsProperties = LeaderDiagnosticsProperties(),
     @field:NestedConfigurationProperty
     val routeGuard: LeaderRouteGuardProperties = LeaderRouteGuardProperties(),
-) {
+): Serializable {
     /** Preserves the ten-argument constructor from the 0.4.0 public API. */
     constructor(
         waitTime: Duration,
@@ -77,7 +62,7 @@ data class LeaderProperties(
         etcd: EtcdLeaderProperties,
         consul: ConsulLeaderProperties,
         dynamodb: DynamoDbLeaderProperties,
-    ) : this(
+    ): this(
         waitTime = waitTime,
         leaseTime = leaseTime,
         watchdogThreads = watchdogThreads,
@@ -107,7 +92,7 @@ data class LeaderProperties(
         dynamodb: DynamoDbLeaderProperties,
         mask: Int,
         marker: kotlin.jvm.internal.DefaultConstructorMarker?,
-    ) : this(
+    ): this(
         waitTime = if (mask and 0x001 != 0) LeaderElectionProperties.DefaultWaitTime else waitTime,
         leaseTime = if (mask and 0x002 != 0) LeaderElectionProperties.DefaultLeaseTime else leaseTime,
         watchdogThreads = if (mask and 0x004 != 0) null else watchdogThreads,
@@ -169,16 +154,18 @@ data class LeaderProperties(
             mask: Int,
             marker: Any?,
         ): LeaderProperties = self.copy(
-            waitTime = if (mask and 0x001 != 0) self.waitTime else requireNotNull(waitTime),
-            leaseTime = if (mask and 0x002 != 0) self.leaseTime else requireNotNull(leaseTime),
+            waitTime = if (mask and 0x001 != 0) self.waitTime else waitTime.requireNotNull("waitTime"),
+            leaseTime = if (mask and 0x002 != 0) self.leaseTime else leaseTime.requireNotNull("leaseTime"),
             watchdogThreads = if (mask and 0x004 != 0) self.watchdogThreads else watchdogThreads,
             watchdogAsyncExtend = if (mask and 0x008 != 0) self.watchdogAsyncExtend else watchdogAsyncExtend,
-            observability = if (mask and 0x010 != 0) self.observability else requireNotNull(observability),
-            group = if (mask and 0x020 != 0) self.group else requireNotNull(group),
-            mongo = if (mask and 0x040 != 0) self.mongo else requireNotNull(mongo),
-            etcd = if (mask and 0x080 != 0) self.etcd else requireNotNull(etcd),
-            consul = if (mask and 0x100 != 0) self.consul else requireNotNull(consul),
-            dynamodb = if (mask and 0x200 != 0) self.dynamodb else requireNotNull(dynamodb),
+            observability = if (mask and 0x010 != 0) self.observability else observability.requireNotNull("observability"),
+            group = if (mask and 0x020 != 0) self.group else group.requireNotNull("group"),
+            mongo = if (mask and 0x040 != 0) self.mongo else mongo.requireNotNull("mongo"),
+            etcd = if (mask and 0x080 != 0) self.etcd else etcd.requireNotNull("etcd"),
+            consul = if (mask and 0x100 != 0) self.consul else consul.requireNotNull("consul"),
+            dynamodb = if (mask and 0x200 != 0) self.dynamodb else dynamodb.requireNotNull("dynamodb"),
         )
+
+        private const val serialVersionUID: Long = 1L
     }
 }

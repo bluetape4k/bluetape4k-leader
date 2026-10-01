@@ -1,16 +1,20 @@
 package io.bluetape4k.leader.spring.observability
 
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaderElector
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDescriptor
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.getBean
 import org.springframework.beans.factory.getBeansOfType
@@ -26,6 +30,8 @@ import kotlin.time.Duration
 
 class LeaderBackendDiagnosticsEndpointTest {
 
+    companion object: KLogging()
+
     private val runner = ApplicationContextRunner()
         .withConfiguration(
             AutoConfigurations.of(
@@ -38,7 +44,7 @@ class LeaderBackendDiagnosticsEndpointTest {
     @Test
     fun `diagnostics endpoint는 기본적으로 등록하지 않는다`() {
         runner.run { context ->
-            context.getBeansOfType<LeaderBackendDiagnosticsEndpoint>().isEmpty().shouldBeTrue()
+            context.getBeansOfType<LeaderBackendDiagnosticsEndpoint>().shouldBeEmpty()
         }
     }
 
@@ -59,8 +65,11 @@ class LeaderBackendDiagnosticsEndpointTest {
             .run { context ->
                 val elector = context.getBean<RecordingDiagnosticsElector>()
 
-                val diagnostics = context.getBean<LeaderBackendDiagnosticsEndpoint>()
+                val diagnostics = context
+                    .getBean<LeaderBackendDiagnosticsEndpoint>()
                     .leaderBackendDiagnostics()
+
+                log.debug { "diagnostics=$diagnostics" }
 
                 diagnostics.descriptor shouldBeEqualTo LocalLeaderBackendDiagnostics.backendDescriptor
                 diagnostics.connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.NOT_CHECKED
@@ -80,7 +89,7 @@ class LeaderBackendDiagnosticsEndpointTest {
             .withUserConfiguration(PlainElectorConfig::class.java)
             .withPropertyValues("management.endpoint.leaderBackendDiagnostics.enabled=true")
             .run { context ->
-                context.getBeansOfType<LeaderBackendDiagnosticsEndpoint>().isEmpty().shouldBeTrue()
+                context.getBeansOfType<LeaderBackendDiagnosticsEndpoint>().shouldBeEmpty()
             }
     }
 
@@ -96,9 +105,11 @@ class LeaderBackendDiagnosticsEndpointTest {
             .withUserConfiguration(DiagnosticsAwareElectorConfig::class.java)
             .withPropertyValues("management.endpoint.leaderBackendDiagnostics.enabled=true")
             .run { context ->
-                val diagnostics = context.getBean<LeaderBackendDiagnosticsEndpoint>()
+                val diagnostics = context
+                    .getBean<LeaderBackendDiagnosticsEndpoint>()
                     .leaderBackendDiagnostics()
 
+                log.debug { "diagnostics=$diagnostics" }
                 diagnostics.descriptor shouldBeEqualTo LocalLeaderBackendDiagnostics.backendDescriptor
                 diagnostics.connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.NOT_CHECKED
             }
@@ -111,7 +122,7 @@ class LeaderBackendDiagnosticsEndpointTest {
             .withUserConfiguration(NullDiagnosticsAwareElectorConfig::class.java)
             .withPropertyValues("management.endpoint.leaderBackendDiagnostics.enabled=true")
             .run { context ->
-                context.getBeansOfType<LeaderBackendDiagnosticsEndpoint>().isEmpty().shouldBeTrue()
+                context.getBeansOfType<LeaderBackendDiagnosticsEndpoint>().shouldBeEmpty()
             }
     }
 
@@ -123,13 +134,15 @@ class LeaderBackendDiagnosticsEndpointTest {
             .readText()
             .lines()
 
+        imports.forEach { log.debug { "imports=$it" } }
+
         val observabilityIndex = imports.indexOf(LeaderElectionObservabilityAutoConfiguration::class.qualifiedName)
         val diagnosticsIndex = imports.indexOf(LeaderBackendDiagnosticsActuatorAutoConfiguration::class.qualifiedName)
         val healthIndex = imports.indexOf(LeaderBackendHealthAutoConfiguration::class.qualifiedName)
 
-        (observabilityIndex >= 0).shouldBeTrue()
-        (diagnosticsIndex > observabilityIndex).shouldBeTrue()
-        (healthIndex > observabilityIndex).shouldBeTrue()
+        observabilityIndex shouldBeGreaterOrEqualTo 0
+        diagnosticsIndex shouldBeGreaterThan observabilityIndex
+        healthIndex shouldBeGreaterThan observabilityIndex
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -156,7 +169,7 @@ class LeaderBackendDiagnosticsEndpointTest {
         fun testLeaderElector(): LeaderElector = DiagnosticsAwareElector(null)
     }
 
-    class RecordingDiagnosticsElector : PlainLeaderElector(), LeaderBackendDiagnosticsProvider {
+    class RecordingDiagnosticsElector: PlainLeaderElector(), LeaderBackendDiagnosticsProvider {
         val probeCalls = AtomicInteger()
 
         override val backendDescriptor: LeaderBackendDescriptor = LocalLeaderBackendDiagnostics.backendDescriptor
@@ -169,9 +182,9 @@ class LeaderBackendDiagnosticsEndpointTest {
 
     class DiagnosticsAwareElector(
         override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?,
-    ) : PlainLeaderElector(), LeaderBackendDiagnosticsAware
+    ): PlainLeaderElector(), LeaderBackendDiagnosticsAware
 
-    open class PlainLeaderElector : LeaderElector {
+    open class PlainLeaderElector: LeaderElector {
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? = action()
 
         override fun <T> runAsyncIfLeader(

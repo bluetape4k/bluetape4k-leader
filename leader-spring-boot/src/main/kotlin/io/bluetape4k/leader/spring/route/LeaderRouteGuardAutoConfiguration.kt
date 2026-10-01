@@ -1,21 +1,22 @@
 package io.bluetape4k.leader.spring.route
 
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.internal.ResidualLeaseRegistry
 import io.bluetape4k.leader.spring.LeaderElectionAutoConfiguration
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.backend.LocalLeaderConfiguration
 import io.bluetape4k.leader.spring.route.mvc.LeaderMvcRouteGuardFactory
 import io.bluetape4k.leader.spring.route.webflux.LeaderWebFluxRouteGuardFactory
-import io.bluetape4k.leader.internal.ResidualLeaseRegistry
 import org.springframework.beans.factory.BeanNotOfRequiredTypeException
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.getBeanNamesForType
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -98,7 +99,7 @@ class LeaderRouteGuardAutoConfiguration {
             }
 
             val authorityNames = beanFactory
-                .getBeanNamesForType(LeaderRouteAuthority::class.java, true, false)
+                .getBeanNamesForType<LeaderRouteAuthority>(includeNonSingletons = true, allowEagerInit = false)
                 .sorted()
             val authority = when (authorityNames.size) {
                 0 -> throw LeaderRouteGuardConfigurationException(
@@ -179,7 +180,7 @@ class LeaderRouteGuardAutoConfiguration {
         internal fun leaderRouteRedirectPolicy(properties: LeaderProperties): LeaderRouteRedirectPolicy =
             if (
                 properties.routeGuard.authorityMode ==
-                    io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode.LEASE
+                io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode.LEASE
             ) {
                 throw LeaderRouteGuardConfigurationException(
                     LeaderRouteGuardConfigurationException.LEASE_REDIRECT_INCOMPATIBLE,
@@ -280,6 +281,5 @@ class LeaderRouteGuardAutoConfiguration {
                 )
             }
         }
-
     }
 }

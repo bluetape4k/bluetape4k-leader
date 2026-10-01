@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring
 
+import java.io.Serializable
 import java.time.Duration
 
 /**
@@ -13,9 +14,11 @@ data class ConsulLeaderProperties(
     val keyPrefix: String = DefaultKeyPrefix,
     val sessionNamePrefix: String = DefaultSessionNamePrefix,
     val lockDelay: Duration = Duration.ZERO,
-) {
+): Serializable {
     companion object {
         const val DefaultKeyPrefix: String = "bluetape4k/leader"
         const val DefaultSessionNamePrefix: String = "bluetape4k-leader"
+
+        private const val serialVersionUID: Long = 1L
     }
 }

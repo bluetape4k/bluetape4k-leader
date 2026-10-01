@@ -119,8 +119,7 @@ Spring configuration properties use Spring Boot duration binding (`5s`, `60s`, `
 
 ### Group database server time policy (0.6.0+ develop)
 
-Spring exposes the Exposed group `useDbTime` policy through both the common
-configuration and `@LeaderGroupElection`:
+Spring exposes the Exposed group `useDbTime` policy through both the common configuration and `@LeaderGroupElection`:
 
 ```yaml
 bluetape4k:
@@ -129,20 +128,10 @@ bluetape4k:
       use-db-time: true
 ```
 
-The common property defaults to `false`. An annotation can opt in for one
-method with `@LeaderGroupElection(..., useDbTime = true)`. The effective value
-is the logical OR of the common property and the annotation value: enabling the
-common property enables every group annotation, and the Boolean annotation has
-no per-method `false` override. This policy is consumed by Exposed JDBC and
-Exposed R2DBC group electors only; other group backends ignore it.
+The common property defaults to `false`. An annotation can opt in for one method with `@LeaderGroupElection(..., useDbTime = true)`. The effective value is the logical OR of the common property and the annotation value: enabling the common property enables every group annotation, and the Boolean annotation has no per-method `false` override. This policy is consumed by Exposed JDBC and Exposed R2DBC group electors only; other group backends ignore it.
 
-When enabled, Exposed ownership and active-slot expiry use the database server
-clock. If the database timestamp cannot be read, Exposed remains fail-closed
-and the group does not claim a slot. For an AOP invocation, the annotation
-`failure-mode` still determines whether a backend error is rethrown, skipped,
-or handled by `FAIL_OPEN_RUN`. Keep all participants on the same authoritative
-database clock and account for provider-specific timestamp precision and the
-additional timestamp query in the JDBC/R2DBC pool budget.
+When enabled, Exposed ownership and active-slot expiry use the database server clock. If the database timestamp cannot be read, Exposed remains fail-closed and the group does not claim a slot. For an AOP invocation, the annotation
+`failure-mode` still determines whether a backend error is rethrown, skipped, or handled by `FAIL_OPEN_RUN`. Keep all participants on the same authoritative database clock and account for provider-specific timestamp precision and the additional timestamp query in the JDBC/R2DBC pool budget.
 
 ## Leader-Gated Routes (0.5.0)
 
@@ -266,11 +255,7 @@ The built-in state decision is best-effort leader state, not an atomic guarantee
 
 ### Redirect-to-leader (opt-in)
 
-Redirects are a separate, disabled-by-default policy. The application owns the
-mapping from a `LeaderRouteRedirectContext` to a public URI; the library never
-turns `leaderId`, `nodeId`, backend addresses, or backend errors into a URL.
-Only a validated `307 Temporary Redirect` is emitted, and all other cases keep
-the configured empty-body rejection response.
+Redirects are a separate, disabled-by-default policy. The application owns the mapping from a `LeaderRouteRedirectContext` to a public URI; the library never turns `leaderId`, `nodeId`, backend addresses, or backend errors into a URL. Only a validated `307 Temporary Redirect` is emitted, and all other cases keep the configured empty-body rejection response.
 
 ```yaml
 bluetape4k:
@@ -285,10 +270,7 @@ bluetape4k:
         lease-safety-window: 250ms
 ```
 
-The resolver is synchronous, immutable, bounded, and application-owned. A
-relative target such as `/leader/orders` can use the resolver-only overload.
-Absolute targets require the exact lowercase HTTPS host in `allowed-hosts` and
-raw request metadata captured before forwarded-header transformation:
+The resolver is synchronous, immutable, bounded, and application-owned. A relative target such as `/leader/orders` can use the resolver-only overload. Absolute targets require the exact lowercase HTTPS host in `allowed-hosts` and raw request metadata captured before forwarded-header transformation:
 
 ```kotlin
 val resolver = LeaderRouteRedirectResolver { context ->
@@ -306,21 +288,10 @@ registry.addInterceptor(guards.interceptor(ordersSlot, resolver, metadataProvide
     .addPathPatterns("/internal/orders/**")
 ```
 
-`forwardedHeadersPresent = null` permits only relative targets. `true` requires
-an exact numeric transport-peer match in `trusted-proxy-addresses`; the library
-does not parse forwarded headers or infer trust from a transformed remote
-address. Relative paths cannot be network-path references, fragments, controls,
-userinfo, or backslash forms. Absolute targets are HTTPS, implicit port 443,
-ASCII exact-host matches only. A missing/expired lease, unavailable authority,
-resolver or metadata-provider exception, or unsafe URI fails closed without
-changing election state.
+`forwardedHeadersPresent = null` permits only relative targets. `true` requires an exact numeric transport-peer match in `trusted-proxy-addresses`; the library does not parse forwarded headers or infer trust from a transformed remote address. Relative paths cannot be network-path references, fragments, controls, userinfo, or backslash forms. Absolute targets are HTTPS, implicit port 443, ASCII exact-host matches only. A missing/expired lease, unavailable authority, resolver or metadata-provider exception, or unsafe URI fails closed without changing election state.
 
 For WebFlux, capture raw metadata at the pre-transform server/`HttpHandler`
-boundary (or another trusted application boundary), then pass it through the
-same resolver overload. Ordinary `WebFilter` ordering is not a pre-transform
-guarantee. If that boundary cannot be established, use the resolver-only
-overload with a relative URI and omit request metadata. Parse `PathPattern` once
-outside the request lambda when applying a guard to selected paths.
+boundary (or another trusted application boundary), then pass it through the same resolver overload. Ordinary `WebFilter` ordering is not a pre-transform guarantee. If that boundary cannot be established, use the resolver-only overload with a relative URI and omit request metadata. Parse `PathPattern` once outside the request lambda when applying a guard to selected paths.
 
 ## Leader Readiness (0.5.0)
 
@@ -369,13 +340,13 @@ Recent failures alone never change readiness from `UP`, `OUT_OF_SERVICE`, `DOWN`
 
 Diagnostics are non-fatal by default. Set `bluetape4k.leader.diagnostics.strict=true` to fail startup when a warning is found. This is separate from `bluetape4k.leader.aop.strict`: AOP strict mode validates annotated methods, while diagnostics strict mode validates the assembled Spring context and management/cardinality settings.
 
-| Warning | Meaning | Typical fix |
-|---|---|---|
-| `MULTIPLE_NON_LOCAL_BACKENDS` | More than one non-local `LeaderElector` is active. | Select a bean with `@LeaderElection(bean = "...")`, `@LeaderElectionBackend`, or `@Primary`. |
-| `MANAGEMENT_ENDPOINT_NOT_EXPOSED` | `management.endpoint.leaderElection.enabled=true`, but web exposure does not include `leaderElection` or `*`. | Add `leaderElection` to `management.endpoints.web.exposure.include`. |
-| `MANAGEMENT_REGISTRY_NOT_SEEDED` | The endpoint is enabled but `bluetape4k.leader.observability.lock-names` is empty, so the initial report can look empty until runtime events arrive. | Seed static lock names for scheduled jobs or accept runtime discovery. |
-| `RAW_LOCK_NAME_TAGS` | Raw `lock.name` metric tags are enabled without an allow-list. | Keep `REDACT`, or use a small allow-list, `HASH`, or `TRUNCATE`. |
-| `RAW_LEADER_ID_TAGS` | Opt-in raw `leader.id` Observation tags can be emitted without an allow-list. | Disable leader ID tags, or bound them with tag policy. |
+| Warning                           | Meaning                                                                                                                                              | Typical fix                                                                                  |
+|-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| `MULTIPLE_NON_LOCAL_BACKENDS`     | More than one non-local `LeaderElector` is active.                                                                                                   | Select a bean with `@LeaderElection(bean = "...")`, `@LeaderElectionBackend`, or `@Primary`. |
+| `MANAGEMENT_ENDPOINT_NOT_EXPOSED` | `management.endpoint.leaderElection.enabled=true`, but web exposure does not include `leaderElection` or `*`.                                        | Add `leaderElection` to `management.endpoints.web.exposure.include`.                         |
+| `MANAGEMENT_REGISTRY_NOT_SEEDED`  | The endpoint is enabled but `bluetape4k.leader.observability.lock-names` is empty, so the initial report can look empty until runtime events arrive. | Seed static lock names for scheduled jobs or accept runtime discovery.                       |
+| `RAW_LOCK_NAME_TAGS`              | Raw `lock.name` metric tags are enabled without an allow-list.                                                                                       | Keep `REDACT`, or use a small allow-list, `HASH`, or `TRUNCATE`.                             |
+| `RAW_LEADER_ID_TAGS`              | Opt-in raw `leader.id` Observation tags can be emitted without an allow-list.                                                                        | Disable leader ID tags, or bound them with tag policy.                                       |
 
 The `leaderElection` Actuator endpoint currently exposes read-only status operations. Diagnostics therefore checks endpoint visibility and tag-cardinality risks, not destructive management actions.
 
@@ -391,19 +362,19 @@ Metrics and Observations are independent:
 - disabling `bluetape4k.leader.observability.tracing.enabled` disables only the Observation bridge;
 - disabling `bluetape4k.leader.observability.enabled` disables the tracing bridge together with leader observability support beans.
 
-| Property | Default | Controls |
-|---|---:|---|
-| `bluetape4k.leader.aop.metrics.enabled` | `true` | Existing Micrometer meter recorder |
-| `bluetape4k.leader.aop.metrics.tags.lock-name.mode` | `REDACT` | Export policy for meter `lock.name` tags |
-| `bluetape4k.leader.aop.metrics.tags.lock-name.redacted-value` | `redacted-lock` | Sentinel for redacted lock names |
-| `bluetape4k.leader.aop.metrics.tags.leader-id.mode` | `REDACT` | Export policy for opt-in Observation `leader.id` values |
-| `bluetape4k.leader.aop.metrics.tags.backend-name.mode` | `RAW` | Export policy for bounded backend labels; the active diagnostics meter emits sanitized `backend.name`, while other built-in meters do not |
-| `bluetape4k.leader.observability.enabled` | `true` | Parent switch for leader observability and tracing |
-| `bluetape4k.leader.observability.health.acquisition-failure-window` | `5m` | Bounded window for aggregate AOP backend acquisition failures |
-| `bluetape4k.leader.observability.tracing.enabled` | `true` | Observation recorder and listener |
-| `bluetape4k.leader.observability.tracing.include-lock-name` | `false` | Opt-in `lock.name` high-cardinality Observation data, sanitized by tag policy |
-| `bluetape4k.leader.observability.tracing.include-leader-id` | `false` | Opt-in `leader.id` high-cardinality Observation data when identified context exists, sanitized by tag policy |
-| `bluetape4k.leader.observability.tracing.include-exception-details` | `false` | Raw throwable details through `Observation.error(...)` |
+| Property                                                            |         Default | Controls                                                                                                                                  |
+|---------------------------------------------------------------------|----------------:|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `bluetape4k.leader.aop.metrics.enabled`                             |          `true` | Existing Micrometer meter recorder                                                                                                        |
+| `bluetape4k.leader.aop.metrics.tags.lock-name.mode`                 |        `REDACT` | Export policy for meter `lock.name` tags                                                                                                  |
+| `bluetape4k.leader.aop.metrics.tags.lock-name.redacted-value`       | `redacted-lock` | Sentinel for redacted lock names                                                                                                          |
+| `bluetape4k.leader.aop.metrics.tags.leader-id.mode`                 |        `REDACT` | Export policy for opt-in Observation `leader.id` values                                                                                   |
+| `bluetape4k.leader.aop.metrics.tags.backend-name.mode`              |           `RAW` | Export policy for bounded backend labels; the active diagnostics meter emits sanitized `backend.name`, while other built-in meters do not |
+| `bluetape4k.leader.observability.enabled`                           |          `true` | Parent switch for leader observability and tracing                                                                                        |
+| `bluetape4k.leader.observability.health.acquisition-failure-window` |            `5m` | Bounded window for aggregate AOP backend acquisition failures                                                                             |
+| `bluetape4k.leader.observability.tracing.enabled`                   |          `true` | Observation recorder and listener                                                                                                         |
+| `bluetape4k.leader.observability.tracing.include-lock-name`         |         `false` | Opt-in `lock.name` high-cardinality Observation data, sanitized by tag policy                                                             |
+| `bluetape4k.leader.observability.tracing.include-leader-id`         |         `false` | Opt-in `leader.id` high-cardinality Observation data when identified context exists, sanitized by tag policy                              |
+| `bluetape4k.leader.observability.tracing.include-exception-details` |         `false` | Raw throwable details through `Observation.error(...)`                                                                                    |
 
 The Observation bridge emits standalone terminal observations such as `leader.aop.acquire`, `leader.aop.execution`, and `leader.election.event`. It does not open a new current `Observation.Scope` around the protected method body.
 
@@ -419,76 +390,52 @@ Dynamic lock names, leader IDs, and exception details are production-sensitive. 
 
 When `leader-micrometer` and a non-NOOP `ObservationRegistry` are present, and
 `bluetape4k.leader.observability.enabled=true` (the default),
-`LeaderObservationAutoConfiguration` registers the core lease-extension observer
-when `bluetape4k.leader.observability.tracing.enabled=true` (the default). The
-configuration covers both explicit `LockExtender` calls and
-`LeaderLeaseAutoExtender` watchdog events without adding a Spring-specific
-extension API.
+`LeaderObservationAutoConfiguration` registers the core lease-extension observer when `bluetape4k.leader.observability.tracing.enabled=true` (the default). The configuration covers both explicit `LockExtender` calls and
+`LeaderLeaseAutoExtender` watchdog events without adding a Spring-specific extension API.
 
 Explicit calls are valid inside a matching active user-owned scope created by
 `@LeaderElection`, `@LeaderGroupElection`, or a direct elector body. `WATCHDOG`
-events come only from a single-leader `autoExtend = true` path; group election
-slots disable group auto-extension.
+events come only from a single-leader `autoExtend = true` path; group election slots disable group auto-extension.
 
-Issue #529 covers acquire/execution observations; this Issue #559 integration
-covers terminal lease-extension attempts.
+Issue #529 covers acquire/execution observations; this Issue #559 integration covers terminal lease-extension attempts.
 
 Spring manages the registration lifecycle as follows:
 
 - one `MicrometerObservationLeaderLeaseExtensionObserver` is shared per
   `ObservationRegistry` identity;
-- each application context owns an idempotent handle, and the last context to
-  close removes the core registration;
+- each application context owns an idempotent handle, and the last context to close removes the core registration;
 - a NOOP registry or disabled tracing creates no lease-extension registration;
-- conflicting `LeaderObservationOptions` for the same registry fail fast rather
-  than silently weakening redaction or duplicating callbacks.
+- conflicting `LeaderObservationOptions` for the same registry fail fast rather than silently weakening redaction or duplicating callbacks.
 
-Automatic lease-extension delivery is scoped to the registry selected by each local application context. Parent and
-child contexts that share the same registry share one scope and one callback; distinct registries never receive each
-other's events or opted-in identities. The attribution boundary is the aspect-owned execution:
+Automatic lease-extension delivery is scoped to the registry selected by each local application context. Parent and child contexts that share the same registry share one scope and one callback; distinct registries never receive each other's events or opted-in identities. The attribution boundary is the aspect-owned execution:
 
-| Aspect | Sync | Suspend | `Mono` | `Flux` | Kotlin `Flow` |
-|---|---:|---:|---:|---:|---:|
-| `@LeaderElection` | yes | yes | yes | yes | yes |
-| `@LeaderGroupElection` | yes | yes | yes | rejected | rejected |
+| Aspect                 | Sync | Suspend | `Mono` |   `Flux` | Kotlin `Flow` |
+|------------------------|-----:|--------:|-------:|---------:|--------------:|
+| `@LeaderElection`      |  yes |     yes |    yes |      yes |           yes |
+| `@LeaderGroupElection` |  yes |     yes |    yes | rejected |      rejected |
 
-Direct elector calls outside these aspects and direct `LockExtender` calls from Reactor callbacks outside the
-aspect-owned coroutine bridge produce no automatic Spring lease-extension observation. They still reach an explicitly
-registered process-global `LeaderLeaseExtensionObservers.addObserver`. Move code that needs automatic attribution into
-an annotation boundary, or own and close one explicit global observer; do not combine both for the same Micrometer
-adapter.
+Direct elector calls outside these aspects and direct `LockExtender` calls from Reactor callbacks outside the aspect-owned coroutine bridge produce no automatic Spring lease-extension observation. They still reach an explicitly registered process-global `LeaderLeaseExtensionObservers.addObserver`. Move code that needs automatic attribution into an annotation boundary, or own and close one explicit global observer; do not combine both for the same Micrometer adapter.
 
-For a canary, run registry A and B together and require own identity count `1`, cross identity count `0`, and no
-unexpected `droppedCount()` delta. `bluetape4k.leader.observability.tracing.enabled=false` is a startup-only rollback
-switch: restart the context/process, then verify automatic count `0` and explicit global count `1`. Shutdown order is
-stop AOP traffic, close the context registration, allow the registry/exporter grace period, then stop the exporter.
-Registration close does not wait for accepted callbacks to drain; it only prevents new scoped admission.
+For a canary, run registry A and B together and require own identity count `1`, cross identity count `0`, and no unexpected `droppedCount()` delta. `bluetape4k.leader.observability.tracing.enabled=false` is a startup-only rollback switch: restart the context/process, then verify automatic count `0` and explicit global count `1`. Shutdown order is stop AOP traffic, close the context registration, allow the registry/exporter grace period, then stop the exporter. Registration close does not wait for accepted callbacks to drain; it only prevents new scoped admission.
 
-The core event keeps `USER`/`WATCHDOG` source and `BLOCKING`/`SUSPEND` execution
-parity. Micrometer exports the bounded `source`, `execution`, `outcome`, and
-`result` values described above. Lock name and leader ID are opt-in and pass
-through the configured sanitisation policy. `includeExceptionDetails` is also
-opt-in, but it attaches the original backend throwable to `Observation.error(...)`
-without tag sanitisation; keep the default `false` unless downstream observation
-or tracing systems are approved for raw exception messages and stack traces. The observer is
-diagnostic only: it does not alter ownership, deadline updates, cancellation, or
-watchdog retry/stop behavior. See the [unreleased lease-extension observation
-draft](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
+The core event keeps `USER`/`WATCHDOG` source and `BLOCKING`/`SUSPEND` execution parity. Micrometer exports the bounded `source`, `execution`, `outcome`, and
+`result` values described above. Lock name and leader ID are opt-in and pass through the configured sanitisation policy. `includeExceptionDetails` is also opt-in, but it attaches the original backend throwable to `Observation.error(...)`
+without tag sanitisation; keep the default `false` unless downstream observation or tracing systems are approved for raw exception messages and stack traces. The observer is diagnostic only: it does not alter ownership, deadline updates, cancellation, or watchdog retry/stop behavior. See the [unreleased lease-extension observation draft](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
 for the complete contract.
 
 ## Backend Factories
 
 `LeaderAopFactoryAutoConfiguration` registers factory beans when the matching backend client is present.
 
-| Backend | Required bean | Factory bean examples |
-|---------|---------------|-----------------------|
-| Local | none | `localLeaderElectionFactory`, `localSuspendLeaderElectorFactory` |
-| Lettuce | `StatefulRedisConnection<String, String>` | `lettuceLeaderElectionFactory`, `lettuceSuspendLeaderElectorFactory` |
-| Redisson | `RedissonClient` | `redissonLeaderElectionFactory`, `redissonSuspendLeaderElectorFactory` |
-| Exposed JDBC | `Database` | `exposedJdbcLeaderElectionFactory` |
-| Exposed R2DBC | `R2dbcDatabase` | `exposedR2dbcSuspendLeaderElectorFactory` |
-| MongoDB | `MongoClient` | `mongoLeaderElectionFactory`, `mongoSuspendLeaderElectorFactory` |
-| Hazelcast | `HazelcastInstance` | `hazelcastLeaderElectionFactory` |
+| Backend       | Required bean                             | Factory bean examples                                                  |
+|---------------|-------------------------------------------|------------------------------------------------------------------------|
+| Local         | none                                      | `localLeaderElectionFactory`, `localSuspendLeaderElectorFactory`       |
+| Lettuce       | `StatefulRedisConnection<String, String>` | `lettuceLeaderElectionFactory`, `lettuceSuspendLeaderElectorFactory`   |
+| Redisson      | `RedissonClient`                          | `redissonLeaderElectionFactory`, `redissonSuspendLeaderElectorFactory` |
+| Exposed JDBC  | `Database`                                | `exposedJdbcLeaderElectionFactory`                                     |
+| Exposed R2DBC | `R2dbcDatabase`                           | `exposedR2dbcSuspendLeaderElectorFactory`                              |
+| MongoDB       | `MongoClient`                             | `mongoLeaderElectionFactory`, `mongoSuspendLeaderElectorFactory`       |
+| Hazelcast     | `HazelcastInstance`                       | `hazelcastLeaderElectionFactory`                                       |
 
 Use `bean = "..."` on the annotation when more than one backend is available.
 
@@ -499,7 +446,7 @@ Use `bean = "..."` on the annotation when more than one backend is available.
 class SettlementJobs {
     @LeaderScheduled(
         name = "daily-settlement",
-        cron = "\${jobs.settlement.cron:0 0 2 * * *}",
+        cron = $$"${jobs.settlement.cron:0 0 2 * * *}",
         leaseTime = "30m",
         minLeaseTime = "10s",
     )
@@ -517,9 +464,7 @@ class SettlementJobs {
 
 ### YAML-only policy for existing scheduled methods
 
-When changing an existing scheduled method is not practical, enable the opt-in
-property policy and select the method by its exact Spring bean name and method
-name:
+When changing an existing scheduled method is not practical, enable the opt-in property policy and select the method by its exact Spring bean name and method name:
 
 ```yaml
 bluetape4k:
@@ -539,24 +484,14 @@ bluetape4k:
 ```
 
 The default is `enabled: false`. Selectors are exact `beanName#methodName`
-values; wildcards, regular expressions, whitespace, and overloaded method
-names are rejected at startup. Use an explicit, stable Spring bean name and
-`bean` factory name when more than one backend is available. A blank or
-unmatched selector, invalid duration or SpEL expression, unresolved backend,
-or an invalid stream policy fails startup before the scheduled task can run.
+values; wildcards, regular expressions, whitespace, and overloaded method names are rejected at startup. Use an explicit, stable Spring bean name and
+`bean` factory name when more than one backend is available. A blank or unmatched selector, invalid duration or SpEL expression, unresolved backend, or an invalid stream policy fails startup before the scheduled task can run.
 
-Precedence is explicit annotation (`@LeaderElection` or `@LeaderScheduled`),
-then the matching property policy, then no leader metadata. With no metadata,
-the existing `@Scheduled` method proceeds unchanged. `failure-mode: SKIP`
-preserves normal contention behavior: the scheduled body is not invoked and no
-contention exception is thrown. `Flux` and Kotlin `Flow` methods still require
+Precedence is explicit annotation (`@LeaderElection` or `@LeaderScheduled`), then the matching property policy, then no leader metadata. With no metadata, the existing `@Scheduled` method proceeds unchanged. `failure-mode: SKIP`
+preserves normal contention behavior: the scheduled body is not invoked and no contention exception is thrown. `Flux` and Kotlin `Flow` methods still require
 `auto-extend: true` or `stream-bounded: true`.
 
-Spring continues to own the scheduled task, trigger, subscription, context
-close, and task `Observation` lifecycle; the policy registry stores metadata
-only. Policies are startup-only: dynamic reload and wildcard matching are not
-supported. To roll back, set `bluetape4k.leader.scheduling.enabled=false`; the
-normal Spring scheduler path remains in place.
+Spring continues to own the scheduled task, trigger, subscription, context close, and task `Observation` lifecycle; the policy registry stores metadata only. Policies are startup-only: dynamic reload and wildcard matching are not supported. To roll back, set `bluetape4k.leader.scheduling.enabled=false`; the normal Spring scheduler path remains in place.
 
 ### Sequence: AOP-triggered `runIfLeader`
 
@@ -564,12 +499,12 @@ normal Spring scheduler path remains in place.
 
 Supported return shapes:
 
-| Shape | Behavior |
-|-------|----------|
-| `T?` / `Unit` | Runs on the leader and returns the body result, or skips with `null` / no-op |
-| `suspend fun` | Uses `SuspendLeaderElectorFactory` and propagates `LeaderElectionInfo` in `CoroutineContext` |
-| `Mono<T>` | Uses Reactor context propagation for `LeaderElectionInfo` |
-| `Flux<T>` / `Flow<T>` | Tracked separately in issue #74 because long-lived streams require lease renewal |
+| Shape                 | Behavior                                                                                     |
+|-----------------------|----------------------------------------------------------------------------------------------|
+| `T?` / `Unit`         | Runs on the leader and returns the body result, or skips with `null` / no-op                 |
+| `suspend fun`         | Uses `SuspendLeaderElectorFactory` and propagates `LeaderElectionInfo` in `CoroutineContext` |
+| `Mono<T>`             | Uses Reactor context propagation for `LeaderElectionInfo`                                    |
+| `Flux<T>` / `Flow<T>` | Tracked separately in issue #74 because long-lived streams require lease renewal             |
 
 ## SpEL Lock Names
 
@@ -618,12 +553,12 @@ class RedisBackedJobs {
 
 ## Failure Modes
 
-| Mode | Behavior |
-|------|----------|
-| `RETHROW` | Wrap backend failures in `LeaderElectionException` / `LeaderGroupElectionException` |
-| `SKIP` | Treat backend failure or contention as skipped execution |
+| Mode            | Behavior                                                                                       |
+|-----------------|------------------------------------------------------------------------------------------------|
+| `RETHROW`       | Wrap backend failures in `LeaderElectionException` / `LeaderGroupElectionException`            |
+| `SKIP`          | Treat backend failure or contention as skipped execution                                       |
 | `FAIL_OPEN_RUN` | Run the method body without a lock when the backend is unavailable or the lock is not acquired |
-| `INHERIT` | Annotation sentinel; uses `bluetape4k.leader.aop.failure-mode` |
+| `INHERIT`       | Annotation sentinel; uses `bluetape4k.leader.aop.failure-mode`                                 |
 
 `FAIL_OPEN_RUN` is only appropriate for idempotent work because multiple nodes may execute the body concurrently.
 
@@ -648,7 +583,9 @@ class ReportJobs {
 
 ### Lock identity
 
-Reentrant `@LeaderElection` calls (same `name`, same JVM, same thread/coroutine) are detected by **`LockIdentity` (lockName + annotation kind + group params)** — the backend is acquired exactly once. `factoryBeanName` is intentionally excluded from equality so that sync ↔ suspend nested calls work correctly (Step 3-P R3).
+Reentrant `@LeaderElection` calls (same `name`, same JVM, same thread/coroutine) are detected by **`LockIdentity` (
+lockName + annotation kind + group
+params)** — the backend is acquired exactly once. `factoryBeanName` is intentionally excluded from equality so that sync ↔ suspend nested calls work correctly (Step 3-P R3).
 
 ### Suspend / Mono
 
@@ -663,7 +600,8 @@ suspend fun stream(): Result? {
 }
 ```
 
-⚠️ **Reactor non-suspend operators (`.map`, `.filter`) are unsupported.** Call `LockAssert.assertLockedSuspend()` inside `.flatMap { mono { ... } }`:
+⚠️ **Reactor non-suspend operators (`.map`, `.filter`) are
+unsupported.** Call `LockAssert.assertLockedSuspend()` inside `.flatMap { mono { ... } }`:
 
 ```kotlin
 @LeaderElection(name = "mono-job")
@@ -683,16 +621,17 @@ fun process(): Mono<String> =
 
 ### Watchdog × LockExtender
 
-Both share the **same `ExtendDelegate` reference** (atomicity guaranteed by token-guarded backend operations). When you call `LockExtender.extendActiveLock(d)`, the delegate records `now + d` in `lastExtendDeadline` so the next watchdog tick will skip backend re-extend if the user-provided deadline is larger. For strict deadline semantics (ShedLock parity), turn off watchdog.
+Both share the **same `ExtendDelegate`
+reference** (atomicity guaranteed by token-guarded backend operations). When you call `LockExtender.extendActiveLock(d)`, the delegate records `now + d` in `lastExtendDeadline` so the next watchdog tick will skip backend re-extend if the user-provided deadline is larger. For strict deadline semantics (ShedLock parity), turn off watchdog.
 
 ### Return values
 
-| API | Outside scope | Inside `Real` | Inside `FailOpen` sentinel |
-|---|---|---|---|
-| `LockAssert.assertLocked()` | throws `IllegalStateException` | passes | throws |
-| `LockAssert.isLocked()` | `false` | `true` | `false` |
-| `LockExtender.extendActiveLock(d)` | `false` + WARN | backend result | `false` + WARN |
-| `LockExtender.extendActiveLockDetailed(d)` | `NotHeld` | `Extended` / `NotHeld` / `WrongThread` / `BackendError` | `NotHeld` |
+| API                                        | Outside scope                  | Inside `Real`                                           | Inside `FailOpen` sentinel |
+|--------------------------------------------|--------------------------------|---------------------------------------------------------|----------------------------|
+| `LockAssert.assertLocked()`                | throws `IllegalStateException` | passes                                                  | throws                     |
+| `LockAssert.isLocked()`                    | `false`                        | `true`                                                  | `false`                    |
+| `LockExtender.extendActiveLock(d)`         | `false` + WARN                 | backend result                                          | `false` + WARN             |
+| `LockExtender.extendActiveLockDetailed(d)` | `NotHeld`                      | `Extended` / `NotHeld` / `WrongThread` / `BackendError` | `NotHeld`                  |
 
 For Java callers, `@JvmStatic` overloads accept both `kotlin.time.Duration` and `java.time.Duration`.
 
@@ -763,10 +702,7 @@ GET /actuator/leaderElection
 
 ## Management Action Endpoint (Issue #532, unreleased)
 
-The write surface is separate from the read-only `leaderElection` endpoint and is
-disabled unless both the parent endpoint and the nested action property are enabled.
-Spring relaxed binding accepts either `leader-election` or `leaderElection`; use the
-canonical kebab-case form in new configuration:
+The write surface is separate from the read-only `leaderElection` endpoint and is disabled unless both the parent endpoint and the nested action property are enabled. Spring relaxed binding accepts either `leader-election` or `leaderElection`; use the canonical kebab-case form in new configuration:
 
 ```yaml
 management:
@@ -782,27 +718,18 @@ management:
         include: health,leaderElection,leaderElectionActions
 ```
 
-The endpoint is an HTTP-only `@WebEndpoint` with the ID `leaderElectionActions`; it
-does not add a JMX write operation and the library does not install a
-`SecurityFilterChain`. Protect the Actuator port with the application's existing
-authentication and network policy. A release request is sent as:
+The endpoint is an HTTP-only `@WebEndpoint` with the ID `leaderElectionActions`; it does not add a JMX write operation and the library does not install a
+`SecurityFilterChain`. Protect the Actuator port with the application's existing authentication and network policy. A release request is sent as:
 
 ```http
 POST /actuator/leaderElectionActions/{lockName}
 ```
 
-The JSON body is limited to `action`, `outcome`, and `mutationAttempted`. The shared
-core mapping returns 200/400/404/409/429/503/504 for the corresponding outcomes, and
-all outcomes have `retryAllowed=false`; in particular, do not retry
+The JSON body is limited to `action`, `outcome`, and `mutationAttempted`. The shared core mapping returns 200/400/404/409/429/503/504 for the corresponding outcomes, and all outcomes have `retryAllowed=false`; in particular, do not retry
 `ACTION_TIMED_OUT` until the worker has terminalized, or promote
 `RELEASE_UNCONFIRMED`/`RELEASE_FAILED` to success.
 
-When no application registry bean exists, the auto-configuration creates a bounded
-library-owned registry using the 5-second default timeout (maximum 30 seconds) and
-drains it before Spring context shutdown. A `LeaderManagementActionRegistry` bean
-provided by the application wins and remains application-owned; its lifecycle and
-observer are not replaced or closed by this module. Registration is still explicit at
-the lease-handle boundary, and group/strategic/runtime jobs are not auto-registered.
+When no application registry bean exists, the auto-configuration creates a bounded library-owned registry using the 5-second default timeout (maximum 30 seconds) and drains it before Spring context shutdown. A `LeaderManagementActionRegistry` bean provided by the application wins and remains application-owned; its lifecycle and observer are not replaced or closed by this module. Registration is still explicit at the lease-handle boundary, and group/strategic/runtime jobs are not auto-registered.
 
 ## Backend Diagnostics And Connectivity Health
 
@@ -839,10 +766,7 @@ bluetape4k:
 For a successful diagnostics result, the health indicator adds the bounded
 `reason` enum name to its allow-listed details. `CONNECTED` explains `UP`,
 `DISCONNECTED` explains `DOWN`, and `CLIENT_STATE_UNCONFIRMED`,
-`PROVIDER_UNSUPPORTED`, or `PROVIDER_EXCEPTION` explain an `UNKNOWN` result.
-The static endpoint reports `NOT_CHECKED` with the matching reason. This detail
-is not a readiness decision: `LeaderElectionReadinessHealthIndicator` continues
-to own the separate JVM-local lock and lease signal.
+`PROVIDER_UNSUPPORTED`, or `PROVIDER_EXCEPTION` explain an `UNKNOWN` result. The static endpoint reports `NOT_CHECKED` with the matching reason. This detail is not a readiness decision: `LeaderElectionReadinessHealthIndicator` continues to own the separate JVM-local lock and lease signal.
 
 If the active backend probe throws an ordinary provider exception, the health indicator reports `UNKNOWN` without copying the `error` key, exception class/message/cause, endpoint, token, or credential into Actuator details. This remains true when `management.endpoint.health.show-details=always`; only the indicator's allow-listed details are returned. Fatal JVM `Error` values are not normalized and are rethrown. Keep the endpoint protected even with sanitized failures because the probe still performs live backend I/O.
 

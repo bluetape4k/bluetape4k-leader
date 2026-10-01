@@ -1,6 +1,9 @@
 package io.bluetape4k.leader.spring.aop
 
 import eu.rekawek.toxiproxy.ToxiproxyClient
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.javatimes.millis
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.annotation.LeaderElection
@@ -9,6 +12,7 @@ import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.support.closeSafe
 import io.bluetape4k.testcontainers.infra.ToxiproxyServer
 import io.bluetape4k.testcontainers.storage.RedisServer
@@ -19,7 +23,6 @@ import io.lettuce.core.codec.StringCodec
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
-import io.bluetape4k.assertions.shouldBeEqualTo
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.reflect.MethodSignature
 import org.junit.jupiter.api.AfterAll
@@ -44,7 +47,7 @@ import java.time.Duration
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FailOpenRunIntegrationTest {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         private const val RESULT = "lettuce-result"
         private const val CONTENTION_LOCK = "fail-open-it-contention"
         private const val BACKEND_LOCK = "fail-open-it-backend"
@@ -57,19 +60,19 @@ class FailOpenRunIntegrationTest {
     // ── 경쟁 시나리오용 ──
     private class ContentionService {
         @LeaderElection(name = CONTENTION_LOCK, failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
-        fun execute(): String? = RESULT
+        fun execute(): String = RESULT
     }
 
     // ── ToxiProxy 백엔드 오류 시나리오용 ──
     private class BackendErrorService {
         @LeaderElection(name = BACKEND_LOCK, failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
-        fun execute(): String? = RESULT
+        fun execute(): String = RESULT
     }
 
     // ── 정상 경로 검증용 ──
     private class NormalService {
         @LeaderElection(name = "fail-open-it-normal", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
-        fun execute(): String? = RESULT
+        fun execute(): String = RESULT
     }
 
     private val signature: MethodSignature = mockk()
@@ -100,8 +103,10 @@ class FailOpenRunIntegrationTest {
         factory: LeaderElectorFactory,
         waitTime: Duration = Duration.ZERO,
     ): LeaderElectionAspect {
-        every { beanSelector.selectElectionFactory(any(), any()) } returns
-                LeaderBeanSelector.Selected("lettuceFactory", factory)
+        every {
+            beanSelector.selectElectionFactory(any(), any())
+        } returns LeaderBeanSelector.Selected("lettuceFactory", factory)
+
         return LeaderElectionAspect(
             beanSelector = beanSelector,
             props = LeaderAopProperties(
@@ -129,6 +134,7 @@ class FailOpenRunIntegrationTest {
             val result = aspect.aroundLeader(pjp)
 
             // FAIL_OPEN_RUN: 경쟁으로 Skipped 됐지만 본문을 실행하여 결과 반환
+            log.debug { "result=$result" }
             result shouldBeEqualTo RESULT
         } finally {
             connection.sync().del(CONTENTION_LOCK)
@@ -141,10 +147,11 @@ class FailOpenRunIntegrationTest {
         val method = NormalService::class.java.getDeclaredMethod("execute")
         configureJoinPoint(method, NormalService())
 
-        val aspect = newAspect(factory, waitTime = Duration.ofSeconds(2))
+        val aspect = newAspect(factory, waitTime = 2.seconds())
         val result = aspect.aroundLeader(pjp)
 
         // 경쟁 없음 → Elected → 본문 실행
+        log.debug { "result=$result" }
         result shouldBeEqualTo RESULT
     }
 
@@ -152,47 +159,44 @@ class FailOpenRunIntegrationTest {
     fun `FAIL_OPEN_RUN - ToxiProxy 장애 주입으로 Redis 차단 시 본문 실행`() {
         // ToxiProxy → Redis 연결을 별도 Docker 네트워크에서 구성 후 프록시 삭제로 장애 주입
         Network.newNetwork().use { network ->
-            RedisServer(reuse = false)
-                .withNetwork(network)
-                .withNetworkAliases("redis")
-                .use { redisContainer ->
-                    ToxiproxyServer(reuse = false)
-                        .withNetwork(network)
-                        .use { toxiproxy ->
-                            redisContainer.start()
-                            toxiproxy.start()
+            RedisServer(reuse = false).withNetwork(network).withNetworkAliases("redis").use { redisContainer ->
+                ToxiproxyServer(reuse = false).withNetwork(network).use { toxiproxy ->
+                    redisContainer.start()
+                    toxiproxy.start()
 
-                            val toxiproxyClient = ToxiproxyClient(toxiproxy.host, toxiproxy.controlPort)
-                            val proxy = toxiproxyClient.createProxy(
-                                "redis-proxy",
-                                "0.0.0.0:8666",
-                                "redis:${RedisServer.PORT}",
-                            )
-                            val proxyPort = toxiproxy.getMappedPort(8666)
-                            val proxyRedisClient = RedisClient.create("redis://${toxiproxy.host}:$proxyPort")
-                            val proxyConnection = proxyRedisClient.connect(StringCodec.UTF8)
+                    val toxiproxyClient = ToxiproxyClient(toxiproxy.host, toxiproxy.controlPort)
+                    val proxy = toxiproxyClient.createProxy(
+                        "redis-proxy",
+                        "0.0.0.0:8666",
+                        "redis:${RedisServer.PORT}",
+                    )
+                    val proxyPort = toxiproxy.getMappedPort(8666)
+                    val proxyRedisClient = RedisClient.create("redis://${toxiproxy.host}:$proxyPort")
+                    val proxyConnection = proxyRedisClient.connect(StringCodec.UTF8)
 
-                            try {
-                                // 프록시 통해 정상 연결 확인
-                                proxyConnection.sync().ping() shouldBeEqualTo "PONG"
+                    try {
+                        // 프록시 통해 정상 연결 확인
+                        proxyConnection.sync().ping() shouldBeEqualTo "PONG"
 
-                                // 장애 주입 — 프록시 삭제로 Redis 접근 차단
-                                proxy.delete()
+                        // 장애 주입 — 프록시 삭제로 Redis 접근 차단
+                        proxy.delete()
 
-                                val factory = LettuceLeaderElectorFactory(proxyConnection)
-                                val method = BackendErrorService::class.java.getDeclaredMethod("execute")
-                                configureJoinPoint(method, BackendErrorService())
+                        val factory = LettuceLeaderElectorFactory(proxyConnection)
+                        val method = BackendErrorService::class.java.getDeclaredMethod("execute")
+                        configureJoinPoint(method, BackendErrorService())
 
-                                val aspect = newAspect(factory, waitTime = Duration.ofMillis(200))
-                                // 프록시 삭제 → Redis 명령 실패 → FAIL_OPEN_RUN → 본문 실행
-                                val result = aspect.aroundLeader(pjp)
-                                result shouldBeEqualTo RESULT
-                            } finally {
-                                runCatching { proxyConnection.closeSafe() }
-                                runCatching { proxyRedisClient.shutdown() }
-                            }
-                        }
+                        val aspect = newAspect(factory, waitTime = 200.millis())
+
+                        // 프록시 삭제 → Redis 명령 실패 → FAIL_OPEN_RUN → 본문 실행
+                        val result = aspect.aroundLeader(pjp)
+                        log.debug { "result=$result" }
+                        result shouldBeEqualTo RESULT
+                    } finally {
+                        proxyConnection.closeSafe()
+                        proxyRedisClient.closeSafe()
+                    }
                 }
+            }
         }
     }
 }

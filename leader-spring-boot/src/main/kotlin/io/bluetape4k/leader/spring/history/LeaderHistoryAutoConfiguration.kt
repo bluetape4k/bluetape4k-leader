@@ -28,7 +28,7 @@ import org.springframework.context.annotation.Configuration
 @ConditionalOnProperty(prefix = "bluetape4k.leader.history", name = ["enabled"], matchIfMissing = true)
 class LeaderHistoryAutoConfiguration {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     // ----------------------------------------------------------------
     // Noop fallbacks — registered when no real sink bean is present
@@ -89,7 +89,7 @@ class LeaderHistoryAutoConfiguration {
                 log.warn { "Multiple SuspendLeaderHistorySink beans found; use @Primary to disambiguate. Suspend history recorder not created." }
                 null
             }
-            else -> SuspendSafeLeaderHistoryRecorder(sinks.single())
+            else           -> SuspendSafeLeaderHistoryRecorder(sinks.single())
         }
     }
 
@@ -143,7 +143,7 @@ class LeaderHistoryAutoConfiguration {
                     log.warn { "Multiple SuspendLeaderHistorySink beans found; use @Primary to disambiguate. Suspend history recorder not created." }
                     null
                 }
-                else -> {
+                else           -> {
                     val sink = sinks.single()
                     val registry = registryProvider.ifAvailable
                     if (registry != null) {

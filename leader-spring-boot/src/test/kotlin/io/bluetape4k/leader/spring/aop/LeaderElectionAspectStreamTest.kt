@@ -1,12 +1,15 @@
 package io.bluetape4k.leader.spring.aop
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectorFactory
+import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.annotation.LeaderElection
@@ -16,6 +19,8 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -26,19 +31,26 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.reflect.MethodSignature
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.until
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import reactor.core.publisher.Flux
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionAspectStreamTest {
+
+    companion object: KLoggingChannel()
 
     private interface StreamService {
         fun fluxBounded(): Flux<String>
@@ -52,7 +64,7 @@ class LeaderElectionAspectStreamTest {
         fun flowInvalidName(): Flow<String>
     }
 
-    private class StreamServiceImpl : StreamService {
+    private class StreamServiceImpl: StreamService {
         @LeaderElection(name = "flux-bounded", streamBounded = true)
         override fun fluxBounded(): Flux<String> = Flux.empty()
 
@@ -91,16 +103,17 @@ class LeaderElectionAspectStreamTest {
 
     private class CountingSuspendElector(
         private val elected: Boolean = true,
-    ) : SuspendLeaderElector {
+    ): SuspendLeaderElector {
         val acquireCount = AtomicInteger()
         val releaseCount = AtomicInteger()
 
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
             if (!elected) return null
             acquireCount.incrementAndGet()
-            val handle = AopScopeAccess.createSyntheticReal(lockName, "testSuspendFactory")
+
             return try {
-                kotlinx.coroutines.withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                val handle = AopScopeAccess.createSyntheticReal(lockName, "testSuspendFactory")
+                withContext(AopScopeAccess.createLockHandleElement(handle)) {
                     action()
                 }
             } finally {
@@ -108,32 +121,35 @@ class LeaderElectionAspectStreamTest {
             }
         }
 
-        override fun state(lockName: String) =
-            io.bluetape4k.leader.LeaderState.empty(lockName)
+        override fun state(lockName: String): LeaderState =
+            LeaderState.empty(lockName)
     }
 
     private class BackendErrorSuspendElector(
         private val error: Exception,
-    ) : SuspendLeaderElector {
-        override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = throw error
-        override fun state(lockName: String) = io.bluetape4k.leader.LeaderState.empty(lockName)
+    ): SuspendLeaderElector {
+        override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T = throw error
+        override fun state(lockName: String): LeaderState = LeaderState.empty(lockName)
     }
 
-    private val factoryMock: LeaderElectorFactory = mockk()
-    private val beanSelector: LeaderBeanSelector = mockk()
-    private val signature: MethodSignature = mockk()
-    private val pjp: ProceedingJoinPoint = mockk()
+    private val factoryMock: LeaderElectorFactory = mockk(relaxed = true)
+    private val beanSelector: LeaderBeanSelector = mockk(relaxed = true)
+    private val signature: MethodSignature = mockk(relaxed = true)
+    private val pjp: ProceedingJoinPoint = mockk(relaxed = true)
 
     @BeforeEach
     fun setUp() {
         clearMocks(factoryMock, beanSelector, signature, pjp)
-        every { beanSelector.selectElectionFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected("testFactory", factoryMock)
+        every {
+            beanSelector.selectElectionFactory(any(), any())
+        } returns LeaderBeanSelector.Selected("testFactory", factoryMock)
     }
 
     private fun newAspect(factory: SuspendLeaderElectorFactory): LeaderElectionAspect {
-        every { beanSelector.selectSuspendElectorFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected("testSuspendFactory", factory)
+        every {
+            beanSelector.selectSuspendElectorFactory(any(), any())
+        } returns LeaderBeanSelector.Selected("testSuspendFactory", factory)
+
         return LeaderElectionAspect(
             beanSelector = beanSelector,
             props = LeaderAopProperties(),
@@ -158,12 +174,15 @@ class LeaderElectionAspectStreamTest {
     fun `flux elected success keeps lock through stream completion`() {
         configureJoinPoint("fluxBounded")
         every { pjp.proceed() } returns Flux.just("a", "b")
+
         val elector = CountingSuspendElector()
 
         val aspect = newAspect(fakeFactory(elector))
         val values = (aspect.aroundLeader(pjp) as Flux<*>).collectList().block()
 
+        log.debug { "values=${values?.joinToString()}" }
         values shouldBeEqualTo listOf("a", "b")
+
         elector.acquireCount.get() shouldBeEqualTo 1
         elector.releaseCount.get() shouldBeEqualTo 1
     }
@@ -176,7 +195,7 @@ class LeaderElectionAspectStreamTest {
         val aspect = newAspect(fakeFactory(elector))
         val values = (aspect.aroundLeader(pjp) as Flux<*>).collectList().block()
 
-        values shouldBeEqualTo emptyList<Any>()
+        values.shouldBeEmpty()
         elector.acquireCount.get() shouldBeEqualTo 0
         elector.releaseCount.get() shouldBeEqualTo 0
     }
@@ -189,6 +208,7 @@ class LeaderElectionAspectStreamTest {
         val aspect = newAspect(fakeFactory(CountingSuspendElector(elected = false)))
         val values = (aspect.aroundLeader(pjp) as Flux<*>).collectList().block()
 
+        log.debug { "values=${values?.joinToString()}" }
         values shouldBeEqualTo listOf("fail-open")
     }
 
@@ -196,12 +216,16 @@ class LeaderElectionAspectStreamTest {
     fun `flux fail open body error propagates raw exception`() {
         configureJoinPoint("fluxFailOpen")
         val bodyEx = IllegalStateException("flux fail-open body failed")
+
         every { pjp.proceed() } returns Flux.error<String>(bodyEx)
 
         val aspect = newAspect(fakeFactory(CountingSuspendElector(elected = false)))
         val flux = aspect.aroundLeader(pjp) as Flux<*>
 
-        val thrown = assertFailsWith<IllegalStateException> { flux.collectList().block() }
+        val thrown = assertFailsWith<IllegalStateException> {
+            flux.collectList().block()
+        }
+        thrown shouldBeInstanceOf bodyEx::class
         thrown.message shouldBeEqualTo bodyEx.message
     }
 
@@ -212,21 +236,27 @@ class LeaderElectionAspectStreamTest {
 
         val flux = aspect.aroundLeader(pjp) as Flux<*>
 
-        assertFailsWith<LeaderElectionException> { flux.collectList().block() }
+        assertFailsWith<LeaderElectionException> {
+            flux.collectList().block()
+        }
     }
 
     @Test
     fun `flux body error propagates raw exception and releases lock`() {
         configureJoinPoint("fluxBounded")
         val bodyEx = IllegalStateException("flux body failed")
-        every { pjp.proceed() } returns Flux.error<String>(bodyEx)
-        val elector = CountingSuspendElector()
 
+        every { pjp.proceed() } returns Flux.error<String>(bodyEx)
+
+        val elector = CountingSuspendElector()
         val aspect = newAspect(fakeFactory(elector))
         val flux = aspect.aroundLeader(pjp) as Flux<*>
 
-        val thrown = assertFailsWith<IllegalStateException> { flux.collectList().block() }
+        val thrown = assertFailsWith<IllegalStateException> {
+            flux.collectList().block()
+        }
         thrown shouldBeEqualTo bodyEx
+        thrown.message shouldBeEqualTo bodyEx.message
         elector.releaseCount.get() shouldBeEqualTo 1
     }
 
@@ -235,6 +265,7 @@ class LeaderElectionAspectStreamTest {
         configureJoinPoint("fluxBounded")
         val subscribed = CountDownLatch(1)
         every { pjp.proceed() } returns Flux.never<String>().doOnSubscribe { subscribed.countDown() }
+
         val elector = CountingSuspendElector()
 
         val aspect = newAspect(fakeFactory(elector))
@@ -242,6 +273,7 @@ class LeaderElectionAspectStreamTest {
 
         subscribed.await(2.seconds).shouldBeTrue()
         disposable.dispose()
+
         eventually { elector.releaseCount.get() == 1 }.shouldBeTrue()
     }
 
@@ -249,6 +281,7 @@ class LeaderElectionAspectStreamTest {
     fun `flux subscribes acquire independently per subscription`() {
         configureJoinPoint("fluxBounded")
         every { pjp.proceed() } returns Flux.just("x")
+
         val elector = CountingSuspendElector()
         val aspect = newAspect(fakeFactory(elector))
         val flux = aspect.aroundLeader(pjp) as Flux<*>
@@ -269,6 +302,7 @@ class LeaderElectionAspectStreamTest {
 
         val values = (aspect.aroundLeader(pjp) as Flux<*>).collectList().block()
 
+        log.debug { "values=${values?.joinToString()}" }
         values shouldBeEqualTo listOf("auto")
         elector.acquireCount.get() shouldBeEqualTo 1
         elector.releaseCount.get() shouldBeEqualTo 1
@@ -280,7 +314,9 @@ class LeaderElectionAspectStreamTest {
         val aspect = newAspect(fakeFactory(CountingSuspendElector()))
         val flux = aspect.aroundLeader(pjp) as Flux<*>
 
-        assertFailsWith<LeaderElectionException> { flux.collectList().block() }
+        assertFailsWith<LeaderElectionException> {
+            flux.collectList().block()
+        }
     }
 
     @Test
@@ -291,7 +327,10 @@ class LeaderElectionAspectStreamTest {
         val aspect = newAspect(fakeFactory(elector))
         val flux = aspect.aroundLeader(pjp) as Flux<*>
 
-        assertFailsWith<IllegalArgumentException> { flux.collectList().block() }
+        assertFailsWith<IllegalArgumentException> {
+            flux.collectList().block()
+        }
+
         elector.acquireCount.get() shouldBeEqualTo 0
         verify(exactly = 0) { pjp.proceed() }
     }
@@ -305,6 +344,7 @@ class LeaderElectionAspectStreamTest {
         val aspect = newAspect(fakeFactory(elector))
         val values = (aspect.aroundLeader(pjp) as Flow<*>).toList()
 
+        log.debug { "values=${values.joinToString()}" }
         values shouldBeEqualTo listOf("a", null, "b")
         elector.acquireCount.get() shouldBeEqualTo 1
         elector.releaseCount.get() shouldBeEqualTo 1
@@ -313,13 +353,16 @@ class LeaderElectionAspectStreamTest {
     @Test
     fun `flow fail open executes body with not elected context`() = runTest {
         configureJoinPoint("flowFailOpen")
-        every { pjp.proceed() } returns flow {
+        every {
+            pjp.proceed()
+        } returns flow {
             emit(currentCoroutineContext()[LeaderElectionInfo]?.wasElected.toString())
         }
 
         val aspect = newAspect(fakeFactory(CountingSuspendElector(elected = false)))
         val values = (aspect.aroundLeader(pjp) as Flow<*>).toList()
 
+        log.debug { "values=${values.joinToString()}" }
         values shouldBeEqualTo listOf("false")
     }
 
@@ -339,7 +382,9 @@ class LeaderElectionAspectStreamTest {
     @Test
     fun `flow body can assert lock in guarded collection`() = runTest {
         configureJoinPoint("flowBounded")
-        every { pjp.proceed() } returns flow {
+        every {
+            pjp.proceed()
+        } returns flow {
             LockAssert.assertLockedSuspend("flow-bounded")
             emit("locked")
         }
@@ -347,6 +392,7 @@ class LeaderElectionAspectStreamTest {
         val aspect = newAspect(fakeFactory(CountingSuspendElector()))
         val values = (aspect.aroundLeader(pjp) as Flow<*>).toList()
 
+        log.debug { "values=${values.joinToString()}" }
         values shouldBeEqualTo listOf("locked")
     }
 
@@ -360,7 +406,9 @@ class LeaderElectionAspectStreamTest {
         val aspect = newAspect(fakeFactory(elector))
         val flow = aspect.aroundLeader(pjp) as Flow<*>
 
-        val thrown = assertFailsWith<IllegalStateException> { flow.toList() }
+        val thrown = assertFailsWith<IllegalStateException> {
+            flow.toList()
+        }
         thrown.message shouldBeEqualTo bodyEx.message
         elector.releaseCount.get() shouldBeEqualTo 1
     }
@@ -371,7 +419,9 @@ class LeaderElectionAspectStreamTest {
         val aspect = newAspect(fakeFactory(CountingSuspendElector()))
         val flow = aspect.aroundLeader(pjp) as Flow<*>
 
-        assertFailsWith<LeaderElectionException> { flow.toList() }
+        assertFailsWith<LeaderElectionException> {
+            flow.toList()
+        }
     }
 
     @Test
@@ -382,15 +432,16 @@ class LeaderElectionAspectStreamTest {
         val aspect = newAspect(fakeFactory(elector))
         val flow = aspect.aroundLeader(pjp) as Flow<*>
 
-        assertFailsWith<IllegalArgumentException> { flow.toList() }
+        assertFailsWith<IllegalArgumentException> {
+            flow.toList()
+        }
         elector.acquireCount.get() shouldBeEqualTo 0
         verify(exactly = 0) { pjp.proceed() }
     }
 
     private fun eventually(block: () -> Boolean): Boolean {
-        repeat(40) {
-            if (block()) return true
-            Thread.sleep(25)
+        await atMost 10.seconds withPollInterval 20.milliseconds until {
+            block()
         }
         return block()
     }
