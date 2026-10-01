@@ -9,6 +9,7 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
+import io.bluetape4k.logging.KLogging
 import org.apache.curator.framework.CuratorFramework
 import java.time.Clock
 import kotlin.time.Duration
@@ -16,7 +17,7 @@ import kotlin.time.Duration
 /** 기존 Curator client의 연결 상태만 읽는 ZooKeeper diagnostics provider입니다. */
 class ZooKeeperLeaderBackendDiagnostics(
     private val client: CuratorFramework,
-) : LeaderBackendDiagnosticsProvider {
+): LeaderBackendDiagnosticsProvider {
 
     override val backendDescriptor: LeaderBackendDescriptor = Descriptor
 
@@ -37,7 +38,7 @@ class ZooKeeperLeaderBackendDiagnostics(
         }
     }
 
-    private companion object {
+    private companion object: KLogging() {
         val SupportedModes = LeaderBackendModeSupport(
             single = LeaderBackendSupport.SUPPORTED,
             group = LeaderBackendSupport.SUPPORTED,

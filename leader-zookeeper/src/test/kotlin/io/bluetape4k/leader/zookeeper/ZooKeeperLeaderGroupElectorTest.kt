@@ -2,8 +2,6 @@ package io.bluetape4k.leader.zookeeper
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterThan
-import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.await
@@ -11,8 +9,12 @@ import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
@@ -26,20 +28,21 @@ import kotlin.time.Duration.Companion.seconds
 
 class ZooKeeperLeaderGroupElectorTest: AbstractZooKeeperLeaderTest() {
 
+    companion object: KLogging()
+
     private val options = LeaderGroupElectionOptions(maxLeaders = 3, waitTime = 5.seconds, leaseTime = 30.seconds)
-    private val election by lazy { ZooKeeperLeaderGroupElector(curator, options) }
+    private val elector by lazy { ZooKeeperLeaderGroupElector(curator, options) }
 
     @Test
     fun `runIfLeader - 리더로 선출되어 action 을 실행하고 결과를 반환한다`() {
-        val result = election.runIfLeader(randomName()) { "hello" }
-
+        val result = elector.runIfLeader(randomName()) { "hello" }
         result shouldBeEqualTo "hello"
     }
 
     @Test
     fun `runIfLeader - 서로 다른 lockName 은 독립적인 lease 풀을 가진다`() {
-        val result1 = election.runIfLeader(randomName()) { "a" }
-        val result2 = election.runIfLeader(randomName()) { "b" }
+        val result1 = elector.runIfLeader(randomName()) { "a" }
+        val result2 = elector.runIfLeader(randomName()) { "b" }
 
         result1 shouldBeEqualTo "a"
         result2 shouldBeEqualTo "b"
@@ -67,6 +70,7 @@ class ZooKeeperLeaderGroupElectorTest: AbstractZooKeeperLeaderTest() {
 
         try {
             acquired.await(2.seconds)
+
             val result = singleElection.runIfLeader(lockName) { "should-skip" }
             result.shouldBeNull()
         } finally {
@@ -81,7 +85,7 @@ class ZooKeeperLeaderGroupElectorTest: AbstractZooKeeperLeaderTest() {
             Thread.currentThread().interrupt()
 
             assertFailsWith<InterruptedException> {
-                election.runIfLeader(randomName()) { "should-not-run" }
+                elector.runIfLeader(randomName()) { "should-not-run" }
             }
             Thread.currentThread().isInterrupted.shouldBeTrue()
         } finally {
@@ -92,16 +96,19 @@ class ZooKeeperLeaderGroupElectorTest: AbstractZooKeeperLeaderTest() {
     @Test
     fun `runIfLeader - action 예외 후에도 lease 가 반환되어 다음 호출이 성공한다`() {
         val lockName = randomName()
+        runCatching {
+            elector.runIfLeader(lockName) {
+                error("boom")
+            }
+        }
 
-        runCatching { election.runIfLeader(lockName) { error("boom") } }
-        val result = election.runIfLeader(lockName) { "recovered" }
-
+        val result = elector.runIfLeader(lockName) { "recovered" }
         result shouldBeEqualTo "recovered"
     }
 
     @Test
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action 을 실행한다`() {
-        val result = election.runAsyncIfLeader(randomName()) {
+        val result = elector.runAsyncIfLeader(randomName()) {
             completableFutureOf(42)
         }.join()
 
@@ -111,7 +118,7 @@ class ZooKeeperLeaderGroupElectorTest: AbstractZooKeeperLeaderTest() {
     @Test
     fun `runAsyncIfLeader - nullable 반환 future 취소가 action과 ZooKeeper group cleanup으로 전파된다`() {
         val lockName = randomName()
-        val singleElection = ZooKeeperLeaderGroupElector(
+        val singleElector = ZooKeeperLeaderGroupElector(
             curator,
             LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 100.milliseconds, leaseTime = 5.seconds),
         )
@@ -120,16 +127,18 @@ class ZooKeeperLeaderGroupElectorTest: AbstractZooKeeperLeaderTest() {
         val actionFuture = CompletableFuture<String>()
 
         try {
-            val result = singleElection.runAsyncIfLeader(lockName, executor) {
+            val result = singleElector.runAsyncIfLeader(lockName, executor) {
                 actionStarted.countDown()
                 actionFuture
             }
 
-            actionStarted.await(2.seconds).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
+            randomSleep()
             actionFuture.isCancelled.shouldBeTrue()
-            await.atMost(5.seconds).untilAsserted {
-                singleElection.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+
+            await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
+                singleElector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
             }
         } finally {
             actionFuture.cancel(true)
@@ -142,25 +151,26 @@ class ZooKeeperLeaderGroupElectorTest: AbstractZooKeeperLeaderTest() {
         val lockName = randomName()
         val currentConcurrent = AtomicInteger(0)
         val peakConcurrent = AtomicInteger(0)
+        val executed = AtomicInteger(0)
 
         MultithreadingTester()
             .workers(options.maxLeaders * 4)
             .rounds(2)
             .add {
-                election.runIfLeader(lockName) {
+                elector.runIfLeader(lockName) {
                     val current = currentConcurrent.incrementAndGet()
                     peakConcurrent.updateAndGet { max(it, current) }
-                    try {
-                        Thread.sleep(20)
-                    } finally {
-                        currentConcurrent.decrementAndGet()
-                    }
+
+                    randomSleep()
+                    executed.incrementAndGet()
+                    currentConcurrent.decrementAndGet()
                 }
             }
             .run()
 
-        peakConcurrent.get() shouldBeGreaterThan 0
-        peakConcurrent.get() shouldBeLessOrEqualTo options.maxLeaders
+        log.debug { "동시 최대 실행 수=${peakConcurrent.get()}, 실행 수=${executed.get()}" }
+        peakConcurrent.get() shouldBeEqualTo options.maxLeaders
+        executed.get() shouldBeEqualTo options.maxLeaders * 4 * 2
     }
 
     @EnabledForJreRange(min = JRE.JAVA_21)
@@ -169,23 +179,24 @@ class ZooKeeperLeaderGroupElectorTest: AbstractZooKeeperLeaderTest() {
         val lockName = randomName()
         val currentConcurrent = AtomicInteger(0)
         val peakConcurrent = AtomicInteger(0)
+        val executed = AtomicInteger(0)
 
         StructuredTaskScopeTester()
-            .rounds(options.maxLeaders * 6)
+            .rounds(options.maxLeaders * 4 * 2)
             .add {
-                election.runIfLeader(lockName) {
+                elector.runIfLeader(lockName) {
                     val current = currentConcurrent.incrementAndGet()
                     peakConcurrent.updateAndGet { max(it, current) }
-                    try {
-                        Thread.sleep(20)
-                    } finally {
-                        currentConcurrent.decrementAndGet()
-                    }
+
+                    randomSleep()
+                    executed.incrementAndGet()
+                    currentConcurrent.decrementAndGet()
                 }
             }
             .run()
 
-        peakConcurrent.get() shouldBeGreaterThan 0
-        peakConcurrent.get() shouldBeLessOrEqualTo options.maxLeaders
+        log.debug { "동시 최대 실행 수=${peakConcurrent.get()}, 실행 수=${executed.get()}" }
+        peakConcurrent.get() shouldBeEqualTo options.maxLeaders
+        executed.get() shouldBeEqualTo options.maxLeaders * 4 * 2
     }
 }

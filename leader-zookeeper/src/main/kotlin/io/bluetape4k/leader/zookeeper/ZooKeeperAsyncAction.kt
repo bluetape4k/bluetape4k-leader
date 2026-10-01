@@ -2,10 +2,10 @@ package io.bluetape4k.leader.zookeeper
 
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
-import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.internal.LeaderFutureBridge
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 

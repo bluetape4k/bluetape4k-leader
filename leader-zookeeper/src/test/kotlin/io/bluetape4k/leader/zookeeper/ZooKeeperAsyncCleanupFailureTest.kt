@@ -8,6 +8,7 @@ import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperOwnedInterProcessMutex
+import io.bluetape4k.logging.KLogging
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkConstructor
@@ -24,6 +25,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class ZooKeeperAsyncCleanupFailureTest {
 
+    companion object: KLogging()
+
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
     fun `cleanup 실패에도 기존 best effort 및 원래 action 오류 정책을 유지한다`(group: Boolean) {
@@ -31,6 +34,7 @@ class ZooKeeperAsyncCleanupFailureTest {
         val lease = mockk<Lease>()
         val cleanupFailure = IllegalStateException("cleanup failed")
         mockkConstructor(ZooKeeperOwnedInterProcessMutex::class, InterProcessSemaphoreV2::class)
+
         try {
             every { anyConstructed<ZooKeeperOwnedInterProcessMutex>().acquire(any(), any()) } returns true
             every { anyConstructed<ZooKeeperOwnedInterProcessMutex>().currentThreadLockPath() } returns "/leader/owned"
@@ -39,6 +43,7 @@ class ZooKeeperAsyncCleanupFailureTest {
             every { lease.nodeName } returns "lease-0"
             every { lease.close() } throws cleanupFailure
             val executor = Executor { it.run() }
+
             listOf(false, true).forEach { failAction ->
                 val actionFailure = IllegalArgumentException("action failed")
                 val action = {

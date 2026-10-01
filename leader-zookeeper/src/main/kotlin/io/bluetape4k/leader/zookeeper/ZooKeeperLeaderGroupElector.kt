@@ -35,7 +35,8 @@ class ZooKeeperLeaderGroupElector private constructor(
     private val client: CuratorFramework,
     private val basePath: String,
     options: LeaderGroupElectionOptions,
-): LeaderGroupElector, LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client) {
+): LeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client) {
 
     companion object: KLogging() {
         const val DEFAULT_BASE_PATH = "/leader-group-election"
@@ -79,6 +80,7 @@ class ZooKeeperLeaderGroupElector private constructor(
         val semaphore = InterProcessSemaphoreV2(client, path, maxLeaders)
 
         log.debug { "ZooKeeper group lease 획득을 요청합니다. path=$path, maxLeaders=$maxLeaders" }
+
         val lease = try {
             semaphore.acquire(waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         } catch (e: InterruptedException) {
@@ -165,52 +167,3 @@ class ZooKeeperLeaderGroupElector private constructor(
     private fun semaphore(lockName: String): InterProcessSemaphoreV2 =
         InterProcessSemaphoreV2(client, ZooKeeperPaths.electionPath(basePath, lockName), maxLeaders)
 }
-
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-inline fun <T> CuratorFramework.runIfLeaderGroup(
-    path: ZooKeeperElectionPath,
-    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-    crossinline action: () -> T,
-): T? = ZooKeeperLeaderGroupElector(this, options, path.basePath).runIfLeader(path.lockName) { action() }
-
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-inline fun <T> CuratorFramework.runIfLeaderGroup(
-    lockName: String,
-    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-    basePath: String = ZooKeeperLeaderGroupElector.DEFAULT_BASE_PATH,
-    crossinline action: () -> T,
-): T? = runIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), options, action)
-
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-fun <T> CuratorFramework.runAsyncIfLeaderGroup(
-    path: ZooKeeperElectionPath,
-    executor: Executor = VirtualThreadExecutor,
-    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-    action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> =
-    ZooKeeperLeaderGroupElector(this, options, path.basePath).runAsyncIfLeader(path.lockName, executor, action)
-
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-fun <T> CuratorFramework.runAsyncIfLeaderGroup(
-    lockName: String,
-    executor: Executor = VirtualThreadExecutor,
-    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-    basePath: String = ZooKeeperLeaderGroupElector.DEFAULT_BASE_PATH,
-    action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> = runAsyncIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), executor, options, action)
