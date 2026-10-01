@@ -42,7 +42,7 @@ import kotlin.jvm.optionals.getOrNull
 class HttpLeaderAuditDeliveryTest {
 
     private companion object: KLogging() {
-        const val WEBHOOK_TOKEN_PLACEHOLDER = "\${WEBHOOK_TOKEN}"
+        const val WEBHOOK_TOKEN_PLACEHOLDER = $$"${WEBHOOK_TOKEN}"
     }
 
     private val schedulers = mutableListOf<ScheduledExecutorService>()

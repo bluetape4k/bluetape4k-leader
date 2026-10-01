@@ -55,7 +55,7 @@ K3s 기반 테스트는 Docker privileged mode가 필요합니다.
 ## Operator 구조
 
 ```kotlin
-@Scheduled(fixedDelayString = "\${demo.operator.fixed-delay-ms:5000}")
+@Scheduled(fixedDelayString = $$"${demo.operator.fixed-delay-ms:5000}")
 fun reconcileTick() {
     leaderElector.runIfLeader("cronjob-reconciler") {
         workload.reconcile(request)

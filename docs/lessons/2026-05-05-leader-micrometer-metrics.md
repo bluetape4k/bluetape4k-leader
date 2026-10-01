@@ -61,7 +61,8 @@ Spring의 `@ConditionalOnClass`는 ASM 바이트코드 파싱으로 class body�
 ## L4: lock name prefix가 테스트 환경에서 `:` prefix를 추가한다
 
 ### 문제
-`LeaderAopProperties.DEFAULT_LOCK_NAME_PREFIX = "\${spring.application.name:}:"` 는 `spring.application.name`이 설정되지 않으면 빈 문자열로 해석되어 prefix가 `":"` 가 된다.
+
+`LeaderAopProperties.DEFAULT_LOCK_NAME_PREFIX = $$"${spring.application.name:}:"` 는 `spring.application.name`이 설정되지 않으면 빈 문자열로 해석되어 prefix가 `":"` 가 된다.
 
 따라서 `@LeaderElection(name = "test-lock")` 은 실제 lock name을 `:test-lock`으로 사용하고, 테스트에서 `registry.get("leader.aop.attempts").tag("lock.name", "test-lock")` 조회가 `MeterNotFoundException`으로 실패한다.
 

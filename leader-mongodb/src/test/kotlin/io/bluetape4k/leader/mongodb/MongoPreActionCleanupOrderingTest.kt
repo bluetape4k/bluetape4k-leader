@@ -59,7 +59,7 @@ class MongoPreActionCleanupOrderingTest {
             acquired.countDown()
             allowAcquisition.await(5.seconds).shouldBeTrue()
             val update = secondArg<Bson>().toBsonDocument(Document::class.java, collectionCodecRegistry)
-            Document("token", update.getDocument("\$set").getString("token").value)
+            Document("token", update.getDocument($$"$set").getString("token").value)
         }
         every { collection.deleteOne(any<Bson>()) } answers {
             cleanupStarted.countDown()

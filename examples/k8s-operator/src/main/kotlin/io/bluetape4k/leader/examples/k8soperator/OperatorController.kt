@@ -24,15 +24,15 @@ import java.util.concurrent.atomic.AtomicLong
 class OperatorController(
     private val leaderElector: LeaderElector,
     private val workload: DemoCustomResourceWorkload,
-    @Value("\${demo.operator.lock-name:cronjob-reconciler}") private val lockName: String,
-    @Value("\${demo.operator.pod-name:\${HOSTNAME:local-operator}}") private val podName: String,
+    @Value($$"${demo.operator.lock-name:cronjob-reconciler}") private val lockName: String,
+    @Value($$"${demo.operator.pod-name:\${HOSTNAME:local-operator}}") private val podName: String,
 ) {
 
     private val ticks = AtomicLong()
 
     @Scheduled(
-        fixedDelayString = "\${demo.operator.fixed-delay-ms:5000}",
-        initialDelayString = "\${demo.operator.initial-delay-ms:1000}",
+        fixedDelayString = $$"${demo.operator.fixed-delay-ms:5000}",
+        initialDelayString = $$"${demo.operator.initial-delay-ms:1000}",
     )
     fun reconcileTick() {
         val sequence = ticks.incrementAndGet()

@@ -124,9 +124,9 @@ class LettuceRedisClusterRecoveryTest {
             val started = System.nanoTime()
             // 원래 검증 실패가 있으면 재개 실패는 suppressed 예외로 보존한다.
             AutoCloseable {
-                server.execInContainer("sh", "-c", "kill -CONT \"\$1\"", "signal", "$pid").exitCode shouldBeEqualTo 0
+                server.execInContainer("sh", "-c", "kill -CONT \$$"$1\"", "signal", "$pid").exitCode shouldBeEqualTo 0
             }.use {
-                server.execInContainer("sh", "-c", "kill -STOP \"\$1\"", "signal", "$pid").exitCode shouldBeEqualTo 0
+                server.execInContainer("sh", "-c", "kill -STOP \$$"$1\"", "signal", "$pid").exitCode shouldBeEqualTo 0
                 evidence += "fault=SIGSTOP;primary_pid=$pid;primary_port=$sourcePort"
                 converge(evidence) {
                     cli(server, replicaPort, "INFO", "replication").contains("role:master").shouldBeTrue()

@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.examples.prometheus
 
-import io.bluetape4k.leader.annotation.LeaderElection
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.annotation.LeaderElection
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.leader.history.NoopLeaderHistorySink
@@ -41,7 +41,7 @@ class PrometheusDashboardApp {
 
     @Bean(destroyMethod = "shutdown")
     fun redisClient(
-        @Value("\${demo.redis.url:}") configuredRedisUrl: String,
+        @Value($$"${demo.redis.url:}") configuredRedisUrl: String,
     ): RedisClient {
         val redisUrl = configuredRedisUrl
             .ifBlank {
@@ -137,8 +137,8 @@ class LeaderScheduledTrigger(
 ) {
 
     @Scheduled(
-        fixedDelayString = "\${demo.job.fixed-delay-ms:5000}",
-        initialDelayString = "\${demo.job.initial-delay-ms:1000}",
+        fixedDelayString = $$"${demo.job.fixed-delay-ms:5000}",
+        initialDelayString = $$"${demo.job.initial-delay-ms:1000}",
     )
     fun tick() {
         job.dispatchBatch()

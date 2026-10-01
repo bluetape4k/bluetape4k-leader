@@ -25,10 +25,10 @@ class K8sOperatorApp {
     @Bean
     fun leaderElector(
         client: KubernetesClient,
-        @Value("\${demo.operator.namespace:default}") namespace: String,
-        @Value("\${demo.operator.node-id:\${HOSTNAME:local-operator}}") nodeId: String,
-        @Value("\${demo.operator.wait-time:PT1S}") waitTime: java.time.Duration,
-        @Value("\${demo.operator.lease-time:PT30S}") leaseTime: java.time.Duration,
+        @Value($$"${demo.operator.namespace:default}") namespace: String,
+        @Value($$"${demo.operator.node-id:\${HOSTNAME:local-operator}}") nodeId: String,
+        @Value($$"${demo.operator.wait-time:PT1S}") waitTime: java.time.Duration,
+        @Value($$"${demo.operator.lease-time:PT30S}") leaseTime: java.time.Duration,
     ): LeaderElector =
         KubernetesLeaseLeaderElector(
             client,
