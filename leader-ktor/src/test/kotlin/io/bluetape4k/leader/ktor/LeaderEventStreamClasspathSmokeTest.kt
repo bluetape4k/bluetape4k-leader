@@ -1,10 +1,12 @@
 package io.bluetape4k.leader.ktor
 
 import io.bluetape4k.logging.KLogging
+import okio.withLock
 import org.junit.jupiter.api.Test
 import java.io.File
 import java.net.URL
 import java.net.URLClassLoader
+import java.util.concurrent.locks.ReentrantLock
 
 class LeaderEventStreamClasspathSmokeTest {
 
@@ -67,9 +69,11 @@ class LeaderEventStreamClasspathSmokeTest {
         urls: Array<URL>,
         parent: ClassLoader,
     ): URLClassLoader(urls, parent) {
+        private val lock = ReentrantLock()
+
         override fun loadClass(name: String, resolve: Boolean): Class<*> {
             if (name.startsWith("io.bluetape4k.leader.ktor.")) {
-                synchronized(getClassLoadingLock(name)) {
+                lock.withLock {
                     findLoadedClass(name)?.let { return it }
                     try {
                         val isolated = findClass(name)

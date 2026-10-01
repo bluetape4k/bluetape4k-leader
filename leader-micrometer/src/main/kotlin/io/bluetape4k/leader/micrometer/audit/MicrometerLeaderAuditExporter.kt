@@ -28,6 +28,8 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * core audit exporter를 Micrometer의 고정 low-cardinality meter 집합으로 장식합니다.
@@ -245,17 +247,17 @@ class MicrometerLeaderAuditExporter(
     }
 
     private object DelegateOwnershipStore {
-        private val lock = Any()
+        private val lock = ReentrantLock()
         private val referenceQueue = ReferenceQueue<LeaderAuditExporter>()
         private val owners = HashMap<WeakIdentityKey<LeaderAuditExporter>, Any>()
 
-        fun claim(delegate: LeaderAuditExporter, token: Any) = synchronized(lock) {
+        fun claim(delegate: LeaderAuditExporter, token: Any) = lock.withLock {
             drainCollectedDelegates()
             if (owners.keys.any { it.get() === delegate }) throw DelegateAlreadyOwnedException()
             owners[WeakIdentityKey(delegate, referenceQueue)] = token
         }
 
-        fun release(delegate: LeaderAuditExporter, token: Any) = synchronized(lock) {
+        fun release(delegate: LeaderAuditExporter, token: Any) = lock.withLock {
             owners.entries.removeIf { (key, owner) -> key.get() === delegate && owner === token }
         }
 
@@ -268,12 +270,12 @@ class MicrometerLeaderAuditExporter(
     }
 
     private object RegistryManagerStore {
-        private val lock = Any()
+        private val lock = ReentrantLock()
         private val referenceQueue = ReferenceQueue<MeterRegistry>()
         private val managers = HashMap<WeakIdentityKey<MeterRegistry>, RegistryManager>()
 
         fun acquire(registry: MeterRegistry, delegate: LeaderAuditExporter, ownershipToken: Any): Registration =
-            synchronized(lock) {
+            lock.withLock {
                 drainCollectedRegistries()
                 val entry = managers.entries.firstOrNull { it.key.get() === registry }
                 val manager = entry?.value ?: RegistryManager().also {
@@ -314,7 +316,7 @@ class MicrometerLeaderAuditExporter(
     }
 
     private class RegistryManager {
-        private val lock = Any()
+        private val lock = ReentrantLock()
         private val meters = HashMap<MetricDescriptor, Meter>()
         private var registryReference: WeakReference<MeterRegistry>? = null
         private var metersReady = false
@@ -329,12 +331,12 @@ class MicrometerLeaderAuditExporter(
         private var lastTrustedGauge = GaugeValues(0, 0, false)
         private var ownershipWarningIssued = false
 
-        fun isUnused(): Boolean = synchronized(lock) {
+        fun isUnused(): Boolean = lock.withLock {
             activeDelegate == null && meters.isEmpty() && !compromised
         }
 
         fun acquire(registry: MeterRegistry, delegate: LeaderAuditExporter, ownershipToken: Any): Registration =
-            synchronized(lock) {
+            lock.withLock {
                 check(!compromised) {
                     OWNERSHIP_CONFLICT_MESSAGE
                 }
@@ -358,7 +360,7 @@ class MicrometerLeaderAuditExporter(
             var finalSnapshot: LeaderAuditExportSnapshot? = null
             var closeEntryFailure: Throwable? = null
             var registrationSnapshot: LeaderAuditExportSnapshot? = null
-            synchronized(lock) {
+            lock.withLock {
                 if (activeDelegate !== delegate || state != ManagerState.OPEN) {
                     return CloseResult(null, null)
                 }
@@ -383,7 +385,7 @@ class MicrometerLeaderAuditExporter(
             }
             closeEntryFailure?.let { primary = appendFailure(primary, it) }
 
-            synchronized(lock) {
+            lock.withLock {
                 try {
                     if (!compromised) {
                         val closeEntry = closingSnapshot
@@ -429,12 +431,12 @@ class MicrometerLeaderAuditExporter(
             return CloseResult(registrationSnapshot, primary)
         }
 
-        fun counter(descriptor: MetricDescriptor): Double = synchronized(lock) {
+        fun counter(descriptor: MetricDescriptor): Double = lock.withLock {
             verifyMeterOwnership()
             currentCumulative().value(descriptor.field).toDouble()
         }
 
-        fun gauge(field: SnapshotField): Double = synchronized(lock) {
+        fun gauge(field: SnapshotField): Double = lock.withLock {
             verifyMeterOwnership()
             currentGauge().value(field)
         }
