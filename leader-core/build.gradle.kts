@@ -25,8 +25,10 @@ dependencies {
     testFixturesApi(libs.kotlin.test)
     testFixturesApi(libs.kotlin.test.junit5)
     testFixturesApi(libs.junit.jupiter)
+    testFixturesApi(libs.testcontainers)
+
+    testFixturesApi(bt4k.bluetape4k.coroutines)
     testFixturesApi(libs.kotlinx.coroutines.core)
     testFixturesApi(libs.kotlinx.coroutines.test)
-    testFixturesApi(libs.testcontainers)
 
 }
