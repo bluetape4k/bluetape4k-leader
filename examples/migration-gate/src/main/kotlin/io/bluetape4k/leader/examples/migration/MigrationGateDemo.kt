@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.examples.migration
 
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import org.jetbrains.exposed.v1.core.Table
@@ -10,7 +11,6 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -45,14 +45,16 @@ object MigrationGateDemo: KLogging() {
 
         val executor = Executors.newFixedThreadPool(3)
         try {
-            val futures = (1..3).map { idx ->
+            val futures = List(3) { idx ->
                 executor.submit<Outcome> {
-                    val gate = MigrationGate(db, MigrationGateOptions(
-                        nodeId = "pod-$idx",
-                        lockName = lockName,
-                        waitTime = 30.seconds,
-                        leaseTime = 5.minutes,
-                    ))
+                    val gate = MigrationGate(
+                        db, MigrationGateOptions(
+                            nodeId = "pod-$idx",
+                            lockName = lockName,
+                            waitTime = 30.seconds,
+                            leaseTime = 5.minutes,
+                        )
+                    )
                     gate.runMigration(
                         migrationId = migrationId,
                         isApplied = {
@@ -74,17 +76,18 @@ object MigrationGateDemo: KLogging() {
                     )
                 }
             }
-            val outcomes = futures.map { it.get(60, TimeUnit.SECONDS) }
+            val outcomes = futures.map { it.get(60.seconds) }
 
             log.info { "=== 결과 ===" }
             outcomes.forEachIndexed { idx, outcome ->
                 log.info { "[pod-${idx + 1}] outcome=$outcome" }
             }
+
             val migrated = outcomes.count { it is Outcome.Migrated }
             val applied = outcomes.count { it is Outcome.AlreadyApplied }
             log.info { "Migrated=$migrated (기대값 1), AlreadyApplied=$applied (기대값 2)" }
         } finally {
-            executor.shutdown()
+            executor.shutdownNow()
         }
     }
 }

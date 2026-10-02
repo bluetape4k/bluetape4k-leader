@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Instant
@@ -17,6 +18,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class LeaderBackendDiagnosticsProbeTest {
 
+    companion object: KLogging()
+
     private val checkedAt = Instant.parse("2026-08-24T00:00:00Z")
     private val clock = Clock.fixed(checkedAt, ZoneOffset.UTC)
 
@@ -24,22 +27,23 @@ class LeaderBackendDiagnosticsProbeTest {
     fun `UP DOWN UNKNOWN은 동일한 checkedAt으로 매핑된다`() {
         LeaderBackendDiagnosticsProbe.check(100.milliseconds, clock) {
             LeaderBackendConnectivityStatus.UP
-        }.shouldBeEqualTo(LeaderBackendConnectivity.up(checkedAt))
+        } shouldBeEqualTo LeaderBackendConnectivity.up(checkedAt)
 
         LeaderBackendDiagnosticsProbe.check(100.milliseconds, clock) {
             LeaderBackendConnectivityStatus.DOWN
-        }.shouldBeEqualTo(LeaderBackendConnectivity.down(checkedAt))
+        } shouldBeEqualTo LeaderBackendConnectivity.down(checkedAt)
 
         LeaderBackendDiagnosticsProbe.check(100.milliseconds, clock) {
             LeaderBackendConnectivityStatus.UNKNOWN
-        }.shouldBeEqualTo(LeaderBackendConnectivity.unknown(checkedAt))
+        } shouldBeEqualTo LeaderBackendConnectivity.unknown(checkedAt)
     }
 
     @Test
     fun `양수 유한 timeout이 아니면 clock과 callback을 호출하지 않는다`() {
         var clockCalls = 0
         var callbackCalls = 0
-        val countingClock = object : Clock() {
+
+        val countingClock = object: Clock() {
             override fun getZone() = ZoneOffset.UTC
             override fun withZone(zone: java.time.ZoneId) = this
             override fun instant(): Instant {
@@ -110,7 +114,9 @@ class LeaderBackendDiagnosticsProbeTest {
         val cancellation = CancellationException("cancelled")
 
         val thrown = assertFailsWith<CancellationException> {
-            LeaderBackendDiagnosticsProbe.check(100.milliseconds, clock) { throw cancellation }
+            LeaderBackendDiagnosticsProbe.check(100.milliseconds, clock) {
+                throw cancellation
+            }
         }
 
         thrown shouldBeSameInstanceAs cancellation
@@ -120,9 +126,12 @@ class LeaderBackendDiagnosticsProbeTest {
     fun `InterruptedException은 flag를 복원하고 동일 인스턴스로 재전파한다`() {
         Thread.interrupted()
         val interrupted = InterruptedException("interrupted")
+
         try {
             val thrown = assertFailsWith<InterruptedException> {
-                LeaderBackendDiagnosticsProbe.check(100.milliseconds, clock) { throw interrupted }
+                LeaderBackendDiagnosticsProbe.check(100.milliseconds, clock) {
+                    throw interrupted
+                }
             }
 
             thrown shouldBeSameInstanceAs interrupted
@@ -137,7 +146,9 @@ class LeaderBackendDiagnosticsProbeTest {
         val fatal = AssertionError("fatal")
 
         val thrown = assertFailsWith<AssertionError> {
-            LeaderBackendDiagnosticsProbe.check(100.milliseconds, clock) { throw fatal }
+            LeaderBackendDiagnosticsProbe.check(100.milliseconds, clock) {
+                throw fatal
+            }
         }
 
         thrown shouldBeSameInstanceAs fatal
@@ -157,7 +168,8 @@ class LeaderBackendDiagnosticsProbeTest {
         val events = mutableListOf<String>()
         var capturedTimeout: Duration? = null
         val callerThread = Thread.currentThread()
-        val orderedClock = object : Clock() {
+
+        val orderedClock = object: Clock() {
             override fun getZone() = ZoneOffset.UTC
             override fun withZone(zone: java.time.ZoneId) = this
             override fun instant(): Instant {
@@ -202,7 +214,7 @@ class LeaderBackendDiagnosticsProbeTest {
                 actual shouldBeEqualTo when (expectedStatus) {
                     LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivity.up(expectedAt)
                     LeaderBackendConnectivityStatus.DOWN -> LeaderBackendConnectivity.down(expectedAt)
-                    else -> error("unexpected test status: $expectedStatus")
+                    else                               -> error("unexpected test status: $expectedStatus")
                 }
                 results.add(actual)
             }
@@ -215,7 +227,8 @@ class LeaderBackendDiagnosticsProbeTest {
     @Test
     fun `clock 실패는 callback 없이 동일 인스턴스로 전파한다`() {
         val failure = IllegalStateException("clock failure")
-        val failingClock = object : Clock() {
+
+        val failingClock = object: Clock() {
             override fun getZone() = ZoneOffset.UTC
             override fun withZone(zone: java.time.ZoneId) = this
             override fun instant(): Instant = throw failure

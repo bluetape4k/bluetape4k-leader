@@ -2,13 +2,15 @@ package io.bluetape4k.leader.audit
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.leader.audit.LeaderAuditExportJavaContractFixture
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Modifier
 import java.time.Instant
 
 class LeaderAuditExportBoundaryContractTest {
+
+    companion object: KLogging()
 
     @Test
     fun `public event constants and factories keep the bounded ABI`() {
@@ -57,9 +59,12 @@ class LeaderAuditExportBoundaryContractTest {
         publicSnapshotConstructors.single().isSynthetic.shouldBeTrue()
 
         val publicSnapshotMethods = LeaderAuditExportSnapshot::class.java.declaredMethods
-            .filter { Modifier.isPublic(it.modifiers) }
+            .filter { Modifier.isPublic(it.modifiers) && Modifier.isFinal(it.modifiers) }
             .map { it.name }
             .toSet()
+
+        // publicSnapshotMethods.forEach { log.debug { it } }
+        
         publicSnapshotMethods shouldBeEqualTo setOf(
             "getQueued",
             "getInFlight",

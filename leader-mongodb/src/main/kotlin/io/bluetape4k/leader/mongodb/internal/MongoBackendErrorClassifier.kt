@@ -16,23 +16,23 @@ import io.bluetape4k.leader.internal.BackendErrorKind
  *
  * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
-internal object MongoBackendErrorClassifier : BackendErrorClassifier {
+internal object MongoBackendErrorClassifier: BackendErrorClassifier {
 
     private const val AUTH_FAILED = 13
     private const val AUTHENTICATION_FAILED = 18
 
     override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {
-        is MongoTimeoutException -> BackendErrorKind.TRANSIENT
-        is MongoSocketException -> BackendErrorKind.TRANSIENT
+        is MongoTimeoutException    -> BackendErrorKind.TRANSIENT
+        is MongoSocketException     -> BackendErrorKind.TRANSIENT
         is MongoNodeIsRecoveringException -> BackendErrorKind.TRANSIENT
         is MongoNotPrimaryException -> BackendErrorKind.TRANSIENT
-        is MongoSecurityException -> BackendErrorKind.NON_TRANSIENT
-        is MongoWriteException -> BackendErrorKind.NON_TRANSIENT
-        is MongoCommandException -> when (cause.errorCode) {
+        is MongoSecurityException   -> BackendErrorKind.NON_TRANSIENT
+        is MongoWriteException      -> BackendErrorKind.NON_TRANSIENT
+        is MongoCommandException    -> when (cause.errorCode) {
             AUTH_FAILED, AUTHENTICATION_FAILED -> BackendErrorKind.NON_TRANSIENT
             else -> BackendErrorKind.NON_TRANSIENT
         }
-        is MongoException -> BackendErrorKind.NON_TRANSIENT
-        else -> null
+        is MongoException           -> BackendErrorKind.NON_TRANSIENT
+        else                        -> null
     }
 }

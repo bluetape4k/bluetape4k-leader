@@ -1,6 +1,9 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeAfter
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
@@ -11,11 +14,12 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.leader.internal.LockStateHolder
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import io.bluetape4k.assertions.shouldBeFalse
 
 /**
  * [LocalLeaderElector] capture integration test.
@@ -25,6 +29,8 @@ import io.bluetape4k.assertions.shouldBeFalse
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Suppress("NonAsciiCharacters")
 class LocalLeaderElectorCaptureTest {
+
+    companion object: KLogging()
 
     private val election = LocalLeaderElector()
 
@@ -41,9 +47,7 @@ class LocalLeaderElectorCaptureTest {
             capturedHandle = LockStateHolder.peekSync()
         }
 
-        capturedHandle.shouldNotBeNull()
-        capturedHandle.shouldBeInstanceOf<LeaderLockHandle.Real>()
-        (capturedHandle as LeaderLockHandle.Real).lockName shouldBeEqualTo lockName
+        capturedHandle.shouldBeInstanceOf<LeaderLockHandle.Real>().lockName shouldBeEqualTo lockName
     }
 
     @Test
@@ -115,8 +119,8 @@ class LocalLeaderElectorCaptureTest {
 
         // scope 밖에서 호출 → NotHeld → false
         val extended = LockExtender.extendActiveLock(30.seconds)
-        extended.shouldBeFalse()
 
+        extended.shouldBeFalse()
     }
 
     // ── 재진입 동작 ───────────────────────────────────────────────────────
@@ -174,7 +178,7 @@ class LocalLeaderElectorCaptureTest {
     fun `action 예외 후에도 LockStateHolder 가 비워진다`() {
         val lockName = randomLockName()
 
-        runCatching {
+        assertFailsWith<RuntimeException> {
             election.runIfLeader(lockName) {
                 throw RuntimeException("intentional")
             }
@@ -194,16 +198,18 @@ class LocalLeaderElectorCaptureTest {
         val started = java.util.concurrent.CountDownLatch(1)
         val release = java.util.concurrent.CountDownLatch(1)
 
-        val holder = Thread {
+        val holder = thread {
             stateElection.runIfLeader(lockName) {
                 started.countDown()
                 release.await()
             }
-        }.apply { start() }
+        }
 
         started.await()
         val initial = stateElection.state(lockName).leader?.leaseUntil
+
         Thread.sleep(250)
+
         val extended = stateElection.state(lockName).leader?.leaseUntil
 
         release.countDown()
@@ -211,6 +217,6 @@ class LocalLeaderElectorCaptureTest {
 
         initial.shouldNotBeNull()
         extended.shouldNotBeNull()
-        extended.isAfter(initial).shouldBeTrue()
+        extended shouldBeAfter initial
     }
 }

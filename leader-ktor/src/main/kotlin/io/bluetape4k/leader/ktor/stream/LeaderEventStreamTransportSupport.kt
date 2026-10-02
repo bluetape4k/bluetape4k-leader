@@ -5,6 +5,7 @@ package io.bluetape4k.leader.ktor.stream
 import io.bluetape4k.leader.ktor.LeaderElectionErrorCode
 import io.bluetape4k.leader.ktor.respondLeaderElectionErrorDirect
 import io.bluetape4k.leader.ktor.toErrorContext
+import io.bluetape4k.leader.validateLockName
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.Hook
@@ -46,7 +47,7 @@ internal fun Route.installLeaderEventStreamPreflight(
     return this
 }
 
-private object LeaderEventStreamCallHook : Hook<suspend (PipelineContext<Unit, PipelineCall>) -> Unit> {
+private object LeaderEventStreamCallHook: Hook<suspend (PipelineContext<Unit, PipelineCall>) -> Unit> {
     override fun install(
         pipeline: ApplicationCallPipeline,
         handler: suspend (PipelineContext<Unit, PipelineCall>) -> Unit,
@@ -117,7 +118,7 @@ private fun parseLockName(call: ApplicationCall, allLocksEnabled: Boolean): Resu
         else Result.failure(IllegalArgumentException("lockName is required"))
     }
     return runCatching {
-        io.bluetape4k.leader.validateLockName(value)
+        value.validateLockName("value")
         value
     }
 }

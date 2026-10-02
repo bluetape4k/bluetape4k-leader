@@ -2,6 +2,7 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.logging.KLogging
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
 import org.junit.jupiter.api.Test
@@ -19,8 +20,10 @@ class LettuceStrategicConstructorCompatibilityTest {
             val primaryConstructor = contract.type.primaryConstructor.shouldNotBeNull()
 
             primaryConstructor.visibility shouldBeEqualTo KVisibility.PUBLIC
-            primaryConstructor.parameters.map { it.type.jvmErasure } shouldBeEqualTo
-                listOf(StatefulRedisConnection::class, String::class)
+            primaryConstructor.parameters.map { it.type.jvmErasure } shouldBeEqualTo listOf(
+                StatefulRedisConnection::class,
+                String::class
+            )
             primaryConstructor.parameters.map { it.name } shouldBeEqualTo listOf("connection", "nodeId")
             primaryConstructor.parameters.map { it.isOptional } shouldBeEqualTo listOf(false, true)
         }
@@ -45,7 +48,7 @@ class LettuceStrategicConstructorCompatibilityTest {
 
     private data class ConstructorContract(val type: KClass<*>)
 
-    private companion object {
+    private companion object: KLogging() {
         val expectedContracts = listOf(
             ConstructorContract(LettuceStrategicLeaderElector::class),
             ConstructorContract(LettuceStrategicLeaderGroupElector::class),

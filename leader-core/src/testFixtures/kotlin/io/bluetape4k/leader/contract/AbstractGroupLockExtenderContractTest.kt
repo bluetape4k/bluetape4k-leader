@@ -1,14 +1,16 @@
 package io.bluetape4k.leader.contract
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds
@@ -43,6 +45,8 @@ import kotlin.time.Duration.Companion.seconds
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractGroupLockExtenderContractTest {
+
+    companion object: KLogging()
 
     /** Each backend provides its own [LeaderGroupElector] instance. */
     protected abstract val elector: LeaderGroupElector
@@ -121,14 +125,14 @@ abstract class AbstractGroupLockExtenderContractTest {
             outcome = LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
-        (outcome is ExtendOutcome.Extended).shouldBeTrue()
+        outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }
 
     @Test
     fun `extendActiveLockDetailed returns NotHeld outside group body`() {
         val outcome = LockExtender.extendActiveLockDetailed(60.seconds)
 
-        (outcome is ExtendOutcome.NotHeld).shouldBeTrue()
+        outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 
     // ── return value ──────────────────────────────────────────────────────

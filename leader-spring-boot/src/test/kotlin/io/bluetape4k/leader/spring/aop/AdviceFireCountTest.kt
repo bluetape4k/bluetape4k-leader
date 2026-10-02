@@ -1,16 +1,17 @@
 package io.bluetape4k.leader.spring.aop
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.leader.annotation.LeaderElection
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.assertions.shouldBeEqualTo
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.springframework.beans.factory.getBean
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
-import io.bluetape4k.assertions.shouldBeFalse
 
 /**
  * Freefair CTW (compile-time weaving) + Spring AOP double-fire 방지 검증.
@@ -34,7 +35,7 @@ import io.bluetape4k.assertions.shouldBeFalse
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AdviceFireCountTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     class AdviceFireTestService {
         @LeaderElection(name = "fire-count-test")
@@ -53,7 +54,7 @@ class AdviceFireCountTest {
     @Test
     fun `@LeaderElection 메서드가 정상 결과를 반환한다`() {
         runner.run { ctx ->
-            val svc = ctx.getBean(AdviceFireTestService::class.java)
+            val svc = ctx.getBean<AdviceFireTestService>()
             svc.doWork() shouldBeEqualTo "done"
         }
     }
@@ -61,7 +62,7 @@ class AdviceFireCountTest {
     @Test
     fun `두 번 호출해도 정상 결과 — double-fire로 인한 예외 없음`() {
         runner.run { ctx ->
-            val svc = ctx.getBean(AdviceFireTestService::class.java)
+            val svc = ctx.getBean<AdviceFireTestService>()
             svc.doWork() shouldBeEqualTo "done"
             svc.doWork() shouldBeEqualTo "done"
         }
@@ -74,7 +75,6 @@ class AdviceFireCountTest {
             // 본 AutoConfig 에는 없어야 double-fire 가 발생하지 않는다.
             val hasAutoProxy = ctx.containsBeanDefinition("org.springframework.aop.config.internalAutoProxyCreator")
             hasAutoProxy.shouldBeFalse()
-
         }
     }
 
@@ -89,7 +89,7 @@ class AdviceFireCountTest {
             )
             .withBean(AdviceFireTestService::class.java)
             .run { ctx ->
-                val svc = ctx.getBean(AdviceFireTestService::class.java)
+                val svc = ctx.getBean<AdviceFireTestService>()
                 svc.doWork() shouldBeEqualTo "done"
             }
     }
@@ -97,7 +97,7 @@ class AdviceFireCountTest {
     @Test
     fun `application name 없는 기본 prefix는 빈 문자열로 정규화된다`() {
         runner.run { ctx ->
-            ctx.getBean(LockNameValidator::class.java).prefix shouldBeEqualTo ""
+            ctx.getBean<LockNameValidator>().prefix shouldBeEqualTo ""
         }
     }
 
@@ -106,7 +106,7 @@ class AdviceFireCountTest {
         runner
             .withPropertyValues("spring.application.name=my-app")
             .run { ctx ->
-                ctx.getBean(LockNameValidator::class.java).prefix shouldBeEqualTo "my-app:"
+                ctx.getBean<LockNameValidator>().prefix shouldBeEqualTo "my-app:"
             }
     }
 
@@ -115,7 +115,7 @@ class AdviceFireCountTest {
         runner
             .withPropertyValues("bluetape4k.leader.aop.lock-name-prefix=custom:")
             .run { ctx ->
-                ctx.getBean(LockNameValidator::class.java).prefix shouldBeEqualTo "custom:"
+                ctx.getBean<LockNameValidator>().prefix shouldBeEqualTo "custom:"
             }
     }
 }

@@ -3,6 +3,7 @@ package io.bluetape4k.leader.diagnostics
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
@@ -12,6 +13,30 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderBackendDiagnosticsTest {
+
+    private companion object: KLogging() {
+        val checkedAt: Instant = Instant.parse("2026-08-16T00:00:00Z")
+        val capabilities = LeaderBackendCapabilities(
+            singleExecutionModels = setOf(LeaderExecutionModel.BLOCKING),
+            groupExecutionModels = emptySet(),
+            leaseExtension = LeaderBackendModeSupport(
+                single = LeaderBackendSupport.SUPPORTED,
+                group = LeaderBackendSupport.UNSUPPORTED,
+            ),
+            auditState = LeaderBackendModeSupport(
+                single = LeaderBackendSupport.UNKNOWN,
+                group = LeaderBackendSupport.UNSUPPORTED,
+            ),
+            clockSource = LeaderBackendClockSource.PROCESS,
+            ttlMode = LeaderBackendTtlMode.CLIENT_LEASE,
+        )
+        val descriptor = LeaderBackendDescriptor(
+            backendId = "test",
+            displayName = "Test Backend",
+            capabilities = capabilities,
+        )
+    }
+
 
     @Test
     fun `기본 diagnostics 조회는 connectivity probe를 실행하지 않는다`() {
@@ -39,11 +64,12 @@ class LeaderBackendDiagnosticsTest {
     fun `probe timeout은 양수이고 유한해야 한다`() {
         val provider = RecordingProvider()
 
-        listOf(Duration.ZERO, (-1).milliseconds, Duration.INFINITE).forEach { timeout ->
-            assertFailsWith<IllegalArgumentException> {
-                provider.diagnostics(probe = true, timeout = timeout)
+        listOf(Duration.ZERO, (-1).milliseconds, Duration.INFINITE)
+            .forEach { timeout ->
+                assertFailsWith<IllegalArgumentException> {
+                    provider.diagnostics(probe = true, timeout = timeout)
+                }
             }
-        }
 
         provider.calls shouldBeEqualTo 0
     }
@@ -127,7 +153,7 @@ class LeaderBackendDiagnosticsTest {
 
     @Test
     fun `default connectivity check는 안전한 UNKNOWN 결과를 반환한다`() {
-        val provider = object : LeaderBackendDiagnosticsProvider {
+        val provider = object: LeaderBackendDiagnosticsProvider {
             override val backendDescriptor: LeaderBackendDescriptor = descriptor
         }
 
@@ -153,21 +179,22 @@ class LeaderBackendDiagnosticsTest {
         provider.behavior = { throw ordinary }
         assertFailsWith<IllegalStateException> {
             provider.diagnostics(probe = true, timeout = 100.milliseconds)
-        }.shouldBeSameInstanceAs(ordinary)
+        } shouldBeSameInstanceAs ordinary
 
         val cancellation = CancellationException("legacy cancellation")
         provider.behavior = { throw cancellation }
         assertFailsWith<CancellationException> {
             provider.diagnostics(probe = true, timeout = 100.milliseconds)
-        }.shouldBeSameInstanceAs(cancellation)
+        } shouldBeSameInstanceAs cancellation
 
         Thread.interrupted()
+
         val interrupted = InterruptedException("legacy interruption")
         provider.behavior = { throw interrupted }
         try {
             assertFailsWith<InterruptedException> {
                 provider.diagnostics(probe = true, timeout = 100.milliseconds)
-            }.shouldBeSameInstanceAs(interrupted)
+            } shouldBeSameInstanceAs interrupted
         } finally {
             Thread.interrupted()
         }
@@ -176,7 +203,7 @@ class LeaderBackendDiagnosticsTest {
         provider.behavior = { throw fatal }
         assertFailsWith<AssertionError> {
             provider.diagnostics(probe = true, timeout = 100.milliseconds)
-        }.shouldBeSameInstanceAs(fatal)
+        } shouldBeSameInstanceAs fatal
     }
 
     @Test
@@ -192,22 +219,22 @@ class LeaderBackendDiagnosticsTest {
         provider.behavior = { throw ordinary }
         assertFailsWith<IllegalStateException> {
             provider.diagnostics(probe = true, timeout = 100.milliseconds)
-        }.shouldBeSameInstanceAs(ordinary)
+        } shouldBeSameInstanceAs ordinary
 
         val cancellation = CancellationException("custom diagnostics cancellation")
         provider.behavior = { throw cancellation }
         assertFailsWith<CancellationException> {
             provider.diagnostics(probe = true, timeout = 100.milliseconds)
-        }.shouldBeSameInstanceAs(cancellation)
+        } shouldBeSameInstanceAs cancellation
 
         val fatal = AssertionError("custom diagnostics fatal")
         provider.behavior = { throw fatal }
         assertFailsWith<AssertionError> {
             provider.diagnostics(probe = true, timeout = 100.milliseconds)
-        }.shouldBeSameInstanceAs(fatal)
+        } shouldBeSameInstanceAs fatal
     }
 
-    private class RecordingProvider : LeaderBackendDiagnosticsProvider {
+    private class RecordingProvider: LeaderBackendDiagnosticsProvider {
         override val backendDescriptor: LeaderBackendDescriptor = descriptor
         var calls: Int = 0
         var lastTimeout: Duration? = null
@@ -219,7 +246,7 @@ class LeaderBackendDiagnosticsTest {
         }
     }
 
-    private class LegacyCheckConnectivityProvider : LeaderBackendDiagnosticsProvider {
+    private class LegacyCheckConnectivityProvider: LeaderBackendDiagnosticsProvider {
         override val backendDescriptor: LeaderBackendDescriptor = descriptor
         var calls: Int = 0
         var behavior: (Duration) -> LeaderBackendConnectivity = {
@@ -233,7 +260,7 @@ class LeaderBackendDiagnosticsTest {
         }
     }
 
-    private class LegacyDiagnosticsOverrideProvider : LeaderBackendDiagnosticsProvider {
+    private class LegacyDiagnosticsOverrideProvider: LeaderBackendDiagnosticsProvider {
         override val backendDescriptor: LeaderBackendDescriptor = descriptor
         var calls: Int = 0
         var lastTimeout: Duration? = null
@@ -246,28 +273,5 @@ class LeaderBackendDiagnosticsTest {
             calls++
             return behavior(timeout)
         }
-    }
-
-    private companion object {
-        val checkedAt: Instant = Instant.parse("2026-08-16T00:00:00Z")
-        val capabilities = LeaderBackendCapabilities(
-            singleExecutionModels = setOf(LeaderExecutionModel.BLOCKING),
-            groupExecutionModels = emptySet(),
-            leaseExtension = LeaderBackendModeSupport(
-                single = LeaderBackendSupport.SUPPORTED,
-                group = LeaderBackendSupport.UNSUPPORTED,
-            ),
-            auditState = LeaderBackendModeSupport(
-                single = LeaderBackendSupport.UNKNOWN,
-                group = LeaderBackendSupport.UNSUPPORTED,
-            ),
-            clockSource = LeaderBackendClockSource.PROCESS,
-            ttlMode = LeaderBackendTtlMode.CLIENT_LEASE,
-        )
-        val descriptor = LeaderBackendDescriptor(
-            backendId = "test",
-            displayName = "Test Backend",
-            capabilities = capabilities,
-        )
     }
 }

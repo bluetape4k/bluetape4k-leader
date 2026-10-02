@@ -10,6 +10,7 @@ import io.bluetape4k.leader.dynamodb.DynamoDbLeaderGroupElectorFactory
 import io.bluetape4k.leader.dynamodb.DynamoDbSuspendLeaderElectorFactory
 import io.bluetape4k.leader.dynamodb.DynamoDbSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.spring.LeaderTestApplication
+import io.bluetape4k.logging.KLogging
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -18,6 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
+import org.springframework.test.annotation.DirtiesContext
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 
@@ -36,8 +38,11 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 @ImportAutoConfiguration(LeaderAopFactoryAutoConfiguration::class)
 class DynamoDbAopFactoryAutoConfigurationTest {
 
+    companion object: KLogging()
+
     @TestConfiguration
-    open class TestConfig {
+    @DirtiesContext
+    class TestConfig {
         @Bean
         fun dynamoDbClient(): DynamoDbClient = mockk(relaxed = true)
 
@@ -50,22 +55,26 @@ class DynamoDbAopFactoryAutoConfigurationTest {
 
     @Test
     fun `dynamoDbLeaderElectionFactory 빈이 등록된다`() {
-        ctx.getBean("dynamoDbLeaderElectionFactory").shouldBeInstanceOf<DynamoDbLeaderElectorFactory>()
+        ctx.getBean("dynamoDbLeaderElectionFactory")
+            .shouldBeInstanceOf<DynamoDbLeaderElectorFactory>()
     }
 
     @Test
     fun `dynamoDbLeaderGroupElectionFactory 빈이 등록된다`() {
-        ctx.getBean("dynamoDbLeaderGroupElectionFactory").shouldBeInstanceOf<DynamoDbLeaderGroupElectorFactory>()
+        ctx.getBean("dynamoDbLeaderGroupElectionFactory")
+            .shouldBeInstanceOf<DynamoDbLeaderGroupElectorFactory>()
     }
 
     @Test
     fun `dynamoDbSuspendLeaderElectorFactory 빈이 등록된다`() {
-        ctx.getBean("dynamoDbSuspendLeaderElectorFactory").shouldBeInstanceOf<DynamoDbSuspendLeaderElectorFactory>()
+        ctx.getBean("dynamoDbSuspendLeaderElectorFactory")
+            .shouldBeInstanceOf<DynamoDbSuspendLeaderElectorFactory>()
     }
 
     @Test
     fun `dynamoDbSuspendLeaderGroupElectorFactory 빈이 등록된다`() {
-        ctx.getBean("dynamoDbSuspendLeaderGroupElectorFactory").shouldBeInstanceOf<DynamoDbSuspendLeaderGroupElectorFactory>()
+        ctx.getBean("dynamoDbSuspendLeaderGroupElectorFactory")
+            .shouldBeInstanceOf<DynamoDbSuspendLeaderGroupElectorFactory>()
     }
 
     @Test

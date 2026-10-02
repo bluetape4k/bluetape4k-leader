@@ -1,13 +1,14 @@
 package io.bluetape4k.leader.internal
 
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAcquirer
-import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderLeaseDefaults
 import io.bluetape4k.leader.LeaderLeaseExtensionObservationScope
+import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderLeaseWatchdogAdmission
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderSlot
@@ -22,6 +23,7 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * 기존 blocking elector를 새 backend lock 구현 없이 request lease로 연결합니다.
@@ -31,7 +33,7 @@ import kotlin.time.Duration
 class LeaderElectorLeaseAdapter(
     private val electorProvider: () -> LeaderElector,
     override val configuredOptions: LeaderElectionOptions,
-) : LeaderLeaseAcquirer {
+): LeaderLeaseAcquirer {
 
     override fun tryAcquire(lockName: String): LeaderLeaseHandle? {
         lockName.requireNotBlank("lockName")
@@ -59,7 +61,6 @@ class LeaderElectorLeaseAdapter(
                                 elected.complete(session)
                                 session.awaitRelease()
                             }
-                            Unit
                         }
                         if (!elected.isDone) elected.complete(null)
                         session.completed.complete(Unit)
@@ -102,9 +103,9 @@ class LeaderElectorLeaseAdapter(
         private val maxLeaseTime: Duration,
     ) {
         private sealed interface Command {
-            data class Extend(val duration: Duration, val result: CompletableFuture<ExtendOutcome>) : Command
-            data class Held(val result: CompletableFuture<LeaseOwnershipStatus>) : Command
-            data object Release : Command
+            data class Extend(val duration: Duration, val result: CompletableFuture<ExtendOutcome>): Command
+            data class Held(val result: CompletableFuture<LeaseOwnershipStatus>): Command
+            data object Release: Command
         }
 
         private val commands = ArrayBlockingQueue<Command>(32)
@@ -112,6 +113,7 @@ class LeaderElectorLeaseAdapter(
         val completed = CompletableFuture<Unit>()
         private val released = AtomicBoolean(false)
         private val terminalStatus = AtomicReference<LeaseOwnershipStatus?>(null)
+
         @Volatile
         private var raw: io.bluetape4k.leader.LeaderLockHandle? = null
 
@@ -184,7 +186,7 @@ class LeaderElectorLeaseAdapter(
             val result = CompletableFuture<LeaseOwnershipStatus>()
             if (!commands.offer(Command.Held(result))) return LeaseOwnershipStatus.UNKNOWN
             return try {
-                result.get(1, TimeUnit.SECONDS)
+                result.get(1.seconds)
             } catch (_: TimeoutException) {
                 LeaseOwnershipStatus.UNKNOWN
             } catch (_: InterruptedException) {
@@ -217,7 +219,7 @@ class LeaderElectorLeaseAdapter(
     private class AdapterLeaseHandle(
         private val session: SyncSession,
         private val maxLeaseTime: Duration,
-    ) : LeaderLeaseHandle {
+    ): LeaderLeaseHandle {
         override val lockName: String get() = session.slot.lockName
         override val auditLeaderId: String get() = session.slot.leaderId
         override val acquiredAt: Instant = Instant.now()

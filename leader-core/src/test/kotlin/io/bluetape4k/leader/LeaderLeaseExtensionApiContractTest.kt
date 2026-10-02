@@ -3,12 +3,15 @@ package io.bluetape4k.leader
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Modifier
 import java.nio.file.Files
 import javax.tools.ToolProvider
 
 class LeaderLeaseExtensionApiContractTest {
+
+    companion object: KLogging()
 
     @Test
     fun `observer facade exposes only the approved public API`() {
@@ -39,8 +42,8 @@ class LeaderLeaseExtensionApiContractTest {
         val facade = LeaderLeaseExtensionObservers::class.java
         val bridgeMethods = facade.declaredMethods.filter {
             Modifier.isPublic(it.modifiers) &&
-                ((it.name.startsWith("hasObservers") && it.parameterCount == 0) ||
-                    (it.name.startsWith("publish") && it.parameterCount == 1))
+                    ((it.name.startsWith("hasObservers") && it.parameterCount == 0) ||
+                            (it.name.startsWith("publish") && it.parameterCount == 1))
         }
 
         bridgeMethods.size shouldBeEqualTo 2
@@ -62,9 +65,9 @@ class LeaderLeaseExtensionApiContractTest {
         val facadeMethods = LeaderLeaseExtensionObservers::class.java.declaredMethods
         val scopedBridges = facadeMethods.filter { method ->
             Modifier.isPublic(method.modifiers) &&
-                (method.name == "addScopedObserver" ||
-                    (method.name == "hasObservers" && method.parameterCount == 1) ||
-                    (method.name == "publish" && method.parameterCount == 2))
+                    (method.name == "addScopedObserver" ||
+                            (method.name == "hasObservers" && method.parameterCount == 1) ||
+                            (method.name == "publish" && method.parameterCount == 2))
         }
 
         scopedBridges.size shouldBeEqualTo 3

@@ -1,20 +1,28 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.AopScopeAccess
+import io.bluetape4k.leader.AsyncLifecycle
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderLeaseAcquirer
+import io.bluetape4k.leader.LeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.asCompletionException
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonLockExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.toActionFailedResult
+import io.bluetape4k.leader.unwrapCompletionException
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -24,13 +32,13 @@ import org.redisson.api.RedissonClient
 import org.redisson.client.RedisException
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
-import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration
+import kotlin.time.toJavaDuration
 
 /**
  * `RedissonLeaderElector`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -45,11 +53,11 @@ class RedissonLeaderElector private constructor(
     private val redissonClient: RedissonClient,
     private val options: LeaderElectionOptions,
 ): LeaderElector,
-    LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient),
-    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient),
+   LeaderLeaseAcquirerSupport {
 
-    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options)
+    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
+        LeaderElectorLeaseAdapter({ this }, options)
     }
 
     companion object: KLogging() {
@@ -96,7 +104,7 @@ class RedissonLeaderElector private constructor(
     }
 
     private fun <T> runImpl(lockName: String, auditLeaderId: String?, action: () -> T): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
 
         val lock: RLock = redissonClient.getLock(lockName)
 
@@ -197,8 +205,8 @@ class RedissonLeaderElector private constructor(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                elected.get()   -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else            -> LeaderRunResult.Skipped
             }
         }
     }
@@ -210,7 +218,7 @@ class RedissonLeaderElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        validateLockName(lockName)
+        lockName.validateLockName()
 
         val lock: RLock = redissonClient.getLock(lockName)
 
@@ -228,34 +236,39 @@ class RedissonLeaderElector private constructor(
                     if (acquired) rejectionCleanup.markAcquired()
                     acquired
                 }
+
             val pipelineFuture = acquisitionFuture
-                .thenComposeAsync({ acquired ->
-                    if (acquired) {
-                        if (!rejectionCleanup.markLifecycleStarted()) {
-                            CompletableFuture.failedFuture(
-                                CancellationException("leader action was cancelled before start"),
-                            )
-                        } else try {
-                            executeActionAsync(
-                                lock,
-                                auditLeaderId,
-                                currentThreadId,
-                                rejectionCleanup.acquiredAtNanos,
-                                cancellationRelay,
-                                action,
-                            )
-                        } catch (error: Throwable) {
-                            releaseAcquiredLockAsync(lock, currentThreadId, rejectionCleanup.acquiredAtNanos)
-                                .handle { _, releaseError ->
-                                    if (releaseError != null) error.addSuppressed(releaseError.unwrapCompletionCause())
-                                }
-                                .thenCompose { CompletableFuture.failedFuture(error) }
+                .thenComposeAsync(
+                    { acquired ->
+                        if (acquired) {
+                            if (!rejectionCleanup.markLifecycleStarted()) {
+                                failedCompletableFutureOf(
+                                    CancellationException("leader action was cancelled before start"),
+                                )
+                            } else try {
+                                executeActionAsync(
+                                    lock,
+                                    auditLeaderId,
+                                    currentThreadId,
+                                    rejectionCleanup.acquiredAtNanos,
+                                    cancellationRelay,
+                                    action,
+                                )
+                            } catch (error: Throwable) {
+                                releaseAcquiredLockAsync(lock, currentThreadId, rejectionCleanup.acquiredAtNanos)
+                                    .handle { _, releaseError ->
+                                        if (releaseError != null) error.addSuppressed(releaseError.unwrapCompletionException())
+                                    }
+                                    .thenCompose { failedCompletableFutureOf(error) }
+                            }
+                        } else {
+                            log.debug { "Leader 승격 실패 (슬롯 없음). lock=$lockName" }
+                            completableFutureOf(null)
                         }
-                    } else {
-                        log.debug { "Leader 승격 실패 (슬롯 없음). lock=$lockName" }
-                        CompletableFuture.completedFuture(null)
-                    }
-                }, executor)
+                    },
+                    executor
+                )
+
             acquisitionFuture.whenComplete { acquired, _ ->
                 if (acquired == true && pipelineFuture.isCancelled) {
                     rejectionCleanup.release<Any?>(
@@ -265,9 +278,9 @@ class RedissonLeaderElector private constructor(
             }
             return LeaderFutureBridge.flatMap(pipelineFuture, cancellationRelay) { value, failure ->
                 if (failure != null) {
-                    rejectionCleanup.release(failure.unwrapCompletionCause())
+                    rejectionCleanup.release(failure.unwrapCompletionException()!!)
                 } else {
-                    CompletableFuture.completedFuture(value)
+                    completableFutureOf(value)
                 }
             }
 
@@ -297,7 +310,7 @@ class RedissonLeaderElector private constructor(
 
         fun <T> release(failure: Throwable): CompletableFuture<T?> {
             if (!acquired.get() || !lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                return CompletableFuture.failedFuture(failure)
+                return failedCompletableFutureOf(failure)
             }
             return releaseAcquiredLockAsync(lock, currentThreadId, acquiredAtNanos)
                 .exceptionally { releaseError ->
@@ -305,7 +318,7 @@ class RedissonLeaderElector private constructor(
                         "Fail to release lock after executor rejection. lock=${lock.name}, threadId=$currentThreadId"
                     }
                 }
-                .thenCompose { CompletableFuture.failedFuture(failure) }
+                .thenCompose { failedCompletableFutureOf(failure) }
         }
     }
 
@@ -347,10 +360,9 @@ class RedissonLeaderElector private constructor(
 
         val actionFuture = runCatching {
             cancellationRelay.invoke { AopScopeAccess.withPushedSync(handle) { action() } }
+        }.getOrElse { error ->
+            return releaseAndPropagate(lock, currentThreadId, acquiredAtNanos, watchdog, error, null)
         }
-            .getOrElse { error ->
-                return releaseAndPropagate(lock, currentThreadId, acquiredAtNanos, watchdog, error, null)
-            }
 
         return actionFuture
             .handle<Pair<T?, Throwable?>> { value, error -> Pair(value, error) }
@@ -359,23 +371,9 @@ class RedissonLeaderElector private constructor(
             }
     }
 
-    private fun Throwable.unwrapCompletionCause(): Throwable =
-        (this as? CompletionException)?.cause ?: this
-
-    private fun Throwable.toActionFailedResult(): LeaderRunResult.ActionFailed {
-        val cause = unwrapCompletionCause()
-        if (cause is CancellationException) {
-            throw cause
-        }
-        return LeaderRunResult.ActionFailed(cause)
-    }
-
-    private fun Throwable.asCompletionException(): CompletionException =
-        this as? CompletionException ?: CompletionException(this)
-
     private fun releaseLock(lock: RLock, acquiredAtNanos: Long) {
         val remaining = remainingMinLeaseTime(acquiredAtNanos, options.minLeaseTime)
-        if (remaining > kotlin.time.Duration.ZERO) {
+        if (remaining > Duration.ZERO) {
             redissonClient.keys.expire(remaining.toJavaDuration(), lock.name)
         } else {
             lock.unlock()
@@ -392,7 +390,7 @@ class RedissonLeaderElector private constructor(
     ): CompletableFuture<T?> {
         return LeaderLeaseAutoExtender.closeAsync(watchdog)
             .handle { _, closeFailure ->
-                val closeCause = closeFailure?.unwrapCompletionCause()
+                val closeCause = closeFailure?.unwrapCompletionException()
                 if (closeCause != null && error != null) error.addSuppressed(closeCause)
                 if (error == null) closeCause else null
             }
@@ -405,14 +403,14 @@ class RedissonLeaderElector private constructor(
                     }
                     .thenCompose {
                         if (error != null) {
-                            CompletableFuture.failedFuture(error)
+                            failedCompletableFutureOf(error)
                         } else if (closeFailure != null) {
-                            CompletableFuture.failedFuture(closeFailure)
+                            failedCompletableFutureOf(closeFailure)
                         } else {
-                            CompletableFuture.completedFuture(value)
+                            completableFutureOf(value)
                         }
                     }
-                }
+            }
     }
 
     private fun releaseLockAsync(lock: RLock, currentThreadId: Long, acquiredAtNanos: Long): CompletableFuture<Unit> {
@@ -421,7 +419,7 @@ class RedissonLeaderElector private constructor(
                 if (held) {
                     releaseAcquiredLockAsync(lock, currentThreadId, acquiredAtNanos)
                 } else {
-                    CompletableFuture.completedFuture(Unit)
+                    completableFutureOf(Unit)
                 }
             }
         } catch (e: Throwable) {
@@ -437,58 +435,16 @@ class RedissonLeaderElector private constructor(
         val lockName = lock.name
         return try {
             val remaining = remainingMinLeaseTime(acquiredAtNanos, options.minLeaseTime)
-            val releaseFuture: CompletableFuture<*> = if (remaining > kotlin.time.Duration.ZERO) {
+            val releaseFuture: CompletableFuture<*> = if (remaining > Duration.ZERO) {
                 redissonClient.keys.expireAsync(remaining.toJavaDuration(), lockName).toCompletableFuture()
             } else {
                 lock.unlockAsync(currentThreadId).toCompletableFuture()
             }
             releaseFuture.thenApply {
                 log.debug { "Leader 권한을 반납했습니다. lock=$lockName, threadId=$currentThreadId" }
-                Unit
             }
         } catch (e: Throwable) {
             failedCompletableFutureOf(e)
         }
     }
-
-    private fun kotlin.time.Duration.toJavaDuration(): java.time.Duration =
-        java.time.Duration.ofNanos(inWholeNanoseconds)
-
-    private enum class AsyncLifecycle {
-        WAITING,
-        STARTED,
-        CLEANUP,
-    }
-}
-
-
-/**
- * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-inline fun <T> RedissonClient.runIfLeader(
-    jobName: String,
-    options: LeaderElectionOptions = LeaderElectionOptions.Default,
-    crossinline action: () -> T,
-): T? {
-    validateLockName(jobName)
-    val leaderElection = RedissonLeaderElector(this, options)
-    return leaderElection.runIfLeader(jobName) { action() }
-}
-
-/**
- * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-inline fun <T> RedissonClient.runAsyncIfLeader(
-    jobName: String,
-    executor: Executor = ForkJoinPool.commonPool(),
-    options: LeaderElectionOptions = LeaderElectionOptions.Default,
-    crossinline action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> {
-    validateLockName(jobName)
-    val leaderElection = RedissonLeaderElector(this, options)
-    return leaderElection.runAsyncIfLeader(jobName, executor) { action() }
 }

@@ -1,10 +1,11 @@
 package io.bluetape4k.leader.internal
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
@@ -14,13 +15,15 @@ import kotlin.time.Duration
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderLockHandleCaptureTest {
 
+    companion object: KLogging()
+
     private fun identity() = LockIdentity(
         lockName = "cap-test-lock",
         kind = LockIdentity.AnnotationKind.SINGLE,
         factoryBeanName = "testFactory",
     )
 
-    private fun fakeDelegate(): ExtendDelegate = object : ExtendDelegate {
+    private fun fakeDelegate(): ExtendDelegate = object: ExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
         override val lastExtendDeadline: AtomicReference<Instant> get() = deadline
         override fun extend(lockAtMostFor: Duration): ExtendOutcome = ExtendOutcome.Extended(Instant.now())

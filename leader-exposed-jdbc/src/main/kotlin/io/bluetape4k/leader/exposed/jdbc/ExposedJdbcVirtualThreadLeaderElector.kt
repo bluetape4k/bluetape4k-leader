@@ -13,8 +13,8 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
  */
 class ExposedJdbcVirtualThreadLeaderElector(
     private val delegate: ExposedJdbcLeaderElector,
-) : VirtualThreadLeaderElector,
-    LeaderBackendDiagnosticsProvider by ExposedJdbcLeaderBackendDiagnostics {
+): VirtualThreadLeaderElector,
+   LeaderBackendDiagnosticsProvider by ExposedJdbcLeaderBackendDiagnostics {
 
     /**
      * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.

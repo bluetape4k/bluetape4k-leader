@@ -28,11 +28,10 @@ class ExposedJdbcGroupLockExtenderContractTest: AbstractGroupLockExtenderContrac
         }
     }
 
-    override val elector: LeaderGroupElector =
-        ExposedJdbcLeaderGroupElector(
-            db,
-            ExposedJdbcLeaderGroupElectionOptions(
-                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2),
-            ),
-        )
+    override val elector: LeaderGroupElector = ExposedJdbcLeaderGroupElector(
+        db,
+        ExposedJdbcLeaderGroupElectionOptions(
+            leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2),
+        ),
+    )
 }

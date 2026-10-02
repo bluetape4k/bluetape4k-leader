@@ -5,13 +5,17 @@ import io.bluetape4k.leader.contract.AbstractSuspendLeaderGroupElectorLeaderIdCo
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.etcd.EtcdLeaderGroupElectionOptions
 import io.bluetape4k.leader.etcd.EtcdSuspendLeaderGroupElector
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import org.junit.jupiter.api.TestInstance
 
 /**
  * etcd suspend group leader-id contract implementation.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class EtcdSuspendLeaderGroupElectorLeaderIdContractTest : AbstractSuspendLeaderGroupElectorLeaderIdContractTest() {
+class EtcdSuspendLeaderGroupElectorLeaderIdContractTest: AbstractSuspendLeaderGroupElectorLeaderIdContractTest() {
+
+    companion object: KLoggingChannel()
+
     override fun createElector(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
         EtcdSuspendLeaderGroupElector(
             EtcdContractSupport.client,

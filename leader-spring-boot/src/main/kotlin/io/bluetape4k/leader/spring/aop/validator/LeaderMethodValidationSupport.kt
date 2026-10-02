@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.spring.aop.validator
 
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.time.Duration
@@ -11,6 +13,23 @@ import java.time.Duration
 internal class LeaderMethodValidationSupport(
     private val spel: SpelExpressionEvaluator,
 ) {
+    companion object: KLogging() {
+        fun isStreamReturn(returnTypeName: String): Boolean =
+            returnTypeName == "reactor.core.publisher.Flux" ||
+                    returnTypeName == "kotlinx.coroutines.flow.Flow"
+
+        fun isUnsupportedFutureReturn(returnType: Class<*>): Boolean =
+            java.util.concurrent.Future::class.java.isAssignableFrom(returnType) ||
+                    returnType.name == "kotlinx.coroutines.Deferred" ||
+                    runCatching {
+                        val listenableFutureClass = Class.forName(
+                            "com.google.common.util.concurrent.ListenableFuture",
+                            false,
+                            returnType.classLoader,
+                        )
+                        listenableFutureClass.isAssignableFrom(returnType)
+                    }.getOrElse { false }
+    }
 
     /** 단일 leader policy에 공통으로 적용되는 method/stream/SpEL 검증을 수행합니다. */
     @Suppress("UNUSED_PARAMETER")
@@ -32,6 +51,8 @@ internal class LeaderMethodValidationSupport(
             "minLeaseTime must not exceed leaseTime: minLeaseTime=$minLeaseTime, leaseTime=$leaseTime"
         }
         spel.preParse(nameExpression, method)
+
+        log.debug { "violations=${violations.joinToString("\n")}" }
         return violations
     }
 
@@ -45,9 +66,10 @@ internal class LeaderMethodValidationSupport(
         if (isUnsupportedFutureReturn(method.returnType)) {
             val returnTypeName = method.returnType.name
             violations += "$returnTypeName 반환 타입 (Future / CompletableFuture / ListenableFuture / Deferred — v1 미지원, " +
-                "lock release 가 future 완료 전 발생 → split-brain 위험)"
+                    "lock release 가 future 완료 전 발생 → split-brain 위험)"
         }
 
+        log.debug { "violations=${violations.joinToString("\n")}" }
         return violations
     }
 
@@ -61,23 +83,5 @@ internal class LeaderMethodValidationSupport(
         require(minLeaseTime.compareTo(leaseTime) <= 0) {
             "$prefix.minLeaseTime must not exceed $prefix.leaseTime: minLeaseTime=$minLeaseTime, leaseTime=$leaseTime"
         }
-    }
-
-    companion object {
-        fun isStreamReturn(returnTypeName: String): Boolean =
-            returnTypeName == "reactor.core.publisher.Flux" ||
-                returnTypeName == "kotlinx.coroutines.flow.Flow"
-
-        fun isUnsupportedFutureReturn(returnType: Class<*>): Boolean =
-            java.util.concurrent.Future::class.java.isAssignableFrom(returnType) ||
-                returnType.name == "kotlinx.coroutines.Deferred" ||
-                runCatching {
-                    val listenableFutureClass = Class.forName(
-                        "com.google.common.util.concurrent.ListenableFuture",
-                        false,
-                        returnType.classLoader,
-                    )
-                    listenableFutureClass.isAssignableFrom(returnType)
-                }.getOrElse { false }
     }
 }

@@ -15,8 +15,6 @@ import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
 import kotlinx.coroutines.CancellationException
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * `LettuceStrategicLeaderElector`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -27,7 +25,7 @@ import kotlin.time.Duration.Companion.seconds
 class LettuceStrategicLeaderElector @JvmOverloads constructor(
     connection: StatefulRedisConnection<String, String>,
     override val nodeId: String = Uuid.V7.nextBase62(),
-) : StrategicLeaderElector {
+): StrategicLeaderElector {
 
     private lateinit var registry: LettuceCandidateRegistry
 
@@ -41,11 +39,11 @@ class LettuceStrategicLeaderElector @JvmOverloads constructor(
     constructor(
         connection: StatefulRedisClusterConnection<String, String>,
         nodeId: String = Uuid.V7.nextBase62(),
-    ) : this(LettuceStrategicConstructorSupport.clusterPrimaryConnection, nodeId) {
+    ): this(LettuceStrategicConstructorSupport.clusterPrimaryConnection, nodeId) {
         registry = LettuceCandidateRegistry(connection)
     }
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     override fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
         registry.registerCandidate(lockName, info, ttl)
@@ -75,7 +73,7 @@ class LettuceStrategicLeaderElector @JvmOverloads constructor(
         action: () -> T,
     ): T? {
         // 정책 위반은 정상 contention이 아니므로 후보 조회 실패 fallback보다 먼저 전파합니다.
-        validateLockName(lockName)
+        lockName.validateLockName()
         val candidates = try {
             listCandidates(lockName)
         } catch (e: CancellationException) {
@@ -105,14 +103,20 @@ class LettuceStrategicLeaderElector @JvmOverloads constructor(
 
         return try {
             val value = action()
-            runCatching { updateResult(lockName, nodeId, CandidateResult.SUCCESS) }
-                .onFailure { log.warn(it) { "[$lockName] successCount 업데이트 실패 — 무시됨" } }
+            runCatching {
+                updateResult(lockName, nodeId, CandidateResult.SUCCESS)
+            }.onFailure {
+                log.warn(it) { "[$lockName] successCount 업데이트 실패 — 무시됨" }
+            }
             value
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
-            runCatching { updateResult(lockName, nodeId, CandidateResult.FAILURE) }
-                .onFailure { log.warn(it) { "[$lockName] failureCount 업데이트 실패 — 무시됨" } }
+            runCatching {
+                updateResult(lockName, nodeId, CandidateResult.FAILURE)
+            }.onFailure {
+                log.warn(it) { "[$lockName] failureCount 업데이트 실패 — 무시됨" }
+            }
             throw e
         }
     }

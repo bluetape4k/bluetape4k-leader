@@ -3,11 +3,11 @@ package io.bluetape4k.leader.mongodb
 import io.bluetape4k.leader.diagnostics.LeaderBackendCapabilities
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
-import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDescriptor
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
@@ -15,7 +15,7 @@ import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
 import kotlin.time.Duration
 
 /** MongoDB backend의 정적 capability와 안전한 connectivity 계약입니다. */
-object MongoLeaderBackendDiagnostics : LeaderBackendDiagnosticsProvider {
+object MongoLeaderBackendDiagnostics: LeaderBackendDiagnosticsProvider {
 
     private val NativeExecutionModels = setOf(
         LeaderExecutionModel.BLOCKING,

@@ -1,7 +1,9 @@
 package io.bluetape4k.leader.spring.observability
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseHandle
@@ -9,6 +11,8 @@ import io.bluetape4k.leader.LeaderManagementActionRegistry
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.spring.LeaderTestApplication
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
@@ -45,6 +49,8 @@ import java.util.concurrent.Executor
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionManagementActionHttpTest {
 
+    companion object: KLogging()
+
     @LocalServerPort
     private var port: Int = 0
 
@@ -60,12 +66,15 @@ class LeaderElectionManagementActionHttpTest {
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
 
+        log.debug { "response statusCode=${response.statusCode()}" }
+        log.debug { "response body=${response.body()}" }
+
         response.statusCode() shouldBeEqualTo 200
-        response.body().shouldContain("\"action\":\"RELEASE\"")
-        response.body().shouldContain("\"outcome\":\"RELEASED\"")
-        response.body().shouldContain("\"mutationAttempted\":true")
-        response.body().contains("lockName").shouldBeEqualTo(false)
-        response.body().contains("token").shouldBeEqualTo(false)
+        response.body() shouldContain "\"action\":\"RELEASE\""
+        response.body() shouldContain "\"outcome\":\"RELEASED\""
+        response.body() shouldContain "\"mutationAttempted\":true"
+        response.body() shouldNotContain "lockName"
+        response.body() shouldNotContain "token"
     }
 
     @Test
@@ -77,8 +86,11 @@ class LeaderElectionManagementActionHttpTest {
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
 
+        log.debug { "response statusCode=${response.statusCode()}" }
+        log.debug { "response body=${response.body()}" }
+
         response.statusCode() shouldBeEqualTo 400
-        response.body().shouldContain("\"outcome\":\"INVALID_LOCK_NAME\"")
+        response.body() shouldContain "\"outcome\":\"INVALID_LOCK_NAME\""
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -94,7 +106,7 @@ class LeaderElectionManagementActionHttpTest {
             }
     }
 
-    private class TestLeaderElector : LeaderElector {
+    private class TestLeaderElector: LeaderElector {
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? = action()
 
         override fun <T> runAsyncIfLeader(
@@ -108,7 +120,7 @@ class LeaderElectionManagementActionHttpTest {
 
     private class TestHandle(
         override val lockName: String,
-    ) : LeaderLeaseHandle {
+    ): LeaderLeaseHandle {
         private var ownershipCalls = 0
 
         override val auditLeaderId: String = "test-leader"
@@ -122,5 +134,13 @@ class LeaderElectionManagementActionHttpTest {
         override fun isStillHeld(): Boolean = ownershipStatus() == LeaseOwnershipStatus.HELD
 
         override fun release() = Unit
+
+        override fun toString(): String {
+            return ToStringBuilder(this)
+                .add("lockName", lockName)
+                .add("auditLeaderId", auditLeaderId)
+                .add("acquiredAt", acquiredAt)
+                .toString()
+        }
     }
 }

@@ -23,15 +23,15 @@ ZooKeeper session expiry removes ephemeral recipe nodes, so locks are released w
 
 ## Implementations
 
-| Class | Interface | Description |
-|-------|-----------|-------------|
-| `ZooKeeperLeaderElector` | `LeaderElector` | Blocking + async single-leader |
-| `ZooKeeperLeaderGroupElector` | `LeaderGroupElector` | Blocking + async multi-leader |
-| `ZooKeeperSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader |
-| `ZooKeeperSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader |
-| `ZooKeeperLeaderElectorFactory` | `LeaderElectorFactory` | Factory: creates `ZooKeeperLeaderElector` per call |
-| `ZooKeeperLeaderGroupElectorFactory` | `LeaderGroupElectorFactory` | Factory: creates `ZooKeeperLeaderGroupElector` per call |
-| `ZooKeeperSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `ZooKeeperSuspendLeaderElector` per call |
+| Class                                       | Interface                          | Description                                                    |
+|---------------------------------------------|------------------------------------|----------------------------------------------------------------|
+| `ZooKeeperLeaderElector`                    | `LeaderElector`                    | Blocking + async single-leader                                 |
+| `ZooKeeperLeaderGroupElector`               | `LeaderGroupElector`               | Blocking + async multi-leader                                  |
+| `ZooKeeperSuspendLeaderElector`             | `SuspendLeaderElector`             | Coroutine single-leader                                        |
+| `ZooKeeperSuspendLeaderGroupElector`        | `SuspendLeaderGroupElector`        | Coroutine multi-leader                                         |
+| `ZooKeeperLeaderElectorFactory`             | `LeaderElectorFactory`             | Factory: creates `ZooKeeperLeaderElector` per call             |
+| `ZooKeeperLeaderGroupElectorFactory`        | `LeaderGroupElectorFactory`        | Factory: creates `ZooKeeperLeaderGroupElector` per call        |
+| `ZooKeeperSuspendLeaderElectorFactory`      | `SuspendLeaderElectorFactory`      | Factory: creates `ZooKeeperSuspendLeaderElector` per call      |
 | `ZooKeeperSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `ZooKeeperSuspendLeaderGroupElector` per call |
 
 ## Usage
@@ -120,12 +120,12 @@ val suspendElection = suspendFactory.create(LeaderElectionOptions.Default)
 
 ## Configuration
 
-| Option | Applies to | Notes |
-|--------|------------|-------|
-| `basePath` | all electors | Root znode path for election data |
-| `waitTime` | all electors | Max time to wait for lock/lease acquisition |
-| `leaseTime` | single-leader options | API compatibility only; ZooKeeper session expiry owns release semantics |
-| `maxLeaders` | group electors | Max concurrent semaphore leases |
+| Option       | Applies to            | Notes                                                                   |
+|--------------|-----------------------|-------------------------------------------------------------------------|
+| `basePath`   | all electors          | Root znode path for election data                                       |
+| `waitTime`   | all electors          | Max time to wait for lock/lease acquisition                             |
+| `leaseTime`  | single-leader options | API compatibility only; ZooKeeper session expiry owns release semantics |
+| `maxLeaders` | group electors        | Max concurrent semaphore leases                                         |
 
 ## Testing
 

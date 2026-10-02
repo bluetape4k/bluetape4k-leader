@@ -22,7 +22,7 @@ enum class StrategicBackendKind {
  * 관찰하도록 구성해야 합니다. [awaitCandidateExpiration]은 production API가 아니라 test
  * control입니다. provider는 client, namespace, credential과 test resource lifecycle을 소유합니다.
  */
-interface StrategicBackendConformanceProvider : AutoCloseable {
+interface StrategicBackendConformanceProvider: AutoCloseable {
 
     /** Blocking strategic adapter를 만듭니다. */
     fun blocking(kind: StrategicBackendKind, nodeId: String): BlockingStrategicBackend

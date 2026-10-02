@@ -1,13 +1,15 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.assertions.shouldBe
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.internal.ExtendDelegate
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
@@ -16,10 +18,11 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
-import io.bluetape4k.assertions.shouldNotBeNull
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LockHandleElementTest {
+
+    companion object: KLoggingChannel()
 
     private fun identity() = LockIdentity(
         lockName = "element-test-lock",
@@ -27,7 +30,7 @@ class LockHandleElementTest {
         factoryBeanName = "testFactory",
     )
 
-    private fun fakeDelegate(): ExtendDelegate = object : ExtendDelegate {
+    private fun fakeDelegate(): ExtendDelegate = object: ExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
         override val lastExtendDeadline: AtomicReference<Instant> get() = deadline
         override fun extend(lockAtMostFor: Duration): ExtendOutcome = ExtendOutcome.Extended(Instant.now())
@@ -48,14 +51,14 @@ class LockHandleElementTest {
     fun `Key companion 은 LockHandleElement 와 동일 Key 객체다`() {
         val key: CoroutineContext.Key<LockHandleElement> = LockHandleElement.Key
         val element = LockHandleElement(realHandle())
-        (element.key === key).shouldBeTrue()
+        element.key shouldBe key
     }
 
     @Test
     fun `element 를 통해 handle 에 접근 가능하다`() {
         val handle = realHandle()
         val element = LockHandleElement(handle)
-        (element.handle === handle).shouldBeTrue()
+        element.handle shouldBe handle
     }
 
     @Test
@@ -63,7 +66,8 @@ class LockHandleElementTest {
         val handle = realHandle()
         val e1 = LockHandleElement(handle)
         val e2 = LockHandleElement(handle)
-        (e1 == e2).shouldBeTrue()
+
+        e1 shouldBeEqualTo e2
         e1.handle shouldBeEqualTo e2.handle
     }
 
@@ -82,8 +86,8 @@ class LockHandleElementTest {
 
         withContext(element) {
             val found = currentCoroutineContext()[LockHandleElement]
-            (found === element).shouldBeTrue()
-            (found.shouldNotBeNull().handle === handle).shouldBeTrue()
+            found shouldBe element
+            found.shouldNotBeNull().handle shouldBe handle
         }
     }
 
@@ -97,8 +101,8 @@ class LockHandleElementTest {
             val foundInfo = currentCoroutineContext()[LeaderElectionInfo]
             val foundLock = currentCoroutineContext()[LockHandleElement]
 
-            (foundInfo === info).shouldBeTrue()
-            (foundLock === lockElement).shouldBeTrue()
+            foundInfo shouldBe info
+            foundLock shouldBe lockElement
         }
     }
 
@@ -110,7 +114,7 @@ class LockHandleElementTest {
         withContext(element) {
             // inside: visible
             val found = currentCoroutineContext()[LockHandleElement]
-            (found !== null).shouldBeTrue()
+            found.shouldNotBeNull()
         }
 
         // outside: gone

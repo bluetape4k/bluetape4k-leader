@@ -62,8 +62,8 @@
 Hazelcast 와 동일하게 두 경로 모두 lock release 를 보장한다.
 
 ```
-1. tryLock=false (리더 아님) → CompletableFuture.completedFuture(null) 반환, unlock 불필요
-2. tryLock=true, action() 호출 전 throw (synchronous) → CompletableFuture.failedFuture(e) 반환, lock 해제
+1. tryLock=false (리더 아님) → completableFutureOf(null) 반환, unlock 불필요
+2. tryLock=true, action() 호출 전 throw (synchronous) → failedCompletableFutureOf(e) 반환, lock 해제
 3. tryLock=true, action() 이 반환한 CF 완료 시 → whenCompleteAsync { _, _ -> unlock() }
 ```
 

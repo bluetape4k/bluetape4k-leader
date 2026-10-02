@@ -23,12 +23,13 @@ import io.micrometer.core.instrument.Meter
 import io.micrometer.core.instrument.MeterRegistry
 import java.lang.ref.ReferenceQueue
 import java.lang.ref.WeakReference
-import java.util.HashMap
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * core audit exporter를 Micrometer의 고정 low-cardinality meter 집합으로 장식합니다.
@@ -51,7 +52,7 @@ import java.util.concurrent.atomic.AtomicReference
 class MicrometerLeaderAuditExporter(
     delegate: LeaderAuditExporter,
     registry: MeterRegistry,
-) : LeaderAuditExporter {
+): LeaderAuditExporter {
 
     private val registration: Registration
     private val lifecycleState = AtomicReference(LifecycleState.OPEN)
@@ -218,7 +219,7 @@ class MicrometerLeaderAuditExporter(
         val manager: RegistryManager,
         delegate: LeaderAuditExporter,
         private val ownershipToken: Any,
-    ) : AutoCloseable {
+    ): AutoCloseable {
         private val closed = AtomicBoolean(false)
         private val delegateReference = AtomicReference<LeaderAuditExporter?>(delegate)
         private val detachedSnapshot = AtomicReference<LeaderAuditExportSnapshot?>(null)
@@ -246,35 +247,35 @@ class MicrometerLeaderAuditExporter(
     }
 
     private object DelegateOwnershipStore {
-        private val lock = Any()
+        private val lock = ReentrantLock()
         private val referenceQueue = ReferenceQueue<LeaderAuditExporter>()
         private val owners = HashMap<WeakIdentityKey<LeaderAuditExporter>, Any>()
 
-        fun claim(delegate: LeaderAuditExporter, token: Any) = synchronized(lock) {
+        fun claim(delegate: LeaderAuditExporter, token: Any) = lock.withLock {
             drainCollectedDelegates()
             if (owners.keys.any { it.get() === delegate }) throw DelegateAlreadyOwnedException()
             owners[WeakIdentityKey(delegate, referenceQueue)] = token
         }
 
-        fun release(delegate: LeaderAuditExporter, token: Any) = synchronized(lock) {
+        fun release(delegate: LeaderAuditExporter, token: Any) = lock.withLock {
             owners.entries.removeIf { (key, owner) -> key.get() === delegate && owner === token }
         }
 
         private fun drainCollectedDelegates() {
             while (true) {
-                val collected = referenceQueue.poll() as WeakIdentityKey<LeaderAuditExporter>? ?: return
+                val collected = referenceQueue.poll() as? WeakIdentityKey<LeaderAuditExporter>? ?: return
                 owners.remove(collected)
             }
         }
     }
 
     private object RegistryManagerStore {
-        private val lock = Any()
+        private val lock = ReentrantLock()
         private val referenceQueue = ReferenceQueue<MeterRegistry>()
         private val managers = HashMap<WeakIdentityKey<MeterRegistry>, RegistryManager>()
 
         fun acquire(registry: MeterRegistry, delegate: LeaderAuditExporter, ownershipToken: Any): Registration =
-            synchronized(lock) {
+            lock.withLock {
                 drainCollectedRegistries()
                 val entry = managers.entries.firstOrNull { it.key.get() === registry }
                 val manager = entry?.value ?: RegistryManager().also {
@@ -292,16 +293,16 @@ class MicrometerLeaderAuditExporter(
 
         private fun drainCollectedRegistries() {
             while (true) {
-                val collected = referenceQueue.poll() as WeakIdentityKey<MeterRegistry>? ?: return
+                val collected = referenceQueue.poll() as? WeakIdentityKey<MeterRegistry>? ?: return
                 managers.remove(collected)
             }
         }
     }
 
-    private class WeakIdentityKey<T : Any>(
+    private class WeakIdentityKey<T: Any>(
         referent: T,
         queue: ReferenceQueue<T>,
-    ) : WeakReference<T>(referent, queue) {
+    ): WeakReference<T>(referent, queue) {
         private val identityHash = System.identityHashCode(referent)
 
         override fun hashCode(): Int = identityHash
@@ -315,7 +316,7 @@ class MicrometerLeaderAuditExporter(
     }
 
     private class RegistryManager {
-        private val lock = Any()
+        private val lock = ReentrantLock()
         private val meters = HashMap<MetricDescriptor, Meter>()
         private var registryReference: WeakReference<MeterRegistry>? = null
         private var metersReady = false
@@ -330,12 +331,12 @@ class MicrometerLeaderAuditExporter(
         private var lastTrustedGauge = GaugeValues(0, 0, false)
         private var ownershipWarningIssued = false
 
-        fun isUnused(): Boolean = synchronized(lock) {
+        fun isUnused(): Boolean = lock.withLock {
             activeDelegate == null && meters.isEmpty() && !compromised
         }
 
         fun acquire(registry: MeterRegistry, delegate: LeaderAuditExporter, ownershipToken: Any): Registration =
-            synchronized(lock) {
+            lock.withLock {
                 check(!compromised) {
                     OWNERSHIP_CONFLICT_MESSAGE
                 }
@@ -359,7 +360,7 @@ class MicrometerLeaderAuditExporter(
             var finalSnapshot: LeaderAuditExportSnapshot? = null
             var closeEntryFailure: Throwable? = null
             var registrationSnapshot: LeaderAuditExportSnapshot? = null
-            synchronized(lock) {
+            lock.withLock {
                 if (activeDelegate !== delegate || state != ManagerState.OPEN) {
                     return CloseResult(null, null)
                 }
@@ -384,7 +385,7 @@ class MicrometerLeaderAuditExporter(
             }
             closeEntryFailure?.let { primary = appendFailure(primary, it) }
 
-            synchronized(lock) {
+            lock.withLock {
                 try {
                     if (!compromised) {
                         val closeEntry = closingSnapshot
@@ -398,12 +399,12 @@ class MicrometerLeaderAuditExporter(
                             markSourceDegraded()
                         }
                         if (final != null && final.cumulativeValues().isNotLessThan(trustedCumulative)) {
-                            offsets = offsets + final.cumulativeValues()
+                            offsets += final.cumulativeValues()
                             detachedSnapshot = final.asDetached()
                             registrationSnapshot = final.takeIf(LeaderAuditExportSnapshot::isTerminal)
                         } else {
                             markSourceDegraded()
-                            offsets = offsets + trustedCumulative
+                            offsets += trustedCumulative
                             detachedSnapshot = DetachedSnapshot(trustedCumulative, trustedGauge).asTerminal()
                         }
                     }
@@ -430,12 +431,12 @@ class MicrometerLeaderAuditExporter(
             return CloseResult(registrationSnapshot, primary)
         }
 
-        fun counter(descriptor: MetricDescriptor): Double = synchronized(lock) {
+        fun counter(descriptor: MetricDescriptor): Double = lock.withLock {
             verifyMeterOwnership()
             currentCumulative().value(descriptor.field).toDouble()
         }
 
-        fun gauge(field: SnapshotField): Double = synchronized(lock) {
+        fun gauge(field: SnapshotField): Double = lock.withLock {
             verifyMeterOwnership()
             currentGauge().value(field)
         }
@@ -499,13 +500,13 @@ class MicrometerLeaderAuditExporter(
             if (compromised) return detachedSnapshot.cumulativeValues()
             val active = activeDelegate
             return when (state) {
-                ManagerState.OPEN -> offsets +
-                    (active?.let(::readSnapshot)?.cumulativeValues() ?: lastTrustedCumulative)
+                ManagerState.OPEN    -> offsets +
+                        (active?.let(::readSnapshot)?.cumulativeValues() ?: lastTrustedCumulative)
                 ManagerState.CLOSING -> offsets +
-                    (closingSnapshot
-                        ?.cumulativeValues()
-                        ?.takeIf { it.isNotLessThan(lastTrustedCumulative) }
-                        ?: lastTrustedCumulative)
+                        (closingSnapshot
+                            ?.cumulativeValues()
+                            ?.takeIf { it.isNotLessThan(lastTrustedCumulative) }
+                            ?: lastTrustedCumulative)
                 ManagerState.DETACHED -> offsets
             }
         }
@@ -514,7 +515,7 @@ class MicrometerLeaderAuditExporter(
             if (compromised) return detachedSnapshot.gaugeValues()
             val active = activeDelegate
             return when (state) {
-                ManagerState.OPEN -> active?.let(::readSnapshot)?.gaugeValues() ?: lastTrustedGauge
+                ManagerState.OPEN    -> active?.let(::readSnapshot)?.gaugeValues() ?: lastTrustedGauge
                 ManagerState.CLOSING -> closingSnapshot?.gaugeValues() ?: lastTrustedGauge
                 ManagerState.DETACHED -> detachedSnapshot.gaugeValues()
             }
@@ -548,17 +549,17 @@ class MicrometerLeaderAuditExporter(
             if (!compromised) {
                 compromised = true
                 val trustedCumulative = when (state) {
-                    ManagerState.OPEN -> offsets + lastTrustedCumulative
+                    ManagerState.OPEN    -> offsets + lastTrustedCumulative
                     ManagerState.CLOSING -> offsets + (
-                        closingSnapshot
-                            ?.cumulativeValues()
-                            ?.takeIf { it.isNotLessThan(lastTrustedCumulative) }
-                            ?: lastTrustedCumulative
-                        )
+                            closingSnapshot
+                                ?.cumulativeValues()
+                                ?.takeIf { it.isNotLessThan(lastTrustedCumulative) }
+                                ?: lastTrustedCumulative
+                            )
                     ManagerState.DETACHED -> offsets
                 }
                 val trustedGauge = when (state) {
-                    ManagerState.OPEN -> lastTrustedGauge
+                    ManagerState.OPEN    -> lastTrustedGauge
                     ManagerState.CLOSING -> closingSnapshot?.gaugeValues() ?: lastTrustedGauge
                     ManagerState.DETACHED -> detachedSnapshot.gaugeValues()
                 }
@@ -591,7 +592,7 @@ class MicrometerLeaderAuditExporter(
         CLOSED,
     }
 
-    private class DelegateAlreadyOwnedException : IllegalStateException(
+    private class DelegateAlreadyOwnedException: IllegalStateException(
         "The delegate is already owned by an active MicrometerLeaderAuditExporter",
     )
 
@@ -651,17 +652,17 @@ class MicrometerLeaderAuditExporter(
         )
 
         internal fun value(field: SnapshotField): Long = when (field) {
-            SnapshotField.ACCEPTED -> accepted
-            SnapshotField.DROPPED_QUEUE_FULL -> droppedQueueFull
-            SnapshotField.DROPPED_CLOSED -> droppedClosed
-            SnapshotField.RETRIES -> retries
-            SnapshotField.FAILURES -> failures
-            SnapshotField.CANCELLATIONS -> cancellations
-            SnapshotField.REJECTIONS -> executorRejections + schedulerRejections
-            SnapshotField.OBSERVER_DROPS -> observerDrops
+            SnapshotField.ACCEPTED             -> accepted
+            SnapshotField.DROPPED_QUEUE_FULL   -> droppedQueueFull
+            SnapshotField.DROPPED_CLOSED       -> droppedClosed
+            SnapshotField.RETRIES              -> retries
+            SnapshotField.FAILURES             -> failures
+            SnapshotField.CANCELLATIONS        -> cancellations
+            SnapshotField.REJECTIONS           -> executorRejections + schedulerRejections
+            SnapshotField.OBSERVER_DROPS       -> observerDrops
             SnapshotField.OBSERVER_REGISTRATION_DROPS -> observerRegistrationDrops
             SnapshotField.DIAGNOSTICS_FAILURES -> diagnosticsFailures
-            else -> 0
+            else                               -> 0
         }
 
         companion object {
@@ -675,10 +676,10 @@ class MicrometerLeaderAuditExporter(
         val diagnosticsClosed: Boolean,
     ) {
         internal fun value(field: SnapshotField): Double = when (field) {
-            SnapshotField.QUEUED -> queued.toDouble()
+            SnapshotField.QUEUED    -> queued.toDouble()
             SnapshotField.IN_FLIGHT -> inFlight.toDouble()
             SnapshotField.DIAGNOSTICS_CLOSED -> if (diagnosticsClosed) 1.0 else 0.0
-            else -> 0.0
+            else                    -> 0.0
         }
     }
 
@@ -691,7 +692,7 @@ class MicrometerLeaderAuditExporter(
         fun asTerminal(): DetachedSnapshot = copy(gauges = GaugeValues(0, 0, true))
     }
 
-    private companion object : KLogging() {
+    private companion object: KLogging() {
         const val OWNERSHIP_CONFLICT_MESSAGE =
             "MeterRegistry already contains a foreign or compromised leader audit meter"
         const val OWNERSHIP_CONFLICT_WARNING = "leader.audit.export.meter-ownership-conflict"
@@ -792,8 +793,8 @@ private fun LeaderAuditExportSnapshot.cumulativeValues(): MicrometerLeaderAuditE
         retries = retries,
         failures = terminalFailures,
         cancellations = cancellations,
-            executorRejections = executorRejections,
-            schedulerRejections = schedulerRejections,
+        executorRejections = executorRejections,
+        schedulerRejections = schedulerRejections,
         observerDrops = observerDrops,
         observerRegistrationDrops = observerRegistrationDrops,
         diagnosticsFailures = diagnosticsFatalErrors,
@@ -818,24 +819,24 @@ private fun LeaderAuditExportSnapshot.isNotLessThan(other: LeaderAuditExportSnap
 private fun MicrometerLeaderAuditExporter.CumulativeValues.isNotLessThan(
     other: MicrometerLeaderAuditExporter.CumulativeValues,
 ): Boolean = accepted >= other.accepted &&
-    droppedQueueFull >= other.droppedQueueFull &&
-    droppedClosed >= other.droppedClosed &&
-    retries >= other.retries &&
-    failures >= other.failures &&
-    cancellations >= other.cancellations &&
-    executorRejections >= other.executorRejections &&
-    schedulerRejections >= other.schedulerRejections &&
-    observerDrops >= other.observerDrops &&
-    observerRegistrationDrops >= other.observerRegistrationDrops &&
-    diagnosticsFailures >= other.diagnosticsFailures
+        droppedQueueFull >= other.droppedQueueFull &&
+        droppedClosed >= other.droppedClosed &&
+        retries >= other.retries &&
+        failures >= other.failures &&
+        cancellations >= other.cancellations &&
+        executorRejections >= other.executorRejections &&
+        schedulerRejections >= other.schedulerRejections &&
+        observerDrops >= other.observerDrops &&
+        observerRegistrationDrops >= other.observerRegistrationDrops &&
+        diagnosticsFailures >= other.diagnosticsFailures
 
 private fun LeaderAuditExportSnapshot.isTerminal(): Boolean =
     queued == 0 &&
-        inFlight == 0 &&
-        scheduledRetries == 0 &&
-        admitted == 0 &&
-        diagnosticsClosed &&
-        closed
+            inFlight == 0 &&
+            scheduledRetries == 0 &&
+            admitted == 0 &&
+            diagnosticsClosed &&
+            closed
 
 private fun LeaderAuditExportSnapshot.asDetached(): MicrometerLeaderAuditExporter.DetachedSnapshot =
     MicrometerLeaderAuditExporter.DetachedSnapshot(

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.backend
 
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
@@ -43,9 +44,11 @@ internal fun <T> createSuspendBackendBean(
         "suspend backend bean cleanup timeout must be positive and finite: $cleanupTimeout"
     }
     val validOperationName = operationName.requireNotBlank("operationName")
+
     return runBlocking {
         val scope = CoroutineScope(SupervisorJob() + dispatcher)
-        val task = scope.async { block() }
+        val task = scope.async { block() }.log("Created $validOperationName")
+
         try {
             withTimeout(timeout) { task.await() }
         } finally {
@@ -58,8 +61,8 @@ internal fun <T> createSuspendBackendBean(
                 if (!cleanupCompleted) {
                     SuspendBeanInitializationLogger.log.warn {
                         "Suspend backend bean initialization cleanup did not complete within " +
-                            "$cleanupTimeout; operationName=$validOperationName; " +
-                            "non-cooperative initialization may still be running"
+                                "$cleanupTimeout; operationName=$validOperationName; " +
+                                "non-cooperative initialization may still be running"
                     }
                 }
             }
@@ -78,4 +81,4 @@ internal const val DEFAULT_SUSPEND_BEAN_OPERATION_NAME: String = "suspend-backen
  */
 internal val DEFAULT_SUSPEND_BEAN_CLEANUP_TIMEOUT: Duration = 100.milliseconds
 
-private object SuspendBeanInitializationLogger : KLogging()
+private object SuspendBeanInitializationLogger: KLogging()

@@ -13,8 +13,12 @@ MongoDB-backed leader election using `findOneAndUpdate` + TTL index — blocking
 When `minLeaseTime` is configured, unlock updates `expireAt` to the remaining minimum lease instead of deleting the document, matching ShedLock `lockAtLeastFor` behavior without blocking the caller. With `LeaderElectionOptions(autoExtend = true)`, single-leader electors periodically update `expireAt` only when the stored token still matches the owner.
 
 Lock strategy:
-- **Acquire**: `findOneAndUpdate(filter: {_id, expireAt < now}, update: {token, expireAt}, upsert=true, returnDocument=AFTER)` — succeeds if the returned token matches; `E11000` means a live lock exists → retry.
-- **Release**: `deleteOne({_id, token})`, or `updateOne({_id, token}, expireAt = now + remainingMinLeaseTime)` when `minLeaseTime` still has time left.
+
+-
+
+**Acquire**: `findOneAndUpdate(filter: {_id, expireAt < now}, update: {token, expireAt}, upsert=true, returnDocument=AFTER)` — succeeds if the returned token matches; `E11000` means a live lock exists → retry.
+-
+**Release**: `deleteOne({_id, token})`, or `updateOne({_id, token}, expireAt = now + remainingMinLeaseTime)` when `minLeaseTime` still has time left.
 
 ## Architecture
 
@@ -22,20 +26,20 @@ Lock strategy:
 
 ## Implementations
 
-| Class | Interface | Description |
-|-------|-----------|-------------|
-| `MongoLeaderElector` | `LeaderElector` + `AsyncLeaderElector` | Blocking / async single-leader via `MongoLock` |
-| `MongoLeaderGroupElector` | `LeaderGroupElector` | Blocking multi-leader via slot-based `MongoLock` |
-| `MongoSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader via `MongoSuspendLock` |
-| `MongoSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader via slot-based `MongoSuspendLock` |
-| `MongoSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `MongoSuspendLeaderElector` per call |
-| `MongoSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `MongoSuspendLeaderGroupElector` per call |
+| Class                                   | Interface                              | Description                                                |
+|-----------------------------------------|----------------------------------------|------------------------------------------------------------|
+| `MongoLeaderElector`                    | `LeaderElector` + `AsyncLeaderElector` | Blocking / async single-leader via `MongoLock`             |
+| `MongoLeaderGroupElector`               | `LeaderGroupElector`                   | Blocking multi-leader via slot-based `MongoLock`           |
+| `MongoSuspendLeaderElector`             | `SuspendLeaderElector`                 | Coroutine single-leader via `MongoSuspendLock`             |
+| `MongoSuspendLeaderGroupElector`        | `SuspendLeaderGroupElector`            | Coroutine multi-leader via slot-based `MongoSuspendLock`   |
+| `MongoSuspendLeaderElectorFactory`      | `SuspendLeaderElectorFactory`          | Factory: creates `MongoSuspendLeaderElector` per call      |
+| `MongoSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory`     | Factory: creates `MongoSuspendLeaderGroupElector` per call |
 
 ## Collections
 
-| Collection | Purpose |
-|------------|---------|
-| `bluetape4k_leader_locks` | Single-leader lock documents |
+| Collection                      | Purpose                                         |
+|---------------------------------|-------------------------------------------------|
+| `bluetape4k_leader_locks`       | Single-leader lock documents                    |
 | `bluetape4k_leader_group_locks` | Multi-leader slot documents (`lockName:slot:N`) |
 
 TTL index on `expireAt` (expireAfterSeconds=0) is created automatically on first use.
@@ -87,7 +91,7 @@ val future: CompletableFuture<String?> = election.runAsyncIfLeader(
 ) {
     futureOf { doWork() }
 }
-val result = future.get(5, TimeUnit.SECONDS)
+val result = future.get(5.seconds)
 ```
 
 ### Coroutine single-leader
@@ -131,13 +135,7 @@ val election = MongoLeaderElector(lockCollection, options)
 
 ### Async cleanup failures
 
-Single/group async election records acquisition before submitting the action. If action submission fails,
-the returned future completes only after the acquired lease has been cleaned up. Cleanup runs on
-backend-owned virtual threads, not on the caller's completion thread. If both cleanup schedulers fail,
-the future completes exceptionally without inline cleanup; this does not guarantee that the lease was released.
-The dispatcher prioritizes the original action failure and retains observed cleanup or dispatch failures as suppressed exceptions.
-The backend's existing best-effort unlock error policy is unchanged.
-Explicit `cancel()` still completes the caller's future immediately; it is not a cleanup-completion signal.
+Single/group async election records acquisition before submitting the action. If action submission fails, the returned future completes only after the acquired lease has been cleaned up. Cleanup runs on backend-owned virtual threads, not on the caller's completion thread. If both cleanup schedulers fail, the future completes exceptionally without inline cleanup; this does not guarantee that the lease was released. The dispatcher prioritizes the original action failure and retains observed cleanup or dispatch failures as suppressed exceptions. The backend's existing best-effort unlock error policy is unchanged. Explicit `cancel()` still completes the caller's future immediately; it is not a cleanup-completion signal.
 
 ### Using SPI factories
 
@@ -178,6 +176,7 @@ collection.findOneAndUpdate(
 ```
 
 **`MongoSuspendLock`** (coroutine driver):
+
 - Same strategy with `delay()` instead of `Thread.sleep()`
 - `currentCoroutineContext().ensureActive()` on each retry → cancellation-safe
 
@@ -195,7 +194,8 @@ try {
 
 ## Dual-collection design (`MongoSuspendLeaderGroupElector`)
 
-`activeCount()`, `availableSlots()`, and `state()` are non-suspend interface methods. The coroutine driver's `countDocuments` is `suspend`, so state queries use the **sync driver** and lock operations use the **coroutine driver**:
+`activeCount()`, `availableSlots()`, and `state()` are non-suspend interface methods. The coroutine driver's `countDocuments` is `suspend`, so state queries use the
+**sync driver** and lock operations use the **coroutine driver**:
 
 ```kotlin
 MongoSuspendLeaderGroupElector(
@@ -209,16 +209,14 @@ MongoSuspendLeaderGroupElector(
 `MongoLeaderHistoryIndexer.indexLifecycleState` exposes the history index build lifecycle. The existing
 `indexState` property and `leader.history.mongodb.index.state` gauge use the same stable numeric codes.
 
-| State | Code | Meaning |
-|-------|------|---------|
-| `BUILDING` | `0` | Index creation is still running. |
-| `READY` | `1` | All configured history indexes are ready. |
-| `FAILED` | `-1` | Index creation exhausted its retry budget. |
+| State              | Code | Meaning                                                                       |
+|--------------------|------|-------------------------------------------------------------------------------|
+| `BUILDING`         | `0`  | Index creation is still running.                                              |
+| `READY`            | `1`  | All configured history indexes are ready.                                     |
+| `FAILED`           | `-1` | Index creation exhausted its retry budget.                                    |
 | `SHUTDOWN_TIMEOUT` | `-2` | `closeSuspend()` reached its bounded wait limit before the index job stopped. |
 
-`SHUTDOWN_TIMEOUT` is terminal for that indexer instance. A delayed non-cancellable index operation cannot
-overwrite it with `READY` or `FAILED`. A newly created indexer starts from `BUILDING` and tracks its own build.
-Caller cancellation still propagates and is not reported as a shutdown timeout.
+`SHUTDOWN_TIMEOUT` is terminal for that indexer instance. A delayed non-cancellable index operation cannot overwrite it with `READY` or `FAILED`. A newly created indexer starts from `BUILDING` and tracks its own build. Caller cancellation still propagates and is not reported as a shutdown timeout.
 
 ## Notes
 

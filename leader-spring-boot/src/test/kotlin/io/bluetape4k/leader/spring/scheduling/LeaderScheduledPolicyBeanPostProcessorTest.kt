@@ -2,8 +2,10 @@ package io.bluetape4k.leader.spring.scheduling
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeLessThan
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.annotation.LeaderGroupElection
@@ -12,8 +14,10 @@ import io.bluetape4k.leader.spring.aop.LeaderBeanSelector
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.logging.KLogging
+import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.core.Ordered
@@ -23,7 +27,14 @@ import java.time.Duration
 
 class LeaderScheduledPolicyBeanPostProcessorTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
+
+    private val selector = mockk<LeaderBeanSelector>()
+
+    @BeforeEach
+    fun beforeEach() {
+        clearMocks(selector)
+    }
 
     @Test
     fun `matching plain scheduled method registers while explicit annotation only marks observed`() {
@@ -48,7 +59,9 @@ class LeaderScheduledPolicyBeanPostProcessorTest {
         val registry = LeaderScheduledPolicyRegistry(emptyList())
         val bpp = bpp(registry, emptyList(), selector())
 
-        assertFailsWith<IllegalStateException> { bpp.afterSingletonsInstantiated() }
+        assertFailsWith<IllegalStateException> {
+            bpp.afterSingletonsInstantiated()
+        }
     }
 
     @Test
@@ -59,7 +72,9 @@ class LeaderScheduledPolicyBeanPostProcessorTest {
 
         bpp.postProcessAfterInitialization(ScheduledFixture(), "scheduled")
 
-        assertFailsWith<IllegalStateException> { bpp.afterSingletonsInstantiated() }
+        assertFailsWith<IllegalStateException> {
+            bpp.afterSingletonsInstantiated()
+        }
     }
 
     @Test
@@ -77,7 +92,7 @@ class LeaderScheduledPolicyBeanPostProcessorTest {
 
     @Test
     fun `negative wait time fails with selector and property`() {
-        val configured = policy("scheduled#reconcile", "negative-wait", waitTime = Duration.ofSeconds(-1))
+        val configured = policy("scheduled#reconcile", "negative-wait", waitTime = (-1).seconds())
         val registry = LeaderScheduledPolicyRegistry(listOf(configured))
         val bpp = bpp(registry, listOf(configured), selector())
 
@@ -93,8 +108,8 @@ class LeaderScheduledPolicyBeanPostProcessorTest {
         val configured = policy(
             "scheduled#reconcile",
             "invalid-min-lease",
-            leaseTime = Duration.ofSeconds(5),
-            minLeaseTime = Duration.ofSeconds(6),
+            leaseTime = 5.seconds(),
+            minLeaseTime = 6.seconds(),
         )
         val registry = LeaderScheduledPolicyRegistry(listOf(configured))
         val bpp = bpp(registry, listOf(configured), selector())
@@ -104,7 +119,7 @@ class LeaderScheduledPolicyBeanPostProcessorTest {
         }
 
         error.message shouldBeEqualTo
-            "Scheduled policy 'scheduled#reconcile' property 'min-lease-time' must not exceed 'lease-time'"
+                "Scheduled policy 'scheduled#reconcile' property 'min-lease-time' must not exceed 'lease-time'"
     }
 
     @Test
@@ -117,7 +132,7 @@ class LeaderScheduledPolicyBeanPostProcessorTest {
             bpp.postProcessAfterInitialization(ScheduledFixture(), "scheduled")
         }
 
-        error.message.orEmpty() shouldContain "Scheduled policy 'scheduled#reconcile' property validation failed"
+        error.message shouldContain "Scheduled policy 'scheduled#reconcile' property validation failed"
     }
 
     @Test
@@ -125,22 +140,25 @@ class LeaderScheduledPolicyBeanPostProcessorTest {
         val configured = policy("scheduled#reconcile", "missing-backend", bean = "missingFactory")
         val registry = LeaderScheduledPolicyRegistry(listOf(configured))
         val selector = selector()
-        every { selector.selectElectionFactory("missingFactory", any()) } throws
-            NoSuchBeanDefinitionException("missingFactory")
+
+        every {
+            selector.selectElectionFactory("missingFactory", any())
+        } throws NoSuchBeanDefinitionException("missingFactory")
+
         val bpp = bpp(registry, listOf(configured), selector)
 
         val error = assertFailsWith<IllegalStateException> {
             bpp.postProcessAfterInitialization(ScheduledFixture(), "scheduled")
         }
 
-        error.message.orEmpty() shouldContain "Scheduled policy 'scheduled#reconcile' property 'bean'"
+        error.message shouldContain "Scheduled policy 'scheduled#reconcile' property 'bean'"
     }
 
     @Test
     fun `policy BPP runs before lowest precedence scheduled infrastructure`() {
         val bpp = bpp(LeaderScheduledPolicyRegistry(emptyList()), emptyList(), selector())
 
-        (bpp.order < Ordered.LOWEST_PRECEDENCE).shouldBeEqualTo(true)
+        bpp.order shouldBeLessThan Ordered.LOWEST_PRECEDENCE
     }
 
     private fun bpp(
@@ -156,12 +174,15 @@ class LeaderScheduledPolicyBeanPostProcessorTest {
     )
 
     private fun selector(): LeaderBeanSelector {
-        val selector = mockk<LeaderBeanSelector>()
-        every { selector.selectElectionFactory(any(), any()) } returns LeaderBeanSelector.Selected(
+        every {
+            selector.selectElectionFactory(any(), any())
+        } returns LeaderBeanSelector.Selected(
             "leaderFactory",
             mockk<LeaderElectorFactory>(),
         )
-        every { selector.selectSuspendElectorFactory(any(), any()) } returns LeaderBeanSelector.Selected(
+        every {
+            selector.selectSuspendElectorFactory(any(), any())
+        } returns LeaderBeanSelector.Selected(
             "suspendLeaderFactory",
             mockk<SuspendLeaderElectorFactory>(),
         )

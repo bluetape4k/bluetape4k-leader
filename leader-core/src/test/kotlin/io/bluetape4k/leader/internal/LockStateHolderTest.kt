@@ -1,11 +1,12 @@
 package io.bluetape4k.leader.internal
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -16,13 +17,15 @@ import kotlin.time.Duration
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LockStateHolderTest {
 
+    companion object: KLogging()
+
     private fun identity(name: String = "test-lock") = LockIdentity(
         lockName = name,
         kind = LockIdentity.AnnotationKind.SINGLE,
         factoryBeanName = "testFactory",
     )
 
-    private fun fakeDelegate(): ExtendDelegate = object : ExtendDelegate {
+    private fun fakeDelegate(): ExtendDelegate = object: ExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
         override val lastExtendDeadline: AtomicReference<Instant> get() = deadline
         override fun extend(lockAtMostFor: Duration): ExtendOutcome = ExtendOutcome.Extended(Instant.now())
@@ -41,7 +44,9 @@ class LockStateHolderTest {
     @BeforeEach
     fun cleanup() {
         // drain any leftover state from previous tests on the same thread
-        while (LockStateHolder.pop() != null) { /* drain */ }
+        while (LockStateHolder.pop() != null) {
+            /* drain */
+        }
         LockStateHolder.cleanup()
     }
 
@@ -66,6 +71,7 @@ class LockStateHolderTest {
     fun `pop removes top element — stack LIFO order`() {
         val h1 = realHandle("lock-1")
         val h2 = realHandle("lock-2")
+
         LockStateHolder.push(h1)
         LockStateHolder.push(h2)
 
@@ -91,7 +97,7 @@ class LockStateHolderTest {
     fun `withPushed restores stack even when block throws`() {
         val handle = realHandle()
 
-        runCatching {
+        assertFailsWith<IllegalStateException> {
             LockStateHolder.withPushed(handle) {
                 error("simulated failure")
             }

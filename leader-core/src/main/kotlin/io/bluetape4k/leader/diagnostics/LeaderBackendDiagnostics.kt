@@ -113,7 +113,7 @@ enum class LeaderExecutionModel {
 data class LeaderBackendModeSupport(
     val single: LeaderBackendSupport,
     val group: LeaderBackendSupport,
-) : Serializable {
+): Serializable {
     companion object {
         private const val serialVersionUID: Long = 1L
     }
@@ -132,7 +132,7 @@ data class LeaderBackendCapabilities(
     val clockSource: LeaderBackendClockSource,
     val ttlMode: LeaderBackendTtlMode,
     val limitations: List<String> = emptyList(),
-) : Serializable {
+): Serializable {
 
     init {
         limitations.forEachIndexed { index, limitation ->
@@ -153,7 +153,7 @@ data class LeaderBackendDescriptor(
     val backendId: String,
     val displayName: String,
     val capabilities: LeaderBackendCapabilities,
-) : Serializable {
+): Serializable {
 
     init {
         backendId.requireNotBlank("backendId")
@@ -175,7 +175,7 @@ data class LeaderBackendConnectivity @JvmOverloads constructor(
     val checkedAt: Instant? = null,
     val latencyMillis: Long? = null,
     val reason: LeaderBackendConnectivityReason = status.defaultReason(),
-) : Serializable {
+): Serializable {
 
     init {
         latencyMillis?.let { latency ->
@@ -194,9 +194,9 @@ data class LeaderBackendConnectivity @JvmOverloads constructor(
                 "$status connectivity must not use NOT_CHECKED reason"
             }
             val allowedReasons = when (status) {
-                LeaderBackendConnectivityStatus.UP ->
+                LeaderBackendConnectivityStatus.UP      ->
                     setOf(LeaderBackendConnectivityReason.CONNECTED)
-                LeaderBackendConnectivityStatus.DOWN ->
+                LeaderBackendConnectivityStatus.DOWN    ->
                     setOf(LeaderBackendConnectivityReason.DISCONNECTED)
                 LeaderBackendConnectivityStatus.UNKNOWN -> setOf(
                     LeaderBackendConnectivityReason.PROVIDER_UNSUPPORTED,
@@ -272,8 +272,8 @@ data class LeaderBackendConnectivity @JvmOverloads constructor(
 
 private fun LeaderBackendConnectivityStatus.defaultReason(): LeaderBackendConnectivityReason =
     when (this) {
-        LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivityReason.CONNECTED
-        LeaderBackendConnectivityStatus.DOWN -> LeaderBackendConnectivityReason.DISCONNECTED
+        LeaderBackendConnectivityStatus.UP      -> LeaderBackendConnectivityReason.CONNECTED
+        LeaderBackendConnectivityStatus.DOWN    -> LeaderBackendConnectivityReason.DISCONNECTED
         LeaderBackendConnectivityStatus.UNKNOWN -> LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED
         LeaderBackendConnectivityStatus.NOT_CHECKED -> LeaderBackendConnectivityReason.NOT_CHECKED
     }
@@ -282,7 +282,7 @@ private fun LeaderBackendConnectivityStatus.defaultReason(): LeaderBackendConnec
 data class LeaderBackendDiagnostics(
     val descriptor: LeaderBackendDescriptor,
     val connectivity: LeaderBackendConnectivity,
-) : Serializable {
+): Serializable {
     companion object {
         private const val serialVersionUID: Long = 1L
     }
@@ -351,7 +351,7 @@ internal fun Any.resolveLeaderBackendDiagnosticsProvider(): LeaderBackendDiagnos
     when (this) {
         is LeaderBackendDiagnosticsProvider -> this
         is LeaderBackendDiagnosticsAware -> backendDiagnosticsProvider
-        else -> null
+        else                             -> null
     }
 
 internal fun Duration.requirePositiveFiniteProbeTimeout(): Duration {

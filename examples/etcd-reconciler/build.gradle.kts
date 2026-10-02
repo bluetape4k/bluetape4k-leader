@@ -14,10 +14,6 @@ dependencies {
     implementation(bt4k.bluetape4k.testcontainers)
     implementation(libs.testcontainers)
 
-    runtimeOnly(bt4k.logback)
-
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(libs.testcontainers.junit.jupiter)
-
-    testRuntimeOnly(bt4k.logback)
 }

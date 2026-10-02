@@ -1,27 +1,30 @@
 package io.bluetape4k.leader.local
 
-import io.bluetape4k.codec.Base58
-import io.bluetape4k.junit5.concurrency.MultithreadingTester
-import io.bluetape4k.leader.LeaderGroupElectionException
-import io.bluetape4k.leader.LeaderGroupElectionOptions
-import io.bluetape4k.logging.KLogging
-import io.bluetape4k.logging.debug
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderGroupElectionException
+import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 import kotlin.math.max
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LocalLeaderGroupElectionTest {
 
@@ -60,7 +63,11 @@ class LocalLeaderGroupElectionTest {
     @Test
     fun `runIfLeader - action 예외 발생 후에도 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomLockName()
-        runCatching { election.runIfLeader(lockName) { throw LeaderGroupElectionException("실패") } }
+        assertFailsWith<LeaderGroupElectionException> {
+            election.runIfLeader(lockName) {
+                throw LeaderGroupElectionException("실패")
+            }
+        }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
@@ -71,12 +78,16 @@ class LocalLeaderGroupElectionTest {
         val singleElection = LocalLeaderGroupElector(LeaderGroupElectionOptions(1))
         val lockName = randomLockName()
         val counter = AtomicInteger(0)
-        val numThreads = 6
+        val numThreads = 2 * Runtimex.availableProcessors
 
         MultithreadingTester()
             .workers(numThreads)
             .rounds(2)
-            .add { singleElection.runIfLeader(lockName) { counter.incrementAndGet() } }
+            .add {
+                singleElection.runIfLeader(lockName) {
+                    counter.incrementAndGet()
+                }
+            }
             .run()
 
         counter.get() shouldBeEqualTo numThreads * 2
@@ -123,7 +134,7 @@ class LocalLeaderGroupElectionTest {
                 }
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS)
+        startLatch.await(2.seconds)
 
         // 슬롯이 가득 찬 상태 검증
         election.state(lockName).isFull.shouldBeTrue()
@@ -141,7 +152,7 @@ class LocalLeaderGroupElectionTest {
         // 슬롯 해제 → 추가 요청이 실행됨
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS)
+        executor.awaitTermination(3.seconds).shouldBeTrue()
         extraStarted.get() shouldBeEqualTo 1
     }
 
@@ -175,7 +186,7 @@ class LocalLeaderGroupElectionTest {
                 }
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS)
+        startLatch.await(2.seconds)
 
         // 2개 활성 중 상태 검증
         val activeState = election.state(lockName)
@@ -189,12 +200,12 @@ class LocalLeaderGroupElectionTest {
 
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS)
+        executor.awaitTermination(3.seconds).shouldBeTrue()
 
         // 모두 완료 후 초기 상태로 복귀
         election.activeCount(lockName) shouldBeEqualTo 0
         election.availableSlots(lockName) shouldBeEqualTo maxLeaders
-        election.state(lockName).leaders shouldBeEqualTo emptyList()
+        election.state(lockName).leaders.shouldBeEmpty()
     }
 
     @Test
@@ -212,14 +223,14 @@ class LocalLeaderGroupElectionTest {
                 }
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS)
+        startLatch.await(2.seconds)
 
         election.state(lockName).isFull.shouldBeTrue()
         election.availableSlots(lockName) shouldBeEqualTo 0
 
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS)
+        executor.awaitTermination(3.seconds)
     }
 
     // ── skip-behavior (ShedLock 방식): 슬롯 획득 실패 시 null 반환 ──────────
@@ -235,14 +246,14 @@ class LocalLeaderGroupElectionTest {
 
         // maxLeaders=1 이므로 하나의 스레드가 슬롯을 점유하면 다음은 skip
         // 동일 election 인스턴스 사용해야 같은 Semaphore 를 공유함
-        val holder = Thread {
+        val holder = thread {
             skipElection.runIfLeader(lockName) {
                 latch.countDown()
                 releaseLatch.await()
             }
-        }.apply { start() }
+        }
 
-        latch.await(2, TimeUnit.SECONDS)
+        latch.await(2.seconds).shouldBeTrue()
 
         // 슬롯이 점유 중이므로 null 반환
         val result = skipElection.runIfLeader(lockName) { "should-skip" }
@@ -279,15 +290,16 @@ class LocalLeaderGroupElectionTest {
         val lockName = randomLockName()
         val actionReturned = CountDownLatch(1)
 
-        val holder = Thread {
+        val holder = thread {
             minLeaseElection.runIfLeader(lockName) {
                 actionReturned.countDown()
                 "fast"
             }
-        }.apply { start() }
+        }
 
-        actionReturned.await(2, TimeUnit.SECONDS)
+        actionReturned.await(2.seconds).shouldBeTrue()
 
+        // 슬롯이 점유 중이므로 null 반환
         val skipped = minLeaseElection.runIfLeader(lockName) { "too-early" }
         skipped.shouldBeNull()
 
@@ -303,7 +315,7 @@ class LocalLeaderGroupElectionTest {
     fun `멀티스레드 스트레스 - 모든 실행이 완료되고 카운터가 정확하다`() {
         val lockName = randomLockName()
         val counter = AtomicInteger(0)
-        val numThreads = 8
+        val numThreads = 2 * Runtimex.availableProcessors
         val roundsPerThread = 4
 
         MultithreadingTester()
@@ -311,13 +323,13 @@ class LocalLeaderGroupElectionTest {
             .rounds(roundsPerThread)
             .add {
                 election.runIfLeader(lockName) {
-                    Thread.sleep(Random.nextLong(1, 5))
+                    Thread.sleep(Random.nextLong(5, 10))
                     counter.incrementAndGet()
                 }
             }
             .add {
                 election.runIfLeader(lockName) {
-                    Thread.sleep(Random.nextLong(1, 5))
+                    Thread.sleep(Random.nextLong(2, 8))
                     counter.incrementAndGet()
                 }
             }

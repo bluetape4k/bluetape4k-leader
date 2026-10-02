@@ -2,15 +2,16 @@ package io.bluetape4k.leader.exposed.r2dbc.lock
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.logging.KLogging
+import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 import java.time.Instant
 import java.time.LocalDateTime
-import java.time.OffsetDateTime
 import java.time.ZoneOffset
-import java.time.ZonedDateTime
-import org.junit.jupiter.api.Test
 
 class ExposedR2dbcCurrentTimeTest {
+
+    companion object: KLogging()
 
     private val expected = Instant.parse("2026-01-02T03:04:05.006Z")
 

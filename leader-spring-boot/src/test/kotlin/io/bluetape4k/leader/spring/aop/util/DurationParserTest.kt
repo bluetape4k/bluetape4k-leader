@@ -1,9 +1,11 @@
 package io.bluetape4k.leader.spring.aop.util
 
-import io.bluetape4k.logging.KLogging
-import io.bluetape4k.assertions.shouldBeEqualTo
-import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.javatimes.minutes
+import io.bluetape4k.javatimes.seconds
+import io.bluetape4k.logging.KLogging
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import java.time.Duration
@@ -33,32 +35,36 @@ class DurationParserTest {
     @ParameterizedTest
     @CsvSource("0s", "PT0S", "PT-1S")
     fun `parse - 음수와 0은 거부한다`(input: String) {
-        assertFailsWith<IllegalArgumentException> { DurationParser.parse(input) }
+        assertFailsWith<IllegalArgumentException> {
+            DurationParser.parse(input)
+        }
     }
 
     @ParameterizedTest
     @CsvSource("'   '", "'invalid'", "'10'", "'10x'", "'PT'")
     fun `parse - 형식 불일치는 거부한다`(input: String) {
-        assertFailsWith<IllegalArgumentException> { DurationParser.parse(input) }
+        assertFailsWith<IllegalArgumentException> {
+            DurationParser.parse(input)
+        }
     }
 
     @Test
     fun `parseOrDefault - 빈 문자열은 default 반환`() {
-        DurationParser.parseOrDefault("", Duration.ofSeconds(99)) shouldBeEqualTo Duration.ofSeconds(99)
+        DurationParser.parseOrDefault("", 99.seconds()) shouldBeEqualTo 99.seconds()
     }
 
     @Test
     fun `parseOrDefault - 비어있지 않으면 parse 결과`() {
-        DurationParser.parseOrDefault("PT3M", Duration.ofSeconds(99)) shouldBeEqualTo Duration.ofMinutes(3)
+        DurationParser.parseOrDefault("PT3M", 99.seconds()) shouldBeEqualTo 3.minutes()
     }
 
     @Test
     fun `parseNonNegativeOrDefault - PT0S 는 0으로 허용한다`() {
-        DurationParser.parseNonNegativeOrDefault("PT0S", Duration.ofSeconds(99)) shouldBeEqualTo Duration.ZERO
+        DurationParser.parseNonNegativeOrDefault("PT0S", 99.seconds()) shouldBeEqualTo Duration.ZERO
     }
 
     @Test
     fun `parseNonNegativeOrDefault - 양수는 parse 결과를 반환한다`() {
-        DurationParser.parseNonNegativeOrDefault("10s", Duration.ZERO) shouldBeEqualTo Duration.ofSeconds(10)
+        DurationParser.parseNonNegativeOrDefault("10s", Duration.ZERO) shouldBeEqualTo 10.seconds()
     }
 }

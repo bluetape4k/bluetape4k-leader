@@ -2,17 +2,11 @@
 
 English | [한국어](README.ko.md)
 
-This example shows the single-active-controller pattern used by Kubernetes
-operators. Three pods can run the same Spring Boot application, but only the pod
-that owns the Kubernetes `coordination.k8s.io/v1` Lease runs the mock custom
-resource reconcile loop.
+This example shows the single-active-controller pattern used by Kubernetes operators. Three pods can run the same Spring Boot application, but only the pod that owns the Kubernetes `coordination.k8s.io/v1` Lease runs the mock custom resource reconcile loop.
 
 ## Scenario
 
-Three replicas run the same Spring Boot operator controller. Every replica keeps
-its scheduled tick, but `KubernetesLeaseLeaderElector.runIfLeader` lets only the
-pod that owns the `cronjob-reconciler` Lease call the reconcile workload. When
-the leader stops renewing the Lease, another pod can take over on a later tick.
+Three replicas run the same Spring Boot operator controller. Every replica keeps its scheduled tick, but `KubernetesLeaseLeaderElector.runIfLeader` lets only the pod that owns the `cronjob-reconciler` Lease call the reconcile workload. When the leader stops renewing the Lease, another pod can take over on a later tick.
 
 ## Example Scenario
 
@@ -55,7 +49,7 @@ The K3s-backed test requires Docker privileged mode:
 ## Operator Shape
 
 ```kotlin
-@Scheduled(fixedDelayString = "\${demo.operator.fixed-delay-ms:5000}")
+@Scheduled(fixedDelayString = $$"${demo.operator.fixed-delay-ms:5000}")
 fun reconcileTick() {
     leaderElector.runIfLeader("cronjob-reconciler") {
         workload.reconcile(request)
@@ -63,8 +57,7 @@ fun reconcileTick() {
 }
 ```
 
-When the current leader pod exits or stops renewing the Lease, another pod can
-acquire the same lock on the next tick and continue reconciling.
+When the current leader pod exits or stops renewing the Lease, another pod can acquire the same lock on the next tick and continue reconciling.
 
 ## Kubernetes Manifests
 
@@ -77,18 +70,12 @@ kubectl logs deploy/bluetape4k-k8s-operator -f
 ```
 
 The runtime service account needs only `get`, `create`, `update`, and `patch`
-on `coordination.k8s.io/leases` in the target namespace. Lease deletion is an
-admin/test cleanup concern and is intentionally not granted to the running
-operator.
+on `coordination.k8s.io/leases` in the target namespace. Lease deletion is an admin/test cleanup concern and is intentionally not granted to the running operator.
 
-The example Deployment uses a stable `0.5.0` image tag instead of `latest`.
-Replace it with the immutable tag or digest you build for your own registry.
+The example Deployment uses a stable `0.5.0` image tag instead of `latest`. Replace it with the immutable tag or digest you build for your own registry.
 
 The probe contract is:
 
-- `startupProbe` waits for the Spring Boot actuator endpoint before Kubernetes
-  applies liveness decisions.
-- `livenessProbe` restarts a pod whose actuator health endpoint stops
-  responding.
-- `readinessProbe` keeps non-ready pods out of service routing while the
-  operator starts or recovers.
+- `startupProbe` waits for the Spring Boot actuator endpoint before Kubernetes applies liveness decisions.
+- `livenessProbe` restarts a pod whose actuator health endpoint stops responding.
+- `readinessProbe` keeps non-ready pods out of service routing while the operator starts or recovers.

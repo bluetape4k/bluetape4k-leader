@@ -16,16 +16,21 @@ import io.bluetape4k.leader.etcd.EtcdSuspendLeaderElector
 import io.bluetape4k.leader.etcd.EtcdSuspendLeaderElectorFactory
 import io.bluetape4k.leader.etcd.EtcdSuspendLeaderGroupElector
 import io.bluetape4k.leader.etcd.EtcdSuspendLeaderGroupElectorFactory
+import io.bluetape4k.logging.KLogging
 import io.etcd.jetcd.Client
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.getBean
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.test.annotation.DirtiesContext
 
 class EtcdAopFactoryAutoConfigurationTest {
+
+    companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(LeaderAopFactoryAutoConfiguration::class.java))
@@ -38,17 +43,18 @@ class EtcdAopFactoryAutoConfigurationTest {
             ctx.getBean("etcdLeaderElectionFactory").shouldBeInstanceOf<EtcdLeaderElectorFactory>()
             ctx.getBean("etcdLeaderGroupElectionFactory").shouldBeInstanceOf<EtcdLeaderGroupElectorFactory>()
             ctx.getBean("etcdSuspendLeaderElectorFactory").shouldBeInstanceOf<EtcdSuspendLeaderElectorFactory>()
-            ctx.getBean("etcdSuspendLeaderGroupElectorFactory").shouldBeInstanceOf<EtcdSuspendLeaderGroupElectorFactory>()
+            ctx.getBean("etcdSuspendLeaderGroupElectorFactory")
+                .shouldBeInstanceOf<EtcdSuspendLeaderGroupElectorFactory>()
 
             ctx.getBean("etcdLeaderElectionFactory").shouldBeInstanceOf<LeaderElectorFactory>()
             ctx.getBean("etcdLeaderGroupElectionFactory").shouldBeInstanceOf<LeaderGroupElectorFactory>()
             ctx.getBean("etcdSuspendLeaderElectorFactory").shouldBeInstanceOf<SuspendLeaderElectorFactory>()
             ctx.getBean("etcdSuspendLeaderGroupElectorFactory").shouldBeInstanceOf<SuspendLeaderGroupElectorFactory>()
 
-            val leaderFactory = ctx.getBean(EtcdLeaderElectorFactory::class.java)
-            val groupFactory = ctx.getBean(EtcdLeaderGroupElectorFactory::class.java)
-            val suspendFactory = ctx.getBean(EtcdSuspendLeaderElectorFactory::class.java)
-            val suspendGroupFactory = ctx.getBean(EtcdSuspendLeaderGroupElectorFactory::class.java)
+            val leaderFactory = ctx.getBean<EtcdLeaderElectorFactory>()
+            val groupFactory = ctx.getBean<EtcdLeaderGroupElectorFactory>()
+            val suspendFactory = ctx.getBean<EtcdSuspendLeaderElectorFactory>()
+            val suspendGroupFactory = ctx.getBean<EtcdSuspendLeaderGroupElectorFactory>()
 
             leaderFactory.create(LeaderElectionOptions.Default)
                 .shouldBeInstanceOf<EtcdLeaderElector>()
@@ -71,6 +77,7 @@ class EtcdAopFactoryAutoConfigurationTest {
     }
 
     @Configuration(proxyBeanMethods = false)
+    @DirtiesContext
     class EtcdClientConfig {
         @Bean
         fun etcdClient(): Client = mockk(relaxed = true)

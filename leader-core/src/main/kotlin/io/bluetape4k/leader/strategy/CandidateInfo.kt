@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.strategy
 
-import java.time.Instant
 import java.io.Serializable
+import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -25,7 +25,7 @@ data class CandidateInfo(
     val successCount: Long = 0L,
     val failureCount: Long = 0L,
     val metadata: Map<String, String> = emptyMap(),
-) : Serializable {
+): Serializable {
 
     /**
      * `idleDuration` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
@@ -39,7 +39,7 @@ data class CandidateInfo(
      */
     val successRate: Double
         get() = if (successCount + failureCount == 0L) 0.0
-                else successCount.toDouble() / (successCount + failureCount)
+        else successCount.toDouble() / (successCount + failureCount)
 
     /**
      * `totalCount` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.

@@ -15,7 +15,7 @@ import org.junit.jupiter.api.TestInstance
 class ZooKeeperGroupLockExtenderContractTest: AbstractGroupLockExtenderContractTest() {
 
     companion object: KLogging() {
-        val server = AbstractZooKeeperLeaderTest.zookeeper
+        val server by lazy { AbstractZooKeeperLeaderTest.zookeeper }
     }
 
     override val elector: LeaderGroupElector =

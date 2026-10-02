@@ -4,11 +4,14 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.leader.k8s.KubernetesLeaseGroupOptions
 import io.bluetape4k.leader.k8s.KubernetesLeaseOptions
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class KubernetesLeaseSupportTest {
+
+    companion object: KLogging()
 
     @Test
     fun `namespace must be DNS-1123 label`() {
@@ -49,7 +52,11 @@ class KubernetesLeaseSupportTest {
 
     @Test
     fun `group slot lease name must leave room for suffix`() {
-        KubernetesLeaseNames.groupSlotLeaseName("daily-job", slot = 1, maxLeaders = 3) shouldBeEqualTo "daily-job-slot-1"
+        KubernetesLeaseNames.groupSlotLeaseName(
+            "daily-job",
+            slot = 1,
+            maxLeaders = 3
+        ) shouldBeEqualTo "daily-job-slot-1"
 
         assertFailsWith<IllegalArgumentException> {
             KubernetesLeaseNames.groupSlotLeaseName("x".repeat(60), slot = 1, maxLeaders = 3)

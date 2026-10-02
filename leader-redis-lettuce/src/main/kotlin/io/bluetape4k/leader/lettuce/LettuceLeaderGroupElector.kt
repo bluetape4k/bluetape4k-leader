@@ -1,6 +1,9 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.AopScopeAccess
+import io.bluetape4k.leader.AsyncLifecycle
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
@@ -9,13 +12,13 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceSlotExtendDelegate
 import io.bluetape4k.leader.lettuce.semaphore.LettuceSlotTokenGroup
 import io.bluetape4k.leader.remainingMinLeaseTime
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -182,8 +185,8 @@ class LettuceLeaderGroupElector(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                elected.get()   -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else            -> LeaderRunResult.Skipped
             }
         }
     }
@@ -209,7 +212,7 @@ class LettuceLeaderGroupElector(
             ) {
                 releaseAndPropagate(slotGroup, lockName, token, acquiredAtNanos.get(), failure, null)
             } else {
-                CompletableFuture.failedFuture(failure)
+                failedCompletableFutureOf(failure)
             }
         }
         val acquisitionFuture = slotGroup
@@ -224,11 +227,11 @@ class LettuceLeaderGroupElector(
         val pipelineFuture = acquisitionFuture.thenComposeAsync({ token ->
             if (token == null) {
                 log.debug { "리더 선출 실패 (슬롯 없음, async): lockName=$lockName" }
-                CompletableFuture.completedFuture<T?>(null)
+                completableFutureOf<T?>(null)
             } else {
                 val startedAtNanos = acquiredAtNanos.get()
                 if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
-                    CompletableFuture.failedFuture(
+                    failedCompletableFutureOf(
                         CancellationException("leader group action was cancelled before start"),
                     )
                 } else try {
@@ -255,7 +258,7 @@ class LettuceLeaderGroupElector(
             if (failure != null) {
                 releaseAfterRejection(failure.unwrapCompletionCause())
             } else {
-                CompletableFuture.completedFuture(value)
+                completableFutureOf(value)
             }
         }
     }
@@ -334,16 +337,10 @@ class LettuceLeaderGroupElector(
             }
             .thenCompose {
                 if (error != null) {
-                    CompletableFuture.failedFuture(error)
+                    failedCompletableFutureOf(error)
                 } else {
-                    CompletableFuture.completedFuture<T?>(value)
+                    completableFutureOf<T?>(value)
                 }
             }
-    }
-
-    private enum class AsyncLifecycle {
-        WAITING,
-        STARTED,
-        CLEANUP,
     }
 }

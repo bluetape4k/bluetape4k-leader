@@ -1,9 +1,9 @@
 package io.bluetape4k.leader.spring.backend
 
-import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderElectionOptions
-import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderElector
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderGroupElector
+import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderElectionOptions
+import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderGroupElectionOptions
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter

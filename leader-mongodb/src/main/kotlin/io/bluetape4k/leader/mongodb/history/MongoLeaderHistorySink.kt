@@ -23,9 +23,9 @@ import java.time.Instant
 class MongoLeaderHistorySink(
     private val database: MongoDatabase,
     private val config: MongoHistoryConfig = MongoHistoryConfig(),
-) : SuspendLeaderHistorySink {
+): SuspendLeaderHistorySink {
 
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
         private const val FIELD_HISTORY_ID = "historyId"
         private const val FIELD_LOCK_NAME = "lockName"
         private const val FIELD_TOKEN = "token"

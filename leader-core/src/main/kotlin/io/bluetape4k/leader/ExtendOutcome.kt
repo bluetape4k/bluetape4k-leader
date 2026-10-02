@@ -8,7 +8,8 @@ import java.time.Instant
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-sealed interface ExtendOutcome : Serializable {
+@Suppress("JavaIoSerializableObjectMustHaveReadResolve")
+sealed interface ExtendOutcome: Serializable {
 
     /**
      * `Extended` 선언은 leader election 계약에서 사용되는 data class입니다.
@@ -16,7 +17,7 @@ sealed interface ExtendOutcome : Serializable {
      * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
      * @property observedExpireAt `observedExpireAt` 호출 또는 상태 계산에 필요한 값입니다.
      */
-    data class Extended(val observedExpireAt: Instant) : ExtendOutcome {
+    data class Extended(val observedExpireAt: Instant): ExtendOutcome {
         companion object {
             private const val serialVersionUID = 1L
         }
@@ -25,7 +26,7 @@ sealed interface ExtendOutcome : Serializable {
     /**
      * watchdog 또는 bounded operation queue가 포화되어 extension을 시작하지 못한 상태입니다.
      */
-    data object Rejected : ExtendOutcome {
+    data object Rejected: ExtendOutcome {
         private const val serialVersionUID = 1L
     }
 
@@ -34,7 +35,7 @@ sealed interface ExtendOutcome : Serializable {
      *
      * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
      */
-    data object NotHeld : ExtendOutcome {
+    data object NotHeld: ExtendOutcome {
         private const val serialVersionUID = 1L
     }
 
@@ -43,7 +44,7 @@ sealed interface ExtendOutcome : Serializable {
      *
      * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
      */
-    data object WrongThread : ExtendOutcome {
+    data object WrongThread: ExtendOutcome {
         private const val serialVersionUID = 1L
     }
 
@@ -53,7 +54,7 @@ sealed interface ExtendOutcome : Serializable {
      * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
      * @property cause 실패 결과를 만든 원본 예외입니다.
      */
-    data class BackendError(val cause: Exception) : ExtendOutcome {
+    data class BackendError(val cause: Exception): ExtendOutcome {
         companion object {
             private const val serialVersionUID = 1L
         }

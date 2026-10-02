@@ -21,7 +21,7 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 class ConsulLeaderElectorFactory(
     private val endpoint: ConsulEndpoint,
     private val baseOptions: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
-) : LeaderElectorFactory {
+): LeaderElectorFactory {
 
     override fun create(options: LeaderElectionOptions): LeaderElector =
         ConsulLeaderElector(
@@ -40,7 +40,7 @@ class ConsulLeaderElectorFactory(
 class ConsulLeaderGroupElectorFactory(
     private val endpoint: ConsulEndpoint,
     private val baseOptions: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
-) : LeaderGroupElectorFactory {
+): LeaderGroupElectorFactory {
 
     override fun create(options: LeaderGroupElectionOptions): LeaderGroupElector =
         ConsulLeaderGroupElector(
@@ -59,7 +59,7 @@ class ConsulLeaderGroupElectorFactory(
 class ConsulSuspendLeaderElectorFactory(
     private val endpoint: ConsulEndpoint,
     private val baseOptions: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
-) : SuspendLeaderElectorFactory {
+): SuspendLeaderElectorFactory {
 
     override suspend fun create(options: LeaderElectionOptions): SuspendLeaderElector =
         ConsulSuspendLeaderElector(
@@ -78,7 +78,7 @@ class ConsulSuspendLeaderElectorFactory(
 class ConsulSuspendLeaderGroupElectorFactory(
     private val endpoint: ConsulEndpoint,
     private val baseOptions: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
-) : SuspendLeaderGroupElectorFactory {
+): SuspendLeaderGroupElectorFactory {
 
     override suspend fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
         ConsulSuspendLeaderGroupElector(

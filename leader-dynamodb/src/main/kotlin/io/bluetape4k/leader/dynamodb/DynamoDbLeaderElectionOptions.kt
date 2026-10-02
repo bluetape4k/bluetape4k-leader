@@ -25,7 +25,7 @@ data class DynamoDbLeaderElectionOptions(
     val retryDelay: Duration = 50.milliseconds,
     val ttlPadding: Duration = 60.seconds,
     val clockSkewTolerance: Duration = 5.seconds,
-) : Serializable {
+): Serializable {
 
     init {
         DynamoDbKeys.validateTableName(tableName)
@@ -35,7 +35,7 @@ data class DynamoDbLeaderElectionOptions(
         require(clockSkewTolerance >= Duration.ZERO) { "clockSkewTolerance must be >= 0: $clockSkewTolerance" }
         require(leaderOptions.leaseTime > clockSkewTolerance * 2) {
             "leaseTime must be greater than 2 * clockSkewTolerance: " +
-                "leaseTime=${leaderOptions.leaseTime}, clockSkewTolerance=$clockSkewTolerance"
+                    "leaseTime=${leaderOptions.leaseTime}, clockSkewTolerance=$clockSkewTolerance"
         }
     }
 

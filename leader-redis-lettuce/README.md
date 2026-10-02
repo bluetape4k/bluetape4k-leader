@@ -34,14 +34,14 @@ The slot-token TTL model is best understood through two scenarios: a normal acqu
 
 ## Implementations
 
-| Class | Interface | Description |
-|-------|-----------|-------------|
-| `LettuceLeaderElector` | `LeaderElector` | Blocking single-leader via `LettuceLock` |
-| `LettuceLeaderGroupElector` | `LeaderGroupElector` | Blocking multi-leader via `LettuceSlotTokenGroup` (slot-token TTL) |
-| `LettuceSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader via `LettuceSuspendLock` |
-| `LettuceSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader via `LettuceSlotTokenGroup` |
-| `LettuceSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `LettuceSuspendLeaderElector` per call |
-| `LettuceSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `LettuceSuspendLeaderGroupElector` per call |
+| Class                                     | Interface                          | Description                                                        |
+|-------------------------------------------|------------------------------------|--------------------------------------------------------------------|
+| `LettuceLeaderElector`                    | `LeaderElector`                    | Blocking single-leader via `LettuceLock`                           |
+| `LettuceLeaderGroupElector`               | `LeaderGroupElector`               | Blocking multi-leader via `LettuceSlotTokenGroup` (slot-token TTL) |
+| `LettuceSuspendLeaderElector`             | `SuspendLeaderElector`             | Coroutine single-leader via `LettuceSuspendLock`                   |
+| `LettuceSuspendLeaderGroupElector`        | `SuspendLeaderGroupElector`        | Coroutine multi-leader via `LettuceSlotTokenGroup`                 |
+| `LettuceSuspendLeaderElectorFactory`      | `SuspendLeaderElectorFactory`      | Factory: creates `LettuceSuspendLeaderElector` per call            |
+| `LettuceSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `LettuceSuspendLeaderGroupElector` per call       |
 
 ## Usage
 
@@ -55,8 +55,7 @@ val connection = redisClient.connect()
 ### Redis Cluster strategic electors
 
 The four `LettuceStrategic*Elector` classes accept either a standalone
-`StatefulRedisConnection` or a `StatefulRedisClusterConnection`. The connection
-and client remain caller-owned; the elector never closes them.
+`StatefulRedisConnection` or a `StatefulRedisClusterConnection`. The connection and client remain caller-owned; the elector never closes them.
 
 ```kotlin
 val clusterClient = RedisClusterClient.create("redis://localhost:7000")
@@ -68,28 +67,15 @@ val result = elector.runIfLeader("daily-report", FifoElectionStrategy) {
 }
 ```
 
-Cluster candidates use a v3 hash-tagged key layout so an index, candidate,
-tombstone, and migration token for one lock are on the same Redis slot. Existing
-v2 and colon-layout keys are read with single-key operations and promoted without
-deleting the source. A persistent tombstone prevents an unregister/migration race;
-the migration token and raw value must both match before expiry cleanup can remove
-a destination.
+Cluster candidates use a v3 hash-tagged key layout so an index, candidate, tombstone, and migration token for one lock are on the same Redis slot. Existing v2 and colon-layout keys are read with single-key operations and promoted without deleting the source. A persistent tombstone prevents an unregister/migration race; the migration token and raw value must both match before expiry cleanup can remove a destination.
 
-`lockName` values containing Redis hash-tag braces are rejected. After any v3
-write, do not roll back to an older binary: stop writers, preserve the v2/colon
-and v3 state, collect diagnostics, and forward-fix the deployment. Redis
-`MOVED`/`ASK` handling and failover convergence remain delegated to Lettuce's
-topology refresh and are not a substitute for a healthy Cluster.
+`lockName` values containing Redis hash-tag braces are rejected. After any v3 write, do not roll back to an older binary: stop writers, preserve the v2/colon and v3 state, collect diagnostics, and forward-fix the deployment. Redis
+`MOVED`/`ASK` handling and failover convergence remain delegated to Lettuce's topology refresh and are not a substitute for a healthy Cluster.
 
-The migration is one-way. Do not run old and new writers concurrently: quiesce
-the old writers, deploy the v3-capable readers/writers, allow the bounded v2 or
-colon source promotion to complete, and only then resume normal scheduling.
-Once a v3 write is observed, keep the deployment on the new binary and use the
-stop-preserve-diagnose-forward-fix procedure for recovery.
+The migration is one-way. Do not run old and new writers concurrently: quiesce the old writers, deploy the v3-capable readers/writers, allow the bounded v2 or colon source promotion to complete, and only then resume normal scheduling. Once a v3 write is observed, keep the deployment on the new binary and use the stop-preserve-diagnose-forward-fix procedure for recovery.
 
 The repository resolves and verifies Lettuce `7.6.0.RELEASE`. The
-`clusterTest` Gradle task is a Nightly/manual integration gate, separate from the
-regular PR test task, and is not a benchmark.
+`clusterTest` Gradle task is a Nightly/manual integration gate, separate from the regular PR test task, and is not a benchmark.
 
 ### Blocking single-leader
 
@@ -211,10 +197,7 @@ The group primitive backing `LettuceLeaderGroupElector` and `LettuceSuspendLeade
 
 ## Audit Identity (`LeaderSlot`)
 
-Pass a `LeaderSlot` instead of a plain `lockName` to propagate a human-readable node identity
-through each election round. The identity is stored in a Redis Hash
-(`lg:{lockName}:meta` — accessible as `LettuceSlotTokenGroup.metaKey`) while the slot is held,
-and removed atomically on release.
+Pass a `LeaderSlot` instead of a plain `lockName` to propagate a human-readable node identity through each election round. The identity is stored in a Redis Hash (`lg:{lockName}:meta` — accessible as `LettuceSlotTokenGroup.metaKey`) while the slot is held, and removed atomically on release.
 
 ```kotlin
 val slot = LeaderSlot("batch-job", leaderId = "node-a")
@@ -229,8 +212,7 @@ if (result is LeaderRunResult.Elected) {
 val result2 = suspendElector.runIfLeaderResultSuspend(slot) { doWork() }
 ```
 
-The `leaderId` is stored as `HSET lg:{lockName}:meta <token> <leaderId>` on acquire and
-removed with `HDEL` on release. An empty `leaderId` skips the write entirely.
+The `leaderId` is stored as `HSET lg:{lockName}:meta <token> <leaderId>` on acquire and removed with `HDEL` on release. An empty `leaderId` skips the write entirely.
 
 ## Dependency
 

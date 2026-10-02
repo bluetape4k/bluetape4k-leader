@@ -4,18 +4,22 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
-import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.lettuce.core.api.StatefulRedisConnection
+import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CancellationException
@@ -24,13 +28,39 @@ import kotlin.time.Duration.Companion.milliseconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LettuceLeaderBackendDiagnosticsTest {
 
+    private companion object: KLogging() {
+        val nativeExecutionModels = setOf(
+            LeaderExecutionModel.BLOCKING,
+            LeaderExecutionModel.ASYNC,
+            LeaderExecutionModel.SUSPEND,
+        )
+        val supportedModes = LeaderBackendModeSupport(
+            single = LeaderBackendSupport.SUPPORTED,
+            group = LeaderBackendSupport.SUPPORTED,
+        )
+        val unsupportedModes = LeaderBackendModeSupport(
+            single = LeaderBackendSupport.UNSUPPORTED,
+            group = LeaderBackendSupport.UNSUPPORTED,
+        )
+    }
+
+    private val connection = mockk<StatefulRedisConnection<String, String>>(relaxed = true)
+
+    @BeforeEach
+    fun beforeEach() {
+        clearMocks(connection)
+    }
+
     @Test
     fun `Lettuce descriptor는 native single group 실행 모델과 lease 지원을 보고한다`() {
         val descriptor = LettuceLeaderBackendDiagnostics(mockk()).backendDescriptor
         val capabilities = descriptor.capabilities
 
+        log.debug { "descriptor=$descriptor" }
         descriptor.backendId shouldBeEqualTo "redis-lettuce"
         descriptor.displayName shouldBeEqualTo "Redis Lettuce"
+
+        log.debug { "capabilities=$capabilities" }
         capabilities.singleExecutionModels shouldBeEqualTo nativeExecutionModels
         capabilities.groupExecutionModels shouldBeEqualTo nativeExecutionModels
         capabilities.leaseExtension shouldBeEqualTo supportedModes
@@ -42,7 +72,6 @@ class LettuceLeaderBackendDiagnosticsTest {
 
     @Test
     fun `Lettuce lifecycle 상태는 backend 연결 성공으로 승격하지 않는다`() {
-        val connection = mockk<StatefulRedisConnection<String, String>>()
         every { connection.isOpen } returns true
         val provider = LettuceLeaderBackendDiagnostics(connection)
 
@@ -58,7 +87,6 @@ class LettuceLeaderBackendDiagnosticsTest {
 
     @Test
     fun `Lettuce connection Exception은 UNKNOWN으로 정규화한다`() {
-        val connection = mockk<StatefulRedisConnection<String, String>>()
         every { connection.isOpen } throws IllegalStateException("probe failed")
 
         val connectivity = LettuceLeaderBackendDiagnostics(connection)
@@ -71,7 +99,7 @@ class LettuceLeaderBackendDiagnosticsTest {
     @Test
     fun `Lettuce connection CancellationException은 동일 인스턴스로 재전파한다`() {
         val cancellation = CancellationException("probe cancelled")
-        val connection = mockk<StatefulRedisConnection<String, String>>()
+
         every { connection.isOpen } throws cancellation
 
         val thrown = assertFailsWith<CancellationException> {
@@ -85,7 +113,7 @@ class LettuceLeaderBackendDiagnosticsTest {
     fun `Lettuce connection InterruptedException은 flag를 복원하고 동일 인스턴스로 재전파한다`() {
         Thread.interrupted()
         val interrupted = InterruptedException("probe interrupted")
-        val connection = mockk<StatefulRedisConnection<String, String>>()
+
         every { connection.isOpen } throws interrupted
 
         try {
@@ -103,7 +131,7 @@ class LettuceLeaderBackendDiagnosticsTest {
     @Test
     fun `Lettuce connection Error는 동일 인스턴스로 재전파한다`() {
         val fatal = AssertionError("fatal Lettuce probe")
-        val connection = mockk<StatefulRedisConnection<String, String>>()
+
         every { connection.isOpen } throws fatal
 
         val thrown = assertFailsWith<AssertionError> {
@@ -115,7 +143,7 @@ class LettuceLeaderBackendDiagnosticsTest {
 
     @Test
     fun `모든 canonical Lettuce elector는 동일한 diagnostics descriptor를 제공한다`() {
-        val connection = mockk<StatefulRedisConnection<String, String>>(relaxed = true)
+
         val expected = LettuceLeaderBackendDiagnostics(connection).backendDescriptor
         val electors = listOf(
             LettuceLeaderElector(connection, LeaderElectionOptions.Default),
@@ -129,19 +157,4 @@ class LettuceLeaderBackendDiagnosticsTest {
         }
     }
 
-    private companion object {
-        val nativeExecutionModels = setOf(
-            LeaderExecutionModel.BLOCKING,
-            LeaderExecutionModel.ASYNC,
-            LeaderExecutionModel.SUSPEND,
-        )
-        val supportedModes = LeaderBackendModeSupport(
-            single = LeaderBackendSupport.SUPPORTED,
-            group = LeaderBackendSupport.SUPPORTED,
-        )
-        val unsupportedModes = LeaderBackendModeSupport(
-            single = LeaderBackendSupport.UNSUPPORTED,
-            group = LeaderBackendSupport.UNSUPPORTED,
-        )
-    }
 }

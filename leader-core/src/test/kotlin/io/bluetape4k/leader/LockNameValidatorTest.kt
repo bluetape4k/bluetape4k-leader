@@ -1,12 +1,15 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.leader.contract.AbstractLockNameConformanceTest
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 
-class LockNameValidatorTest : AbstractLockNameConformanceTest() {
+class LockNameValidatorTest: AbstractLockNameConformanceTest() {
+
+    companion object: KLogging()
 
     override fun validateLockName(lockName: String) {
-        io.bluetape4k.leader.validateLockName(lockName)
+        lockName.validateLockName()
     }
 
     @Test

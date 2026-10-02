@@ -35,7 +35,7 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
     private val basePath: String,
     options: LeaderGroupElectionOptions,
 ): SuspendLeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client) {
+   LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client) {
 
     companion object: KLoggingChannel() {
         const val DEFAULT_BASE_PATH = "/leader-group-election"
@@ -78,6 +78,7 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
         val semaphore = InterProcessSemaphoreV2(client, path, maxLeaders)
 
         log.debug { "ZooKeeper suspend group lease 획득을 요청합니다. path=$path, maxLeaders=$maxLeaders" }
+
         val lease = try {
             withContext(Dispatchers.IO) {
                 semaphore.acquire(waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
@@ -145,28 +146,3 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
     private fun semaphore(lockName: String): InterProcessSemaphoreV2 =
         InterProcessSemaphoreV2(client, ZooKeeperPaths.electionPath(basePath, lockName), maxLeaders)
 }
-
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend inline fun <T> CuratorFramework.suspendRunIfLeaderGroup(
-    path: ZooKeeperElectionPath,
-    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-    crossinline action: suspend () -> T,
-): T? =
-    ZooKeeperSuspendLeaderGroupElector(this, options, path.basePath).runIfLeader(path.lockName) { action() }
-
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend inline fun <T> CuratorFramework.suspendRunIfLeaderGroup(
-    lockName: String,
-    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-    basePath: String = ZooKeeperSuspendLeaderGroupElector.DEFAULT_BASE_PATH,
-    crossinline action: suspend () -> T,
-): T? =
-    suspendRunIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), options, action)

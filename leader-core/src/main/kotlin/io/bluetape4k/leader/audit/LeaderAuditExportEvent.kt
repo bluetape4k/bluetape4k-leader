@@ -5,10 +5,10 @@ import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.effectiveStatus
+import io.bluetape4k.support.toUtf8Bytes
 import io.bluetape4k.support.truncateUtf8
 import java.time.Instant
-import java.util.Collections
-import java.util.LinkedHashMap
+import java.util.*
 
 /**
  * 외부 exporter가 받을 수 있는 token-free, bounded audit event입니다.
@@ -64,7 +64,7 @@ sealed interface LeaderAuditExportEvent {
      * 생성자는 외부에서 직접 호출할 수 없으며 `from` factory가 token을 버리고
      * sanitizer를 적용하는 유일한 진입점입니다.
      */
-    class History private constructor(snapshot: Snapshot) : LeaderAuditExportEvent {
+    class History private constructor(snapshot: Snapshot): LeaderAuditExportEvent {
 
         /** factory가 검증·정제한 값만 전달하는 opaque construction payload입니다. */
         private interface SnapshotData {
@@ -100,18 +100,25 @@ sealed interface LeaderAuditExportEvent {
 
         override val occurredAt: Instant = snapshot.occurredAt
         override val lockName: String = snapshot.lockName
+
         /** single/group election 분류입니다. */
         val kind: LockIdentity.AnnotationKind = snapshot.kind
+
         /** history lifecycle 상태입니다. */
         val status: LeaderHistoryStatus = snapshot.status
+
         /** sanitizer가 적용된 node identity입니다. */
         val nodeId: String? = snapshot.nodeId
+
         /** sanitizer가 적용된 group slot identity입니다. */
         val slotId: String? = snapshot.slotId
+
         /** 사용자 작업 실행 시간입니다. */
         val durationMs: Long? = snapshot.durationMs
+
         /** sanitizer가 적용된 예외 type입니다. */
         val errorType: String? = snapshot.errorType
+
         /** sanitizer가 적용된 예외 message입니다. */
         val errorMessage: String? = snapshot.errorMessage
         override val attributes: Map<String, String> = snapshot.attributes
@@ -138,7 +145,7 @@ sealed interface LeaderAuditExportEvent {
                 val occurredAt = record.finishedAt ?: record.acquiredAt
                 return History(
                     Snapshot.create(
-                        object : SnapshotData {
+                        object: SnapshotData {
                             override val occurredAt: Instant = occurredAt
                             override val lockName: String = bounded(
                                 sanitizer,
@@ -171,14 +178,14 @@ sealed interface LeaderAuditExportEvent {
 
         override fun toString(): String =
             "History(occurredAt=$occurredAt, lockName=$lockName, kind=$kind, status=$status, " +
-                "nodeId=$nodeId, slotId=$slotId, durationMs=$durationMs, errorType=$errorType, " +
-                "errorMessage=$errorMessage, attributes=$attributes)"
+                    "nodeId=$nodeId, slotId=$slotId, durationMs=$durationMs, errorType=$errorType, " +
+                    "errorMessage=$errorMessage, attributes=$attributes)"
     }
 
     /**
      * `LeaderElectionEvent`에서 생성한 bounded lifecycle event입니다.
      */
-    class Lifecycle private constructor(snapshot: Snapshot) : LeaderAuditExportEvent {
+    class Lifecycle private constructor(snapshot: Snapshot): LeaderAuditExportEvent {
 
         /** factory가 검증·정제한 값만 전달하는 opaque construction payload입니다. */
         private interface SnapshotData {
@@ -206,10 +213,13 @@ sealed interface LeaderAuditExportEvent {
 
         override val occurredAt: Instant = snapshot.occurredAt
         override val lockName: String = snapshot.lockName
+
         /** lifecycle 결과입니다. */
         val outcome: LeaderAuditLifecycleOutcome = snapshot.outcome
+
         /** sanitizer가 적용된 leader identity입니다. */
         val leaderId: String? = snapshot.leaderId
+
         /** leader lease 만료 시각입니다. */
         val leaseExpiry: Instant? = snapshot.leaseExpiry
         override val attributes: Map<String, String> = snapshot.attributes
@@ -238,7 +248,7 @@ sealed interface LeaderAuditExportEvent {
                 val elected = event as? LeaderElectionEvent.Elected
                 return Lifecycle(
                     Snapshot.create(
-                        object : SnapshotData {
+                        object: SnapshotData {
                             override val occurredAt: Instant = Instant.now()
                             override val lockName: String = bounded(
                                 sanitizer,
@@ -264,7 +274,7 @@ sealed interface LeaderAuditExportEvent {
 
         override fun toString(): String =
             "Lifecycle(occurredAt=$occurredAt, lockName=$lockName, outcome=$outcome, " +
-                "leaderId=$leaderId, leaseExpiry=$leaseExpiry, attributes=$attributes)"
+                    "leaderId=$leaderId, leaseExpiry=$leaseExpiry, attributes=$attributes)"
     }
 }
 
@@ -294,7 +304,7 @@ private fun sanitizeAttributes(
         .take(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES)
         .takeWhile { entry ->
             val entryBytes = entry.key.utf8SizeAtMost(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES) +
-                entry.value.utf8SizeAtMost(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES)
+                    entry.value.utf8SizeAtMost(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES)
             if (entryBytes > LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES - inputBytes) {
                 false
             } else {
@@ -335,7 +345,7 @@ private fun sanitizeAttributes(
     return Collections.unmodifiableMap(LinkedHashMap(result))
 }
 
-private fun String.utf8Size(): Int = toByteArray(Charsets.UTF_8).size
+private fun String.utf8Size(): Int = toUtf8Bytes().size
 
 private fun String.utf8SizeAtMost(limit: Int): Int {
     var total = 0
@@ -343,10 +353,10 @@ private fun String.utf8SizeAtMost(limit: Int): Int {
     while (index < length) {
         val codePoint = codePointAt(index)
         val byteCount = when {
-            codePoint <= 0x7f -> 1
+            codePoint <= 0x7f  -> 1
             codePoint <= 0x7ff -> 2
             codePoint <= 0xffff -> 3
-            else -> 4
+            else               -> 4
         }
         if (total > limit - byteCount) return limit + 1
         total += byteCount

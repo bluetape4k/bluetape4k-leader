@@ -31,7 +31,7 @@ class LeaderManagementActionRegistry(
     actionQueueCapacity: Int = 32,
     maxRegistrations: Int = 1_024,
     private val closeTimeout: Duration = 5.seconds,
-) : AutoCloseable {
+): AutoCloseable {
 
     private companion object {
         const val MAX_TIMEOUT_SECONDS = 30L
@@ -69,7 +69,7 @@ class LeaderManagementActionRegistry(
     /** 등록된 handle을 identity 기준으로 참조 계수합니다. backend callback은 호출하지 않습니다. */
     fun register(handle: LeaderLeaseHandle): LeaderManagementRegistration {
         val lockName = handle.lockName
-        if (!isManagementActionLockName(lockName)) {
+        if (!lockName.isManagementActionLockName()) {
             return LeaderManagementRegistration(
                 accepted = false,
                 outcome = LeaderManagementRegistrationOutcome.INVALID_LOCK_NAME,
@@ -109,12 +109,12 @@ class LeaderManagementActionRegistry(
         surface: LeaderManagementActionSurface,
     ): LeaderManagementActionResult {
         val deadline = MonotonicDeadline.fromNow(actionTimeout)
-        if (!isManagementActionLockName(lockName)) {
+        if (!lockName.isManagementActionLockName()) {
             return immediate(LeaderManagementActionOutcome.INVALID_LOCK_NAME, surface)
         }
 
         when (val selection = store.select(lockName)) {
-            LeaderManagementActionStore.Selection.Closed ->
+            LeaderManagementActionStore.Selection.Closed    ->
                 return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
             LeaderManagementActionStore.Selection.NotRegistered ->
@@ -126,13 +126,13 @@ class LeaderManagementActionRegistry(
             is LeaderManagementActionStore.Selection.Record -> {
                 val (beginOutcome, action) = store.beginRecord(selection.value, surface)
                 when (beginOutcome) {
-                    LeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED ->
+                    LeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED    ->
                         return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
-                    LeaderManagementActionStore.BeginOutcome.NOT_REGISTERED ->
+                    LeaderManagementActionStore.BeginOutcome.NOT_REGISTERED     ->
                         return immediate(LeaderManagementActionOutcome.NOT_REGISTERED, surface)
 
-                    LeaderManagementActionStore.BeginOutcome.AMBIGUOUS ->
+                    LeaderManagementActionStore.BeginOutcome.AMBIGUOUS          ->
                         return immediate(LeaderManagementActionOutcome.AMBIGUOUS, surface)
 
                     LeaderManagementActionStore.BeginOutcome.ACTION_IN_PROGRESS ->
@@ -141,7 +141,7 @@ class LeaderManagementActionRegistry(
                     LeaderManagementActionStore.BeginOutcome.ACTION_ADMISSION_REJECTED ->
                         return immediate(LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED, surface)
 
-                    LeaderManagementActionStore.BeginOutcome.STARTED -> Unit
+                    LeaderManagementActionStore.BeginOutcome.STARTED            -> Unit
                 }
 
                 val actionRecord = checkNotNull(action)
@@ -273,7 +273,7 @@ class LeaderManagementActionRegistry(
                         ),
                     )
 
-                LeaseOwnershipStatus.HELD -> Unit
+                LeaseOwnershipStatus.HELD    -> Unit
             }
 
             if (action.timedOut.get() || !deadline.hasTimeRemaining() || !action.phase.compareAndSet(
@@ -351,7 +351,7 @@ class LeaderManagementActionRegistry(
                         mutationAttempted = true,
                     )
 
-                    else -> LeaderManagementActionResult(
+                    else                  -> LeaderManagementActionResult(
                         LeaderManagementAction.RELEASE,
                         LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
                         mutationAttempted = true,
@@ -551,17 +551,17 @@ class LeaderManagementActionRegistry(
             action = LeaderManagementAction.RELEASE,
             outcome = LeaderManagementActionOutcome.ACTION_TIMED_OUT,
             mutationAttempted = action.mutationAttempted.get() ||
-                action.phase.get() in setOf(
-                    LeaderManagementActionPhase.RELEASE_STARTED,
-                    LeaderManagementActionPhase.POSTCHECK,
-                ),
+                    action.phase.get() in setOf(
+                LeaderManagementActionPhase.RELEASE_STARTED,
+                LeaderManagementActionPhase.POSTCHECK,
+            ),
         )
 
     private fun quarantineReason(phase: LeaderManagementActionPhase): LeaderManagementQuarantineReason =
         when (phase) {
             LeaderManagementActionPhase.RELEASE_STARTED,
             LeaderManagementActionPhase.POSTCHECK,
-            -> LeaderManagementQuarantineReason.NON_INTERRUPTIBLE
+                -> LeaderManagementQuarantineReason.NON_INTERRUPTIBLE
 
             else -> LeaderManagementQuarantineReason.CLEANUP_TIMEOUT
         }

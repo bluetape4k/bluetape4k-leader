@@ -12,7 +12,7 @@ import io.lettuce.core.codec.StringCodec
 abstract class AbstractBatchSchedulerTest {
 
     companion object: KLogging() {
-        val redis = RedisServer.Launcher.redis
+        val redis by lazy { RedisServer.Launcher.redis }
 
         val client: RedisClient by lazy {
             RedisClient.create(redis.url).also {
@@ -21,9 +21,10 @@ abstract class AbstractBatchSchedulerTest {
         }
 
         fun newConnection(): StatefulRedisConnection<String, String> =
-            client.connect(StringCodec.UTF8).also {
-                ShutdownQueue.register { it.closeSafe() }
-            }
+            client.connect(StringCodec.UTF8)
+                .also {
+                    ShutdownQueue.register { it.closeSafe() }
+                }
     }
 
     protected fun randomLockName(): String = "batch-test:${Base58.randomString(8)}"

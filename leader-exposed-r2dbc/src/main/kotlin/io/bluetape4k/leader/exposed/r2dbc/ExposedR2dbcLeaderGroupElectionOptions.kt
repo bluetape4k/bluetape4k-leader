@@ -20,7 +20,7 @@ data class ExposedR2dbcLeaderGroupElectionOptions(
     val retryStrategy: RetryStrategy = RetryStrategy.Jitter(),
     val recordHistory: Boolean = false,
     val lockOwner: String? = null,
-) : Serializable {
+): Serializable {
 
     /**
      * `maxLeaders` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.

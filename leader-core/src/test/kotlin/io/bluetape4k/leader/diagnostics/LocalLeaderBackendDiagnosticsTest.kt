@@ -2,9 +2,10 @@ package io.bluetape4k.leader.diagnostics
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBe
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaderElector
@@ -25,6 +26,7 @@ import io.bluetape4k.leader.local.LocalLeaderGroupElector
 import io.bluetape4k.leader.local.LocalVirtualThreadLeaderElector
 import io.bluetape4k.leader.local.LocalVirtualThreadLeaderGroupElector
 import io.bluetape4k.leader.withListeners
+import io.bluetape4k.logging.KLogging
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -33,6 +35,18 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LocalLeaderBackendDiagnosticsTest {
+
+    private companion object: KLogging() {
+        val supportedModes = LeaderBackendModeSupport(
+            single = LeaderBackendSupport.SUPPORTED,
+            group = LeaderBackendSupport.SUPPORTED,
+        )
+        val singleOnlyModes = LeaderBackendModeSupport(
+            single = LeaderBackendSupport.SUPPORTED,
+            group = LeaderBackendSupport.UNSUPPORTED,
+        )
+    }
+
 
     @Test
     fun `Local descriptor는 모든 실행 모델과 single group 기능을 보고한다`() {
@@ -47,7 +61,7 @@ class LocalLeaderBackendDiagnosticsTest {
         capabilities.auditState shouldBeEqualTo singleOnlyModes
         capabilities.clockSource shouldBeEqualTo LeaderBackendClockSource.PROCESS
         capabilities.ttlMode shouldBeEqualTo LeaderBackendTtlMode.CLIENT_LEASE
-        capabilities.limitations shouldBeEqualTo emptyList()
+        capabilities.limitations.shouldBeEmpty()
     }
 
     @Test
@@ -114,7 +128,9 @@ class LocalLeaderBackendDiagnosticsTest {
         )
 
         wrappers.forEach { wrapper ->
-            val provider = (wrapper as? LeaderBackendDiagnosticsAware)?.backendDiagnosticsProvider
+            val provider = wrapper
+                .shouldBeInstanceOf<LeaderBackendDiagnosticsAware>()
+                .backendDiagnosticsProvider
 
             provider.shouldNotBeNull().backendDescriptor shouldBe LocalLeaderBackendDiagnostics.backendDescriptor
         }
@@ -142,16 +158,5 @@ class LocalLeaderBackendDiagnosticsTest {
                 .backendDiagnosticsProvider
                 .shouldBeNull()
         }
-    }
-
-    private companion object {
-        val supportedModes = LeaderBackendModeSupport(
-            single = LeaderBackendSupport.SUPPORTED,
-            group = LeaderBackendSupport.SUPPORTED,
-        )
-        val singleOnlyModes = LeaderBackendModeSupport(
-            single = LeaderBackendSupport.SUPPORTED,
-            group = LeaderBackendSupport.UNSUPPORTED,
-        )
     }
 }

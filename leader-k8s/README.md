@@ -3,9 +3,7 @@
 English | [한국어](./README.ko.md)
 
 Kubernetes Lease backend for `bluetape4k-leader`. It uses the native
-`coordination.k8s.io/v1` Lease API, so applications running in Kubernetes can
-elect exactly one active worker, or a bounded group of workers, without adding
-Redis, MongoDB, ZooKeeper, or a custom CRD.
+`coordination.k8s.io/v1` Lease API, so applications running in Kubernetes can elect exactly one active worker, or a bounded group of workers, without adding Redis, MongoDB, ZooKeeper, or a custom CRD.
 
 ## Architecture
 
@@ -13,14 +11,13 @@ Redis, MongoDB, ZooKeeper, or a custom CRD.
 
 ![leader-k8s acquire and release sequence diagram](../docs/images/readme-diagrams/leader-k8s-sequence-02.png)
 
-`holderIdentity` stores a per-acquisition fencing token. Human/audit identity is
-kept in annotations:
+`holderIdentity` stores a per-acquisition fencing token. Human/audit identity is kept in annotations:
 
-| Annotation | Purpose |
-| --- | --- |
+| Annotation                             | Purpose                                                   |
+|----------------------------------------|-----------------------------------------------------------|
 | `leader.bluetape4k.io/audit-leader-id` | Slot leader id or generated token for state/audit display |
-| `leader.bluetape4k.io/node-id` | `LeaderElectionOptions.nodeId` |
-| `leader.bluetape4k.io/managed-by` | `bluetape4k-leader-k8s` marker |
+| `leader.bluetape4k.io/node-id`         | `LeaderElectionOptions.nodeId`                            |
+| `leader.bluetape4k.io/managed-by`      | `bluetape4k-leader-k8s` marker                            |
 
 This prevents two electors in the same JVM or Pod from treating the same
 `nodeId` as ownership authority.
@@ -31,9 +28,7 @@ Group leader election uses one Lease per slot:
 <lockName>-slot-<slotIndex>
 ```
 
-Each slot keeps the same fencing-token and owner-conditional update semantics as
-single-Lease election. Group state is observability metadata only; correctness
-stays on Kubernetes Lease ownership checks.
+Each slot keeps the same fencing-token and owner-conditional update semantics as single-Lease election. Group state is observability metadata only; correctness stays on Kubernetes Lease ownership checks.
 
 ## Core Features
 
@@ -122,29 +117,27 @@ groupElector.runIfLeader("partition-worker") {
 
 ## Configuration
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `namespace` | `String` | `default` | Namespace that stores Lease objects |
-| `retryDelay` | `Duration` | `50.milliseconds` | Full-jitter retry upper bound after contention or `409 Conflict` |
-| `leaderOptions.waitTime` | `Duration` | `5.seconds` | Maximum time to wait for leadership |
-| `leaderOptions.leaseTime` | `Duration` | `60.seconds` | Lease duration written to Kubernetes |
-| `leaderOptions.nodeId` | `String` | process-level default | Audit node id annotation |
-| `leaderOptions.minLeaseTime` | `Duration` | `0.seconds` | Minimum leadership hold time after quick actions |
-| `leaderOptions.autoExtend` | `Boolean` | `false` | Extends the active Lease while the action runs |
-| `leaderGroupOptions.maxLeaders` | `Int` | `2` | Maximum active Lease slots for group election |
-| `leaderGroupOptions.waitTime` | `Duration` | `5.seconds` | Maximum time to acquire any group slot |
-| `leaderGroupOptions.leaseTime` | `Duration` | `60.seconds` | Lease duration for each group slot |
-| `leaderGroupOptions.nodeId` | `String` | process-level default | Audit node id annotation for group slots |
-| `leaderGroupOptions.minLeaseTime` | `Duration` | `0.seconds` | Minimum slot hold time after quick group actions |
+| Option                            | Type       | Default               | Description                                                      |
+|-----------------------------------|------------|-----------------------|------------------------------------------------------------------|
+| `namespace`                       | `String`   | `default`             | Namespace that stores Lease objects                              |
+| `retryDelay`                      | `Duration` | `50.milliseconds`     | Full-jitter retry upper bound after contention or `409 Conflict` |
+| `leaderOptions.waitTime`          | `Duration` | `5.seconds`           | Maximum time to wait for leadership                              |
+| `leaderOptions.leaseTime`         | `Duration` | `60.seconds`          | Lease duration written to Kubernetes                             |
+| `leaderOptions.nodeId`            | `String`   | process-level default | Audit node id annotation                                         |
+| `leaderOptions.minLeaseTime`      | `Duration` | `0.seconds`           | Minimum leadership hold time after quick actions                 |
+| `leaderOptions.autoExtend`        | `Boolean`  | `false`               | Extends the active Lease while the action runs                   |
+| `leaderGroupOptions.maxLeaders`   | `Int`      | `2`                   | Maximum active Lease slots for group election                    |
+| `leaderGroupOptions.waitTime`     | `Duration` | `5.seconds`           | Maximum time to acquire any group slot                           |
+| `leaderGroupOptions.leaseTime`    | `Duration` | `60.seconds`          | Lease duration for each group slot                               |
+| `leaderGroupOptions.nodeId`       | `String`   | process-level default | Audit node id annotation for group slots                         |
+| `leaderGroupOptions.minLeaseTime` | `Duration` | `0.seconds`           | Minimum slot hold time after quick group actions                 |
 
-`lockName` must be a Kubernetes DNS-1123 label and must fit the Lease name limit
-(63 characters). For group election, the derived `<lockName>-slot-<slotIndex>`
+`lockName` must be a Kubernetes DNS-1123 label and must fit the Lease name limit (63 characters). For group election, the derived `<lockName>-slot-<slotIndex>`
 names must also fit this limit.
 
 ## RBAC
 
-The service account running the application needs Lease access in the selected
-namespace. Production electors do not delete Leases during normal release, but
+The service account running the application needs Lease access in the selected namespace. Production electors do not delete Leases during normal release, but
 `delete` is useful for test and operator cleanup tooling:
 
 ```yaml
@@ -181,16 +174,13 @@ Unit tests exclude K3s:
 ./gradlew :bluetape4k-leader-k8s:test
 ```
 
-Run K3s-backed integration tests separately. This task includes single-Lease and
-Lease-per-slot group election coverage for acquire, contention, release,
-reacquire, expiry takeover, and cancellation/error cleanup paths:
+Run K3s-backed integration tests separately. This task includes single-Lease and Lease-per-slot group election coverage for acquire, contention, release, reacquire, expiry takeover, and cancellation/error cleanup paths:
 
 ```bash
 ./gradlew :bluetape4k-leader-k8s:k8sTest
 ```
 
-K3s tests require a Docker daemon with privileged container support. Pull request
-CI runs the non-K3s unit slice; the weekly/manual Nightly full workflow runs
+K3s tests require a Docker daemon with privileged container support. Pull request CI runs the non-K3s unit slice; the weekly/manual Nightly full workflow runs
 `:bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest`.
 
 ## Dependency
@@ -203,8 +193,7 @@ dependencies {
 }
 ```
 
-The module exposes Fabric8 Kubernetes Client as an API dependency because
-constructors accept `KubernetesClient`.
+The module exposes Fabric8 Kubernetes Client as an API dependency because constructors accept `KubernetesClient`.
 
 ## License
 

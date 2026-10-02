@@ -1,10 +1,12 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.coroutines.flow.extensions.log
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
@@ -12,6 +14,7 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderNodeId
 import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -27,14 +30,21 @@ import kotlinx.coroutines.flow.first
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
+import kotlin.time.Duration.Companion.milliseconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderStateFlowExtTest {
 
-    private class FakeEventPublisher : LeaderElectionEventPublisher {
+    companion object: KLoggingChannel()
+
+    private class FakeEventPublisher: LeaderElectionEventPublisher {
         private val _events = MutableSharedFlow<LeaderElectionEvent>(replay = 0, extraBufferCapacity = 64)
-        override val events: Flow<LeaderElectionEvent> = _events
-        suspend fun emit(event: LeaderElectionEvent) = _events.emit(event)
+        override val events: Flow<LeaderElectionEvent> = _events.log("Events")
+
+        suspend fun emit(event: LeaderElectionEvent) {
+            _events.emit(event)
+        }
+
         suspend fun awaitSubscriber() {
             _events.subscriptionCount.first { it > 0 }
         }
@@ -93,7 +103,8 @@ class LeaderStateFlowExtTest {
 
             val occupied = async(start = CoroutineStart.UNDISPATCHED) {
                 flow.first { it.isOccupied }
-            }
+            }.log("Occupied")
+
             publisher.awaitSubscriber()
             publisher.emit(LeaderElectionEvent.Elected("my-lock", leaderId = "node-while-subscribed"))
 
@@ -176,7 +187,7 @@ class LeaderStateFlowExtTest {
     fun `Skipped event does not change state`() = runSuspendIO {
         withStateFlow { publisher, flow ->
             publisher.emit(LeaderElectionEvent.Skipped("my-lock"))
-            delay(50)
+            delay(50.milliseconds)
 
             flow.value.isEmpty.shouldBeTrue()
         }
@@ -186,7 +197,7 @@ class LeaderStateFlowExtTest {
     fun `events for other lockNames are filtered out`() = runSuspendIO {
         withStateFlow { publisher, flow ->
             publisher.emit(LeaderElectionEvent.Elected("other-lock", leaderId = "node-X"))
-            delay(50)
+            delay(50.milliseconds)
 
             flow.value.isEmpty.shouldBeTrue()
         }
@@ -214,7 +225,7 @@ class LeaderStateFlowExtTest {
             flow.value.isOccupied.shouldBeTrue()
 
             publisher.emit(LeaderElectionEvent.Skipped("my-lock"))
-            delay(50)
+            delay(50.milliseconds)
 
             flow.value.isOccupied.shouldBeTrue()
             flow.value.leader?.auditLeaderId shouldBeEqualTo "node-5"
@@ -251,7 +262,7 @@ class LeaderStateFlowExtTest {
             publisher.emit(LeaderElectionEvent.Elected("my-lock", leaderId = "node-2"))
             flow.first { it.activeCount == 2 }
             publisher.emit(LeaderElectionEvent.Elected("my-lock", leaderId = "node-3"))
-            delay(50)
+            delay(50.milliseconds)
 
             flow.value.activeCount shouldBeEqualTo 2
             flow.value.isFull.shouldBeTrue()
@@ -275,7 +286,7 @@ class LeaderStateFlowExtTest {
     fun `group state flow ignores skipped events`() = runSuspendIO {
         withGroupStateFlow { publisher, flow ->
             publisher.emit(LeaderElectionEvent.Skipped("my-lock"))
-            delay(50)
+            delay(50.milliseconds)
 
             flow.value shouldBeEqualTo LeaderGroupState("my-lock", maxLeaders = 3, activeCount = 0)
         }
@@ -285,7 +296,7 @@ class LeaderStateFlowExtTest {
     fun `group state flow ignores other lock names`() = runSuspendIO {
         withGroupStateFlow { publisher, flow ->
             publisher.emit(LeaderElectionEvent.Elected("other-lock", leaderId = "node-X"))
-            delay(50)
+            delay(50.milliseconds)
 
             flow.value shouldBeEqualTo LeaderGroupState("my-lock", maxLeaders = 3, activeCount = 0)
         }

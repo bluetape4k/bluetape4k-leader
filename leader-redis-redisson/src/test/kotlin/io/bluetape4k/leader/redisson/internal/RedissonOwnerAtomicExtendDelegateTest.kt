@@ -1,9 +1,11 @@
 package io.bluetape4k.leader.redisson.internal
 
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.redisson.AbstractRedissonLeaderTest
+import io.bluetape4k.logging.KLogging
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -15,12 +17,13 @@ import org.redisson.api.RKeys
 import org.redisson.api.RScript
 import org.redisson.api.RedissonClient
 import org.redisson.client.codec.StringCodec
-import java.util.concurrent.CompletableFuture
 import kotlin.time.Duration.Companion.seconds
 
 class RedissonOwnerAtomicExtendDelegateTest: AbstractRedissonLeaderTest() {
 
-    private val scriptClient = mockk<RedissonClient>()
+    companion object: KLogging()
+
+    private val scriptClient = mockk<RedissonClient>(relaxed = true)
     private val keys = mockk<RKeys>()
     private val script = mockk<RScript>()
     private val scriptResult = mockk<RFuture<Long>>()
@@ -37,7 +40,7 @@ class RedissonOwnerAtomicExtendDelegateTest: AbstractRedissonLeaderTest() {
     fun `sync extend returns WrongThread when atomic owner field check fails`() {
         val lockName = "redisson-owner-atomic-sync"
         val ownerId = 101L
-        val lock = AbstractRedissonLeaderTest.redissonClient.getLock(lockName)
+        val lock = redissonClient.getLock(lockName)
 
         every {
             script.eval<Long>(
@@ -55,6 +58,7 @@ class RedissonOwnerAtomicExtendDelegateTest: AbstractRedissonLeaderTest() {
             .extend(30.seconds)
 
         outcome.shouldBeInstanceOf<ExtendOutcome.WrongThread>()
+
         verify(exactly = 0) { keys.expire(any<java.time.Duration>(), lockName) }
     }
 
@@ -62,11 +66,12 @@ class RedissonOwnerAtomicExtendDelegateTest: AbstractRedissonLeaderTest() {
     fun `suspend extend returns NotHeld when owner key disappears during atomic extend`() = runSuspendIO {
         val lockName = "redisson-owner-atomic-suspend"
         val ownerId = 202L
-        val lock = AbstractRedissonLeaderTest.redissonClient.getLock(lockName)
+        val lock = redissonClient.getLock(lockName)
 
-        every { scriptResult.toCompletableFuture() } returns CompletableFuture.completedFuture(
-            RedissonOwnerAtomicExtend.NOT_HELD_RESULT,
-        )
+        every {
+            scriptResult.toCompletableFuture()
+        } returns completableFutureOf(RedissonOwnerAtomicExtend.NOT_HELD_RESULT)
+
         every {
             script.evalAsync<Long>(
                 lockName,
@@ -83,6 +88,7 @@ class RedissonOwnerAtomicExtendDelegateTest: AbstractRedissonLeaderTest() {
             .extendSuspend(30.seconds)
 
         outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
+
         verify(exactly = 0) { keys.expireAsync(any<java.time.Duration>(), lockName) }
     }
 }

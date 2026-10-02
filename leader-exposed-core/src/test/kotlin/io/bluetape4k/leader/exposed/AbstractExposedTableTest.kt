@@ -16,7 +16,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractExposedTableTest {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         /**
          * CI에서 `LEADER_TEST_DB` 환경 변수로 단일 DB를 선택할 수 있습니다.
          * 미설정 시 H2 / PostgreSQL / MySQL_V8 전체 실행 (로컬 개발 기본값).
@@ -28,10 +28,10 @@ abstract class AbstractExposedTableTest {
             val filter = System.getenv("LEADER_TEST_DB")?.uppercase()
                 ?: return listOf(TestDB.H2, TestDB.POSTGRESQL, TestDB.MYSQL_V8)
             return when (filter) {
-                "H2" -> listOf(TestDB.H2)
+                "H2"                -> listOf(TestDB.H2)
                 "POSTGRESQL", "POSTGRES" -> listOf(TestDB.POSTGRESQL)
                 "MYSQL_V8", "MYSQL" -> listOf(TestDB.MYSQL_V8)
-                else -> error("지원하지 않는 LEADER_TEST_DB 값: $filter")
+                else                -> error("지원하지 않는 LEADER_TEST_DB 값: $filter")
             }
         }
     }

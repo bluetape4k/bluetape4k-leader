@@ -12,7 +12,9 @@ class MonotonicDeadlineTest: AbstractMonotonicDeadlineMathContractTest() {
         val deadline = MonotonicDeadline.fromNow(waitTime, ticker)
         return object: DeadlineProbe {
             override fun remainingNanos(): Long = deadline.remainingNanos()
-            override fun remainingMillisForDelay(maxDelayMillis: Long): Long = deadline.remainingMillisForDelay(maxDelayMillis)
+            override fun remainingMillisForDelay(maxDelayMillis: Long): Long =
+                deadline.remainingMillisForDelay(maxDelayMillis)
+
             override fun hasTimeRemaining(): Boolean = deadline.hasTimeRemaining()
         }
     }

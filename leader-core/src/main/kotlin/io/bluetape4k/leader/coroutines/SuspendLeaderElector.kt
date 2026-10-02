@@ -21,10 +21,7 @@ interface SuspendLeaderElector: LeaderElectionState {
      * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
      * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
-    suspend fun <T> runIfLeader(
-        lockName: String,
-        action: suspend () -> T,
-    ): T?
+    suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T?
 
     /**
      * `runIfLeaderResultSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.

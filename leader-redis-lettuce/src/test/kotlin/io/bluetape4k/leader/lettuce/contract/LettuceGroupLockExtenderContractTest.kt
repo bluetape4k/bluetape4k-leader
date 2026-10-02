@@ -14,9 +14,9 @@ import org.junit.jupiter.api.TestInstance
  * `maxLeaders = 2` 로 기본 설정. server-side TIME Lua 가 extendSlot 에서 호출됨 (AC-16).
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LettuceGroupLockExtenderContractTest : AbstractGroupLockExtenderContractTest() {
+class LettuceGroupLockExtenderContractTest: AbstractGroupLockExtenderContractTest() {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         val redis = AbstractLettuceLeaderTest.redis
     }
 

@@ -26,11 +26,11 @@ repeat(2) {
         }
     }
 }
-startLatch.await(2, TimeUnit.SECONDS)
+startLatch.await(2.seconds)
 // check state ...
 holdLatch.countDown()
 executor.shutdown()
-executor.awaitTermination(3, TimeUnit.SECONDS)
+executor.awaitTermination(3.seconds)
 ```
 
 **이후**(코루틴 + AtomicInteger 폴링):

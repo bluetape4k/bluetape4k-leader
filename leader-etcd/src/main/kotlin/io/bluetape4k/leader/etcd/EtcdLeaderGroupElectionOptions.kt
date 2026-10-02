@@ -18,7 +18,7 @@ data class EtcdLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     val keyPrefix: String = EtcdLeaderPaths.DefaultPrefix,
     val retryDelay: Duration = 50.milliseconds,
-) : Serializable {
+): Serializable {
 
     /**
      * `maxLeaders` 값은 etcd backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.

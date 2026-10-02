@@ -2,7 +2,9 @@ package io.bluetape4k.leader;
 
 import java.time.Instant;
 
-/** Java source fixture for the public OBS-02 core facade. */
+/**
+ * Java source fixture for the public OBS-02 core facade.
+ */
 public final class LeaderLeaseExtensionJavaApiFixture {
 
     private LeaderLeaseExtensionJavaApiFixture() {
@@ -23,11 +25,11 @@ public final class LeaderLeaseExtensionJavaApiFixture {
 
     public static LeaderLeaseExtensionEvent event() {
         return new LeaderLeaseExtensionEvent(
-            LeaderLeaseExtensionSource.USER,
-            LeaderLeaseExtensionExecution.BLOCKING,
-            new ExtendOutcome.Extended(Instant.EPOCH),
-            1L,
-            null
+                LeaderLeaseExtensionSource.USER,
+                LeaderLeaseExtensionExecution.BLOCKING,
+                new ExtendOutcome.Extended(Instant.EPOCH),
+                1L,
+                null
         );
     }
 

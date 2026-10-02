@@ -49,7 +49,7 @@ class EtcdSuspendLeaderGroupElector private constructor(
     private val lockClient: EtcdLockClient,
     val options: EtcdLeaderGroupElectionOptions,
 ): SuspendLeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics {
+   LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics {
 
     companion object: KLoggingChannel() {
         internal const val ETCD_SUSPEND_GROUP_FACTORY_BEAN_NAME = "etcd-suspend-leader-group-elector"
@@ -279,10 +279,3 @@ class EtcdSuspendLeaderGroupElector private constructor(
         }
     }
 }
-
-suspend inline fun <T> Client.suspendRunIfLeaderGroup(
-    lockName: String,
-    options: EtcdLeaderGroupElectionOptions = EtcdLeaderGroupElectionOptions.Default,
-    crossinline action: suspend () -> T,
-): T? =
-    EtcdSuspendLeaderGroupElector(this, options).runIfLeader(lockName) { action() }

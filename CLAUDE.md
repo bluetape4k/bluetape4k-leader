@@ -109,7 +109,7 @@ LeaderGroupElectionOptions(maxLeaders = 3, waitTime = 5.seconds, leaseTime = 60.
 ```kotlin
 name = "my-lock"                  // ✅ static
 name = "'prefix-' + #param"       // ✅ dynamic (리터럴은 SpEL 내부에서 quote)
-name = "\${app.lock.name}"        // ✅ Spring placeholder
+name = $$"${app.lock.name}"        // ✅ Spring placeholder
 name = "prefix-#param"            // ❌ prefix- 가 identifier로 파싱됨 → startup failure
 ```
 

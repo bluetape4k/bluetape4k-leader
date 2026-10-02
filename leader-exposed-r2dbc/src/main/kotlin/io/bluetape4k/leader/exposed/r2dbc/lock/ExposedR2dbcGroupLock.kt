@@ -1,17 +1,17 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
-import io.bluetape4k.leader.exposed.r2dbc.internal.classifyAcquisitionFailure
-
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
-import io.bluetape4k.leader.remainingMinLeaseTime
-import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.r2dbc.internal.MonotonicDeadline
-import io.bluetape4k.support.requireZeroOrPositiveNumber
+import io.bluetape4k.leader.exposed.r2dbc.internal.classifyAcquisitionFailure
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.requireZeroOrPositiveNumber
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
@@ -19,21 +19,21 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.deleteWhere
 import org.jetbrains.exposed.v1.r2dbc.insertIgnore
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+
 
 /**
  * `ExposedR2dbcGroupLock`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -46,12 +46,6 @@ import java.time.Clock
  * @property lockOwner Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property useDbTime Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
-internal enum class ExposedR2dbcUnlockOutcome {
-    RELEASED,
-    NOT_HELD,
-    FAILED,
-}
-
 @Suppress("LongParameterList")
 internal class ExposedR2dbcGroupLock internal constructor(
     private val db: R2dbcDatabase,
@@ -78,7 +72,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
         slot: Int,
         retryStrategy: RetryStrategy,
         lockOwner: String? = null,
-    ) : this(db, lockName, slot, retryStrategy, lockOwner, false, Clock.systemUTC())
+    ): this(db, lockName, slot, retryStrategy, lockOwner, false, Clock.systemUTC())
 
     init {
         slot.requireZeroOrPositiveNumber("slot")
@@ -286,9 +280,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
                     LeaderGroupLockTable.update(
                         where = {
                             (LeaderGroupLockTable.lockName eq lockNameVal) and
-                                (LeaderGroupLockTable.slot eq slotVal) and
-                                (LeaderGroupLockTable.token eq tokenVal) and
-                                (LeaderGroupLockTable.lockedUntil greater now)
+                                    (LeaderGroupLockTable.slot eq slotVal) and
+                                    (LeaderGroupLockTable.token eq tokenVal) and
+                                    (LeaderGroupLockTable.lockedUntil greater now)
                         }
                     ) {
                         it[LeaderGroupLockTable.lockedUntil] = now.plusMillis(remaining.inWholeMilliseconds)
@@ -296,8 +290,8 @@ internal class ExposedR2dbcGroupLock internal constructor(
                 } else {
                     LeaderGroupLockTable.deleteWhere {
                         (LeaderGroupLockTable.lockName eq lockNameVal) and
-                            (LeaderGroupLockTable.slot eq slotVal) and
-                            (LeaderGroupLockTable.token eq tokenVal)
+                                (LeaderGroupLockTable.slot eq slotVal) and
+                                (LeaderGroupLockTable.token eq tokenVal)
                     } to false
                 }
             }
@@ -339,9 +333,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
                 val updated = LeaderGroupLockTable.update(
                     where = {
                         (LeaderGroupLockTable.lockName eq lockNameVal) and
-                            (LeaderGroupLockTable.slot eq slotVal) and
-                            (LeaderGroupLockTable.token eq tokenVal) and
-                            (LeaderGroupLockTable.lockedUntil greater now)  // R6: expired row revival 차단
+                                (LeaderGroupLockTable.slot eq slotVal) and
+                                (LeaderGroupLockTable.token eq tokenVal) and
+                                (LeaderGroupLockTable.lockedUntil greater now)  // R6: expired row revival 차단
                     }
                 ) {
                     it[LeaderGroupLockTable.lockedUntil] = newLockedUntil
@@ -392,7 +386,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
             )
             ExposedR2dbcUnlockOutcome.RELEASED,
             ExposedR2dbcUnlockOutcome.NOT_HELD,
-            -> Unit
+                 -> Unit
         }
     }
 
@@ -408,5 +402,16 @@ internal class ExposedR2dbcGroupLock internal constructor(
 
     private fun Throwable.addSuppressedSafely(cause: Throwable) {
         if (cause !== this && suppressed.none { it === cause }) addSuppressed(cause)
+    }
+
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("lockName", lockName)
+            .add("slot", slot)
+            .add("lockOwner", lockOwner)
+            .add("useDbTime", useDbTime)
+            .add("retryStrategy", retryStrategy)
+            .add("clock", clock)
+            .toString()
     }
 }

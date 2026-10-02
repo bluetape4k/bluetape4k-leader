@@ -1,10 +1,12 @@
 package io.bluetape4k.leader.spring.properties
 
+import io.bluetape4k.javatimes.hours
+import io.bluetape4k.javatimes.minutes
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.support.requireGe
 import io.bluetape4k.support.requireGt
-import io.bluetape4k.support.requireLe
 import io.bluetape4k.support.requireInRange
+import io.bluetape4k.support.requireLe
 import java.io.Serializable
 import java.time.Duration
 
@@ -34,7 +36,18 @@ data class LeaderRouteLeaseProperties(
     val minimumAutoExtendLeaseTime: Duration = DEFAULT_MINIMUM_AUTO_EXTEND_LEASE_TIME,
     val maxExpectedExtensionLatency: Duration = DEFAULT_MAX_EXPECTED_EXTENSION_LATENCY,
     val drainTimeout: Duration = DEFAULT_DRAIN_TIMEOUT,
-) : Serializable {
+): Serializable {
+
+    companion object {
+        private const val serialVersionUID = 1L
+        private const val EXTENSION_LATENCY_BUDGET_DIVISOR = 3L
+        private const val MAX_CONCURRENT = 4_096
+        private const val MAX_QUEUE_DEPTH = 65_536
+        private const val MAX_ACTIVE_LEASES = 65_536
+        private val MAX_DRAIN_TIMEOUT: Duration = 10.minutes()
+        private val MAX_BLOCKING_WAIT_TIME: Duration = 5.minutes()
+        private val MAX_LEASE_LIFETIME: Duration = 25.hours()
+    }
 
     /** residual admission과 active admission이 함께 허용하는 최대 동시 lease 수입니다. */
     val effectiveActiveCapacity: Int
@@ -97,14 +110,4 @@ data class LeaderRouteLeaseProperties(
         value.requireInRange(range.first, range.last, name)
     }
 
-    companion object {
-        private const val serialVersionUID = 1L
-        private const val EXTENSION_LATENCY_BUDGET_DIVISOR = 3L
-        private const val MAX_CONCURRENT = 4_096
-        private const val MAX_QUEUE_DEPTH = 65_536
-        private const val MAX_ACTIVE_LEASES = 65_536
-        private val MAX_DRAIN_TIMEOUT: Duration = Duration.ofMinutes(10)
-        private val MAX_BLOCKING_WAIT_TIME: Duration = Duration.ofMinutes(5)
-        private val MAX_LEASE_LIFETIME: Duration = Duration.ofHours(24)
-    }
 }

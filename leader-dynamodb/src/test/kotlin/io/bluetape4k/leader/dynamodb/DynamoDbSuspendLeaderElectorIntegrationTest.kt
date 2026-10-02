@@ -3,13 +3,17 @@ package io.bluetape4k.leader.dynamodb
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
@@ -17,7 +21,9 @@ import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class DynamoDbSuspendLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
+class DynamoDbSuspendLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
+
+    companion object: KLoggingChannel()
 
     @Test
     fun `runIfLeader acquires releases and allows sequential reacquire`() = runSuspendIO {
@@ -53,7 +59,7 @@ class DynamoDbSuspendLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest()
                 release.await()
                 "holder"
             }
-        }
+        }.log("Holder Job")
 
         started.await()
         contender.runIfLeader(lockName) { "contender" }.shouldBeNull()
@@ -67,7 +73,7 @@ class DynamoDbSuspendLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest()
         val elector = newElector()
         val lockName = randomName()
 
-        assertFailsWith<kotlinx.coroutines.TimeoutCancellationException> {
+        assertFailsWith<TimeoutCancellationException> {
             withTimeout(100.milliseconds) {
                 elector.runIfLeader(lockName) {
                     delay(10.seconds)
@@ -85,8 +91,7 @@ class DynamoDbSuspendLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest()
         val extended = elector.runIfLeader(randomName()) {
             LockExtender.extendActiveLockSuspend(5.seconds)
         }
-
-        extended shouldBeEqualTo true
+        extended.shouldBeTrue()
     }
 
     @Test
@@ -94,7 +99,7 @@ class DynamoDbSuspendLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest()
         val elector = newElector()
         val slot = LeaderSlot(randomName(), "dynamodb-suspend-audit-node-a")
 
-        elector.supportsAuditLeaderState shouldBeEqualTo true
+        elector.supportsAuditLeaderState.shouldBeTrue()
         val result = elector.runIfLeaderResultSuspend(slot) {
             val lease = elector.state(slot.lockName).leader
             lease?.auditLeaderId shouldBeEqualTo slot.leaderId

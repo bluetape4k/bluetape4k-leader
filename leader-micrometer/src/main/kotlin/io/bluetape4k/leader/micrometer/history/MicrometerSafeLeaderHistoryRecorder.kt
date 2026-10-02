@@ -14,12 +14,12 @@ import io.micrometer.core.instrument.MeterRegistry
 open class MicrometerSafeLeaderHistoryRecorder(
     sink: LeaderHistorySink,
     meterRegistry: MeterRegistry,
-) : SafeLeaderHistoryRecorder(
+): SafeLeaderHistoryRecorder(
     CounterAwareSinkDecorator(
         delegate = sink,
         registry = meterRegistry,
         sinkSimpleName = sink::class.simpleName ?: "unknown",
     )
 ) {
-    companion object : KLogging()
+    companion object: KLogging()
 }

@@ -459,7 +459,7 @@
       health.details["lastAcquisitionFailureAt"] shouldBeEqualTo now
       health.details["acquisitionFailureWindow"] shouldBeEqualTo "PT5M"
       health.details["acquisitionFailureWindowCapacity"] shouldBeEqualTo 4
-      health.details["acquisitionFailureWindowOverflowed"] shouldBeEqualTo false
+      health.details["acquisitionFailureWindowOverflowed"].shouldBeFalse()
       health.details.toString().contains("redis-prod-01").shouldBeFalse()
   }
 

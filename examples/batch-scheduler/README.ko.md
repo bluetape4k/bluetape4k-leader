@@ -6,10 +6,7 @@ Lettuce-Redis 백엔드를 사용한 분산 배치 스케줄러 예제. 야간 �
 
 ## 시나리오
 
-3개 애플리케이션 인스턴스가 야간 정산 같은 주기 배치 Job 트리거를 동시에 받습니다.
-각 인스턴스는 같은 `nightly-settlement` lock 이름으로 `BatchScheduler.run(...)`을
-호출합니다. Lettuce Redis elector가 1개 인스턴스만 Job을 실행하게 하고, 나머지는
-예외 없이 `null`을 반환하며 skip합니다.
+3개 애플리케이션 인스턴스가 야간 정산 같은 주기 배치 Job 트리거를 동시에 받습니다. 각 인스턴스는 같은 `nightly-settlement` lock 이름으로 `BatchScheduler.run(...)`을 호출합니다. Lettuce Redis elector가 1개 인스턴스만 Job을 실행하게 하고, 나머지는 예외 없이 `null`을 반환하며 skip합니다.
 
 ## 예제 시나리오
 
@@ -59,11 +56,7 @@ if (result == null) {
 
 ## Demo
 
-`run<String?> { null }`처럼 작업이 null을 반환해도 실제 실행된 경우에는 skip 로그를 남기지 않습니다.
-내부에서는 기존 `LeaderRunResult.Elected(null)`과 `Skipped`를 구분합니다. 반환형은 T?를 유지하므로
-반환값만으로 두 경우를 구분할 수 없습니다. 위 예제처럼 작업이 non-null Unit을 반환할 때만 null을 경합으로 해석하세요.
-작업 오류와 취소는 원본을 전파하며 InterruptedException은 interrupt flag를 복원합니다.
-
+`run<String?> { null }`처럼 작업이 null을 반환해도 실제 실행된 경우에는 skip 로그를 남기지 않습니다. 내부에서는 기존 `LeaderRunResult.Elected(null)`과 `Skipped`를 구분합니다. 반환형은 T?를 유지하므로 반환값만으로 두 경우를 구분할 수 없습니다. 위 예제처럼 작업이 non-null Unit을 반환할 때만 null을 경합으로 해석하세요. 작업 오류와 취소는 원본을 전파하며 InterruptedException은 interrupt flag를 복원합니다.
 
 ```bash
 ./gradlew :examples:batch-scheduler:run
@@ -73,12 +66,12 @@ if (result == null) {
 
 ## Configuration Options
 
-| 파라미터 | 기본값 | 설명 |
-|---------|-------|------|
-| `nodeId` | 필수 | 인스턴스별 고유 식별자 — 로그에 사용 |
-| `lockName` | 필수 | 분산 락 키 (같은 Job 의 모든 인스턴스가 동일 값 사용) |
-| `waitTime` | `2.seconds` | 락 획득 대기 시간 — 초과 시 즉시 skip |
-| `leaseTime` | `30.seconds` | 락 TTL — Job 예상 실행 시간보다 길게 |
+| 파라미터    | 기본값       | 설명                                                  |
+|-------------|--------------|-------------------------------------------------------|
+| `nodeId`    | 필수         | 인스턴스별 고유 식별자 — 로그에 사용                  |
+| `lockName`  | 필수         | 분산 락 키 (같은 Job 의 모든 인스턴스가 동일 값 사용) |
+| `waitTime`  | `2.seconds`  | 락 획득 대기 시간 — 초과 시 즉시 skip                 |
+| `leaseTime` | `30.seconds` | 락 TTL — Job 예상 실행 시간보다 길게                  |
 
 ## Dependency
 

@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.k8s.internal
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import io.fabric8.kubernetes.api.model.coordination.v1.Lease
 import io.fabric8.kubernetes.api.model.coordination.v1.LeaseBuilder
 import io.fabric8.kubernetes.api.model.coordination.v1.LeaseList
@@ -24,6 +26,8 @@ import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class KubernetesLeaseLockTest {
+
+    companion object: KLogging()
 
     @Test
     fun `acquire rebuilds lease annotations without mutating current lease`() {
@@ -53,15 +57,15 @@ class KubernetesLeaseLockTest {
 
         val acquired = lock.tryLock(waitTime = 0.seconds, leaseTime = 10.seconds)
 
-        acquired shouldBeEqualTo true
+        acquired.shouldBeTrue()
         current.metadata.annotations shouldBeEqualTo originalAnnotations
         updatedSlot.captured.metadata.annotations shouldBeEqualTo
-            linkedMapOf(
-                "existing" to "kept",
-                KubernetesLeaseAnnotations.AuditLeaderId to "partition-a",
-                KubernetesLeaseAnnotations.ManagedBy to KubernetesLeaseAnnotations.ManagedByValue,
-                KubernetesLeaseAnnotations.NodeId to "node-a",
-            )
+                linkedMapOf(
+                    "existing" to "kept",
+                    KubernetesLeaseAnnotations.AuditLeaderId to "partition-a",
+                    KubernetesLeaseAnnotations.ManagedBy to KubernetesLeaseAnnotations.ManagedByValue,
+                    KubernetesLeaseAnnotations.NodeId to "node-a",
+                )
         verify(exactly = 1) { client.resource(any<Lease>()) }
     }
 

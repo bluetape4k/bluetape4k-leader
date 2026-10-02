@@ -3,9 +3,9 @@ package io.bluetape4k.leader
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import java.util.concurrent.CancellationException
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -15,6 +15,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface AsyncLeaderElector: LeaderElectionState {
+
+    companion object: KLogging()
 
     /**
      * `runAsyncIfLeader`는 leadership을 획득한 경우에만 async action을 실행하고, 획득하지 못하면 null 결과를 완료합니다.
@@ -49,6 +51,7 @@ interface AsyncLeaderElector: LeaderElectionState {
         executor: Executor = VirtualThreadExecutor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
+        log.debug { "runAsyncIfLeader slot=$slot" }
         LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
         return runAsyncIfLeader(slot.lockName, executor, action)
     }
@@ -69,33 +72,25 @@ interface AsyncLeaderElector: LeaderElectionState {
         executor: Executor = VirtualThreadExecutor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<LeaderRunResult<T>> {
+        log.debug { "runAsyncIfLeaderResult slot=$slot" }
         LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         val elected = AtomicBoolean(false)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
-        return LeaderFutureBridge.map(runAsyncIfLeader(slot.lockName, executor) {
-            elected.set(true)
-            cancellationRelay.invoke(action)
-        }, cancellationRelay) { value, failure ->
-            when {
-                failure != null && elected.get() -> failure.toActionFailedResult()
-                failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value)
-                else -> LeaderRunResult.Skipped
+
+        return LeaderFutureBridge
+            .map(
+                runAsyncIfLeader(slot.lockName, executor) {
+                    elected.set(true)
+                    cancellationRelay.invoke(action)
+                },
+                cancellationRelay
+            ) { value, failure ->
+                when {
+                    failure != null && elected.get() -> failure.toActionFailedResult()
+                    failure != null                  -> throw failure.asCompletionException()
+                    elected.get()                    -> LeaderRunResult.Elected(value)
+                    else                             -> LeaderRunResult.Skipped
+                }
             }
-        }
     }
-
-    private fun Throwable.unwrapCompletionCause(): Throwable =
-        (this as? CompletionException)?.cause ?: this
-
-    private fun Throwable.toActionFailedResult(): LeaderRunResult.ActionFailed {
-        val cause = unwrapCompletionCause()
-        if (cause is CancellationException) {
-            throw cause
-        }
-        return LeaderRunResult.ActionFailed(cause)
-    }
-
-    private fun Throwable.asCompletionException(): CompletionException =
-        this as? CompletionException ?: CompletionException(this)
 }

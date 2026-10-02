@@ -7,4 +7,4 @@ package io.bluetape4k.leader.spring.diagnostics
  */
 class LeaderStartupDiagnosticsException(
     warningCodes: Collection<String>,
-) : IllegalStateException("Leader startup diagnostics failed: ${warningCodes.joinToString()}")
+): IllegalStateException("Leader startup diagnostics failed: ${warningCodes.joinToString()}")

@@ -1,9 +1,10 @@
 package io.bluetape4k.leader.spring.observability
 
-import io.bluetape4k.logging.KLogging
-import io.bluetape4k.logging.warn
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.warn
 import org.springframework.boot.health.contributor.AbstractHealthIndicator
 import org.springframework.boot.health.contributor.Health
 import org.springframework.boot.health.contributor.Status
@@ -14,7 +15,15 @@ import kotlin.time.Duration
 class LeaderBackendHealthIndicator(
     private val provider: LeaderBackendDiagnosticsProvider,
     private val timeout: Duration,
-) : AbstractHealthIndicator("Leader backend connectivity health check failed") {
+): AbstractHealthIndicator("Leader backend connectivity health check failed") {
+
+    private companion object: KLogging() {
+        const val DETAIL_BACKEND = "backend"
+        const val DETAIL_CONNECTIVITY = "connectivity"
+        const val DETAIL_REASON = "reason"
+        const val DETAIL_CHECKED_AT = "checkedAt"
+        const val DETAIL_LATENCY_MILLIS = "latencyMillis"
+    }
 
     override fun doHealthCheck(builder: Health.Builder) {
         val diagnostics = try {
@@ -39,22 +48,23 @@ class LeaderBackendHealthIndicator(
                 LeaderBackendConnectivityStatus.DOWN -> builder.down()
                 LeaderBackendConnectivityStatus.UNKNOWN,
                 LeaderBackendConnectivityStatus.NOT_CHECKED,
-                -> builder.status(Status.UNKNOWN)
+                                                   -> builder.status(Status.UNKNOWN)
             }
             builder
                 .withDetail(DETAIL_BACKEND, diagnostics.descriptor.backendId)
                 .withDetail(DETAIL_CONNECTIVITY, connectivity.status.name)
                 .withDetail(DETAIL_REASON, connectivity.reason.name)
+
             connectivity.checkedAt?.let { builder.withDetail(DETAIL_CHECKED_AT, it) }
             connectivity.latencyMillis?.let { builder.withDetail(DETAIL_LATENCY_MILLIS, it) }
         }
     }
 
-    private companion object : KLogging() {
-        const val DETAIL_BACKEND = "backend"
-        const val DETAIL_CONNECTIVITY = "connectivity"
-        const val DETAIL_REASON = "reason"
-        const val DETAIL_CHECKED_AT = "checkedAt"
-        const val DETAIL_LATENCY_MILLIS = "latencyMillis"
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("provider", provider)
+            .add("timeout", timeout.toString())
+            .add("health", health())
+            .toString()
     }
 }

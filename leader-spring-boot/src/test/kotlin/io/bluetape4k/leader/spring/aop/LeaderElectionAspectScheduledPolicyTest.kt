@@ -2,9 +2,9 @@ package io.bluetape4k.leader.spring.aop
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectorFactory
-import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.annotation.LeaderElection
@@ -13,6 +13,8 @@ import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.bluetape4k.leader.spring.scheduling.LeaderScheduledPolicyProperties
 import io.bluetape4k.leader.spring.scheduling.LeaderScheduledPolicyRegistry
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -29,6 +31,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class LeaderElectionAspectScheduledPolicyTest {
 
+    companion object: KLogging()
+
     private val election: LeaderElector = mockk(relaxed = true)
     private val factory: LeaderElectorFactory = mockk()
     private val beanSelector: LeaderBeanSelector = mockk()
@@ -40,7 +44,7 @@ class LeaderElectionAspectScheduledPolicyTest {
         clearMocks(election, factory, beanSelector, signature, pjp)
         every { factory.create(any()) } returns election
         every { beanSelector.selectElectionFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected("propertyFactory", factory)
+                LeaderBeanSelector.Selected("propertyFactory", factory)
     }
 
     @Test
@@ -52,6 +56,7 @@ class LeaderElectionAspectScheduledPolicyTest {
         val aspect = newAspect()
 
         aspect.aroundLeader(pjp) shouldBeEqualTo "plain"
+
         verify(exactly = 1) { pjp.proceed() }
         verify(exactly = 0) { beanSelector.selectElectionFactory(any(), any()) }
         verify(exactly = 0) { factory.create(any()) }
@@ -64,8 +69,11 @@ class LeaderElectionAspectScheduledPolicyTest {
         val policy = policy("scheduled#propertyJob", name = "property-lock")
         val registry = registry(policy, target, method)
         configure(target, method)
+
         every { pjp.proceed() } returns "property"
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } returns LeaderRunResult.Skipped
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } returns LeaderRunResult.Skipped
 
         val aspect = newAspect(registry)
 
@@ -88,19 +96,27 @@ class LeaderElectionAspectScheduledPolicyTest {
         )
         val registry = registry(policy, target, method)
         configure(target, method)
+
         every { pjp.proceed() } returns "property"
         val options = slot<LeaderElectionOptions>()
         val lockName = slot<String>()
         val action = slot<() -> Any?>()
         every { factory.create(capture(options)) } returns election
-        every { election.runIfLeaderResult(capture(lockName), capture(action)) } answers {
+        every {
+            election.runIfLeaderResult(capture(lockName), capture(action))
+        } answers {
             LeaderRunResult.Elected(action.captured.invoke())
         }
 
         val result = newAspect(registry).aroundLeader(pjp)
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo "property"
+
+        log.debug { "lockName=${lockName.captured}" }
         lockName.captured shouldBeEqualTo "property-lock"
+
+        log.debug { "options=${options.captured}" }
         options.captured.waitTime shouldBeEqualTo kotlin.time.Duration.ZERO
         options.captured.leaseTime shouldBeEqualTo 30.seconds
         options.captured.minLeaseTime shouldBeEqualTo 5.seconds
@@ -114,18 +130,26 @@ class LeaderElectionAspectScheduledPolicyTest {
         val registry = LeaderScheduledPolicyRegistry(listOf(property))
         registry.markObserved(property.selector)
         registry.freeze()
+
         configure(target, method)
-        every { beanSelector.selectElectionFactory("annotationFactory", method) } returns
-            LeaderBeanSelector.Selected("annotationFactory", factory)
+
+        every {
+            beanSelector.selectElectionFactory("annotationFactory", method)
+        } returns LeaderBeanSelector.Selected("annotationFactory", factory)
         every { pjp.proceed() } returns "annotation"
+
         val action = slot<() -> Any?>()
-        every { election.runIfLeaderResult(any<String>(), capture(action)) } answers {
+        every {
+            election.runIfLeaderResult(any<String>(), capture(action))
+        } answers {
             LeaderRunResult.Elected(action.captured.invoke())
         }
 
         val result = newAspect(registry).aroundLeader(pjp)
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo "annotation"
+
         verify(exactly = 1) { beanSelector.selectElectionFactory("annotationFactory", method) }
         verify(exactly = 0) { beanSelector.selectElectionFactory("propertyFactory", method) }
     }
@@ -148,19 +172,25 @@ class LeaderElectionAspectScheduledPolicyTest {
         every { pjp.target } answers { currentTarget }
         every { pjp.args } returns emptyArray()
         every { pjp.proceed() } answers { "body-${if (currentTarget === firstTarget) "first" else "second"}" }
+
         val lockNames = mutableListOf<String>()
         val lockName = slot<String>()
         val action = slot<() -> Any?>()
-        every { election.runIfLeaderResult(capture(lockName), capture(action)) } answers {
+
+        every {
+            election.runIfLeaderResult(capture(lockName), capture(action))
+        } answers {
             lockNames += lockName.captured
             LeaderRunResult.Elected(action.captured.invoke())
         }
 
         val aspect = newAspect(registry)
         aspect.aroundLeader(pjp) shouldBeEqualTo "body-first"
+
         currentTarget = secondTarget
         aspect.aroundLeader(pjp) shouldBeEqualTo "body-second"
 
+        log.debug { "lockName=${lockNames.joinToString()}" }
         lockNames shouldBeEqualTo listOf("first-lock", "second-lock")
     }
 

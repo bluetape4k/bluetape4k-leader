@@ -1,7 +1,8 @@
 package io.bluetape4k.leader.consul
 
-import io.bluetape4k.assertions.shouldBe
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
@@ -9,10 +10,27 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 
 class ConsulLeaderBackendDiagnosticsTest {
+
+    private companion object: KLogging() {
+        val nativeExecutionModels = setOf(
+            LeaderExecutionModel.BLOCKING,
+            LeaderExecutionModel.ASYNC,
+            LeaderExecutionModel.SUSPEND,
+        )
+        val supportedModes = LeaderBackendModeSupport(
+            single = LeaderBackendSupport.SUPPORTED,
+            group = LeaderBackendSupport.SUPPORTED,
+        )
+        val auditModes = LeaderBackendModeSupport(
+            single = LeaderBackendSupport.SUPPORTED,
+            group = LeaderBackendSupport.UNSUPPORTED,
+        )
+    }
 
     @Test
     fun `descriptor는 Consul 실행 모델과 session 계약을 보고한다`() {
@@ -27,7 +45,7 @@ class ConsulLeaderBackendDiagnosticsTest {
         capabilities.auditState shouldBeEqualTo auditModes
         capabilities.clockSource shouldBeEqualTo LeaderBackendClockSource.BACKEND
         capabilities.ttlMode shouldBeEqualTo LeaderBackendTtlMode.SESSION
-        capabilities.limitations shouldBeEqualTo emptyList()
+        capabilities.limitations.shouldBeEmpty()
     }
 
     @Test
@@ -46,23 +64,7 @@ class ConsulLeaderBackendDiagnosticsTest {
             ConsulSuspendLeaderGroupElector::class.java,
         ).forEach { electorType ->
             LeaderBackendDiagnosticsProvider::class.java
-                .isAssignableFrom(electorType) shouldBe true
+                .isAssignableFrom(electorType).shouldBeTrue()
         }
-    }
-
-    private companion object {
-        val nativeExecutionModels = setOf(
-            LeaderExecutionModel.BLOCKING,
-            LeaderExecutionModel.ASYNC,
-            LeaderExecutionModel.SUSPEND,
-        )
-        val supportedModes = LeaderBackendModeSupport(
-            single = LeaderBackendSupport.SUPPORTED,
-            group = LeaderBackendSupport.SUPPORTED,
-        )
-        val auditModes = LeaderBackendModeSupport(
-            single = LeaderBackendSupport.SUPPORTED,
-            group = LeaderBackendSupport.UNSUPPORTED,
-        )
     }
 }

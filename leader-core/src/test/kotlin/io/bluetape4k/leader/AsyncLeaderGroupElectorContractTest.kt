@@ -1,15 +1,21 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.codec.Base58
-import io.bluetape4k.leader.local.LocalAsyncLeaderGroupElector
-import io.bluetape4k.leader.local.LocalLeaderGroupElector
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.get
+import io.bluetape4k.leader.local.LocalAsyncLeaderGroupElector
+import io.bluetape4k.leader.local.LocalLeaderGroupElector
+import io.bluetape4k.logging.KLogging
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.untilAsserted
@@ -22,7 +28,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
@@ -51,7 +56,7 @@ class AsyncLeaderGroupElectorContractTest {
     fun `runAsyncIfLeader - 리더 획득 성공 시 CompletableFuture action 을 실행한다`() {
         val election: AsyncLeaderGroupElector = LocalAsyncLeaderGroupElector(options)
         val result = election.runAsyncIfLeader(randomLockName()) {
-            CompletableFuture.completedFuture("group-ok")
+            completableFutureOf("group-ok")
         }.join()
         result shouldBeEqualTo "group-ok"
     }
@@ -59,8 +64,8 @@ class AsyncLeaderGroupElectorContractTest {
     @Test
     fun `runAsyncIfLeader - 서로 다른 lockName 은 독립적인 슬롯 풀을 가진다`() {
         val election: AsyncLeaderGroupElector = LocalAsyncLeaderGroupElector(options)
-        val f1 = election.runAsyncIfLeader(randomLockName()) { CompletableFuture.completedFuture("a") }
-        val f2 = election.runAsyncIfLeader(randomLockName()) { CompletableFuture.completedFuture("b") }
+        val f1 = election.runAsyncIfLeader(randomLockName()) { completableFutureOf("a") }
+        val f2 = election.runAsyncIfLeader(randomLockName()) { completableFutureOf("b") }
 
         f1.join() shouldBeEqualTo "a"
         f2.join() shouldBeEqualTo "b"
@@ -72,12 +77,12 @@ class AsyncLeaderGroupElectorContractTest {
         val lockName = randomLockName()
         runCatching {
             election.runAsyncIfLeader(lockName) {
-                CompletableFuture.failedFuture<Unit>(RuntimeException("실패"))
+                failedCompletableFutureOf<Unit>(RuntimeException("실패"))
             }.join()
         }
 
         val result = election.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture("복구")
+            completableFutureOf("복구")
         }.join()
         result shouldBeEqualTo "복구"
     }
@@ -85,28 +90,30 @@ class AsyncLeaderGroupElectorContractTest {
     @Test
     fun `runAsyncIfLeaderResult - action future 실패는 ActionFailed 로 분류한다`() {
         val election: AsyncLeaderGroupElector = LocalAsyncLeaderGroupElector(options)
+        val slot = LeaderSlot(randomLockName(), "async-group-node")
         val failure = IllegalStateException("async-group-boom")
 
-        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "async-group-node")) {
-            CompletableFuture.failedFuture<Any?>(failure)
+        val result = election.runAsyncIfLeaderResult(slot) {
+            failedCompletableFutureOf<Any?>(failure)
         }.join()
 
-        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
-        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        result.cause shouldBeEqualTo failure
     }
 
     @Test
     fun `runAsyncIfLeaderResult - CancellationException 은 ActionFailed 로 감싸지 않는다`() {
         val election: AsyncLeaderGroupElector = LocalAsyncLeaderGroupElector(options)
+        val slot = LeaderSlot(randomLockName(), "async-group-node")
         val cancellation = CancellationException("async-group-cancelled")
 
         val thrown = assertFailsWith<CompletionException> {
-            election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "async-group-node")) {
-                CompletableFuture.failedFuture<Any?>(cancellation)
+            election.runAsyncIfLeaderResult(slot) {
+                failedCompletableFutureOf<Any?>(cancellation)
             }.join()
         }
 
-        thrown.cause shouldBeInstanceOf CancellationException::class
+        thrown.cause.shouldBeInstanceOf<CancellationException>()
     }
 
     // ── 상태 조회 (LeaderGroupElectionState 상속) ─────────────────────────
@@ -147,14 +154,14 @@ class AsyncLeaderGroupElectorContractTest {
                 }.join()
             }
         }
-        startLatch.await(2, TimeUnit.SECONDS)
+        startLatch.await(2.seconds)
 
         election.state(lockName).isFull.shouldBeTrue()
         election.availableSlots(lockName) shouldBeEqualTo 0
 
         holdLatch.countDown()
         executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS)
+        executor.awaitTermination(3.seconds)
     }
 
     // ── 동시 실행 제한 ────────────────────────────────────────────────────
@@ -166,9 +173,10 @@ class AsyncLeaderGroupElectorContractTest {
         val currentConcurrent = AtomicInteger(0)
         val peakConcurrent = AtomicInteger(0)
         val numTasks = maxLeaders * 4
-        val futures = (1..numTasks).map {
+
+        val futures = List(numTasks) {
             election.runAsyncIfLeader(lockName) {
-                CompletableFuture.supplyAsync {
+                futureOf {
                     val current = currentConcurrent.incrementAndGet()
                     peakConcurrent.updateAndGet { max(it, current) }
                     Thread.sleep(Random.nextLong(5, 15))
@@ -177,7 +185,6 @@ class AsyncLeaderGroupElectorContractTest {
             }
         }
         CompletableFuture.allOf(*futures.toTypedArray()).join()
-
         peakConcurrent.get() shouldBeLessOrEqualTo maxLeaders
     }
 
@@ -187,7 +194,7 @@ class AsyncLeaderGroupElectorContractTest {
     fun `LocalLeaderGroupElector 은 AsyncLeaderGroupElector 계약을 준수한다`() {
         val election: AsyncLeaderGroupElector = LocalLeaderGroupElector(options)
         val result = election.runAsyncIfLeader(randomLockName()) {
-            CompletableFuture.completedFuture(42)
+            completableFutureOf(42)
         }.join()
         result shouldBeEqualTo 42
     }
@@ -195,20 +202,21 @@ class AsyncLeaderGroupElectorContractTest {
     @Test
     fun `runAsyncIfLeaderResult - LocalLeaderGroupElector default bridge 도 ActionFailed 를 반환한다`() {
         val election: AsyncLeaderGroupElector = LocalLeaderGroupElector(options)
+        val slot = LeaderSlot(randomLockName(), "group-bridge-node")
         val failure = IllegalArgumentException("group-bridge-boom")
 
-        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "group-bridge-node")) {
-            CompletableFuture.failedFuture<Any?>(failure)
+        val result = election.runAsyncIfLeaderResult(slot) {
+            failedCompletableFutureOf<Any?>(failure)
         }.join()
 
-        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
-        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        result.cause shouldBeEqualTo failure
     }
 
     @Test
     fun `runAsyncIfLeaderResult - group 반환 future 취소가 원본 future 로 전파된다`() {
         val source = CompletableFuture<Any?>()
-        val election = object : AsyncLeaderGroupElector {
+        val election = object: AsyncLeaderGroupElector {
             override val maxLeaders: Int = 1
 
             override fun activeCount(lockName: String): Int = 0
@@ -225,8 +233,9 @@ class AsyncLeaderGroupElectorContractTest {
             ): CompletableFuture<T?> = source as CompletableFuture<T?>
         }
 
-        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "group-bridge-cancel-node")) {
-            CompletableFuture.completedFuture("unused")
+        val slot = LeaderSlot(randomLockName(), "group-bridge-cancel-node")
+        val result = election.runAsyncIfLeaderResult(slot) {
+            completableFutureOf("unused")
         }
 
         result.cancel(false).shouldBeTrue()
@@ -237,25 +246,26 @@ class AsyncLeaderGroupElectorContractTest {
     fun `runAsyncIfLeaderResult - group 반환 future 취소가 action future와 lease lifecycle로 전파된다`() {
         val election: AsyncLeaderGroupElector = LocalAsyncLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 1))
         val lockName = randomLockName()
+        val slot = LeaderSlot(lockName, "async-group-cancel-node")
         val executor = Executors.newVirtualThreadPerTaskExecutor()
         val actionStarted = CountDownLatch(1)
         val actionFuture = CompletableFuture<String>()
 
         try {
-            val result = election.runAsyncIfLeaderResult(LeaderSlot(lockName, "async-group-cancel-node"), executor) {
+            val result = election.runAsyncIfLeaderResult(slot, executor) {
                 actionStarted.countDown()
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
-            await.atMost(2.seconds).untilAsserted {
+            await atMost 2.seconds untilAsserted {
                 actionFuture.isCancelled.shouldBeTrue()
             }
-            await.atMost(2.seconds).untilAsserted {
+            await atMost 2.seconds untilAsserted {
                 election.runAsyncIfLeader(lockName, executor) {
-                    CompletableFuture.completedFuture("reacquired")
-                }.get(1, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+                    completableFutureOf("reacquired")
+                }.get(1.seconds) shouldBeEqualTo "reacquired"
             }
         } finally {
             executor.shutdownNow()
@@ -265,7 +275,7 @@ class AsyncLeaderGroupElectorContractTest {
     @Test
     fun `runAsyncIfLeader - nullable 반환 future 취소가 모든 Local group action과 slot lifecycle로 전파된다`() {
         val singleSlotOptions = LeaderGroupElectionOptions(maxLeaders = 1)
-        listOf<AsyncLeaderGroupElector>(
+        listOf(
             LocalAsyncLeaderGroupElector(singleSlotOptions),
             LocalLeaderGroupElector(singleSlotOptions),
         ).forEach { election ->
@@ -285,18 +295,18 @@ class AsyncLeaderGroupElectorContractTest {
         try {
             executor.submit {
                 blockerStarted.countDown()
-                releaseBlocker.await(2, TimeUnit.SECONDS)
+                releaseBlocker.await(2.seconds)
             }
-            blockerStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            blockerStarted.await(2.seconds).shouldBeTrue()
 
             val result = election.runAsyncIfLeader(randomLockName(), executor) {
                 actionInvoked.set(true)
-                CompletableFuture.completedFuture("unexpected")
+                completableFutureOf("unexpected")
             }
 
             result.cancel(false).shouldBeTrue()
             releaseBlocker.countDown()
-            executor.submit {}.get(2, TimeUnit.SECONDS)
+            executor.submit {}.get(2.seconds)
             actionInvoked.get().shouldBeFalse()
         } finally {
             releaseBlocker.countDown()
@@ -307,23 +317,24 @@ class AsyncLeaderGroupElectorContractTest {
     @Test
     fun `runAsyncIfLeader - nullable Local group overload는 executor rejection을 즉시 전파한다`() {
         val rejected = Executor { throw RejectedExecutionException("rejected") }
+        val slot = LeaderSlot(randomLockName(), "rejected-group-node")
         val actionInvoked = AtomicBoolean()
         val singleSlotOptions = LeaderGroupElectionOptions(maxLeaders = 1)
 
-        listOf<AsyncLeaderGroupElector>(
+        listOf(
             LocalAsyncLeaderGroupElector(singleSlotOptions),
             LocalLeaderGroupElector(singleSlotOptions),
         ).forEach { election ->
             assertFailsWith<RejectedExecutionException> {
                 election.runAsyncIfLeader(randomLockName(), rejected) {
                     actionInvoked.set(true)
-                    CompletableFuture.completedFuture("unexpected")
+                    completableFutureOf("unexpected")
                 }
             }
             assertFailsWith<RejectedExecutionException> {
-                election.runAsyncIfLeader(LeaderSlot(randomLockName(), "rejected-group-node"), rejected) {
+                election.runAsyncIfLeader(slot, rejected) {
                     actionInvoked.set(true)
-                    CompletableFuture.completedFuture("unexpected")
+                    completableFutureOf("unexpected")
                 }
             }
         }
@@ -334,25 +345,26 @@ class AsyncLeaderGroupElectorContractTest {
     fun `runAsyncIfLeaderResult - group listener decorator도 반환 future 취소를 action future로 전파한다`() {
         val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 1)).withListeners()
         val lockName = randomLockName()
+        val slot = LeaderSlot(lockName, "group-listener-cancel-node")
         val executor = Executors.newVirtualThreadPerTaskExecutor()
         val actionStarted = CountDownLatch(1)
         val actionFuture = CompletableFuture<String>()
 
         try {
-            val result = election.runAsyncIfLeaderResult(LeaderSlot(lockName, "group-listener-cancel-node"), executor) {
+            val result = election.runAsyncIfLeaderResult(slot, executor) {
                 actionStarted.countDown()
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             await.atMost(2.seconds).untilAsserted {
                 actionFuture.isCancelled.shouldBeTrue()
             }
             await.atMost(2.seconds).untilAsserted {
                 election.runAsyncIfLeader(lockName, executor) {
-                    CompletableFuture.completedFuture("reacquired")
-                }.get(1, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+                    completableFutureOf("reacquired")
+                }.get(1.seconds) shouldBeEqualTo "reacquired"
             }
         } finally {
             executor.shutdownNow()
@@ -362,7 +374,7 @@ class AsyncLeaderGroupElectorContractTest {
     @Test
     fun `VirtualThreadLeaderGroupElector result bridge 도 반환 future 취소를 원본으로 전파한다`() {
         val source = CompletableFuture<Any?>()
-        val election = object : VirtualThreadLeaderGroupElector {
+        val election = object: VirtualThreadLeaderGroupElector {
             override val maxLeaders: Int = 1
 
             override fun activeCount(lockName: String): Int = 0
@@ -379,7 +391,8 @@ class AsyncLeaderGroupElectorContractTest {
                 io.bluetape4k.concurrent.virtualthread.VirtualFuture(source as java.util.concurrent.Future<T?>)
         }
 
-        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "virtual-group-cancel-node")) { "unused" }
+        val slot = LeaderSlot(randomLockName(), "virtual-group-cancel-node")
+        val result = election.runAsyncIfLeaderResult(slot) { "unused" }
 
         result.cancel(false).shouldBeTrue()
         source.isCancelled.shouldBeTrue()
@@ -390,13 +403,15 @@ class AsyncLeaderGroupElectorContractTest {
         useSlot: Boolean,
     ) {
         val lockName = randomLockName()
+        val slot = LeaderSlot(lockName, "nullable-group-cancel-node")
         val executor = Executors.newVirtualThreadPerTaskExecutor()
         val actionStarted = CountDownLatch(1)
         val actionFuture = CompletableFuture<String>()
 
         try {
+
             val result = if (useSlot) {
-                election.runAsyncIfLeader(LeaderSlot(lockName, "nullable-group-cancel-node"), executor) {
+                election.runAsyncIfLeader(slot, executor) {
                     actionStarted.countDown()
                     actionFuture
                 }
@@ -407,15 +422,16 @@ class AsyncLeaderGroupElectorContractTest {
                 }
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
-            await.atMost(2.seconds).untilAsserted {
+
+            await atMost 2.seconds untilAsserted {
                 actionFuture.isCancelled.shouldBeTrue()
             }
-            await.atMost(2.seconds).untilAsserted {
+            await atMost 2.seconds untilAsserted {
                 election.runAsyncIfLeader(lockName, executor) {
-                    CompletableFuture.completedFuture("reacquired")
-                }.get(1, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+                    completableFutureOf("reacquired")
+                }.get(1.seconds) shouldBeEqualTo "reacquired"
             }
         } finally {
             actionFuture.cancel(true)

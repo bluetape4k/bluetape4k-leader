@@ -1,6 +1,13 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionException
@@ -11,11 +18,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeLessOrEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
@@ -65,7 +67,12 @@ class SuspendLeaderGroupElectorContractTest {
     @Test
     fun `runIfLeader - action 예외 후에도 슬롯이 반환되어 다음 호출이 성공한다`() = runSuspendIO {
         val lockName = randomLockName()
-        runCatching { election.runIfLeader(lockName) { throw LeaderGroupElectionException("실패") } }
+
+        assertFailsWith<LeaderGroupElectionException> {
+            election.runIfLeader(lockName) {
+                throw LeaderGroupElectionException("실패")
+            }
+        }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
@@ -98,13 +105,13 @@ class SuspendLeaderGroupElectorContractTest {
             val holdSignal = kotlinx.coroutines.CompletableDeferred<Unit>()
             val startedCount = AtomicInteger(0)
 
-            val jobs = (1..maxLeaders).map {
+            val jobs = List(maxLeaders) {
                 async {
                     election.runIfLeader(lockName) {
                         startedCount.incrementAndGet()
                         holdSignal.await()
                     }
-                }
+                }.log("Job #$it")
             }
 
             while (startedCount.get() < maxLeaders) {
@@ -116,7 +123,7 @@ class SuspendLeaderGroupElectorContractTest {
             election.state(lockName).isFull.shouldBeTrue()
 
             holdSignal.complete(Unit)
-            jobs.awaitAll()
+            jobs.awaitAll() shouldHaveSize maxLeaders
         }
 
         election.activeCount(lockName) shouldBeEqualTo 0
@@ -138,7 +145,8 @@ class SuspendLeaderGroupElectorContractTest {
                 election.runIfLeader(lockName) {
                     val current = currentConcurrent.incrementAndGet()
                     peakConcurrent.updateAndGet { max(it, current) }
-                    delay(Random.nextLong(5, 15).milliseconds)
+                    log.debug { "peak concurrent=${peakConcurrent.get()}, current=$current" }
+                    delay(Random.nextLong(5, 30).milliseconds)
                     currentConcurrent.decrementAndGet()
                 }
             }

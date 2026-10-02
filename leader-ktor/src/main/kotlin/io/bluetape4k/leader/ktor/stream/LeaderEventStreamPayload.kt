@@ -2,6 +2,8 @@ package io.bluetape4k.leader.ktor.stream
 
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.ktor.jsonValue
+import io.bluetape4k.support.requireLe
+import io.bluetape4k.support.requireZeroOrPositiveNumber
 
 /**
  * Leader event stream에서 사용하는 stable JSON payload builder입니다.
@@ -63,9 +65,9 @@ internal object LeaderEventStreamPayload {
 
     /** replay cursor가 보존 범위를 벗어났음을 알리는 control payload입니다. */
     fun replayGap(from: Long, to: Long): String {
-        require(from >= 0) { "replay gap의 from은 음수가 될 수 없습니다: $from" }
-        require(to >= 0) { "replay gap의 to는 음수가 될 수 없습니다: $to" }
-        require(from <= to) { "replay gap의 from은 to보다 클 수 없습니다: from=$from, to=$to" }
+        from.requireZeroOrPositiveNumber("from")
+        to.requireZeroOrPositiveNumber("to")
+        from.requireLe(to) { "replay gap의 from은 to보다 클 수 없습니다: from=$from, to=$to" }
         return "{\"event\":\"replay_gap\",\"from\":$from,\"to\":$to}"
     }
 }

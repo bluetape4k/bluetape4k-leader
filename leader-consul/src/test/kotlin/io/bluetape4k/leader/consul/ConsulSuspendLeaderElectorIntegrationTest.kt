@@ -3,16 +3,21 @@ package io.bluetape4k.leader.consul
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import io.bluetape4k.testcontainers.infra.ConsulServer
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
@@ -25,6 +30,8 @@ import kotlin.time.Duration.Companion.seconds
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ConsulSuspendLeaderElectorIntegrationTest {
+
+    companion object: KLoggingChannel()
 
     private val consul: ConsulServer by lazy { ConsulServer.Launcher.consul }
 
@@ -62,9 +69,10 @@ class ConsulSuspendLeaderElectorIntegrationTest {
                 release.await()
                 "holder"
             }
-        }
+        }.log("Holder Job")
 
         started.await()
+
         contender.runIfLeader(lockName) { "contender" }.shouldBeNull()
 
         release.complete(Unit)
@@ -82,14 +90,16 @@ class ConsulSuspendLeaderElectorIntegrationTest {
         )
         val slot = LeaderSlot(lockName = randomName(), leaderId = "suspend-audit-node-a")
 
-        elector.supportsAuditLeaderState shouldBeEqualTo true
+        elector.supportsAuditLeaderState.shouldBeTrue()
         elector.runIfLeader(slot) {
             val state = elector.state(slot.lockName)
 
+            log.debug { "state=$state" }
             state.leader.shouldNotBeNull()
             state.leader?.auditLeaderId shouldBeEqualTo "suspend-audit-node-a"
             state.leader?.nodeId shouldBeEqualTo "consul-suspend-node-a"
             "ok"
+
         } shouldBeEqualTo "ok"
     }
 
@@ -98,7 +108,7 @@ class ConsulSuspendLeaderElectorIntegrationTest {
         val elector = newElector()
         val lockName = randomName()
 
-        assertFailsWith<kotlinx.coroutines.TimeoutCancellationException> {
+        assertFailsWith<TimeoutCancellationException> {
             withTimeout(100.milliseconds) {
                 elector.runIfLeader(lockName) {
                     delay(10.seconds)
@@ -131,7 +141,7 @@ class ConsulSuspendLeaderElectorIntegrationTest {
             LockExtender.extendActiveLockSuspend(10.seconds)
         }
 
-        extended shouldBeEqualTo true
+        extended.shouldBeTrue()
     }
 
     @Test

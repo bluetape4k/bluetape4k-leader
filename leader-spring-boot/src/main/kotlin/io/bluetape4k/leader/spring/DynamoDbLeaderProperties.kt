@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring
 
+import java.io.Serializable
 import java.time.Duration
 
 /**
@@ -17,9 +18,11 @@ data class DynamoDbLeaderProperties(
     val retryDelay: Duration = Duration.ofMillis(50),
     val ttlPadding: Duration = Duration.ofSeconds(60),
     val clockSkewTolerance: Duration = Duration.ofSeconds(5),
-) {
+): Serializable {
     companion object {
         const val DefaultTableName: String = "bluetape4k_leader_locks"
         const val DefaultKeyPrefix: String = "leader"
+
+        private const val serialVersionUID: Long = 1L
     }
 }

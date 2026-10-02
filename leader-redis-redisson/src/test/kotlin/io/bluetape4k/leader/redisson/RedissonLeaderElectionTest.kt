@@ -1,7 +1,20 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeInRange
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.get
+import io.bluetape4k.concurrent.join
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
+import io.bluetape4k.concurrent.virtualthread.virtualFuture
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -10,18 +23,9 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterThan
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeNull
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
@@ -29,7 +33,10 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.random.Random
+import kotlin.concurrent.thread
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
 
@@ -70,7 +77,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
                 }
             }
 
-            countDownLatch.await()
+            countDownLatch.await(3.seconds)
         } finally {
             executor.shutdownNow()
         }
@@ -80,7 +87,6 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     fun `run async action if leader`() {
         val lockName = randomName()
         val leaderElection = RedissonLeaderElector(redissonClient)
-        val countDownLatch = CountDownLatch(2)
 
         val future1 = futureOf {
             leaderElection.runAsyncIfLeader(lockName) {
@@ -88,7 +94,6 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
                     log.debug { "작업 1 을 시작합니다." }
                     randomSleep(90, 100)
                     log.debug { "작업 1 을 종료합니다." }
-                    countDownLatch.countDown()
                     42
                 }
             }.join()
@@ -99,14 +104,12 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
                     log.debug { "작업 2 을 시작합니다." }
                     randomSleep(90, 100)
                     log.debug { "작업 2 을 종료합니다." }
-                    countDownLatch.countDown()
                     43
                 }
             }.join()
         }
-        countDownLatch.await(5, TimeUnit.SECONDS)
-        future1.get() shouldBeEqualTo 42
-        future2.get() shouldBeEqualTo 43
+        future1.get(3.seconds) shouldBeEqualTo 42
+        future2.get(3.seconds) shouldBeEqualTo 43
     }
 
     @Test
@@ -121,14 +124,14 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
         assertFailsWith<CompletionException> {
             leaderElection
                 .runAsyncIfLeader(lockName) {
-                    CompletableFuture.failedFuture<Int>(IllegalStateException("boom"))
+                    failedCompletableFutureOf<Int>(IllegalStateException("boom"))
                 }
                 .join()
         }
 
         leaderElection
-            .runAsyncIfLeader(lockName) { CompletableFuture.completedFuture(1) }
-            .get(2, TimeUnit.SECONDS) shouldBeEqualTo 1
+            .runAsyncIfLeader(lockName) { completableFutureOf(1) }
+            .get(2.seconds) shouldBeEqualTo 1
     }
 
     @Test
@@ -151,18 +154,18 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
                 val attemptLockName = "$lockName-$attempt"
 
                 val first = leaderElection.runAsyncIfLeader(attemptLockName) {
-                    CompletableFuture.completedFuture("first-$attempt")
+                    completableFutureOf("first-$attempt")
                 }
-                first.get(2, TimeUnit.SECONDS) shouldBeEqualTo "first-$attempt"
+                first.get(2.seconds) shouldBeEqualTo "first-$attempt"
 
                 val second = leaderElection.runAsyncIfLeader(attemptLockName) {
-                    CompletableFuture.completedFuture("second-$attempt")
+                    completableFutureOf("second-$attempt")
                 }
-                second.get(2, TimeUnit.SECONDS) shouldBeEqualTo "second-$attempt"
+                second.get(2.seconds) shouldBeEqualTo "second-$attempt"
             }
             .run()
 
-        attempts.get() shouldBeEqualTo 20
+        attempts.get() shouldBeEqualTo 4 * 5
     }
 
     @Test
@@ -181,11 +184,11 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
 
         assertFailsWith<CompletionException> {
             failed.join()
-        }.cause shouldBeInstanceOf IllegalStateException::class
+        }.cause.shouldBeInstanceOf<IllegalStateException>()
 
         leaderElection
-            .runAsyncIfLeader(lockName) { CompletableFuture.completedFuture("recovered") }
-            .get(2, TimeUnit.SECONDS) shouldBeEqualTo "recovered"
+            .runAsyncIfLeader(lockName) { completableFutureOf("recovered") }
+            .get(2.seconds) shouldBeEqualTo "recovered"
     }
 
     @Test
@@ -251,18 +254,19 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             val holder = executor.submit<String?> {
                 leaderElection.runIfLeader(lockName) {
                     started.countDown()
-                    release.await(1, TimeUnit.SECONDS)
+                    release.await(1.seconds)
                     "holder"
                 }
             }
 
-            started.await(1, TimeUnit.SECONDS)
+            started.await(1.seconds)
             Thread.sleep(450)
 
             leaderElection.runIfLeader(lockName) { "contender" }.shouldBeNull()
 
             release.countDown()
-            holder.get(2, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+            holder.get(2.seconds) shouldBeEqualTo "holder"
+
             leaderElection.runIfLeader(lockName) { "after-release" } shouldBeEqualTo "after-release"
         } finally {
             release.countDown()
@@ -288,13 +292,14 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
         try {
             executor.submit<String?> {
                 leaderElection.runIfLeader(lockName) { "too-early" }
-            }.get(2, TimeUnit.SECONDS).shouldBeNull()
+            }.get(2.seconds).shouldBeNull()
 
             Thread.sleep(450)
 
             executor.submit<String?> {
                 leaderElection.runIfLeader(lockName) { "after-min" }
-            }.get(2, TimeUnit.SECONDS) shouldBeEqualTo "after-min"
+            }.get(2.seconds) shouldBeEqualTo "after-min"
+
         } finally {
             executor.shutdownNow()
         }
@@ -316,16 +321,15 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             val lock = redissonClient.getLock(lockName)
             lock.lock(3, TimeUnit.SECONDS)
             lockAcquired.countDown()
-            runCatching { releaseLock.await(2, TimeUnit.SECONDS) }
+            runCatching { releaseLock.await(2.seconds) }
             if (lock.isHeldByCurrentThread) {
                 lock.unlock()
             }
         }
 
         try {
-            lockAcquired.await(1, TimeUnit.SECONDS)
-            val result = leaderElection.runIfLeader(lockName) { 1 }
-            result shouldBeEqualTo null
+            lockAcquired.await(1.seconds)
+            leaderElection.runIfLeader(lockName) { 1 }.shouldBeNull()
         } finally {
             releaseLock.countDown()
             lockHolder.shutdownNow()
@@ -343,7 +347,8 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
         val workerStarted = CountDownLatch(1)
         val thrown = AtomicReference<Throwable?>()
         val interrupted = AtomicReference(false)
-        val worker = Thread {
+
+        val worker = thread(start = false) {
             workerStarted.countDown()
             try {
                 leaderElection.runIfLeader(lockName) { error("interrupted contender must not run") }
@@ -358,7 +363,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             lock.lock(5, TimeUnit.SECONDS)
             holderReady.countDown()
             try {
-                releaseHolder.await(5, TimeUnit.SECONDS)
+                releaseHolder.await(5.seconds)
             } finally {
                 if (lock.isHeldByCurrentThread) {
                     lock.unlock()
@@ -367,14 +372,14 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
         }
 
         try {
-            holderReady.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+            holderReady.await(2.seconds).shouldBeTrue()
             worker.start()
-            workerStarted.await(1, TimeUnit.SECONDS) shouldBeEqualTo true
+            workerStarted.await(1.seconds).shouldBeTrue()
             worker.interrupt()
-            worker.join(2_000)
+            worker.join(2.seconds)
 
-            thrown.get() shouldBeInstanceOf InterruptedException::class
-            interrupted.get() shouldBeEqualTo true
+            thrown.get().shouldBeInstanceOf<InterruptedException>()
+            interrupted.get().shouldBeTrue()
         } finally {
             worker.interrupt()
             releaseHolder.countDown()
@@ -413,6 +418,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             }
             .run()
 
+        log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
         task1.get() shouldBeGreaterThan 0
         task2.get() shouldBeGreaterThan 0
     }
@@ -448,6 +454,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             }
             .run()
 
+        log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
         task1.get() shouldBeGreaterThan 0
         task2.get() shouldBeGreaterThan 0
     }
@@ -489,6 +496,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             }
             .run()
 
+        log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
         task1.get() shouldBeGreaterThan 0
         task2.get() shouldBeGreaterThan 0
     }
@@ -508,28 +516,29 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             .rounds(numThreads * roundsPerThread / 2)
             .add {
                 leaderElection.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-                    futureOf {
+                    virtualFuture {
                         log.debug { "작업 1 을 시작합니다. task1=${task1.get()}" }
                         task1.incrementAndGet()
                         randomSleep()
                         log.debug { "작업 1 을 종료합니다. task1=${task1.get()}" }
                         42
-                    }
+                    }.toCompletableFuture()
                 }.join()
             }
             .add {
                 leaderElection.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-                    futureOf {
+                    virtualFuture {
                         log.debug { "작업 2 을 시작합니다. task2=${task2.get()}" }
                         task2.incrementAndGet()
                         randomSleep()
                         log.debug { "작업 2 을 종료합니다. task2=${task2.get()}" }
                         43
-                    }
+                    }.toCompletableFuture()
                 }.join()
             }
             .run()
 
+        log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
         task1.get() shouldBeGreaterThan 0
         task2.get() shouldBeGreaterThan 0
     }
@@ -539,7 +548,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
      *
      * 여러 스레드가 동일한 락 이름으로 [RedissonLeaderElector.runIfLeader]를 동시에 호출할 때,
      * 리더로 선출된 스레드는 카운터를 증가시키고,
-     * 락 획득에 실패한 스레드는 [RedisException]을 안전하게 삼킨다.
+     * 락 획득에 실패한 스레드는 `RedisException`을 안전하게 삼킨다.
      */
     @Test
     fun `동시 다수 스레드에서 runIfLeader 호출 시 성공하거나 RedisException 을 발생시킨다`() {
@@ -566,6 +575,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             .run()
 
         log.debug { "총 성공 횟수: ${successCount.get()}" }
+        successCount.get() shouldBeInRange 1..<16 * 4
     }
 
     /**
@@ -584,7 +594,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
         val successCount = AtomicInteger(0)
 
         StructuredTaskScopeTester()
-            .rounds(32)
+            .rounds(64)
             .add {
                 runCatching {
                     leaderElection.runIfLeader(lockName) {
@@ -597,11 +607,6 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             .run()
 
         log.debug { "총 성공 횟수: ${successCount.get()}" }
+        successCount.get() shouldBeInRange 1..<64
     }
-
-    private fun randomSleep(from: Long = 5L, until: Long = 10L) {
-        Thread.sleep(Random.nextLong(from, until))
-    }
-
-
 }

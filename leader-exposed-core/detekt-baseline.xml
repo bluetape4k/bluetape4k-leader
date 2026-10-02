@@ -1,10 +1,10 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>CyclomaticComplexMethod:MetadataJsonCodec.kt:MetadataJsonCodec$fun decode: Map&lt;String, String></ID>
-    <ID>LoopWithTooManyJumpStatements:MetadataJsonCodec.kt:MetadataJsonCodec$while</ID>
-    <ID>ReturnCount:MetadataJsonCodec.kt:MetadataJsonCodec$fun decode: Map&lt;String, String></ID>
-    <ID>ReturnCount:MetadataJsonCodec.kt:MetadataJsonCodec$private fun readString: Pair&lt;String, Int>?</ID>
-  </CurrentIssues>
+    <ManuallySuppressedIssues/>
+    <CurrentIssues>
+        <ID>CyclomaticComplexMethod:MetadataJsonCodec.kt:MetadataJsonCodec$fun decode: Map&lt;String, String></ID>
+        <ID>LoopWithTooManyJumpStatements:MetadataJsonCodec.kt:MetadataJsonCodec$while</ID>
+        <ID>ReturnCount:MetadataJsonCodec.kt:MetadataJsonCodec$fun decode: Map&lt;String, String></ID>
+        <ID>ReturnCount:MetadataJsonCodec.kt:MetadataJsonCodec$private fun readString: Pair&lt;String, Int>?</ID>
+    </CurrentIssues>
 </SmellBaseline>

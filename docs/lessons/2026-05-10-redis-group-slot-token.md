@@ -113,10 +113,10 @@ fun attempt(): CompletableFuture<String?> {
         else result
     }.thenCompose { result ->
         when {
-            !result.isNullOrEmpty() -> CompletableFuture.completedFuture(result)
+            !result.isNullOrEmpty() -> completableFutureOf(result)
             System.nanoTime() < deadlineNanos -> CompletableFuture.runAsync({}, delayed).thenCompose { attempt() }
-            lastError.get() != null -> CompletableFuture.failedFuture(lastError.get()!!)
-            else -> CompletableFuture.completedFuture(null)
+            lastError.get() != null -> failedCompletableFutureOf(lastError.get()!!)
+            else -> completableFutureOf(null)
         }
     }
 }

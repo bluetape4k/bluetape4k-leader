@@ -6,13 +6,20 @@ dependencies {
     api(project(":bluetape4k-leader-core"))
     api(bt4k.mongodb.driver.sync)
     compileOnly(bt4k.mongodb.driver.kotlin.coroutine)
+
+    // Micrometer
     compileOnly(libs.micrometer.core)
+    compileOnly(bt4k.bluetape4k.micrometer)
 
-    testImplementation(bt4k.bluetape4k.virtualthread.jdk25)
-    testImplementation(bt4k.bluetape4k.junit5)
+    // Coroutines
+    compileOnly(bt4k.bluetape4k.coroutines)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(bt4k.mongodb.driver.kotlin.coroutine)
 
+    // Testing
+    testImplementation(bt4k.bluetape4k.junit5)
+    testImplementation(bt4k.bluetape4k.virtualthread.jdk25)
+
+    // Testcontainers
     testImplementation(bt4k.bluetape4k.testcontainers)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)

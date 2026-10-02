@@ -1,5 +1,8 @@
 package io.bluetape4k.leader.spring
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderGroupElector
@@ -10,9 +13,6 @@ import io.bluetape4k.leader.redisson.RedissonLeaderGroupElector
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElector
 import kotlinx.coroutines.runBlocking
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.redisson.api.RedissonClient
@@ -32,10 +32,10 @@ class LeaderElectionAutoConfigurationTest: AbstractRedissonAutoConfigurationTest
     @Test
     fun `Redisson 4 종 election 빈이 모두 정상 주입`() {
         runner.run { ctx ->
-            ctx.getBean<LeaderElector>() shouldBeInstanceOf RedissonLeaderElector::class
-            ctx.getBean<SuspendLeaderElector>() shouldBeInstanceOf RedissonSuspendLeaderElector::class
-            ctx.getBean<LeaderGroupElector>() shouldBeInstanceOf RedissonLeaderGroupElector::class
-            ctx.getBean<SuspendLeaderGroupElector>() shouldBeInstanceOf RedissonSuspendLeaderGroupElector::class
+            ctx.getBean<LeaderElector>().shouldBeInstanceOf<RedissonLeaderElector>()
+            ctx.getBean<SuspendLeaderElector>().shouldBeInstanceOf<RedissonSuspendLeaderElector>()
+            ctx.getBean<LeaderGroupElector>().shouldBeInstanceOf<RedissonLeaderGroupElector>()
+            ctx.getBean<SuspendLeaderGroupElector>().shouldBeInstanceOf<RedissonSuspendLeaderGroupElector>()
         }
     }
 
@@ -44,6 +44,7 @@ class LeaderElectionAutoConfigurationTest: AbstractRedissonAutoConfigurationTest
         runner.run { ctx ->
             val election = ctx.getBean<LeaderElector>()
             val lockName = "auto-config-test-${Base58.randomString(8)}"
+
             val result = election.runIfLeader(lockName) { 42 }
             result shouldBeEqualTo 42
         }
@@ -54,6 +55,7 @@ class LeaderElectionAutoConfigurationTest: AbstractRedissonAutoConfigurationTest
         runner.run { ctx ->
             val election = ctx.getBean<SuspendLeaderElector>()
             val lockName = "auto-config-suspend-${Base58.randomString(8)}"
+
             val result = runBlocking { election.runIfLeader(lockName) { 99 } }
             result shouldBeEqualTo 99
         }

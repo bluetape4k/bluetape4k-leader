@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.spring.aop.util
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.validateLockName
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireLe
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
@@ -19,6 +21,11 @@ class LockNameValidator(
     val prefix: String = "",
     val maxLength: Int = DEFAULT_MAX_LENGTH,
 ) {
+    companion object: KLogging() {
+        const val DEFAULT_MAX_LENGTH: Int = 256
+        private val NAME_PATTERN = Regex("^[A-Za-z0-9_:.\\-]+$")
+    }
+
     init {
         maxLength.requirePositiveNumber("maxLength")
     }
@@ -47,11 +54,11 @@ class LockNameValidator(
      * 못하며, 호출자는 backend에 전달할 최종 키를 그대로 사용할 수 있습니다.
      */
     fun validateEffectiveName(name: String): String {
-        validateLockName(name)
+        name.validateLockName("name")
         name.length.requireLe(maxLength, "name.length")
         return applyPrefix(name).also {
             it.length.requireLe(maxLength, "effectiveName.length")
-            validateLockName(it)
+            it.validateLockName()
         }
     }
 
@@ -63,8 +70,10 @@ class LockNameValidator(
     fun applyPrefix(name: String): String =
         if (prefix.isEmpty()) name else "$prefix$name"
 
-    companion object {
-        const val DEFAULT_MAX_LENGTH: Int = 256
-        private val NAME_PATTERN = Regex("^[A-Za-z0-9_:.\\-]+$")
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("prefix", prefix)
+            .add("maxLength", maxLength)
+            .toString()
     }
 }

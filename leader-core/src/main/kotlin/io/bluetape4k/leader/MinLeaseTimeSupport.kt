@@ -29,7 +29,6 @@ fun remainingMinLeaseTime(startedAtNanos: Long, minLeaseTime: Duration): Duratio
  * @param minLeaseTime 작업이 빨리 끝나더라도 lease를 최소로 유지할 시간입니다.
  * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
-@Suppress("BlockingMethodInNonBlockingContext")
 internal fun parkRemainingMinLeaseTime(startedAtNanos: Long, minLeaseTime: Duration) {
     val remaining = remainingMinLeaseTime(startedAtNanos, minLeaseTime)
     if (remaining > Duration.ZERO) {

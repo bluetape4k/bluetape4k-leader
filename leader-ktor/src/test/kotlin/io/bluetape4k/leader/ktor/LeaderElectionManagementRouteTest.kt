@@ -3,11 +3,14 @@ package io.bluetape4k.leader.ktor
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.ktor.testing.shouldHaveStatus
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
@@ -21,6 +24,8 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionManagementRouteTest {
 
+    companion object: KLoggingChannel()
+
     @Test
     fun `management route is disabled by default`() = runSuspendIO {
         testApplication {
@@ -33,6 +38,7 @@ class LeaderElectionManagementRouteTest {
 
             val response = client.get("/management/leaderElection")
 
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.NotFound
         }
     }
@@ -51,9 +57,10 @@ class LeaderElectionManagementRouteTest {
 
             val response = client.get("/management/leaderElection")
 
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.OK
             response.bodyAsText() shouldBeEqualTo
-                """{"locks":[{"name":"batch-job","status":"Empty","leaderId":null,"leaseExpiry":null}]}"""
+                    """{"locks":[{"name":"batch-job","status":"Empty","leaderId":null,"leaseExpiry":null}]}"""
         }
     }
 
@@ -72,6 +79,7 @@ class LeaderElectionManagementRouteTest {
 
             val response = client.get("/internal/leader-status")
 
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.OK
             response.bodyAsText() shouldContain "\"name\":\"batch-job\""
         }
@@ -94,6 +102,7 @@ class LeaderElectionManagementRouteTest {
 
             val response = client.get("/management/leaderElection")
 
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.OK
             response.bodyAsText() shouldContain "\"name\":\"scheduled-job\""
         }
@@ -114,9 +123,10 @@ class LeaderElectionManagementRouteTest {
 
             val response = client.get("/management/leaderElection")
 
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.BadRequest
             response.bodyAsText() shouldBeEqualTo
-                "{\"code\":\"INVALID_LOCK_NAME\",\"message\":\"lock name is invalid\",\"status\":400}"
+                    "{\"code\":\"INVALID_LOCK_NAME\",\"message\":\"lock name is invalid\",\"status\":400}"
         }
     }
 
@@ -133,10 +143,11 @@ class LeaderElectionManagementRouteTest {
 
             val response = client.get("/management/leaderElection")
 
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.ServiceUnavailable
             response.bodyAsText() shouldContain "\"code\":\"BACKEND_UNAVAILABLE\""
             response.bodyAsText() shouldContain "\"status\":503"
-            response.bodyAsText().contains("backend-secret") shouldBeEqualTo false
+            response.bodyAsText() shouldNotContain "backend-secret"
         }
     }
 
@@ -151,7 +162,7 @@ class LeaderElectionManagementRouteTest {
 
     private class FailingStateElector(
         private val failure: Throwable,
-    ) : SuspendLeaderElector {
+    ): SuspendLeaderElector {
         override fun state(lockName: String): LeaderState = throw failure
 
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = action()

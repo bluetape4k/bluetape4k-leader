@@ -4,6 +4,7 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.metrics.LeaderAopMetricsContext
 import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
 import io.bluetape4k.leader.metrics.SkipReason
+import io.bluetape4k.logging.KLogging
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationRegistry
 import java.util.concurrent.CancellationException
@@ -19,7 +20,7 @@ import kotlin.time.Duration
 class MicrometerObservationLeaderAopMetricsRecorder(
     private val registry: ObservationRegistry,
     val options: LeaderObservationOptions = LeaderObservationOptions(),
-) : LeaderAopMetricsRecorder {
+): LeaderAopMetricsRecorder {
 
     private val tagSanitizer = LeaderMetricTagSanitizer.from(options.tagOptions)
 
@@ -96,7 +97,10 @@ class MicrometerObservationLeaderAopMetricsRecorder(
 
         val observation = terminalObservation(OBSERVATION_LEADER_AOP_EXECUTION, name, context)
             .lowCardinalityKeyValue(OBSERVATION_TAG_OPERATION, OPERATION_EXECUTE)
-            .lowCardinalityKeyValue(OBSERVATION_TAG_OUTCOME, if (throwable is CancellationException) OUTCOME_CANCELLED else OUTCOME_ERROR)
+            .lowCardinalityKeyValue(
+                OBSERVATION_TAG_OUTCOME,
+                if (throwable is CancellationException) OUTCOME_CANCELLED else OUTCOME_ERROR
+            )
             .highCardinalityKeyValue(OBSERVATION_TAG_EXECUTION_ELAPSED_MS, executionTime.inWholeMilliseconds.toString())
 
         if (throwable !is CancellationException) {
@@ -135,7 +139,7 @@ class MicrometerObservationLeaderAopMetricsRecorder(
         return observation
     }
 
-    private companion object {
+    private companion object: KLogging() {
         const val OPERATION_ACQUIRE = "acquire"
         const val OPERATION_EXECUTE = "execute"
         const val OUTCOME_ACQUIRED = "acquired"

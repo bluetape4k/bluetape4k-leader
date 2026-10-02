@@ -54,9 +54,9 @@ Add tests that bind:
 Expected assertions:
 
 ```kotlin
-props.diagnostics.enabled shouldBeEqualTo false
-props.diagnostics.strict shouldBeEqualTo true
-props.diagnostics.includeBeanNames shouldBeEqualTo false
+props.diagnostics.enabled.shouldBeFalse()
+props.diagnostics.strict.shouldBeTrue()
+props.diagnostics.includeBeanNames.shouldBeFalse()
 ```
 
 - [ ] **Step 2: Run the focused test and verify RED**

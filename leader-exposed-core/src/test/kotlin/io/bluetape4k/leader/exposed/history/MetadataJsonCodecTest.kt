@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 
 class MetadataJsonCodecTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @Test
     fun `encode empty map returns null`() {

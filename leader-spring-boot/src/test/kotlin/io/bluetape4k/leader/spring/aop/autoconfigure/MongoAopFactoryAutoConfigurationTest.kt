@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.spring.aop.autoconfigure
 
 import com.mongodb.client.MongoClient
-import com.mongodb.kotlin.client.coroutine.MongoClient as CoroutineMongoClient
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
@@ -14,7 +14,6 @@ import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.leader.spring.LeaderTestApplication
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.storage.MongoDBServer
-import io.bluetape4k.assertions.shouldBeInstanceOf
 import org.bson.Document
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -24,6 +23,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
+import com.mongodb.kotlin.client.coroutine.MongoClient as CoroutineMongoClient
 
 private const val LEADER_AOP_AUTOCONFIG_DB = "leader_aop_autoconfig_test"
 
@@ -35,19 +35,22 @@ private const val LEADER_AOP_AUTOCONFIG_DB = "leader_aop_autoconfig_test"
  * 빈을 모두 제공하면 4종 Mongo factory 빈이 등록된다.
  */
 @SpringBootTest(
-    classes = [LeaderTestApplication::class, MongoAopFactoryAutoConfigurationTest.TestConfig::class],
+    classes = [
+        LeaderTestApplication::class,
+        MongoAopFactoryAutoConfigurationTest.TestConfig::class
+    ],
     webEnvironment = SpringBootTest.WebEnvironment.NONE
 )
 @ImportAutoConfiguration(LeaderAopFactoryAutoConfiguration::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MongoAopFactoryAutoConfigurationTest {
 
-    companion object : KLogging() {
-        val mongoServer = MongoDBServer.Launcher.mongoDB
+    companion object: KLogging() {
+        val mongoServer by lazy { MongoDBServer.Launcher.mongoDB }
     }
 
     @TestConfiguration
-    open class TestConfig {
+    class TestConfig {
         @Bean(destroyMethod = "close")
         fun mongoClient(): MongoClient =
             MongoDBServer.Launcher.getClient(mongoServer.url)
@@ -58,23 +61,31 @@ class MongoAopFactoryAutoConfigurationTest {
 
         @Bean(name = ["leaderLockMongoCollection"])
         fun leaderLockMongoCollection(mongoClient: MongoClient): com.mongodb.client.MongoCollection<Document> =
-            mongoClient.getDatabase(LEADER_AOP_AUTOCONFIG_DB).getCollection(MongoLock.LOCK_COLLECTION_NAME)
+            mongoClient
+                .getDatabase(LEADER_AOP_AUTOCONFIG_DB)
+                .getCollection(MongoLock.LOCK_COLLECTION_NAME)
 
         @Bean(name = ["leaderGroupLockMongoCollection"])
         fun leaderGroupLockMongoCollection(mongoClient: MongoClient): com.mongodb.client.MongoCollection<Document> =
-            mongoClient.getDatabase(LEADER_AOP_AUTOCONFIG_DB).getCollection(MongoLock.GROUP_LOCK_COLLECTION_NAME)
+            mongoClient
+                .getDatabase(LEADER_AOP_AUTOCONFIG_DB)
+                .getCollection(MongoLock.GROUP_LOCK_COLLECTION_NAME)
 
         @Bean(name = ["leaderLockMongoCoroutineCollection"])
         fun leaderLockMongoCoroutineCollection(
             coroutineMongoClient: CoroutineMongoClient,
         ): com.mongodb.kotlin.client.coroutine.MongoCollection<Document> =
-            coroutineMongoClient.getDatabase(LEADER_AOP_AUTOCONFIG_DB).getCollection(MongoLock.LOCK_COLLECTION_NAME)
+            coroutineMongoClient
+                .getDatabase(LEADER_AOP_AUTOCONFIG_DB)
+                .getCollection(MongoLock.LOCK_COLLECTION_NAME)
 
         @Bean(name = ["leaderGroupLockMongoCoroutineCollection"])
         fun leaderGroupLockMongoCoroutineCollection(
             coroutineMongoClient: CoroutineMongoClient,
         ): com.mongodb.kotlin.client.coroutine.MongoCollection<Document> =
-            coroutineMongoClient.getDatabase(LEADER_AOP_AUTOCONFIG_DB).getCollection(MongoLock.GROUP_LOCK_COLLECTION_NAME)
+            coroutineMongoClient
+                .getDatabase(LEADER_AOP_AUTOCONFIG_DB)
+                .getCollection(MongoLock.GROUP_LOCK_COLLECTION_NAME)
     }
 
     @Autowired
@@ -82,41 +93,49 @@ class MongoAopFactoryAutoConfigurationTest {
 
     @Test
     fun `mongoLeaderElectionFactory 빈이 등록된다`() {
-        ctx.getBean("mongoLeaderElectionFactory").shouldBeInstanceOf<MongoLeaderElectorFactory>()
+        ctx.getBean("mongoLeaderElectionFactory")
+            .shouldBeInstanceOf<MongoLeaderElectorFactory>()
     }
 
     @Test
     fun `mongoLeaderGroupElectionFactory 빈이 등록된다`() {
-        ctx.getBean("mongoLeaderGroupElectionFactory").shouldBeInstanceOf<MongoLeaderGroupElectorFactory>()
+        ctx.getBean("mongoLeaderGroupElectionFactory")
+            .shouldBeInstanceOf<MongoLeaderGroupElectorFactory>()
     }
 
     @Test
     fun `mongoSuspendLeaderElectorFactory 빈이 등록된다`() {
-        ctx.getBean("mongoSuspendLeaderElectorFactory").shouldBeInstanceOf<MongoSuspendLeaderElectorFactory>()
+        ctx.getBean("mongoSuspendLeaderElectorFactory")
+            .shouldBeInstanceOf<MongoSuspendLeaderElectorFactory>()
     }
 
     @Test
     fun `mongoSuspendLeaderGroupElectorFactory 빈이 등록된다`() {
-        ctx.getBean("mongoSuspendLeaderGroupElectorFactory").shouldBeInstanceOf<MongoSuspendLeaderGroupElectorFactory>()
+        ctx.getBean("mongoSuspendLeaderGroupElectorFactory")
+            .shouldBeInstanceOf<MongoSuspendLeaderGroupElectorFactory>()
     }
 
     @Test
     fun `mongoLeaderElectionFactory 는 LeaderElectorFactory 타입`() {
-        ctx.getBean("mongoLeaderElectionFactory").shouldBeInstanceOf<LeaderElectorFactory>()
+        ctx.getBean("mongoLeaderElectionFactory")
+            .shouldBeInstanceOf<LeaderElectorFactory>()
     }
 
     @Test
     fun `mongoLeaderGroupElectionFactory 는 LeaderGroupElectorFactory 타입`() {
-        ctx.getBean("mongoLeaderGroupElectionFactory").shouldBeInstanceOf<LeaderGroupElectorFactory>()
+        ctx.getBean("mongoLeaderGroupElectionFactory")
+            .shouldBeInstanceOf<LeaderGroupElectorFactory>()
     }
 
     @Test
     fun `mongoSuspendLeaderElectorFactory 는 SuspendLeaderElectorFactory 타입`() {
-        ctx.getBean("mongoSuspendLeaderElectorFactory").shouldBeInstanceOf<SuspendLeaderElectorFactory>()
+        ctx.getBean("mongoSuspendLeaderElectorFactory")
+            .shouldBeInstanceOf<SuspendLeaderElectorFactory>()
     }
 
     @Test
     fun `mongoSuspendLeaderGroupElectorFactory 는 SuspendLeaderGroupElectorFactory 타입`() {
-        ctx.getBean("mongoSuspendLeaderGroupElectorFactory").shouldBeInstanceOf<SuspendLeaderGroupElectorFactory>()
+        ctx.getBean("mongoSuspendLeaderGroupElectorFactory")
+            .shouldBeInstanceOf<SuspendLeaderGroupElectorFactory>()
     }
 }

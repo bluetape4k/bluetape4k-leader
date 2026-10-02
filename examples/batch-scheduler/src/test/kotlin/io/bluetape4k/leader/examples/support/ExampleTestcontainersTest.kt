@@ -1,10 +1,14 @@
 package io.bluetape4k.leader.examples.support
 
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 
 class ExampleTestcontainersTest {
+
+    companion object: KLogging()
 
     @Test
     fun `CI marker presence denies reuse regardless of marker value`() {
@@ -34,7 +38,7 @@ class ExampleTestcontainersTest {
             registerForShutdown = { events += "register" },
         )
 
-        (events == listOf("start")).shouldBeTrue()
+        events shouldBeEqualTo listOf("start")
     }
 
     @Test
@@ -48,7 +52,7 @@ class ExampleTestcontainersTest {
             registerForShutdown = { events += "register" },
         )
 
-        (events == listOf("start", "register")).shouldBeTrue()
+        events shouldBeEqualTo listOf("start", "register")
     }
 
     private class FakeContainer(

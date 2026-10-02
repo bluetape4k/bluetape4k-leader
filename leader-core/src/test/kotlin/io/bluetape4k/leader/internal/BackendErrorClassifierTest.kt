@@ -116,7 +116,7 @@ class BackendErrorClassifierTest {
 
     @Test
     fun `BackendErrorClassifier 는 fun interface 로 람다로 구현할 수 있다`() {
-        val classifier: BackendErrorClassifier = BackendErrorClassifier { cause ->
+        val classifier = BackendErrorClassifier { cause ->
             if (cause is UnsupportedOperationException) BackendErrorKind.NON_TRANSIENT else null
         }
 

@@ -1,7 +1,8 @@
 package io.bluetape4k.leader.exposed.jdbc.internal
 
-import io.bluetape4k.leader.internal.MonotonicDeadline as CoreMonotonicDeadline
+import io.bluetape4k.ToStringBuilder
 import kotlin.time.Duration
+import io.bluetape4k.leader.internal.MonotonicDeadline as CoreMonotonicDeadline
 
 /**
  * Exposed JDBC 재시도 루프에서 벽시계 보정과 무관하게 wait budget을 계산합니다.
@@ -23,6 +24,13 @@ internal class MonotonicDeadline private constructor(
     fun remainingMillisForSleep(): Long = delegate.remainingMillisForSleep()
 
     fun hasTimeRemaining(): Boolean = delegate.hasTimeRemaining()
+
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("startNanos", startNanos)
+            .add("timeoutNanos", timeoutNanos)
+            .toString()
+    }
 
     companion object {
         fun fromNow(

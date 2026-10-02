@@ -9,7 +9,7 @@ import kotlin.time.Duration
  * handle은 backend token이나 delegate를 공개하지 않습니다. `release`와 `close`는
  * 반복 호출 및 completion thread 변경에 안전해야 합니다.
  */
-interface LeaderLeaseHandle : AutoCloseable {
+interface LeaderLeaseHandle: AutoCloseable {
 
     /** backend lock 이름입니다. */
     val lockName: String

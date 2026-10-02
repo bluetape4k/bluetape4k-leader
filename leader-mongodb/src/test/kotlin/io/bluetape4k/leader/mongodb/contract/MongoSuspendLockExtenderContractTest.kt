@@ -12,9 +12,9 @@ import org.junit.jupiter.api.TestInstance
  * [AbstractSuspendLockExtenderContractTest] 의 MongoDB backend 구현 — T9 PR 4 (Issue #79).
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class MongoSuspendLockExtenderContractTest : AbstractSuspendLockExtenderContractTest() {
+class MongoSuspendLockExtenderContractTest: AbstractSuspendLockExtenderContractTest() {
 
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
         val mongo = AbstractMongoLeaderTest.mongoServer
     }
 

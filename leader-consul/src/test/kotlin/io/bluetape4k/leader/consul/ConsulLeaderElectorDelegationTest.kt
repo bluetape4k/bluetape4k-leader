@@ -8,22 +8,26 @@ import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionException
-import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.consul.internal.ConsulKvEntry
 import io.bluetape4k.leader.consul.internal.ConsulLeaseHandle
-import io.bluetape4k.leader.consul.internal.ConsulLockExtendDelegate
 import io.bluetape4k.leader.consul.internal.ConsulLockClient
+import io.bluetape4k.leader.consul.internal.ConsulLockExtendDelegate
 import io.bluetape4k.leader.consul.internal.ConsulOwnerPayload
 import io.bluetape4k.leader.consul.internal.ConsulSessionId
 import io.bluetape4k.leader.consul.internal.ConsulSessionRenewal
+import io.bluetape4k.logging.KLogging
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.CancellationException
@@ -42,6 +46,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class ConsulLeaderElectorDelegationTest {
+
+    companion object: KLogging()
 
     @Test
     fun `single action completion keeps named event loop free while cleanup is blocked`() {
@@ -90,12 +96,12 @@ class ConsulLeaderElectorDelegationTest {
         }
 
         val result = AsyncLeaseCleanupDispatcher.completeAfter(
-            source = CompletableFuture.completedFuture("done"),
+            source = completableFutureOf("done"),
             executor = rejectingExecutor,
             cleanup = { cleanupCalls.incrementAndGet() },
         ) { value, _ -> value }
 
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        result.get(2.seconds) shouldBeEqualTo "done"
         result.isDone.shouldBeTrue()
         rejectionCalls.get() shouldBeEqualTo 1
         cleanupCalls.get() shouldBeEqualTo 1
@@ -111,7 +117,7 @@ class ConsulLeaderElectorDelegationTest {
         val second = barrier.request()
 
         (first === second).shouldBeTrue()
-        first.get(2, TimeUnit.SECONDS)
+        first.get(2.seconds)
         cleanupCalls.get() shouldBeEqualTo 1
     }
 
@@ -122,7 +128,7 @@ class ConsulLeaderElectorDelegationTest {
         val inlineExecutor = Executor { command -> command.run() }
 
         val result = AsyncLeaseCleanupDispatcher.completeAfter(
-            source = CompletableFuture.failedFuture<String>(actionFailure),
+            source = failedCompletableFutureOf<String>(actionFailure),
             executor = inlineExecutor,
             cleanup = { throw cleanupFailure },
         ) { value, _ -> value }
@@ -232,7 +238,7 @@ class ConsulLeaderElectorDelegationTest {
         )
         val elector = ConsulLeaderElector.create(client)
 
-        elector.state("lock-a").isEmpty shouldBeEqualTo true
+        elector.state("lock-a").isEmpty.shouldBeTrue()
     }
 
     @Test
@@ -244,7 +250,7 @@ class ConsulLeaderElectorDelegationTest {
         )
         val elector = ConsulLeaderElector.create(client)
 
-        elector.state("lock-a").isEmpty shouldBeEqualTo true
+        elector.state("lock-a").isEmpty.shouldBeTrue()
 
         future.requestedTimeoutNanos shouldBeEqualTo 123.milliseconds.inWholeNanoseconds
     }
@@ -319,7 +325,7 @@ class ConsulLeaderElectorDelegationTest {
         )
         val delegate = ConsulLockExtendDelegate(client, handle)
 
-        delegate.isHeld() shouldBeEqualTo true
+        delegate.isHeld().shouldBeTrue()
         client.readCalls shouldBeEqualTo 1
         client.renewCalls shouldBeEqualTo 0
     }
@@ -364,7 +370,7 @@ class ConsulLeaderElectorDelegationTest {
             throw failure
         }
 
-        (result is LeaderRunResult.ActionFailed) shouldBeEqualTo true
+        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
         (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
         client.releaseCalls shouldBeEqualTo 1
         client.destroyCalls shouldBeEqualTo 1
@@ -377,7 +383,7 @@ class ConsulLeaderElectorDelegationTest {
 
         val failure = assertFailsWith<CompletionException> {
             elector.runAsyncIfLeaderResult(LeaderSlot("lock-a", "audit-a")) {
-                CompletableFuture.failedFuture<String>(CancellationException("cancelled"))
+                failedCompletableFutureOf<String>(CancellationException("cancelled"))
             }.join()
         }
 
@@ -403,15 +409,15 @@ class ConsulLeaderElectorDelegationTest {
         try {
             val result = elector.runAsyncIfLeaderResult(LeaderSlot("lock-late-single", "audit-a"), executor) {
                 actionInvoked.set(true)
-                CompletableFuture.completedFuture("실행되면 안 됨")
+                completableFutureOf("실행되면 안 됨")
             }
 
-            acquireStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            acquireStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             acquisition.complete(true)
 
-            releaseObserved.await(2, TimeUnit.SECONDS).shouldBeTrue()
-            actionInvoked.get() shouldBeEqualTo false
+            releaseObserved.await(2.seconds).shouldBeTrue()
+            actionInvoked.get().shouldBeFalse()
             await.atMost(2.seconds).untilAsserted {
                 client.releaseCalls shouldBeEqualTo 1
                 client.destroyCalls shouldBeEqualTo 1
@@ -443,15 +449,15 @@ class ConsulLeaderElectorDelegationTest {
         try {
             val result = elector.runAsyncIfLeaderResult(LeaderSlot("lock-late-group", "audit-a"), executor) {
                 actionInvoked.set(true)
-                CompletableFuture.completedFuture("실행되면 안 됨")
+                completableFutureOf("실행되면 안 됨")
             }
 
-            acquireStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            acquireStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             acquisition.complete(true)
 
-            releaseObserved.await(2, TimeUnit.SECONDS).shouldBeTrue()
-            actionInvoked.get() shouldBeEqualTo false
+            releaseObserved.await(2.seconds).shouldBeTrue()
+            actionInvoked.get().shouldBeFalse()
             await.atMost(2.seconds).untilAsserted {
                 client.releaseCalls shouldBeEqualTo 1
                 client.destroyCalls shouldBeEqualTo 1
@@ -483,12 +489,12 @@ class ConsulLeaderElectorDelegationTest {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
             executor.shutdown()
 
             actionFuture.complete("done")
 
-            resultFuture.get(3, TimeUnit.SECONDS) shouldBeEqualTo "done"
+            resultFuture.get(3.seconds) shouldBeEqualTo "done"
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
             client.releaseCalls shouldBeEqualTo 2
             client.destroyCalls shouldBeEqualTo 2
@@ -511,14 +517,14 @@ class ConsulLeaderElectorDelegationTest {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
 
             resultFuture.cancel(false).shouldBeTrue()
 
             await.atMost(2.seconds).untilAsserted {
                 actionFuture.isCancelled.shouldBeTrue()
             }
-            releaseObserved.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            releaseObserved.await(3.seconds).shouldBeTrue()
             client.releaseCalls shouldBeEqualTo 1
             client.destroyCalls shouldBeEqualTo 1
         } finally {
@@ -546,14 +552,14 @@ class ConsulLeaderElectorDelegationTest {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
 
             resultFuture.cancel(false).shouldBeTrue()
 
             await.atMost(2.seconds).untilAsserted {
                 actionFuture.isCancelled.shouldBeTrue()
             }
-            releaseObserved.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            releaseObserved.await(3.seconds).shouldBeTrue()
             client.releaseCalls shouldBeEqualTo 1
             client.destroyCalls shouldBeEqualTo 1
         } finally {
@@ -582,17 +588,17 @@ class ConsulLeaderElectorDelegationTest {
             val resultFuture = runCatching {
                 elector.runAsyncIfLeader("lock-a", executor) {
                     actionInvoked.set(true)
-                    CompletableFuture.completedFuture("should-not-run")
+                    completableFutureOf("should-not-run")
                 }
-            }.getOrElse { CompletableFuture.failedFuture(it) }
+            }.getOrElse { failedCompletableFutureOf(it) }
 
-            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            blocker.started.await(2.seconds).shouldBeTrue()
             resultFuture.isDone.shouldBeFalse()
             blocker.release.countDown()
 
             val failure = assertFailsWith<CompletionException> { resultFuture.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
-            actionInvoked.get() shouldBeEqualTo false
+            actionInvoked.get().shouldBeFalse()
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
             client.releaseCalls shouldBeEqualTo 2
             client.destroyCalls shouldBeEqualTo 2
@@ -627,17 +633,17 @@ class ConsulLeaderElectorDelegationTest {
             val resultFuture = runCatching {
                 elector.runAsyncIfLeader("lock-a", executor) {
                     actionInvoked.set(true)
-                    CompletableFuture.completedFuture("should-not-run")
+                    completableFutureOf("should-not-run")
                 }
-            }.getOrElse { CompletableFuture.failedFuture(it) }
+            }.getOrElse { failedCompletableFutureOf(it) }
 
-            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            blocker.started.await(2.seconds).shouldBeTrue()
             resultFuture.isDone.shouldBeFalse()
             blocker.release.countDown()
 
             val failure = assertFailsWith<CompletionException> { resultFuture.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
-            actionInvoked.get() shouldBeEqualTo false
+            actionInvoked.get().shouldBeFalse()
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
             client.releaseCalls shouldBeEqualTo 2
             client.destroyCalls shouldBeEqualTo 2
@@ -662,7 +668,7 @@ class ConsulLeaderElectorDelegationTest {
 
         val failure = assertFailsWith<CompletionException> {
             elector.runAsyncIfLeaderResult(LeaderSlot("lock-a", "audit-a")) {
-                CompletableFuture.failedFuture<String>(CancellationException("cancelled"))
+                failedCompletableFutureOf<String>(CancellationException("cancelled"))
             }.join()
         }
 
@@ -721,17 +727,17 @@ class ConsulLeaderElectorDelegationTest {
 
         try {
             val result = runAsync(eventLoop, actionFuture, actionStarted)
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             eventLoop.execute { actionFuture.complete("done") }
 
-            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            blocker.started.await(2.seconds).shouldBeTrue()
             eventLoop.execute { eventLoopProbe.countDown() }
-            eventLoopProbe.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            eventLoopProbe.await(1.seconds).shouldBeTrue()
             result.isDone.shouldBeFalse()
             (blocker.threadName.get() == "issue-900-consul-event-loop").shouldBeFalse()
 
             blocker.release.countDown()
-            result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+            result.get(2.seconds) shouldBeEqualTo "done"
         } finally {
             blocker.release.countDown()
             eventLoop.shutdownNow()
@@ -749,7 +755,7 @@ class ConsulLeaderElectorDelegationTest {
         private val acquireStarted: CountDownLatch? = null,
         private val releaseObserved: CountDownLatch? = null,
         private val cleanupBlocker: CleanupBlocker? = null,
-    ) : ConsulLockClient {
+    ): ConsulLockClient {
 
         private var currentEntry: ConsulKvEntry? = entry
 
@@ -778,7 +784,7 @@ class ConsulLeaderElectorDelegationTest {
             lockDelay: Duration,
         ): CompletableFuture<ConsulSessionId> {
             createdSessions++
-            return CompletableFuture.completedFuture(ConsulSessionId("session-$createdSessions"))
+            return completableFutureOf(ConsulSessionId("session-$createdSessions"))
         }
 
         override fun acquire(
@@ -801,38 +807,38 @@ class ConsulLeaderElectorDelegationTest {
                     modifyIndex = 1L,
                 )
             }
-            return CompletableFuture.completedFuture(acquireResult)
+            return completableFutureOf(acquireResult)
         }
 
         override fun release(key: String, sessionId: ConsulSessionId): CompletableFuture<Boolean> {
             releaseCalls++
             releaseObserved?.countDown()
             cleanupBlocker?.block()
-            return CompletableFuture.completedFuture(true)
+            return completableFutureOf(true)
         }
 
         override fun destroySession(sessionId: ConsulSessionId): CompletableFuture<Unit> {
             destroyCalls++
             return if (destroyFails) {
-                CompletableFuture.failedFuture(IllegalStateException("destroy failed"))
+                failedCompletableFutureOf(IllegalStateException("destroy failed"))
             } else {
-                CompletableFuture.completedFuture(Unit)
+                completableFutureOf(Unit)
             }
         }
 
         override fun renewSession(sessionId: ConsulSessionId): CompletableFuture<ConsulSessionRenewal> =
-            CompletableFuture.completedFuture(ConsulSessionRenewal(sessionId, Instant.now()))
+            completableFutureOf(ConsulSessionRenewal(sessionId, Instant.now()))
                 .also { renewCalls++ }
 
         override fun read(key: String): CompletableFuture<ConsulKvEntry?> {
             readCalls++
-            return readFuture ?: CompletableFuture.completedFuture(currentEntry)
+            return readFuture ?: completableFutureOf(currentEntry)
         }
     }
 
     private class RecordingFuture<T>(
         private val value: T,
-    ) : CompletableFuture<T>() {
+    ): CompletableFuture<T>() {
         var requestedTimeoutNanos: Long? = null
             private set
 
@@ -842,7 +848,7 @@ class ConsulLeaderElectorDelegationTest {
         }
     }
 
-    private class InterruptingFuture<T> : CompletableFuture<T>() {
+    private class InterruptingFuture<T>: CompletableFuture<T>() {
         override fun get(timeout: Long, unit: TimeUnit): T =
             throw InterruptedException("interrupted acquisition")
     }
@@ -855,7 +861,7 @@ class ConsulLeaderElectorDelegationTest {
         fun block() {
             threadName.set(Thread.currentThread().name)
             started.countDown()
-            release.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            release.await(5.seconds).shouldBeTrue()
         }
     }
 }

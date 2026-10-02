@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.k8s.KubernetesLeaseLeaderElector
 import io.bluetape4k.leader.k8s.KubernetesLeaseOptions
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.infra.K3sServer
 import io.fabric8.kubernetes.client.KubernetesClient
 import org.junit.jupiter.api.Tag
@@ -16,10 +17,17 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class K8sOperatorK3sTest {
 
+    companion object: KLogging() {
+        private const val NAMESPACE = "default"
+
+        private val k3s: K3sServer by lazy { K3sServer.Launcher.k3s }
+    }
+
     @Test
     fun `only one operator replica reconciles while lease is held`() {
         k3s.kubernetesClient().use { client ->
             val lockName = "operator-${io.bluetape4k.codec.Base58.randomString(8).lowercase()}"
+
             withCleanLease(client, lockName) {
                 val workload = DemoCustomResourceWorkload()
                 val holder = elector(client, "operator-0")
@@ -46,6 +54,7 @@ class K8sOperatorK3sTest {
     fun `operator failover reconciles after prior holder releases`() {
         k3s.kubernetesClient().use { client ->
             val lockName = "operator-${io.bluetape4k.codec.Base58.randomString(8).lowercase()}"
+
             withCleanLease(client, lockName) {
                 val workload = DemoCustomResourceWorkload()
                 val first = OperatorController(
@@ -97,11 +106,5 @@ class K8sOperatorK3sTest {
         } finally {
             client.leases().inNamespace(NAMESPACE).withName(lockName).delete()
         }
-    }
-
-    companion object {
-        private const val NAMESPACE = "default"
-
-        private val k3s: K3sServer by lazy { K3sServer.Launcher.k3s }
     }
 }

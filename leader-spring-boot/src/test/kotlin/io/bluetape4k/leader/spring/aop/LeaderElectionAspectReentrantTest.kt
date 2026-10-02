@@ -1,15 +1,19 @@
 package io.bluetape4k.leader.spring.aop
 
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.LockIdentity.AnnotationKind
 import io.bluetape4k.leader.annotation.LeaderElection
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
-import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -33,7 +37,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionAspectReentrantTest {
 
-    companion object {
+    companion object: KLogging() {
         private const val LOCK_NAME = "reentrant-job"
         private const val FACTORY_BEAN = "testFactory"
         private const val SAMPLE_RESULT = "body-result"
@@ -43,7 +47,7 @@ class LeaderElectionAspectReentrantTest {
         fun run(): String?
     }
 
-    private class SampleServiceImpl : SampleService {
+    private class SampleServiceImpl: SampleService {
         @LeaderElection(name = LOCK_NAME)
         override fun run(): String? = SAMPLE_RESULT
     }
@@ -69,8 +73,10 @@ class LeaderElectionAspectReentrantTest {
 
     private fun newAspect(): LeaderElectionAspect {
         every { factoryMock.create(any<LeaderElectionOptions>()) } returns election
-        every { beanSelector.selectElectionFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected(FACTORY_BEAN, factoryMock)
+        every {
+            beanSelector.selectElectionFactory(any(), any())
+        } returns LeaderBeanSelector.Selected(FACTORY_BEAN, factoryMock)
+
         return LeaderElectionAspect(
             beanSelector = beanSelector,
             props = LeaderAopProperties(),
@@ -89,14 +95,20 @@ class LeaderElectionAspectReentrantTest {
 
         // Simulate outer scope: push a Real handle for the same lockName
         val syntheticHandle = AopScopeAccess.createSyntheticReal(LOCK_NAME, FACTORY_BEAN)
+        log.debug { "synthetic handle: $syntheticHandle" }
+
         val result = AopScopeAccess.withPushedSync(syntheticHandle) {
             // inner call: aspect should short-circuit without calling backend
             aspect.aroundLeader(pjp)
         }
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
+
         // The elector's runIfLeaderResult must NOT be called (reentrant short-circuit)
-        verify(exactly = 0) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
+        verify(exactly = 0) {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        }
     }
 
     @Test
@@ -106,7 +118,9 @@ class LeaderElectionAspectReentrantTest {
         configureJoinPoint(method, target)
         val aspect = newAspect()
 
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } answers {
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } answers {
             @Suppress("UNCHECKED_CAST")
             LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
         }
@@ -114,9 +128,13 @@ class LeaderElectionAspectReentrantTest {
         // No outer scope — normal path
         val result = aspect.aroundLeader(pjp)
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
+
         // Backend is called exactly once
-        verify(exactly = 1) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
+        verify(exactly = 1) {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        }
     }
 
     @Test
@@ -126,15 +144,17 @@ class LeaderElectionAspectReentrantTest {
         configureJoinPoint(method, target)
         val aspect = newAspect()
 
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } answers {
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } answers {
             @Suppress("UNCHECKED_CAST")
             LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
         }
 
         // Simulate outer scope with FailOpen sentinel (not Real)
-        val identity = io.bluetape4k.leader.LockIdentity(
+        val identity = LockIdentity(
             lockName = LOCK_NAME,
-            kind = io.bluetape4k.leader.LockIdentity.AnnotationKind.SINGLE,
+            kind = AnnotationKind.SINGLE,
             factoryBeanName = FACTORY_BEAN,
         )
         val failOpen = AopScopeAccess.createFailOpen(identity)
@@ -143,9 +163,13 @@ class LeaderElectionAspectReentrantTest {
             aspect.aroundLeader(pjp)
         }
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
+
         // Backend IS called: FailOpen does not count as reentrant Real
-        verify(exactly = 1) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
+        verify(exactly = 1) {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        }
     }
 
     @Test
@@ -155,19 +179,27 @@ class LeaderElectionAspectReentrantTest {
         configureJoinPoint(method, target)
         val aspect = newAspect()
 
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } answers {
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } answers {
             @Suppress("UNCHECKED_CAST")
             LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
         }
 
         // Push a handle for a DIFFERENT lockName
         val otherHandle = AopScopeAccess.createSyntheticReal("other-job", FACTORY_BEAN)
+        log.debug { "otherHandle=$otherHandle" }
+
         val result = AopScopeAccess.withPushedSync(otherHandle) {
             aspect.aroundLeader(pjp)
         }
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
+
         // Backend IS called: lockName mismatch
-        verify(exactly = 1) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
+        verify(exactly = 1) {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 package io.bluetape4k.leader.audit.http
 
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.audit.LeaderAuditDelivery
 import io.bluetape4k.leader.audit.LeaderAuditDeliveryResult
 import io.bluetape4k.leader.audit.LeaderAuditExportEvent
@@ -13,10 +14,9 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
-import java.util.LinkedHashMap
-import java.util.Locale
-import java.util.concurrent.CompletableFuture
+import java.util.*
 import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.ExecutionException
 
@@ -33,7 +33,9 @@ internal class HttpLeaderAuditDelivery(
     private val encoder: LeaderAuditPayloadEncoder,
     exportOptions: LeaderAuditExportOptions,
     private val httpOptions: LeaderAuditHttpOptions,
-) : LeaderAuditDelivery {
+): LeaderAuditDelivery {
+
+    companion object: KLogging()
 
     private val attemptTimeout: Duration = exportOptions.attemptTimeout
     private val headers: Map<String, String> = normalizeHeaders(headers)
@@ -48,9 +50,7 @@ internal class HttpLeaderAuditDelivery(
         encodeOrNull(event)?.let { payload ->
             val body = payload.body()
             if (body.size > httpOptions.maxPayloadBytes) {
-                HttpLeaderAuditDeliveryLogger.log.warn {
-                    "Leader audit payload exceeded configured HTTP bound; delivery is terminal"
-                }
+                log.warn { "Leader audit payload exceeded configured HTTP bound; delivery is terminal" }
                 terminalFailure()
             } else {
                 deliverPayload(payload, body)
@@ -62,9 +62,7 @@ internal class HttpLeaderAuditDelivery(
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        HttpLeaderAuditDeliveryLogger.log.warn {
-            "Leader audit payload encoder failed; delivery is terminal"
-        }
+        log.warn { "Leader audit payload encoder failed; delivery is terminal" }
         null
     }
 
@@ -81,9 +79,7 @@ internal class HttpLeaderAuditDelivery(
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        HttpLeaderAuditDeliveryLogger.log.warn {
-            "Leader audit HTTP request validation failed; delivery is terminal"
-        }
+        log.warn { "Leader audit HTTP request validation failed; delivery is terminal" }
         null
     }
 
@@ -93,10 +89,8 @@ internal class HttpLeaderAuditDelivery(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            HttpLeaderAuditDeliveryLogger.log.warn {
-                "Leader audit HTTP request failed before enqueue; delivery classification applied"
-            }
-            return CompletableFuture.completedFuture(classifySynchronousFailure(e))
+            log.warn { "Leader audit HTTP request failed before enqueue; delivery classification applied" }
+            return completableFutureOf(classifySynchronousFailure(e))
         }
 
         val result = CompletableFuture<LeaderAuditDeliveryResult>()
@@ -107,30 +101,23 @@ internal class HttpLeaderAuditDelivery(
         }
         requestFuture.whenComplete { response, failure ->
             if (failure != null) {
-                val cause = failure.unwrapCompletionFailure()
-                if (cause is CancellationException) {
-                    result.cancel(false)
-                } else if (cause is Error) {
-                    result.completeExceptionally(cause)
-                } else {
-                    val classification = classifyFailure(cause)
-                    if (classification == LeaderAuditDeliveryResult.RETRYABLE_FAILURE) {
-                        HttpLeaderAuditDeliveryLogger.log.warn {
-                            "Leader audit HTTP I/O failure; delivery is retryable"
+                when (val cause = failure.unwrapCompletionFailure()) {
+                    is CancellationException -> result.cancel(false)
+                    is Error                 -> result.completeExceptionally(cause)
+                    else                     -> {
+                        val classification = classifyFailure(cause)
+                        if (classification == LeaderAuditDeliveryResult.RETRYABLE_FAILURE) {
+                            log.warn { "Leader audit HTTP I/O failure; delivery is retryable" }
+                        } else {
+                            log.warn { "Leader audit HTTP failure; delivery is terminal" }
                         }
-                    } else {
-                        HttpLeaderAuditDeliveryLogger.log.warn {
-                            "Leader audit HTTP failure; delivery is terminal"
-                        }
+                        result.complete(classification)
                     }
-                    result.complete(classification)
                 }
             } else {
                 val classification = classifyStatus(response.statusCode())
                 if (classification != LeaderAuditDeliveryResult.SUCCESS) {
-                    HttpLeaderAuditDeliveryLogger.log.warn {
-                        "Leader audit HTTP response was classified as $classification"
-                    }
+                    log.warn { "Leader audit HTTP response was classified as $classification" }
                 }
                 result.complete(classification)
             }
@@ -139,7 +126,7 @@ internal class HttpLeaderAuditDelivery(
     }
 
     private fun terminalFailure(): CompletableFuture<LeaderAuditDeliveryResult> =
-        CompletableFuture.completedFuture(LeaderAuditDeliveryResult.TERMINAL_FAILURE)
+        completableFutureOf(LeaderAuditDeliveryResult.TERMINAL_FAILURE)
 
     private fun buildRequest(payload: LeaderAuditHttpPayload, body: ByteArray): HttpRequest {
         val builder = HttpRequest.newBuilder(endpoint.uri)
@@ -150,12 +137,13 @@ internal class HttpLeaderAuditDelivery(
         return builder.build()
     }
 
-    private fun classifyStatus(status: Int): LeaderAuditDeliveryResult = when {
-        status in HTTP_SUCCESS_STATUSES -> LeaderAuditDeliveryResult.SUCCESS
-        status == HTTP_REQUEST_TIMEOUT_STATUS ||
-            status == HTTP_TOO_MANY_REQUESTS_STATUS ||
-            status in HTTP_SERVER_ERROR_STATUSES -> LeaderAuditDeliveryResult.RETRYABLE_FAILURE
-        else -> LeaderAuditDeliveryResult.TERMINAL_FAILURE
+    private fun classifyStatus(status: Int): LeaderAuditDeliveryResult = when (status) {
+        in HTTP_SUCCESS_STATUSES                                                                  ->
+            LeaderAuditDeliveryResult.SUCCESS
+        HTTP_REQUEST_TIMEOUT_STATUS, HTTP_TOO_MANY_REQUESTS_STATUS, in HTTP_SERVER_ERROR_STATUSES ->
+            LeaderAuditDeliveryResult.RETRYABLE_FAILURE
+        else                                                                                      ->
+            LeaderAuditDeliveryResult.TERMINAL_FAILURE
     }
 
     private fun classifySynchronousFailure(failure: Exception): LeaderAuditDeliveryResult {
@@ -170,8 +158,6 @@ internal class HttpLeaderAuditDelivery(
             LeaderAuditDeliveryResult.TERMINAL_FAILURE
         }
     }
-
-    private object HttpLeaderAuditDeliveryLogger : KLogging()
 }
 
 private val HTTP_ALLOWED_HEADERS = setOf("content-type", "authorization")
@@ -204,7 +190,7 @@ private fun normalizeHeaders(input: Map<String, String>): Map<String, String> {
         val canonical = when (lowerName) {
             "content-type" -> "Content-Type"
             "authorization" -> "Authorization"
-            else -> error("unreachable header allow-list branch")
+            else           -> error("unreachable header allow-list branch")
         }
         require(normalized.put(canonical, value) == null) {
             "duplicate header name: $canonical"

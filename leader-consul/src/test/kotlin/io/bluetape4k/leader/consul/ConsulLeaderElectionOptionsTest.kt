@@ -1,14 +1,16 @@
 package io.bluetape4k.leader.consul
 
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeLessThan
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.consul.internal.ConsulLeaderPaths
 import io.bluetape4k.leader.consul.internal.ConsulSessionTtl
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration
@@ -17,10 +19,13 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ConsulLeaderElectionOptionsTest {
 
+    companion object: KLogging()
+
     @Test
     fun `default options follow Consul TTL contract`() {
         val options = ConsulLeaderElectionOptions.Default
 
+        log.debug { "default options=$options" }
         options.keyPrefix shouldBeEqualTo "bluetape4k/leader"
         options.sessionNamePrefix shouldBeEqualTo "bluetape4k-leader"
         options.lockDelay shouldBeEqualTo Duration.ZERO
@@ -84,6 +89,7 @@ class ConsulLeaderElectionOptionsTest {
     fun `builds encoded single leader key`() {
         val paths = ConsulLeaderPaths("apps/orders/leader/")
 
+        log.debug { "paths=$paths" }
         paths.single("daily:report_job-1") shouldBeEqualTo "apps/orders/leader/single/daily%3Areport_job-1"
     }
 
@@ -93,7 +99,7 @@ class ConsulLeaderElectionOptionsTest {
 
         val minimumDelay = ConsulSessionTtl.renewDelay(10.seconds)
         minimumDelay shouldBeGreaterOrEqualTo 1.seconds
-        (minimumDelay < 10.seconds).shouldBeTrue()
+        minimumDelay shouldBeLessThan 10.seconds
         minimumDelay shouldBeLessOrEqualTo (10.seconds / 3)
     }
 }

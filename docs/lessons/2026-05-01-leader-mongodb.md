@@ -108,7 +108,7 @@ init {
 
 ### 문제
 `maxLeaders=3, waitTime=30s`로 설정한 테스트에서 `perSlotWait = 30/3 = 10s`가 되어
-`acquiredLatch.await(5, TimeUnit.SECONDS)`가 슬롯 획득 전에 타임아웃.
+`acquiredLatch.await(5.seconds)`가 슬롯 획득 전에 타임아웃.
 
 ### 교훈
 그룹 슬롯 경합 테스트는 `fastOptions`(waitTime을 짧게)로 별도 옵션을 만들고,
@@ -117,5 +117,5 @@ init {
 val fastOptions = MongoLeaderGroupElectionOptions(
     LeaderGroupElectionOptions(maxLeaders = 3, waitTime = Duration.ofSeconds(5), ...)
 )
-acquiredLatch.await(10, TimeUnit.SECONDS)  // perSlotWait(5/3≈1.7s) * 3 + 여유
+acquiredLatch.await(10.seconds)  // perSlotWait(5/3≈1.7s) * 3 + 여유
 ```

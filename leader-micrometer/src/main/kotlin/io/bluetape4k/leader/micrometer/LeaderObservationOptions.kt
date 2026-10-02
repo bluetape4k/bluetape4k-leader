@@ -15,7 +15,7 @@ data class LeaderObservationOptions(
     val includeLeaderId: Boolean = false,
     val includeExceptionDetails: Boolean = false,
     val tagOptions: LeaderMetricTagOptions = LeaderMetricTagOptions.Default,
-) : Serializable {
+): Serializable {
 
     /**
      * Micrometer observability 계약을 설명하는 한국어 KDoc입니다.
@@ -24,7 +24,7 @@ data class LeaderObservationOptions(
         includeLockName: Boolean,
         includeLeaderId: Boolean,
         includeExceptionDetails: Boolean,
-    ) : this(
+    ): this(
         includeLockName = includeLockName,
         includeLeaderId = includeLeaderId,
         includeExceptionDetails = includeExceptionDetails,

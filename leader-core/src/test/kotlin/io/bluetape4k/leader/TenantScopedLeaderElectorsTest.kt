@@ -2,15 +2,19 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
-import io.bluetape4k.assertions.shouldBeTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class TenantScopedLeaderElectorsTest {
+
+    companion object: KLogging()
 
     @Test
     fun `TenantLockNamespace creates backend lock name`() {
@@ -34,7 +38,7 @@ class TenantScopedLeaderElectorsTest {
             TenantLockNamespace("a").lockName("x".repeat(247))
         }
 
-        thrown.message?.contains("maxLockNameLength=246").shouldBeTrue()
+        thrown.message shouldContain "maxLockNameLength=246"
 
     }
 
@@ -46,8 +50,10 @@ class TenantScopedLeaderElectorsTest {
 
         election.state("report-job")
         election.runIfLeader("report-job") { "sync" } shouldBeEqualTo "sync"
-        election.runAsyncIfLeader("report-job", executor) { CompletableFuture.completedFuture("async") }
+
+        election.runAsyncIfLeader("report-job", executor) { completableFutureOf("async") }
             .join() shouldBeEqualTo "async"
+
         election.runIfLeaderResult("report-job") { "result" } shouldBeEqualTo LeaderRunResult.Elected("result")
 
         delegate.lockNames shouldBeEqualTo listOf(
@@ -66,8 +72,10 @@ class TenantScopedLeaderElectorsTest {
         val slot = LeaderSlot("report-job", "node-1")
 
         election.runIfLeader(slot) { "sync" } shouldBeEqualTo "sync"
-        election.runAsyncIfLeader(slot, executor) { CompletableFuture.completedFuture("async") }
+
+        election.runAsyncIfLeader(slot, executor) { completableFutureOf("async") }
             .join() shouldBeEqualTo "async"
+
         election.runIfLeaderResult(slot) { "result" } shouldBeEqualTo LeaderRunResult.Elected("result", "node-1")
 
         delegate.slots shouldBeEqualTo listOf(
@@ -86,9 +94,10 @@ class TenantScopedLeaderElectorsTest {
         election.activeCount("aggregation") shouldBeEqualTo 1
         election.availableSlots("aggregation") shouldBeEqualTo 2
         election.state("aggregation") shouldBeEqualTo LeaderGroupState("tenant:acme:aggregation", 3, 1)
+
         election.runIfLeader("aggregation") { "done" } shouldBeEqualTo "done"
         election.runIfLeaderResult("aggregation") { "result" } shouldBeEqualTo LeaderRunResult.Elected("result")
-        election.runAsyncIfLeader("aggregation", executor) { CompletableFuture.completedFuture("async") }
+        election.runAsyncIfLeader("aggregation", executor) { completableFutureOf("async") }
             .join() shouldBeEqualTo "async"
 
         delegate.lockNames shouldBeEqualTo listOf(
@@ -110,9 +119,10 @@ class TenantScopedLeaderElectorsTest {
 
         election.runIfLeader(slot) { "sync" } shouldBeEqualTo "sync"
         election.runIfLeaderResult(slot) { "result" } shouldBeEqualTo LeaderRunResult.Elected("result", "node-1")
-        election.runAsyncIfLeader(slot, executor) { CompletableFuture.completedFuture("async") }
+
+        election.runAsyncIfLeader(slot, executor) { completableFutureOf("async") }
             .join() shouldBeEqualTo "async"
-        election.runAsyncIfLeaderResult(slot, executor) { CompletableFuture.completedFuture("async-result") }
+        election.runAsyncIfLeaderResult(slot, executor) { completableFutureOf("async-result") }
             .join() shouldBeEqualTo LeaderRunResult.Elected("async-result", "node-1")
 
         delegate.slots shouldBeEqualTo listOf(
@@ -155,7 +165,7 @@ class TenantScopedLeaderElectorsTest {
         )
     }
 
-    private class RecordingLeaderElector : LeaderElector {
+    private class RecordingLeaderElector: LeaderElector {
         val lockNames = mutableListOf<String>()
         val slots = mutableListOf<LeaderSlot>()
 
@@ -203,7 +213,7 @@ class TenantScopedLeaderElectorsTest {
         }
     }
 
-    private class RecordingLeaderGroupElector : LeaderGroupElector {
+    private class RecordingLeaderGroupElector: LeaderGroupElector {
         val lockNames = mutableListOf<String>()
         val slots = mutableListOf<LeaderSlot>()
         override val maxLeaders: Int = 3
@@ -271,7 +281,7 @@ class TenantScopedLeaderElectorsTest {
         }
     }
 
-    private class RecordingVirtualThreadLeaderElector : VirtualThreadLeaderElector {
+    private class RecordingVirtualThreadLeaderElector: VirtualThreadLeaderElector {
         val lockNames = mutableListOf<String>()
         val slots = mutableListOf<LeaderSlot>()
 
@@ -282,16 +292,16 @@ class TenantScopedLeaderElectorsTest {
 
         override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> {
             lockNames += lockName
-            return VirtualFuture(CompletableFuture.completedFuture(action()))
+            return VirtualFuture(completableFutureOf(action()))
         }
 
         override fun <T> runAsyncIfLeader(slot: LeaderSlot, action: () -> T): VirtualFuture<T?> {
             slots += slot
-            return VirtualFuture(CompletableFuture.completedFuture(action()))
+            return VirtualFuture(completableFutureOf(action()))
         }
     }
 
-    private class RecordingVirtualThreadLeaderGroupElector : VirtualThreadLeaderGroupElector {
+    private class RecordingVirtualThreadLeaderGroupElector: VirtualThreadLeaderGroupElector {
         val lockNames = mutableListOf<String>()
         override val maxLeaders: Int = 3
 
@@ -312,7 +322,7 @@ class TenantScopedLeaderElectorsTest {
 
         override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> {
             lockNames += lockName
-            return VirtualFuture(CompletableFuture.completedFuture(action()))
+            return VirtualFuture(completableFutureOf(action()))
         }
     }
 }

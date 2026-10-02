@@ -17,9 +17,9 @@ import org.junit.jupiter.api.TestInstance
  * R6 filter (`expireAt > now`) 적용된 extendDetailed 사용.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class MongoGroupLockExtenderContractTest : AbstractGroupLockExtenderContractTest() {
+class MongoGroupLockExtenderContractTest: AbstractGroupLockExtenderContractTest() {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         val mongo = AbstractMongoLeaderTest.mongoServer
     }
 

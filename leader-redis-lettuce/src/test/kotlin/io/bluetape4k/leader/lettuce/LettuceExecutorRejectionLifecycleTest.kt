@@ -2,27 +2,32 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderSlot
-import org.junit.jupiter.api.Test
+import io.bluetape4k.logging.KLogging
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
+import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class LettuceExecutorRejectionLifecycleTest: AbstractLettuceLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `single nullable 취소를 action과 lock lifecycle에 전파한다`() {
@@ -38,9 +43,9 @@ class LettuceExecutorRejectionLifecycleTest: AbstractLettuceLeaderTest() {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
-            result.cancel(false) shouldBeEqualTo true
-            actionFuture.isCancelled shouldBeEqualTo true
+            actionStarted.await(2.seconds).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+            actionFuture.isCancelled.shouldBeTrue()
             await.atMost(2.seconds).untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
@@ -63,9 +68,10 @@ class LettuceExecutorRejectionLifecycleTest: AbstractLettuceLeaderTest() {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
-            result.cancel(false) shouldBeEqualTo true
-            actionFuture.isCancelled shouldBeEqualTo true
+            actionStarted.await(2.seconds).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+            actionFuture.isCancelled.shouldBeTrue()
+
             await.atMost(2.seconds).untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
@@ -91,9 +97,10 @@ class LettuceExecutorRejectionLifecycleTest: AbstractLettuceLeaderTest() {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
-            result.cancel(false) shouldBeEqualTo true
-            actionFuture.isCancelled shouldBeEqualTo true
+            actionStarted.await(2.seconds).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+            actionFuture.isCancelled.shouldBeTrue()
+
             await.atMost(2.seconds).untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
@@ -119,9 +126,10 @@ class LettuceExecutorRejectionLifecycleTest: AbstractLettuceLeaderTest() {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
-            result.cancel(false) shouldBeEqualTo true
-            actionFuture.isCancelled shouldBeEqualTo true
+            actionStarted.await(2.seconds).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+            actionFuture.isCancelled.shouldBeTrue()
+
             await.atMost(2.seconds).untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
@@ -151,17 +159,20 @@ class LettuceExecutorRejectionLifecycleTest: AbstractLettuceLeaderTest() {
         try {
             val primed = CountDownLatch(1)
             executor.execute { primed.countDown() }
-            primed.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+            primed.await(2.seconds).shouldBeTrue()
 
             val rejected = election.runAsyncIfLeader(lockName, executor) {
                 actionInvoked.set(true)
-                CompletableFuture.completedFuture("must-not-run")
+                completableFutureOf("must-not-run")
             }
-            val failure = assertFailsWith<CompletionException> { rejected.join() }
 
+            val failure = assertFailsWith<CompletionException> {
+                rejected.join()
+            }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             submissions.get() shouldBeEqualTo 2
-            actionInvoked.get() shouldBeEqualTo false
+            actionInvoked.get().shouldBeFalse()
+
             election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
         } finally {
             worker.shutdownNow()
@@ -193,17 +204,20 @@ class LettuceExecutorRejectionLifecycleTest: AbstractLettuceLeaderTest() {
         try {
             val primed = CountDownLatch(1)
             executor.execute { primed.countDown() }
-            primed.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+            primed.await(2.seconds).shouldBeTrue()
 
             val rejected = election.runAsyncIfLeader(lockName, executor) {
                 actionInvoked.set(true)
-                CompletableFuture.completedFuture("must-not-run")
+                completableFutureOf("must-not-run")
             }
-            val failure = assertFailsWith<CompletionException> { rejected.join() }
 
+            val failure = assertFailsWith<CompletionException> {
+                rejected.join()
+            }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             submissions.get() shouldBeEqualTo 2
-            actionInvoked.get() shouldBeEqualTo false
+            actionInvoked.get().shouldBeFalse()
+
             election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
         } finally {
             worker.shutdownNow()

@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.aop.cache
 
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import java.io.Serializable
 
 /**
  * `FactoryCacheKey`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
@@ -12,7 +13,11 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 data class FactoryCacheKey(
     val factoryBeanName: String,
     val options: LeaderElectionOptions,
-)
+): Serializable {
+    companion object {
+        private const val serialVersionUID = 1L
+    }
+}
 
 /**
  * `GroupFactoryCacheKey`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
@@ -23,4 +28,8 @@ data class FactoryCacheKey(
 data class GroupFactoryCacheKey(
     val factoryBeanName: String,
     val options: LeaderGroupElectionOptions,
-)
+): Serializable {
+    companion object {
+        private const val serialVersionUID = 1L
+    }
+}

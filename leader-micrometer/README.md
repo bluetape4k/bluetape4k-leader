@@ -94,11 +94,11 @@ bluetape4k:
               - tenant-debug-job
 ```
 
-| Mode | Behavior | Typical use |
-|---|---|---|
-| `REDACT` | Exports the configured sentinel | Default for dynamic names |
-| `RAW` | Exports the original value | Small, static job sets only |
-| `HASH` | Exports a deterministic SHA-256 hex prefix | Correlation only; not anonymization |
+| Mode       | Behavior                                            | Typical use                          |
+|------------|-----------------------------------------------------|--------------------------------------|
+| `REDACT`   | Exports the configured sentinel                     | Default for dynamic names            |
+| `RAW`      | Exports the original value                          | Small, static job sets only          |
+| `HASH`     | Exports a deterministic SHA-256 hex prefix          | Correlation only; not anonymization  |
 | `TRUNCATE` | Exports a bounded prefix; requires `max-length > 0` | Legacy dashboards with length limits |
 
 Denylist entries always redact. A non-empty allowlist admits exact raw values and redacts every other value; `TRUNCATE` still applies its max length to allowed values. `LeaderMetricTagSanitizer` can be provided as a Spring bean or constructor argument when one process needs a custom rule source.
@@ -143,8 +143,7 @@ This module emits Micrometer Observations only. It does not add an OpenTelemetry
 > matching develop/snapshot build until the promotion gate in the draft is complete.
 
 `MicrometerObservationLeaderLeaseExtensionObserver` adapts the core
-`LeaderLeaseExtensionEvent` to a short terminal Observation. Register it with the
-same process-local core registry used by `LockExtender` and `LeaderLeaseAutoExtender`:
+`LeaderLeaseExtensionEvent` to a short terminal Observation. Register it with the same process-local core registry used by `LockExtender` and `LeaderLeaseAutoExtender`:
 
 ```kotlin
 val observer = MicrometerObservationLeaderLeaseExtensionObserver(
@@ -163,37 +162,23 @@ try {
 }
 ```
 
-The observation name is `bluetape4k.leader.lease.extension`. Its bounded
-low-cardinality tags are `source`, `execution`, `outcome`, and `result`:
+The observation name is `bluetape4k.leader.lease.extension`. Its bounded low-cardinality tags are `source`, `execution`, `outcome`, and `result`:
 
-| `ExtendOutcome` | `outcome` | `result` |
-|---|---|---|
-| `Extended` | `extended` | `success` |
-| `Rejected` | `rejected` | `skipped` |
-| `NotHeld` | `not_held` | `skipped` |
-| `WrongThread` | `wrong_thread` | `error` |
-| `BackendError` | `backend_error` | `error` |
+| `ExtendOutcome` | `outcome`       | `result`  |
+|-----------------|-----------------|-----------|
+| `Extended`      | `extended`      | `success` |
+| `Rejected`      | `rejected`      | `skipped` |
+| `NotHeld`       | `not_held`      | `skipped` |
+| `WrongThread`   | `wrong_thread`  | `error`   |
+| `BackendError`  | `backend_error` | `error`   |
 
-`elapsedNanos` is not a tag. `includeLockName` and `includeLeaderId` add
-sanitised high-cardinality values only when explicitly enabled, and
+`elapsedNanos` is not a tag. `includeLockName` and `includeLeaderId` add sanitised high-cardinality values only when explicitly enabled, and
 `includeExceptionDetails` attaches the original backend exception through
-`Observation.error(...)` without applying the tag sanitiser. The default
-options keep all three disabled; enable exception details only when downstream
-observation or tracing systems are approved for raw exception messages and stack
-traces. A NOOP
-`ObservationRegistry` produces no Observation. This module emits Micrometer
-Observations only; tracing bridges, exporters, collectors, and OpenTelemetry SDKs
-remain application dependencies.
-Issue #529 covers acquire/execution observations; this Issue #559 adapter covers
-terminal lease-extension attempts. When Spring Boot auto-configuration is enabled,
-do not also call `addObserver` manually; the Spring manager shares one registration
-per registry identity.
-The snippet closes after one explicit `USER` attempt. Keep the registration open
-for the full single-leader action or component lifetime with `autoExtend = true`
+`Observation.error(...)` without applying the tag sanitiser. The default options keep all three disabled; enable exception details only when downstream observation or tracing systems are approved for raw exception messages and stack traces. A NOOP
+`ObservationRegistry` produces no Observation. This module emits Micrometer Observations only; tracing bridges, exporters, collectors, and OpenTelemetry SDKs remain application dependencies. Issue #529 covers acquire/execution observations; this Issue #559 adapter covers terminal lease-extension attempts. When Spring Boot auto-configuration is enabled, do not also call `addObserver` manually; the Spring manager shares one registration per registry identity. The snippet closes after one explicit `USER` attempt. Keep the registration open for the full single-leader action or component lifetime with `autoExtend = true`
 when `WATCHDOG` ticks are needed; group election slots accept explicit
 `LockExtender` calls but disable group auto-extension and therefore do not emit
-`WATCHDOG` events.
-See the [unreleased lease-extension observation draft](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
+`WATCHDOG` events. See the [unreleased lease-extension observation draft](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
 for the full core contract and Spring lifecycle notes.
 
 ## Direct Elector Metrics
@@ -237,18 +222,9 @@ val election = InstrumentedLeaderElector(
 
 The three instrumented elector decorators also expose the delegate's
 `LeaderBackendDiagnosticsProvider`. Active `checkConnectivity` and
-`diagnostics(probe = true)` calls increment `leader.backend.connectivity` once
-with `backend.name`, `status`, and `reason` tags. Passive `diagnostics()` does
-not create a meter. The decorator records only the bounded enum values and
-rethrows the provider's original exception; it never exports exception text,
-endpoints, credentials, or lock names.
+`diagnostics(probe = true)` calls increment `leader.backend.connectivity` once with `backend.name`, `status`, and `reason` tags. Passive `diagnostics()` does not create a meter. The decorator records only the bounded enum values and rethrows the provider's original exception; it never exports exception text, endpoints, credentials, or lock names.
 
-When instrumented decorators are nested, the existing diagnostics provider is
-reused only when both decorators reference the same `MeterRegistry` instance
-and equal `LeaderMetricTagOptions`. If either setting differs, the outer
-decorator instruments the underlying provider with its requested registry and
-tag policy. This keeps registry and tag-policy boundaries explicit without
-double-counting equal configurations.
+When instrumented decorators are nested, the existing diagnostics provider is reused only when both decorators reference the same `MeterRegistry` instance and equal `LeaderMetricTagOptions`. If either setting differs, the outer decorator instruments the underlying provider with its requested registry and tag policy. This keeps registry and tag-policy boundaries explicit without double-counting equal configurations.
 
 ## Listener Event Metrics
 
@@ -269,52 +245,51 @@ election.runIfLeader("daily-report") {
 
 ### AOP Meters
 
-| Meter | Type | Tags | Description |
-|-------|------|------|-------------|
-| `leader.aop.attempts` | Counter | `lock.name` | Lock acquisition attempts |
-| `leader.aop.acquired` | Counter | `lock.name` | Successful leader executions |
-| `leader.aop.lock.not.acquired` | Counter | `lock.name`, `reason` | Skipped execution by contention, backend error, or fail-open path |
-| `leader.aop.execution.duration` | Timer | `lock.name` | Successful body duration |
-| `leader.aop.task.failed` | Counter | `lock.name`, `exception` | User body failures |
-| `leader.aop.active` | Gauge | `lock.name` | Currently running leader bodies in this JVM |
+| Meter                           | Type    | Tags                     | Description                                                       |
+|---------------------------------|---------|--------------------------|-------------------------------------------------------------------|
+| `leader.aop.attempts`           | Counter | `lock.name`              | Lock acquisition attempts                                         |
+| `leader.aop.acquired`           | Counter | `lock.name`              | Successful leader executions                                      |
+| `leader.aop.lock.not.acquired`  | Counter | `lock.name`, `reason`    | Skipped execution by contention, backend error, or fail-open path |
+| `leader.aop.execution.duration` | Timer   | `lock.name`              | Successful body duration                                          |
+| `leader.aop.task.failed`        | Counter | `lock.name`, `exception` | User body failures                                                |
+| `leader.aop.active`             | Gauge   | `lock.name`              | Currently running leader bodies in this JVM                       |
 
 ### Direct Elector Meters
 
-| Meter | Type | Tags | Description |
-|-------|------|------|-------------|
-| `shedlock.leader.acquired` | Counter | `lock.name` | Successful decorator executions |
-| `shedlock.leader.not_acquired` | Counter | `lock.name` | Decorator skips |
-| `shedlock.leader.duration` | Timer | `lock.name` | Decorator body duration |
-| `shedlock.leader.active` | Gauge | `lock.name` | Currently running decorator bodies in this JVM |
-| `leader.backend.connectivity` | Counter | `backend.name`, `status`, `reason` | One sample for each active backend connectivity probe |
+| Meter                          | Type    | Tags                               | Description                                           |
+|--------------------------------|---------|------------------------------------|-------------------------------------------------------|
+| `shedlock.leader.acquired`     | Counter | `lock.name`                        | Successful decorator executions                       |
+| `shedlock.leader.not_acquired` | Counter | `lock.name`                        | Decorator skips                                       |
+| `shedlock.leader.duration`     | Timer   | `lock.name`                        | Decorator body duration                               |
+| `shedlock.leader.active`       | Gauge   | `lock.name`                        | Currently running decorator bodies in this JVM        |
+| `leader.backend.connectivity`  | Counter | `backend.name`, `status`, `reason` | One sample for each active backend connectivity probe |
 
 ### Listener Event Meters
 
-| Meter | Type | Tags | Description |
-|-------|------|------|-------------|
+| Meter                    | Type    | Tags                 | Description                                          |
+|--------------------------|---------|----------------------|------------------------------------------------------|
 | `leader.election.events` | Counter | `lock.name`, `event` | Lifecycle callbacks: `elected`, `revoked`, `skipped` |
 
 ### Observation Names
 
-| Observation | Low-cardinality keys | High-cardinality keys |
-|---|---|---|
-| `leader.aop.acquire` | `leader.operation`, `outcome`, `reason` | `acquire.elapsed.ms`, plus `lock.name` / `leader.id` only when enabled |
-| `leader.aop.execution` | `leader.operation`, `outcome`, `exception` | `execution.elapsed.ms`, plus `lock.name` / `leader.id` only when enabled |
-| `leader.election.event` | `event` | `lock.name` only when enabled |
+| Observation             | Low-cardinality keys                       | High-cardinality keys                                                    |
+|-------------------------|--------------------------------------------|--------------------------------------------------------------------------|
+| `leader.aop.acquire`    | `leader.operation`, `outcome`, `reason`    | `acquire.elapsed.ms`, plus `lock.name` / `leader.id` only when enabled   |
+| `leader.aop.execution`  | `leader.operation`, `outcome`, `exception` | `execution.elapsed.ms`, plus `lock.name` / `leader.id` only when enabled |
+| `leader.election.event` | `event`                                    | `lock.name` only when enabled                                            |
 
 `CancellationException` is recorded as `outcome=cancelled` and is not sent to `Observation.error(...)`. Non-cancellation failures record the exception simple class name by default; raw throwable details are attached only when `LeaderObservationOptions(includeExceptionDetails = true)` is used.
 
 ### History Sink Meters
 
-| Meter | Type | Tags | Description |
-|-------|------|------|-------------|
-| `leader.history.sink.failures` | Counter | `sink` | History sink call failures, excluding cancellation and interruption paths |
+| Meter                            | Type    | Tags   | Description                                                                       |
+|----------------------------------|---------|--------|-----------------------------------------------------------------------------------|
+| `leader.history.sink.failures`   | Counter | `sink` | History sink call failures, excluding cancellation and interruption paths         |
 | `leader.history.acquire.missing` | Counter | `sink` | `recordAcquired` returned `null` for unavailable or duplicate acquisition records |
 
 ## Audit Export Metrics
 
-Wrap a core `LeaderAuditExporter` when bounded audit delivery outcomes should be
-exported to Micrometer:
+Wrap a core `LeaderAuditExporter` when bounded audit delivery outcomes should be exported to Micrometer:
 
 ```kotlin
 val exporter = MicrometerLeaderAuditExporter(delegate, registry)
@@ -323,8 +298,7 @@ exporter.submit(event)
 exporter.close() // owns and closes delegate exactly once
 ```
 
-The core module supplies the JDK HTTP transport. Compose it with the Micrometer
-decorator when webhook outcomes and queue gauges should be exported together:
+The core module supplies the JDK HTTP transport. Compose it with the Micrometer decorator when webhook outcomes and queue gauges should be exported together:
 
 ```kotlin
 val exporter = MicrometerLeaderAuditExporter(
@@ -346,63 +320,31 @@ val exporter = MicrometerLeaderAuditExporter(
 )
 ```
 
-`HttpLeaderAuditExporter` accepts only a trusted HTTPS endpoint, disables redirects,
-and discards response bodies. Serialization, endpoint allow-listing, and idempotency
-remain application responsibilities; this module adds metrics but no JSON or
-OpenTelemetry transport.
+`HttpLeaderAuditExporter` accepts only a trusted HTTPS endpoint, disables redirects, and discards response bodies. Serialization, endpoint allow-listing, and idempotency remain application responsibilities; this module adds metrics but no JSON or OpenTelemetry transport.
 
-The decorator publishes one fixed, aggregate metric catalog. It never copies lock
-names, leader IDs, endpoints, error messages, `source`, or `transport` into tags.
-The only tag is `outcome`, with the bounded values shown below. A registry keeps
-the meter identity across close-and-replacement generations; do not call
-`MeterRegistry.remove` or register the fixed IDs from another component. A
-duplicate active wrapper or a foreign fixed-ID registration fails fast. For a
-non-owning observation, register an observer with `delegate.observe(...)` rather
-than wrapping the same delegate twice.
+The decorator publishes one fixed, aggregate metric catalog. It never copies lock names, leader IDs, endpoints, error messages, `source`, or `transport` into tags. The only tag is `outcome`, with the bounded values shown below. A registry keeps the meter identity across close-and-replacement generations; do not call
+`MeterRegistry.remove` or register the fixed IDs from another component. A duplicate active wrapper or a foreign fixed-ID registration fails fast. For a non-owning observation, register an observer with `delegate.observe(...)` rather than wrapping the same delegate twice.
 
-| Meter | Type | Tags / outcome | Snapshot source |
-|---|---|---|---|
-| `leader.audit.export.accepted` | FunctionCounter | `outcome=accepted` | `accepted` |
-| `leader.audit.export.dropped` | FunctionCounter | `outcome=queue_full` or `closed` | `droppedQueueFull`, `droppedClosed` |
-| `leader.audit.export.retries` | FunctionCounter | `outcome=retry` | `retries` |
-| `leader.audit.export.failures` | FunctionCounter | `outcome=failure` | `terminalFailures` |
-| `leader.audit.export.queue.depth` | Gauge | none | `queued` |
-| `leader.audit.export.in.flight` | Gauge | none | `inFlight` |
-| `leader.audit.export.cancelled` | FunctionCounter | `outcome=cancelled` | `cancellations` |
-| `leader.audit.export.rejections` | FunctionCounter | `outcome=rejected` | executor + scheduler rejections |
-| `leader.audit.export.observer.dropped` | FunctionCounter | none | `observerDrops` |
-| `leader.audit.export.observer.registration.dropped` | FunctionCounter | none | `observerRegistrationDrops` |
-| `leader.audit.export.diagnostics.failures` | FunctionCounter | none | `diagnosticsFatalErrors` |
-| `leader.audit.export.diagnostics.closed` | Gauge | none | `diagnosticsClosed` |
+| Meter                                               | Type            | Tags / outcome                   | Snapshot source                     |
+|-----------------------------------------------------|-----------------|----------------------------------|-------------------------------------|
+| `leader.audit.export.accepted`                      | FunctionCounter | `outcome=accepted`               | `accepted`                          |
+| `leader.audit.export.dropped`                       | FunctionCounter | `outcome=queue_full` or `closed` | `droppedQueueFull`, `droppedClosed` |
+| `leader.audit.export.retries`                       | FunctionCounter | `outcome=retry`                  | `retries`                           |
+| `leader.audit.export.failures`                      | FunctionCounter | `outcome=failure`                | `terminalFailures`                  |
+| `leader.audit.export.queue.depth`                   | Gauge           | none                             | `queued`                            |
+| `leader.audit.export.in.flight`                     | Gauge           | none                             | `inFlight`                          |
+| `leader.audit.export.cancelled`                     | FunctionCounter | `outcome=cancelled`              | `cancellations`                     |
+| `leader.audit.export.rejections`                    | FunctionCounter | `outcome=rejected`               | executor + scheduler rejections     |
+| `leader.audit.export.observer.dropped`              | FunctionCounter | none                             | `observerDrops`                     |
+| `leader.audit.export.observer.registration.dropped` | FunctionCounter | none                             | `observerRegistrationDrops`         |
+| `leader.audit.export.diagnostics.failures`          | FunctionCounter | none                             | `diagnosticsFatalErrors`            |
+| `leader.audit.export.diagnostics.closed`            | Gauge           | none                             | `diagnosticsClosed`                 |
 
-The dropped meter has two outcome-tagged IDs, so the fixed catalog contains 13
-meter IDs. Counter values remain monotonic across replacement by combining the
-detached generation offset with the active delegate snapshot. If a close-time
-snapshot throws, the decorator keeps the last trusted offset, marks the source
-degraded, detaches the delegate, and propagates the original exception. If a
-snapshot returns a lower cumulative value, it keeps the trusted baseline and
-returns normally with the degraded warning; no exception is fabricated.
-The degraded path uses the fixed `leader.audit.export.meter-source-degraded` warning
-and never logs snapshot payloads or exception messages.
-If registration fails after only part of the fixed catalog is installed, the manager
-keeps the owned meters and their identities; the next acquire registers only the
-missing IDs and never removes a foreign meter. The cumulative comparison used by
-each scrape is scalar and allocation-free, so the hot path does not build a
-temporary Boolean collection.
-During an open generation, if a metric poll cannot read `delegate.snapshot()`, the
-decorator keeps the last trusted cumulative and gauge values, leaves
-`diagnosticsClosed=0`, and emits the fixed warning at most once for that generation.
-Every metric read also rechecks the identity of the 13 meters it owns. If another
-component removes or replaces one of those IDs, the manager freezes the last
-trusted detached values and emits the fixed `leader.audit.export.meter-ownership-conflict`
-warning once; it never reads or removes the foreign meter. A compromised manager
-is not reused, so recovery requires a fresh `MeterRegistry` after the conflicting
-registration is removed. The same delegate cannot be wrapped by two decorators,
-even when the registries differ; the failed wrapper leaves the active owner open.
+The dropped meter has two outcome-tagged IDs, so the fixed catalog contains 13 meter IDs. Counter values remain monotonic across replacement by combining the detached generation offset with the active delegate snapshot. If a close-time snapshot throws, the decorator keeps the last trusted offset, marks the source degraded, detaches the delegate, and propagates the original exception. If a snapshot returns a lower cumulative value, it keeps the trusted baseline and returns normally with the degraded warning; no exception is fabricated. The degraded path uses the fixed `leader.audit.export.meter-source-degraded` warning and never logs snapshot payloads or exception messages. If registration fails after only part of the fixed catalog is installed, the manager keeps the owned meters and their identities; the next acquire registers only the missing IDs and never removes a foreign meter. The cumulative comparison used by each scrape is scalar and allocation-free, so the hot path does not build a temporary Boolean collection. During an open generation, if a metric poll cannot read `delegate.snapshot()`, the decorator keeps the last trusted cumulative and gauge values, leaves
+`diagnosticsClosed=0`, and emits the fixed warning at most once for that generation. Every metric read also rechecks the identity of the 13 meters it owns. If another component removes or replaces one of those IDs, the manager freezes the last trusted detached values and emits the fixed `leader.audit.export.meter-ownership-conflict`
+warning once; it never reads or removes the foreign meter. A compromised manager is not reused, so recovery requires a fresh `MeterRegistry` after the conflicting registration is removed. The same delegate cannot be wrapped by two decorators, even when the registries differ; the failed wrapper leaves the active owner open.
 
-This slice provides Micrometer metrics only. JSONL output and an OpenTelemetry
-SDK/bridge/exporter are separate follow-up scope; applications must add those
-dependencies and transports explicitly.
+This slice provides Micrometer metrics only. JSONL output and an OpenTelemetry SDK/bridge/exporter are separate follow-up scope; applications must add those dependencies and transports explicitly.
 
 Micrometer naming conventions convert names for the export backend. Prometheus exposes examples such as `leader_aop_attempts_total`, `leader_aop_execution_duration_seconds`, and `shedlock_leader_acquired_total`.
 
@@ -443,8 +385,7 @@ max by (lock_name) (leader_aop_active)
 
 `leader.aop.active` and `shedlock.leader.active` are JVM-local gauges. Prefer `max by (lock_name)` across instances unless you intentionally need per-instance totals.
 
-`PrometheusExportTest` verifies both Micrometer text exposition and a real Prometheus scrape using `PrometheusServer` from `bluetape4k-testcontainers`.
-The coverage checks that AOP and direct elector metrics are exported with Prometheus names such as `leader_aop_acquired_total`,
+`PrometheusExportTest` verifies both Micrometer text exposition and a real Prometheus scrape using `PrometheusServer` from `bluetape4k-testcontainers`. The coverage checks that AOP and direct elector metrics are exported with Prometheus names such as `leader_aop_acquired_total`,
 `shedlock_leader_acquired_total`, and the converted `lock_name` label.
 
 ## Pre-Registration

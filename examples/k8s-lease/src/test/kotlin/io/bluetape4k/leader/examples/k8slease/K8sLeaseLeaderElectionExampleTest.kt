@@ -3,15 +3,18 @@ package io.bluetape4k.leader.examples.k8slease
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.javatimes.millis
+import io.bluetape4k.javatimes.seconds
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.testcontainers.infra.K3sServer
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import java.time.Duration
 
 @Tag("k8s")
 class K8sLeaseLeaderElectionExampleTest {
 
-    companion object {
+    companion object: KLogging() {
         private const val NAMESPACE = "default"
 
         private val k3s: K3sServer by lazy { K3sServer.Launcher.k3s }
@@ -20,12 +23,14 @@ class K8sLeaseLeaderElectionExampleTest {
     @Test
     fun `subsecond Lease create와 update 요청은 올림된 양수 초를 전달한다`() {
         k3s.kubernetesClient().use { client ->
-            val example = K8sLeaseLeaderElectionExample(client, leaseDuration = Duration.ofMillis(500))
+            val example = K8sLeaseLeaderElectionExample(client, leaseDuration = 500.millis())
             val leaseName = "leader-duration-${Base58.randomString(8).lowercase()}"
+
             try {
                 example.tryAcquire(leaseName, "node-a").outcome shouldBeEqualTo LeaseOutcome.ACQUIRED
                 client.leases().inNamespace(NAMESPACE).withName(leaseName).get()
                     .spec.leaseDurationSeconds shouldBeEqualTo 1
+
                 example.tryAcquire(leaseName, "node-a").outcome shouldBeEqualTo LeaseOutcome.ACQUIRED
                 client.leases().inNamespace(NAMESPACE).withName(leaseName).get()
                     .spec.leaseDurationSeconds shouldBeEqualTo 1
@@ -41,7 +46,7 @@ class K8sLeaseLeaderElectionExampleTest {
             val example = K8sLeaseLeaderElectionExample(
                 client = client,
                 namespace = NAMESPACE,
-                leaseDuration = Duration.ofSeconds(30),
+                leaseDuration = 30.seconds(),
             )
             val leaseName = "leader-example-${Base58.randomString(8).lowercase()}"
 
@@ -52,11 +57,18 @@ class K8sLeaseLeaderElectionExampleTest {
                 val released = example.release(leaseName, "node-a")
                 val third = example.tryAcquire(leaseName, "node-b")
 
+                log.debug { "first=$first" }
+                log.debug { "second=$second" }
+                log.debug { "third=$third" }
+
                 first.outcome shouldBeEqualTo LeaseOutcome.ACQUIRED
                 first.holderIdentity shouldBeEqualTo "node-a"
+
                 second.outcome shouldBeEqualTo LeaseOutcome.CONFLICT
                 second.holderIdentity shouldBeEqualTo "node-a"
+
                 released.shouldBeTrue()
+
                 third.outcome shouldBeEqualTo LeaseOutcome.ACQUIRED
                 third.holderIdentity shouldBeEqualTo "node-b"
             } finally {

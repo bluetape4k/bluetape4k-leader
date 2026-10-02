@@ -2,24 +2,27 @@ package io.bluetape4k.leader.k8s
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseNames
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.infra.K3sServer
 import io.fabric8.kubernetes.client.KubernetesClient
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Clock
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -28,9 +31,8 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class KubernetesLeaseLeaderGroupElectorK3sTest {
 
-    companion object {
+    companion object: KLogging() {
         private const val NAMESPACE = "default"
-
         private val k3s: K3sServer by lazy { K3sServer.Launcher.k3s }
     }
 
@@ -58,6 +60,7 @@ class KubernetesLeaseLeaderGroupElectorK3sTest {
 
                 result shouldBeEqualTo "first"
                 reacquired shouldBeEqualTo "reacquired"
+
                 first.state(lockName).activeCount shouldBeEqualTo 0
             }
         }
@@ -81,8 +84,8 @@ class KubernetesLeaseLeaderGroupElectorK3sTest {
                     "done"
                 }
 
-                (result is LeaderRunResult.Elected).shouldBeTrue()
-                (result as LeaderRunResult.Elected).value shouldBeEqualTo "done"
+                result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+                result.value shouldBeEqualTo "done"
                 result.leaderId shouldBeEqualTo leaderId
             }
         }
@@ -123,14 +126,13 @@ class KubernetesLeaseLeaderGroupElectorK3sTest {
 
                 assertFailsWith<CompletionException> {
                     election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-                        CompletableFuture.failedFuture<Int>(IllegalStateException("boom"))
+                        failedCompletableFutureOf<Int>(IllegalStateException("boom"))
                     }.join()
                 }
 
-                val result = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-                    CompletableFuture.completedFuture("recovered")
-                }.get(5, TimeUnit.SECONDS)
-                result shouldBeEqualTo "recovered"
+                election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+                    completableFutureOf("recovered")
+                }.get(5.seconds) shouldBeEqualTo "recovered"
             }
         }
     }

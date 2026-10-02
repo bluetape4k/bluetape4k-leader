@@ -1,13 +1,17 @@
 package io.bluetape4k.leader.hazelcast
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
@@ -16,6 +20,10 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.until
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
@@ -25,7 +33,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
@@ -42,18 +49,18 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
         waitTime = 10.seconds,
         leaseTime = 60.seconds,
     )
-    private val election by lazy { HazelcastLeaderGroupElector(hazelcastClient, options) }
+    private val elector by lazy { HazelcastLeaderGroupElector(hazelcastClient, options) }
 
     @Test
     fun `runIfLeader - 리더로 선출되어 action 을 실행하고 결과를 반환한다`() {
-        val result = election.runIfLeader(randomName()) { "hello" }
+        val result = elector.runIfLeader(randomName()) { "hello" }
         result shouldBeEqualTo "hello"
     }
 
     @Test
     fun `runIfLeader - 서로 다른 lockName 은 독립적인 슬롯 풀을 가진다`() {
-        val result1 = election.runIfLeader(randomName()) { "a" }
-        val result2 = election.runIfLeader(randomName()) { "b" }
+        val result1 = elector.runIfLeader(randomName()) { "a" }
+        val result2 = elector.runIfLeader(randomName()) { "b" }
         result1 shouldBeEqualTo "a"
         result2 shouldBeEqualTo "b"
     }
@@ -61,15 +68,19 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `runIfLeader - action 예외 발생 후에도 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomName()
-        runCatching { election.runIfLeader(lockName) { throw LeaderGroupElectionException("실패") } }
-        val result = election.runIfLeader(lockName) { "복구 성공" }
+        runCatching {
+            elector.runIfLeader(lockName) {
+                throw LeaderGroupElectionException("실패")
+            }
+        }
+        val result = elector.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
     }
 
     @Test
     fun `runIfLeader - 빠른 종료 시 minLeaseTime 동안 Hazelcast 슬롯 TTL 을 보존한다`() {
         val lockName = randomName()
-        val singleElection = HazelcastLeaderGroupElector(
+        val singleElector = HazelcastLeaderGroupElector(
             hazelcastClient,
             LeaderGroupElectionOptions(
                 maxLeaders = 1,
@@ -79,33 +90,35 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
             )
         )
 
-        singleElection.runIfLeader(lockName) { "done" } shouldBeEqualTo "done"
-        singleElection.runIfLeader(lockName) { "too-early" }.shouldBeNull()
+        singleElector.runIfLeader(lockName) { "done" } shouldBeEqualTo "done"
+        singleElector.runIfLeader(lockName) { "too-early" }.shouldBeNull()
 
-        Thread.sleep(2_200)
+        await atMost 5.seconds withPollInterval 100.milliseconds until {
+            singleElector.activeCount(lockName) < singleElector.maxLeaders
+        }
 
-        singleElection.runIfLeader(lockName) { "after-min" } shouldBeEqualTo "after-min"
+        singleElector.runIfLeader(lockName) { "after-min" } shouldBeEqualTo "after-min"
     }
 
     @Test
     fun `runIfLeader - 모든 슬롯이 사용 중이면 waitTime 초과 시 null 을 반환한다`() {
         val shortWaitOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 100.milliseconds)
-        val singleElection = HazelcastLeaderGroupElector(hazelcastClient, shortWaitOptions)
+        val singleElector = HazelcastLeaderGroupElector(hazelcastClient, shortWaitOptions)
         val lockName = randomName()
         val acquiredLatch = CountDownLatch(1)
         val holdLatch = CountDownLatch(1)
         val executor = Executors.newSingleThreadExecutor()
 
         executor.submit {
-            singleElection.runIfLeader(lockName) {
+            singleElector.runIfLeader(lockName) {
                 acquiredLatch.countDown()
-                holdLatch.await(5, TimeUnit.SECONDS)
+                holdLatch.await(5.seconds)
             }
         }
 
         try {
-            acquiredLatch.await(2, TimeUnit.SECONDS)
-            val result = singleElection.runIfLeader(lockName) { }
+            acquiredLatch.await(2.seconds)
+            val result = singleElector.runIfLeader(lockName) { }
             result.shouldBeNull()
         } finally {
             holdLatch.countDown()
@@ -116,7 +129,9 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `state - 초기 상태는 activeCount=0, isEmpty=true 이다`() {
         val lockName = randomName()
-        val state = election.state(lockName)
+        val state = elector.state(lockName)
+
+        log.debug { "state: $state" }
         state.lockName shouldBeEqualTo lockName
         state.maxLeaders shouldBeEqualTo options.maxLeaders
         state.activeCount shouldBeEqualTo 0
@@ -134,7 +149,7 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
             .workers(options.maxLeaders * 4)
             .rounds(2)
             .add {
-                election.runIfLeader(lockName) {
+                elector.runIfLeader(lockName) {
                     val current = currentConcurrent.incrementAndGet()
                     peakConcurrent.updateAndGet { max(it, current) }
                     Thread.sleep(Random.nextLong(5, 15))
@@ -157,7 +172,7 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
         StructuredTaskScopeTester()
             .rounds(options.maxLeaders * 8)
             .add {
-                election.runIfLeader(lockName) {
+                elector.runIfLeader(lockName) {
                     val current = currentConcurrent.incrementAndGet()
                     peakConcurrent.updateAndGet { max(it, current) }
                     Thread.sleep(Random.nextLong(5, 15))
@@ -172,7 +187,7 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
 
     @Test
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action 을 실행하고 결과를 반환한다`() {
-        val result = election.runAsyncIfLeader(randomName()) { futureOf { "hello" } }.join()
+        val result = elector.runAsyncIfLeader(randomName()) { futureOf { "hello" } }.join()
         result shouldBeEqualTo "hello"
     }
 
@@ -180,11 +195,11 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
     fun `runAsyncIfLeader - action 예외 발생 후에도 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomName()
         runCatching {
-            election.runAsyncIfLeader(lockName) {
+            elector.runAsyncIfLeader(lockName) {
                 futureOf<Int> { throw LeaderGroupElectionException("실패") }
             }.join()
         }
-        val result = election.runAsyncIfLeader(lockName) { futureOf { "복구 성공" } }.join()
+        val result = elector.runAsyncIfLeader(lockName) { futureOf { "복구 성공" } }.join()
         result shouldBeEqualTo "복구 성공"
     }
 
@@ -204,12 +219,11 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
-            executor.shutdown()
+            actionStarted.await(3.seconds).shouldBeTrue()
 
             actionFuture.complete("done")
+            resultFuture.get(3.seconds) shouldBeEqualTo "done"
 
-            resultFuture.get(3, TimeUnit.SECONDS) shouldBeEqualTo "done"
             singleElection.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             executor.shutdownNow()
@@ -219,57 +233,60 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `runAsyncIfLeaderResult - caller 취소를 action과 그룹 슬롯 cleanup에 전파한다`() {
         val lockName = randomName()
-        val singleElection = HazelcastLeaderGroupElector(
+        val singleElector = HazelcastLeaderGroupElector(
             hazelcastClient,
             LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 2.seconds, leaseTime = 10.seconds),
         )
         val actionStarted = CountDownLatch(1)
         val actionTerminal = CountDownLatch(1)
-        val actionFuture = CompletableFuture<String>().also { future ->
-            future.whenComplete { _, _ -> actionTerminal.countDown() }
+        val actionFuture = CompletableFuture<String>().apply {
+            whenComplete { _, _ -> actionTerminal.countDown() }
         }
 
-        val result = singleElection.runAsyncIfLeaderResult(LeaderSlot(lockName, "hazelcast-group-cancel")) {
+        val slot = LeaderSlot(lockName, "hazelcast-group-cancel")
+        val result = singleElector.runAsyncIfLeaderResult(slot) {
             actionStarted.countDown()
             actionFuture
         }
 
-        actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+        actionStarted.await(3.seconds).shouldBeTrue()
         result.cancel(false).shouldBeTrue()
-        actionTerminal.await(3, TimeUnit.SECONDS).shouldBeTrue()
+        actionTerminal.await(3.seconds).shouldBeTrue()
         actionFuture.isCancelled.shouldBeTrue()
-        singleElection.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+
+        singleElector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
     }
 
     @Test
     fun `runAsyncIfLeader nullable - caller 취소를 action과 그룹 슬롯 cleanup에 전파한다`() {
         val lockName = randomName()
-        val singleElection = HazelcastLeaderGroupElector(
+        val singleElector = HazelcastLeaderGroupElector(
             hazelcastClient,
             LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 2.seconds, leaseTime = 10.seconds),
         )
         val actionStarted = CountDownLatch(1)
         val actionTerminal = CountDownLatch(1)
-        val actionFuture = CompletableFuture<String>().also { future ->
-            future.whenComplete { _, _ -> actionTerminal.countDown() }
+        val actionFuture = CompletableFuture<String>().apply {
+            whenComplete { _, _ -> actionTerminal.countDown() }
         }
 
-        val result = singleElection.runAsyncIfLeader(lockName) {
+        val result = singleElector.runAsyncIfLeader(lockName) {
             actionStarted.countDown()
             actionFuture
         }
 
-        actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+        actionStarted.await(3.seconds).shouldBeTrue()
         result.cancel(false).shouldBeTrue()
-        actionTerminal.await(3, TimeUnit.SECONDS).shouldBeTrue()
+        actionTerminal.await(3.seconds).shouldBeTrue()
         actionFuture.isCancelled.shouldBeTrue()
-        singleElection.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+
+        singleElector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
     }
 
     @Test
     fun `runAsyncIfLeader - 두 번째 executor 제출 거부 후 획득한 슬롯을 정리한다`() {
         val lockName = randomName()
-        val singleElection = HazelcastLeaderGroupElector(
+        val singleElector = HazelcastLeaderGroupElector(
             hazelcastClient,
             LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 2.seconds, leaseTime = 10.seconds),
         )
@@ -286,17 +303,19 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
 
         try {
             val resultFuture = runCatching {
-                singleElection.runAsyncIfLeader(lockName, executor) {
+                singleElector.runAsyncIfLeader(lockName, executor) {
                     actionInvoked.set(true)
-                    CompletableFuture.completedFuture("실행되면 안 됨")
+                    completableFutureOf("실행되면 안 됨")
                 }
-            }.getOrElse { CompletableFuture.failedFuture(it) }
+            }.getOrElse { failedCompletableFutureOf(it) }
 
             val failure = assertFailsWith<CompletionException> { resultFuture.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
-            actionInvoked.get() shouldBeEqualTo false
-            singleElection.runIfLeader(lockName) { "executor 거부 후 슬롯 복구" } shouldBeEqualTo
-                    "executor 거부 후 슬롯 복구"
+            actionInvoked.get().shouldBeFalse()
+
+            singleElector.runIfLeader(lockName) {
+                "executor 거부 후 슬롯 복구"
+            } shouldBeEqualTo "executor 거부 후 슬롯 복구"
         } finally {
             worker.shutdownNow()
         }
@@ -312,7 +331,7 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
             .workers(options.maxLeaders * 4)
             .rounds(2)
             .add {
-                election.runAsyncIfLeader(lockName) {
+                elector.runAsyncIfLeader(lockName) {
                     futureOf {
                         val current = currentConcurrent.incrementAndGet()
                         peakConcurrent.updateAndGet { max(it, current) }
@@ -337,7 +356,7 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
         StructuredTaskScopeTester()
             .rounds(options.maxLeaders * 8)
             .add {
-                election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+                elector.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
                     futureOf {
                         val current = currentConcurrent.incrementAndGet()
                         peakConcurrent.updateAndGet { max(it, current) }

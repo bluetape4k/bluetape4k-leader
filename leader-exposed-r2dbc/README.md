@@ -14,11 +14,7 @@ Lock strategy: `UPDATE WHERE lockedUntil < NOW()` + `INSERT IGNORE` in a single 
 
 ### Acquisition failures
 
-Cancellation and JVM `Error` (including wrapped causes) propagate unchanged.
-Single-lock acquisition retries only transient database failures within the existing
-wait budget; non-transient or unknown exceptions stop immediately with `false`.
-Group acquisition preserves its unavailable/`null` policy and stops slot traversal
-for database failures. Normal contention remains a skip, not an exception.
+Cancellation and JVM `Error` (including wrapped causes) propagate unchanged. Single-lock acquisition retries only transient database failures within the existing wait budget; non-transient or unknown exceptions stop immediately with `false`. Group acquisition preserves its unavailable/`null` policy and stops slot traversal for database failures. Normal contention remains a skip, not an exception.
 
 ## Architecture
 
@@ -26,11 +22,11 @@ for database failures. Normal contention remains a skip, not an exception.
 
 ## Implementations
 
-| Class | Interface | Description |
-|-------|-----------|-------------|
-| `ExposedR2DbcSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader via `ExposedR2dbcLock` |
-| `ExposedR2DbcSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader via `ExposedR2dbcGroupLock` |
-| `ExposedR2DbcSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `ExposedR2DbcSuspendLeaderElector` per call |
+| Class                                          | Interface                          | Description                                                       |
+|------------------------------------------------|------------------------------------|-------------------------------------------------------------------|
+| `ExposedR2DbcSuspendLeaderElector`             | `SuspendLeaderElector`             | Coroutine single-leader via `ExposedR2dbcLock`                    |
+| `ExposedR2DbcSuspendLeaderGroupElector`        | `SuspendLeaderGroupElector`        | Coroutine multi-leader via `ExposedR2dbcGroupLock`                |
+| `ExposedR2DbcSuspendLeaderElectorFactory`      | `SuspendLeaderElectorFactory`      | Factory: creates `ExposedR2DbcSuspendLeaderElector` per call      |
 | `ExposedR2DbcSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `ExposedR2DbcSuspendLeaderGroupElector` per call |
 
 ## Usage
@@ -87,24 +83,12 @@ coroutineScope {
 
 ### Database server time for Exposed groups (0.6.0+ develop)
 
-Set `LeaderGroupElectionOptions.useDbTime = true` when coroutine nodes may have
-different JVM clocks. Group acquire, ownership checks, lease extension,
-minimum-lease release, and `activeCountSuspend` then use one
-`SELECT CURRENT_TIMESTAMP` inside the relevant ownership transaction. A release
-that only deletes the row does not issue a time query. The default is `false`.
+Set `LeaderGroupElectionOptions.useDbTime = true` when coroutine nodes may have different JVM clocks. Group acquire, ownership checks, lease extension, minimum-lease release, and `activeCountSuspend` then use one
+`SELECT CURRENT_TIMESTAMP` inside the relevant ownership transaction. A release that only deletes the row does not issue a time query. The default is `false`.
 
-If database time cannot be read, the affected lock name is marked unavailable,
-state queries report `maxLeaders`, and `runIfLeader` returns `null` rather than
-claiming a slot. The setup guard also releases a slot if coroutine cancellation
-happens while history, handle, or watchdog state is being created.
+If database time cannot be read, the affected lock name is marked unavailable, state queries report `maxLeaders`, and `runIfLeader` returns `null` rather than claiming a slot. The setup guard also releases a slot if coroutine cancellation happens while history, handle, or watchdog state is being created.
 
-Route every connection, including failover connections, to the same authoritative
-database clock source. Timestamp timezone and precision are provider/session
-contracts and must be configured consistently. DB-time adds one timestamp round
-trip per ownership transaction; size the R2DBC pool for that cost, while retry
-delays stay outside transactions. `activeCount()` is a cache snapshot and is not
-authoritative; use the suspend refresh path when a database-backed count is
-needed. History remains best-effort metadata and never changes ownership.
+Route every connection, including failover connections, to the same authoritative database clock source. Timestamp timezone and precision are provider/session contracts and must be configured consistently. DB-time adds one timestamp round trip per ownership transaction; size the R2DBC pool for that cost, while retry delays stay outside transactions. `activeCount()` is a cache snapshot and is not authoritative; use the suspend refresh path when a database-backed count is needed. History remains best-effort metadata and never changes ownership.
 
 ### Extension functions
 
@@ -173,28 +157,28 @@ Same strategy, keyed on `(lockName, slot)` composite PK. Each slot is an indepen
 
 ### Database compatibility
 
-| Database | INSERT strategy | Notes |
-|----------|-----------------|-------|
-| PostgreSQL | `INSERT ... ON CONFLICT DO NOTHING` | Full support |
-| MySQL 8 | `INSERT IGNORE INTO` | Full support |
-| H2 | `INSERT IGNORE INTO` (MySQL mode) | URL must include `MODE=MySQL` |
+| Database   | INSERT strategy                     | Notes                         |
+|------------|-------------------------------------|-------------------------------|
+| PostgreSQL | `INSERT ... ON CONFLICT DO NOTHING` | Full support                  |
+| MySQL 8    | `INSERT IGNORE INTO`                | Full support                  |
+| H2         | `INSERT IGNORE INTO` (MySQL mode)   | URL must include `MODE=MySQL` |
 
 ## Retry Strategies
 
-| Strategy | Description |
-|----------|-------------|
-| `RetryStrategy.Jitter(baseDelayMs)` | AWS full-jitter: `random(0, baseDelay * attempt)` |
-| `RetryStrategy.Fixed(fixedMs)` | Fixed delay between attempts |
-| `RetryStrategy.Exponential(baseMs, factor)` | Exponential backoff with optional jitter |
+| Strategy                                    | Description                                       |
+|---------------------------------------------|---------------------------------------------------|
+| `RetryStrategy.Jitter(baseDelayMs)`         | AWS full-jitter: `random(0, baseDelay * attempt)` |
+| `RetryStrategy.Fixed(fixedMs)`              | Fixed delay between attempts                      |
+| `RetryStrategy.Exponential(baseMs, factor)` | Exponential backoff with optional jitter          |
 
 ## Schema
 
 Tables are defined in `leader-exposed-core` and created via `ExposedR2dbcSchemaInitializer.ensureSchema(db)` (called automatically):
 
-| Table | Purpose |
-|-------|---------|
-| `leader_lock` | Single-leader lock rows |
-| `leader_group_lock` | Multi-leader slot rows |
+| Table                 | Purpose                                      |
+|-----------------------|----------------------------------------------|
+| `leader_lock`         | Single-leader lock rows                      |
+| `leader_group_lock`   | Multi-leader slot rows                       |
 | `leader_lock_history` | Audit log (only when `recordHistory = true`) |
 
 ## Dependency

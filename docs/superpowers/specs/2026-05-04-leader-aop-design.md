@@ -432,7 +432,7 @@ fun rebuild(user: User): ReportSummary? = service.rebuild(user.tenantId)
 fun cronJob() { ... }
 
 // ${...} property placeholder (ShedLock 차용) — 평가 후 plain SpEL
-@LeaderElection(name = "\${spring.application.name} + ':warmup'")
+@LeaderElection(name = $$"${spring.application.name} + ':warmup'")
 fun warmup() { ... }
 // 결과 (spring.application.name = "myapp"): "myapp:warmup"
 

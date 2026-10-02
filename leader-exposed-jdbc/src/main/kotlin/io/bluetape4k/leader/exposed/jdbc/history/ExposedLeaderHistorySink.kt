@@ -3,8 +3,8 @@ package io.bluetape4k.leader.exposed.jdbc.history
 import io.bluetape4k.leader.exposed.history.MetadataJsonCodec
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.history.LeaderHistoryKey
-import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderHistorySink
+import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
@@ -13,7 +13,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
-import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.insertAndGetId
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import java.time.Instant
@@ -26,24 +26,24 @@ import java.time.Instant
  */
 class ExposedLeaderHistorySink(
     private val database: Database,
-) : LeaderHistorySink {
+): LeaderHistorySink {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
         val id = transaction(database) {
-            LeaderLockHistoryTable.insert {
+            LeaderLockHistoryTable.insertAndGetId {
                 it[lockName] = record.lockName
                 it[token] = record.token
                 it[lockedUntil] = record.lockedUntil
-                it[status] = LeaderHistoryStatus.ACQUIRED.name
+                it[status] = LeaderHistoryStatus.ACQUIRED
                 it[startedAt] = record.acquiredAt
-                it[kind] = record.kind.name
+                it[kind] = record.kind
                 it[participantId] = record.nodeId
                 it[slotId] = record.slotId
                 it[slot] = record.slotId?.toIntOrNull()
                 it[metadata] = MetadataJsonCodec.encode(record.metadata)
-            }[LeaderLockHistoryTable.id]
+            }.value
         }
         return LeaderHistoryKey(id = id, lockName = record.lockName, token = record.token, slotId = record.slotId)
     }
@@ -90,7 +90,7 @@ class ExposedLeaderHistorySink(
                 { (LeaderLockHistoryTable.lockName eq key.lockName) and (LeaderLockHistoryTable.token eq key.token) }
             }
             LeaderLockHistoryTable.update(where = where) { row ->
-                row[LeaderLockHistoryTable.status] = status.name
+                row[LeaderLockHistoryTable.status] = status
                 row[LeaderLockHistoryTable.finishedAt] = finishedAt
                 row[LeaderLockHistoryTable.durationMs] = durationMs
                 row[LeaderLockHistoryTable.errorType] = errorType

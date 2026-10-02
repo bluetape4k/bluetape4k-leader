@@ -6,8 +6,7 @@ Ktor 3.x REST API server with a leader-election-protected periodic background jo
 
 ## Scenario
 
-Several Ktor replicas expose the same `/stats`, `/health`, and `/readyz` routes. A
-background `leaderScheduled` job uses the shared Redis lock
+Several Ktor replicas expose the same `/stats`, `/health`, and `/readyz` routes. A background `leaderScheduled` job uses the shared Redis lock
 `hourly-stats-aggregation`, so only one replica calls `StatsAggregator.aggregate()`
 per cycle while the other replicas keep serving HTTP traffic.
 
@@ -112,7 +111,8 @@ curl http://localhost:8080/stats
 # {"runCount":1,"lastRunAt":"2026-05-10T..."}
 ```
 
-Run a second instance on a different `PORT` with the **same** `REDIS_URL` and watch — only one node executes `aggregate()` per cycle:
+Run a second instance on a different `PORT` with the
+**same** `REDIS_URL` and watch — only one node executes `aggregate()` per cycle:
 
 ```bash
 PORT=8081 REDIS_URL=redis://localhost:6379 ./gradlew :examples:ktor-app:run
@@ -120,25 +120,25 @@ PORT=8081 REDIS_URL=redis://localhost:6379 ./gradlew :examples:ktor-app:run
 
 ## Configuration Options
 
-| Source              | Key / Field                     | Default                          | Description                                            |
-|---------------------|---------------------------------|----------------------------------|--------------------------------------------------------|
-| Env var             | `REDIS_URL`                     | `redis://localhost:6379`         | Redis connection URL                                   |
-| Env var             | `PORT`                          | `8080`                           | HTTP listen port (set differently per replica)         |
-| `KtorAppMain`       | `DEFAULT_PORT`                  | `8080`                           | Default fallback when `PORT` is not set                |
-| `KtorAppMain`       | `DEFAULT_AGGREGATION_LOCK`      | `hourly-stats-aggregation`       | Distributed lock name (shared across nodes)            |
-| `KtorAppMain`       | `DEFAULT_AGGREGATION_PERIOD`    | `60.minutes`                     | Cycle interval                                         |
-| `LeaderElectionOptions` | `waitTime`                  | `aggregationPeriod`              | Wait budget for lock acquisition each cycle            |
-| `LeaderElectionOptions` | `leaseTime`                 | `aggregationPeriod * 2`          | Auto-extend disabled — safe lease span per cycle       |
-| `LeaderElectionOptions` | `minLeaseTime`              | `aggregationPeriod`              | Hold lock at least one period — blocks dup execution   |
+| Source                  | Key / Field                  | Default                    | Description                                          |
+|-------------------------|------------------------------|----------------------------|------------------------------------------------------|
+| Env var                 | `REDIS_URL`                  | `redis://localhost:6379`   | Redis connection URL                                 |
+| Env var                 | `PORT`                       | `8080`                     | HTTP listen port (set differently per replica)       |
+| `KtorAppMain`           | `DEFAULT_PORT`               | `8080`                     | Default fallback when `PORT` is not set              |
+| `KtorAppMain`           | `DEFAULT_AGGREGATION_LOCK`   | `hourly-stats-aggregation` | Distributed lock name (shared across nodes)          |
+| `KtorAppMain`           | `DEFAULT_AGGREGATION_PERIOD` | `60.minutes`               | Cycle interval                                       |
+| `LeaderElectionOptions` | `waitTime`                   | `aggregationPeriod`        | Wait budget for lock acquisition each cycle          |
+| `LeaderElectionOptions` | `leaseTime`                  | `aggregationPeriod * 2`    | Auto-extend disabled — safe lease span per cycle     |
+| `LeaderElectionOptions` | `minLeaseTime`               | `aggregationPeriod`        | Hold lock at least one period — blocks dup execution |
 
 ## Migration Guide — From `@Scheduled` (Spring) to `leaderScheduled` (Ktor)
 
-| Concern              | Spring                                     | Ktor (this example)                                        |
-|----------------------|--------------------------------------------|------------------------------------------------------------|
-| Periodic dispatch    | `@Scheduled(fixedRate = ...)`              | `leaderScheduled(lockName, period) { ... }`                |
-| Single-runner across replicas | ShedLock annotation               | `LeaderElectionPlugin` — same semantic (`null` on skip)    |
-| Backend swap         | Config property                            | Replace `LettuceSuspendLeaderElector` with another impl    |
-| Graceful shutdown    | Spring lifecycle                           | `ApplicationStopped` cancels the launched coroutine        |
+| Concern                       | Spring                        | Ktor (this example)                                     |
+|-------------------------------|-------------------------------|---------------------------------------------------------|
+| Periodic dispatch             | `@Scheduled(fixedRate = ...)` | `leaderScheduled(lockName, period) { ... }`             |
+| Single-runner across replicas | ShedLock annotation           | `LeaderElectionPlugin` — same semantic (`null` on skip) |
+| Backend swap                  | Config property               | Replace `LettuceSuspendLeaderElector` with another impl |
+| Graceful shutdown             | Spring lifecycle              | `ApplicationStopped` cancels the launched coroutine     |
 
 ## Dependency
 

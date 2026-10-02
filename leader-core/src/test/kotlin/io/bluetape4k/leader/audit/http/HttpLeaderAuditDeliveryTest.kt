@@ -12,6 +12,7 @@ import io.bluetape4k.leader.audit.LeaderAuditExportOptions
 import io.bluetape4k.leader.audit.LeaderAuditValueSanitizer
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.Authenticator
@@ -27,17 +28,22 @@ import java.net.http.HttpResponse.PushPromiseHandler
 import java.nio.ByteBuffer
 import java.security.NoSuchAlgorithmException
 import java.time.Duration
-import java.util.Optional
+import java.util.*
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.Flow
+import java.util.concurrent.ScheduledExecutorService
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLParameters
+import kotlin.jvm.optionals.getOrNull
 
 class HttpLeaderAuditDeliveryTest {
+
+    private companion object: KLogging() {
+        const val WEBHOOK_TOKEN_PLACEHOLDER = $$"${WEBHOOK_TOKEN}"
+    }
 
     private val schedulers = mutableListOf<ScheduledExecutorService>()
 
@@ -60,7 +66,7 @@ class HttpLeaderAuditDeliveryTest {
             assertDiscardingBodyHandler(capturedBodyHandler)
             responseFuture.complete(response(status))
 
-            result.join().shouldBeEqualTo(LeaderAuditDeliveryResult.SUCCESS)
+            result.join() shouldBeEqualTo LeaderAuditDeliveryResult.SUCCESS
         }
     }
 
@@ -70,13 +76,13 @@ class HttpLeaderAuditDeliveryTest {
             val responseFuture = CompletableFuture<HttpResponse<Void>>()
             val result = delivery(StubHttpClient(responseFuture)).deliver(event())
             responseFuture.complete(response(status))
-            result.join().shouldBeEqualTo(LeaderAuditDeliveryResult.RETRYABLE_FAILURE)
+            result.join() shouldBeEqualTo LeaderAuditDeliveryResult.RETRYABLE_FAILURE
         }
 
         val responseFuture = CompletableFuture<HttpResponse<Void>>()
         val result = delivery(StubHttpClient(responseFuture)).deliver(event())
         responseFuture.completeExceptionally(java.io.IOException("socket-secret"))
-        result.join().shouldBeEqualTo(LeaderAuditDeliveryResult.RETRYABLE_FAILURE)
+        result.join() shouldBeEqualTo LeaderAuditDeliveryResult.RETRYABLE_FAILURE
     }
 
     @Test
@@ -84,7 +90,7 @@ class HttpLeaderAuditDeliveryTest {
         val responseFuture = CompletableFuture<HttpResponse<Void>>()
         val result = delivery(StubHttpClient(responseFuture)).deliver(event())
         responseFuture.completeExceptionally(IllegalArgumentException("request-secret"))
-        result.join().shouldBeEqualTo(LeaderAuditDeliveryResult.TERMINAL_FAILURE)
+        result.join() shouldBeEqualTo LeaderAuditDeliveryResult.TERMINAL_FAILURE
 
         val cancelledEncoder = LeaderAuditPayloadEncoder { throw CancellationException("cancelled") }
         assertFailsWith<CancellationException> {
@@ -109,15 +115,13 @@ class HttpLeaderAuditDeliveryTest {
 
         val request = client.request.shouldNotBeNull()
         request.method().shouldBeEqualTo("POST")
-        request.timeout().orElse(null).shouldNotBeNull().shouldBeEqualTo(Duration.ofSeconds(1))
-        request.headers().firstValue("Content-Type").orElse(null)
-            .shouldBeEqualTo("application/audit+json")
-        request.headers().firstValue("Authorization").orElse(null)
-            .shouldBeEqualTo("Bearer ${WEBHOOK_TOKEN_PLACEHOLDER}")
-        request.bodyPublisher().orElse(null).shouldNotBeNull().contentLength().shouldBeEqualTo(5)
+        request.timeout().orElse(null) shouldBeEqualTo Duration.ofSeconds(1)
+        request.headers().firstValue("Content-Type").getOrNull() shouldBeEqualTo "application/audit+json"
+        request.headers().firstValue("Authorization").getOrNull() shouldBeEqualTo "Bearer $WEBHOOK_TOKEN_PLACEHOLDER"
+        request.bodyPublisher().getOrNull()?.contentLength() shouldBeEqualTo 5
 
         responseFuture.complete(response(204))
-        result.join().shouldBeEqualTo(LeaderAuditDeliveryResult.SUCCESS)
+        result.join() shouldBeEqualTo LeaderAuditDeliveryResult.SUCCESS
     }
 
     @Test
@@ -132,7 +136,7 @@ class HttpLeaderAuditDeliveryTest {
         val client = StubHttpClient(CompletableFuture())
         val failedEncoder = LeaderAuditPayloadEncoder { throw IllegalStateException("encoder-secret") }
         val result = delivery(client, encoder = failedEncoder).deliver(event())
-        result.join().shouldBeEqualTo(LeaderAuditDeliveryResult.TERMINAL_FAILURE)
+        result.join() shouldBeEqualTo LeaderAuditDeliveryResult.TERMINAL_FAILURE
         client.request.shouldBeNull()
     }
 
@@ -140,11 +144,12 @@ class HttpLeaderAuditDeliveryTest {
     fun `payload is immutable and configured lower bound is checked before request`() {
         val source = byteArrayOf(1, 2, 3)
         val payload = LeaderAuditHttpPayload.of("text/plain", source)
+
         source[0] = 9
-        payload.body()[0].shouldBeEqualTo(1)
+        payload.body()[0] shouldBeEqualTo 1
         val returned = payload.body()
         returned[1] = 8
-        payload.body()[1].shouldBeEqualTo(2)
+        payload.body()[1] shouldBeEqualTo 2
 
         val client = StubHttpClient(CompletableFuture())
         val result = delivery(
@@ -152,7 +157,8 @@ class HttpLeaderAuditDeliveryTest {
             httpOptions = LeaderAuditHttpOptions(2),
             encoder = LeaderAuditPayloadEncoder { payload },
         ).deliver(event())
-        result.join().shouldBeEqualTo(LeaderAuditDeliveryResult.TERMINAL_FAILURE)
+
+        result.join() shouldBeEqualTo LeaderAuditDeliveryResult.TERMINAL_FAILURE
         client.request.shouldBeNull()
     }
 
@@ -190,7 +196,11 @@ class HttpLeaderAuditDeliveryTest {
             delivery(StubHttpClient(CompletableFuture()), endpoint = endpoint, headers = mapOf("X-Api-Key" to "secret"))
         }
         assertFailsWith<IllegalArgumentException> {
-            delivery(StubHttpClient(CompletableFuture()), endpoint = endpoint, headers = mapOf("Authorization" to "Bearer\nsecret"))
+            delivery(
+                StubHttpClient(CompletableFuture()),
+                endpoint = endpoint,
+                headers = mapOf("Authorization" to "Bearer\nsecret")
+            )
         }
         assertFailsWith<IllegalArgumentException> {
             delivery(StubHttpClient(CompletableFuture(), redirect = HttpClient.Redirect.ALWAYS), endpoint = endpoint)
@@ -211,7 +221,7 @@ class HttpLeaderAuditDeliveryTest {
     @Suppress("UNCHECKED_CAST")
     private fun assertDiscardingBodyHandler(handler: BodyHandler<*>) {
         val subscriber = (handler as BodyHandler<Void>).apply(responseInfo())
-        subscriber.onSubscribe(object : Flow.Subscription {
+        subscriber.onSubscribe(object: Flow.Subscription {
             override fun request(n: Long) = Unit
 
             override fun cancel() = Unit
@@ -226,7 +236,7 @@ class HttpLeaderAuditDeliveryTest {
         endpoint: LeaderAuditTrustedHttpsEndpoint = LeaderAuditTrustedHttpsEndpoint.trusted(
             URI("https://audit.example.test/hook"),
         ),
-        headers: Map<String, String> = mapOf("Authorization" to "Bearer ${WEBHOOK_TOKEN_PLACEHOLDER}"),
+        headers: Map<String, String> = mapOf("Authorization" to "Bearer $WEBHOOK_TOKEN_PLACEHOLDER"),
         encoder: LeaderAuditPayloadEncoder = LeaderAuditPayloadEncoder {
             LeaderAuditHttpPayload.of("text/plain", "audit".toByteArray())
         },
@@ -247,7 +257,7 @@ class HttpLeaderAuditDeliveryTest {
         attemptTimeout = Duration.ofSeconds(1),
         initialBackoff = Duration.ofMillis(1),
         maxBackoff = Duration.ofSeconds(1),
-        executor = Executor { it.run() },
+        executor = { it.run() },
         scheduler = Executors.newSingleThreadScheduledExecutor().also(schedulers::add),
     )
 
@@ -266,7 +276,7 @@ class HttpLeaderAuditDeliveryTest {
     private class StubHttpClient(
         private val responseFuture: CompletableFuture<HttpResponse<Void>>,
         private val redirect: HttpClient.Redirect = HttpClient.Redirect.NEVER,
-    ) : HttpClient() {
+    ): HttpClient() {
         var request: HttpRequest? = null
         var bodyHandler: BodyHandler<*>? = null
 
@@ -313,7 +323,7 @@ class HttpLeaderAuditDeliveryTest {
         ): CompletableFuture<HttpResponse<T>> = sendAsync(request, responseBodyHandler)
     }
 
-    private fun response(status: Int): HttpResponse<Void> = object : HttpResponse<Void> {
+    private fun response(status: Int): HttpResponse<Void> = object: HttpResponse<Void> {
         override fun statusCode(): Int = status
 
         override fun request(): HttpRequest = HttpRequest.newBuilder(URI("https://audit.example.test/hook")).build()
@@ -331,7 +341,7 @@ class HttpLeaderAuditDeliveryTest {
         override fun version(): HttpClient.Version = HttpClient.Version.HTTP_1_1
     }
 
-    private fun responseInfo(): HttpResponse.ResponseInfo = object : HttpResponse.ResponseInfo {
+    private fun responseInfo(): HttpResponse.ResponseInfo = object: HttpResponse.ResponseInfo {
         override fun statusCode(): Int = 204
 
         override fun headers(): HttpHeaders = HttpHeaders.of(emptyMap()) { _, _ -> true }
@@ -339,7 +349,4 @@ class HttpLeaderAuditDeliveryTest {
         override fun version(): HttpClient.Version = HttpClient.Version.HTTP_1_1
     }
 
-    private companion object {
-        const val WEBHOOK_TOKEN_PLACEHOLDER = "\${WEBHOOK_TOKEN}"
-    }
 }

@@ -6,8 +6,7 @@
 
 ## 시나리오
 
-여러 service instance가 하나의 Consul Session + KV lock을 공유합니다. 선출된 instance만 maintenance 단계를 실행하고,
-경쟁 instance는 예외 없이 해당 cycle을 skip합니다. 현재 leader가 lease를 해제하면 다른 instance가 같은 lock을 다시 획득할 수 있습니다.
+여러 service instance가 하나의 Consul Session + KV lock을 공유합니다. 선출된 instance만 maintenance 단계를 실행하고, 경쟁 instance는 예외 없이 해당 cycle을 skip합니다. 현재 leader가 lease를 해제하면 다른 instance가 같은 lock을 다시 획득할 수 있습니다.
 
 ## 예제 시나리오
 
@@ -47,8 +46,7 @@
 ./gradlew :examples:consul-maintenance:test
 ```
 
-테스트는 같은 lock을 사용하는 두 coordinator를 시작합니다. 첫 lease가 활성인 동안 정확히 한 node만 maintenance를
-수행하는지 확인하고, release 이후 두 번째 node가 lock을 다시 획득할 수 있음을 검증합니다.
+테스트는 같은 lock을 사용하는 두 coordinator를 시작합니다. 첫 lease가 활성인 동안 정확히 한 node만 maintenance를 수행하는지 확인하고, release 이후 두 번째 node가 lock을 다시 획득할 수 있음을 검증합니다.
 
 ## 설계
 

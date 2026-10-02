@@ -4,9 +4,11 @@ import io.bluetape4k.bucket4j.distributed.AsyncBucketProxyProvider
 import io.bluetape4k.bucket4j.distributed.redis.lettuceBasedProxyManagerOf
 import io.bluetape4k.bucket4j.ratelimit.distributed.DistributedSuspendRateLimiter
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
+import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
-import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.support.closeSafe
 import io.bluetape4k.testcontainers.storage.RedisServer
 import io.bluetape4k.utils.ShutdownQueue
@@ -23,7 +25,6 @@ import java.io.Serializable
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -140,7 +141,7 @@ object RateLimiterDemo: KLogging() {
                     )
                     val report = scheduler.schedule {
                         if (nodeCount > 1) {
-                            losersFinished.await(5, TimeUnit.SECONDS)
+                            losersFinished.await(5.seconds)
                         }
                         (1..totalWorkItems).map { itemIndex -> "item-$itemIndex" }
                     }
@@ -150,7 +151,7 @@ object RateLimiterDemo: KLogging() {
                     report
                 }
             }
-            futures.map { it.get(15, TimeUnit.SECONDS) }
+            futures.map { it.get(15.seconds) }
         } finally {
             connections.forEach { it.closeSafe() }
         }
@@ -212,7 +213,7 @@ object RateLimiterDemo: KLogging() {
 
             if (second < windowSeconds - 1) {
                 withContext(Dispatchers.Default) {
-                    delay(1_050)
+                    delay(1_050.milliseconds)
                 }
             }
         }

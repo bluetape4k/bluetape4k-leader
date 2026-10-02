@@ -14,7 +14,7 @@ fun interface LeaderRouteRedirectRequestMetadataProvider<T> {
 data class LeaderRouteRedirectRequestMetadata(
     val forwardedHeadersPresent: Boolean?,
     val transportPeerAddress: String?,
-) : Serializable {
+): Serializable {
     private companion object {
         const val serialVersionUID: Long = 1L
     }

@@ -16,7 +16,7 @@ import org.bson.Document
 class MongoSuspendLeaderElectorFactory(
     private val collection: MongoCollection<Document>,
     private val baseOptions: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,
-) : SuspendLeaderElectorFactory {
+): SuspendLeaderElectorFactory {
 
     override suspend fun create(options: LeaderElectionOptions): SuspendLeaderElector =
         MongoSuspendLeaderElector(collection, baseOptions.copy(leaderOptions = options))

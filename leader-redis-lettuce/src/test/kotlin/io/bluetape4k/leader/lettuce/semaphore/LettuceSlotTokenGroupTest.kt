@@ -2,14 +2,22 @@ package io.bluetape4k.leader.lettuce.semaphore
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.coroutines.SuspendedJobTester
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.lettuce.AbstractLettuceLeaderTest
+import io.bluetape4k.leader.lettuce.DEFAULT_TOKEN_LENGTH
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.lettuce.core.codec.StringCodec
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.until
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -51,28 +59,28 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
     fun `단일 acquire 시 token 을 반환한다`() {
         val token = group.tryAcquire(waitTime = 1.seconds, leaseTime = 5.seconds)
         token.shouldNotBeNull()
-        token.length shouldBeEqualTo 22
+        token.length shouldBeEqualTo DEFAULT_TOKEN_LENGTH
 
         group.release(token, remainingMinLeaseMs = 0)
     }
 
     @Test
     fun `maxLeaders 동시 acquire 모두 성공한다`() {
-        val tokens = (1..MAX_LEADERS).map {
+        val tokens = List(MAX_LEADERS) {
             group.tryAcquire(waitTime = 1.seconds, leaseTime = 5.seconds)
         }
         tokens.forEach { it.shouldNotBeNull() }
         group.activeCount() shouldBeEqualTo MAX_LEADERS
         group.availableSlots() shouldBeEqualTo 0
 
-        tokens.forEach { token -> group.release(token!!, remainingMinLeaseMs = 0) }
+        tokens.forEach { token -> group.release(token.shouldNotBeNull(), remainingMinLeaseMs = 0) }
         group.activeCount() shouldBeEqualTo 0
     }
 
     @Test
     fun `maxLeaders+1 번째 acquire 는 null 을 반환한다`() {
-        val tokens = (1..MAX_LEADERS).map {
-            group.tryAcquire(waitTime = 1.seconds, leaseTime = 10.seconds)!!
+        val tokens = List(MAX_LEADERS) {
+            group.tryAcquire(waitTime = 1.seconds, leaseTime = 10.seconds).shouldNotBeNull()
         }
 
         val overflow = group.tryAcquire(waitTime = 200.milliseconds, leaseTime = 10.seconds)
@@ -83,7 +91,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `release 즉시 슬롯이 해제된다`() {
-        val token = group.tryAcquire(waitTime = 1.seconds, leaseTime = 10.seconds)!!
+        val token = group.tryAcquire(waitTime = 1.seconds, leaseTime = 10.seconds).shouldNotBeNull()
         group.activeCount() shouldBeEqualTo 1
 
         group.release(token, remainingMinLeaseMs = 0)
@@ -92,7 +100,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `remainingMinLeaseMs 가 양수이면 score 만 갱신되고 슬롯은 유지된다`() {
-        val token = group.tryAcquire(waitTime = 1.seconds, leaseTime = 10.seconds)!!
+        val token = group.tryAcquire(waitTime = 1.seconds, leaseTime = 10.seconds).shouldNotBeNull()
         group.activeCount() shouldBeEqualTo 1
 
         // minLease 가 남아있는 release: 슬롯은 유지되어야 한다
@@ -109,7 +117,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
     }
 
     @Test
-    fun `Codex P2-1 - tryAcquireAsync 는 backend error 가 deadline 까지 해소되지 않으면 future 가 fail 한다`() {
+    fun `tryAcquireAsync 는 backend error 가 deadline 까지 해소되지 않으면 future 가 fail 한다`() {
         // 별도 connection 을 만든 뒤 즉시 close → 모든 async ACQUIRE script call 이 backend error 로 실패.
         // 기존 구현은 error 를 null 로 변환 후 contention 으로 판단해 timeout 후 null 을 반환했지만,
         // P2-1 fix 후에는 마지막 error 가 future 로 propagate 되어야 한다.
@@ -118,6 +126,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
 
         val deadGroup = LettuceSlotTokenGroup(deadConn, "dead-test:${Base58.randomString(8)}", MAX_LEADERS)
         val future = deadGroup.tryAcquireAsync(waitTime = 200.milliseconds, leaseTime = 5.seconds)
+
         assertFailsWith<ExecutionException> {
             future.get()
         }
@@ -136,7 +145,9 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
             shortLeaseGroup.activeCount() shouldBeEqualTo MAX_LEADERS
 
             // leaseTime 만료 대기
-            Thread.sleep(500)
+            await atMost 5.seconds withPollInterval 100.milliseconds until {
+                shortLeaseGroup.activeCount() < MAX_LEADERS
+            }
 
             // 다음 acquire 가 expired entry 를 정리하고 성공해야 함
             val recovered = shortLeaseGroup.tryAcquire(waitTime = 500.milliseconds, leaseTime = 5.seconds)
@@ -152,7 +163,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
     @Test
     fun `auditLeaderId acquire 시 meta hash 에 기록된다`() {
         val auditGroup = LettuceSlotTokenGroup(connection, "audit:${Base58.randomString(8)}", MAX_LEADERS)
-        val token = auditGroup.tryAcquire(1.seconds, 10.seconds, auditLeaderId = "node-1")!!
+        val token = auditGroup.tryAcquire(1.seconds, 10.seconds, auditLeaderId = "node-1").shouldNotBeNull()
         try {
             val stored = connection.sync().hget(auditGroup.metaKey, token)
             stored shouldBeEqualTo "node-1"
@@ -165,7 +176,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
     @Test
     fun `auditLeaderId release 시 meta hash 에서 삭제된다`() {
         val auditGroup = LettuceSlotTokenGroup(connection, "audit:${Base58.randomString(8)}", MAX_LEADERS)
-        val token = auditGroup.tryAcquire(1.seconds, 10.seconds, auditLeaderId = "node-2")!!
+        val token = auditGroup.tryAcquire(1.seconds, 10.seconds, auditLeaderId = "node-2").shouldNotBeNull()
 
         auditGroup.release(token, remainingMinLeaseMs = 0)
 
@@ -177,7 +188,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
     @Test
     fun `auditLeaderId 빈 문자열이면 meta hash 에 기록되지 않는다`() {
         val auditGroup = LettuceSlotTokenGroup(connection, "audit:${Base58.randomString(8)}", MAX_LEADERS)
-        val token = auditGroup.tryAcquire(1.seconds, 10.seconds, auditLeaderId = "")!!
+        val token = auditGroup.tryAcquire(1.seconds, 10.seconds, auditLeaderId = "").shouldNotBeNull()
         try {
             val stored = connection.sync().hget(auditGroup.metaKey, token)
             stored.shouldBeNull()
@@ -211,13 +222,50 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
                     auditGroup.release(token, remainingMinLeaseMs = 0)
                     // release 후 meta에서 삭제 확인
                     val afterRelease = connection.sync().hget(auditGroup.metaKey, token)
-                    (afterRelease == null).shouldBeTrue()
+                    afterRelease.shouldBeNull()
                 }
             }
             .run()
 
         // 3×100 중 최소 일부는 성공해야 함
-        (successCount.get() > 0).shouldBeTrue()
+        log.debug { "success count=$successCount" }
+        successCount.get() shouldBeGreaterThan 0
+        connection.sync().del(auditGroup.slotKey, auditGroup.metaKey)
+    }
+
+
+    @Test
+    fun `SuspendedJobTester 3×100 — auditLeaderId concurrent HSET_HDEL 원자성 검증`() = runSuspendIO {
+        val auditGroup = LettuceSlotTokenGroup(
+            connection,
+            "audit-concurrent:${Base58.randomString(8)}",
+            MAX_LEADERS,
+        )
+        val successCount = AtomicInteger(0)
+
+        SuspendedJobTester()
+            .workers(MAX_LEADERS)
+            .rounds(100 * MAX_LEADERS)
+            .add {
+                val leaderId = "node-${Thread.currentThread().threadId()}"
+                val token = auditGroup.tryAcquireSuspending(2.seconds, 10.seconds, auditLeaderId = leaderId)
+                if (token != null) {
+                    // meta hash에 leaderId 기록 확인
+                    val stored = connection.sync().hget(auditGroup.metaKey, token)
+                    if (stored == leaderId) {
+                        successCount.incrementAndGet()
+                    }
+                    auditGroup.releaseSuspending(token, remainingMinLeaseMs = 0)
+                    // release 후 meta에서 삭제 확인
+                    val afterRelease = connection.sync().hget(auditGroup.metaKey, token)
+                    afterRelease.shouldBeNull()
+                }
+            }
+            .run()
+
+        // 3×100 중 최소 일부는 성공해야 함
+        log.debug { "success count=$successCount" }
+        successCount.get() shouldBeGreaterThan 0
         connection.sync().del(auditGroup.slotKey, auditGroup.metaKey)
     }
 }

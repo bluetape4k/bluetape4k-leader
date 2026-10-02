@@ -15,13 +15,13 @@ class CompositeLeaderIdProvider(
     val prefix: String,
     val separator: String = ":",
     val delegate: LeaderIdProvider = RandomLeaderIdProvider.Default,
-) : LeaderIdProvider {
+): LeaderIdProvider {
+
+    companion object: KLogging()
 
     init {
         prefix.requireNotBlank("prefix")
     }
-
-    companion object : KLogging()
 
     override fun nextLeaderId(lockName: String): String =
         "$prefix$separator${delegate.nextLeaderId(lockName)}"

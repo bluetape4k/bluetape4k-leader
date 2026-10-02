@@ -2,7 +2,7 @@
 
 ## 맥락
 
-Issue #372는 Consul 백엔드에서 하드 코딩된 `10s` 대기를 추적했습니다. HTTP 클라이언트는 이미 `ConsulEndpoint.requestTimeout`를 읽었지만 차단 호출자는 여전히 관련 없는 `CompletableFuture.get(10, TimeUnit.SECONDS)` 예산을 사용했습니다.
+Issue #372는 Consul 백엔드에서 하드 코딩된 `10s` 대기를 추적했습니다. HTTP 클라이언트는 이미 `ConsulEndpoint.requestTimeout`를 읽었지만 차단 호출자는 여전히 관련 없는 `CompletableFuture.get(10.seconds)` 예산을 사용했습니다.
 
 ## 결정
 

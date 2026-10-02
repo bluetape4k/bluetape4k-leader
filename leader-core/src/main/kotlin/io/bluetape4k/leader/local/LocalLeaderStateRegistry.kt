@@ -3,6 +3,7 @@ package io.bluetape4k.leader.local
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotBlank
 import java.time.Instant
 import java.util.concurrent.locks.ReentrantLock
@@ -16,6 +17,8 @@ import kotlin.time.Duration
  */
 internal class LocalLeaderStateRegistry {
 
+    companion object: KLogging()
+
     private val lock = ReentrantLock()
     private val singleLeases = HashMap<String, LeaseRef>()
     private val groupLeases = HashMap<String, MutableMap<Int, LeaderLease>>()
@@ -25,17 +28,16 @@ internal class LocalLeaderStateRegistry {
         auditLeaderId: String,
         nodeId: String? = null,
         leaseTime: Duration,
-    ): LeaderLease =
-        lock.withLock {
-            val lease = newLease(auditLeaderId, nodeId, leaseTime)
-            val current = singleLeases[lockName]
-            if (current == null) {
-                singleLeases[lockName] = LeaseRef(lease)
-            } else {
-                current.holdCount += 1
-            }
-            singleLeases.getValue(lockName).lease
+    ): LeaderLease = lock.withLock {
+        val lease = newLease(auditLeaderId, nodeId, leaseTime)
+        val current = singleLeases[lockName]
+        if (current == null) {
+            singleLeases[lockName] = LeaseRef(lease)
+        } else {
+            current.holdCount += 1
         }
+        singleLeases.getValue(lockName).lease
+    }
 
     fun releaseSingle(lockName: String) {
         lock.withLock {
@@ -47,14 +49,13 @@ internal class LocalLeaderStateRegistry {
         }
     }
 
-    fun extendSingle(lockName: String, leaseTime: Duration): Boolean =
-        lock.withLock {
-            val current = singleLeases[lockName] ?: return false
-            current.lease = current.lease.copy(
-                leaseUntil = Instant.now().plusMillis(leaseTime.inWholeMilliseconds),
-            )
-            true
-        }
+    fun extendSingle(lockName: String, leaseTime: Duration): Boolean = lock.withLock {
+        val current = singleLeases[lockName] ?: return false
+        current.lease = current.lease.copy(
+            leaseUntil = Instant.now().plusMillis(leaseTime.inWholeMilliseconds),
+        )
+        true
+    }
 
     fun singleState(lockName: String): LeaderState {
         lockName.requireNotBlank("lockName")
@@ -71,15 +72,14 @@ internal class LocalLeaderStateRegistry {
         nodeId: String? = null,
         leaseTime: Duration,
         maxLeaders: Int,
-    ): LeaderLease =
-        lock.withLock {
-            val leases = groupLeases.getOrPut(lockName) { HashMap() }
-            val slot = (0 until maxLeaders).firstOrNull { it !in leases }
-                ?: leases.size
-            val lease = newLease(auditLeaderId, nodeId, leaseTime, slot)
-            leases[slot] = lease
-            lease
-        }
+    ): LeaderLease = lock.withLock {
+        val leases = groupLeases.getOrPut(lockName) { HashMap() }
+        val slot = (0 until maxLeaders).firstOrNull { it !in leases }
+            ?: leases.size
+        val lease = newLease(auditLeaderId, nodeId, leaseTime, slot)
+        leases[slot] = lease
+        lease
+    }
 
     fun releaseGroup(lockName: String, lease: LeaderLease) {
         lock.withLock {
@@ -92,20 +92,18 @@ internal class LocalLeaderStateRegistry {
         }
     }
 
-    fun extendGroup(lockName: String, slot: Int, leaseTime: Duration): Boolean =
-        lock.withLock {
-            val leases = groupLeases[lockName] ?: return false
-            val current = leases[slot] ?: return false
-            leases[slot] = current.copy(
-                leaseUntil = Instant.now().plusMillis(leaseTime.inWholeMilliseconds),
-            )
-            true
-        }
+    fun extendGroup(lockName: String, slot: Int, leaseTime: Duration): Boolean = lock.withLock {
+        val leases = groupLeases[lockName] ?: return false
+        val current = leases[slot] ?: return false
+        leases[slot] = current.copy(
+            leaseUntil = Instant.now().plusMillis(leaseTime.inWholeMilliseconds),
+        )
+        true
+    }
 
-    fun isSlotHeld(lockName: String, slot: Int): Boolean =
-        lock.withLock {
-            groupLeases[lockName]?.containsKey(slot) == true
-        }
+    fun isSlotHeld(lockName: String, slot: Int): Boolean = lock.withLock {
+        groupLeases[lockName]?.containsKey(slot) == true
+    }
 
     fun groupState(lockName: String, maxLeaders: Int, activeCount: Int): LeaderGroupState {
         lockName.requireNotBlank("lockName")

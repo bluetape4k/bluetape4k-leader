@@ -1,28 +1,33 @@
 package io.bluetape4k.leader.consul
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
-import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectionException
-import io.bluetape4k.leader.LeaderLease
+import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderLeaseAcquirer
+import io.bluetape4k.leader.LeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.consul.internal.ConsulBackendErrorClassifier
 import io.bluetape4k.leader.consul.internal.ConsulLeaseHandle
 import io.bluetape4k.leader.consul.internal.ConsulLockClient
 import io.bluetape4k.leader.consul.internal.ConsulLockExtendDelegate
 import io.bluetape4k.leader.consul.internal.ConsulOwnerPayload
-import io.bluetape4k.leader.consul.internal.ConsulBackendErrorClassifier
 import io.bluetape4k.leader.consul.internal.ConsulSessionId
 import io.bluetape4k.leader.consul.internal.ConsulSessionTtl
 import io.bluetape4k.leader.consul.internal.JavaHttpConsulLockClient
 import io.bluetape4k.leader.consul.internal.getWithinRequestTimeout
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
@@ -49,19 +54,19 @@ class ConsulLeaderElector private constructor(
     private val lockClient: ConsulLockClient,
     val options: ConsulLeaderElectionOptions,
 ): LeaderElector,
-    LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics,
-    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics,
+   LeaderLeaseAcquirerSupport {
 
-    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
+        LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
     constructor(
         endpoint: ConsulEndpoint,
         options: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
-    ) : this(JavaHttpConsulLockClient(endpoint, options.keyPrefix), options)
+    ): this(JavaHttpConsulLockClient(endpoint, options.keyPrefix), options)
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         internal const val CONSUL_FACTORY_BEAN_NAME = "consul-leader-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ConsulBackendErrorClassifier)
 
@@ -134,9 +139,9 @@ class ConsulLeaderElector private constructor(
             when {
                 cause is CancellationException -> throw cause
                 cause != null && elected -> LeaderRunResult.ActionFailed(cause)
-                cause != null -> throw CompletionException(cause)
-                elected -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                cause != null            -> throw CompletionException(cause)
+                elected                  -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else                     -> LeaderRunResult.Skipped
             }
         }
     }
@@ -149,7 +154,7 @@ class ConsulLeaderElector private constructor(
         if (lease == null) {
             log.warn {
                 "Consul leader state ignored because owner payload is missing or invalid. " +
-                    "lockName=$lockName, sessionId=${sessionId.value}"
+                        "lockName=$lockName, sessionId=${sessionId.value}"
             }
             return LeaderState.empty(lockName)
         }
@@ -196,28 +201,31 @@ class ConsulLeaderElector private constructor(
     ): CompletableFuture<T?> {
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
-        val cleanupBarrier = AsyncLeaseCleanupBarrier<ConsulLeaseHandle>(::release)
+        val cleanupBarrier = AsyncLeaseCleanupBarrier(::release)
         val beginCleanup: () -> CompletableFuture<Unit> = {
             when {
                 lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
                 lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else -> CompletableFuture.completedFuture(Unit)
+                else                                      -> completableFutureOf(
+                    Unit
+                )
             }
         }
-        val acquisitionFuture = CompletableFuture.supplyAsync({
+        val acquisitionFuture = futureOf(executor) {
             var handle: ConsulLeaseHandle? = null
             try {
                 acquire(lockName, auditLeaderId).also { handle = it }
             } finally {
                 cleanupBarrier.completeAcquisition(handle)
             }
-        }, executor)
+        }
+
         val pipelineFuture: CompletableFuture<T?> = try {
             acquisitionFuture.thenComposeAsync({ handle ->
                 if (handle == null) {
-                    CompletableFuture.completedFuture(null)
+                    completableFutureOf(null)
                 } else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
-                    CompletableFuture.failedFuture(
+                    failedCompletableFutureOf(
                         CancellationException("leader result future was cancelled before action"),
                     )
                 } else {
@@ -225,11 +233,12 @@ class ConsulLeaderElector private constructor(
                 }
             }, executor)
         } catch (error: Throwable) {
-            CompletableFuture.failedFuture(error)
+            failedCompletableFutureOf(error)
         }
+
         val ordered = LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
             if (failure == null) {
-                CompletableFuture.completedFuture(value)
+                completableFutureOf(value)
             } else {
                 beginCleanup().handle { _, cleanupFailure ->
                     val cause = checkNotNull(failure.unwrapCompletionException())
@@ -390,10 +399,11 @@ class ConsulLeaderElector private constructor(
             }
         }
 
-        runCatching { lockClient.release(handle.key, handle.sessionId).getWithinRequestTimeout(lockClient) }
-            .onFailure { e ->
-                log.warn(e) { "Failed to release Consul leader lock. lockName=${handle.lockName}" }
-            }
+        runCatching {
+            lockClient.release(handle.key, handle.sessionId).getWithinRequestTimeout(lockClient)
+        }.onFailure { e ->
+            log.warn(e) { "Failed to release Consul leader lock. lockName=${handle.lockName}" }
+        }
         destroySession(handle.sessionId)
         interruption?.let {
             Thread.currentThread().interrupt()

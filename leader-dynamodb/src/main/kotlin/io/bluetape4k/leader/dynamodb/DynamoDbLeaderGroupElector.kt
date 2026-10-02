@@ -1,6 +1,6 @@
 package io.bluetape4k.leader.dynamodb
 
-import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
@@ -35,10 +35,10 @@ import kotlin.random.Random
 class DynamoDbLeaderGroupElector(
     private val dynamoDb: DynamoDbClient,
     val options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
-) : LeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
+): LeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         internal const val DYNAMODB_GROUP_FACTORY_BEAN_NAME = "dynamodb-leader-group-elector"
     }
 
@@ -135,14 +135,18 @@ class DynamoDbLeaderGroupElector(
                     } finally {
                         AopScopeAccess.clearCapture()
                     }
-            }
-        } finally {
-                runCatching { watchdog.close() }
-                    .onFailure { e ->
-                        log.warn(e) { "DynamoDB group watchdog close failed. lockName=$lockName, slot=$slot" }
-                    }
-                runCatching { lockClient.release(lock, options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
-                    .onFailure { e -> log.warn(e) { "DynamoDB group slot release failed. lockName=$lockName, slot=$slot" } }
+                }
+            } finally {
+                runCatching {
+                    watchdog.close()
+                }.onFailure { e ->
+                    log.warn(e) { "DynamoDB group watchdog close failed. lockName=$lockName, slot=$slot" }
+                }
+                runCatching {
+                    lockClient.release(lock, options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
+                }.onFailure { e ->
+                    log.warn(e) { "DynamoDB group slot release failed. lockName=$lockName, slot=$slot" }
+                }
             }
         }
 
@@ -156,10 +160,11 @@ class DynamoDbLeaderGroupElector(
     ): CompletableFuture<T?> {
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
-            CompletableFuture.supplyAsync(
-                { runIfLeader(lockName) { cancellationRelay.invoke(action).join() } },
-                executor,
-            ),
+            futureOf(executor) {
+                runIfLeader(lockName) {
+                    cancellationRelay.invoke(action).join()
+                }
+            },
             cancellationRelay,
         )
     }
@@ -171,10 +176,11 @@ class DynamoDbLeaderGroupElector(
     ): CompletableFuture<T?> {
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
-            CompletableFuture.supplyAsync(
-                { runIfLeader(slot) { cancellationRelay.invoke(action).join() } },
-                executor,
-            ),
+            futureOf(executor) {
+                runIfLeader(slot) {
+                    cancellationRelay.invoke(action).join()
+                }
+            },
             cancellationRelay,
         )
     }
@@ -196,31 +202,8 @@ class DynamoDbLeaderGroupElector(
                 cause != null && elected.get() -> LeaderRunResult.ActionFailed(cause)
                 cause != null -> throw CompletionException(cause)
                 elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                else          -> LeaderRunResult.Skipped
             }
         }
     }
 }
-
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
-fun <T> DynamoDbClient.runIfLeaderGroup(
-    lockName: String,
-    options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
-    action: () -> T,
-): T? = DynamoDbLeaderGroupElector(this, options).runIfLeader(lockName, action)
-
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
-fun <T> DynamoDbClient.runAsyncIfLeaderGroup(
-    lockName: String,
-    executor: Executor = VirtualThreadExecutor,
-    options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
-    action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> = DynamoDbLeaderGroupElector(this, options).runAsyncIfLeader(lockName, executor, action)

@@ -14,9 +14,9 @@ import org.junit.jupiter.api.TestInstance
  * singleton 을 사용 — JVM 당 1회만 spin-up.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LettuceLockExtenderContractTest : AbstractSyncLockExtenderContractTest() {
+class LettuceLockExtenderContractTest: AbstractSyncLockExtenderContractTest() {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         val redis = AbstractLettuceLeaderTest.redis
     }
 

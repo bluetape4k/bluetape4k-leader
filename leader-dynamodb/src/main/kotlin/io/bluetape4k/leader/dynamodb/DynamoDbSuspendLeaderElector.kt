@@ -7,12 +7,14 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbKeys
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbLockClient
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbSuspendLockExtendDelegate
 import io.bluetape4k.leader.dynamodb.internal.awaitWithoutCancellingFuture
+import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -32,15 +34,15 @@ import kotlin.time.Duration
 class DynamoDbSuspendLeaderElector(
     private val dynamoDb: DynamoDbAsyncClient,
     val options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
-) : SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics,
-    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+): SuspendLeaderElector,
+   LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics,
+   io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
 
-    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     private val lockClient = DynamoDbLockClient(options.tableName, asyncClient = dynamoDb)
 
@@ -130,12 +132,11 @@ class DynamoDbSuspendLeaderElector(
             throw e
         } finally {
             withContext(NonCancellable) {
-                runCatching { LeaderLeaseAutoExtender.closeSuspend(watchdog) }
-                    .onFailure { e ->
-                        log.warn(e) {
-                            "DynamoDB suspend leader watchdog close failed. lockName=$lockName"
-                        }
-                    }
+                runCatching {
+                    LeaderLeaseAutoExtender.closeSuspend(watchdog)
+                }.onFailure { e ->
+                    log.warn(e) { "DynamoDB suspend leader watchdog close failed. lockName=$lockName" }
+                }
                 try {
                     lockClient.releaseAsync(lock, options.leaderOptions.minLeaseTime, acquiredAtNanos)
                         .awaitWithoutCancellingFuture { }

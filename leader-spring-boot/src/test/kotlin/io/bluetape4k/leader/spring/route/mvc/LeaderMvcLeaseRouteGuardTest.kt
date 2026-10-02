@@ -2,19 +2,19 @@ package io.bluetape4k.leader.spring.route.mvc
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode
 import io.bluetape4k.leader.spring.properties.LeaderRouteGuardProperties
-import io.bluetape4k.leader.spring.route.LeaderRouteAuthority
 import io.bluetape4k.leader.spring.route.LeaderRouteAuthorityRuntime
 import io.bluetape4k.leader.spring.route.LeaderRouteDecision
 import io.bluetape4k.leader.spring.route.LeaderRouteLeaseRuntime
-import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.HttpServletResponse
+import io.bluetape4k.logging.KLogging
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.untilAsserted
@@ -22,12 +22,13 @@ import org.junit.jupiter.api.Test
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class LeaderMvcLeaseRouteGuardTest {
+
+    companion object: KLogging()
 
     private val slot = LeaderSlot("orders-route", "request-node")
 
@@ -52,12 +53,12 @@ class LeaderMvcLeaseRouteGuardTest {
         contenderResponse.status shouldBeEqualTo 503
 
         val completed = CountDownLatch(1)
-        val completionThread = Thread {
+        val completionThread = thread {
             interceptor.afterCompletion(firstRequest, firstResponse, Any(), null)
             completed.countDown()
         }
-        completionThread.start()
-        completed.await(2, TimeUnit.SECONDS).shouldBeTrue()
+
+        completed.await(2.seconds).shouldBeTrue()
         completionThread.join()
         awaitLeaseRelease(elector)
 
@@ -79,7 +80,7 @@ class LeaderMvcLeaseRouteGuardTest {
         val contenderRequest = MockHttpServletRequest()
         val contenderResponse = MockHttpServletResponse()
         interceptor.preHandle(contenderRequest, contenderResponse, Any()).shouldBeFalse()
-        contenderRequest.getAttribute("io.bluetape4k.leader.spring.route.mvc.LEASE_HANDLE") shouldBeEqualTo null
+        contenderRequest.getAttribute("io.bluetape4k.leader.spring.route.mvc.LEASE_HANDLE").shouldBeNull()
 
         interceptor.afterCompletion(firstRequest, firstResponse, Any(), null)
     }
@@ -109,7 +110,7 @@ class LeaderMvcLeaseRouteGuardTest {
             authorityMode = LeaderRouteAuthorityMode.LEASE,
         )
         return LeaderMvcRouteGuardFactory(
-            runtime = LeaderRouteAuthorityRuntime(LeaderRouteAuthority { LeaderRouteDecision.Allowed }),
+            runtime = LeaderRouteAuthorityRuntime { LeaderRouteDecision.Allowed },
             properties = properties,
             redirectPolicy = null,
             leaseRuntime = LeaderRouteLeaseRuntime(elector, null, properties.lease),
@@ -117,7 +118,7 @@ class LeaderMvcLeaseRouteGuardTest {
     }
 
     private fun awaitLeaseRelease(elector: LocalLeaderElector) {
-        await.atMost(1.seconds).untilAsserted {
+        await atMost 1.seconds untilAsserted {
             elector.tryAcquire(slot).shouldNotBeNull().release()
         }
     }

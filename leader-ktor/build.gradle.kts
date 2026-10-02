@@ -11,9 +11,9 @@ dependencyManagement {
 dependencies {
     api(project(":bluetape4k-leader-core"))
 
-    api(bt4k.bluetape4k.coroutines)
-    implementation(bt4k.bluetape4k.ktor.core)
-    implementation(libs.kotlinx.coroutines.core)
+    // Bluetape4k Ktor
+    api(bt4k.bluetape4k.ktor.core)
+    testImplementation(bt4k.bluetape4k.ktor.testing)
 
     // Ktor 3.x — application/plugin DSL
     compileOnly(libs.ktor.server.core)
@@ -21,29 +21,29 @@ dependencies {
     compileOnly(libs.ktor.server.status.pages)
     compileOnly(libs.ktor.server.sse)
     compileOnly(libs.ktor.server.websockets)
-
-    // Logging
-    implementation(bt4k.bluetape4k.logging)
-
-    // Testing
-    testImplementation(libs.ktor.server.core)
-    testImplementation(libs.ktor.server.status.pages)
-    testImplementation(libs.ktor.server.auth)
-    testImplementation(libs.ktor.server.sse)
-    testImplementation(libs.ktor.server.websockets)
     testImplementation(libs.ktor.server.cio)
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.ktor.client.cio)
     testImplementation(libs.ktor.client.websockets)
-    testImplementation(bt4k.bluetape4k.ktor.testing)
 
+    // Coroutines
+    api(bt4k.bluetape4k.coroutines)
+    implementation(libs.kotlinx.coroutines.core)
+    testImplementation(libs.kotlinx.coroutines.test)
+
+    // Redisson
     testImplementation(project(":bluetape4k-leader-redis-redisson"))
     testImplementation(bt4k.redisson)
     testImplementation(bt4k.bluetape4k.redisson)
 
+    // Redisson Codec
+    testImplementation(bt4k.bluetape4k.io)
+    testImplementation(bt4k.fory.kotlin)
+    testImplementation(bt4k.at.yawk.lz4.java)
+
+    // Testing
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(bt4k.bluetape4k.testcontainers)
-    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.awaitility.kotlin)

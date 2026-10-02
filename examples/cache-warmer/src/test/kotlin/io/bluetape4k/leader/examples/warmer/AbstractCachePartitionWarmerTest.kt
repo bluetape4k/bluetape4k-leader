@@ -13,17 +13,17 @@ import org.junit.jupiter.api.TestInstance
 abstract class AbstractCachePartitionWarmerTest {
 
     companion object: KLogging() {
-        val hazelcastServer: HazelcastServer = HazelcastServer.Launcher.hazelcast
+        val hazelcastServer: HazelcastServer by lazy { HazelcastServer.Launcher.hazelcast }
 
         val hazelcastClient: HazelcastInstance by lazy {
             val config = ClientConfig().apply {
                 networkConfig.addAddress(hazelcastServer.url)
             }
             HazelcastClient.newHazelcastClient(config).also {
-                ShutdownQueue.register { runCatching { it.shutdown() } }
+                ShutdownQueue.register { it.shutdown() }
             }
         }
     }
 
-    protected fun randomPrefix(): String = "warmer-test:${Base58.randomString(8)}"
+    protected fun randomPrefix(): String = "warmer-test:${Base58.randomString(12)}"
 }

@@ -5,7 +5,6 @@ import io.bluetape4k.leader.history.LeaderHistorySink
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.micrometer.MicrometerNames
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.logging.warn
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
 import kotlinx.coroutines.CancellationException
@@ -21,9 +20,9 @@ internal class CounterAwareSinkDecorator(
     private val delegate: LeaderHistorySink,
     registry: MeterRegistry,
     sinkSimpleName: String,
-) : LeaderHistorySink {
+): LeaderHistorySink {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val failureCounter: Counter = registry.counter(
         MicrometerNames.HISTORY_SINK_FAILURES,

@@ -25,7 +25,7 @@ import kotlin.time.Duration
 class LettuceStrategicLeaderGroupElector @JvmOverloads constructor(
     connection: StatefulRedisConnection<String, String>,
     override val nodeId: String = Uuid.V7.nextBase62(),
-) : StrategicLeaderGroupElector {
+): StrategicLeaderGroupElector {
 
     private lateinit var registry: LettuceCandidateRegistry
 
@@ -39,11 +39,11 @@ class LettuceStrategicLeaderGroupElector @JvmOverloads constructor(
     constructor(
         connection: StatefulRedisClusterConnection<String, String>,
         nodeId: String = Uuid.V7.nextBase62(),
-    ) : this(LettuceStrategicConstructorSupport.clusterPrimaryConnection, nodeId) {
+    ): this(LettuceStrategicConstructorSupport.clusterPrimaryConnection, nodeId) {
         registry = LettuceCandidateRegistry(connection, LettuceCandidateRegistry.GROUP_KEY_PREFIX)
     }
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     override fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
         registry.registerCandidate(lockName, info, ttl)
@@ -67,7 +67,7 @@ class LettuceStrategicLeaderGroupElector @JvmOverloads constructor(
         maxLeaders: Int,
         action: () -> T,
     ): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val candidates = try {
             listCandidates(lockName)
         } catch (e: CancellationException) {
@@ -81,7 +81,7 @@ class LettuceStrategicLeaderGroupElector @JvmOverloads constructor(
 
         log.info {
             "[$lockName] 전략적 그룹 선출: ${result.winners.joinToString { it.nodeId }} " +
-                "(전략: ${strategy::class.simpleName}, 후보: ${result.winners.size + result.eliminations.size}명)"
+                    "(전략: ${strategy::class.simpleName}, 후보: ${result.winners.size + result.eliminations.size}명)"
         }
         if (result.scores.isNotEmpty()) {
             log.debug {
@@ -99,14 +99,20 @@ class LettuceStrategicLeaderGroupElector @JvmOverloads constructor(
 
         return try {
             val value = action()
-            runCatching { updateResult(lockName, nodeId, CandidateResult.SUCCESS) }
-                .onFailure { log.warn(it) { "[$lockName] successCount 업데이트 실패 — 무시됨" } }
+            runCatching {
+                updateResult(lockName, nodeId, CandidateResult.SUCCESS)
+            }.onFailure {
+                log.warn(it) { "[$lockName] successCount 업데이트 실패 — 무시됨" }
+            }
             value
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
-            runCatching { updateResult(lockName, nodeId, CandidateResult.FAILURE) }
-                .onFailure { log.warn(it) { "[$lockName] failureCount 업데이트 실패 — 무시됨" } }
+            runCatching {
+                updateResult(lockName, nodeId, CandidateResult.FAILURE)
+            }.onFailure {
+                log.warn(it) { "[$lockName] failureCount 업데이트 실패 — 무시됨" }
+            }
             throw e
         }
     }

@@ -11,6 +11,8 @@ import io.bluetape4k.leader.annotation.LeaderGroupElection
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -29,7 +31,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderGroupElectionAspectReentrantTest {
 
-    companion object {
+    companion object: KLogging() {
         private const val LOCK_NAME = "group-reentrant-job"
         private const val FACTORY_BEAN = "testGroupFactory"
         private const val SAMPLE_RESULT = "group-body-result"
@@ -37,12 +39,12 @@ class LeaderGroupElectionAspectReentrantTest {
     }
 
     private interface GroupService {
-        fun run(): String?
+        fun run(): String
     }
 
-    private class GroupServiceImpl : GroupService {
+    private class GroupServiceImpl: GroupService {
         @LeaderGroupElection(name = LOCK_NAME, maxLeaders = MAX_LEADERS)
-        override fun run(): String? = SAMPLE_RESULT
+        override fun run(): String = SAMPLE_RESULT
     }
 
     private val election: LeaderGroupElector = mockk(relaxed = true)
@@ -66,8 +68,10 @@ class LeaderGroupElectionAspectReentrantTest {
 
     private fun newAspect(): LeaderGroupElectionAspect {
         every { factoryMock.create(any<LeaderGroupElectionOptions>()) } returns election
-        every { beanSelector.selectGroupElectionFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected(FACTORY_BEAN, factoryMock)
+        every {
+            beanSelector.selectGroupElectionFactory(any(), any())
+        } returns LeaderBeanSelector.Selected(FACTORY_BEAN, factoryMock)
+
         return LeaderGroupElectionAspect(
             beanSelector = beanSelector,
             props = LeaderAopProperties(),
@@ -90,11 +94,13 @@ class LeaderGroupElectionAspectReentrantTest {
             factoryBeanName = FACTORY_BEAN,
             maxLeaders = MAX_LEADERS,
         )
+        log.debug { "syntheticHandle=$syntheticHandle" }
 
         val result = AopScopeAccess.withPushedSync(syntheticHandle) {
             aspect.aroundLeader(pjp)
         }
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
         verify(exactly = 0) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
     }
@@ -106,13 +112,16 @@ class LeaderGroupElectionAspectReentrantTest {
         configureJoinPoint(method, target)
         val aspect = newAspect()
 
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } answers {
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } answers {
             @Suppress("UNCHECKED_CAST")
             LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
         }
 
         val result = aspect.aroundLeader(pjp)
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
         verify(exactly = 1) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
     }
@@ -135,7 +144,9 @@ class LeaderGroupElectionAspectReentrantTest {
             aspect.aroundLeader(pjp)
         }
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
+
         verify(exactly = 0) { factoryMock.create(any()) }
         verify(exactly = 0) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
     }
@@ -147,7 +158,9 @@ class LeaderGroupElectionAspectReentrantTest {
         configureJoinPoint(method, target)
         val aspect = newAspect()
 
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } answers {
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } answers {
             @Suppress("UNCHECKED_CAST")
             LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
         }
@@ -158,11 +171,15 @@ class LeaderGroupElectionAspectReentrantTest {
             factoryBeanName = FACTORY_BEAN,
             maxLeaders = MAX_LEADERS,
         )
+        log.debug { "otherHandle=$otherHandle" }
+        
         val result = AopScopeAccess.withPushedSync(otherHandle) {
             aspect.aroundLeader(pjp)
         }
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
+
         verify(exactly = 1) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
     }
 }

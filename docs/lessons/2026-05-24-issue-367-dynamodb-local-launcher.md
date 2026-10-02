@@ -12,7 +12,7 @@
 
 리더 저장소는 더 이상 DynamoDB 로컬 이미지, 포트 및 명령 배선을 복제하지 않습니다. 이제 테스트 수명 주기는 싱글톤 컨테이너가 `ShutdownQueue`에 등록되고 클라이언트 리소스가 리더 테스트의 소유로 유지되는 공유 실행 프로그램 패턴을 따릅니다.
 
-루트 빌드가 이미 `resolutionStrategy.cacheChangingModulesFor(0, TimeUnit.SECONDS)`를 설정했기 때문에 임시 `1.9.2-SNAPSHOT` 카탈로그는 이 분기에 허용됩니다. 구현 시 일치하는 `bluetape4k-exposed 1.9.2-SNAPSHOT`가 존재하지 않았으므로 Exposed 리더 테스트 소스를 현재 카탈로그 쌍으로 컴파일하여 Exposed 모듈 바이너리 호환성을 검증했습니다. `DynamoDbLocalServer`는 여전히 `amazon/dynamodb-local:2.6.1`를 고정하여 대체하는 개인 컨테이너와 일치합니다.
+루트 빌드가 이미 `resolutionStrategy.cacheChangingModulesFor(0.seconds)`를 설정했기 때문에 임시 `1.9.2-SNAPSHOT` 카탈로그는 이 분기에 허용됩니다. 구현 시 일치하는 `bluetape4k-exposed 1.9.2-SNAPSHOT`가 존재하지 않았으므로 Exposed 리더 테스트 소스를 현재 카탈로그 쌍으로 컴파일하여 Exposed 모듈 바이너리 호환성을 검증했습니다. `DynamoDbLocalServer`는 여전히 `amazon/dynamodb-local:2.6.1`를 고정하여 대체하는 개인 컨테이너와 일치합니다.
 
 ## 검증
 

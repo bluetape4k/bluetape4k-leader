@@ -26,7 +26,7 @@ private const val WEBSOCKET_ADAPTER_CLASS =
 internal class LeaderElectionConfigurationException(
     message: String,
     cause: Throwable? = null,
-) : IllegalArgumentException(message, cause)
+): IllegalArgumentException(message, cause)
 
 /** Runtime state owned by the application plugin and discovered by the route registrar. */
 internal data class LeaderEventStreamRuntime(
@@ -44,7 +44,7 @@ internal class LeaderEventStreamRuntimePluginConfig {
  * `Route.plugin(...)` can discover application plugins through the routing root without
  * exposing `Application` or importing an optional transport API in the registrar.
  */
-internal object LeaderEventStreamRuntimePlugin :
+internal object LeaderEventStreamRuntimePlugin:
     Plugin<Application, LeaderEventStreamRuntimePluginConfig, LeaderEventStreamRuntime> {
 
     override val key: AttributeKey<LeaderEventStreamRuntime> =
@@ -111,10 +111,10 @@ private fun invokeAdapter(
     val adapter = Class.forName(className, true, classLoader)
     val method = adapter.methods.firstOrNull { candidate ->
         candidate.name == "install" &&
-            Modifier.isStatic(candidate.modifiers) &&
-            candidate.parameterTypes.contentEquals(
-                arrayOf(Route::class.java, LeaderEventStreamHub::class.java, LeaderEventStreamConfig::class.java),
-            )
+                Modifier.isStatic(candidate.modifiers) &&
+                candidate.parameterTypes.contentEquals(
+                    arrayOf(Route::class.java, LeaderEventStreamHub::class.java, LeaderEventStreamConfig::class.java),
+                )
     } ?: throw NoSuchMethodException("install(Route, LeaderEventStreamHub, LeaderEventStreamConfig)")
 
     method.invoke(null, route, runtime.hub, runtime.config)

@@ -17,7 +17,7 @@ data class LeaderRouteRedirectProperties(
     val allowedHosts: List<String> = emptyList(),
     val trustedProxyAddresses: List<String> = emptyList(),
     val leaseSafetyWindow: Duration = Duration.ZERO,
-) : Serializable {
+): Serializable {
 
     /** startup policy wiring에서 enabled semantic validation과 정규화를 한 번 수행합니다. */
     internal fun normalized(): LeaderRouteRedirectNormalizedProperties {
@@ -34,6 +34,7 @@ data class LeaderRouteRedirectProperties(
         }
         allowedHosts.forEach(::validateAllowedHost)
         trustedProxyAddresses.forEach(::validateTrustedProxyAddress)
+
         return LeaderRouteRedirectNormalizedProperties(
             enabled = enabled,
             allowedHosts = allowedHosts.map(::normalizeHost).toSet(),
@@ -86,7 +87,7 @@ data class LeaderRouteRedirectProperties(
                 val octets = value.split('.')
                 octets.size == IPV4_OCTET_COUNT && octets.all { octet ->
                     octet.isNotEmpty() && (octet == "0" || !octet.startsWith('0')) &&
-                        octet.all(Char::isDigit) && octet.toIntOrNull() in 0..IPV4_MAX_OCTET
+                            octet.all(Char::isDigit) && octet.toIntOrNull() in 0..IPV4_MAX_OCTET
                 }
             }
         }
@@ -94,10 +95,10 @@ data class LeaderRouteRedirectProperties(
         internal fun normalizeHost(value: String): String = value.lowercase()
 
         internal fun isValidHostSyntax(value: String): Boolean = when {
-            value.isEmpty() -> false
+            value.isEmpty()                    -> false
             !value.all(::isAsciiHostCharacter) -> false
             value.all { it.isDigit() || it == '.' } -> isCanonicalIpv4(value)
-            else -> isValidDnsHost(value)
+            else                               -> isValidDnsHost(value)
         }
 
         private fun isAsciiHostCharacter(value: Char): Boolean =
@@ -105,21 +106,21 @@ data class LeaderRouteRedirectProperties(
 
         private fun isValidDnsHost(value: String): Boolean =
             value.all { it.isLetterOrDigit() || it == '-' || it == '.' } &&
-                value.split('.').all(::isValidDnsLabel)
+                    value.split('.').all(::isValidDnsLabel)
 
         private fun isValidDnsLabel(value: String): Boolean =
             value.isNotEmpty() &&
-                value.first().isLetterOrDigit() &&
-                value.last().isLetterOrDigit() &&
-                value.all { it.isLetterOrDigit() || it == '-' }
+                    value.first().isLetterOrDigit() &&
+                    value.last().isLetterOrDigit() &&
+                    value.all { it.isLetterOrDigit() || it == '-' }
 
         private fun isCanonicalIpv4(value: String): Boolean {
             val octets = value.split('.')
             return octets.size == IPV4_OCTET_COUNT && octets.all { octet ->
                 octet.isNotEmpty() &&
-                    (octet == "0" || !octet.startsWith('0')) &&
-                    octet.all(Char::isDigit) &&
-                    octet.toIntOrNull() in 0..IPV4_MAX_OCTET
+                        (octet == "0" || !octet.startsWith('0')) &&
+                        octet.all(Char::isDigit) &&
+                        octet.toIntOrNull() in 0..IPV4_MAX_OCTET
             }
         }
 
@@ -145,4 +146,8 @@ internal data class LeaderRouteRedirectNormalizedProperties(
     val allowedHosts: Set<String>,
     val trustedProxyAddresses: Set<String>,
     val leaseSafetyWindow: Duration,
-)
+): Serializable {
+    companion object {
+        private const val serialVersionUID = 1L
+    }
+}

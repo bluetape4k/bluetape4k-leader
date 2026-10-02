@@ -2,9 +2,13 @@ package io.bluetape4k.leader.hazelcast
 
 import com.hazelcast.core.HazelcastInstance
 import com.hazelcast.map.IMap
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.AopScopeAccess
-import io.bluetape4k.leader.LeaderGroupElector
+import io.bluetape4k.leader.AsyncLifecycle
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
@@ -15,10 +19,11 @@ import io.bluetape4k.leader.hazelcast.internal.HazelcastSlotExtendDelegate
 import io.bluetape4k.leader.hazelcast.lock.HazelcastLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
-import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.closeSafe
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
@@ -36,8 +41,8 @@ import java.util.concurrent.atomic.AtomicReference
 class HazelcastLeaderGroupElector private constructor(
     private val hazelcast: HazelcastInstance,
     options: LeaderGroupElectionOptions,
-) : LeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by HazelcastLeaderBackendDiagnostics(hazelcast) {
+): LeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by HazelcastLeaderBackendDiagnostics(hazelcast) {
 
     companion object: KLogging() {
         const val LOCK_MAP_NAME = "bluetape4k:leader:group:locks"
@@ -52,12 +57,6 @@ class HazelcastLeaderGroupElector private constructor(
             options.maxLeaders.requirePositiveNumber("maxLeaders")
             return HazelcastLeaderGroupElector(hazelcast, options)
         }
-    }
-
-    private enum class AsyncLifecycle {
-        WAITING,
-        STARTED,
-        CLEANUP,
     }
 
     override val maxLeaders: Int = options.maxLeaders
@@ -78,7 +77,7 @@ class HazelcastLeaderGroupElector private constructor(
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
-        lockName.requireNotBlank("lockName")
+        lockName.validateLockName()
 
         val slotWaitTime = waitTime / maxLeaders
         log.debug { "리더 그룹 슬롯 획득을 요청합니다. lockName=$lockName, maxLeaders=$maxLeaders" }
@@ -99,7 +98,7 @@ class HazelcastLeaderGroupElector private constructor(
         }
 
         if (acquiredLock == null || acquiredSlotKey == null) {
-            log.debug { "리더 그룹 슬롯 획득 실패 (슬롯 없음). lockName=$lockName" }
+            log.debug { "리더 그룹 슬롯 획득 실패 (슬롯 없음). lockName=$lockName, slot=$acquiredSlot" }
             return null
         }
 
@@ -136,10 +135,14 @@ class HazelcastLeaderGroupElector private constructor(
                 }
             }
         } finally {
-            watchdog.close()
-            runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
-                .onSuccess { log.debug { "리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
-                .onFailure { e -> log.error(e) { "Fail to release group slot. lockName=$lockName, slot=$slot" } }
+            watchdog.closeSafe()
+            runCatching {
+                lock.unlock(minLeaseTime, acquiredAtNanos)
+            }.onSuccess {
+                log.debug { "리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
+            }.onFailure {
+                log.error(it) { "리더 그룹 슬롯 해제가 실패했습니다. lockName=$lockName, slot=$slot" }
+            }
         }
     }
 
@@ -149,7 +152,7 @@ class HazelcastLeaderGroupElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        lockName.requireNotBlank("lockName")
+        lockName.validateLockName()
 
         val slotWaitTime = waitTime / maxLeaders
 
@@ -157,29 +160,29 @@ class HazelcastLeaderGroupElector private constructor(
         val acquiredAtNanosRef = AtomicLong()
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+
         val releaseIfUnclaimed: () -> Unit = {
             val acquired = acquiredRef.get()
             if (acquired != null && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                runCatching { acquired.first.unlock(minLeaseTime, acquiredAtNanosRef.get()) }
-                    .onSuccess {
-                        log.debug {
-                            "executor 거부 후 비동기 그룹 슬롯을 반납했습니다. " +
-                                "lockName=$lockName, slot=${acquired.second}"
-                        }
-                    }
-                    .onFailure { e ->
-                        log.error(e) {
-                            "Fail to release group slot after executor rejection. " +
-                                "lockName=$lockName, slot=${acquired.second}"
-                        }
-                    }
+                runCatching {
+                    acquired.first.unlock(minLeaseTime, acquiredAtNanosRef.get())
+                }.onSuccess {
+                    log.debug { "executor 거부 후 비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=${acquired.second}" }
+                }.onFailure {
+                    log.error(it) { "executor 거부 후 비동기 그룹 슬롯 해제에 실패했습니다. lockName=$lockName, slot=${acquired.second}" }
+                }
             }
         }
-        val acquisitionFuture = CompletableFuture.supplyAsync({
+        val acquisitionFuture = futureOf(executor) {
             (0 until maxLeaders)
                 .asSequence()
                 .map { slot ->
-                    HazelcastLock(lockMap, slotKey(lockName, slot), LOCK_MAP_NAME, hazelcast::newTransactionContext) to slot
+                    HazelcastLock(
+                        lockMap,
+                        slotKey(lockName, slot),
+                        LOCK_MAP_NAME,
+                        hazelcast::newTransactionContext
+                    ) to slot
                 }
                 .firstOrNull { (lock, slot) ->
                     lock.tryLock(slotWaitTime, leaseTime).also { acquired ->
@@ -189,54 +192,55 @@ class HazelcastLeaderGroupElector private constructor(
                         }
                     }
                 }
-        }, executor)
+        }
         val pipelineFuture: CompletableFuture<T?> = try {
             acquisitionFuture.thenComposeAsync({ acquired ->
                 if (acquired == null) {
                     log.debug { "리더 그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
-                    CompletableFuture.completedFuture(null)
+                    completableFutureOf(null)
                 } else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
-                    CompletableFuture.failedFuture(
-                        CancellationException("leader result future was cancelled before action"),
-                    )
+                    failedCompletableFutureOf(CancellationException("leader result future was cancelled before action"))
                 } else {
                     val (lock, slot) = acquired
                     val acquiredAtNanos = acquiredAtNanosRef.get()
                     log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName, slot=$slot" }
+
                     val delegate = HazelcastSlotExtendDelegate(lock)
                     // Group elector: watchdog disabled (autoExtend 옵션 부재)
                     val watchdog = try {
                         LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
                     } catch (error: Throwable) {
-                        runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
-                            .onFailure { error.addSuppressed(it) }
-                        return@thenComposeAsync CompletableFuture.failedFuture(error)
+                        runCatching {
+                            lock.unlock(minLeaseTime, acquiredAtNanos)
+                        }.onFailure {
+                            error.addSuppressed(it)
+                        }
+                        return@thenComposeAsync failedCompletableFutureOf(error)
                     }
                     // async path 는 handle push 미수행 (AOP scope sync/suspend 만 지원)
-                    val actionFuture = runCatching { cancellationRelay.invoke { action() } }
-                        .getOrElse { error ->
-                            return@thenComposeAsync LeaderLeaseAutoExtender.closeAsync(watchdog)
-                                .handle { _, closeFailure ->
-                                    closeFailure?.unwrapCompletionCause()?.let(error::addSuppressed)
-                                    runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
-                                        .onFailure(error::addSuppressed)
-                                    throw error
-                                }
-                        }
+                    val actionFuture = runCatching {
+                        cancellationRelay.invoke { action() }
+                    }.getOrElse { error ->
+                        return@thenComposeAsync LeaderLeaseAutoExtender.closeAsync(watchdog)
+                            .handle { _, closeFailure ->
+                                closeFailure?.unwrapCompletionCause()?.let(error::addSuppressed)
+                                runCatching {
+                                    lock.unlock(minLeaseTime, acquiredAtNanos)
+                                }.onFailure(error::addSuppressed)
+                                throw error
+                            }
+                    }
                     LeaderFutureBridge.flatMap(actionFuture) { value, failure ->
                         LeaderLeaseAutoExtender.closeAsync(watchdog).handle { _, closeFailure ->
                             val cleanupFailure = closeFailure?.unwrapCompletionCause()
                             val releaseFailure = runCatching {
                                 lock.unlock(minLeaseTime, acquiredAtNanos)
                             }.onSuccess {
-                                log.debug {
-                                    "비동기 리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot"
-                                }
-                            }.onFailure { error ->
-                                log.error(error) {
-                                    "Fail to release group slot (async). lockName=$lockName, slot=$slot"
-                                }
+                                log.debug { "비동기 리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
+                            }.onFailure {
+                                log.error(it) { "비동기 리더 그룹 슬롯을 해제 실패 (async). lockName=$lockName, slot=$slot" }
                             }.exceptionOrNull()
+
                             if (failure != null) {
                                 cleanupFailure?.let(failure::addSuppressed)
                                 releaseFailure?.let(failure::addSuppressed)
@@ -253,7 +257,7 @@ class HazelcastLeaderGroupElector private constructor(
             acquisitionFuture.whenComplete { acquired, _ ->
                 if (acquired != null) releaseIfUnclaimed()
             }
-            CompletableFuture.failedFuture(error)
+            failedCompletableFutureOf(error)
         }
         pipelineFuture.whenComplete { _, failure ->
             if (failure != null) releaseIfUnclaimed()
@@ -266,18 +270,4 @@ class HazelcastLeaderGroupElector private constructor(
 
     private fun Throwable.unwrapCompletionCause(): Throwable =
         (this as? CompletionException)?.cause ?: this
-}
-
-/**
- * `선언` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-inline fun <T> HazelcastInstance.runIfLeaderGroup(
-    lockName: String,
-    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-    crossinline action: () -> T,
-): T? {
-    lockName.requireNotBlank("lockName")
-    return HazelcastLeaderGroupElector(this, options).runIfLeader(lockName) { action() }
 }

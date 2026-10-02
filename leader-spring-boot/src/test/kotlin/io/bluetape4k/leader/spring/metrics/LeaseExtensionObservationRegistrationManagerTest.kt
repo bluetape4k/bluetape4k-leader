@@ -4,6 +4,10 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderLeaseExtensionContext
 import io.bluetape4k.leader.LeaderLeaseExtensionEvent
@@ -14,13 +18,17 @@ import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.leader.micrometer.LeaderMetricTagOptions
 import io.bluetape4k.leader.micrometer.LeaderObservationOptions
 import io.bluetape4k.leader.micrometer.TAG_LEADER_ID
+import io.bluetape4k.logging.KLogging
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationHandler
 import io.micrometer.observation.ObservationRegistry
+import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.springframework.beans.factory.getBean
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import java.lang.ref.ReferenceQueue
 import java.lang.ref.WeakReference
@@ -28,13 +36,15 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaseExtensionObservationRegistrationManagerTest {
+
+    companion object: KLogging()
 
     @Test
     fun `two Spring contexts sharing a registry keep one callback until the last context closes`() {
@@ -46,32 +56,32 @@ class LeaseExtensionObservationRegistrationManagerTest {
         val second = openContext(registry)
 
         try {
-            val firstOwner = first.getBean(
+            val firstOwner = first.getBean<LeaseExtensionObservationScopeOwner>(
                 LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME,
-                LeaseExtensionObservationScopeOwner::class.java,
             )
-            val secondOwner = second.getBean(
+            val secondOwner = second.getBean<LeaseExtensionObservationScopeOwner>(
                 LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME,
-                LeaseExtensionObservationScopeOwner::class.java,
             )
             LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 1
             LeaseExtensionObservationRegistrationManager.referenceCount(registry) shouldBeEqualTo 2
+
             first.containsBean("leaseExtensionObserverRegistration").shouldBeTrue()
             second.containsBean("leaseExtensionObserverRegistration").shouldBeTrue()
+
             firstOwner.current() shouldBeSameInstanceAs secondOwner.current()
 
-            firstOwner.current()!!.withScope {
+            firstOwner.current().shouldNotBeNull().withScope {
                 LockExtender.extendActiveLockDetailed(1.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
             }
-            await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+            await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
                 handler.stopped.size shouldBeEqualTo 1
             }
 
             first.close()
-            secondOwner.current()!!.withScope {
+            secondOwner.current().shouldNotBeNull().withScope {
                 LockExtender.extendActiveLockDetailed(1.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
             }
-            await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+            await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
                 handler.stopped.size shouldBeEqualTo 2
             }
         } finally {
@@ -93,13 +103,11 @@ class LeaseExtensionObservationRegistrationManagerTest {
         }
 
         try {
-            val parentOwner = parent.getBean(
+            val parentOwner = parent.getBean<LeaseExtensionObservationScopeOwner>(
                 LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME,
-                LeaseExtensionObservationScopeOwner::class.java,
             )
-            val childOwner = child.getBean(
-                LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME,
-                LeaseExtensionObservationScopeOwner::class.java,
+            val childOwner = child.getBean<LeaseExtensionObservationScopeOwner>(
+                LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME
             )
             LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 1
             LeaseExtensionObservationRegistrationManager.referenceCount(registry) shouldBeEqualTo 2
@@ -130,7 +138,7 @@ class LeaseExtensionObservationRegistrationManagerTest {
                 LockExtender.extendActiveLockDetailed(1.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
             }
 
-            await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+            await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
                 handler.stopped.size shouldBeEqualTo 1
             }
 
@@ -162,12 +170,16 @@ class LeaseExtensionObservationRegistrationManagerTest {
                 LockExtender.extendActiveLockDetailed(1.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
             }
 
-            await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+            await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
                 firstHandler.stopped.size shouldBeEqualTo 1
                 secondHandler.stopped.size shouldBeEqualTo 0
             }
-            second.scope.withScope { LockExtender.extendActiveLockDetailed(1.seconds) }
-            await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+
+            second.scope.withScope {
+                LockExtender.extendActiveLockDetailed(1.seconds)
+            }
+
+            await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
                 firstHandler.stopped.size shouldBeEqualTo 1
                 secondHandler.stopped.size shouldBeEqualTo 1
             }
@@ -210,37 +222,40 @@ class LeaseExtensionObservationRegistrationManagerTest {
         val pool = Executors.newFixedThreadPool(8)
         val acquireGate = CountDownLatch(1)
         val handles = CopyOnWriteArrayList<AutoCloseable>()
-        val acquireTasks = (1..8).map {
+
+        val acquireTasks = List(8) {
             pool.submit<AutoCloseable> {
-                acquireGate.await(5, TimeUnit.SECONDS).shouldBeTrue()
-                LeaseExtensionObservationRegistrationManager.acquire(registry, LeaderObservationOptions()).also {
-                    handles += it
-                }
+                acquireGate.await(5.seconds).shouldBeTrue()
+                LeaseExtensionObservationRegistrationManager
+                    .acquire(registry, LeaderObservationOptions())
+                    .also {
+                        handles += it
+                    }
             }
         }
 
         try {
             acquireGate.countDown()
-            acquireTasks.forEach { it.get(5, TimeUnit.SECONDS) }
+            acquireTasks.forEach { it.get(5.seconds) }
             LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 1
             LeaseExtensionObservationRegistrationManager.referenceCount(registry) shouldBeEqualTo 8
 
             val closeGate = CountDownLatch(1)
             val closeTasks = handles.map { handle ->
                 pool.submit {
-                    closeGate.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    closeGate.await(5.seconds).shouldBeTrue()
                     handle.close()
                 }
             }
             closeGate.countDown()
-            closeTasks.forEach { it.get(5, TimeUnit.SECONDS) }
+            closeTasks.forEach { it.get(5.seconds) }
 
             LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 0
             LeaseExtensionObservationRegistrationManager.referenceCount(registry) shouldBeEqualTo 0
         } finally {
             acquireTasks.filterNot { it.isDone }.forEach { it.cancel(true) }
             pool.shutdownNow()
-            pool.awaitTermination(5, TimeUnit.SECONDS).shouldBeTrue()
+            pool.awaitTermination(5.seconds).shouldBeTrue()
             handles.forEach(AutoCloseable::close)
         }
     }
@@ -254,30 +269,31 @@ class LeaseExtensionObservationRegistrationManagerTest {
         val pool = Executors.newFixedThreadPool(2)
         var handle: LeaseExtensionObservationRegistrationManager.ManagedRegistration =
             LeaseExtensionObservationRegistrationManager.acquire(
-            registry,
-            LeaderObservationOptions(),
-        )
+                registry,
+                LeaderObservationOptions(),
+            )
 
+        val repeatSize = 32
         try {
-            repeat(32) { index ->
+            repeat(repeatSize) { index ->
                 val barrier = CyclicBarrier(2)
                 val closeTask = pool.submit {
-                    barrier.await(5, TimeUnit.SECONDS)
+                    barrier.await(5.seconds)
                     handle.close()
                 }
                 val acquireTask = pool.submit<LeaseExtensionObservationRegistrationManager.ManagedRegistration> {
-                    barrier.await(5, TimeUnit.SECONDS)
+                    barrier.await(5.seconds)
                     LeaseExtensionObservationRegistrationManager.acquire(registry, LeaderObservationOptions())
                 }
 
-                closeTask.get(5, TimeUnit.SECONDS)
-                handle = acquireTask.get(5, TimeUnit.SECONDS)
+                closeTask.get(5.seconds)
+                handle = acquireTask.get(5.seconds)
                 LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 1
                 LeaseExtensionObservationRegistrationManager.referenceCount(registry) shouldBeEqualTo 1
                 handle.scope.withScope {
                     LockExtender.extendActiveLockDetailed(1.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
                 }
-                await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+                await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
                     handler.stopped.size shouldBeEqualTo index + 1
                 }
             }
@@ -288,7 +304,7 @@ class LeaseExtensionObservationRegistrationManagerTest {
 
         LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 0
         LockExtender.extendActiveLockDetailed(1.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
-        handler.stopped.size shouldBeEqualTo 32
+        handler.stopped.size shouldBeEqualTo repeatSize
     }
 
     @Test
@@ -297,7 +313,7 @@ class LeaseExtensionObservationRegistrationManagerTest {
         val registryCollected = AtomicBoolean(false)
         val handleCollected = AtomicBoolean(false)
 
-        await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+        await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
             System.gc()
             if (!registryCollected.get()) {
                 registryCollected.set(references.registryQueue.poll() === references.registryReference)
@@ -310,7 +326,7 @@ class LeaseExtensionObservationRegistrationManagerTest {
         }
     }
 
-    private class CollectingObservationHandler : ObservationHandler<Observation.Context> {
+    private class CollectingObservationHandler: ObservationHandler<Observation.Context> {
         val stopped = CopyOnWriteArrayList<ObservationSnapshot>()
 
         override fun onStop(context: Observation.Context) {
@@ -484,7 +500,7 @@ class LeaseExtensionObservationRegistrationManagerTest {
         val handleQueue: ReferenceQueue<AutoCloseable>,
     )
 
-    private object NonNoopObservationHandler : ObservationHandler<Observation.Context> {
+    private object NonNoopObservationHandler: ObservationHandler<Observation.Context> {
         override fun supportsContext(context: Observation.Context): Boolean = true
     }
 }

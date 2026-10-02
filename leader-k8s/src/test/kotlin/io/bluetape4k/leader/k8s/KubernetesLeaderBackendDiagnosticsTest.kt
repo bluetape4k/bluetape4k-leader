@@ -9,10 +9,29 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 
 class KubernetesLeaderBackendDiagnosticsTest {
+
+    private companion object: KLogging() {
+        val canonicalElectors = listOf(
+            KubernetesLeaseLeaderElector::class.java,
+            KubernetesLeaseLeaderGroupElector::class.java,
+            KubernetesLeaseSuspendLeaderElector::class.java,
+            KubernetesLeaseSuspendLeaderGroupElector::class.java,
+        )
+        val supportedModes = LeaderBackendModeSupport(
+            single = LeaderBackendSupport.SUPPORTED,
+            group = LeaderBackendSupport.SUPPORTED,
+        )
+        val singleAuditModes = LeaderBackendModeSupport(
+            single = LeaderBackendSupport.SUPPORTED,
+            group = LeaderBackendSupport.UNSUPPORTED,
+        )
+    }
 
     @Test
     fun `descriptor는 Kubernetes 실행 모델과 lease 계약을 보고한다`() {
@@ -24,8 +43,11 @@ class KubernetesLeaderBackendDiagnosticsTest {
             LeaderExecutionModel.SUSPEND,
         )
 
+        log.debug { "descriptor=$descriptor" }
         descriptor.backendId shouldBeEqualTo "kubernetes"
         descriptor.displayName shouldBeEqualTo "Kubernetes Lease"
+
+        log.debug { "capabilities=$capabilities" }
         capabilities.singleExecutionModels shouldBeEqualTo executionModels
         capabilities.groupExecutionModels shouldBeEqualTo executionModels
         capabilities.leaseExtension shouldBeEqualTo supportedModes
@@ -47,22 +69,5 @@ class KubernetesLeaderBackendDiagnosticsTest {
         canonicalElectors.forEach { electorType ->
             LeaderBackendDiagnosticsProvider::class.java.isAssignableFrom(electorType) shouldBe true
         }
-    }
-
-    private companion object {
-        val canonicalElectors = listOf(
-            KubernetesLeaseLeaderElector::class.java,
-            KubernetesLeaseLeaderGroupElector::class.java,
-            KubernetesLeaseSuspendLeaderElector::class.java,
-            KubernetesLeaseSuspendLeaderGroupElector::class.java,
-        )
-        val supportedModes = LeaderBackendModeSupport(
-            single = LeaderBackendSupport.SUPPORTED,
-            group = LeaderBackendSupport.SUPPORTED,
-        )
-        val singleAuditModes = LeaderBackendModeSupport(
-            single = LeaderBackendSupport.SUPPORTED,
-            group = LeaderBackendSupport.UNSUPPORTED,
-        )
     }
 }

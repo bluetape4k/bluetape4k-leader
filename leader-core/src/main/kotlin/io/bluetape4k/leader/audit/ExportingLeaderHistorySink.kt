@@ -2,11 +2,11 @@
 
 package io.bluetape4k.leader.audit
 
+import io.bluetape4k.leader.audit.internal.LeaderAuditPendingContextStore
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderHistorySink
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
-import io.bluetape4k.leader.audit.internal.LeaderAuditPendingContextStore
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
@@ -25,10 +25,16 @@ class ExportingLeaderHistorySink private constructor(
     private val exporter: LeaderAuditExporter,
     private val sanitizer: LeaderAuditValueSanitizer,
     private val contexts: LeaderAuditPendingContextStore,
-) : LeaderHistorySink {
+): LeaderHistorySink {
+
+    private companion object: KLogging() {
+        const val TOKEN_PLACEHOLDER: String = "audit-context"
+        const val CONTEXT_ATTRIBUTE: String = "audit_context"
+        const val CONTEXT_MISSING: String = "missing"
+    }
 
     /** 기본 redaction 정책을 사용하는 wrapper입니다. */
-    constructor(delegate: LeaderHistorySink, exporter: LeaderAuditExporter) : this(
+    constructor(delegate: LeaderHistorySink, exporter: LeaderAuditExporter): this(
         delegate,
         exporter,
         LeaderAuditValueSanitizer.Default,
@@ -40,7 +46,7 @@ class ExportingLeaderHistorySink private constructor(
         delegate: LeaderHistorySink,
         exporter: LeaderAuditExporter,
         sanitizer: LeaderAuditValueSanitizer,
-    ) : this(delegate, exporter, sanitizer, LeaderAuditPendingContextStore())
+    ): this(delegate, exporter, sanitizer, LeaderAuditPendingContextStore())
 
     override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
         val key = delegate.recordAcquired(record)
@@ -150,11 +156,5 @@ class ExportingLeaderHistorySink private constructor(
         } catch (e: Exception) {
             log.warn(e) { "Audit export submission failed and was ignored" }
         }
-    }
-
-    private companion object : KLogging() {
-        const val TOKEN_PLACEHOLDER: String = "audit-context"
-        const val CONTEXT_ATTRIBUTE: String = "audit_context"
-        const val CONTEXT_MISSING: String = "missing"
     }
 }

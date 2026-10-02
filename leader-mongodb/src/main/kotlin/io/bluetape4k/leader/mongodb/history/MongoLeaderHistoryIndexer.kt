@@ -21,8 +21,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import org.bson.Document
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val SHUTDOWN_TIMEOUT_METRIC_VALUE = -2
 
@@ -45,9 +47,9 @@ class MongoLeaderHistoryIndexer(
     private val database: MongoDatabase,
     private val config: MongoHistoryConfig = MongoHistoryConfig(),
     registry: MeterRegistry? = null,
-) : AutoCloseable {
+): AutoCloseable {
 
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
         const val SHUTDOWN_TIMEOUT_MS = 5_000L
 
         private const val GAUGE_INDEX_STATE = "leader.history.mongodb.index.state"
@@ -75,7 +77,7 @@ class MongoLeaderHistoryIndexer(
             Gauge.builder(GAUGE_INDEX_STATE) { indexState.toDouble() }
                 .description(
                     "MongoDB leader history index build state: " +
-                        "-2=shutdown-timeout, -1=failed, 0=building, 1=ready",
+                            "-2=shutdown-timeout, -1=failed, 0=building, 1=ready",
                 )
                 .register(reg)
         }
@@ -83,7 +85,7 @@ class MongoLeaderHistoryIndexer(
     }
 
     private suspend fun buildIndexesWithRetry() {
-        val collection = database.getCollection<org.bson.Document>(config.collectionName)
+        val collection = database.getCollection<Document>(config.collectionName)
         var attempt = 0
         while (attempt < MAX_RETRIES) {
             try {
@@ -115,7 +117,7 @@ class MongoLeaderHistoryIndexer(
                 } else {
                     log.debug {
                         "MongoDB history index build completed after terminal lifecycle state; " +
-                            "state=${indexLifecycleState.name}"
+                                "state=${indexLifecycleState.name}"
                     }
                 }
                 return
@@ -134,12 +136,12 @@ class MongoLeaderHistoryIndexer(
                             "MongoDB history index build failed after $MAX_RETRIES attempts"
                         } else {
                             "MongoDB history index build failed after terminal lifecycle state; " +
-                                "state=${indexLifecycleState.name}"
+                                    "state=${indexLifecycleState.name}"
                         }
                     }
                 } else {
                     log.warn(e) { "MongoDB history index build attempt $attempt failed, retrying in ${delayMs}ms" }
-                    delay(delayMs)
+                    delay(delayMs.milliseconds)
                 }
             }
         }
@@ -162,7 +164,7 @@ class MongoLeaderHistoryIndexer(
     internal suspend fun closeSuspend(shutdownTimeoutMs: Long = SHUTDOWN_TIMEOUT_MS) {
         val validShutdownTimeoutMs = shutdownTimeoutMs.requirePositiveNumber("shutdownTimeoutMs")
         scope.cancel()
-        val stopped = withTimeoutOrNull(validShutdownTimeoutMs) {
+        val stopped = withTimeoutOrNull(validShutdownTimeoutMs.milliseconds) {
             indexBuildJob?.join()
             true
         } ?: false
@@ -171,7 +173,7 @@ class MongoLeaderHistoryIndexer(
             state.set(MongoLeaderHistoryIndexState.SHUTDOWN_TIMEOUT)
             log.warn {
                 "MongoLeaderHistoryIndexer: shutdown timed out after ${validShutdownTimeoutMs}ms; " +
-                    "state=${indexLifecycleState.name}"
+                        "state=${indexLifecycleState.name}"
             }
         }
     }

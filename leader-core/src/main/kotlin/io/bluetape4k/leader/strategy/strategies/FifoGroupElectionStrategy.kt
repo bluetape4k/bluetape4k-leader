@@ -11,7 +11,7 @@ import io.bluetape4k.support.requireGe
  *
  * `registeredAt`이 같으면 `nodeId` 사전순으로 결과를 고정합니다.
  */
-object FifoGroupElectionStrategy : GroupElectionStrategy {
+object FifoGroupElectionStrategy: GroupElectionStrategy {
 
     override fun elect(
         candidates: List<CandidateInfo>,

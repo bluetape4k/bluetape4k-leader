@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.examples.warmer
 
+import java.io.Serializable
+
 /**
  * `WarmResult`는 example workflow에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
@@ -13,4 +15,8 @@ data class WarmResult(
     val warmed: List<String>,
     val skipped: List<String>,
     val failed: Map<String, String>,
-)
+): Serializable {
+    companion object {
+        private const val serialVersionUID: Long = 1L
+    }
+}

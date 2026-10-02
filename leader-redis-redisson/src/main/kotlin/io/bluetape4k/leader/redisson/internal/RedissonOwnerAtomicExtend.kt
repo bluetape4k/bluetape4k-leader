@@ -77,7 +77,7 @@ internal object RedissonOwnerAtomicExtend {
         when (this) {
             NOT_HELD_RESULT -> ExtendOutcome.NotHeld
             WRONG_THREAD_RESULT -> ExtendOutcome.WrongThread
-            else -> ExtendOutcome.Extended(Instant.ofEpochMilli(this))
+            else            -> ExtendOutcome.Extended(Instant.ofEpochMilli(this))
         }
 
     private fun ownerField(lock: RLock, acquiringThreadId: Long): String {

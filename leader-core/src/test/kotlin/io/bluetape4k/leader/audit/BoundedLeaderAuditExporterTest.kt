@@ -1,13 +1,21 @@
 package io.bluetape4k.leader.audit
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.audit.internal.BoundedLeaderAuditExporter
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.logging.KLogging
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.until
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.time.Duration
@@ -23,8 +31,12 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class BoundedLeaderAuditExporterTest {
+
+    companion object: KLogging()
 
     private val schedulers = mutableListOf<ScheduledExecutorService>()
 
@@ -39,19 +51,19 @@ class BoundedLeaderAuditExporterTest {
         val scheduler = scheduler()
         val calls = AtomicInteger()
         val exporter = exporter(
-            delivery = LeaderAuditDelivery {
+            delivery = {
                 calls.incrementAndGet()
-                CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS)
+                completableFutureOf(LeaderAuditDeliveryResult.SUCCESS)
             },
             queueCapacity = 1,
             executor = executor,
             scheduler = scheduler,
         )
 
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.DROPPED_QUEUE_FULL)
-        calls.get().shouldBeEqualTo(0)
-        exporter.snapshot().droppedQueueFull.shouldBeEqualTo(1)
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.DROPPED_QUEUE_FULL
+        calls.get() shouldBeEqualTo 0
+        exporter.snapshot().droppedQueueFull shouldBeEqualTo 1
         exporter.close()
     }
 
@@ -60,10 +72,10 @@ class BoundedLeaderAuditExporterTest {
         val exporter = exporter(executor = Executor { })
 
         exporter.close()
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.DROPPED_CLOSED)
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.DROPPED_CLOSED
         val snapshot = exporter.snapshot()
         snapshot.closed.shouldBeTrue()
-        snapshot.droppedClosed.shouldBeEqualTo(1)
+        snapshot.droppedClosed shouldBeEqualTo 1
     }
 
     @Test
@@ -72,18 +84,18 @@ class BoundedLeaderAuditExporterTest {
         val exporter = exporter(
             delivery = LeaderAuditDelivery {
                 delivered.countDown()
-                CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS)
+                completableFutureOf(LeaderAuditDeliveryResult.SUCCESS)
             },
             executor = Executor { it.run() },
         )
 
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        delivered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+        delivered.await(5.seconds).shouldBeTrue()
         awaitAdmissionReleased(exporter)
         val snapshot = exporter.snapshot()
-        snapshot.admitted.shouldBeEqualTo(0)
-        snapshot.inFlight.shouldBeEqualTo(0)
-        snapshot.accepted.shouldBeEqualTo(1)
+        snapshot.admitted shouldBeEqualTo 0
+        snapshot.inFlight shouldBeEqualTo 0
+        snapshot.accepted shouldBeEqualTo 1
         exporter.close()
     }
 
@@ -94,7 +106,7 @@ class BoundedLeaderAuditExporterTest {
         val exporter = exporter(
             delivery = LeaderAuditDelivery {
                 attempts.incrementAndGet()
-                CompletableFuture.completedFuture(LeaderAuditDeliveryResult.RETRYABLE_FAILURE)
+                completableFutureOf(LeaderAuditDeliveryResult.RETRYABLE_FAILURE)
             },
             maxAttempts = 2,
             initialBackoff = Duration.ofNanos(1),
@@ -103,10 +115,10 @@ class BoundedLeaderAuditExporterTest {
         )
 
         exporter.submit(event())
-        terminal.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        attempts.get().shouldBeEqualTo(2)
-        exporter.snapshot().terminalFailures.shouldBeEqualTo(1)
-        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        terminal.await(5.seconds).shouldBeTrue()
+        attempts.get() shouldBeEqualTo 2
+        exporter.snapshot().terminalFailures shouldBeEqualTo 1
+        exporter.snapshot().admitted shouldBeEqualTo 0
         exporter.close()
     }
 
@@ -121,9 +133,9 @@ class BoundedLeaderAuditExporterTest {
         )
 
         exporter.submit(event())
-        terminal.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        exporter.snapshot().inFlight.shouldBeEqualTo(0)
-        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        terminal.await(5.seconds).shouldBeTrue()
+        exporter.snapshot().inFlight shouldBeEqualTo 0
+        exporter.snapshot().admitted shouldBeEqualTo 0
         exporter.close()
     }
 
@@ -135,7 +147,7 @@ class BoundedLeaderAuditExporterTest {
         val exporter = exporter(
             delivery = LeaderAuditDelivery {
                 deliveryStarted.countDown()
-                releaseDelivery.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                releaseDelivery.await(5.seconds).shouldBeTrue()
                 deliveryFailed.countDown()
                 throw IllegalStateException("late-delivery-failure")
             },
@@ -148,22 +160,22 @@ class BoundedLeaderAuditExporterTest {
             exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
             submitReturned.countDown()
         }
-        submitReturned.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        deliveryStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        submitReturned.await(5.seconds).shouldBeTrue()
+        deliveryStarted.await(5.seconds).shouldBeTrue()
 
         val closeReturned = CountDownLatch(1)
         Thread.ofVirtual().start {
             exporter.close()
             closeReturned.countDown()
         }
-        closeReturned.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeReturned.await(1.seconds).shouldBeTrue()
         releaseDelivery.countDown()
-        deliveryFailed.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        deliveryFailed.await(5.seconds).shouldBeTrue()
 
         val snapshot = exporter.snapshot()
-        snapshot.cancellations.shouldBeEqualTo(1)
-        snapshot.inFlight.shouldBeEqualTo(0)
-        snapshot.admitted.shouldBeEqualTo(0)
+        snapshot.cancellations shouldBeEqualTo 1
+        snapshot.inFlight shouldBeEqualTo 0
+        snapshot.admitted shouldBeEqualTo 0
     }
 
     @Test
@@ -171,7 +183,10 @@ class BoundedLeaderAuditExporterTest {
         val future = CompletableFuture<LeaderAuditDeliveryResult>()
         val deliveryStarted = CountDownLatch(1)
         val cancelled = CountDownLatch(1)
-        future.whenComplete { _, failure -> if (failure is CancellationException) cancelled.countDown() }
+
+        future.whenComplete { _, failure ->
+            if (failure is CancellationException) cancelled.countDown()
+        }
         val exporter = exporter(
             delivery = LeaderAuditDelivery {
                 deliveryStarted.countDown()
@@ -181,11 +196,11 @@ class BoundedLeaderAuditExporterTest {
         )
 
         exporter.submit(event())
-        deliveryStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        deliveryStarted.await(5.seconds).shouldBeTrue()
         exporter.close()
-        cancelled.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        exporter.snapshot().cancellations.shouldBeEqualTo(1)
-        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        cancelled.await(5.seconds).shouldBeTrue()
+        exporter.snapshot().cancellations shouldBeEqualTo 1
+        exporter.snapshot().admitted shouldBeEqualTo 0
     }
 
     @Test
@@ -205,11 +220,11 @@ class BoundedLeaderAuditExporterTest {
         )
 
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        terminal.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        attempts.get().shouldBeEqualTo(2)
-        exporter.snapshot().retries.shouldBeEqualTo(1)
-        exporter.snapshot().inFlight.shouldBeEqualTo(0)
-        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        terminal.await(5.seconds).shouldBeTrue()
+        attempts.get() shouldBeEqualTo 2
+        exporter.snapshot().retries shouldBeEqualTo 1
+        exporter.snapshot().inFlight shouldBeEqualTo 0
+        exporter.snapshot().admitted shouldBeEqualTo 0
         exporter.close()
     }
 
@@ -232,14 +247,16 @@ class BoundedLeaderAuditExporterTest {
         )
 
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        firstStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        firstStarted.await(5.seconds).shouldBeTrue()
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+
         futures.remove().complete(LeaderAuditDeliveryResult.SUCCESS)
-        secondStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        exporter.snapshot().inFlight.shouldBeEqualTo(1)
+        secondStarted.await(5.seconds).shouldBeTrue()
+        exporter.snapshot().inFlight shouldBeEqualTo 1
+
         futures.remove().complete(LeaderAuditDeliveryResult.SUCCESS)
         exporter.close()
-        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        exporter.snapshot().admitted shouldBeEqualTo 0
     }
 
     @Test
@@ -254,7 +271,7 @@ class BoundedLeaderAuditExporterTest {
         val executor = Executor { command ->
             command.run()
             workerExited.countDown()
-            releaseExecutor.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            releaseExecutor.await(5.seconds).shouldBeTrue()
         }
         val exporter = exporter(
             queueCapacity = 2,
@@ -262,27 +279,27 @@ class BoundedLeaderAuditExporterTest {
             delivery = LeaderAuditDelivery {
                 if (calls.incrementAndGet() == 1) {
                     firstStarted.countDown()
-                    allowFirstReturn.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    allowFirstReturn.await(5.seconds).shouldBeTrue()
                     firstFuture
                 } else {
                     secondStarted.countDown()
-                    CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS)
+                    completableFutureOf(LeaderAuditDeliveryResult.SUCCESS)
                 }
             },
             executor = executor,
         )
 
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        firstStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+        firstStarted.await(5.seconds).shouldBeTrue()
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
         allowFirstReturn.countDown()
-        workerExited.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        workerExited.await(5.seconds).shouldBeTrue()
 
         firstFuture.complete(LeaderAuditDeliveryResult.SUCCESS).shouldBeTrue()
         releaseExecutor.countDown()
-        secondStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        secondStarted.await(5.seconds).shouldBeTrue()
         awaitAdmissionReleased(exporter)
-        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        exporter.snapshot().admitted shouldBeEqualTo 0
         exporter.close()
     }
 
@@ -291,6 +308,7 @@ class BoundedLeaderAuditExporterTest {
         val rejectFirst = AtomicBoolean(true)
         val recovered = CountDownLatch(1)
         val deliveryFuture = CompletableFuture<LeaderAuditDeliveryResult>()
+
         val executor = Executor { command ->
             if (rejectFirst.getAndSet(false)) throw RejectedExecutionException("first")
             command.run()
@@ -304,16 +322,19 @@ class BoundedLeaderAuditExporterTest {
             executor = executor,
         )
 
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
         awaitAdmissionReleased(exporter)
-        exporter.snapshot().admitted.shouldBeEqualTo(0)
-        exporter.snapshot().executorRejections.shouldBeEqualTo(1)
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        recovered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+
+        exporter.snapshot().admitted shouldBeEqualTo 0
+        exporter.snapshot().executorRejections shouldBeEqualTo 1
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+
+        recovered.await(5.seconds).shouldBeTrue()
         deliveryFuture.complete(LeaderAuditDeliveryResult.SUCCESS).shouldBeTrue()
+
         awaitAdmissionReleased(exporter)
-        exporter.snapshot().admitted.shouldBeEqualTo(0)
-        exporter.snapshot().executorRejections.shouldBeEqualTo(1)
+        exporter.snapshot().admitted shouldBeEqualTo 0
+        exporter.snapshot().executorRejections shouldBeEqualTo 1
         exporter.close()
     }
 
@@ -328,56 +349,60 @@ class BoundedLeaderAuditExporterTest {
         val firstDispatch = AtomicBoolean(true)
         val recoveryDispatches = AtomicInteger()
         val recoveryDelivered = AtomicInteger()
+
         val executor = Executor { command ->
             if (firstDispatch.getAndSet(false)) {
                 firstDispatchEntered.countDown()
-                allowFirstDispatchToReject.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                allowFirstDispatchToReject.await(5.seconds).shouldBeTrue()
                 throw RejectedExecutionException("full-batch")
             }
             recoveryDispatches.incrementAndGet()
             recoveryDispatchEntered.countDown()
-            allowRecoveryDispatch.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            allowRecoveryDispatch.await(5.seconds).shouldBeTrue()
             command.run()
             recoveryWorkerCompleted.countDown()
         }
+
         val exporter = exporter(
             queueCapacity = queueCapacity,
             maxInFlight = queueCapacity,
             delivery = LeaderAuditDelivery {
                 recoveryDelivered.incrementAndGet()
-                CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS)
+                completableFutureOf(LeaderAuditDeliveryResult.SUCCESS)
             },
             executor = executor,
             registerObserver = false,
         )
 
         repeat(queueCapacity) {
-            exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+            exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
         }
-        firstDispatchEntered.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        exporter.snapshot().queued.shouldBeEqualTo(queueCapacity)
-        exporter.snapshot().admitted.shouldBeEqualTo(queueCapacity)
+        firstDispatchEntered.await(5.seconds).shouldBeTrue()
+        exporter.snapshot().queued shouldBeEqualTo queueCapacity
+        exporter.snapshot().admitted shouldBeEqualTo queueCapacity
 
         allowFirstDispatchToReject.countDown()
         awaitAdmissionReleased(exporter)
         exporter.snapshot().executorRejections.shouldBeEqualTo(queueCapacity.toLong())
-        exporter.snapshot().queued.shouldBeEqualTo(0)
-        exporter.snapshot().inFlight.shouldBeEqualTo(0)
-        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        exporter.snapshot().queued shouldBeEqualTo 0
+        exporter.snapshot().inFlight shouldBeEqualTo 0
+        exporter.snapshot().admitted shouldBeEqualTo 0
 
         repeat(queueCapacity) {
-            exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+            exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
         }
-        recoveryDispatchEntered.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        exporter.snapshot().queued.shouldBeEqualTo(queueCapacity)
-        exporter.snapshot().admitted.shouldBeEqualTo(queueCapacity)
+        recoveryDispatchEntered.await(5.seconds).shouldBeTrue()
+        exporter.snapshot().queued shouldBeEqualTo queueCapacity
+        exporter.snapshot().admitted shouldBeEqualTo queueCapacity
+
         allowRecoveryDispatch.countDown()
-        recoveryWorkerCompleted.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        recoveryDelivered.get().shouldBeEqualTo(queueCapacity)
-        recoveryDispatches.get().shouldBeEqualTo(1)
-        exporter.snapshot().accepted.shouldBeEqualTo((queueCapacity * 2).toLong())
-        exporter.snapshot().admitted.shouldBeEqualTo(0)
-        exporter.snapshot().executorRejections.shouldBeEqualTo(queueCapacity.toLong())
+        recoveryWorkerCompleted.await(5.seconds).shouldBeTrue()
+        recoveryDelivered.get() shouldBeEqualTo queueCapacity
+        recoveryDispatches.get() shouldBeEqualTo 1
+
+        exporter.snapshot().accepted shouldBeEqualTo (queueCapacity * 2).toLong()
+        exporter.snapshot().admitted shouldBeEqualTo 0
+        exporter.snapshot().executorRejections shouldBeEqualTo queueCapacity.toLong()
         exporter.close()
     }
 
@@ -389,24 +414,25 @@ class BoundedLeaderAuditExporterTest {
         val exporter = exporter(
             delivery = LeaderAuditDelivery {
                 deliveryStarted.countDown()
-                releaseDelivery.await(5, TimeUnit.SECONDS).shouldBeTrue()
-                CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS)
+                releaseDelivery.await(5.seconds).shouldBeTrue()
+                completableFutureOf(LeaderAuditDeliveryResult.SUCCESS)
             },
             executor = Executor { it.run() },
         )
 
         Thread.ofVirtual().start {
-            exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+            exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
             submitReturned.countDown()
         }
-        submitReturned.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        deliveryStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        submitReturned.await(5.seconds).shouldBeTrue()
+        deliveryStarted.await(5.seconds).shouldBeTrue()
         val closeReturned = CountDownLatch(1)
+
         Thread.ofVirtual().start {
             exporter.close()
             closeReturned.countDown()
         }
-        closeReturned.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeReturned.await(1.seconds).shouldBeTrue()
         releaseDelivery.countDown()
     }
 
@@ -429,10 +455,10 @@ class BoundedLeaderAuditExporterTest {
                 maxAttempts = 1,
             )
             exporter.submit(event())
-            deliveryStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            deliveryStarted.await(5.seconds).shouldBeTrue()
             future.completeExceptionally(AssertionError("delivery-error"))
-            uncaught.await(5, TimeUnit.SECONDS).shouldBeTrue()
-            exporter.snapshot().admitted.shouldBeEqualTo(0)
+            uncaught.await(5.seconds).shouldBeTrue()
+            exporter.snapshot().admitted shouldBeEqualTo 0
             exporter.close()
         } finally {
             Thread.setDefaultUncaughtExceptionHandler(previous)
@@ -449,10 +475,10 @@ class BoundedLeaderAuditExporterTest {
             onObservation = { if (it == LeaderAuditExportObservation.SCHEDULER_REJECTED) rejected.countDown() },
         )
 
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        rejected.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        exporter.snapshot().schedulerRejections.shouldBeEqualTo(1)
-        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+        rejected.await(5.seconds).shouldBeTrue()
+        exporter.snapshot().schedulerRejections shouldBeEqualTo 1
+        exporter.snapshot().admitted shouldBeEqualTo 0
         exporter.close()
     }
 
@@ -549,28 +575,28 @@ class BoundedLeaderAuditExporterTest {
 
     @Test
     fun `observer receives accepted and failure observations without changing submit result`() {
-        val observations = mutableListOf<LeaderAuditExportObservation>()
+        val observations = ConcurrentLinkedQueue<LeaderAuditExportObservation>()
         val observed = CountDownLatch(1)
         val exporter = exporter(
             delivery = LeaderAuditDelivery {
-                CompletableFuture.completedFuture(LeaderAuditDeliveryResult.TERMINAL_FAILURE)
+                completableFutureOf(LeaderAuditDeliveryResult.TERMINAL_FAILURE)
             },
             executor = Executor { it.run() },
             onObservation = {
-                synchronized(observations) { observations += it }
+                observations += it
                 if (it == LeaderAuditExportObservation.TERMINAL_FAILURE) observed.countDown()
             },
         )
 
-        exporter.observe(LeaderAuditExportObserver { observedObservation ->
-            synchronized(observations) { observations += observedObservation }
-        })
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        observed.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        synchronized(observations) {
-            observations.contains(LeaderAuditExportObservation.ACCEPTED).shouldBeTrue()
-            observations.contains(LeaderAuditExportObservation.TERMINAL_FAILURE).shouldBeTrue()
+        exporter.observe { observedObservation ->
+            observations += observedObservation
         }
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        observed.await(5.seconds).shouldBeTrue()
+
+        observations shouldContain LeaderAuditExportObservation.ACCEPTED
+        observations shouldContain LeaderAuditExportObservation.TERMINAL_FAILURE
+
         exporter.close()
     }
 
@@ -584,38 +610,38 @@ class BoundedLeaderAuditExporterTest {
             queueCapacity = 2,
             registerObserver = false,
         )
-        val registration = exporter.observe(LeaderAuditExportObserver {
+        val registration = exporter.observe {
             if (originalCalls.incrementAndGet() == 1) {
                 firstStarted.countDown()
-                releaseFirst.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                releaseFirst.await(5.seconds).shouldBeTrue()
             }
-        })
+        }
 
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        firstStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+        firstStarted.await(5.seconds).shouldBeTrue()
         awaitAdmissionReleased(exporter)
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
         awaitAdmissionReleased(exporter)
-        diagnosticsQueued(exporter).shouldBeEqualTo(1)
+        diagnosticsQueued(exporter) shouldBeEqualTo 1
         registration.close()
-        diagnosticsQueued(exporter).shouldBeEqualTo(0)
+        diagnosticsQueued(exporter) shouldBeEqualTo 0
         releaseFirst.countDown()
 
         val replacementStarted = CountDownLatch(1)
         val releaseReplacement = CountDownLatch(1)
-        val replacement = exporter.observe(LeaderAuditExportObserver {
+        val replacement = exporter.observe {
             if (replacementCalls.incrementAndGet() == 1) {
                 replacementStarted.countDown()
-                releaseReplacement.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                releaseReplacement.await(5.seconds).shouldBeTrue()
             }
-        })
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        replacementStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        }
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+        replacementStarted.await(5.seconds).shouldBeTrue()
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
         releaseReplacement.countDown()
         awaitValue(replacementCalls, 2)
 
-        originalCalls.get().shouldBeEqualTo(1)
+        originalCalls.get() shouldBeEqualTo 1
         replacement.close()
         exporter.close()
     }
@@ -625,26 +651,28 @@ class BoundedLeaderAuditExporterTest {
         val firstStarted = CountDownLatch(1)
         val releaseFirst = CountDownLatch(1)
         val calls = AtomicInteger()
+
         val exporter = exporter(
             queueCapacity = 2,
             registerObserver = false,
         )
-        exporter.observe(LeaderAuditExportObserver {
+        exporter.observe {
             if (calls.incrementAndGet() == 1) {
                 firstStarted.countDown()
-                releaseFirst.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                releaseFirst.await(5.seconds).shouldBeTrue()
             }
-        })
+        }
 
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        firstStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+        firstStarted.await(5.seconds).shouldBeTrue()
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
         exporter.close()
-        diagnosticsQueued(exporter).shouldBeEqualTo(0)
+
+        diagnosticsQueued(exporter) shouldBeEqualTo 0
         releaseFirst.countDown()
 
         awaitValue(calls, 1)
-        calls.get().shouldBeEqualTo(1)
+        calls.get() shouldBeEqualTo 1
         exporter.snapshot().diagnosticsClosed.shouldBeTrue()
     }
 
@@ -656,6 +684,7 @@ class BoundedLeaderAuditExporterTest {
         val uncaught = CountDownLatch(1)
         val calls = AtomicInteger()
         val previous = Thread.getDefaultUncaughtExceptionHandler()
+
         Thread.setDefaultUncaughtExceptionHandler { _, error ->
             if (error is AssertionError) uncaught.countDown()
         }
@@ -664,27 +693,27 @@ class BoundedLeaderAuditExporterTest {
                 queueCapacity = 2,
                 registerObserver = false,
             )
-            exporter.observe(LeaderAuditExportObserver {
+            exporter.observe {
                 if (calls.incrementAndGet() == 1) {
                     firstStarted.countDown()
-                    releaseFirst.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    releaseFirst.await(5.seconds).shouldBeTrue()
                     throw AssertionError("observer-failed")
                 } else {
                     secondStarted.countDown()
                 }
-            })
+            }
 
-            exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-            firstStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+            firstStarted.await(5.seconds).shouldBeTrue()
             awaitAdmissionReleased(exporter)
-            exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+            exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
             releaseFirst.countDown()
 
-            uncaught.await(5, TimeUnit.SECONDS).shouldBeTrue()
-            diagnosticsQueued(exporter).shouldBeEqualTo(0)
+            uncaught.await(5.seconds).shouldBeTrue()
+            diagnosticsQueued(exporter) shouldBeEqualTo 0
             secondStarted.await(200, TimeUnit.MILLISECONDS).shouldBeFalse()
             exporter.snapshot().diagnosticsClosed.shouldBeTrue()
-            exporter.snapshot().diagnosticsFatalErrors.shouldBeEqualTo(1)
+            exporter.snapshot().diagnosticsFatalErrors shouldBeEqualTo 1
             exporter.close()
         } finally {
             Thread.setDefaultUncaughtExceptionHandler(previous)
@@ -700,11 +729,12 @@ class BoundedLeaderAuditExporterTest {
             queueCapacity = 1,
             registerObserver = false,
         )
-        val registration = exporter.observe(LeaderAuditExportObserver { })
+        val registration = exporter.observe { }
         replaceDiagnosticsQueue(exporter, BlockingDiagnosticsQueue(polled, releasePoll))
 
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        polled.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+        polled.await(5.seconds).shouldBeTrue()
+
         Thread.ofVirtual().start {
             registration.close()
             closeReturned.countDown()
@@ -712,13 +742,14 @@ class BoundedLeaderAuditExporterTest {
 
         closeReturned.await(200, TimeUnit.MILLISECONDS).shouldBeFalse()
         releasePoll.countDown()
-        closeReturned.await(5, TimeUnit.SECONDS).shouldBeTrue()
+
+        closeReturned.await(5.seconds).shouldBeTrue()
         exporter.close()
     }
 
     private fun exporter(
         delivery: LeaderAuditDelivery = LeaderAuditDelivery {
-            CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS)
+            completableFutureOf(LeaderAuditDeliveryResult.SUCCESS)
         },
         queueCapacity: Int = 8,
         maxInFlight: Int = minOf(queueCapacity, 2),
@@ -744,7 +775,9 @@ class BoundedLeaderAuditExporterTest {
                 scheduler = scheduler,
             ),
         )
-        if (registerObserver) exporter.observe(LeaderAuditExportObserver(onObservation))
+        if (registerObserver) {
+            exporter.observe(LeaderAuditExportObserver(onObservation))
+        }
         return exporter
     }
 
@@ -764,11 +797,10 @@ class BoundedLeaderAuditExporterTest {
     )
 
     private fun awaitAdmissionReleased(exporter: BoundedLeaderAuditExporter) {
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
-        while (exporter.snapshot().admitted != 0 && System.nanoTime() < deadline) {
-            Thread.onSpinWait()
+        await atMost 5.seconds withPollInterval 50.milliseconds until {
+            exporter.snapshot().admitted == 0
         }
-        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        exporter.snapshot().admitted shouldBeEqualTo 0
     }
 
     private fun replaceDiagnosticsQueue(
@@ -788,12 +820,12 @@ class BoundedLeaderAuditExporterTest {
     private class BlockingDiagnosticsQueue(
         private val polled: CountDownLatch,
         private val release: CountDownLatch,
-    ) : ConcurrentLinkedQueue<Any>() {
+    ): ConcurrentLinkedQueue<Any>() {
         override fun poll(): Any? {
             val item = super.poll()
             if (item != null) {
                 polled.countDown()
-                release.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                release.await(5.seconds).shouldBeTrue()
             }
             return item
         }

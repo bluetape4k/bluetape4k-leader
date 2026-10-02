@@ -7,12 +7,16 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.cancellation.CancellationException
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class TenantScopedSuspendLeaderElectorsTest {
+
+    companion object: KLoggingChannel()
 
     @Test
     fun `SuspendLeaderElector tenant scope translates state run and result calls`() = runSuspendIO {
@@ -21,9 +25,11 @@ class TenantScopedSuspendLeaderElectorsTest {
 
         election.state("report-job")
         election.runIfLeader("report-job") { "sync" } shouldBeEqualTo "sync"
-        election.runIfLeaderResultSuspend("report-job") { "result" } shouldBeEqualTo LeaderRunResult.Elected("result")
+        election.runIfLeaderResultSuspend("report-job") {
+            "result"
+        } shouldBeEqualTo LeaderRunResult.Elected("result")
 
-        delegate.lockNames shouldBeEqualTo listOf(
+        delegate.lockNames.toList() shouldBeEqualTo listOf(
             "tenant:acme:report-job",
             "tenant:acme:report-job",
             "tenant:acme:report-job",
@@ -37,9 +43,11 @@ class TenantScopedSuspendLeaderElectorsTest {
         val slot = LeaderSlot("report-job", "node-1")
 
         election.runIfLeader(slot) { "sync" } shouldBeEqualTo "sync"
-        election.runIfLeaderResultSuspend(slot) { "result" } shouldBeEqualTo LeaderRunResult.Elected("result", "node-1")
+        election.runIfLeaderResultSuspend(slot) {
+            "result"
+        } shouldBeEqualTo LeaderRunResult.Elected("result", "node-1")
 
-        delegate.slots shouldBeEqualTo listOf(
+        delegate.slots.toList() shouldBeEqualTo listOf(
             LeaderSlot("tenant:acme:report-job", "node-1"),
             LeaderSlot("tenant:acme:report-job", "node-1"),
         )
@@ -55,7 +63,7 @@ class TenantScopedSuspendLeaderElectorsTest {
                 throw CancellationException("cancelled")
             }
         }
-        delegate.lockNames shouldBeEqualTo listOf("tenant:acme:report-job")
+        delegate.lockNames.toList() shouldBeEqualTo listOf("tenant:acme:report-job")
     }
 
     @Test
@@ -67,9 +75,11 @@ class TenantScopedSuspendLeaderElectorsTest {
         election.availableSlots("aggregation") shouldBeEqualTo 2
         election.state("aggregation") shouldBeEqualTo LeaderGroupState("tenant:acme:aggregation", 3, 1)
         election.runIfLeader("aggregation") { "done" } shouldBeEqualTo "done"
-        election.runIfLeaderResultSuspend("aggregation") { "result" } shouldBeEqualTo LeaderRunResult.Elected("result")
+        election.runIfLeaderResultSuspend("aggregation") {
+            "result"
+        } shouldBeEqualTo LeaderRunResult.Elected("result")
 
-        delegate.lockNames shouldBeEqualTo listOf(
+        delegate.lockNames.toList() shouldBeEqualTo listOf(
             "tenant:acme:aggregation",
             "tenant:acme:aggregation",
             "tenant:acme:aggregation",
@@ -85,17 +95,19 @@ class TenantScopedSuspendLeaderElectorsTest {
         val slot = LeaderSlot("aggregation", "node-1")
 
         election.runIfLeader(slot) { "sync" } shouldBeEqualTo "sync"
-        election.runIfLeaderResultSuspend(slot) { "result" } shouldBeEqualTo LeaderRunResult.Elected("result", "node-1")
+        election.runIfLeaderResultSuspend(slot) {
+            "result"
+        } shouldBeEqualTo LeaderRunResult.Elected("result", "node-1")
 
-        delegate.slots shouldBeEqualTo listOf(
+        delegate.slots.toList() shouldBeEqualTo listOf(
             LeaderSlot("tenant:acme:aggregation", "node-1"),
             LeaderSlot("tenant:acme:aggregation", "node-1"),
         )
     }
 
-    private class RecordingSuspendLeaderElector : SuspendLeaderElector {
-        val lockNames = mutableListOf<String>()
-        val slots = mutableListOf<LeaderSlot>()
+    private class RecordingSuspendLeaderElector: SuspendLeaderElector {
+        val lockNames = ConcurrentLinkedQueue<String>()
+        val slots = ConcurrentLinkedQueue<LeaderSlot>()
 
         override fun state(lockName: String): LeaderState {
             lockNames += lockName
@@ -129,9 +141,9 @@ class TenantScopedSuspendLeaderElectorsTest {
         }
     }
 
-    private class RecordingSuspendLeaderGroupElector : SuspendLeaderGroupElector {
-        val lockNames = mutableListOf<String>()
-        val slots = mutableListOf<LeaderSlot>()
+    private class RecordingSuspendLeaderGroupElector: SuspendLeaderGroupElector {
+        val lockNames = ConcurrentLinkedQueue<String>()
+        val slots = ConcurrentLinkedQueue<LeaderSlot>()
         override val maxLeaders: Int = 3
 
         override fun activeCount(lockName: String): Int {

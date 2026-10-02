@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.history
 
-import io.bluetape4k.support.truncateUtf8
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.truncateUtf8
 import kotlinx.coroutines.CancellationException
 import java.time.Instant
 
@@ -14,7 +14,7 @@ import java.time.Instant
  */
 open class SafeLeaderHistoryRecorder(protected val sink: LeaderHistorySink) {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     open fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
         return try {
@@ -50,6 +50,7 @@ open class SafeLeaderHistoryRecorder(protected val sink: LeaderHistorySink) {
         val errorType = error?.let { it::class.qualifiedName ?: it.javaClass.name }
         val errorMessage = error?.message?.sanitizeForLog()
             ?.truncateUtf8(LeaderLockHistoryRecord.MAX_ERROR_MESSAGE_BYTES)
+
         try {
             sink.recordFailed(key, finishedAt, durationMs, errorType, errorMessage)
         } catch (e: CancellationException) {

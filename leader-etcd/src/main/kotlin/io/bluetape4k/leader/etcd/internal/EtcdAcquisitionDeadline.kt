@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.etcd.internal
 
+import io.bluetape4k.ToStringBuilder
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -28,4 +29,9 @@ internal class EtcdAcquisitionDeadline private constructor(
 
     fun remainingDuration(): Duration =
         remainingMillis().milliseconds
+
+    override fun toString(): String =
+        ToStringBuilder(this)
+            .add("deadlineNanos", deadlineNanos)
+            .toString()
 }

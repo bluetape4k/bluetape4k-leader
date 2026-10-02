@@ -4,12 +4,15 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.leader.exposed.jdbc.history.ExposedLeaderHistorySink
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
+import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -29,8 +32,14 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.seconds
 
-class JdbcTransactionInterruptionContractTest : AbstractExposedJdbcLeaderTest() {
+class JdbcTransactionInterruptionContractTest: AbstractExposedJdbcLeaderTest() {
+
+    private companion object: KLogging() {
+        const val POLL_MILLIS = 10L
+        val WAIT_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(5)
+    }
 
     @ParameterizedTest
     @MethodSource("enableDialects")
@@ -116,16 +125,16 @@ class JdbcTransactionInterruptionContractTest : AbstractExposedJdbcLeaderTest() 
             running.assertRolledBack()
 
             val expectedHistoryStatus = when (outcome) {
-                JdbcCancelTerminalOutcome.DRIVER_EXCEPTION -> {
+                JdbcCancelTerminalOutcome.DRIVER_EXCEPTION  -> {
                     val failure = assertFailsWith<CompletionException> { resultFuture.join() }
                     failure.cause?.javaClass?.name shouldBeEqualTo running.contract.exceptionClass
                     (failure.cause as SQLException).sqlState shouldBeEqualTo running.contract.cancelSqlState
-                    LeaderHistoryStatus.FAILED.name
+                    LeaderHistoryStatus.FAILED
                 }
 
                 JdbcCancelTerminalOutcome.NORMAL_COMPLETION -> {
                     resultFuture.join()
-                    LeaderHistoryStatus.COMPLETED.name
+                    LeaderHistoryStatus.COMPLETED
                 }
             }
 
@@ -152,16 +161,11 @@ class JdbcTransactionInterruptionContractTest : AbstractExposedJdbcLeaderTest() 
         }
         error("JDBC action이 시작되지 않았습니다.")
     }
-
-    private companion object {
-        const val POLL_MILLIS = 10L
-        val WAIT_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(5)
-    }
 }
 
 private class RunningJdbcTransaction private constructor(
     val contract: JdbcDriverInterruptionContract,
-) : AutoCloseable {
+): AutoCloseable {
 
     private val marker = "issue855_${Base58.randomString(8).lowercase()}"
     private val tableName = "issue_855_probe_${Base58.randomString(8).lowercase()}"
@@ -194,7 +198,9 @@ private class RunningJdbcTransaction private constructor(
 
     fun isActive(): Boolean {
         val sessionId = sessionIdRef.get() ?: return false
-        return rawConnection().use { connection -> contract.activeQuery(connection, sessionId)?.contains(marker) == true }
+        return rawConnection().use { connection ->
+            contract.activeQuery(connection, sessionId)?.contains(marker) == true
+        }
     }
 
     fun cancelStatement() {
@@ -215,7 +221,7 @@ private class RunningJdbcTransaction private constructor(
     fun workerInterrupted(): Boolean = checkNotNull(workerRef.get()).isInterrupted
 
     fun awaitFinished() {
-        check(finished.await(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) { "JDBC transaction 종료를 기다리다 timeout이 발생했습니다." }
+        check(finished.await(WAIT_TIMEOUT_SECONDS.seconds)) { "JDBC transaction 종료를 기다리다 timeout이 발생했습니다." }
     }
 
     fun assertCancelOutcome(): JdbcCancelTerminalOutcome {
@@ -253,14 +259,14 @@ private class RunningJdbcTransaction private constructor(
     override fun close() {
         rollbackOnly.set(true)
         runCatching { statementRef.get()?.cancel() }
-        if (!finished.await(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+        if (!finished.await(WAIT_TIMEOUT_SECONDS.seconds)) {
             runCatching { connectionRef.get()?.close() }
-            check(finished.await(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+            check(finished.await(WAIT_TIMEOUT_SECONDS.seconds)) {
                 "JDBC transaction을 cancel 또는 connection close로 종료하지 못했습니다."
             }
         }
         executor.shutdownNow()
-        check(executor.awaitTermination(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+        check(executor.awaitTermination(WAIT_TIMEOUT_SECONDS.seconds)) {
             "JDBC worker executor가 종료되지 않았습니다."
         }
         rawConnection().use { connection ->
@@ -379,7 +385,7 @@ private enum class JdbcDriverInterruptionContract(
     }
 
     fun longRunningQuery(marker: String): String = when (this) {
-        H2 -> "/* $marker */ SELECT SUM(RAND()) FROM SYSTEM_RANGE(1, 1000000000)"
+        H2    -> "/* $marker */ SELECT SUM(RAND()) FROM SYSTEM_RANGE(1, 1000000000)"
         POSTGRESQL -> "/* $marker */ SELECT pg_sleep(30)"
         MYSQL -> "/* $marker */ SELECT SLEEP(30)"
     }
@@ -394,13 +400,13 @@ private enum class JdbcDriverInterruptionContract(
     }
 
     private fun sessionIdQuery(): String = when (this) {
-        H2 -> "SELECT SESSION_ID()"
+        H2    -> "SELECT SESSION_ID()"
         POSTGRESQL -> "SELECT pg_backend_pid()"
         MYSQL -> "SELECT CONNECTION_ID()"
     }
 
     private fun activeQuerySql(): String = when (this) {
-        H2 -> "SELECT EXECUTING_STATEMENT FROM INFORMATION_SCHEMA.SESSIONS WHERE SESSION_ID = ?"
+        H2    -> "SELECT EXECUTING_STATEMENT FROM INFORMATION_SCHEMA.SESSIONS WHERE SESSION_ID = ?"
         POSTGRESQL -> "SELECT query FROM pg_stat_activity WHERE pid = ? AND state = 'active'"
         MYSQL -> "SELECT INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID = ?"
     }

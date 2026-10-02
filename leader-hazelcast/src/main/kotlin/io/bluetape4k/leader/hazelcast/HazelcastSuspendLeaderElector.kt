@@ -7,13 +7,16 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.hazelcast.internal.HazelcastBackendErrorClassifier
 import io.bluetape4k.leader.hazelcast.internal.HazelcastSuspendLockExtendDelegate
 import io.bluetape4k.leader.hazelcast.lock.HazelcastSuspendLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -32,12 +35,12 @@ import kotlinx.coroutines.withContext
 class HazelcastSuspendLeaderElector private constructor(
     private val hazelcast: HazelcastInstance,
     private val options: LeaderElectionOptions,
-) : SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by HazelcastLeaderBackendDiagnostics(hazelcast),
-    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+): SuspendLeaderElector,
+   LeaderBackendDiagnosticsProvider by HazelcastLeaderBackendDiagnostics(hazelcast),
+   SuspendLeaderLeaseAcquirerSupport {
 
-    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options)
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        SuspendLeaderElectorLeaseAdapter({ this }, options)
     }
 
     companion object: KLoggingChannel() {
@@ -48,13 +51,15 @@ class HazelcastSuspendLeaderElector private constructor(
         operator fun invoke(
             hazelcast: HazelcastInstance,
             options: LeaderElectionOptions = LeaderElectionOptions.Default,
-        ): HazelcastSuspendLeaderElector = HazelcastSuspendLeaderElector(hazelcast, options)
+        ): HazelcastSuspendLeaderElector {
+            return HazelcastSuspendLeaderElector(hazelcast, options)
+        }
     }
 
     private val lockMap: IMap<String, String> = hazelcast.getMap(HazelcastLeaderElector.LOCK_MAP_NAME)
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
 
         val lock = HazelcastSuspendLock(
             lockMap = lockMap,
@@ -92,6 +97,7 @@ class HazelcastSuspendLeaderElector private constructor(
                 ERROR_CLASSIFIER,
             )
             log.debug { "Leader로 승격하여 suspend 작업을 수행합니다. lockName=$lockName" }
+
             return withContext(AopScopeAccess.createLockHandleElement(handle)) {
                 action()
             }
@@ -105,23 +111,9 @@ class HazelcastSuspendLeaderElector private constructor(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    log.warn(e) { "Fail to release lock (suspend). lockName=$lockName" }
+                    log.warn(e) { "Leader 권한 해제에 실패했습니다 (suspend). lockName=$lockName" }
                 }
             }
         }
     }
-}
-
-/**
- * `선언` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend inline fun <T> HazelcastInstance.suspendRunIfLeader(
-    jobName: String,
-    options: LeaderElectionOptions = LeaderElectionOptions.Default,
-    crossinline action: suspend () -> T,
-): T? {
-    validateLockName(jobName)
-    return HazelcastSuspendLeaderElector(this, options).runIfLeader(jobName) { action() }
 }

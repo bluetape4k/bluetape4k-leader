@@ -3,12 +3,13 @@ package io.bluetape4k.leader.examples.batch
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.closeSafe
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -40,7 +41,7 @@ class BatchSchedulerTest: AbstractBatchSchedulerTest() {
         val successCount = AtomicInteger(0)
         val losersFinished = CountDownLatch(2)
         val executor = Executors.newFixedThreadPool(3)
-        val connections = (1..3).map { newConnection() }
+        val connections = List(3) { newConnection() }
 
         try {
             val futures = connections.mapIndexed { idx, conn ->
@@ -55,7 +56,7 @@ class BatchSchedulerTest: AbstractBatchSchedulerTest() {
                     val result = scheduler.run {
                         executions.incrementAndGet()
                         // 리더는 두 패자가 락 획득 시도를 마칠 때까지 대기 (race-free)
-                        losersFinished.await(5, TimeUnit.SECONDS)
+                        losersFinished.await(5.seconds)
                         "executed-by-node-${idx + 1}"
                     }
                     if (result != null) {
@@ -66,7 +67,7 @@ class BatchSchedulerTest: AbstractBatchSchedulerTest() {
                 }
             }
 
-            futures.forEach { it.get(15, TimeUnit.SECONDS) }
+            futures.forEach { it.get(15.seconds) }
 
             executions.get() shouldBeEqualTo 1
             successCount.get() shouldBeEqualTo 1

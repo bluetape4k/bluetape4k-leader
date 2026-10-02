@@ -4,6 +4,8 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.audit.LeaderAuditExportEvent
 import io.bluetape4k.leader.audit.LeaderAuditExportOptions
@@ -13,7 +15,6 @@ import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.Authenticator
@@ -21,15 +22,15 @@ import java.net.CookieHandler
 import java.net.ProxySelector
 import java.net.URI
 import java.net.http.HttpClient
+import java.net.http.HttpHeaders
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.net.http.HttpHeaders
 import java.net.http.HttpResponse.BodyHandler
 import java.net.http.HttpResponse.PushPromiseHandler
 import java.time.Duration
-import java.util.Optional
-import java.util.concurrent.CompletableFuture
+import java.util.*
 import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
@@ -40,6 +41,10 @@ import javax.net.ssl.SSLParameters
 import kotlin.time.Duration.Companion.seconds
 
 class HttpLeaderAuditExporterTest {
+
+    private companion object {
+        const val WEBHOOK_TOKEN_PLACEHOLDER = $$"${WEBHOOK_TOKEN}"
+    }
 
     private val schedulers = mutableListOf<ScheduledExecutorService>()
 
@@ -54,13 +59,14 @@ class HttpLeaderAuditExporterTest {
         val client = StubHttpClient(responseFuture)
         val exporter = exporter(client)
 
-        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        client.requestReady.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        client.request.shouldNotBeNull().uri().shouldBeEqualTo(URI("https://audit.example.test/hook"))
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+        client.requestReady.await(5.seconds).shouldBeTrue()
+        client.request.shouldNotBeNull().uri() shouldBeEqualTo URI("https://audit.example.test/hook")
+
         responseFuture.complete(response(202))
         awaitAdmissionReleased(exporter)
-        exporter.snapshot().accepted.shouldBeEqualTo(1)
-        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        exporter.snapshot().accepted shouldBeEqualTo 1
+        exporter.snapshot().admitted shouldBeEqualTo 0
         exporter.close()
     }
 
@@ -82,7 +88,8 @@ class HttpLeaderAuditExporterTest {
                 submitResult.completeExceptionally(error)
             }
         }
-        client.requestReady.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        client.requestReady.await(5.seconds).shouldBeTrue()
+
         val closeReturned = CountDownLatch(1)
         val closeResult = CompletableFuture<Unit>()
         Thread.ofVirtual().start {
@@ -96,29 +103,29 @@ class HttpLeaderAuditExporterTest {
             }
         }
         try {
-            closeReturned.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            closeReturned.await(5.seconds).shouldBeTrue()
         } finally {
             client.sendAsyncReturnAllowed.countDown()
         }
-        closeResult.get(5, TimeUnit.SECONDS).shouldBeEqualTo(Unit)
-        submitResult.get(5, TimeUnit.SECONDS).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
-        cancellationObserved.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        closeResult.get(5.seconds) shouldBeEqualTo Unit
+        submitResult.get(5.seconds) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+        cancellationObserved.await(5.seconds).shouldBeTrue()
         responseFuture.isCancelled.shouldBeTrue()
         responseFuture.complete(response(503)).shouldBeFalse()
         awaitCancellationRecorded(exporter)
 
         val snapshot = exporter.snapshot()
         snapshot.closed.shouldBeTrue()
-        snapshot.scheduledRetries.shouldBeEqualTo(0)
-        snapshot.admitted.shouldBeEqualTo(0)
-        snapshot.cancellations.shouldBeEqualTo(1)
+        snapshot.scheduledRetries shouldBeEqualTo 0
+        snapshot.admitted shouldBeEqualTo 0
+        snapshot.cancellations shouldBeEqualTo 1
     }
 
     private fun exporter(client: HttpClient): HttpLeaderAuditExporter = HttpLeaderAuditExporter(
         client = client,
         endpoint = LeaderAuditTrustedHttpsEndpoint.trusted(URI("https://audit.example.test/hook")),
-        headers = mapOf("Authorization" to "Bearer ${WEBHOOK_TOKEN_PLACEHOLDER}"),
-        encoder = LeaderAuditPayloadEncoder {
+        headers = mapOf("Authorization" to "Bearer $WEBHOOK_TOKEN_PLACEHOLDER"),
+        encoder = {
             LeaderAuditHttpPayload.of("text/plain", "audit".toByteArray())
         },
         exportOptions = LeaderAuditExportOptions(
@@ -128,7 +135,7 @@ class HttpLeaderAuditExporterTest {
             attemptTimeout = Duration.ofSeconds(1),
             initialBackoff = Duration.ofMillis(1),
             maxBackoff = Duration.ofSeconds(1),
-            executor = Executor { it.run() },
+            executor = { it.run() },
             scheduler = Executors.newSingleThreadScheduledExecutor().also(schedulers::add),
         ),
         httpOptions = LeaderAuditHttpOptions.defaults(),
@@ -156,15 +163,15 @@ class HttpLeaderAuditExporterTest {
     private fun awaitCancellationRecorded(exporter: HttpLeaderAuditExporter) {
         await
             .atMost(5.seconds)
-            .untilAsserted {
-                exporter.snapshot().cancellations.shouldBeEqualTo(1)
+            .until {
+                exporter.snapshot().cancellations == 1L
             }
     }
 
     private class StubHttpClient(
         private val responseFuture: CompletableFuture<HttpResponse<Void>>,
         private val blockSendAsyncReturn: Boolean = false,
-    ) : HttpClient() {
+    ): HttpClient() {
         val requestReady = CountDownLatch(1)
         val sendAsyncReturnAllowed = CountDownLatch(1)
         var request: HttpRequest? = null
@@ -199,7 +206,7 @@ class HttpLeaderAuditExporterTest {
             this.request = request
             requestReady.countDown()
             if (blockSendAsyncReturn) {
-                sendAsyncReturnAllowed.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                sendAsyncReturnAllowed.await(5.seconds).shouldBeTrue()
             }
             return responseFuture as CompletableFuture<HttpResponse<T>>
         }
@@ -211,7 +218,7 @@ class HttpLeaderAuditExporterTest {
         ): CompletableFuture<HttpResponse<T>> = sendAsync(request, responseBodyHandler)
     }
 
-    private fun response(status: Int): HttpResponse<Void> = object : HttpResponse<Void> {
+    private fun response(status: Int): HttpResponse<Void> = object: HttpResponse<Void> {
         override fun statusCode(): Int = status
 
         override fun request(): HttpRequest = HttpRequest.newBuilder(URI("https://audit.example.test/hook")).build()
@@ -227,9 +234,5 @@ class HttpLeaderAuditExporterTest {
         override fun uri(): URI = URI("https://audit.example.test/hook")
 
         override fun version(): HttpClient.Version = HttpClient.Version.HTTP_1_1
-    }
-
-    private companion object {
-        const val WEBHOOK_TOKEN_PLACEHOLDER = "\${WEBHOOK_TOKEN}"
     }
 }

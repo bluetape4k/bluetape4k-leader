@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
@@ -21,7 +22,9 @@ import org.redisson.client.codec.Codec
 import org.redisson.misc.CompletableFutureWrapper
 import kotlin.time.Duration.Companion.seconds
 
-class RedissonStrategicHeartbeatExpirationRaceTest : AbstractRedissonLeaderTest() {
+class RedissonStrategicHeartbeatExpirationRaceTest: AbstractRedissonLeaderTest() {
+
+    companion object: KLoggingChannel()
 
     @Test
     fun `blocking single refresh does not resurrect candidate after read expires`() = runSuspendIO {

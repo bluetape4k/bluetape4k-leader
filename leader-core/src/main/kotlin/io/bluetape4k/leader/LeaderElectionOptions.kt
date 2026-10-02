@@ -2,6 +2,7 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.support.requireGe
 import io.bluetape4k.support.requireGt
+import io.bluetape4k.support.requireLe
 import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
 import kotlin.time.Duration
@@ -31,7 +32,7 @@ data class LeaderElectionOptions(
         leaseTime.requireGt(Duration.ZERO, "leaseTime")
         nodeId.requireNotBlank("nodeId")
         minLeaseTime.requireGe(Duration.ZERO, "minLeaseTime")
-        require(minLeaseTime <= leaseTime) {
+        minLeaseTime.requireLe(leaseTime) {
             "minLeaseTime must not exceed leaseTime: minLeaseTime=$minLeaseTime, leaseTime=$leaseTime"
         }
     }

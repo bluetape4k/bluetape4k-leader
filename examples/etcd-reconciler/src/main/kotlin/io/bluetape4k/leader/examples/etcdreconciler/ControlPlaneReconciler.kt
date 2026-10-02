@@ -100,7 +100,7 @@ data class ReconcileReport(
     val nodeId: String,
     val status: ReconcileStatus,
     val appliedResources: List<String>,
-) : Serializable {
+): Serializable {
     companion object {
         private const val serialVersionUID: Long = 1L
     }

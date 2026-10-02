@@ -44,7 +44,7 @@ data class LeaderAopProperties(
     val lockNamePrefix: String = DEFAULT_LOCK_NAME_PREFIX,
     val metrics: Metrics = Metrics(),
     val spel: Spel = Spel(),
-) : Serializable {
+): Serializable {
     /**
      * `Metrics`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
      *
@@ -54,12 +54,12 @@ data class LeaderAopProperties(
     data class Metrics(
         val enabled: Boolean = true,
         val tags: Tags = Tags(),
-    ) : Serializable {
+    ): Serializable {
 
         /**
          * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
          */
-        constructor(enabled: Boolean) : this(
+        constructor(enabled: Boolean): this(
             enabled = enabled,
             tags = Tags(),
         )
@@ -70,7 +70,7 @@ data class LeaderAopProperties(
             enabled: Boolean,
             mask: Int,
             marker: kotlin.jvm.internal.DefaultConstructorMarker?,
-        ) : this(
+        ): this(
             enabled = if (mask and 0x001 != 0) true else enabled,
             tags = Tags(),
         )
@@ -91,7 +91,7 @@ data class LeaderAopProperties(
             val leaderId: TagRule = TagRule(redactedValue = "redacted-leader"),
             val backendName: TagRule = TagRule(mode = TagMode.RAW),
             val defaultRule: TagRule = TagRule(),
-        ) : Serializable {
+        ): Serializable {
             companion object {
                 private const val serialVersionUID = 1L
             }
@@ -114,7 +114,7 @@ data class LeaderAopProperties(
             val hashLength: Int = 16,
             val maxLength: Int = 0,
             val redactedValue: String = "redacted",
-        ) : Serializable {
+        ): Serializable {
             init {
                 redactedValue.requireNotBlank("redactedValue")
                 hashLength.requireInRange(1, 64, "hashLength")
@@ -165,7 +165,7 @@ data class LeaderAopProperties(
      */
     data class Spel(
         val allowMethodInvocation: Boolean = false,
-    ) : Serializable {
+    ): Serializable {
         companion object {
             private const val serialVersionUID = 1L
         }
@@ -188,6 +188,6 @@ data class LeaderAopProperties(
         /**
          * `DEFAULT_LOCK_NAME_PREFIX` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
-        const val DEFAULT_LOCK_NAME_PREFIX: String = "\${spring.application.name:}:"
+        const val DEFAULT_LOCK_NAME_PREFIX: String = $$"${spring.application.name:}:"
     }
 }

@@ -2,7 +2,10 @@ package io.bluetape4k.leader.spring.aop.spel
 
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
+import io.bluetape4k.AbstractValueObject
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.hashOf
 import org.springframework.context.expression.MethodBasedEvaluationContext
 import org.springframework.core.DefaultParameterNameDiscoverer
 import org.springframework.core.ParameterNameDiscoverer
@@ -81,13 +84,14 @@ class SpelExpressionEvaluator(
                 )
             }
         } else {
-            runCatching { expressionCache.get(resolved) { parser.parseExpression(it) } }
-                .onFailure { ex ->
-                    throw IllegalStateException(
-                        "Invalid SpEL expression '$resolved' on ${method.declaringClass.name}#${method.name}: ${ex.message}",
-                        ex,
-                    )
-                }
+            runCatching {
+                expressionCache.get(resolved) { parser.parseExpression(it) }
+            }.onFailure { ex ->
+                throw IllegalStateException(
+                    "Invalid SpEL expression '$resolved' on ${method.declaringClass.name}#${method.name}: ${ex.message}",
+                    ex,
+                )
+            }
         }
     }
 
@@ -102,7 +106,9 @@ class SpelExpressionEvaluator(
         embeddedValueResolver?.resolveStringValue(expression) ?: expression
 
     private fun buildContext(method: Method, args: Array<Any?>?, target: Any?): SimpleEvaluationContext {
-        val rootObject = if (allowMethodInvocation) RootCtx(method, args ?: emptyArray(), target) else RootCtx(method, args ?: emptyArray(), null)
+        val rootObject =
+            if (allowMethodInvocation) RootCtx(method, args ?: emptyArray(), target)
+            else RootCtx(method, args ?: emptyArray(), null)
 
         val builder = SimpleEvaluationContext.forPropertyAccessors(
             DataBindingPropertyAccessor.forReadOnlyAccess(),
@@ -146,20 +152,26 @@ class SpelExpressionEvaluator(
         val method: Method,
         val args: Array<Any?>,
         val target: Any?,
-    ) {
+    ): AbstractValueObject() {
+
         val methodName: String get() = method.name
 
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (other !is RootCtx) return false
-            return method == other.method && args.contentEquals(other.args) && target == other.target
-        }
 
-        override fun hashCode(): Int {
-            var result = method.hashCode()
-            result = 31 * result + args.contentHashCode()
-            result = 31 * result + (target?.hashCode() ?: 0)
-            return result
+        override fun equalProperties(other: Any): Boolean =
+            other is RootCtx &&
+                    method == other.method &&
+                    args.contentEquals(other.args) &&
+                    target == other.target
+
+        override fun equals(other: Any?): Boolean = other != null && super.equals(other)
+
+        override fun hashCode(): Int = hashOf(method, args.contentHashCode(), target)
+
+        override fun buildStringHelper(): ToStringBuilder {
+            return super.buildStringHelper()
+                .add("method", methodName)
+                .add("args", args.contentToString())
+                .add("target", target)
         }
     }
 

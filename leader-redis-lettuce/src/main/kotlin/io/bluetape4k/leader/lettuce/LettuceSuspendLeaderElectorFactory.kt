@@ -13,7 +13,7 @@ import io.lettuce.core.api.StatefulRedisConnection
  */
 class LettuceSuspendLeaderElectorFactory(
     private val connection: StatefulRedisConnection<String, String>,
-) : SuspendLeaderElectorFactory {
+): SuspendLeaderElectorFactory {
 
     override suspend fun create(options: LeaderElectionOptions): SuspendLeaderElector =
         LettuceSuspendLeaderElector(connection, options)

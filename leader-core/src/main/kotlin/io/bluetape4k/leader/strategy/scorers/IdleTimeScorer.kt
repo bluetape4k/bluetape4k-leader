@@ -8,7 +8,7 @@ import io.bluetape4k.leader.strategy.CandidateScorer
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-object IdleTimeScorer : CandidateScorer {
+object IdleTimeScorer: CandidateScorer {
 
     override fun score(candidate: CandidateInfo, all: List<CandidateInfo>): Double {
         if (all.isEmpty()) return 0.0

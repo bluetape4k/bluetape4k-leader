@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.lettuce.internal
 
-import io.bluetape4k.leader.internal.MonotonicDeadline as CoreMonotonicDeadline
 import kotlin.time.Duration
+import io.bluetape4k.leader.internal.MonotonicDeadline as CoreMonotonicDeadline
 
 /**
  * `MonotonicDeadline`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.

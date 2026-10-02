@@ -2,6 +2,7 @@ package io.bluetape4k.leader.examples.prometheus
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.leader.micrometer.LeaderMetricTagOptions
@@ -50,7 +51,7 @@ class PrometheusScrapeTest {
 
     @Test
     fun `actuator prometheus exposes leader AOP metrics`() {
-        AopUtils.isAopProxy(leaderScheduledJob) shouldBeEqualTo true
+        AopUtils.isAopProxy(leaderScheduledJob).shouldBeTrue()
         leaderScheduledJob.dispatchBatch()
         backendConnectivityProbe.probe()
         backendConnectivityProbe.probe()

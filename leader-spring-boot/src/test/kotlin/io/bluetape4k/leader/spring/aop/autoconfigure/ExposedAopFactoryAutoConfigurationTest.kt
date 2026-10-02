@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.aop.autoconfigure
 
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectorFactory
@@ -11,7 +12,6 @@ import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderElectorFactor
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.spring.LeaderTestApplication
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.assertions.shouldBeInstanceOf
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.junit.jupiter.api.Test
@@ -22,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
+import org.springframework.test.annotation.DirtiesContext
 
 /**
  * [LeaderAopFactoryAutoConfiguration.ExposedJdbcFactoryConfig] /
@@ -39,10 +40,11 @@ import org.springframework.context.annotation.Bean
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExposedAopFactoryAutoConfigurationTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @TestConfiguration
-    open class TestConfig {
+    @DirtiesContext
+    class TestConfig {
         @Bean
         fun exposedJdbcDatabase(): Database =
             Database.connect(
@@ -62,41 +64,49 @@ class ExposedAopFactoryAutoConfigurationTest {
 
     @Test
     fun `exposedJdbcLeaderElectionFactory 빈이 등록된다`() {
-        ctx.getBean("exposedJdbcLeaderElectionFactory").shouldBeInstanceOf<ExposedJdbcLeaderElectorFactory>()
+        ctx.getBean("exposedJdbcLeaderElectionFactory")
+            .shouldBeInstanceOf<ExposedJdbcLeaderElectorFactory>()
     }
 
     @Test
     fun `exposedJdbcLeaderGroupElectionFactory 빈이 등록된다`() {
-        ctx.getBean("exposedJdbcLeaderGroupElectionFactory").shouldBeInstanceOf<ExposedJdbcLeaderGroupElectorFactory>()
+        ctx.getBean("exposedJdbcLeaderGroupElectionFactory")
+            .shouldBeInstanceOf<ExposedJdbcLeaderGroupElectorFactory>()
     }
 
     @Test
     fun `exposedR2dbcSuspendLeaderElectorFactory 빈이 등록된다`() {
-        ctx.getBean("exposedR2dbcSuspendLeaderElectorFactory").shouldBeInstanceOf<ExposedR2DbcSuspendLeaderElectorFactory>()
+        ctx.getBean("exposedR2dbcSuspendLeaderElectorFactory")
+            .shouldBeInstanceOf<ExposedR2DbcSuspendLeaderElectorFactory>()
     }
 
     @Test
     fun `exposedR2dbcSuspendLeaderGroupElectorFactory 빈이 등록된다`() {
-        ctx.getBean("exposedR2dbcSuspendLeaderGroupElectorFactory").shouldBeInstanceOf<ExposedR2DbcSuspendLeaderGroupElectorFactory>()
+        ctx.getBean("exposedR2dbcSuspendLeaderGroupElectorFactory")
+            .shouldBeInstanceOf<ExposedR2DbcSuspendLeaderGroupElectorFactory>()
     }
 
     @Test
     fun `exposedJdbcLeaderElectionFactory 는 LeaderElectorFactory 타입`() {
-        ctx.getBean("exposedJdbcLeaderElectionFactory").shouldBeInstanceOf<LeaderElectorFactory>()
+        ctx.getBean("exposedJdbcLeaderElectionFactory")
+            .shouldBeInstanceOf<LeaderElectorFactory>()
     }
 
     @Test
     fun `exposedJdbcLeaderGroupElectionFactory 는 LeaderGroupElectorFactory 타입`() {
-        ctx.getBean("exposedJdbcLeaderGroupElectionFactory").shouldBeInstanceOf<LeaderGroupElectorFactory>()
+        ctx.getBean("exposedJdbcLeaderGroupElectionFactory")
+            .shouldBeInstanceOf<LeaderGroupElectorFactory>()
     }
 
     @Test
     fun `exposedR2dbcSuspendLeaderElectorFactory 는 SuspendLeaderElectorFactory 타입`() {
-        ctx.getBean("exposedR2dbcSuspendLeaderElectorFactory").shouldBeInstanceOf<SuspendLeaderElectorFactory>()
+        ctx.getBean("exposedR2dbcSuspendLeaderElectorFactory")
+            .shouldBeInstanceOf<SuspendLeaderElectorFactory>()
     }
 
     @Test
     fun `exposedR2dbcSuspendLeaderGroupElectorFactory 는 SuspendLeaderGroupElectorFactory 타입`() {
-        ctx.getBean("exposedR2dbcSuspendLeaderGroupElectorFactory").shouldBeInstanceOf<SuspendLeaderGroupElectorFactory>()
+        ctx.getBean("exposedR2dbcSuspendLeaderGroupElectorFactory")
+            .shouldBeInstanceOf<SuspendLeaderGroupElectorFactory>()
     }
 }

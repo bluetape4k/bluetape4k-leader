@@ -1,15 +1,15 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import java.io.Serializable
 import java.time.Instant
-import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.function.Consumer
 
 /**
@@ -64,7 +64,7 @@ interface LeaderElectionListener {
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-sealed interface LeaderElectionEvent : Serializable {
+sealed interface LeaderElectionEvent: Serializable {
     /**
      * `lockName` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
      */
@@ -84,7 +84,7 @@ sealed interface LeaderElectionEvent : Serializable {
         val leaderId: String? = null,
         val leaseExpiry: Instant? = null,
         val leader: LeaderLease? = null,
-    ) : LeaderElectionEvent, Serializable {
+    ): LeaderElectionEvent, Serializable {
         companion object {
             private const val serialVersionUID = 2L
 
@@ -112,7 +112,7 @@ sealed interface LeaderElectionEvent : Serializable {
      * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
      * @property lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
      */
-    data class Revoked(override val lockName: String) : LeaderElectionEvent {
+    data class Revoked(override val lockName: String): LeaderElectionEvent {
         companion object {
             private const val serialVersionUID = 1L
         }
@@ -124,7 +124,7 @@ sealed interface LeaderElectionEvent : Serializable {
      * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
      * @property lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
      */
-    data class Skipped(override val lockName: String) : LeaderElectionEvent {
+    data class Skipped(override val lockName: String): LeaderElectionEvent {
         companion object {
             private const val serialVersionUID = 1L
         }
@@ -200,7 +200,7 @@ interface LeaderElectionEventPublisher {
         subscribeToEvents(scope, "onSkipped", LeaderElectionEvent.Skipped::class.java, listener)
 }
 
-private fun <T : LeaderElectionEvent> LeaderElectionEventPublisher.subscribeToEvents(
+private fun <T: LeaderElectionEvent> LeaderElectionEventPublisher.subscribeToEvents(
     scope: CoroutineScope,
     callbackName: String,
     eventType: Class<T>,
@@ -210,21 +210,23 @@ private fun <T : LeaderElectionEvent> LeaderElectionEventPublisher.subscribeToEv
         .onEach { event ->
             if (eventType.isInstance(event)) {
                 val typedEvent = eventType.cast(event)
+
                 runCatching { listener.accept(typedEvent) }
                     .onFailure { e ->
                         LeaderElectionEventPublisherCallbackLogger.log.warn(e) {
                             "LeaderElectionEventPublisher $callbackName callback failed and was ignored. " +
-                                "lockName=${event.lockName}"
+                                    "lockName=${event.lockName}"
                         }
                     }
             }
         }
         .launchIn(scope)
+        .log("Event")
 
     return AutoCloseable { job.cancel() }
 }
 
-private object LeaderElectionEventPublisherCallbackLogger : KLogging()
+private object LeaderElectionEventPublisherCallbackLogger: KLogging()
 
 /**
  * `LeaderElectionListenerRegistry`는 leader election event를 관찰하거나 전달하는 계약입니다.
@@ -255,12 +257,14 @@ interface LeaderElectionListenerRegistry {
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-open class LeaderElectionListenerSupport : LeaderElectionListenerRegistry {
+open class LeaderElectionListenerSupport: LeaderElectionListenerRegistry {
 
-    private val listeners = CopyOnWriteArrayList<LeaderElectionListener>()
+    private val listeners = ConcurrentLinkedQueue<LeaderElectionListener>()
 
     override fun addListener(listener: LeaderElectionListener): AutoCloseable {
-        listeners.addIfAbsent(listener)
+        if (listeners.contains(listener).not()) {
+            listeners.add(listener)
+        }
         return AutoCloseable { removeListener(listener) }
     }
 
@@ -316,5 +320,5 @@ open class LeaderElectionListenerSupport : LeaderElectionListenerRegistry {
         }
     }
 
-    private companion object : KLogging()
+    private companion object: KLogging()
 }

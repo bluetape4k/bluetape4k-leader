@@ -1,30 +1,44 @@
 package io.bluetape4k.leader.spring.metadata
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.jackson3.Jackson
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.json.JsonMapper
 import java.io.Serializable
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderConfigurationMetadataTest {
 
-    private val objectMapper = ObjectMapper()
+    companion object: KLogging()
+
+    private val objectMapper: JsonMapper = Jackson.defaultJsonMapper
 
     private val properties: Map<String, MetadataProperty> by lazy {
         val resource = javaClass.classLoader
             .getResource("META-INF/spring/additional-spring-configuration-metadata.json")
             .shouldNotBeNull()
-        val root = resource.openStream().use(objectMapper::readTree)
+
+        val root: JsonNode = resource.openStream().use(objectMapper::readTree)
 
         root.path("properties")
-            .elements()
+            .values()
             .asSequence()
-            .map {
-                val defaultValue = it.path("defaultValue").takeIf { node -> !node.isMissingNode }
-                it.path("name").asText() to MetadataProperty(defaultValue = defaultValue?.asText())
+            .map { node ->
+                val defaultValue = node.path("defaultValue").takeIf { !it.isMissingNode }
+
+                val defaultValueAsString = when {
+                    defaultValue == null -> ""
+                    defaultValue.isArray -> defaultValue.values().map { it.asString() }.toList()
+                        .joinToString(",")
+                    else                 -> defaultValue.asString()
+                }
+                node.path("name").asString() to MetadataProperty(defaultValueAsString)
             }
             .toMap()
     }
@@ -68,6 +82,7 @@ class LeaderConfigurationMetadataTest {
             "management.endpoint.leaderElection.actions.timeout",
             "management.endpoint.leaderBackendDiagnostics.enabled",
         ).forEach { propertyName ->
+            log.debug { "propertyName=$propertyName" }
             properties.keys shouldContain propertyName
         }
     }
@@ -103,13 +118,14 @@ class LeaderConfigurationMetadataTest {
             "management.endpoint.leaderElection.actions.enabled" to "false",
             "management.endpoint.leaderElection.actions.timeout" to "PT5S",
         ).forEach { (propertyName, defaultValue) ->
-            properties[propertyName].shouldNotBeNull().defaultValue shouldBeEqualTo defaultValue
+            log.debug { "property '$propertyName' is $defaultValue" }
+            properties[propertyName]?.defaultValue shouldBeEqualTo defaultValue
         }
     }
 
     private data class MetadataProperty(
         val defaultValue: String?,
-    ) : Serializable {
+    ): Serializable {
         companion object {
             private const val serialVersionUID = 1L
         }

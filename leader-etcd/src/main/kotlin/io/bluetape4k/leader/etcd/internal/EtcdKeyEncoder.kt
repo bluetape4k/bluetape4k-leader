@@ -1,15 +1,17 @@
 package io.bluetape4k.leader.etcd.internal
 
+import io.bluetape4k.logging.KLogging
 import java.io.ByteArrayOutputStream
 
-private val HEX_DIGITS = "0123456789ABCDEF".toCharArray()
 
 /**
  * `EtcdKeyEncoder`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
  * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
-internal object EtcdKeyEncoder {
+internal object EtcdKeyEncoder: KLogging() {
+
+    private val HEX_DIGITS = "0123456789ABCDEF".toCharArray()
 
     fun encodeSegment(value: String): String {
         val bytes = value.encodeToByteArray()
@@ -25,7 +27,6 @@ internal object EtcdKeyEncoder {
                 result.append(HEX_DIGITS[unsigned and 0x0F])
             }
         }
-
         return result.toString()
     }
 
@@ -65,6 +66,7 @@ internal object EtcdKeyEncoder {
             in '0'..'9' -> ch - '0'
             in 'A'..'F' -> ch - 'A' + 10
             in 'a'..'f' -> ch - 'a' + 10
-            else -> throw IllegalArgumentException("Invalid percent-encoded hex digit: $ch")
+            else ->
+                throw IllegalArgumentException("Invalid percent-encoded hex digit: $ch")
         }
 }

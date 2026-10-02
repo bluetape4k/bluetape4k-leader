@@ -5,18 +5,18 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcBackendErrorClassifier
 import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcSuspendSlotExtendDelegate
+import io.bluetape4k.leader.exposed.r2dbc.internal.validateExposedR2dbcLockName
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializer
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcUnlockOutcome
 import io.bluetape4k.leader.exposed.r2dbc.lock.currentTime
-import io.bluetape4k.leader.exposed.r2dbc.lock.validateExposedR2dbcLockName
-import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
@@ -30,16 +30,17 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
-import org.jetbrains.exposed.v1.r2dbc.insert
+import org.jetbrains.exposed.v1.r2dbc.insertAndGetId
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
-import kotlin.time.Duration.Companion.milliseconds
 import java.time.Instant
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * `ExposedR2DbcSuspendLeaderGroupElector`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -60,10 +61,10 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
      */
     @Suppress("unused")
     private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
-) : SuspendLeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by ExposedR2dbcLeaderBackendDiagnostics {
+): SuspendLeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by ExposedR2dbcLeaderBackendDiagnostics {
 
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
 
         internal const val EXPOSED_R2DBC_SUSPEND_GROUP_FACTORY_BEAN_NAME = "exposed-r2dbc-suspend-leader-group-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedR2dbcBackendErrorClassifier)
@@ -161,20 +162,20 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         refreshedCount: Int,
     ): Int = cachedActiveCounts.compute(lockName) { _, current ->
         when {
-            snapshot.entry == null -> when {
+            snapshot.entry == null     -> when {
                 current == null && refreshedCount > 0 -> CachedActiveCount(refreshedCount)
                 else -> current
             }
 
             current !== snapshot.entry -> current
             current.generation.get() != snapshot.generation -> current
-            refreshedCount > 0 -> {
+            refreshedCount > 0         -> {
                 current.value.set(refreshedCount)
                 current.generation.incrementAndGet()
                 current
             }
 
-            else -> null
+            else                       -> null
         }
     }?.value?.get() ?: 0
 
@@ -214,7 +215,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
      */
     @Suppress("ReturnCount")
     suspend fun activeCountSuspend(lockName: String): Int {
-        validateExposedR2dbcLockName(lockName)
+        lockName.validateExposedR2dbcLockName()
         val snapshot = cacheSnapshot(lockName)
         val startedAtAvailabilityEpoch = availabilitySnapshot()
         val refreshedCount = try {
@@ -224,7 +225,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                     .selectAll()
                     .where {
                         (LeaderGroupLockTable.lockName eq lockName) and
-                            (LeaderGroupLockTable.lockedUntil greater now)
+                                (LeaderGroupLockTable.lockedUntil greater now)
                     }
                     .count()
                     .toInt()
@@ -251,7 +252,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
      */
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
-        validateExposedR2dbcLockName(lockName)
+        lockName.validateExposedR2dbcLockName()
 
         val leaseTime = options.leaderGroupOptions.leaseTime
         val perSlotWait = (options.leaderGroupOptions.waitTime / maxLeaders).coerceAtLeast(1.milliseconds)
@@ -279,7 +280,8 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
             )
 
             when (lock.tryLock(perSlotWait, leaseTime)) {
-                true -> { /* 획득 성공 — 아래 로직 계속 */ }
+                true -> { /* 획득 성공 — 아래 로직 계속 */
+                }
                 false -> continue
                 null -> {
                     log.warn { "DB 오류로 슬롯 순회 중단: lockName=$lockName" }
@@ -291,7 +293,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
             val acquiredAtNanos = System.nanoTime()
             val startedAt = Instant.now()
             var cachedActiveCount: CachedActiveCount? = null
-            var historyId: Long? = null
+            var historyId: UUID? = null
             var watchdog: AutoCloseable? = null
             var actionSucceeded = false
             var actionFailed = false
@@ -353,7 +355,8 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                         try {
                             when (lock.unlockAndReport(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)) {
                                 ExposedR2dbcUnlockOutcome.RELEASED,
-                                ExposedR2dbcUnlockOutcome.NOT_HELD -> {
+                                ExposedR2dbcUnlockOutcome.NOT_HELD,
+                                    -> {
                                     cachedActiveCount?.let { decrementCachedActiveCount(lockName, it) }
                                     log.debug { "그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
                                 }
@@ -375,22 +378,22 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         return null
     }
 
-    private suspend fun recordAcquired(lockName: String, token: String, slot: Int): Long? {
+    private suspend fun recordAcquired(lockName: String, token: String, slot: Int): UUID? {
         if (!options.recordHistory) return null
         val lockOwner = options.lockOwner
         val leaseTimeMs = options.leaderGroupOptions.leaseTime.inWholeMilliseconds
         return try {
             suspendTransaction(db) {
                 val now = Instant.now()
-                LeaderLockHistoryTable.insert {
+                LeaderLockHistoryTable.insertAndGetId {
                     it[LeaderLockHistoryTable.lockName] = lockName
                     it[LeaderLockHistoryTable.lockOwner] = lockOwner
                     it[LeaderLockHistoryTable.token] = token
                     it[LeaderLockHistoryTable.slot] = slot
                     it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(leaseTimeMs)
-                    it[LeaderLockHistoryTable.status] = LeaderHistoryStatus.ACQUIRED.name
+                    it[LeaderLockHistoryTable.status] = LeaderHistoryStatus.ACQUIRED
                     it[LeaderLockHistoryTable.startedAt] = now
-                }[LeaderLockHistoryTable.id]
+                }.value
             }
         } catch (e: CancellationException) {
             throw e
@@ -400,14 +403,14 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         }
     }
 
-    private suspend fun recordCompleted(historyId: Long?, token: String, startedAt: Instant, slot: Int) =
+    private suspend fun recordCompleted(historyId: UUID?, token: String, startedAt: Instant, slot: Int) =
         recordFinished(historyId, token, startedAt, slot, LeaderHistoryStatus.COMPLETED)
 
-    private suspend fun recordFailed(historyId: Long?, token: String, startedAt: Instant, slot: Int) =
+    private suspend fun recordFailed(historyId: UUID?, token: String, startedAt: Instant, slot: Int) =
         recordFinished(historyId, token, startedAt, slot, LeaderHistoryStatus.FAILED)
 
     private suspend fun recordFinished(
-        historyId: Long?,
+        historyId: UUID?,
         token: String,
         startedAt: Instant,
         slot: Int,
@@ -420,7 +423,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                 LeaderLockHistoryTable.update(
                     where = { (LeaderLockHistoryTable.id eq historyId) and (LeaderLockHistoryTable.token eq token) }
                 ) {
-                    it[LeaderLockHistoryTable.status] = status.name
+                    it[LeaderLockHistoryTable.status] = status
                     it[LeaderLockHistoryTable.finishedAt] = finishedAt
                     it[LeaderLockHistoryTable.durationMs] = finishedAt.toEpochMilli() - startedAt.toEpochMilli()
                 }

@@ -5,13 +5,18 @@ import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import java.time.Duration
 
 class LeaderScheduledPolicyPropertiesTest {
+
+    companion object: KLogging()
 
     @Test
     fun `scheduling policy defaults and yaml keys bind`() {
@@ -33,12 +38,13 @@ class LeaderScheduledPolicyPropertiesTest {
         val props = Binder(source)
             .bindOrCreate(LeaderScheduledPolicyProperties.PREFIX, LeaderScheduledPolicyProperties::class.java)
 
+        log.debug { "props=$props" }
         props.enabled.shouldBeTrue()
         props.policies.single().selector shouldBeEqualTo "orderJob#reconcile"
         props.policies.single().name shouldBeEqualTo "orders:reconcile"
         props.policies.single().waitTime shouldBeEqualTo Duration.ZERO
-        props.policies.single().leaseTime shouldBeEqualTo Duration.ofSeconds(30)
-        props.policies.single().minLeaseTime shouldBeEqualTo Duration.ofSeconds(5)
+        props.policies.single().leaseTime shouldBeEqualTo 30.seconds()
+        props.policies.single().minLeaseTime shouldBeEqualTo 5.seconds()
         props.policies.single().bean shouldBeEqualTo "redisLeaderElectionFactory"
         props.policies.single().autoExtend.shouldBeFalse()
         props.policies.single().streamBounded.shouldBeFalse()
@@ -50,6 +56,7 @@ class LeaderScheduledPolicyPropertiesTest {
         val props = Binder(MapConfigurationPropertySource(emptyMap<String, String>()))
             .bindOrCreate(LeaderScheduledPolicyProperties.PREFIX, LeaderScheduledPolicyProperties::class.java)
 
+        log.debug { "props=$props" }
         props.enabled.shouldBeFalse()
         props.policies.shouldBeEmpty()
     }

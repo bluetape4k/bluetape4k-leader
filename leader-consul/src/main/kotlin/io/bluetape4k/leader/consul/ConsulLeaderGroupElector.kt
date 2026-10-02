@@ -1,7 +1,11 @@
 package io.bluetape4k.leader.consul
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
+import io.bluetape4k.javatimes.millis
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderGroupElector
@@ -12,7 +16,6 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.consul.internal.ConsulLeaseHandle
 import io.bluetape4k.leader.consul.internal.ConsulLockClient
 import io.bluetape4k.leader.consul.internal.ConsulLockExtendDelegate
@@ -21,11 +24,13 @@ import io.bluetape4k.leader.consul.internal.ConsulSessionId
 import io.bluetape4k.leader.consul.internal.ConsulSessionTtl
 import io.bluetape4k.leader.consul.internal.JavaHttpConsulLockClient
 import io.bluetape4k.leader.consul.internal.getWithinRequestTimeout
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.checkNotNull
 import java.time.Instant
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
@@ -46,15 +51,15 @@ import java.util.concurrent.atomic.AtomicReference
 class ConsulLeaderGroupElector private constructor(
     private val lockClient: ConsulLockClient,
     val options: ConsulLeaderGroupElectionOptions,
-) : LeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics {
+): LeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics {
 
     constructor(
         endpoint: ConsulEndpoint,
         options: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
-    ) : this(JavaHttpConsulLockClient(endpoint, options.keyPrefix), options)
+    ): this(JavaHttpConsulLockClient(endpoint, options.keyPrefix), options)
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         internal const val CONSUL_GROUP_FACTORY_BEAN_NAME = "consul-leader-group-elector"
 
         internal fun create(
@@ -139,9 +144,9 @@ class ConsulLeaderGroupElector private constructor(
             when {
                 cause is CancellationException -> throw cause
                 cause != null && elected -> LeaderRunResult.ActionFailed(cause)
-                cause != null -> throw CompletionException(cause)
-                elected -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                cause != null            -> throw CompletionException(cause)
+                elected                  -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else                     -> LeaderRunResult.Skipped
             }
         }
     }
@@ -194,43 +199,43 @@ class ConsulLeaderGroupElector private constructor(
     ): CompletableFuture<T?> {
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
-        val cleanupBarrier = AsyncLeaseCleanupBarrier<ConsulLeaseHandle>(::release)
+        val cleanupBarrier = AsyncLeaseCleanupBarrier(::release)
         val beginCleanup: () -> CompletableFuture<Unit> = {
             when {
                 lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
                 lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else -> CompletableFuture.completedFuture(Unit)
+                else                                      -> completableFutureOf(Unit)
             }
         }
-        val acquisitionFuture = CompletableFuture.supplyAsync({
+        val acquisitionFuture = futureOf(executor) {
             var handle: ConsulLeaseHandle? = null
             try {
                 acquire(lockName, auditLeaderId).also { handle = it }
             } finally {
                 cleanupBarrier.completeAcquisition(handle)
             }
-        }, executor)
+        }
+
         val pipelineFuture: CompletableFuture<T?> = try {
             acquisitionFuture.thenComposeAsync({ handle ->
                 if (handle == null) {
-                    CompletableFuture.completedFuture(null)
+                    completableFutureOf(null)
                 } else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
-                    CompletableFuture.failedFuture(
-                        CancellationException("leader result future was cancelled before action"),
-                    )
+                    failedCompletableFutureOf(CancellationException("leader result future was cancelled before action"))
                 } else {
                     runAcquiredAsync(handle, cancellationRelay, action)
                 }
             }, executor)
         } catch (error: Throwable) {
-            CompletableFuture.failedFuture(error)
+            failedCompletableFutureOf(error)
         }
+
         val ordered = LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
             if (failure == null) {
-                CompletableFuture.completedFuture(value)
+                completableFutureOf(value)
             } else {
                 beginCleanup().handle { _, cleanupFailure ->
-                    val cause = checkNotNull(failure.unwrapCompletionException())
+                    val cause = failure.unwrapCompletionException().checkNotNull("failure")
                     cleanupFailure?.unwrapCompletionException()?.let(cause::addSuppressed)
                     throw CompletionException(cause)
                 }
@@ -286,8 +291,9 @@ class ConsulLeaderGroupElector private constructor(
     @Suppress("ThrowsCount")
     private fun acquire(lockName: String, auditLeaderId: String?): ConsulLeaseHandle? {
         val electedAt = Instant.now()
-        val leaseUntil = electedAt.plusMillis(options.leaderGroupOptions.leaseTime.inWholeMilliseconds)
+        val leaseUntil = electedAt + options.leaderGroupOptions.leaseTime.inWholeMilliseconds.millis()
         val ownerToken = Base58.randomString(12)
+
         val payload = ConsulOwnerPayload(
             ownerToken = ownerToken,
             auditLeaderId = auditLeaderId ?: options.leaderGroupOptions.nodeId,
@@ -394,8 +400,11 @@ class ConsulLeaderGroupElector private constructor(
             }
         }
 
-        runCatching { lockClient.release(handle.key, handle.sessionId).getWithinRequestTimeout(lockClient) }
-            .onFailure { e -> log.warn(e) { "Failed to release Consul group slot. lockName=${handle.lockName}" } }
+        runCatching {
+            lockClient.release(handle.key, handle.sessionId).getWithinRequestTimeout(lockClient)
+        }.onFailure { e ->
+            log.warn(e) { "Failed to release Consul group slot. lockName=${handle.lockName}" }
+        }
         destroySession(handle.sessionId)
         interruption?.let {
             Thread.currentThread().interrupt()
@@ -404,10 +413,11 @@ class ConsulLeaderGroupElector private constructor(
     }
 
     private fun currentLeaders(lockName: String): List<LeaderLease> =
-        (0 until maxLeaders).mapNotNull { slot ->
+        List(maxLeaders) { slot ->
             runCatching {
                 val entry = lockClient.read(lockClient.groupLockKey(lockName, slot)).getWithinRequestTimeout(lockClient)
                     ?: return@runCatching null
+
                 if (entry.sessionId == null) {
                     return@runCatching null
                 }
@@ -415,7 +425,7 @@ class ConsulLeaderGroupElector private constructor(
                 if (lease == null) {
                     log.warn {
                         "Consul group state ignored because owner payload is missing or invalid. " +
-                            "lockName=$lockName, slot=$slot, sessionId=${entry.sessionId.value}"
+                                "lockName=$lockName, slot=$slot, sessionId=${entry.sessionId.value}"
                     }
                 }
                 lease
@@ -426,11 +436,14 @@ class ConsulLeaderGroupElector private constructor(
                 log.warn(e) { "Consul group state query failed. lockName=$lockName, slot=$slot" }
                 null
             }
-        }
+        }.filterNotNull()
 
     private fun destroySession(sessionId: ConsulSessionId) {
-        runCatching { lockClient.destroySession(sessionId).getWithinRequestTimeout(lockClient) }
-            .onFailure { e -> log.warn(e) { "Failed to destroy Consul group session. sessionId=${sessionId.value}" } }
+        runCatching {
+            lockClient.destroySession(sessionId).getWithinRequestTimeout(lockClient)
+        }.onFailure { e ->
+            log.warn(e) { "Failed to destroy Consul group session. sessionId=${sessionId.value}" }
+        }
     }
 }
 

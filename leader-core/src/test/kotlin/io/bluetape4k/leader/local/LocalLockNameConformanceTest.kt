@@ -1,12 +1,15 @@
 package io.bluetape4k.leader.local
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.fail
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.contract.AbstractLockNameConformanceTest
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
+import org.testcontainers.utility.Base58
 
 private val invalidLockNames = listOf(
     "",
@@ -23,7 +26,9 @@ private val invalidLockNames = listOf(
 )
 
 /** Local blocking strategic electors가 공통 lock-name 계약을 따르는지 검증합니다. */
-class LocalBlockingLockNameConformanceTest : AbstractLockNameConformanceTest() {
+class LocalBlockingLockNameConformanceTest: AbstractLockNameConformanceTest() {
+
+    companion object: KLogging()
 
     private val single = LocalStrategicLeaderElector("contract-blocking-single")
     private val group = LocalStrategicLeaderGroupElector("contract-blocking-group")
@@ -32,6 +37,7 @@ class LocalBlockingLockNameConformanceTest : AbstractLockNameConformanceTest() {
         val candidate = CandidateInfo("contract-${System.nanoTime()}")
         var singleRegistered = false
         var groupRegistered = false
+
         try {
             single.registerCandidate(lockName, candidate)
             singleRegistered = true
@@ -50,17 +56,22 @@ class LocalBlockingLockNameConformanceTest : AbstractLockNameConformanceTest() {
     @Test
     fun `단일 및 그룹 runIfLeader는 잘못된 lockName을 즉시 거부한다`() {
         assertFailsWith<IllegalArgumentException> {
-            single.runIfLeader("", FifoElectionStrategy) { error("실행되면 안 됨") }
+            single.runIfLeader<Any?>("", FifoElectionStrategy) {
+                fail("실행되면 안 됨")
+            }
         }
         assertFailsWith<IllegalArgumentException> {
-            group.runIfLeader(" ", FifoGroupElectionStrategy) { error("실행되면 안 됨") }
+            group.runIfLeader<Any?>(" ", FifoGroupElectionStrategy) {
+                fail("실행되면 안 됨")
+            }
         }
     }
 
     @Test
     fun `단일 및 그룹 후보 등록은 전체 invalid corpus를 거부한다`() {
         invalidLockNames.forEach { lockName ->
-            val candidate = CandidateInfo("contract-${System.nanoTime()}")
+            val candidate = CandidateInfo("contract-${Base58.randomString(8)}")
+            
             assertFailsWith<IllegalArgumentException> {
                 single.registerCandidate(lockName, candidate)
             }
@@ -72,7 +83,9 @@ class LocalBlockingLockNameConformanceTest : AbstractLockNameConformanceTest() {
 }
 
 /** Local suspend strategic electors가 공통 lock-name 계약을 따르는지 검증합니다. */
-class LocalSuspendLockNameConformanceTest : AbstractLockNameConformanceTest() {
+class LocalSuspendLockNameConformanceTest: AbstractLockNameConformanceTest() {
+
+    companion object: KLogging()
 
     private val single = LocalStrategicSuspendLeaderElector("contract-suspend-single")
     private val group = LocalStrategicSuspendLeaderGroupElector("contract-suspend-group")

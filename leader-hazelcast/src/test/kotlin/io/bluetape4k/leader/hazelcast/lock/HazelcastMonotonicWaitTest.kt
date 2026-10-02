@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -20,6 +21,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class HazelcastMonotonicWaitTest {
+
+    companion object: KLogging()
 
     @Test
     fun `blocking wait budget은 주입한 monotonic ticker를 따른다`() {

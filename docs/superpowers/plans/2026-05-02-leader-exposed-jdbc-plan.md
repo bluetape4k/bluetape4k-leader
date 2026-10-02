@@ -160,7 +160,7 @@ T8, T9, T10 → T12 (KDoc 최종 검수)  ← T12는 T11과 병렬 가능
     3. 실패 -> `return null`
     4. 성공 -> `try { action() } finally { runCatching { lock.unlock() } }`
   - **runAsyncIfLeader(lockName, executor, action): CompletableFuture<T?>** --
-    `CompletableFuture.supplyAsync({ lock.tryLock(...) }, executor).thenComposeAsync(...)` (MongoDB 패턴 동일)
+    `futureOf({ lock.tryLock(...) }, executor).thenComposeAsync(...)` (MongoDB 패턴 동일)
   - **이력 기록 (recordHistory)**: options.recordHistory == true 일 때 ACQUIRED/COMPLETED/FAILED 이력 INSERT/UPDATE (best-effort, runCatching)
   - CancellationException 재throw 필수 (catch 앞에 항상 분리)
 - **완료 조건**:

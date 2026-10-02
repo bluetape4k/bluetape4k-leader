@@ -1,30 +1,29 @@
-@file:OptIn(io.lettuce.core.ExperimentalLettuceCoroutinesApi::class)
-
 package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.leader.strategy.CandidateInfo
-import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.RedisFuture
+import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.reactive.RedisReactiveCommands
 import io.lettuce.core.api.sync.RedisCommands
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.until
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.seconds
 
-class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
+class LettuceCandidateGenerationFenceTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `blocking register retires persistent v2 source after cleanup failure`() {
@@ -64,7 +63,7 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
 
         registry.registerCandidate(fixture.lockName, CandidateInfo(fixture.nodeId), FRESH_TTL)
 
-        race.wasTriggered shouldBeEqualTo true
+        race.wasTriggered.shouldBeTrue()
         verifyFreshGeneration(fixture)
         awaitCurrentGenerationExpiry(fixture)
         registry.listCandidates(fixture.lockName).shouldBeEmpty()
@@ -78,7 +77,7 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
 
         registry.registerCandidate(fixture.lockName, CandidateInfo(fixture.nodeId), FRESH_TTL)
 
-        race.wasTriggered shouldBeEqualTo true
+        race.wasTriggered.shouldBeTrue()
         verifyFreshGeneration(fixture)
         awaitCurrentGenerationExpiry(fixture)
         registry.listCandidates(fixture.lockName).shouldBeEmpty()
@@ -92,9 +91,9 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
 
         registry.unregisterCandidate(fixture.lockName, fixture.nodeId)
 
-        race.wasTriggered shouldBeEqualTo true
+        race.wasTriggered.shouldBeTrue()
         connection.sync().get(fixture.sourceKey) shouldBeEqualTo race.newRaw
-        connection.sync().sismember(fixture.indexKey, fixture.nodeId) shouldBeEqualTo true
+        connection.sync().sismember(fixture.indexKey, fixture.nodeId).shouldBeTrue()
     }
 
     @Test
@@ -105,9 +104,9 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
 
         registry.unregisterCandidate(fixture.lockName, fixture.nodeId)
 
-        race.wasTriggered shouldBeEqualTo true
+        race.wasTriggered.shouldBeTrue()
         connection.sync().get(fixture.sourceKey) shouldBeEqualTo race.newRaw
-        connection.sync().sismember(fixture.indexKey, fixture.nodeId) shouldBeEqualTo true
+        connection.sync().sismember(fixture.indexKey, fixture.nodeId).shouldBeTrue()
     }
 
     @Test
@@ -118,9 +117,9 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
 
         registry.unregisterCandidate(fixture.lockName, fixture.nodeId)
 
-        race.wasTriggered shouldBeEqualTo true
+        race.wasTriggered.shouldBeTrue()
         connection.sync().get(fixture.sourceKey) shouldBeEqualTo race.newRaw
-        connection.sync().sismember(fixture.indexKey, fixture.nodeId) shouldBeEqualTo true
+        connection.sync().sismember(fixture.indexKey, fixture.nodeId).shouldBeTrue()
     }
 
     @Test
@@ -215,10 +214,10 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
         failure: CleanupFailureConnection,
         residue: LegacyResidue,
     ) {
-        failure.wasTriggered shouldBeEqualTo true
+        failure.wasTriggered.shouldBeTrue()
         connection.sync().get(fixture.tombstoneKey).shouldNotBeNull()
         connection.sync().get(fixture.currentCandidateKey).shouldBeNull()
-        connection.sync().sismember(fixture.indexKey, fixture.nodeId) shouldBeEqualTo true
+        connection.sync().sismember(fixture.indexKey, fixture.nodeId).shouldBeTrue()
         if (residue == LegacyResidue.INDEX_ONLY) {
             connection.sync().get(fixture.sourceKey).shouldBeNull()
         } else {
@@ -229,9 +228,9 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
     private fun verifyFreshGeneration(fixture: Fixture) {
         connection.sync().get(fixture.tombstoneKey).shouldBeNull()
         connection.sync().get(fixture.currentCandidateKey).shouldNotBeNull()
-        connection.sync().sismember(fixture.currentIndexKey, fixture.nodeId) shouldBeEqualTo true
+        connection.sync().sismember(fixture.currentIndexKey, fixture.nodeId).shouldBeTrue()
         connection.sync().get(fixture.sourceKey).shouldBeNull()
-        connection.sync().sismember(fixture.indexKey, fixture.nodeId) shouldBeEqualTo false
+        connection.sync().sismember(fixture.indexKey, fixture.nodeId).shouldBeFalse()
     }
 
     private fun awaitCurrentGenerationExpiry(fixture: Fixture) {
@@ -255,9 +254,9 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
 
         private fun shouldFailLegacyCas(keys: Array<out String>, args: Array<out String>): Boolean =
             failure == CleanupFailure.LEGACY_CAS &&
-                sourceKey in keys &&
-                args.firstOrNull() == LettuceCandidateWriteScript.REMOVE_LEGACY_IF_VALUE &&
-                triggerOnce()
+                    sourceKey in keys &&
+                    args.firstOrNull() == REMOVE_LEGACY_IF_VALUE &&
+                    triggerOnce()
 
         private fun shouldFailSrem(key: String, members: Array<out String>): Boolean =
             failure == CleanupFailure.SREM && key == sourceIndexKey && members.isNotEmpty() && triggerOnce()
@@ -266,7 +265,7 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
             if (fired) triggered.set(true)
         }
 
-        private val syncCommands = object : RedisCommands<String, String> by sync {
+        private val syncCommands = object: RedisCommands<String, String> by sync {
             override fun srem(key: String, vararg members: String): Long =
                 if (shouldFailSrem(key, members)) error(INJECTED_FAILURE) else sync.srem(key, *members)
 
@@ -293,7 +292,7 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
             }
         }
 
-        private val asyncCommands = object : RedisAsyncCommands<String, String> by async {
+        private val asyncCommands = object: RedisAsyncCommands<String, String> by async {
             override fun <T> evalsha(
                 digest: String,
                 type: ScriptOutputType,
@@ -317,7 +316,7 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
             }
         }
 
-        private val reactiveCommands = object : RedisReactiveCommands<String, String> by reactive {
+        private val reactiveCommands = object: RedisReactiveCommands<String, String> by reactive {
             override fun srem(key: String, vararg members: String): Mono<Long> = Mono.defer {
                 if (shouldFailSrem(key, members)) {
                     Mono.error(IllegalStateException(INJECTED_FAILURE))
@@ -328,7 +327,7 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
         }
 
         val wrappedConnection: StatefulRedisConnection<String, String> =
-            object : StatefulRedisConnection<String, String> by AbstractLettuceLeaderTest.connection {
+            object: StatefulRedisConnection<String, String> by AbstractLettuceLeaderTest.connection {
                 override fun sync(): RedisCommands<String, String> = syncCommands
                 override fun async(): RedisAsyncCommands<String, String> = asyncCommands
                 override fun reactive(): RedisReactiveCommands<String, String> = reactiveCommands
@@ -363,22 +362,22 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
                     fixture.tombstoneKey,
                     fixture.migrationTokenKey,
                 ),
-                LettuceCandidateWriteScript.UNREGISTER,
+                UNREGISTER,
                 fixture.nodeId,
                 "race-${System.nanoTime()}",
             )
         }
 
-        private val syncCommands = object : RedisCommands<String, String> by sync {
+        private val syncCommands = object: RedisCommands<String, String> by sync {
             override fun get(key: String): String? = getWithRace(key)
         }
 
-        private val reactiveCommands = object : RedisReactiveCommands<String, String> by reactive {
+        private val reactiveCommands = object: RedisReactiveCommands<String, String> by reactive {
             override fun get(key: String): Mono<String> = Mono.defer { Mono.justOrEmpty(getWithRace(key)) }
         }
 
         val wrappedConnection: StatefulRedisConnection<String, String> =
-            object : StatefulRedisConnection<String, String> by AbstractLettuceLeaderTest.connection {
+            object: StatefulRedisConnection<String, String> by AbstractLettuceLeaderTest.connection {
                 override fun sync(): RedisCommands<String, String> = syncCommands
                 override fun reactive(): RedisReactiveCommands<String, String> = reactiveCommands
             }
@@ -404,11 +403,11 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
             return observed
         }
 
-        private val syncCommands = object : RedisCommands<String, String> by sync {
+        private val syncCommands = object: RedisCommands<String, String> by sync {
             override fun get(key: String): String? = rewriteAfterObservation(key, sync.get(key))
         }
 
-        private val asyncCommands = object : RedisAsyncCommands<String, String> by async {
+        private val asyncCommands = object: RedisAsyncCommands<String, String> by async {
             override fun get(key: String): RedisFuture<String> {
                 val future = async.get(key)
                 if (key == fixture.sourceKey && armed.compareAndSet(true, false)) {
@@ -420,14 +419,14 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
             }
         }
 
-        private val reactiveCommands = object : RedisReactiveCommands<String, String> by reactive {
+        private val reactiveCommands = object: RedisReactiveCommands<String, String> by reactive {
             override fun get(key: String): Mono<String> = Mono.defer {
                 Mono.justOrEmpty(rewriteAfterObservation(key, sync.get(key)))
             }
         }
 
         val wrappedConnection: StatefulRedisConnection<String, String> =
-            object : StatefulRedisConnection<String, String> by AbstractLettuceLeaderTest.connection {
+            object: StatefulRedisConnection<String, String> by AbstractLettuceLeaderTest.connection {
                 override fun sync(): RedisCommands<String, String> = syncCommands
                 override fun async(): RedisAsyncCommands<String, String> = asyncCommands
                 override fun reactive(): RedisReactiveCommands<String, String> = reactiveCommands
@@ -444,9 +443,12 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
             CandidateInfo(fixture.nodeId, metadata = mapOf("generation" to "recreated-after-cas")),
         )
 
-        private val syncCommands = object : RedisCommands<String, String> by sync {
+        private val syncCommands = object: RedisCommands<String, String> by sync {
             override fun srem(key: String, vararg members: String): Long {
-                if (key == fixture.indexKey && sync.get(fixture.sourceKey) == null && armed.compareAndSet(true, false)) {
+                if (key == fixture.indexKey && sync.get(fixture.sourceKey) == null && armed.compareAndSet(
+                        true,
+                        false
+                    )) {
                     sync.set(fixture.sourceKey, newRaw)
                     sync.sadd(fixture.indexKey, fixture.nodeId)
                     triggered.set(true)
@@ -456,7 +458,7 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
         }
 
         val wrappedConnection: StatefulRedisConnection<String, String> =
-            object : StatefulRedisConnection<String, String> by AbstractLettuceLeaderTest.connection {
+            object: StatefulRedisConnection<String, String> by AbstractLettuceLeaderTest.connection {
                 override fun sync(): RedisCommands<String, String> = syncCommands
             }
     }
@@ -472,7 +474,8 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
             override fun candidateKey(lockName: String, nodeId: String): String =
                 LettuceCandidateKeyCodec.legacyCandidateKey(KEY_PREFIX, lockName, nodeId)
 
-            override fun indexKey(lockName: String): String = LettuceCandidateKeyCodec.legacyIndexKey(KEY_PREFIX, lockName)
+            override fun indexKey(lockName: String): String =
+                LettuceCandidateKeyCodec.legacyIndexKey(KEY_PREFIX, lockName)
         },
         ;
 
@@ -486,7 +489,10 @@ class LettuceCandidateGenerationFenceTest : AbstractLettuceLeaderTest() {
         INDEX_ONLY(CleanupFailure.SREM),
     }
 
-    private enum class CleanupFailure { LEGACY_CAS, SREM }
+    private enum class CleanupFailure {
+        LEGACY_CAS,
+        SREM
+    }
 
     private data class Fixture(
         val lockName: String,

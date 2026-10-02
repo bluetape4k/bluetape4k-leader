@@ -18,9 +18,9 @@ import kotlin.time.Duration
 internal class ConsulLockExtendDelegate(
     private val lockClient: ConsulLockClient,
     private val handle: ConsulLeaseHandle,
-) : ExtendDelegate {
+): ExtendDelegate {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
 

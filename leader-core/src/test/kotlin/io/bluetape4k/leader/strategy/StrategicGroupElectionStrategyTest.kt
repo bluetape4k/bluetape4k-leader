@@ -5,10 +5,13 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredGroupElectionStrategy
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.time.Instant
 
 class StrategicGroupElectionStrategyTest {
+
+    companion object: KLogging()
 
     private val t0 = Instant.parse("2026-01-01T00:00:00Z")
 
@@ -56,7 +59,7 @@ class StrategicGroupElectionStrategyTest {
     @Test
     fun `후보가 없으면 EMPTY 결과를 반환한다`() {
         FifoGroupElectionStrategy.elect(emptyList(), maxLeaders = 2) shouldBeEqualTo
-            StrategicGroupElectionResult.EMPTY
+                StrategicGroupElectionResult.EMPTY
     }
 
     @Test
@@ -76,7 +79,7 @@ class StrategicGroupElectionStrategyTest {
             candidate("tie-b", t0.plusSeconds(5), successCount = 5),
             candidate("tie-a", t0, successCount = 5),
         )
-        val strategy = ScoredGroupElectionStrategy(CandidateScorer { it, _ -> it.successCount.toDouble() })
+        val strategy = ScoredGroupElectionStrategy { it, _ -> it.successCount.toDouble() }
 
         val result = strategy.elect(candidates, maxLeaders = 2)
 

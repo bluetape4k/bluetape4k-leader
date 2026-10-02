@@ -14,11 +14,16 @@ object ConsulMaintenanceDemo {
     @JvmStatic
     fun main(args: Array<String>) {
         val consul = startExampleContainer { reuse -> ConsulServer(reuse = reuse) }
-        val endpoint = ConsulEndpoint(consul.url)
-        val reports = ServiceMaintenanceScenario(endpoint).run()
 
-        reports.forEach { report ->
-            println(report)
+        try {
+            val endpoint = ConsulEndpoint(consul.url)
+            val reports = ServiceMaintenanceScenario(endpoint).run()
+
+            reports.forEach { report ->
+                println(report)
+            }
+        } finally {
+            consul.close()
         }
     }
 }

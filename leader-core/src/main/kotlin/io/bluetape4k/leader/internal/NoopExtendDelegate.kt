@@ -10,7 +10,7 @@ import kotlin.time.Duration
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-internal object NoopExtendDelegate : ExtendDelegate {
+internal object NoopExtendDelegate: ExtendDelegate {
 
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline

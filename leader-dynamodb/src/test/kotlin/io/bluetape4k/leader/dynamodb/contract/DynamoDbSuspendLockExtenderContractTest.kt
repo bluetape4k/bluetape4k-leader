@@ -12,7 +12,7 @@ import kotlin.time.Duration.Companion.seconds
  * DynamoDB suspend LockExtender contract implementation.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class DynamoDbSuspendLockExtenderContractTest : AbstractSuspendLockExtenderContractTest() {
+class DynamoDbSuspendLockExtenderContractTest: AbstractSuspendLockExtenderContractTest() {
     override val elector: SuspendLeaderElector =
         DynamoDbSuspendLeaderElector(
             DynamoDbContractSupport.dynamoDbAsync,

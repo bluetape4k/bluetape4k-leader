@@ -1,7 +1,6 @@
 package io.bluetape4k.leader.coroutines
 
 import io.bluetape4k.coroutines.flow.extensions.subject.PublishSubject
-import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.LeaderElectionListener
@@ -14,6 +13,8 @@ import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.resolveLeaderBackendDiagnosticsProvider
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.support.requireNotNull
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -24,11 +25,13 @@ import kotlinx.coroutines.flow.Flow
  */
 class ListeningSuspendLeaderElector(
     private val delegate: SuspendLeaderElector,
-) : SuspendLeaderElector,
-    SuspendLeaderLeaseAcquirerSupport,
-    LeaderElectionListenerRegistry,
-    LeaderElectionEventPublisher,
-    LeaderBackendDiagnosticsAware {
+): SuspendLeaderElector,
+   SuspendLeaderLeaseAcquirerSupport,
+   LeaderElectionListenerRegistry,
+   LeaderElectionEventPublisher,
+   LeaderBackendDiagnosticsAware {
+
+    companion object: KLoggingChannel()
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveLeaderBackendDiagnosticsProvider()
@@ -42,8 +45,8 @@ class ListeningSuspendLeaderElector(
         get() = delegate.supportsAuditLeaderState
 
     override val leaseCapabilityAvailable: Boolean
-        get() = (delegate as? SuspendLeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
-            ?: delegate is SuspendLeaderLeaseAcquirer
+        get() = ((delegate as? SuspendLeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
+            ?: delegate) is SuspendLeaderLeaseAcquirer
 
     override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
         (delegate as? SuspendLeaderLeaseAcquirer).requireNotNull {
@@ -135,10 +138,12 @@ class ListeningSuspendLeaderElector(
  */
 class ListeningSuspendLeaderGroupElector(
     private val delegate: SuspendLeaderGroupElector,
-) : SuspendLeaderGroupElector,
-    LeaderElectionListenerRegistry,
-    LeaderElectionEventPublisher,
-    LeaderBackendDiagnosticsAware {
+): SuspendLeaderGroupElector,
+   LeaderElectionListenerRegistry,
+   LeaderElectionEventPublisher,
+   LeaderBackendDiagnosticsAware {
+
+    companion object: KLoggingChannel()
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveLeaderBackendDiagnosticsProvider()

@@ -3,6 +3,7 @@ package io.bluetape4k.leader
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
@@ -12,7 +13,7 @@ import java.time.Instant
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderStateTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @Test
     fun `empty - leader 없이 빈 상태를 생성한다`() {
@@ -21,7 +22,7 @@ class LeaderStateTest {
         state.status shouldBeEqualTo LeaderStatus.Empty
         state.isEmpty.shouldBeTrue()
         state.isOccupied.shouldBeFalse()
-        state.leader shouldBeEqualTo null
+        state.leader.shouldBeNull()
     }
 
     @Test

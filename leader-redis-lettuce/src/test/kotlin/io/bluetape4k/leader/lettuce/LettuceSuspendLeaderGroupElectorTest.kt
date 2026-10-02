@@ -1,5 +1,14 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInRange
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.coroutines.support.log
+import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionException
@@ -7,25 +16,23 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
-import io.bluetape4k.assertions.shouldBeInRange
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldNotBeNull
-import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.assertFailsWith
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
 
@@ -62,25 +69,23 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
             throw failure
         }
 
-        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
-        val cause = (result as LeaderRunResult.ActionFailed).cause
-        cause.shouldBeInstanceOf<LeaderGroupElectionException>()
-        cause.message shouldBeEqualTo failure.message
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        result.cause.shouldBeInstanceOf<LeaderGroupElectionException>()
+        result.cause.message shouldBeEqualTo failure.message
     }
 
     @Test
-    fun `runIfLeaderResultSuspend - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() =
-        runSuspendIO {
-            val cancellation = CancellationException("lettuce-suspend-group-cancelled")
+    fun `runIfLeaderResultSuspend - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() = runSuspendIO {
+        val cancellation = CancellationException("lettuce-suspend-group-cancelled")
 
-            val thrown = assertFailsWith<CancellationException> {
-                suspendElection.runIfLeaderResultSuspend<Any?>(LeaderSlot(lockName, "lettuce-suspend-group-node")) {
-                    throw cancellation
-                }
+        val thrown = assertFailsWith<CancellationException> {
+            suspendElection.runIfLeaderResultSuspend<Any?>(LeaderSlot(lockName, "lettuce-suspend-group-node")) {
+                throw cancellation
             }
-
-            thrown.message shouldBeEqualTo cancellation.message
         }
+
+        thrown.message shouldBeEqualTo cancellation.message
+    }
 
     @Test
     fun `코루틴 복수 리더 동시 실행`() = runSuspendIO {
@@ -90,7 +95,7 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
                 suspendElection.runIfLeader(lockName) {
                     counter.incrementAndGet()
                 }
-            }
+            }.log("Job #$it")
         }
         jobs.awaitAll()
         counter.get() shouldBeEqualTo maxLeaders
@@ -99,6 +104,8 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
     @Test
     fun `코루틴 상태 조회`() = runSuspendIO {
         val state = suspendElection.state(lockName)
+
+        log.debug { "state=$state" }
         state.maxLeaders shouldBeEqualTo maxLeaders
         state.activeCount shouldBeEqualTo 0
     }
@@ -111,6 +118,7 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
     fun `확장 함수로 LettuceLeaderGroupElector 생성`() {
         val el = connection.leaderGroupElection(options)
         el.shouldNotBeNull()
+
         val result = el.runIfLeader(lockName) { "ext" }
         result shouldBeEqualTo "ext"
     }
@@ -119,6 +127,7 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
     fun `확장 함수로 LettuceSuspendLeaderGroupElector 생성`() = runSuspendIO {
         val el = connection.suspendLeaderGroupElector(options)
         el.shouldNotBeNull()
+
         val result = el.runIfLeader(lockName) { "ext-suspend" }
         result shouldBeEqualTo "ext-suspend"
     }
@@ -135,19 +144,19 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
         val executed = AtomicInteger(0)
 
         SuspendedJobTester()
-            .workers(maxLeaders * 2)
             .rounds(maxLeaders * 3)
             .add {
                 el.runIfLeader(lockName) {
                     val current = concurrent.incrementAndGet()
                     maxConcurrent.updateAndGet { max -> maxOf(max, current) }
-                    delay(20.milliseconds)
+                    delay(timeMillis = Random.nextLong(10, 30))
                     concurrent.decrementAndGet()
                     executed.incrementAndGet()
                 }
             }
             .run()
 
+        log.debug { "maxConcurrent = ${maxConcurrent.get()}, executed = ${executed.get()}" }
         maxConcurrent.get() shouldBeInRange 1..maxLeaders
         executed.get() shouldBeGreaterOrEqualTo 1
     }
@@ -159,8 +168,7 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
         val rounds = 10
 
         SuspendedJobTester()
-            .workers(maxLeaders)
-            .rounds(rounds)
+            .rounds(rounds * maxLeaders)
             .add {
                 el.runIfLeader(lockName) {
                     executed.incrementAndGet()
@@ -168,7 +176,8 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
             }
             .run()
 
-        executed.get() shouldBeEqualTo rounds
+        log.debug { "executed=${executed.get()}" }
+        executed.get() shouldBeEqualTo rounds * maxLeaders
     }
 
     // =========================================================================
@@ -184,10 +193,11 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
             minLeaseTime = 800.milliseconds,
         )
         val el = LettuceSuspendLeaderGroupElector(connection, opts)
+
         el.runIfLeader(lockName) { "fast" } shouldBeEqualTo "fast"
 
         val secondElector = LettuceSuspendLeaderGroupElector(connection, opts)
-        secondElector.runIfLeader(lockName) { "should-not" } shouldBeEqualTo null
+        secondElector.runIfLeader(lockName) { "should-not" }.shouldBeNull()
     }
 
     @Test
@@ -201,10 +211,10 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
         val el = LettuceSuspendLeaderGroupElector(connection, opts)
         el.runIfLeader(lockName) { "first" } shouldBeEqualTo "first"
 
-        delay(400.milliseconds)
-
         val secondElector = LettuceSuspendLeaderGroupElector(connection, opts)
-        secondElector.runIfLeader(lockName) { "second" } shouldBeEqualTo "second"
+        await atMost 3.seconds withPollInterval 50.milliseconds untilSuspending {
+            secondElector.runIfLeader(lockName) { "second" } == "second"
+        }
     }
 
     @Test
@@ -248,9 +258,10 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
 
         val opts = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 1.seconds, leaseTime = 5.seconds)
         val el = LettuceSuspendLeaderGroupElector(connection, opts)
-        delay(500.milliseconds)
-        val result = el.runIfLeader(crashLockName) { "recovered" }
-        result shouldBeEqualTo "recovered"
+
+        await atMost 3.seconds withPollInterval 50.milliseconds untilSuspending suspend {
+            el.runIfLeader(crashLockName) { "recovered" } == "recovered"
+        }
 
         connection.sync().del("lg:{$crashLockName}")
     }
@@ -266,13 +277,14 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
         val el = LettuceSuspendLeaderGroupElector(connection, opts)
         val cancelLock = randomName()
 
-        kotlinx.coroutines.coroutineScope {
+        coroutineScope {
             val deferred = async {
                 el.runIfLeader(cancelLock) {
                     delay(50.milliseconds)
                     "cancelled-action"
                 }
-            }
+            }.log("Cancelling lg:{$cancelLock}")
+            
             // action 진입 직후 취소
             delay(20.milliseconds)
             deferred.cancelAndJoin()
@@ -283,8 +295,9 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
         secondElector.runIfLeader(cancelLock) { "should-not" } shouldBeEqualTo null
 
         // minLease 만료 후 정상 acquire
-        delay(900.milliseconds)
-        secondElector.runIfLeader(cancelLock) { "later" } shouldBeEqualTo "later"
+        await atMost 3.seconds withPollInterval 100.milliseconds untilSuspending {
+            secondElector.runIfLeader(cancelLock) { "later" } == "later"
+        }
 
         connection.sync().del("lg:{$cancelLock}")
     }

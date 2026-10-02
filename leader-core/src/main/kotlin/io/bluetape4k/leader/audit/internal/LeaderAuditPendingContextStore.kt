@@ -4,13 +4,15 @@ import io.bluetape4k.leader.audit.LeaderAuditExportEvent
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.sanitizeForLog
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.requireGt
+import io.bluetape4k.support.requireInRange
 import io.bluetape4k.support.truncateUtf8
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.util.LinkedHashMap
-import java.util.PriorityQueue
+import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 
 private const val MAX_METADATA_KEY_LENGTH = 64
@@ -28,14 +30,22 @@ internal class LeaderAuditPendingContextStore(
     private val clock: Clock = Clock.systemUTC(),
 ) {
 
+    private companion object: KLogging() {
+        const val DEFAULT_MAX_ENTRIES: Int = 4096
+        const val MAX_ENTRIES: Int = 65_536
+        val DEFAULT_TTL: Duration = Duration.ofMinutes(15)
+        const val NULL_LENGTH: Int = -1
+        const val BYTE_MASK: Int = 0xff
+        const val HEX_SEPARATOR: String = ""
+        val FIELD_SEPARATOR: ByteArray = byteArrayOf(0)
+    }
+
     private val lock = ReentrantLock()
     private val entries = LinkedHashMap<String, Entry>(maxEntries)
 
     init {
-        require(maxEntries in 1..MAX_ENTRIES) {
-            "maxEntries must be in 1..$MAX_ENTRIES: $maxEntries"
-        }
-        require(!ttl.isZero && !ttl.isNegative) { "ttl must be positive: $ttl" }
+        maxEntries.requireInRange(1, MAX_ENTRIES, "maxEntries")
+        ttl.requireGt(Duration.ZERO, "ttl")
     }
 
     /** acquisition context를 저장하고 오래된 entry를 제거합니다. */
@@ -184,16 +194,6 @@ internal class LeaderAuditPendingContextStore(
         val context: PendingContext,
         val createdAt: Instant,
     )
-
-    private companion object {
-        const val DEFAULT_MAX_ENTRIES: Int = 4096
-        const val MAX_ENTRIES: Int = 65_536
-        val DEFAULT_TTL: Duration = Duration.ofMinutes(15)
-        const val NULL_LENGTH: Int = -1
-        const val BYTE_MASK: Int = 0xff
-        const val HEX_SEPARATOR: String = ""
-        val FIELD_SEPARATOR: ByteArray = byteArrayOf(0)
-    }
 }
 
 private data class PendingMetadataCandidate(

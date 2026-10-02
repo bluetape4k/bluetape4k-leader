@@ -8,8 +8,7 @@ DynamoDB-backed scheduled export example. Demonstrates how AWS-only services can
 ## Scenario
 
 Two service instances receive the same billing export trigger. Each instance uses the same
-`billing-export` leader lock. The elected node generates the export and writes one row to the export
-table. Contending nodes return `SKIPPED` without throwing.
+`billing-export` leader lock. The elected node generates the export and writes one row to the export table. Contending nodes return `SKIPPED` without throwing.
 
 ## Example Scenario
 
@@ -39,21 +38,21 @@ table. Contending nodes return `SKIPPED` without throwing.
 
 Leader lock table:
 
-| Attribute | Type | Purpose |
-|---|---|---|
-| `lockName` | String hash key | Logical leader lock key |
-| `leaseExpiry` | Number | Logical lease deadline used for correctness |
-| `ttl` | Number | DynamoDB TTL cleanup metadata |
+| Attribute     | Type            | Purpose                                     |
+|---------------|-----------------|---------------------------------------------|
+| `lockName`    | String hash key | Logical leader lock key                     |
+| `leaseExpiry` | Number          | Logical lease deadline used for correctness |
+| `ttl`         | Number          | DynamoDB TTL cleanup metadata               |
 
 Export table:
 
-| Attribute | Type | Purpose |
-|---|---|---|
-| `exportId` | String hash key | Unique export record id |
-| `batchId` | String | Scheduled batch or billing period |
-| `nodeId` | String | Elected node that wrote the export |
-| `createdAt` | String | ISO-8601 creation timestamp |
-| `summary` | String | Demo export summary |
+| Attribute   | Type            | Purpose                            |
+|-------------|-----------------|------------------------------------|
+| `exportId`  | String hash key | Unique export record id            |
+| `batchId`   | String          | Scheduled batch or billing period  |
+| `nodeId`    | String          | Elected node that wrote the export |
+| `createdAt` | String          | ISO-8601 creation timestamp        |
+| `summary`   | String          | Demo export summary                |
 
 ## Usage Example
 
@@ -82,17 +81,16 @@ if (report.status == DynamoDbExportStatus.SKIPPED) {
 ./gradlew :examples:dynamodb-export:run
 ```
 
-The demo starts DynamoDB Local through Testcontainers, creates a lock table and export table, and
-simulates two nodes competing for the same scheduled export lock.
+The demo starts DynamoDB Local through Testcontainers, creates a lock table and export table, and simulates two nodes competing for the same scheduled export lock.
 
 ## Configuration Options
 
-| Parameter | Default | Description |
-|---|---|---|
-| `nodeId` | required | Instance identifier used in reports and export records |
-| `lockName` | required | Shared leader lock name for the scheduled export |
-| `waitTime` | `150.milliseconds` | Time to wait before skipping on contention |
-| `leaseTime` | `5.seconds` | Logical lease duration; should exceed the export's expected critical section |
+| Parameter   | Default            | Description                                                                  |
+|-------------|--------------------|------------------------------------------------------------------------------|
+| `nodeId`    | required           | Instance identifier used in reports and export records                       |
+| `lockName`  | required           | Shared leader lock name for the scheduled export                             |
+| `waitTime`  | `150.milliseconds` | Time to wait before skipping on contention                                   |
+| `leaseTime` | `5.seconds`        | Logical lease duration; should exceed the export's expected critical section |
 
 ## Dependency
 

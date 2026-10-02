@@ -12,14 +12,14 @@ import java.io.Serializable
 data class MongoHistoryConfig(
     val collectionName: String = DEFAULT_COLLECTION_NAME,
     val ttlDays: Long = DEFAULT_TTL_DAYS,
-) : Serializable {
+): Serializable {
 
     init {
         validateMongoHistoryCollectionName(collectionName)
         require(ttlDays >= 0) { "ttlDays must be >= 0. Use 0 to disable TTL index. ttlDays=$ttlDays" }
     }
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         private const val serialVersionUID = 1L
 
         const val DEFAULT_COLLECTION_NAME = "bluetape4k_leader_history"

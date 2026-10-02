@@ -3,20 +3,24 @@ package io.bluetape4k.leader.internal
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionOptions
-import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.LeaderSlot
-import org.junit.jupiter.api.Test
+import io.bluetape4k.leader.LeaseOwnershipStatus
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.CancellationException
+import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
 class LeaderLeaseLifecycleTest {
+
+    companion object: KLoggingChannel()
 
     @Test
     fun `contention is null and release is fenced and at most once`() {
@@ -26,10 +30,11 @@ class LeaderLeaseLifecycleTest {
         val slot = LeaderSlot("lifecycle-lock", "node-a")
 
         val first = lifecycle.tryAcquire(slot).shouldNotBeNull()
-        lifecycle.tryAcquire(slot).let { it == null }.shouldBeTrue()
+        lifecycle.tryAcquire(slot).shouldBeNull()
         first.extend(1.seconds).isExtended.shouldBeTrue()
         first.release()
         first.release()
+
         releases.get() shouldBeEqualTo 1
         first.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.NOT_HELD
         first.isStillHeld().shouldBeFalse()
@@ -42,13 +47,16 @@ class LeaderLeaseLifecycleTest {
             options = LeaderElectionOptions(leaseTime = 1.seconds),
             callbacks = SuspendCancellationCallbacks(cancellation),
         )
-        val handle = lifecycle.tryAcquire(LeaderSlot("suspend-lifecycle-lock", "node")).shouldNotBeNull()
+        val slot = LeaderSlot("suspend-lifecycle-lock", "node")
+        val handle = lifecycle.tryAcquire(slot).shouldNotBeNull()
 
-        val thrown = assertFailsWith<CancellationException> { handle.release() }
+        val thrown = assertFailsWith<CancellationException> {
+            handle.release()
+        }
         thrown.message shouldBeEqualTo cancellation.message
     }
 
-    private class FakeCallbacks(private val releases: AtomicInteger) : LeaseBackendCallbacks {
+    private class FakeCallbacks(private val releases: AtomicInteger): LeaseBackendCallbacks {
         private var held = false
 
         override fun acquire(slot: LeaderSlot, waitDeadlineNanos: Long, transportDeadlineNanos: Long): BackendLease? {
@@ -73,7 +81,7 @@ class LeaderLeaseLifecycleTest {
 
     private class SuspendCancellationCallbacks(
         private val cancellation: CancellationException,
-    ) : SuspendLeaseBackendCallbacks {
+    ): SuspendLeaseBackendCallbacks {
         override suspend fun acquire(
             slot: LeaderSlot,
             waitDeadlineNanos: Long,

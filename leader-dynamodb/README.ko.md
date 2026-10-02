@@ -26,14 +26,14 @@ conditional write와 logical TTL 기반의 프리뷰 DynamoDB 리더 선출 백�
 
 ## 구현 클래스
 
-| 클래스 | 인터페이스 | 설명 |
-|---|---|---|
-| `DynamoDbLeaderElector` | `LeaderElector` + async facade | 블로킹 및 `CompletableFuture` 단일 리더 선출 |
-| `DynamoDbLeaderGroupElector` | `LeaderGroupElector` | 슬롯 기반 블로킹 복수 리더 선출 |
-| `DynamoDbVirtualThreadLeaderElector` | `VirtualThreadLeaderElector` | 블로킹 elector 위의 가상 스레드 단일 리더 어댑터 |
+| 클래스                                    | 인터페이스                        | 설명                                                   |
+|-------------------------------------------|-----------------------------------|--------------------------------------------------------|
+| `DynamoDbLeaderElector`                   | `LeaderElector` + async facade    | 블로킹 및 `CompletableFuture` 단일 리더 선출           |
+| `DynamoDbLeaderGroupElector`              | `LeaderGroupElector`              | 슬롯 기반 블로킹 복수 리더 선출                        |
+| `DynamoDbVirtualThreadLeaderElector`      | `VirtualThreadLeaderElector`      | 블로킹 elector 위의 가상 스레드 단일 리더 어댑터       |
 | `DynamoDbVirtualThreadLeaderGroupElector` | `VirtualThreadLeaderGroupElector` | 블로킹 group elector 위의 가상 스레드 복수 리더 어댑터 |
-| `DynamoDbSuspendLeaderElector` | `SuspendLeaderElector` | `DynamoDbAsyncClient` 기반 코루틴 단일 리더 선출 |
-| `DynamoDbSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | 슬롯 기반 코루틴 복수 리더 선출 |
+| `DynamoDbSuspendLeaderElector`            | `SuspendLeaderElector`            | `DynamoDbAsyncClient` 기반 코루틴 단일 리더 선출       |
+| `DynamoDbSuspendLeaderGroupElector`       | `SuspendLeaderGroupElector`       | 슬롯 기반 코루틴 복수 리더 선출                        |
 
 ## 테이블
 

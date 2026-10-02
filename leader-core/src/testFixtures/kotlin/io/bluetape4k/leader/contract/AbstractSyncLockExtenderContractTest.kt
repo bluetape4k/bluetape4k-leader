@@ -1,15 +1,18 @@
 package io.bluetape4k.leader.contract
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.atomic.AtomicInteger
@@ -50,6 +53,8 @@ import kotlin.time.Duration.Companion.seconds
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractSyncLockExtenderContractTest {
+
+    companion object: KLogging()
 
     /** Each backend provides its own [LeaderElector] instance. */
     protected abstract val elector: LeaderElector
@@ -186,14 +191,14 @@ abstract class AbstractSyncLockExtenderContractTest {
             outcome = LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
-        (outcome is ExtendOutcome.Extended).shouldBeTrue()
+        outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }
 
     @Test
     fun `extendActiveLockDetailed returns NotHeld outside runIfLeader body`() {
         val outcome = LockExtender.extendActiveLockDetailed(60.seconds)
 
-        (outcome is ExtendOutcome.NotHeld).shouldBeTrue()
+        outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 
     // ── return value ──────────────────────────────────────────────────────
@@ -229,6 +234,27 @@ abstract class AbstractSyncLockExtenderContractTest {
         maxConcurrent.get() shouldBeEqualTo 1
     }
 
+    @Test
+    fun `runIfLeader enforces mutual exclusion under virtual thread access`() {
+        val lockName = randomLockName()
+        val currentHolders = AtomicInteger(0)
+        val maxConcurrent = AtomicInteger(0)
+
+        StructuredTaskScopeTester()
+            .rounds(4 * 8)
+            .add {
+                elector.runIfLeader(lockName) {
+                    val n = currentHolders.incrementAndGet()
+                    maxConcurrent.getAndUpdate { max(it, n) }
+                    Thread.sleep(5)
+                    currentHolders.decrementAndGet()
+                }
+            }
+            .run()
+
+        maxConcurrent.get() shouldBeEqualTo 1
+    }
+
     // ── AC-6 concurrent extends stress ───────────────────────────────────
 
     /**
@@ -249,6 +275,28 @@ abstract class AbstractSyncLockExtenderContractTest {
         MultithreadingTester()
             .workers(8)
             .rounds(10)
+            .add {
+                val lockName = randomLockName()
+                elector.runIfLeader(lockName) {
+                    repeat(extendsPerRound) { i ->
+                        val outcome = LockExtender.extendActiveLockDetailed((10 + i * 5).seconds)
+                        if (outcome is ExtendOutcome.Extended) successCount.incrementAndGet()
+                    }
+                }
+            }
+            .run()
+
+        // 8 workers × 10 rounds × 5 extends each = 400 successful extends
+        successCount.get() shouldBeEqualTo 8 * 10 * extendsPerRound
+    }
+
+    @Test
+    fun `AC-6 virtual threads extends race-free — N workers each extend their own lock`() {
+        val successCount = AtomicInteger(0)
+        val extendsPerRound = 5
+
+        StructuredTaskScopeTester()
+            .rounds(8 * 10)
             .add {
                 val lockName = randomLockName()
                 elector.runIfLeader(lockName) {

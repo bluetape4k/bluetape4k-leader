@@ -1,22 +1,34 @@
 package io.bluetape4k.leader.contract
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeEqualTo
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executor
 import java.util.concurrent.ExecutionException
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
+import kotlin.time.Duration.Companion.seconds
 
 /** backend별 dispatcher가 같은 완료·취소·실패 계약을 지키는지 검증합니다. */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractAsyncLeaseCleanupContractTest {
+
+    companion object: KLogging()
+
     /** null executor는 backend가 소유한 기본 실행기를 선택합니다. */
     protected abstract fun <T, R> completeAfter(
         source: CompletableFuture<T>,
@@ -32,11 +44,11 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
         val original = IllegalArgumentException("action failed")
         val cleanupFailure = IllegalStateException("cleanup failed")
         val result = completeAfter(
-            source = CompletableFuture.failedFuture<String>(original),
+            source = failedCompletableFutureOf<String>(original),
             cleanup = { throw cleanupFailure },
             transform = { value, _ -> value },
         )
-        val failure = assertFailsWith<ExecutionException> { result.get(2, TimeUnit.SECONDS) }
+        val failure = assertFailsWith<ExecutionException> { result.get(2.seconds) }
         (failure.cause === original).shouldBeTrue()
         original.suppressed.toList() shouldBeEqualTo listOf(cleanupFailure)
     }
@@ -46,14 +58,16 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
         val primary = IllegalStateException("primary failed")
         val fallback = IllegalStateException("fallback failed")
         val result = completeAfter(
-            source = CompletableFuture.completedFuture("done"),
-            executor = Executor { throw primary },
+            source = completableFutureOf("done"),
+            executor = { throw primary },
             cleanup = { error("cleanup must not run") },
-            fallbackExecutor = Executor { throw fallback },
+            fallbackExecutor = { throw fallback },
             transform = { value, _ -> value },
         )
-        val failure = assertFailsWith<ExecutionException> { result.get(2, TimeUnit.SECONDS) }
-        (failure.cause === primary).shouldBeTrue()
+        val failure = assertFailsWith<ExecutionException> {
+            result.get(2.seconds)
+        }
+        failure.cause shouldBe primary
         primary.suppressed.toList() shouldBeEqualTo listOf(fallback)
     }
 
@@ -64,14 +78,16 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
         val fallback = IllegalStateException("fallback failed")
         val calls = AtomicInteger()
         val result = completeAfter(
-            source = CompletableFuture.failedFuture<String>(original),
-            executor = Executor { throw primary },
+            source = failedCompletableFutureOf<String>(original),
+            executor = { throw primary },
             cleanup = { calls.incrementAndGet() },
-            fallbackExecutor = Executor { throw fallback },
+            fallbackExecutor = { throw fallback },
             transform = { value, _ -> value },
         )
-        val failure = assertFailsWith<ExecutionException> { result.get(2, TimeUnit.SECONDS) }
-        (failure.cause === original).shouldBeTrue()
+        val failure = assertFailsWith<ExecutionException> {
+            result.get(2.seconds)
+        }
+        failure.cause shouldBe original
         original.suppressed.toList() shouldBeEqualTo listOf(primary, fallback)
         calls.get() shouldBeEqualTo 0
     }
@@ -80,14 +96,17 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
     fun `동일한 오류 객체가 action과 scheduler에서 발생해도 결과를 완료한다`() {
         val original = IllegalStateException("shared failure")
         val result = completeAfter(
-            source = CompletableFuture.failedFuture<String>(original),
-            executor = Executor { throw original },
+            source = failedCompletableFutureOf<String>(original),
+            executor = { throw original },
             cleanup = { error("cleanup must not run") },
-            fallbackExecutor = Executor { throw original },
+            fallbackExecutor = { throw original },
             transform = { value, _ -> value },
         )
-        val failure = assertFailsWith<ExecutionException> { result.get(2, TimeUnit.SECONDS) }
-        (failure.cause === original).shouldBeTrue()
+
+        val failure = assertFailsWith<ExecutionException> {
+            result.get(2.seconds)
+        }
+        failure.cause shouldBe original
         original.suppressed.size shouldBeEqualTo 0
     }
 
@@ -95,25 +114,27 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
     fun `action과 cleanup의 동일 오류는 자기 suppression 없이 완료한다`() {
         val original = IllegalStateException("shared failure")
         val result = completeAfter(
-            source = CompletableFuture.failedFuture<String>(original),
+            source = failedCompletableFutureOf<String>(original),
             cleanup = { throw original },
             transform = { value, _ -> value },
         )
-        val failure = assertFailsWith<ExecutionException> { result.get(2, TimeUnit.SECONDS) }
-        (failure.cause === original).shouldBeTrue()
+        val failure = assertFailsWith<ExecutionException> {
+            result.get(2.seconds)
+        }
+        failure.cause shouldBe original
     }
 
     @Test
     fun `비표준 scheduler 실패에서도 fallback 정리 후 결과를 완료한다`() {
         val cleanupCalls = AtomicInteger()
         val result = completeAfter(
-            source = CompletableFuture.completedFuture("done"),
-            executor = Executor { throw IllegalStateException("scheduler failed") },
+            source = completableFutureOf("done"),
+            executor = { throw IllegalStateException("scheduler failed") },
             cleanup = { cleanupCalls.incrementAndGet() },
             transform = { value, _ -> value },
         )
 
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        result.get(2.seconds) shouldBeEqualTo "done"
         cleanupCalls.get() shouldBeEqualTo 1
     }
 
@@ -130,24 +151,24 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
                 cleanupCalls.incrementAndGet()
                 cleanupThread.set(Thread.currentThread().name)
                 cleanupStarted.countDown()
-                releaseCleanup.await(2, TimeUnit.SECONDS).shouldBeTrue()
+                releaseCleanup.await(2.seconds).shouldBeTrue()
             },
             transform = { value, _ -> value },
         )
-        val caller = Thread {
+        val caller = thread(start = false, name = "cleanup-caller") {
             source.cancel(false).shouldBeTrue()
-        }.apply { name = "cleanup-caller" }
+        }
 
         try {
             caller.start()
-            cleanupStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            cleanupStarted.await(2.seconds).shouldBeTrue()
             caller.join(1_000)
             caller.isAlive.shouldBeFalse()
-            (cleanupThread.get() == "cleanup-caller").shouldBeFalse()
+            cleanupThread.get() shouldNotBeEqualTo "cleanup-caller"
             result.isDone.shouldBeFalse()
 
             releaseCleanup.countDown()
-            result.get(2, TimeUnit.SECONDS) shouldBeEqualTo null
+            result.get(2.seconds).shouldBeNull()
             cleanupCalls.get() shouldBeEqualTo 1
         } finally {
             releaseCleanup.countDown()
@@ -159,35 +180,39 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
     fun `정상 cleanup 이후 변환 결과를 반환한다`() {
         val cleaned = AtomicInteger()
         val result = completeAfter(
-            source = CompletableFuture.completedFuture("done"),
+            source = completableFutureOf("done"),
             cleanup = { cleaned.incrementAndGet() },
         ) { value, _ ->
             cleaned.get() shouldBeEqualTo 1
             value
         }
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        result.get(2.seconds) shouldBeEqualTo "done"
     }
 
     @Test
     fun `action 성공 뒤 cleanup 오류는 결과 실패가 된다`() {
         val cleanupFailure = IllegalStateException("cleanup failed")
         val result = completeAfter(
-            source = CompletableFuture.completedFuture("done"),
+            source = completableFutureOf("done"),
             cleanup = { throw cleanupFailure },
         ) { value, _ -> value }
-        val failure = assertFailsWith<ExecutionException> { result.get(2, TimeUnit.SECONDS) }
-        (failure.cause === cleanupFailure).shouldBeTrue()
+
+        val failure = assertFailsWith<ExecutionException> {
+            result.get(2.seconds)
+        }
+        failure.cause shouldBe cleanupFailure
     }
 
     @Test
     fun `executor가 두 번 실행해도 cleanup은 한 번만 수행한다`() {
         val calls = AtomicInteger()
         val result = completeAfter(
-            source = CompletableFuture.completedFuture("done"),
-            executor = Executor { task -> task.run(); task.run() },
+            source = completableFutureOf("done"),
+            executor = { task -> task.run(); task.run() },
             cleanup = { calls.incrementAndGet() },
         ) { value, _ -> value }
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+
+        result.get(2.seconds) shouldBeEqualTo "done"
         calls.get() shouldBeEqualTo 1
     }
 
@@ -196,19 +221,21 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
         val started = CountDownLatch(1)
         val release = CountDownLatch(1)
         val cleaned = CountDownLatch(1)
+
         val result = completeAfter(
-            source = CompletableFuture.completedFuture("done"),
+            source = completableFutureOf("done"),
             cleanup = {
                 started.countDown()
-                release.await(2, TimeUnit.SECONDS).shouldBeTrue()
+                release.await(2.seconds).shouldBeTrue()
                 cleaned.countDown()
             },
         ) { value, _ -> value }
+
         try {
-            started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             release.countDown()
-            cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            cleaned.await(2.seconds).shouldBeTrue()
             result.isCancelled.shouldBeTrue()
         } finally {
             release.countDown()

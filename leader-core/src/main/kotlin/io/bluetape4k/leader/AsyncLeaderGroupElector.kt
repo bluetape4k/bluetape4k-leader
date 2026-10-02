@@ -3,9 +3,7 @@ package io.bluetape4k.leader
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -72,30 +70,20 @@ interface AsyncLeaderGroupElector: LeaderGroupElectionState {
         LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         val elected = AtomicBoolean(false)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
-        return LeaderFutureBridge.map(runAsyncIfLeader(slot.lockName, executor) {
-            elected.set(true)
-            cancellationRelay.invoke(action)
-        }, cancellationRelay) { value, failure ->
-            when {
-                failure != null && elected.get() -> failure.toActionFailedResult()
-                failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value)
-                else -> LeaderRunResult.Skipped
+        return LeaderFutureBridge
+            .map(
+                runAsyncIfLeader(slot.lockName, executor) {
+                    elected.set(true)
+                    cancellationRelay.invoke(action)
+                },
+                cancellationRelay
+            ) { value, failure ->
+                when {
+                    failure != null && elected.get() -> failure.toActionFailedResult()
+                    failure != null                  -> throw failure.asCompletionException()
+                    elected.get()                    -> LeaderRunResult.Elected(value)
+                    else                             -> LeaderRunResult.Skipped
+                }
             }
-        }
     }
-
-    private fun Throwable.unwrapCompletionCause(): Throwable =
-        (this as? CompletionException)?.cause ?: this
-
-    private fun Throwable.toActionFailedResult(): LeaderRunResult.ActionFailed {
-        val cause = unwrapCompletionCause()
-        if (cause is CancellationException) {
-            throw cause
-        }
-        return LeaderRunResult.ActionFailed(cause)
-    }
-
-    private fun Throwable.asCompletionException(): CompletionException =
-        this as? CompletionException ?: CompletionException(this)
 }

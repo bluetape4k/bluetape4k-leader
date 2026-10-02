@@ -7,11 +7,12 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
-import io.mockk.clearMocks
+import io.bluetape4k.logging.KLogging
+import io.mockk.Runs
+import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
-import io.mockk.Runs
 import io.mockk.verify
 import io.mockk.verifyOrder
 import org.junit.jupiter.api.BeforeEach
@@ -23,6 +24,8 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HazelcastLockOwnerAtomicTtlTest {
 
+    companion object: KLogging()
+
     private val mapName = "owner-atomic-locks"
     private val lockMap = mockk<IMap<String, String>>(relaxed = true)
     private val suspendLockMap = mockk<IMap<String, String>>(relaxed = true)
@@ -33,7 +36,7 @@ class HazelcastLockOwnerAtomicTtlTest {
 
     @BeforeEach
     fun beforeEach() {
-        clearMocks(lockMap, suspendLockMap, transactionContext, suspendTransactionContext, transactionMap, suspendTransactionMap)
+        clearAllMocks()
     }
 
     @Test
@@ -87,7 +90,14 @@ class HazelcastLockOwnerAtomicTtlTest {
         val token = lock.tokenForTest()
 
         prepareTransaction(lockKey, token)
-        every { transactionMap.put(lockKey, token, 30.seconds.inWholeMilliseconds, TimeUnit.MILLISECONDS) } returns token
+        every {
+            transactionMap.put(
+                lockKey,
+                token,
+                30.seconds.inWholeMilliseconds,
+                TimeUnit.MILLISECONDS
+            )
+        } returns token
 
         val outcome = lock.extendDetailed(30.seconds)
 

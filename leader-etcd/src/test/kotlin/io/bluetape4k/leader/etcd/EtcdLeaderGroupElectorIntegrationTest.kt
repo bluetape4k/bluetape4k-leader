@@ -1,22 +1,30 @@
 package io.bluetape4k.leader.etcd
 
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeEqualTo
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `runIfLeader allows max leaders and skips next contender`() {
@@ -25,14 +33,22 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
             val holder = EtcdLeaderGroupElector(
                 client,
                 EtcdLeaderGroupElectionOptions(
-                    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 5.seconds, leaseTime = 10.seconds),
+                    leaderGroupOptions = LeaderGroupElectionOptions(
+                        maxLeaders = 2,
+                        waitTime = 5.seconds,
+                        leaseTime = 10.seconds
+                    ),
                     keyPrefix = keyPrefix,
                 ),
             )
             val contender = EtcdLeaderGroupElector(
                 client,
                 EtcdLeaderGroupElectionOptions(
-                    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 250.milliseconds, leaseTime = 10.seconds),
+                    leaderGroupOptions = LeaderGroupElectionOptions(
+                        maxLeaders = 2,
+                        waitTime = 250.milliseconds,
+                        leaseTime = 10.seconds
+                    ),
                     keyPrefix = keyPrefix,
                 ),
             )
@@ -46,7 +62,7 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                     holder.runIfLeader(lockName) {
                         LockAssert.assertLocked(lockName)
                         started.countDown()
-                        release.await(10, TimeUnit.SECONDS)
+                        release.await(10.seconds)
                         "first"
                     }
                 }
@@ -54,19 +70,18 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                     holder.runIfLeader(lockName) {
                         LockAssert.assertLocked(lockName)
                         started.countDown()
-                        release.await(10, TimeUnit.SECONDS)
+                        release.await(10.seconds)
                         "second"
                     }
                 }
 
-                started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+                started.await(10.seconds).shouldBeTrue()
                 holder.activeCount(lockName) shouldBeEqualTo 2
                 holder.availableSlots(lockName) shouldBeEqualTo 0
                 contender.runIfLeader(lockName) { "third" }.shouldBeNull()
 
                 release.countDown()
-                setOf(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS)) shouldBeEqualTo
-                    setOf("first", "second")
+                setOf(first.get(10.seconds), second.get(10.seconds)) shouldBeEqualTo setOf("first", "second")
             } finally {
                 release.countDown()
                 executor.shutdownNow()
@@ -81,14 +96,22 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
             val holder = EtcdLeaderGroupElector(
                 client,
                 EtcdLeaderGroupElectionOptions(
-                    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 2.seconds, leaseTime = 10.seconds),
+                    leaderGroupOptions = LeaderGroupElectionOptions(
+                        maxLeaders = 1,
+                        waitTime = 2.seconds,
+                        leaseTime = 10.seconds
+                    ),
                     keyPrefix = keyPrefix,
                 ),
             )
             val contender = EtcdLeaderGroupElector(
                 client,
                 EtcdLeaderGroupElectionOptions(
-                    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 250.milliseconds, leaseTime = 10.seconds),
+                    leaderGroupOptions = LeaderGroupElectionOptions(
+                        maxLeaders = 1,
+                        waitTime = 250.milliseconds,
+                        leaseTime = 10.seconds
+                    ),
                     keyPrefix = keyPrefix,
                 ),
             )
@@ -102,7 +125,7 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
             empty.maxLeaders shouldBeEqualTo 1
             empty.activeCount shouldBeEqualTo 0
             empty.availableSlots shouldBeEqualTo 1
-            empty.leaders shouldBeEqualTo emptyList()
+            empty.leaders.shouldBeEmpty()
 
             try {
                 val holderFuture = executor.submit<String?> {
@@ -110,28 +133,29 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                         val state = holder.state(slot.lockName)
                         val lease = state.leaders.single()
 
+                        log.debug { "state=$state, lease=$lease" }
                         state.lockName shouldBeEqualTo slot.lockName
                         state.maxLeaders shouldBeEqualTo 1
                         state.activeCount shouldBeEqualTo 1
                         state.availableSlots shouldBeEqualTo 0
-                        lease.auditLeaderId.isNotBlank() shouldBeEqualTo true
+                        lease.auditLeaderId.isNotBlank().shouldBeTrue()
                         lease.auditLeaderId shouldNotBeEqualTo "etcd-group-state-audit-node-a"
                         // etcd group state exposes backend ownership metadata, not the caller's audit identity.
                         lease.nodeId shouldBeEqualTo null
                         lease.slot shouldBeEqualTo 0
                         lease.leaseUntil shouldBeEqualTo null
                         started.countDown()
-                        release.await(10, TimeUnit.SECONDS)
+                        release.await(10.seconds)
                         "holder"
                     }
                 }
 
-                started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+                started.await(10.seconds).shouldBeTrue()
                 contender.runIfLeader(slot.lockName) { "contender" }.shouldBeNull()
                 holder.state(slot.lockName).activeCount shouldBeEqualTo 1
 
                 release.countDown()
-                holderFuture.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+                holderFuture.get(10.seconds) shouldBeEqualTo "holder"
             } finally {
                 release.countDown()
                 executor.shutdownNow()
@@ -146,7 +170,11 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
     fun `released slot can be reacquired and state is updated`() {
         newClient().use { client ->
             val options = EtcdLeaderGroupElectionOptions(
-                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 2.seconds, leaseTime = 10.seconds),
+                leaderGroupOptions = LeaderGroupElectionOptions(
+                    maxLeaders = 2,
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds
+                ),
                 keyPrefix = "/bluetape4k/leader/test/${randomName()}",
             )
             val elector = EtcdLeaderGroupElector(client, options)
@@ -166,7 +194,11 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
     fun `activeCount ignores queued contenders for occupied slots`() {
         newClient().use { client ->
             val options = EtcdLeaderGroupElectionOptions(
-                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 2.seconds, leaseTime = 10.seconds),
+                leaderGroupOptions = LeaderGroupElectionOptions(
+                    maxLeaders = 1,
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds
+                ),
                 keyPrefix = "/bluetape4k/leader/test/${randomName()}",
             )
             val elector = EtcdLeaderGroupElector(client, options)
@@ -179,12 +211,12 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 val holder = executor.submit<String?> {
                     elector.runIfLeader(lockName) {
                         started.countDown()
-                        release.await(10, TimeUnit.SECONDS)
+                        release.await(10.seconds)
                         "holder"
                     }
                 }
 
-                started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+                started.await(10.seconds).shouldBeTrue()
 
                 val contender = Thread {
                     elector.runIfLeader(lockName) { "contender" }
@@ -195,9 +227,9 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 elector.state(lockName).activeCount shouldBeEqualTo 1
 
                 release.countDown()
-                holder.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+                holder.get(10.seconds) shouldBeEqualTo "holder"
                 contender.join(5_000)
-                contender.isAlive shouldBeEqualTo false
+                contender.isAlive.shouldBeFalse()
             } finally {
                 release.countDown()
                 executor.shutdownNow()
@@ -209,7 +241,11 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
     fun `LeaderSlot result carries audit leader id`() {
         newClient().use { client ->
             val options = EtcdLeaderGroupElectionOptions(
-                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 2.seconds, leaseTime = 10.seconds),
+                leaderGroupOptions = LeaderGroupElectionOptions(
+                    maxLeaders = 2,
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds
+                ),
                 keyPrefix = "/bluetape4k/leader/test/${randomName()}",
             )
             val elector = EtcdLeaderGroupElector(client, options)
@@ -229,7 +265,11 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
     fun `extendActiveLock works inside group body`() {
         newClient().use { client ->
             val options = EtcdLeaderGroupElectionOptions(
-                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 2.seconds, leaseTime = 10.seconds),
+                leaderGroupOptions = LeaderGroupElectionOptions(
+                    maxLeaders = 2,
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds
+                ),
                 keyPrefix = "/bluetape4k/leader/test/${randomName()}",
             )
             val elector = EtcdLeaderGroupElector(client, options)
@@ -238,7 +278,7 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 LockExtender.extendActiveLock(10.seconds)
             }
 
-            extended shouldBeEqualTo true
+            extended.shouldBeTrue()
         }
     }
 }

@@ -2,11 +2,14 @@ package io.bluetape4k.leader.micrometer
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderMetricTagOptionsTest {
+
+    companion object: KLogging()
 
     @Test
     fun `default options redact lock name and leader id`() {
@@ -68,6 +71,7 @@ class LeaderMetricTagOptionsTest {
         )
 
         rule.sanitize("tenant-42-job") shouldBeEqualTo "tenant"
+
         assertFailsWith<IllegalArgumentException> {
             LeaderMetricTagRule(mode = LeaderMetricTagMode.TRUNCATE, maxLength = 0)
         }
@@ -78,9 +82,11 @@ class LeaderMetricTagOptionsTest {
         assertFailsWith<IllegalArgumentException> {
             LeaderMetricTagRule(redactedValue = " ")
         }
+
         assertFailsWith<IllegalArgumentException> {
             LeaderMetricTagRule(mode = LeaderMetricTagMode.HASH, hashLength = 0)
         }
+
         assertFailsWith<IllegalArgumentException> {
             LeaderMetricTagRule(maxLength = -1)
         }
@@ -92,6 +98,7 @@ class LeaderMetricTagOptionsTest {
             defaultRule = LeaderMetricTagRule(redactedValue = "unknown"),
         )
 
-        LeaderMetricTagSanitizer.from(options).sanitize("custom.tag", "raw") shouldBeEqualTo "unknown"
+        LeaderMetricTagSanitizer.from(options)
+            .sanitize("custom.tag", "raw") shouldBeEqualTo "unknown"
     }
 }

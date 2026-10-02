@@ -8,6 +8,8 @@ import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.properties.LeaderTracingProperties
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.info
 import io.micrometer.observation.ObservationRegistry
 import org.springframework.beans.factory.DisposableBean
 import org.springframework.beans.factory.SmartInitializingSingleton
@@ -36,10 +38,12 @@ import kotlin.concurrent.withLock
     afterName = ["org.springframework.boot.micrometer.observation.autoconfigure.ObservationAutoConfiguration"],
     before = [LeaderAopAutoConfiguration::class],
 )
-@ConditionalOnClass(name = [
-    "io.micrometer.observation.ObservationRegistry",
-    "io.bluetape4k.leader.micrometer.MicrometerObservationLeaderAopMetricsRecorder",
-])
+@ConditionalOnClass(
+    name = [
+        "io.micrometer.observation.ObservationRegistry",
+        "io.bluetape4k.leader.micrometer.MicrometerObservationLeaderAopMetricsRecorder",
+    ]
+)
 @ConditionalOnProperty(
     prefix = "bluetape4k.leader.observability",
     name = ["enabled"],
@@ -141,7 +145,11 @@ class LeaderObservationAutoConfiguration {
 internal class ObservationRegistryLeaseExtensionCoordinator(
     private val beanFactory: ConfigurableListableBeanFactory,
     private val options: LeaderObservationOptions,
-) : SmartInitializingSingleton, DisposableBean {
+): SmartInitializingSingleton, DisposableBean {
+
+    private companion object: KLogging() {
+        private const val LEASE_EXTENSION_REGISTRATION_BEAN_NAME = "leaseExtensionObserverRegistration"
+    }
 
     private val lock = ReentrantLock()
     private var registration: LeaseExtensionObservationRegistrationManager.ManagedRegistration? = null
@@ -168,6 +176,7 @@ internal class ObservationRegistryLeaseExtensionCoordinator(
                 beanFactory.registerSingleton(LEASE_EXTENSION_REGISTRATION_BEAN_NAME, handle)
                 registration = handle
                 this.owner = owner
+                log.info { "Registered lease extension observation: handle=$handle" }
             } catch (ex: IllegalStateException) {
                 owner.clear(handle.scope)
                 handle.close()
@@ -178,6 +187,7 @@ internal class ObservationRegistryLeaseExtensionCoordinator(
 
     override fun destroy() {
         lock.withLock {
+            log.info { "Destroy $this" }
             val handle = registration
             if (handle != null) {
                 owner?.clear(handle.scope)
@@ -186,10 +196,6 @@ internal class ObservationRegistryLeaseExtensionCoordinator(
             registration = null
             owner = null
         }
-    }
-
-    private companion object {
-        private const val LEASE_EXTENSION_REGISTRATION_BEAN_NAME = "leaseExtensionObserverRegistration"
     }
 }
 

@@ -68,21 +68,21 @@ internal class ReadinessBoundaryDiagnostic(
     val containerState: String = containerState.toDiagnosticDetail()
 
     val boundary: ReadinessFailureBoundary = when {
-        mapping.status == ReadinessProbeStatus.FAILURE -> ReadinessFailureBoundary.PORT_MAPPING
-        internal.status == ReadinessProbeStatus.FAILURE -> ReadinessFailureBoundary.CONTAINER_SERVICE
+        mapping.status == ReadinessProbeStatus.FAILURE         -> ReadinessFailureBoundary.PORT_MAPPING
+        internal.status == ReadinessProbeStatus.FAILURE        -> ReadinessFailureBoundary.CONTAINER_SERVICE
         internal.status == ReadinessProbeStatus.SUCCESS &&
-            host.status == ReadinessProbeStatus.FAILURE &&
-            mapping.status == ReadinessProbeStatus.SUCCESS -> ReadinessFailureBoundary.HOST_FORWARDING
-        else -> ReadinessFailureBoundary.UNKNOWN
+                host.status == ReadinessProbeStatus.FAILURE &&
+                mapping.status == ReadinessProbeStatus.SUCCESS -> ReadinessFailureBoundary.HOST_FORWARDING
+        else                                                   -> ReadinessFailureBoundary.UNKNOWN
     }
 
     fun render(): String =
         "endpoint=${endpoint.name}:${endpoint.containerPort}${endpoint.path}, " +
-            "boundary=$boundary, " +
-            "internal=${internal.status}(${internal.detail}), " +
-            "host=${host.status}(${host.detail}), " +
-            "mapping=${mapping.status}(${mapping.detail}), " +
-            "containerState=$containerState"
+                "boundary=$boundary, " +
+                "internal=${internal.status}(${internal.detail}), " +
+                "host=${host.status}(${host.detail}), " +
+                "mapping=${mapping.status}(${mapping.detail}), " +
+                "containerState=$containerState"
 }
 
 /** 실패한 wait 대상에서 readiness 경계 증거를 수집합니다. */
@@ -95,7 +95,7 @@ internal class ReadinessBoundaryWaitStrategy(
     private val delegate: WaitStrategy,
     private val endpoint: ReadinessEndpoint,
     private val collector: ReadinessBoundaryDiagnosticCollector = DockerReadinessBoundaryDiagnosticCollector,
-) : WaitStrategy {
+): WaitStrategy {
 
     override fun waitUntilReady(waitStrategyTarget: WaitStrategyTarget) {
         try {
@@ -138,7 +138,7 @@ fun readinessBoundaryWaitStrategy(
         endpoint = endpoint,
     )
 
-private object DockerReadinessBoundaryDiagnosticCollector : ReadinessBoundaryDiagnosticCollector {
+private object DockerReadinessBoundaryDiagnosticCollector: ReadinessBoundaryDiagnosticCollector {
 
     override fun collect(
         target: WaitStrategyTarget,
@@ -239,9 +239,9 @@ private object DockerReadinessBoundaryDiagnosticCollector : ReadinessBoundaryDia
         }
 }
 
-private class AlpineHttpProbeContainer : GenericContainer<AlpineHttpProbeContainer>(ALPINE_PROBE_IMAGE)
+private class AlpineHttpProbeContainer: GenericContainer<AlpineHttpProbeContainer>(ALPINE_PROBE_IMAGE)
 
-private object NoOpWaitStrategy : WaitStrategy {
+private object NoOpWaitStrategy: WaitStrategy {
     override fun waitUntilReady(waitStrategyTarget: WaitStrategyTarget) = Unit
 
     override fun withStartupTimeout(startupTimeout: Duration): WaitStrategy = this

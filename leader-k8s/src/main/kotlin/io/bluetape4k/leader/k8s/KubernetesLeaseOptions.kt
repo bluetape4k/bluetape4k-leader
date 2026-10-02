@@ -18,7 +18,7 @@ data class KubernetesLeaseOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
     val namespace: String = "default",
     val retryDelay: Duration = 50.milliseconds,
-) : Serializable {
+): Serializable {
     init {
         KubernetesLeaseNames.validateNamespace(namespace)
         retryDelay.requireGt(Duration.ZERO, "retryDelay")

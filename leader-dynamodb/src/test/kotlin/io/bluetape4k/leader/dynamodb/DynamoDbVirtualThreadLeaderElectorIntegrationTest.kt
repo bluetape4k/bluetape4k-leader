@@ -3,17 +3,21 @@ package io.bluetape4k.leader.dynamodb
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LockAssert
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class DynamoDbVirtualThreadLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
+class DynamoDbVirtualThreadLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `single virtual-thread elector acquires and releases`() {
@@ -52,16 +56,18 @@ class DynamoDbVirtualThreadLeaderElectorIntegrationTest : AbstractDynamoDbLeader
             val holderFuture = executor.submit<String?> {
                 holder.runAsyncIfLeader(lockName) {
                     started.countDown()
-                    release.await(5, TimeUnit.SECONDS)
+                    release.await(5.seconds)
                     "holder"
                 }.await()
             }
 
-            started.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(5.seconds).shouldBeTrue()
+
             contender.runAsyncIfLeader(lockName) { "contender" }.await().shouldBeNull()
 
             release.countDown()
-            holderFuture.get(5, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+
+            holderFuture.get(5.seconds) shouldBeEqualTo "holder"
         } finally {
             release.countDown()
             executor.shutdownNow()
@@ -96,24 +102,31 @@ class DynamoDbVirtualThreadLeaderElectorIntegrationTest : AbstractDynamoDbLeader
             val first = executor.submit<String?> {
                 holder.runAsyncIfLeader(lockName) {
                     started.countDown()
-                    release.await(5, TimeUnit.SECONDS)
+                    release.await(5.seconds)
                     "first"
                 }.await()
             }
             val second = executor.submit<String?> {
                 holder.runAsyncIfLeader(lockName) {
                     started.countDown()
-                    release.await(5, TimeUnit.SECONDS)
+                    release.await(5.seconds)
                     "second"
                 }.await()
             }
 
-            started.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            started.await(5.seconds).shouldBeTrue()
             holder.activeCount(lockName) shouldBeEqualTo 2
             contender.runAsyncIfLeader(lockName) { "third" }.await().shouldBeNull()
 
             release.countDown()
-            setOf(first.get(5, TimeUnit.SECONDS), second.get(5, TimeUnit.SECONDS)) shouldBeEqualTo setOf("first", "second")
+
+            setOf(
+                first.get(5.seconds),
+                second.get(5.seconds)
+            ) shouldBeEqualTo setOf(
+                "first",
+                "second"
+            )
         } finally {
             release.countDown()
             executor.shutdownNow()

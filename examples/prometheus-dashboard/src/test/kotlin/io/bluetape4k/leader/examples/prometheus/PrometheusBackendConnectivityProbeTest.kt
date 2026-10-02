@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
@@ -170,7 +171,7 @@ class PrometheusBackendConnectivityProbeTest {
             lockName: String,
             executor: Executor,
             action: () -> CompletableFuture<T>,
-        ): CompletableFuture<T?> = CompletableFuture.completedFuture(null)
+        ): CompletableFuture<T?> = completableFutureOf(null)
     }
 
     private companion object {

@@ -17,7 +17,6 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -44,7 +43,7 @@ internal sealed interface LeaderStreamItem {
     data class Event(
         val sequence: Long,
         val event: LeaderElectionEvent,
-    ) : LeaderStreamItem {
+    ): LeaderStreamItem {
         override val kind: Kind = Kind.EVENT
     }
 
@@ -52,7 +51,7 @@ internal sealed interface LeaderStreamItem {
         val control: Kind,
         val from: Long? = null,
         val to: Long? = null,
-    ) : LeaderStreamItem {
+    ): LeaderStreamItem {
         init {
             require(control != Kind.EVENT) { "event control item cannot use EVENT kind" }
             if (control == Kind.REPLAY_GAP) {
@@ -87,13 +86,13 @@ internal class LeaderEventStreamHub(
     scope: CoroutineScope,
     private val maxConnections: Int = DEFAULT_MAX_CONNECTIONS,
     private val allLocksEnabled: Boolean = false,
-) : AutoCloseable, LeaderElectionCloseAwaiter {
+): AutoCloseable, LeaderElectionCloseAwaiter {
 
     internal constructor(
         publisher: LeaderElectionEventPublisher,
         config: LeaderEventStreamConfig,
         scope: CoroutineScope,
-    ) : this(
+    ): this(
         publisher = publisher,
         capacity = config.eventStreamReplayCapacity,
         scope = scope,
@@ -127,7 +126,7 @@ internal class LeaderEventStreamHub(
      */
     private val closeScope = CoroutineScope(
         scope.coroutineContext.minusKey(Job) +
-            kotlinx.coroutines.SupervisorJob(),
+                kotlinx.coroutines.SupervisorJob(),
     )
 
     @Suppress("TooGenericExceptionCaught")
@@ -192,7 +191,7 @@ internal class LeaderEventStreamHub(
         lockName: String? = null,
     ): List<LeaderStreamItem> = mutex.withLock {
         validateCursor(afterSequence)
-        if (lockName != null) validateLockName(lockName)
+        lockName?.validateLockName()
         replayLocked(afterSequence, lockName)
     }
 
@@ -328,7 +327,7 @@ internal class LeaderEventStreamHub(
             }
             return null
         }
-        validateLockName(lockName)
+        lockName.validateLockName()
         return lockName
     }
 
@@ -428,10 +427,10 @@ internal class LeaderEventStreamHub(
 /** connection admission이 상한에 도달했음을 나타내는 내부 예외입니다. */
 internal class LeaderEventStreamConnectionLimitException(
     val limit: Int,
-) : IllegalStateException("event stream connection limit reached: $limit")
+): IllegalStateException("event stream connection limit reached: $limit")
 
 /** 이미 닫힌 event stream hub에 연결을 시도했음을 나타내는 내부 예외입니다. */
-internal class LeaderEventStreamClosedException : IllegalStateException("event stream hub is closed")
+internal class LeaderEventStreamClosedException: IllegalStateException("event stream hub is closed")
 
 /** non-negative decimal cursor를 하나의 parser로 검증합니다. */
 internal fun parseLeaderEventStreamCursor(raw: String?): Long? {
@@ -444,4 +443,4 @@ internal fun parseLeaderEventStreamCursor(raw: String?): Long? {
         ?: throw IllegalArgumentException("event stream cursor is outside the supported range")
 }
 
-private object LeaderEventStreamHubLogger : KLogging()
+private object LeaderEventStreamHubLogger: KLogging()

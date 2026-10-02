@@ -3,16 +3,19 @@ package io.bluetape4k.leader.redisson
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.redis.redisson.codec.RedissonCodecs
 import org.junit.jupiter.api.Test
 import org.redisson.Redisson
 import org.redisson.api.RedissonClient
 import org.redisson.client.codec.StringCodec
 import org.redisson.codec.CompositeCodec
-import org.redisson.codec.Kryo5Codec
 import org.redisson.config.Config
 import kotlin.time.Duration.Companion.seconds
 
-class RedissonStrategicHeartbeatCodecTest : AbstractRedissonLeaderTest() {
+class RedissonStrategicHeartbeatCodecTest: AbstractRedissonLeaderTest() {
+
+    companion object: KLoggingChannel()
 
     @Test
     fun `composite codec는 blocking과 suspend refresh에서 map key와 value encoder를 각각 사용한다`() = runSuspendIO {
@@ -48,7 +51,7 @@ class RedissonStrategicHeartbeatCodecTest : AbstractRedissonLeaderTest() {
 
     private fun createAsymmetricCodecClient(): RedissonClient {
         val config = Config().apply {
-            setCodec(CompositeCodec(StringCodec.INSTANCE, Kryo5Codec()))
+            setCodec(CompositeCodec(StringCodec.INSTANCE, RedissonCodecs.FastFory))
             useSingleServer()
                 .setAddress(redisUrl)
                 .setConnectionPoolSize(8)

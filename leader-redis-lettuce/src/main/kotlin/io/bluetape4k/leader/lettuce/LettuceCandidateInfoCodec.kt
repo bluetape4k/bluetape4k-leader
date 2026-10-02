@@ -42,7 +42,11 @@ internal object LettuceCandidateInfoCodec {
         }
     }
 
-    private fun String.esc() = replace("%", "%25").replace("|", "%7C").replace(",", "%2C").replace("=", "%3D")
+    private fun String.esc() =
+        replace("%", "%25")
+            .replace("|", "%7C")
+            .replace(",", "%2C")
+            .replace("=", "%3D")
 
     /**
      * `String` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.

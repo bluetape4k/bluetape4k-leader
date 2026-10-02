@@ -2,20 +2,23 @@ package io.bluetape4k.leader.coroutines
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.internal.LeaderLockHandleCapture
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.coroutines.coroutineContext
-import io.bluetape4k.assertions.shouldBeTrue
 
 /**
  * [LocalSuspendLeaderGroupElector] capture integration test.
@@ -27,6 +30,8 @@ import io.bluetape4k.assertions.shouldBeTrue
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Suppress("NonAsciiCharacters")
 class LocalSuspendLeaderGroupElectorCaptureTest {
+
+    companion object: KLoggingChannel()
 
     private val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
 
@@ -41,19 +46,22 @@ class LocalSuspendLeaderGroupElectorCaptureTest {
     fun `group runIfLeader uses LockHandleElement only across dispatcher hops`() = runSuspendIO {
         val checks = AtomicInteger()
 
-        repeat(100) {
-            election.runIfLeader(randomLockName()) {
-                assertCoroutineContextOnly(checks)
-
-                withContext(Dispatchers.IO) {
+        SuspendedJobTester()
+            .rounds(100)
+            .add {
+                election.runIfLeader(randomLockName()) {
                     assertCoroutineContextOnly(checks)
-                }
 
-                withContext(Dispatchers.Default) {
-                    assertCoroutineContextOnly(checks)
+                    withContext(Dispatchers.IO) {
+                        assertCoroutineContextOnly(checks)
+                    }
+
+                    withContext(Dispatchers.Default) {
+                        assertCoroutineContextOnly(checks)
+                    }
                 }
             }
-        }
+            .run()
 
         checks.get() shouldBeEqualTo 300
         LeaderLockHandleCapture.poll().shouldBeNull()
@@ -61,9 +69,11 @@ class LocalSuspendLeaderGroupElectorCaptureTest {
 
     private suspend fun assertCoroutineContextOnly(checks: AtomicInteger) {
         LeaderLockHandleCapture.poll().shouldBeNull()
-        coroutineContext[LockHandleElement].shouldNotBeNull()
+        currentCoroutineContext()[LockHandleElement].shouldNotBeNull()
         LockAssert.isLockedSuspend().shouldBeTrue()
 
-        checks.incrementAndGet()
+        checks.incrementAndGet().apply {
+            log.debug { "check=$this" }
+        }
     }
 }

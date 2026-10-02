@@ -2,19 +2,24 @@ package io.bluetape4k.leader.exposed.jdbc.lock
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import io.bluetape4k.apache.containsIgnoreCase
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
-import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElector
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.utils.Runtimex
 import org.jetbrains.exposed.v1.core.Transaction
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -27,11 +32,11 @@ import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.util.concurrent.CyclicBarrier
-import java.util.concurrent.Callable
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.time.Instant
+import java.util.concurrent.Callable
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.Executors
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -40,7 +45,9 @@ import kotlin.time.Duration.Companion.seconds
  * DB-time 그룹 락이 소유권 경계마다 한 번만 server-time을 읽고, delete-only 해제에서는 읽지 않는지 고정합니다.
  * 또한 JDBC connection pool보다 많은 경합자가 커넥션을 모두 반환하는지 확인합니다.
  */
-class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
+class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
+
+    companion object: KLogging()
 
     @ParameterizedTest
     @MethodSource("enableDialects")
@@ -59,8 +66,8 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
             lock.tryLock(Duration.ZERO, 10.seconds)
         }
 
-        sql.currentTimestampCount().shouldBeEqualTo(1)
-        sql.size.shouldBeEqualTo(4)
+        sql.currentTimestampCount() shouldBeEqualTo 1
+        sql.size shouldBeEqualTo 4
         lock.unlock()
     }
 
@@ -80,8 +87,8 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
 
         val sql = recordSql { lock.isHeldByCurrentInstance() }
 
-        sql.currentTimestampCount().shouldBeEqualTo(1)
-        sql.size.shouldBeEqualTo(2)
+        sql.currentTimestampCount() shouldBeEqualTo 1
+        sql.size shouldBeEqualTo 2
         lock.unlock()
     }
 
@@ -101,8 +108,8 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
 
         val sql = recordSql { lock.extendDetailed(10.seconds) }
 
-        sql.currentTimestampCount().shouldBeEqualTo(1)
-        sql.size.shouldBeEqualTo(2)
+        sql.currentTimestampCount() shouldBeEqualTo 1
+        sql.size shouldBeEqualTo 2
         lock.unlock()
     }
 
@@ -124,8 +131,8 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
             lock.unlock(minLeaseTime = 1.seconds, acquiredAtNanos = System.nanoTime())
         }
 
-        sql.currentTimestampCount().shouldBeEqualTo(1)
-        sql.size.shouldBeEqualTo(2)
+        sql.currentTimestampCount() shouldBeEqualTo 1
+        sql.size shouldBeEqualTo 2
         lock.unlock()
     }
 
@@ -145,8 +152,8 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
 
         val sql = recordSql { lock.unlock() }
 
-        sql.currentTimestampCount().shouldBeEqualTo(0)
-        sql.size.shouldBeEqualTo(1)
+        sql.currentTimestampCount() shouldBeEqualTo 0
+        sql.size shouldBeEqualTo 1
     }
 
     @ParameterizedTest
@@ -163,8 +170,8 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
 
         val sql = recordSql { election.activeCount(randomName()) }
 
-        sql.currentTimestampCount().shouldBeEqualTo(1)
-        sql.size.shouldBeEqualTo(2)
+        sql.currentTimestampCount() shouldBeEqualTo 1
+        sql.size shouldBeEqualTo 2
     }
 
     @ParameterizedTest
@@ -184,8 +191,8 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
             lock.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
         }
 
-        sql.currentTimestampCount().shouldBeEqualTo(0)
-        sql.size.shouldBeEqualTo(3)
+        sql.currentTimestampCount() shouldBeEqualTo 0
+        sql.size shouldBeEqualTo 3
         lock.unlock()
     }
 
@@ -207,7 +214,7 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
             LeaderGroupLockTable.update(
                 where = {
                     (LeaderGroupLockTable.lockName eq lockName) and
-                        (LeaderGroupLockTable.slot eq 0)
+                            (LeaderGroupLockTable.slot eq 0)
                 },
             ) {
                 it[LeaderGroupLockTable.lockedUntil] = Instant.EPOCH
@@ -225,8 +232,8 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
             takeover.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
         }
 
-        sql.currentTimestampCount().shouldBeEqualTo(1)
-        sql.size.shouldBeEqualTo(3)
+        sql.currentTimestampCount() shouldBeEqualTo 1
+        sql.size shouldBeEqualTo 3
         takeover.unlock()
         first.unlock()
     }
@@ -236,6 +243,7 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
     fun `DB 시간 오류 뒤 schema 복구 후 다시 획득할 수 있다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lock = ExposedJdbcGroupLock(
             db,
             randomName(),
@@ -244,19 +252,24 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
             useDbTime = true,
         )
 
-        transaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+        transaction(db) {
+            exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
+        }
+
         ExposedJdbcSchemaInitializer.resetFor(db)
+
         val failedSql = recordSql {
             lock.tryLock(Duration.ZERO, 10.seconds).shouldBeNull()
         }
-        failedSql.currentTimestampCount().shouldBeGreaterOrEqualTo(1)
+        failedSql.currentTimestampCount() shouldBeGreaterOrEqualTo 1
 
         ExposedJdbcSchemaInitializer.ensureSchema(db)
         cleanTables(db)
+
         val recoveredSql = recordSql {
             lock.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
         }
-        recoveredSql.currentTimestampCount().shouldBeEqualTo(1)
+        recoveredSql.currentTimestampCount() shouldBeEqualTo 1
         lock.unlock()
     }
 
@@ -271,8 +284,10 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
                 connectionTimeout = 5_000
             }
         )
-        val executor = Executors.newFixedThreadPool(16)
+        val coreSize = Runtimex.availableProcessors
+        val executor = Executors.newFixedThreadPool(coreSize)
         val lockName = randomName()
+
         try {
             val db = Database.connect(dataSource)
             ExposedJdbcSchemaInitializer.ensureSchema(db)
@@ -286,9 +301,9 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
             )
             holder.tryLock(Duration.ZERO, 30.seconds).shouldBeTrue()
 
-            val contenders = 16
+            val contenders = coreSize
             val barrier = CyclicBarrier(contenders + 1)
-            val futures = (0 until contenders).map {
+            val futures = List(contenders) {
                 executor.submit(Callable {
                     barrier.await()
                     val lock = ExposedJdbcGroupLock(
@@ -306,14 +321,16 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
                 })
             }
             barrier.await()
-            val results = futures.map { it.get(15, TimeUnit.SECONDS) }
-            results.count { it == false }.shouldBeEqualTo(contenders)
-            results.count { it == null }.shouldBeEqualTo(0)
+
+            val results = futures.map { it.get(15.seconds) }
+            results.count { it == false } shouldBeEqualTo contenders
+            results.count { it == null } shouldBeEqualTo 0
+
             holder.unlock()
 
             val pool = dataSource.hikariPoolMXBean.shouldNotBeNull()
-            pool.activeConnections.shouldBeEqualTo(0)
-            (pool.totalConnections <= 2).shouldBeTrue()
+            pool.activeConnections shouldBeEqualTo 0
+            pool.totalConnections shouldBeLessOrEqualTo 2
         } finally {
             executor.shutdownNow()
             dataSource.close()
@@ -332,11 +349,11 @@ class ExposedJdbcGroupLockQueryBudgetTest : AbstractExposedJdbcLeaderTest() {
     }
 
     private fun List<String>.currentTimestampCount(): Int = count {
-        it.contains("CURRENT_TIMESTAMP", ignoreCase = true)
+        it.containsIgnoreCase("CURRENT_TIMESTAMP")
     }
 
-    private class SqlRecorder : GlobalStatementInterceptor {
-        val sql = mutableListOf<String>()
+    private class SqlRecorder: GlobalStatementInterceptor {
+        val sql = ConcurrentLinkedQueue<String>()
 
         override fun beforeExecution(transaction: Transaction, context: StatementContext) {
             sql += context.sql(transaction)

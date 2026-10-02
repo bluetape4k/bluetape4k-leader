@@ -1,10 +1,13 @@
 package io.bluetape4k.leader.spring.route
 
+import io.bluetape4k.ToStringBuilder
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLease
@@ -14,6 +17,7 @@ import io.bluetape4k.leader.ListeningLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.leader.spring.route.mvc.LeaderMvcRouteGuardFactory
 import io.bluetape4k.leader.spring.route.webflux.LeaderWebFluxRouteGuardFactory
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.getBean
 import org.springframework.beans.factory.getBeansOfType
@@ -28,6 +32,8 @@ import java.util.concurrent.Executor
 
 class LeaderRouteGuardAutoConfigurationTest {
 
+    companion object: KLogging()
+
     private val runner = ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(LeaderRouteGuardAutoConfiguration::class.java))
 
@@ -36,9 +42,9 @@ class LeaderRouteGuardAutoConfigurationTest {
         runner
             .withUserConfiguration(MultipleElectorsWithCustomAuthority::class.java)
             .run { context ->
-                context.startupFailure shouldBeEqualTo null
-                context.getBeansOfType<LeaderRouteAuthorityRuntime>().isEmpty().shouldBeTrue()
-                context.getBeansOfType<StateLeaderRouteAuthority>().isEmpty().shouldBeTrue()
+                context.startupFailure.shouldBeNull()
+                context.getBeansOfType<LeaderRouteAuthorityRuntime>().shouldBeEmpty()
+                context.getBeansOfType<StateLeaderRouteAuthority>().shouldBeEmpty()
             }
     }
 
@@ -48,11 +54,10 @@ class LeaderRouteGuardAutoConfigurationTest {
             .withUserConfiguration(SingleElector::class.java)
             .withPropertyValues("bluetape4k.leader.route-guard.enabled=true")
             .run { context ->
-                context.startupFailure shouldBeEqualTo null
-                context.getBean<LeaderRouteAuthorityRuntime>().authority
-                    .shouldBeInstanceOf<StateLeaderRouteAuthority>()
-                context.getBeansOfType<LeaderMvcRouteGuardFactory>().size shouldBeEqualTo 1
-                context.getBeansOfType<LeaderWebFluxRouteGuardFactory>().size shouldBeEqualTo 1
+                context.startupFailure.shouldBeNull()
+                context.getBean<LeaderRouteAuthorityRuntime>().authority.shouldBeInstanceOf<StateLeaderRouteAuthority>()
+                context.getBeansOfType<LeaderMvcRouteGuardFactory>() shouldHaveSize 1
+                context.getBeansOfType<LeaderWebFluxRouteGuardFactory>() shouldHaveSize 1
             }
     }
 
@@ -65,11 +70,10 @@ class LeaderRouteGuardAutoConfigurationTest {
                 "bluetape4k.leader.route-guard.authority-mode=LEASE",
             )
             .run { context ->
-                context.startupFailure shouldBeEqualTo null
-                context.getBean<LeaderRouteLeaseRuntime>().acquirer
-                    .shouldBeInstanceOf<io.bluetape4k.leader.LeaderLeaseAcquirer>()
-                context.getBeansOfType<LeaderMvcRouteGuardFactory>().size shouldBeEqualTo 1
-                context.getBeansOfType<LeaderWebFluxRouteGuardFactory>().size shouldBeEqualTo 1
+                context.startupFailure.shouldBeNull()
+                context.getBean<LeaderRouteLeaseRuntime>().acquirer.shouldBeInstanceOf<io.bluetape4k.leader.LeaderLeaseAcquirer>()
+                context.getBeansOfType<LeaderMvcRouteGuardFactory>() shouldHaveSize 1
+                context.getBeansOfType<LeaderWebFluxRouteGuardFactory>() shouldHaveSize 1
             }
     }
 
@@ -84,8 +88,8 @@ class LeaderRouteGuardAutoConfigurationTest {
                 "bluetape4k.leader.route-guard.redirect.allowed-hosts[0]=leader.example",
             )
             .run { context ->
-                context.startupFailure.shouldNotBeNull().message.orEmpty() shouldContain
-                    LeaderRouteGuardConfigurationException.LEASE_REDIRECT_INCOMPATIBLE
+                context.startupFailure.shouldNotBeNull().message shouldContain
+                        LeaderRouteGuardConfigurationException.LEASE_REDIRECT_INCOMPATIBLE
             }
     }
 
@@ -95,8 +99,8 @@ class LeaderRouteGuardAutoConfigurationTest {
             .withUserConfiguration(SingleElector::class.java)
             .withPropertyValues("bluetape4k.leader.route-guard.enabled=true")
             .run { context ->
-                context.startupFailure shouldBeEqualTo null
-                context.getBeansOfType<LeaderRouteRedirectPolicy>().isEmpty().shouldBeTrue()
+                context.startupFailure.shouldBeNull()
+                context.getBeansOfType<LeaderRouteRedirectPolicy>().shouldBeEmpty()
             }
 
         runner
@@ -107,8 +111,8 @@ class LeaderRouteGuardAutoConfigurationTest {
                 "bluetape4k.leader.route-guard.redirect.allowed-hosts[0]=leader.example",
             )
             .run { context ->
-                context.startupFailure shouldBeEqualTo null
-                context.getBeansOfType<LeaderRouteRedirectPolicy>().size shouldBeEqualTo 1
+                context.startupFailure.shouldBeNull()
+                context.getBeansOfType<LeaderRouteRedirectPolicy>() shouldHaveSize 1
             }
     }
 
@@ -121,8 +125,8 @@ class LeaderRouteGuardAutoConfigurationTest {
                 "bluetape4k.leader.route-guard.redirect.allowed-hosts[0]=*.example",
             )
             .run { context ->
-                context.startupFailure shouldBeEqualTo null
-                context.getBeansOfType<LeaderRouteRedirectPolicy>().isEmpty().shouldBeTrue()
+                context.startupFailure.shouldBeNull()
+                context.getBeansOfType<LeaderRouteRedirectPolicy>().shouldBeEmpty()
             }
     }
 
@@ -147,9 +151,8 @@ class LeaderRouteGuardAutoConfigurationTest {
             .withUserConfiguration(SingleElector::class.java)
             .withPropertyValues("bluetape4k.leader.route-guard.enabled=true")
             .run { context ->
-                context.startupFailure shouldBeEqualTo null
-                context.getBean<LeaderRouteAuthorityRuntime>().authority
-                    .shouldBeInstanceOf<StateLeaderRouteAuthority>()
+                context.startupFailure.shouldBeNull()
+                context.getBean<LeaderRouteAuthorityRuntime>().authority.shouldBeInstanceOf<StateLeaderRouteAuthority>()
                 context.containsBean("leaderMvcRouteGuardFactory").shouldBeFalse()
                 context.containsBean("leaderWebFluxRouteGuardFactory").shouldBeFalse()
             }
@@ -162,8 +165,8 @@ class LeaderRouteGuardAutoConfigurationTest {
             .withUserConfiguration(SingleElector::class.java)
             .withPropertyValues("bluetape4k.leader.route-guard.enabled=true")
             .run { context ->
-                context.startupFailure shouldBeEqualTo null
-                context.getBeansOfType<LeaderMvcRouteGuardFactory>().size shouldBeEqualTo 1
+                context.startupFailure.shouldBeNull()
+                context.getBeansOfType<LeaderMvcRouteGuardFactory>() shouldHaveSize 1
                 context.containsBean("leaderWebFluxRouteGuardFactory").shouldBeFalse()
             }
     }
@@ -175,9 +178,9 @@ class LeaderRouteGuardAutoConfigurationTest {
             .withUserConfiguration(SingleElector::class.java)
             .withPropertyValues("bluetape4k.leader.route-guard.enabled=true")
             .run { context ->
-                context.startupFailure shouldBeEqualTo null
+                context.startupFailure.shouldBeNull()
                 context.containsBean("leaderMvcRouteGuardFactory").shouldBeFalse()
-                context.getBeansOfType<LeaderWebFluxRouteGuardFactory>().size shouldBeEqualTo 1
+                context.getBeansOfType<LeaderWebFluxRouteGuardFactory>() shouldHaveSize 1
             }
     }
 
@@ -188,9 +191,9 @@ class LeaderRouteGuardAutoConfigurationTest {
             .withUserConfiguration(SingleElector::class.java)
             .withPropertyValues("bluetape4k.leader.route-guard.enabled=true")
             .run { context ->
-                context.startupFailure shouldBeEqualTo null
+                context.startupFailure.shouldBeNull()
                 context.containsBean("leaderMvcRouteGuardFactory").shouldBeFalse()
-                context.getBeansOfType<LeaderWebFluxRouteGuardFactory>().size shouldBeEqualTo 1
+                context.getBeansOfType<LeaderWebFluxRouteGuardFactory>() shouldHaveSize 1
             }
     }
 
@@ -200,8 +203,8 @@ class LeaderRouteGuardAutoConfigurationTest {
             .withUserConfiguration(SingleElectorWithCustomAuthority::class.java)
             .withPropertyValues("bluetape4k.leader.route-guard.enabled=true")
             .run { context ->
-                context.startupFailure.shouldNotBeNull().message.orEmpty() shouldContain
-                    LeaderRouteGuardConfigurationException.AUTHORITY_MIXED
+                context.startupFailure.shouldNotBeNull().message shouldContain
+                        LeaderRouteGuardConfigurationException.AUTHORITY_MIXED
             }
     }
 
@@ -214,7 +217,7 @@ class LeaderRouteGuardAutoConfigurationTest {
                 "bluetape4k.leader.route-guard.elector-bean=secondElector",
             )
             .run { context ->
-                context.startupFailure shouldBeEqualTo null
+                context.startupFailure.shouldBeNull()
                 val runtime = context.getBean<LeaderRouteAuthorityRuntime>()
                 runtime.evaluate(LeaderSlot("orders", "second")) shouldBeEqualTo LeaderRouteDecision.Allowed
                 runtime.evaluate(LeaderSlot("orders", "first")) shouldBeEqualTo LeaderRouteDecision.NotLeader
@@ -227,8 +230,8 @@ class LeaderRouteGuardAutoConfigurationTest {
             .withUserConfiguration(MultipleElectors::class.java)
             .withPropertyValues("bluetape4k.leader.route-guard.enabled=true")
             .run { context ->
-                context.startupFailure.shouldNotBeNull().message.orEmpty() shouldContain
-                    LeaderRouteGuardConfigurationException.ELECTOR_AMBIGUOUS
+                context.startupFailure.shouldNotBeNull().message shouldContain
+                        LeaderRouteGuardConfigurationException.ELECTOR_AMBIGUOUS
             }
     }
 
@@ -241,8 +244,8 @@ class LeaderRouteGuardAutoConfigurationTest {
                 "bluetape4k.leader.route-guard.elector-bean=missingElector",
             )
             .run { context ->
-                context.startupFailure.shouldNotBeNull().message.orEmpty() shouldContain
-                    LeaderRouteGuardConfigurationException.ELECTOR_MISSING
+                context.startupFailure.shouldNotBeNull().message shouldContain
+                        LeaderRouteGuardConfigurationException.ELECTOR_MISSING
             }
     }
 
@@ -255,8 +258,8 @@ class LeaderRouteGuardAutoConfigurationTest {
                 "bluetape4k.leader.route-guard.elector-bean=notElector",
             )
             .run { context ->
-                context.startupFailure.shouldNotBeNull().message.orEmpty() shouldContain
-                    LeaderRouteGuardConfigurationException.ELECTOR_MISSING
+                context.startupFailure.shouldNotBeNull().message shouldContain
+                        LeaderRouteGuardConfigurationException.ELECTOR_MISSING
             }
     }
 
@@ -266,8 +269,8 @@ class LeaderRouteGuardAutoConfigurationTest {
             .withUserConfiguration(UnsupportedStateElector::class.java)
             .withPropertyValues("bluetape4k.leader.route-guard.enabled=true")
             .run { context ->
-                context.startupFailure.shouldNotBeNull().message.orEmpty() shouldContain
-                    LeaderRouteGuardConfigurationException.ELECTOR_STATE_UNSUPPORTED
+                context.startupFailure.shouldNotBeNull().message shouldContain
+                        LeaderRouteGuardConfigurationException.ELECTOR_STATE_UNSUPPORTED
             }
     }
 
@@ -277,8 +280,8 @@ class LeaderRouteGuardAutoConfigurationTest {
             .withUserConfiguration(WrappedUnsupportedStateElector::class.java)
             .withPropertyValues("bluetape4k.leader.route-guard.enabled=true")
             .run { context ->
-                context.startupFailure.shouldNotBeNull().message.orEmpty() shouldContain
-                    LeaderRouteGuardConfigurationException.ELECTOR_STATE_UNSUPPORTED
+                context.startupFailure.shouldNotBeNull().message shouldContain
+                        LeaderRouteGuardConfigurationException.ELECTOR_STATE_UNSUPPORTED
             }
     }
 
@@ -288,7 +291,7 @@ class LeaderRouteGuardAutoConfigurationTest {
             .withUserConfiguration(MultipleElectorsWithPrimary::class.java)
             .withPropertyValues("bluetape4k.leader.route-guard.enabled=true")
             .run { context ->
-                context.startupFailure shouldBeEqualTo null
+                context.startupFailure.shouldBeNull()
                 val runtime = context.getBean<LeaderRouteAuthorityRuntime>()
                 runtime.evaluate(LeaderSlot("orders", "primary")) shouldBeEqualTo LeaderRouteDecision.Allowed
                 runtime.evaluate(LeaderSlot("orders", "secondary")) shouldBeEqualTo LeaderRouteDecision.NotLeader
@@ -301,8 +304,8 @@ class LeaderRouteGuardAutoConfigurationTest {
             .withUserConfiguration(ReservedNameCustomAuthority::class.java)
             .withPropertyValues("bluetape4k.leader.route-guard.enabled=true")
             .run { context ->
-                context.startupFailure.shouldNotBeNull().message.orEmpty() shouldContain
-                    LeaderRouteGuardConfigurationException.AUTHORITY_MIXED
+                context.startupFailure.shouldNotBeNull()
+                    .message shouldContain LeaderRouteGuardConfigurationException.AUTHORITY_MIXED
             }
     }
 
@@ -315,8 +318,8 @@ class LeaderRouteGuardAutoConfigurationTest {
                 "bluetape4k.leader.route-guard.authority-mode=custom",
             )
             .run { context ->
-                context.startupFailure shouldBeEqualTo null
-                context.getBeansOfType<StateLeaderRouteAuthority>().isEmpty().shouldBeTrue()
+                context.startupFailure.shouldBeNull()
+                context.getBeansOfType<StateLeaderRouteAuthority>().shouldBeEmpty()
                 val runtime = context.getBean<LeaderRouteAuthorityRuntime>()
                 runtime.evaluate(LeaderSlot("orders", "node-a")) shouldBeEqualTo LeaderRouteDecision.Allowed
             }
@@ -330,8 +333,8 @@ class LeaderRouteGuardAutoConfigurationTest {
                 "bluetape4k.leader.route-guard.authority-mode=custom",
             )
             .run { context ->
-                context.startupFailure.shouldNotBeNull().message.orEmpty() shouldContain
-                    LeaderRouteGuardConfigurationException.AUTHORITY_MISSING
+                context.startupFailure.shouldNotBeNull()
+                    .message shouldContain LeaderRouteGuardConfigurationException.AUTHORITY_MISSING
             }
     }
 
@@ -344,8 +347,8 @@ class LeaderRouteGuardAutoConfigurationTest {
                 "bluetape4k.leader.route-guard.authority-mode=custom",
             )
             .run { context ->
-                context.startupFailure.shouldNotBeNull().message.orEmpty() shouldContain
-                    LeaderRouteGuardConfigurationException.AUTHORITY_AMBIGUOUS
+                context.startupFailure.shouldNotBeNull()
+                    .message shouldContain LeaderRouteGuardConfigurationException.AUTHORITY_AMBIGUOUS
             }
     }
 
@@ -359,8 +362,8 @@ class LeaderRouteGuardAutoConfigurationTest {
                 "bluetape4k.leader.route-guard.elector-bean=elector",
             )
             .run { context ->
-                context.startupFailure.shouldNotBeNull().message.orEmpty() shouldContain
-                    LeaderRouteGuardConfigurationException.AUTHORITY_MIXED
+                context.startupFailure.shouldNotBeNull()
+                    .message shouldContain LeaderRouteGuardConfigurationException.AUTHORITY_MIXED
             }
     }
 
@@ -466,7 +469,7 @@ class LeaderRouteGuardAutoConfigurationTest {
 
     private class NamedStateElector(
         private val auditLeaderId: String,
-    ) : LeaderElector {
+    ): LeaderElector {
         override val supportsAuditLeaderState: Boolean = true
 
         override fun state(lockName: String): LeaderState =
@@ -479,9 +482,16 @@ class LeaderRouteGuardAutoConfigurationTest {
             executor: Executor,
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> = action().thenApply { it }
+
+        override fun toString(): String {
+            return ToStringBuilder(this)
+                .add("auditLeaderId", auditLeaderId)
+                .add("supportsAuditLeaderState", supportsAuditLeaderState)
+                .toString()
+        }
     }
 
-    private class UnsupportedElector : LeaderElector {
+    private class UnsupportedElector: LeaderElector {
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? = action()
 
         override fun <T> runAsyncIfLeader(

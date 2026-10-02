@@ -1,15 +1,15 @@
 package io.bluetape4k.leader.metrics
 
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContainAll
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SkipReasonTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @Test
     fun `enum 항목 3개 존재 확인`() {

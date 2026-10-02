@@ -12,7 +12,7 @@ import io.lettuce.core.codec.StringCodec
 abstract class AbstractLettuceLeaderTest {
 
     companion object: KLogging() {
-        val redis = RedisServer.Launcher.redis
+        val redis by lazy { RedisServer.Launcher.redis }
 
         val redisUri: String get() = redis.url
 

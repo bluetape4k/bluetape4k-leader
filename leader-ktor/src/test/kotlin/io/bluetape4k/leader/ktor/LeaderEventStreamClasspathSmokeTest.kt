@@ -1,11 +1,16 @@
 package io.bluetape4k.leader.ktor
 
+import io.bluetape4k.logging.KLogging
+import okio.withLock
+import org.junit.jupiter.api.Test
 import java.io.File
 import java.net.URL
 import java.net.URLClassLoader
-import org.junit.jupiter.api.Test
+import java.util.concurrent.locks.ReentrantLock
 
 class LeaderEventStreamClasspathSmokeTest {
+
+    companion object: KLogging()
 
     @Test
     fun `always loaded bootstrap is isolated from optional stream artifacts`() {
@@ -16,6 +21,7 @@ class LeaderEventStreamClasspathSmokeTest {
             add(mainLocation)
             System.getProperty("java.class.path")
                 .split(File.pathSeparator)
+                .asSequence()
                 .filter(String::isNotBlank)
                 .map(::File)
                 .map(File::toURI)
@@ -24,6 +30,7 @@ class LeaderEventStreamClasspathSmokeTest {
                 .filterNot { it.file.contains("ktor-server-websockets") }
                 .filterNot { it.file.contains("ktor-server-status-pages") }
                 .filterNot { it == mainLocation }
+                .toList()
                 .forEach(::add)
         }
 
@@ -37,14 +44,14 @@ class LeaderEventStreamClasspathSmokeTest {
 
         println(
             "optional event stream smoke: filteredRuntimeUrls=" +
-                filteredRuntimeUrls.joinToString(",") { it.toString() } +
-                "; bootstrap=plugin=config loaded; optional adapters not loaded",
+                    filteredRuntimeUrls.joinToString(",") { it.toString() } +
+                    "; bootstrap=plugin=config loaded; optional adapters not loaded",
         )
     }
 
     private class MissingEventTransportClassLoader(
         private val delegate: ClassLoader,
-    ) : ClassLoader(null) {
+    ): ClassLoader(null) {
         override fun loadClass(name: String, resolve: Boolean): Class<*> {
             if (
                 name.startsWith("io.ktor.server.sse") ||
@@ -61,10 +68,12 @@ class LeaderEventStreamClasspathSmokeTest {
     private class IsolatedLeaderClassLoader(
         urls: Array<URL>,
         parent: ClassLoader,
-    ) : URLClassLoader(urls, parent) {
+    ): URLClassLoader(urls, parent) {
+        private val lock = ReentrantLock()
+
         override fun loadClass(name: String, resolve: Boolean): Class<*> {
             if (name.startsWith("io.bluetape4k.leader.ktor.")) {
-                synchronized(getClassLoadingLock(name)) {
+                lock.withLock {
                     findLoadedClass(name)?.let { return it }
                     try {
                         val isolated = findClass(name)

@@ -1,8 +1,9 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectorFactory
-import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.logging.KLogging
 import org.redisson.api.RedissonClient
 
 /**
@@ -13,7 +14,9 @@ import org.redisson.api.RedissonClient
  */
 class RedissonLeaderElectorFactory(
     private val redissonClient: RedissonClient,
-) : LeaderElectorFactory {
+): LeaderElectorFactory {
+
+    companion object: KLogging()
 
     override fun create(options: LeaderElectionOptions): LeaderElector =
         RedissonLeaderElector(redissonClient, options)

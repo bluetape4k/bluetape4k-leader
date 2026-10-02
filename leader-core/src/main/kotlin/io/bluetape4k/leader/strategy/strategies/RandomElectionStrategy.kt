@@ -12,7 +12,7 @@ import kotlin.random.Random
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  * @property seed random 선출을 재현 가능하게 만드는 optional seed입니다.
  */
-class RandomElectionStrategy(val seed: Long? = null) : ElectionStrategy {
+class RandomElectionStrategy(val seed: Long? = null): ElectionStrategy {
 
     override fun elect(candidates: List<CandidateInfo>): ElectionResult {
         if (candidates.isEmpty()) return ElectionResult.EMPTY

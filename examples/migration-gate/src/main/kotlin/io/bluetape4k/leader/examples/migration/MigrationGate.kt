@@ -7,8 +7,8 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
-import kotlin.coroutines.cancellation.CancellationException
 import org.jetbrains.exposed.v1.jdbc.Database
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * `MigrationGate`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.

@@ -15,7 +15,7 @@ sealed interface LeaderAopMetricsContext {
      *
      * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
      */
-    data object Unknown : LeaderAopMetricsContext
+    data object Unknown: LeaderAopMetricsContext
 
     /**
      * `Identified` 선언은 leader election 계약에서 사용되는 data class입니다.
@@ -27,7 +27,7 @@ sealed interface LeaderAopMetricsContext {
     data class Identified(
         val leaderId: String,
         val leaderIdSource: LeaderIdSource,
-    ) : LeaderAopMetricsContext {
+    ): LeaderAopMetricsContext {
         init {
             leaderId.requireNotBlank("leaderId")
         }

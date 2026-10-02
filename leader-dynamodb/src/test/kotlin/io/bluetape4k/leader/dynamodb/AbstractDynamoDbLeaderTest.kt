@@ -1,7 +1,10 @@
 package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.testcontainers.aws.DynamoDbLocalServer
+import io.bluetape4k.utils.ShutdownQueue
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
@@ -23,8 +26,8 @@ import software.amazon.awssdk.services.dynamodb.model.TimeToLiveSpecification
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractDynamoDbLeaderTest {
 
-    companion object {
-        private val container = DynamoDbLocalServer.Launcher.dynamoDb
+    companion object: KLogging() {
+        private val dynamoDbServer = DynamoDbLocalServer.Launcher.dynamoDb
         private lateinit var syncClient: DynamoDbClient
         private lateinit var asyncClient: DynamoDbAsyncClient
         private lateinit var sharedTableName: String
@@ -32,21 +35,26 @@ abstract class AbstractDynamoDbLeaderTest {
         @BeforeAll
         @JvmStatic
         fun startDynamoDb() {
-            val endpoint = container.awsEndpoint
+            val endpoint = dynamoDbServer.awsEndpoint
             val credentials = StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(container.awsAccessKey, container.awsSecretKey),
+                AwsBasicCredentials.create(dynamoDbServer.awsAccessKey, dynamoDbServer.awsSecretKey),
             )
-            val region = Region.of(container.regionName)
+            val region = Region.of(dynamoDbServer.regionName)
+
             syncClient = DynamoDbClient.builder()
                 .endpointOverride(endpoint)
                 .credentialsProvider(credentials)
                 .region(region)
                 .build()
+                .apply { ShutdownQueue.register(this) }
+
             asyncClient = DynamoDbAsyncClient.builder()
                 .endpointOverride(endpoint)
                 .credentialsProvider(credentials)
                 .region(region)
                 .build()
+                .apply { ShutdownQueue.register(this) }
+
             sharedTableName = "leader_${Base58.randomString(12)}"
             createTable(syncClient, sharedTableName)
         }
@@ -63,6 +71,8 @@ abstract class AbstractDynamoDbLeaderTest {
         }
 
         private fun createTable(client: DynamoDbClient, tableName: String) {
+            log.debug { "Create table. tableName: $tableName" }
+
             client.createTable(
                 CreateTableRequest.builder()
                     .tableName(tableName)
@@ -82,6 +92,7 @@ abstract class AbstractDynamoDbLeaderTest {
                     .build(),
             )
             client.waiter().waitUntilTableExists { it.tableName(tableName) }
+
             runCatching {
                 client.updateTimeToLive {
                     it.tableName(tableName)
@@ -100,10 +111,7 @@ abstract class AbstractDynamoDbLeaderTest {
     protected val dynamoDbAsync: DynamoDbAsyncClient get() = asyncClient
     protected val tableName: String get() = sharedTableName
 
-    protected fun keyPrefix(): String =
-        "test-${Base58.randomString(8)}"
-
-    protected fun randomName(): String =
-        "leader-test-${Base58.randomString(8)}"
+    protected fun keyPrefix(): String = "test-${Base58.randomString(12)}"
+    protected fun randomName(): String = "leader-test-${Base58.randomString(12)}"
 
 }

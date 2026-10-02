@@ -2,12 +2,16 @@ package io.bluetape4k.leader.consul
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ConsulEndpointTest {
+
+    companion object: KLogging()
 
     @Test
     fun `accepts http endpoint and normalizes trailing slash`() {
@@ -18,6 +22,7 @@ class ConsulEndpointTest {
             requestTimeout = 3.seconds,
         )
 
+        log.debug { "endpoint=$endpoint" }
         endpoint.normalizedBaseUrl.toString() shouldBeEqualTo "http://localhost:8500"
         endpoint.datacenter shouldBeEqualTo "dc1"
         endpoint.aclToken shouldBeEqualTo "token"
@@ -45,6 +50,6 @@ class ConsulEndpointTest {
         val endpoint = ConsulEndpoint("http://localhost:8500", aclToken = "secret-token")
 
         endpoint.toString() shouldBeEqualTo
-            "ConsulEndpoint(baseUrl=http://localhost:8500, datacenter=null, aclToken=***, requestTimeout=5s)"
+                "ConsulEndpoint(baseUrl=http://localhost:8500, datacenter=null, aclToken=***, requestTimeout=5s)"
     }
 }

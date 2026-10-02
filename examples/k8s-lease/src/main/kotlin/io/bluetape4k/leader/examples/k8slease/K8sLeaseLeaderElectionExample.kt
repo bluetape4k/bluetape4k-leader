@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.examples.k8slease
 
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.support.requireNotBlank
@@ -34,7 +35,7 @@ class K8sLeaseLeaderElectionExample(
         require(!leaseDuration.isNegative && !leaseDuration.isZero) {
             "leaseDuration must be positive. leaseDuration=$leaseDuration"
         }
-        require(leaseDuration <= Duration.ofSeconds(Int.MAX_VALUE.toLong())) {
+        require(leaseDuration <= Int.MAX_VALUE.seconds()) {
             "leaseDuration is too large for Kubernetes leaseDurationSeconds. leaseDuration=$leaseDuration"
         }
     }

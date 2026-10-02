@@ -21,7 +21,7 @@ internal class LeaderRouteRedirectPolicy(
         null
     } else {
         when (evaluation.decision) {
-            LeaderRouteDecision.Allowed -> null
+            LeaderRouteDecision.Allowed   -> null
             LeaderRouteDecision.Unavailable -> {
                 observe(LeaderRouteRedirectFailureReason.UNAVAILABLE, framework)
                 null
@@ -49,19 +49,19 @@ internal class LeaderRouteRedirectPolicy(
             null
         }
         return when {
-            stale -> {
+            stale                                           -> {
                 observe(LeaderRouteRedirectFailureReason.STALE_LEASE, framework)
                 null
             }
 
-            target == null -> null
+            target == null                                  -> null
             !isMetadataTrusted(target, metadata, framework) -> null
             !LeaderRouteRedirectUriValidator.isSafe(target, normalized.allowedHosts) -> {
                 observe(LeaderRouteRedirectFailureReason.URI_REJECTED, framework)
                 null
             }
 
-            else -> target
+            else                                            -> target
         }
     }
 
@@ -136,7 +136,7 @@ internal object LeaderRouteRedirectUriValidator {
 
     fun isSafe(uri: URI, allowedHosts: Set<String>): Boolean =
         !hasUnsafeRawComponent(uri) &&
-            if (uri.isAbsolute) isSafeAbsolute(uri, allowedHosts) else isSafeRelative(uri)
+                if (uri.isAbsolute) isSafeAbsolute(uri, allowedHosts) else isSafeRelative(uri)
 
     private fun hasUnsafeRawComponent(uri: URI): Boolean {
         val raw = uri.toString()
@@ -145,8 +145,8 @@ internal object LeaderRouteRedirectUriValidator {
 
     private fun hasUnsafeRawText(raw: String): Boolean =
         raw.any { it.code <= ASCII_CONTROL_MAX || it.code == ASCII_DELETE } ||
-            raw.contains("%5c", ignoreCase = true) ||
-            raw.contains('\\')
+                raw.contains("%5c", ignoreCase = true) ||
+                raw.contains('\\')
 
     private fun hasUnsafeUriComponent(uri: URI): Boolean =
         uri.rawFragment != null || uri.isOpaque
@@ -164,15 +164,15 @@ internal object LeaderRouteRedirectUriValidator {
 
     private fun isSafeSchemeAndPort(uri: URI): Boolean =
         uri.scheme.equals("https", ignoreCase = true) &&
-            uri.rawUserInfo == null &&
-            uri.port == NO_EXPLICIT_PORT
+                uri.rawUserInfo == null &&
+                uri.port == NO_EXPLICIT_PORT
 
     private fun isSafeAuthority(uri: URI): Boolean {
         val authority = uri.rawAuthority ?: return false
         return !authority.endsWith(':') &&
-            !authority.contains('@') &&
-            !authority.contains("%40", ignoreCase = true) &&
-            !authority.contains("%5c", ignoreCase = true)
+                !authority.contains('@') &&
+                !authority.contains("%40", ignoreCase = true) &&
+                !authority.contains("%5c", ignoreCase = true)
     }
 
     private fun containsEncodedControl(value: String): Boolean {

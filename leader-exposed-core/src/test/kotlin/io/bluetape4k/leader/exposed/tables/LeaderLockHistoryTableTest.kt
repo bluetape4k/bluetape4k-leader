@@ -1,25 +1,27 @@
 package io.bluetape4k.leader.exposed.tables
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.exposed.tests.withTables
 import io.bluetape4k.leader.exposed.AbstractExposedTableTest
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterThan
-import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.leader.history.LeaderHistoryStatus
+import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.exists
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.insertAndGetId
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import io.bluetape4k.leader.history.LeaderHistoryStatus
-import io.bluetape4k.logging.KLogging
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import io.bluetape4k.assertions.shouldBeTrue
+import java.util.*
 
 class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
 
@@ -44,7 +46,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                     it[lockName] = "history-lock"
                     it[token] = Base58.randomString(8)
                     it[lockedUntil] = now.plusSeconds(60)
-                    it[status] = s.name
+                    it[status] = s
                     it[startedAt] = now
                     it[finishedAt] = if (s != LeaderHistoryStatus.ACQUIRED) now.plusSeconds(1) else null
                     it[durationMs] = if (s != LeaderHistoryStatus.ACQUIRED) 1000L else null
@@ -64,13 +66,13 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
         withTables(testDB, LeaderLockHistoryTable) {
             val now = Instant.now()
 
-            fun insertRow(): Long = LeaderLockHistoryTable.insert {
+            fun insertRow(): UUID = LeaderLockHistoryTable.insertAndGetId {
                 it[lockName] = "auto-inc"
                 it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
-                it[status] = LeaderHistoryStatus.ACQUIRED.name
+                it[status] = LeaderHistoryStatus.ACQUIRED
                 it[startedAt] = now
-            }[LeaderLockHistoryTable.id]
+            }.value
 
             val id1 = insertRow()
             val id2 = insertRow()
@@ -89,9 +91,9 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
             repeat(3) { i ->
                 LeaderLockHistoryTable.insert {
                     it[lockName] = name
-                    it[token] = Base58.randomString(8)
+                    it[token] = Base58.randomString(16)
                     it[lockedUntil] = now.plusSeconds(60)
-                    it[status] = LeaderHistoryStatus.COMPLETED.name
+                    it[status] = LeaderHistoryStatus.COMPLETED
                     it[startedAt] = now.plusSeconds(i.toLong())
                 }
             }
@@ -109,14 +111,14 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
         withTables(testDB, LeaderLockHistoryTable) {
             val now = Instant.now()
 
-            val id = LeaderLockHistoryTable.insert {
+            val id = LeaderLockHistoryTable.insertAndGetId {
                 it[lockName] = "nullable-test"
                 it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
-                it[status] = LeaderHistoryStatus.ACQUIRED.name
+                it[status] = LeaderHistoryStatus.ACQUIRED
                 it[startedAt] = now
                 // finishedAt, durationMs 미설정 — null 허용
-            }[LeaderLockHistoryTable.id]
+            }
 
             val row = LeaderLockHistoryTable.selectAll()
                 .where { LeaderLockHistoryTable.id eq id }
@@ -143,7 +145,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                     it[lockName] = "old-lock"
                     it[token] = Base58.randomString(8)
                     it[lockedUntil] = oldTime.plusSeconds(60)
-                    it[status] = LeaderHistoryStatus.COMPLETED.name
+                    it[status] = LeaderHistoryStatus.COMPLETED
                     it[startedAt] = oldTime
                 }
             }
@@ -152,7 +154,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                 it[lockName] = "recent-lock"
                 it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
-                it[status] = LeaderHistoryStatus.COMPLETED.name
+                it[status] = LeaderHistoryStatus.COMPLETED
                 it[startedAt] = now
             }
 

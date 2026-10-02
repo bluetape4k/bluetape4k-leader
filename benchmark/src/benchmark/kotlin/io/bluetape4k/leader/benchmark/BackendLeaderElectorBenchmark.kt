@@ -100,19 +100,19 @@ class BackendLeaderElectorBenchmark {
     fun setup() {
         lockName = "bench-$backend-blocking"
         elector = when (backend) {
-            "local" -> LocalLeaderElector(leaderOptions)
-            "lettuce" -> createLettuceElector()
-            "redisson" -> createRedissonElector()
-            "exposed-jdbc-h2" -> createExposedJdbcH2Elector()
+            "local"              -> LocalLeaderElector(leaderOptions)
+            "lettuce"            -> createLettuceElector()
+            "redisson"           -> createRedissonElector()
+            "exposed-jdbc-h2"    -> createExposedJdbcH2Elector()
             "exposed-jdbc-postgresql" -> createExposedJdbcPostgreSqlElector()
             "exposed-jdbc-mysql" -> createExposedJdbcMySqlElector()
-            "mongo" -> createMongoElector()
-            "hazelcast" -> createHazelcastElector()
-            "zookeeper" -> createZooKeeperElector()
-            "consul" -> createConsulElector()
-            "etcd" -> createEtcdElector()
-            "dynamodb" -> createDynamoDbElector()
-            else -> error("Unsupported backend: $backend")
+            "mongo"              -> createMongoElector()
+            "hazelcast"          -> createHazelcastElector()
+            "zookeeper"          -> createZooKeeperElector()
+            "consul"             -> createConsulElector()
+            "etcd"               -> createEtcdElector()
+            "dynamodb"           -> createDynamoDbElector()
+            else                 -> error("Unsupported backend: $backend")
         }
         require(elector.runIfLeader("$lockName-smoke") { true } == true) {
             "Benchmark backend failed leader election smoke check. backend=$backend"
@@ -323,5 +323,5 @@ class BackendLeaderElectorBenchmark {
             }
     }
 
-    companion object : KLogging()
+    companion object: KLogging()
 }

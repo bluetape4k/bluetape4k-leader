@@ -3,6 +3,7 @@ package io.bluetape4k.leader.examples.prometheus
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
@@ -159,6 +160,6 @@ class PrometheusLettuceConnectivityProbeTest {
             lockName: String,
             executor: Executor,
             action: () -> CompletableFuture<T>,
-        ): CompletableFuture<T?> = CompletableFuture.completedFuture(null)
+        ): CompletableFuture<T?> = completableFutureOf(null)
     }
 }

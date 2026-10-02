@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.examples.zookeeperscheduler
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.leader.examples.support.startExampleContainer
@@ -46,12 +48,12 @@ object ZooKeeperSchedulerDemo: KLogging() {
             val activeFuture = executor.submit<SchedulerRunReport> {
                 nodeA.runOnce(firstRun) {
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds)
                     listOf("read-ledger", "write-summary")
                 }
             }
 
-            check(started.await(10, TimeUnit.SECONDS)) {
+            check(started.await(10.seconds)) {
                 "node-a did not acquire ZooKeeper leadership"
             }
             val skipped = nodeB.runOnce(firstRun) {
@@ -59,7 +61,7 @@ object ZooKeeperSchedulerDemo: KLogging() {
             }
 
             release.countDown()
-            val active = activeFuture.get(10, TimeUnit.SECONDS)
+            val active = activeFuture.get(10.seconds)
             val reacquired = nodeB.runOnce(nextRun) {
                 listOf("read-ledger", "write-summary")
             }

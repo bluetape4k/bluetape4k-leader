@@ -13,7 +13,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.deleteWhere
-import org.jetbrains.exposed.v1.r2dbc.insert
+import org.jetbrains.exposed.v1.r2dbc.insertAndGetId
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
 import java.time.Instant
@@ -26,24 +26,24 @@ import java.time.Instant
  */
 class ExposedSuspendLeaderHistorySink(
     private val database: R2dbcDatabase,
-) : SuspendLeaderHistorySink {
+): SuspendLeaderHistorySink {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
         val id = suspendTransaction(database) {
-            LeaderLockHistoryTable.insert {
+            LeaderLockHistoryTable.insertAndGetId {
                 it[lockName] = record.lockName
                 it[token] = record.token
                 it[lockedUntil] = record.lockedUntil
-                it[status] = LeaderHistoryStatus.ACQUIRED.name
+                it[status] = LeaderHistoryStatus.ACQUIRED
                 it[startedAt] = record.acquiredAt
-                it[kind] = record.kind.name
+                it[kind] = record.kind
                 it[participantId] = record.nodeId
                 it[slotId] = record.slotId
                 it[slot] = record.slotId?.toIntOrNull()
                 it[metadata] = MetadataJsonCodec.encode(record.metadata)
-            }[LeaderLockHistoryTable.id]
+            }.value
         }
         return LeaderHistoryKey(id = id, lockName = record.lockName, token = record.token, slotId = record.slotId)
     }
@@ -90,7 +90,7 @@ class ExposedSuspendLeaderHistorySink(
                 { (LeaderLockHistoryTable.lockName eq key.lockName) and (LeaderLockHistoryTable.token eq key.token) }
             }
             LeaderLockHistoryTable.update(where = where) { row ->
-                row[LeaderLockHistoryTable.status] = status.name
+                row[LeaderLockHistoryTable.status] = status
                 row[LeaderLockHistoryTable.finishedAt] = finishedAt
                 row[LeaderLockHistoryTable.durationMs] = durationMs
                 row[LeaderLockHistoryTable.errorType] = errorType

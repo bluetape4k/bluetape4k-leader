@@ -11,13 +11,13 @@ import io.bluetape4k.support.requireGt
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  * @property suffixLength `suffixLength` 호출 또는 상태 계산에 필요한 값입니다.
  */
-class HostnamePidLeaderIdProvider(val suffixLength: Int = 8) : LeaderIdProvider {
+class HostnamePidLeaderIdProvider(val suffixLength: Int = 8): LeaderIdProvider {
+
+    companion object: KLogging()
 
     init {
         suffixLength.requireGt(0, "suffixLength")
     }
-
-    companion object : KLogging()
 
     override fun nextLeaderId(lockName: String): String =
         "${LeaderNodeId.Default}:${Base58.randomString(suffixLength)}"

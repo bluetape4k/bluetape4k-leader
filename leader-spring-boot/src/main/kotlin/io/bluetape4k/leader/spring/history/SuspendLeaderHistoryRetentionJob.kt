@@ -25,14 +25,14 @@ import java.time.temporal.ChronoUnit
  */
 class SuspendLeaderHistoryRetentionJob(
     private val sink: SuspendLeaderHistorySink,
-    @Value("\${bluetape4k.leader.history.retention.days:30}")
+    @Value($$"${bluetape4k.leader.history.retention.days:30}")
     private val retentionDays: Long = 30L,
-    @Value("\${bluetape4k.leader.history.retention.chunk-size:1000}")
+    @Value($$"${bluetape4k.leader.history.retention.chunk-size:1000}")
     private val chunkSize: Int = 1000,
-    @Value("\${bluetape4k.leader.history.retention.max-duration-ms:300000}")
+    @Value($$"${bluetape4k.leader.history.retention.max-duration-ms:300000}")
     private val maxDurationMs: Long = 300_000L,
-) : InitializingBean {
-    companion object : KLogging()
+): InitializingBean {
+    companion object: KLogging()
 
     override fun afterPropertiesSet() {
         if (sink === NoopSuspendLeaderHistorySink) {
@@ -40,7 +40,7 @@ class SuspendLeaderHistoryRetentionJob(
         }
     }
 
-    @Scheduled(cron = "\${bluetape4k.leader.history.retention.cron:0 0 2 * * ?}")
+    @Scheduled(cron = $$"${bluetape4k.leader.history.retention.cron:0 0 2 * * ?}")
     fun runRetention() {
         runRetentionGuarded().block()
     }

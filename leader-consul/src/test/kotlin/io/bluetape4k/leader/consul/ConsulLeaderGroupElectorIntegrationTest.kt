@@ -1,26 +1,33 @@
 package io.bluetape4k.leader.consul
 
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.infra.ConsulServer
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ConsulLeaderGroupElectorIntegrationTest {
+
+    companion object: KLogging()
 
     private val consul: ConsulServer by lazy { ConsulServer.Launcher.consul }
 
@@ -31,7 +38,7 @@ class ConsulLeaderGroupElectorIntegrationTest {
 
         elector.runIfLeader(lockName) {
             LockAssert.assertLocked(lockName)
-            LockExtender.extendActiveLock(10.seconds) shouldBeEqualTo true
+            LockExtender.extendActiveLock(10.seconds).shouldBeTrue()
             "first"
         } shouldBeEqualTo "first"
 
@@ -47,7 +54,11 @@ class ConsulLeaderGroupElectorIntegrationTest {
         )
         val contender = newElector(
             keyPrefix = keyPrefix,
-            groupOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 200.milliseconds, leaseTime = 10.seconds),
+            groupOptions = LeaderGroupElectionOptions(
+                maxLeaders = 2,
+                waitTime = 200.milliseconds,
+                leaseTime = 10.seconds
+            ),
         )
         val lockName = randomName()
         val started = CountDownLatch(2)
@@ -58,25 +69,27 @@ class ConsulLeaderGroupElectorIntegrationTest {
             val holderA = executor.submit<String?> {
                 holder.runIfLeader(lockName) {
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds)
                     "holder-a"
                 }
             }
             val holderB = executor.submit<String?> {
                 holder.runIfLeader(lockName) {
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds)
                     "holder-b"
                 }
             }
 
-            started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+            started.await(10.seconds).shouldBeTrue()
             contender.runIfLeader(lockName) { "contender" }.shouldBeNull()
             holder.state(lockName).activeCount shouldBeEqualTo 2
 
             release.countDown()
-            setOf(holderA.get(10, TimeUnit.SECONDS), holderB.get(10, TimeUnit.SECONDS)) shouldBeEqualTo
-                setOf("holder-a", "holder-b")
+            setOf(
+                holderA.get(10.seconds),
+                holderB.get(10.seconds)
+            ) shouldBeEqualTo setOf("holder-a", "holder-b")
         } finally {
             release.countDown()
             executor.shutdownNow()
@@ -97,7 +110,11 @@ class ConsulLeaderGroupElectorIntegrationTest {
         )
         val contender = newElector(
             keyPrefix = keyPrefix,
-            groupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 200.milliseconds, leaseTime = 10.seconds),
+            groupOptions = LeaderGroupElectionOptions(
+                maxLeaders = 1,
+                waitTime = 200.milliseconds,
+                leaseTime = 10.seconds
+            ),
         )
         val slot = LeaderSlot(lockName = randomName(), leaderId = "consul-group-state-audit-node-a")
         val empty = holder.state(slot.lockName)
@@ -109,7 +126,7 @@ class ConsulLeaderGroupElectorIntegrationTest {
         empty.maxLeaders shouldBeEqualTo 1
         empty.activeCount shouldBeEqualTo 0
         empty.availableSlots shouldBeEqualTo 1
-        empty.leaders shouldBeEqualTo emptyList()
+        empty.leaders.shouldBeEmpty()
 
         try {
             val holderFuture = executor.submit<String?> {
@@ -126,17 +143,17 @@ class ConsulLeaderGroupElectorIntegrationTest {
                     lease.slot shouldBeEqualTo 0
                     lease.leaseUntil.shouldNotBeNull()
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds).shouldBeTrue()
                     "holder"
                 }
             }
 
-            started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+            started.await(10.seconds).shouldBeTrue()
             contender.runIfLeader(slot.lockName) { "contender" }.shouldBeNull()
             holder.state(slot.lockName).activeCount shouldBeEqualTo 1
 
             release.countDown()
-            holderFuture.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+            holderFuture.get(10.seconds) shouldBeEqualTo "holder"
         } finally {
             release.countDown()
             executor.shutdownNow()
@@ -169,20 +186,29 @@ class ConsulLeaderGroupElectorIntegrationTest {
 
     @Test
     fun `runIfLeaderGroup endpoint extension executes action`() {
-        endpoint().runIfLeaderGroup(
-            lockName = randomName(),
-            options = ConsulLeaderGroupElectionOptions(
-                keyPrefix = keyPrefix(),
-                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 1.seconds, leaseTime = 10.seconds),
-            ),
-        ) {
-            "extension"
-        } shouldBeEqualTo "extension"
+        endpoint()
+            .runIfLeaderGroup(
+                lockName = randomName(),
+                options = ConsulLeaderGroupElectionOptions(
+                    keyPrefix = keyPrefix(),
+                    leaderGroupOptions = LeaderGroupElectionOptions(
+                        maxLeaders = 2,
+                        waitTime = 1.seconds,
+                        leaseTime = 10.seconds
+                    ),
+                ),
+            ) {
+                "extension"
+            } shouldBeEqualTo "extension"
     }
 
     private fun newElector(
         keyPrefix: String = keyPrefix(),
-        groupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 1.seconds, leaseTime = 10.seconds),
+        groupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions(
+            maxLeaders = 2,
+            waitTime = 1.seconds,
+            leaseTime = 10.seconds
+        ),
     ): ConsulLeaderGroupElector =
         ConsulLeaderGroupElector(
             endpoint(),
@@ -202,7 +228,7 @@ class ConsulLeaderGroupElectorIntegrationTest {
         "leader-group-test:${Base58.randomString(8)}"
 }
 
-private infix fun List<io.bluetape4k.leader.LeaderLease>.shouldHaveSingleLeader(auditLeaderId: String) {
+private infix fun List<LeaderLease>.shouldHaveSingleLeader(auditLeaderId: String) {
     singleOrNull().shouldNotBeNull()
     single().auditLeaderId shouldBeEqualTo auditLeaderId
 }

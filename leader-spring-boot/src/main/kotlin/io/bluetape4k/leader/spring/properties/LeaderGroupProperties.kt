@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.properties
 
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.logging.KLogging
 import java.time.Duration
 import kotlin.jvm.internal.DefaultConstructorMarker
 import kotlin.time.toKotlinDuration
@@ -24,7 +25,7 @@ data class LeaderGroupProperties(
         maxLeaders: Int,
         waitTime: Duration,
         leaseTime: Duration,
-    ) : this(maxLeaders, waitTime, leaseTime, false)
+    ): this(maxLeaders, waitTime, leaseTime, false)
 
     /** Kotlin이 `useDbTime` 추가 전에 공개한 세 인자 기본 생성자 descriptor를 보존합니다. */
     @Suppress("UNUSED_PARAMETER")
@@ -34,7 +35,7 @@ data class LeaderGroupProperties(
         leaseTime: Duration,
         mask: Int,
         marker: DefaultConstructorMarker?,
-    ) : this(
+    ): this(
         maxLeaders = if (mask and 0x001 != 0) DefaultMaxLeaders else maxLeaders,
         waitTime = if (mask and 0x002 != 0) DefaultWaitTime else waitTime,
         leaseTime = if (mask and 0x004 != 0) DefaultLeaseTime else leaseTime,
@@ -52,7 +53,8 @@ data class LeaderGroupProperties(
         leaseTime = leaseTime,
         useDbTime = useDbTime,
     )
-    companion object {
+
+    companion object: KLogging() {
         const val DefaultMaxLeaders: Int = 2
         val DefaultWaitTime: Duration = Duration.ofSeconds(5)
         val DefaultLeaseTime: Duration = Duration.ofSeconds(60)

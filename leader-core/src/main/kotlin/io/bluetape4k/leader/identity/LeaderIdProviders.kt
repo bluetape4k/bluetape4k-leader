@@ -19,11 +19,9 @@ private val log = KotlinLogging.logger {}
 fun safeNextLeaderId(provider: LeaderIdProvider, lockName: String): String {
     return try {
         val result = provider.nextLeaderId(lockName)
-        if (result.isBlank()) {
+        result.ifBlank {
             log.warn { "[safeNextLeaderId] Provider returned blank for lockName='$lockName', falling back to default." }
             RandomLeaderIdProvider.Default.nextLeaderId(lockName)
-        } else {
-            result
         }
     } catch (e: CancellationException) {
         throw e

@@ -15,8 +15,8 @@ internal object ZooKeeperBackendErrorClassifier: BackendErrorClassifier {
         is KeeperException.ConnectionLossException -> BackendErrorKind.TRANSIENT
         is KeeperException.OperationTimeoutException -> BackendErrorKind.TRANSIENT
         is KeeperException.SessionExpiredException -> BackendErrorKind.NON_TRANSIENT
-        is KeeperException.SessionMovedException -> BackendErrorKind.NON_TRANSIENT
-        is KeeperException -> BackendErrorKind.NON_TRANSIENT
-        else -> null
+        is KeeperException.SessionMovedException   -> BackendErrorKind.NON_TRANSIENT
+        is KeeperException                         -> BackendErrorKind.NON_TRANSIENT
+        else                                       -> null
     }
 }

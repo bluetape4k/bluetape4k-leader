@@ -1,20 +1,26 @@
 package io.bluetape4k.leader.spring.properties
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.time.Duration
 
 class LeaderRouteRedirectPropertiesTest {
 
+    companion object: KLogging()
+
     @Test
     fun `default redirect policy is disabled and empty`() {
         val properties = LeaderRouteRedirectProperties()
 
+        log.debug { "properties=$properties" }
         properties.enabled.shouldBeFalse()
-        properties.allowedHosts shouldBeEqualTo emptyList()
-        properties.trustedProxyAddresses shouldBeEqualTo emptyList()
+        properties.allowedHosts.shouldBeEmpty()
+        properties.trustedProxyAddresses.shouldBeEmpty()
         properties.leaseSafetyWindow shouldBeEqualTo Duration.ZERO
     }
 

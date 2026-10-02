@@ -17,7 +17,7 @@ data class LeaderRouteRedirectContext(
     val leaderState: LeaderState?,
     val evaluatedAt: Instant,
     val leaseSafetyWindow: Duration,
-) : Serializable {
+): Serializable {
     private companion object {
         const val serialVersionUID: Long = 1L
     }

@@ -6,19 +6,33 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
+import io.bluetape4k.logging.KLogging
 import io.lettuce.core.KeyValue
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.reactive.RedisReactiveCommands
 import io.lettuce.core.api.sync.RedisCommands
+import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
 
 class LettuceStrategicCandidateLookupFailureTest {
+
+    companion object: KLogging()
+
+    private val connection = mockk<StatefulRedisConnection<String, String>>()
+    private val commands = mockk<RedisCommands<String, String>>()
+    private val reactive = mockk<RedisReactiveCommands<String, String>>()
+
+    @BeforeEach
+    fun beforeEach() {
+        clearMocks(connection, commands, reactive)
+    }
 
     @Test
     fun `blocking single candidate lookup backend exception is rethrown`() {
@@ -163,16 +177,12 @@ class LettuceStrategicCandidateLookupFailureTest {
     }
 
     private fun blockingConnection(failure: Throwable): StatefulRedisConnection<String, String> {
-        val connection = mockk<StatefulRedisConnection<String, String>>()
-        val commands = mockk<RedisCommands<String, String>>()
         every { connection.sync() } returns commands
         every { commands.smembers(any()) } throws failure
         return connection
     }
 
     private fun blockingCodecFailureConnection(): StatefulRedisConnection<String, String> {
-        val connection = mockk<StatefulRedisConnection<String, String>>()
-        val commands = mockk<RedisCommands<String, String>>()
         every { connection.sync() } returns commands
         every { commands.smembers(any()) } returns setOf("node-1")
         every { commands.get(any()) } returns null
@@ -190,16 +200,12 @@ class LettuceStrategicCandidateLookupFailureTest {
     }
 
     private fun suspendConnection(failure: Throwable): StatefulRedisConnection<String, String> {
-        val connection = mockk<StatefulRedisConnection<String, String>>()
-        val reactive = mockk<RedisReactiveCommands<String, String>>()
         every { connection.reactive() } returns reactive
         every { reactive.smembers(any()) } returns Flux.error(failure)
         return connection
     }
 
     private fun suspendCodecFailureConnection(): StatefulRedisConnection<String, String> {
-        val connection = mockk<StatefulRedisConnection<String, String>>()
-        val reactive = mockk<RedisReactiveCommands<String, String>>()
         every { connection.reactive() } returns reactive
         every { reactive.smembers(any()) } returns Flux.just("node-1")
         every { reactive.get(any()) } returns Mono.empty()

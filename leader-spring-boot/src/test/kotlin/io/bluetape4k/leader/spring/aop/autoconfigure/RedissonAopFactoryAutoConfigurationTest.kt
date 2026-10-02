@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.aop.autoconfigure
 
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
@@ -10,7 +11,6 @@ import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElectorFactory
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.spring.AbstractRedissonAutoConfigurationTest
 import io.bluetape4k.leader.spring.LeaderTestApplication
-import io.bluetape4k.assertions.shouldBeInstanceOf
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.redisson.api.RedissonClient
@@ -28,15 +28,18 @@ import org.springframework.context.annotation.Bean
  * 4종 Redisson factory 빈이 등록된다.
  */
 @SpringBootTest(
-    classes = [LeaderTestApplication::class, RedissonAopFactoryAutoConfigurationTest.TestConfig::class],
+    classes = [
+        LeaderTestApplication::class,
+        RedissonAopFactoryAutoConfigurationTest.TestConfig::class
+    ],
     webEnvironment = SpringBootTest.WebEnvironment.NONE
 )
 @ImportAutoConfiguration(LeaderAopFactoryAutoConfiguration::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class RedissonAopFactoryAutoConfigurationTest : AbstractRedissonAutoConfigurationTest() {
+class RedissonAopFactoryAutoConfigurationTest: AbstractRedissonAutoConfigurationTest() {
 
     @TestConfiguration
-    open class TestConfig {
+    class TestConfig {
         @Bean(destroyMethod = "shutdown")
         fun redissonClient(): RedissonClient = newRedissonClient()
     }
@@ -46,41 +49,49 @@ class RedissonAopFactoryAutoConfigurationTest : AbstractRedissonAutoConfiguratio
 
     @Test
     fun `redissonLeaderElectionFactory 빈이 등록된다`() {
-        ctx.getBean("redissonLeaderElectionFactory").shouldBeInstanceOf<RedissonLeaderElectorFactory>()
+        ctx.getBean("redissonLeaderElectionFactory")
+            .shouldBeInstanceOf<RedissonLeaderElectorFactory>()
     }
 
     @Test
     fun `redissonLeaderGroupElectionFactory 빈이 등록된다`() {
-        ctx.getBean("redissonLeaderGroupElectionFactory").shouldBeInstanceOf<RedissonLeaderGroupElectorFactory>()
+        ctx.getBean("redissonLeaderGroupElectionFactory")
+            .shouldBeInstanceOf<RedissonLeaderGroupElectorFactory>()
     }
 
     @Test
     fun `redissonSuspendLeaderElectorFactory 빈이 등록된다`() {
-        ctx.getBean("redissonSuspendLeaderElectorFactory").shouldBeInstanceOf<RedissonSuspendLeaderElectorFactory>()
+        ctx.getBean("redissonSuspendLeaderElectorFactory")
+            .shouldBeInstanceOf<RedissonSuspendLeaderElectorFactory>()
     }
 
     @Test
     fun `redissonSuspendLeaderGroupElectorFactory 빈이 등록된다`() {
-        ctx.getBean("redissonSuspendLeaderGroupElectorFactory").shouldBeInstanceOf<RedissonSuspendLeaderGroupElectorFactory>()
+        ctx.getBean("redissonSuspendLeaderGroupElectorFactory")
+            .shouldBeInstanceOf<RedissonSuspendLeaderGroupElectorFactory>()
     }
 
     @Test
     fun `redissonLeaderElectionFactory 는 LeaderElectorFactory 타입`() {
-        ctx.getBean("redissonLeaderElectionFactory").shouldBeInstanceOf<LeaderElectorFactory>()
+        ctx.getBean("redissonLeaderElectionFactory")
+            .shouldBeInstanceOf<LeaderElectorFactory>()
     }
 
     @Test
     fun `redissonLeaderGroupElectionFactory 는 LeaderGroupElectorFactory 타입`() {
-        ctx.getBean("redissonLeaderGroupElectionFactory").shouldBeInstanceOf<LeaderGroupElectorFactory>()
+        ctx.getBean("redissonLeaderGroupElectionFactory")
+            .shouldBeInstanceOf<LeaderGroupElectorFactory>()
     }
 
     @Test
     fun `redissonSuspendLeaderElectorFactory 는 SuspendLeaderElectorFactory 타입`() {
-        ctx.getBean("redissonSuspendLeaderElectorFactory").shouldBeInstanceOf<SuspendLeaderElectorFactory>()
+        ctx.getBean("redissonSuspendLeaderElectorFactory")
+            .shouldBeInstanceOf<SuspendLeaderElectorFactory>()
     }
 
     @Test
     fun `redissonSuspendLeaderGroupElectorFactory 는 SuspendLeaderGroupElectorFactory 타입`() {
-        ctx.getBean("redissonSuspendLeaderGroupElectorFactory").shouldBeInstanceOf<SuspendLeaderGroupElectorFactory>()
+        ctx.getBean("redissonSuspendLeaderGroupElectorFactory")
+            .shouldBeInstanceOf<SuspendLeaderGroupElectorFactory>()
     }
 }

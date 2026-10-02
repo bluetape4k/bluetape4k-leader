@@ -3,9 +3,12 @@ package io.bluetape4k.leader.internal
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 
 class LeaseAdmissionControllerTest {
+
+    companion object: KLogging()
 
     @Test
     fun `acquire reservation holds both attempt and queue capacity until terminal`() {
@@ -35,6 +38,7 @@ class LeaseAdmissionControllerTest {
         val active = admission.tryReserveActive()
         active.shouldNotBeNull()
         admission.tryReserveActive().shouldBeNull()
+
         val residual = admission.tryReserveResidual()
         residual.shouldNotBeNull()
         admission.tryReserveResidual().shouldBeNull()

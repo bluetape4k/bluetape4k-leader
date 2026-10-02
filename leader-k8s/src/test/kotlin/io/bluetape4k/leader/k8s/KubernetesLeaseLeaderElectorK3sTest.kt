@@ -2,24 +2,30 @@ package io.bluetape4k.leader.k8s
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.infra.K3sServer
 import io.fabric8.kubernetes.client.KubernetesClient
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Clock
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import kotlin.time.Duration
@@ -30,9 +36,8 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class KubernetesLeaseLeaderElectorK3sTest {
 
-    companion object {
+    companion object: KLogging() {
         private const val NAMESPACE = "default"
-
         private val k3s: K3sServer by lazy { K3sServer.Launcher.k3s }
     }
 
@@ -91,8 +96,8 @@ class KubernetesLeaseLeaderElectorK3sTest {
                     "done"
                 }
 
-                (result is LeaderRunResult.Elected).shouldBeTrue()
-                (result as LeaderRunResult.Elected).value shouldBeEqualTo "done"
+                result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+                result.value shouldBeEqualTo "done"
                 result.leaderId shouldBeEqualTo leaderId
             }
         }
@@ -152,13 +157,13 @@ class KubernetesLeaseLeaderElectorK3sTest {
 
                 assertFailsWith<CompletionException> {
                     election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-                        CompletableFuture.failedFuture<Int>(IllegalStateException("boom"))
+                        failedCompletableFutureOf<Int>(IllegalStateException("boom"))
                     }.join()
                 }
 
                 val result = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-                    CompletableFuture.completedFuture("recovered")
-                }.get(5, TimeUnit.SECONDS)
+                    completableFutureOf("recovered")
+                }.get(5.seconds)
                 result shouldBeEqualTo "recovered"
             }
         }
@@ -179,13 +184,15 @@ class KubernetesLeaseLeaderElectorK3sTest {
                         actionStarted.countDown()
                         actionFuture
                     }
-                    actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    actionStarted.await(5.seconds).shouldBeTrue()
                     executor.shutdown()
 
                     actionFuture.complete("done")
 
-                    resultFuture.get(5, TimeUnit.SECONDS) shouldBeEqualTo "done"
-                    elector(client, nodeId = "node-b").runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+                    resultFuture.get(5.seconds) shouldBeEqualTo "done"
+
+                    elector(client, nodeId = "node-b")
+                        .runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
                 } finally {
                     executor.shutdownNow()
                 }
@@ -202,13 +209,13 @@ class KubernetesLeaseLeaderElectorK3sTest {
 
                 val failure = assertFailsWith<ExecutionException> {
                     election.runAsyncIfLeaderResult(LeaderSlot(lockName, "node-a"), VirtualThreadExecutor) {
-                        CompletableFuture.failedFuture<Int>(java.util.concurrent.CancellationException("cancelled"))
-                    }.get(5, TimeUnit.SECONDS)
+                        failedCompletableFutureOf<Int>(java.util.concurrent.CancellationException("cancelled"))
+                    }.get(5.seconds)
                 }
 
-                (failure.cause is java.util.concurrent.CancellationException).shouldBeTrue()
-                val result = election.runIfLeader(lockName) { "recovered" }
-                result shouldBeEqualTo "recovered"
+                failure.cause.shouldBeInstanceOf<CancellationException>()
+
+                election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
         }
     }

@@ -1,11 +1,14 @@
 package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DynamoDbLeaderOptionsValidationTest {
+
+    companion object: KLogging()
 
     @Test
     fun `single leader options validate table namespace before client calls`() {

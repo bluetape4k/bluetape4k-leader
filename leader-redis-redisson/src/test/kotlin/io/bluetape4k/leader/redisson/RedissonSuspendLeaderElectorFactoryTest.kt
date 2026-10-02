@@ -1,25 +1,25 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBe
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
-import io.bluetape4k.logging.KLogging
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
  * [RedissonSuspendLeaderElectorFactory] — SPI contract 테스트.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class RedissonSuspendLeaderElectorFactoryTest : AbstractRedissonLeaderTest() {
+class RedissonSuspendLeaderElectorFactoryTest: AbstractRedissonLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLoggingChannel()
 
     private val factory: SuspendLeaderElectorFactory = RedissonSuspendLeaderElectorFactory(redissonClient)
 
@@ -42,7 +42,7 @@ class RedissonSuspendLeaderElectorFactoryTest : AbstractRedissonLeaderTest() {
     fun `create - 호출마다 새 인스턴스 반환`() = runSuspendIO {
         val a = factory.create(LeaderElectionOptions.Default)
         val b = factory.create(LeaderElectionOptions.Default)
-        (a !== b).shouldBeEqualTo(true)
+        a shouldNotBe b
     }
 
     @Test
@@ -56,7 +56,8 @@ class RedissonSuspendLeaderElectorFactoryTest : AbstractRedissonLeaderTest() {
     fun `create 후 runIfLeader - Unit action 정상 실행`() = runSuspendIO {
         val elector = factory.create(LeaderElectionOptions.Default)
         var called = false
+
         elector.runIfLeader(randomName()) { called = true }
-        called.shouldBeEqualTo(true)
+        called.shouldBeTrue()
     }
 }

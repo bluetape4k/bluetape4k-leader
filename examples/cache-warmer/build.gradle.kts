@@ -14,7 +14,5 @@ dependencies {
     implementation(libs.testcontainers)
 
     testImplementation(bt4k.bluetape4k.junit5)
-    testImplementation(bt4k.bluetape4k.testcontainers)
-    testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
 }

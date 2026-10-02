@@ -14,8 +14,6 @@ import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import org.redisson.api.RedissonClient
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * `RedissonStrategicLeaderElector`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -26,9 +24,9 @@ import kotlin.time.Duration.Companion.seconds
 class RedissonStrategicLeaderElector(
     redissonClient: RedissonClient,
     override val nodeId: String = Uuid.V7.nextBase62(),
-) : StrategicLeaderElector {
+): StrategicLeaderElector {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val registry = RedissonCandidateRegistry(redissonClient)
 
@@ -54,7 +52,7 @@ class RedissonStrategicLeaderElector(
         options: LeaderElectionOptions,
         action: () -> T,
     ): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val candidates = try {
             listCandidates(lockName)
         } catch (e: CancellationException) {
@@ -76,22 +74,26 @@ class RedissonStrategicLeaderElector(
                 "[$lockName] 점수: $scoreText"
             }
         }
-        result.eliminations.forEach { e ->
-            log.debug { "[$lockName] 탈락: ${e.candidate.nodeId} — ${e.reason}" }
-        }
+        result.eliminations.forEach { log.debug { "[$lockName] 탈락: ${it.candidate.nodeId} — ${it.reason}" } }
 
         if (winner.nodeId != nodeId) return null
 
         return try {
             val value = action()
-            runCatching { updateResult(lockName, nodeId, CandidateResult.SUCCESS) }
-                .onFailure { log.warn(it) { "[$lockName] successCount 업데이트 실패 — 무시됨" } }
+            runCatching {
+                updateResult(lockName, nodeId, CandidateResult.SUCCESS)
+            }.onFailure {
+                log.warn(it) { "[$lockName] successCount 업데이트 실패 — 무시됨" }
+            }
             value
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
-            runCatching { updateResult(lockName, nodeId, CandidateResult.FAILURE) }
-                .onFailure { log.warn(it) { "[$lockName] failureCount 업데이트 실패 — 무시됨" } }
+            runCatching {
+                updateResult(lockName, nodeId, CandidateResult.FAILURE)
+            }.onFailure {
+                log.warn(it) { "[$lockName] failureCount 업데이트 실패 — 무시됨" }
+            }
             throw e
         }
     }

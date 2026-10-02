@@ -1,10 +1,11 @@
 package io.bluetape4k.leader.audit
 
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.truncateUtf8
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
-import java.util.Collections
+import java.util.*
 
 /**
  * audit event의 문자열 field를 안전한 외부 표현으로 변환하는 정책입니다.
@@ -15,6 +16,11 @@ import java.util.Collections
  * 그 밖의 값은 `IllegalArgumentException`으로 거부합니다.
  */
 sealed interface LeaderAuditValueSanitizer {
+
+    companion object: KLogging() {
+        /** v1에서 raw export를 허용하는 field의 고정 목록입니다. */
+        val RAW_ALLOWED_FIELDS: Set<LeaderAuditField> = Collections.unmodifiableSet(setOf(LeaderAuditField.KIND))
+    }
 
     /**
      * field의 값을 정책에 따라 변환합니다.
@@ -29,7 +35,7 @@ sealed interface LeaderAuditValueSanitizer {
      * 기본 redaction 정책입니다. `KIND`만 low-cardinality 값으로 유지하고 나머지는
      * 고정된 문자열로 치환합니다.
      */
-    data object Default : LeaderAuditValueSanitizer {
+    data object Default: LeaderAuditValueSanitizer {
         override fun sanitize(field: LeaderAuditField, value: String): String {
             requireValidKind(field, value)
             return if (field == LeaderAuditField.KIND) value else AUDIT_REDACTED
@@ -39,7 +45,7 @@ sealed interface LeaderAuditValueSanitizer {
     /**
      * SHA-256 hex digest로 값을 변환하는 명시적 opt-in 정책입니다.
      */
-    data object Hash : LeaderAuditValueSanitizer {
+    data object Hash: LeaderAuditValueSanitizer {
         override fun sanitize(field: LeaderAuditField, value: String): String {
             requireValidKind(field, value)
             return sha256Hex(value)
@@ -51,7 +57,7 @@ sealed interface LeaderAuditValueSanitizer {
      *
      * code point 경계에서만 자르므로 잘못된 UTF-8 surrogate를 만들지 않습니다.
      */
-    data class Truncate(val maxBytes: Int) : LeaderAuditValueSanitizer {
+    data class Truncate(val maxBytes: Int): LeaderAuditValueSanitizer {
         init {
             require(maxBytes > 0) { "maxBytes must be positive: $maxBytes" }
         }
@@ -71,7 +77,7 @@ sealed interface LeaderAuditValueSanitizer {
     class Raw(
         allowList: Set<LeaderAuditField>,
         val maxBytes: Int,
-    ) : LeaderAuditValueSanitizer {
+    ): LeaderAuditValueSanitizer {
         private val copiedAllowList: Set<LeaderAuditField>
 
         init {
@@ -91,12 +97,6 @@ sealed interface LeaderAuditValueSanitizer {
             return value.truncateUtf8(maxBytes)
         }
 
-    }
-
-    companion object {
-        /** v1에서 raw export를 허용하는 field의 고정 목록입니다. */
-        val RAW_ALLOWED_FIELDS: Set<LeaderAuditField> =
-            Collections.unmodifiableSet(setOf(LeaderAuditField.KIND))
     }
 }
 
@@ -127,7 +127,7 @@ private fun requireValidKind(field: LeaderAuditField, value: String) {
     if (field == LeaderAuditField.KIND) {
         require(
             value == LockIdentity.AnnotationKind.SINGLE.name ||
-                value == LockIdentity.AnnotationKind.GROUP.name,
+                    value == LockIdentity.AnnotationKind.GROUP.name,
         ) {
             "KIND must be SINGLE or GROUP"
         }

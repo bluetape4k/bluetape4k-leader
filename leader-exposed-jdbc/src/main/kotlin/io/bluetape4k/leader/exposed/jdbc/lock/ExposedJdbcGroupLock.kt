@@ -1,38 +1,31 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
-import io.bluetape4k.leader.remainingMinLeaseTime
-import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.jdbc.internal.MonotonicDeadline
-import io.bluetape4k.support.requireZeroOrPositiveNumber
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.requireZeroOrPositiveNumber
 import kotlinx.coroutines.CancellationException
 import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.time.Clock
+import kotlin.time.Duration
 
-/** 해제 결과를 DB 반영 성공, 미소유, DB 오류로 구분합니다. */
-internal enum class ExposedJdbcUnlockOutcome {
-    RELEASED,
-    NOT_HELD,
-    FAILED,
-}
 
 /**
  * `ExposedJdbcGroupLock`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -64,13 +57,13 @@ internal class ExposedJdbcGroupLock internal constructor(
         slot: Int,
         retryStrategy: RetryStrategy,
         lockOwner: String? = null,
-    ) : this(db, lockName, slot, retryStrategy, lockOwner, false, Clock.systemUTC())
+    ): this(db, lockName, slot, retryStrategy, lockOwner, false, Clock.systemUTC())
 
     init {
         slot.requireZeroOrPositiveNumber("slot")
     }
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     /**
      * `token` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
@@ -151,8 +144,8 @@ internal class ExposedJdbcGroupLock internal constructor(
             val updated = LeaderGroupLockTable.update(
                 where = {
                     (LeaderGroupLockTable.lockName eq lockNameVal) and
-                        (LeaderGroupLockTable.slot eq slotVal) and
-                        (LeaderGroupLockTable.lockedUntil less now)
+                            (LeaderGroupLockTable.slot eq slotVal) and
+                            (LeaderGroupLockTable.lockedUntil less now)
                 }
             ) {
                 it[LeaderGroupLockTable.lockOwner] = lockOwnerVal
@@ -184,15 +177,16 @@ internal class ExposedJdbcGroupLock internal constructor(
             }
 
             // SELECT으로 token 소유 + lease 유효성 확인 (R2DBC 형제 모듈과 대칭)
-            !LeaderGroupLockTable
+            LeaderGroupLockTable
                 .selectAll()
                 .where {
                     (LeaderGroupLockTable.lockName eq lockNameVal) and
-                        (LeaderGroupLockTable.slot eq slotVal) and
-                        (LeaderGroupLockTable.token eq tokenVal) and
-                        (LeaderGroupLockTable.lockedUntil greater now)
+                            (LeaderGroupLockTable.slot eq slotVal) and
+                            (LeaderGroupLockTable.token eq tokenVal) and
+                            (LeaderGroupLockTable.lockedUntil greater now)
                 }
                 .empty()
+                .not()
         }
     }
 
@@ -212,9 +206,9 @@ internal class ExposedJdbcGroupLock internal constructor(
                     .selectAll()
                     .where {
                         (LeaderGroupLockTable.lockName eq lockNameVal) and
-                            (LeaderGroupLockTable.slot eq slotVal) and
-                            (LeaderGroupLockTable.token eq tokenVal) and
-                            (LeaderGroupLockTable.lockedUntil greater now)
+                                (LeaderGroupLockTable.slot eq slotVal) and
+                                (LeaderGroupLockTable.token eq tokenVal) and
+                                (LeaderGroupLockTable.lockedUntil greater now)
                     }
                     .empty()
             }
@@ -259,9 +253,9 @@ internal class ExposedJdbcGroupLock internal constructor(
                     LeaderGroupLockTable.update(
                         where = {
                             (LeaderGroupLockTable.lockName eq lockNameVal) and
-                                (LeaderGroupLockTable.slot eq slotVal) and
-                                (LeaderGroupLockTable.token eq tokenVal) and
-                                (LeaderGroupLockTable.lockedUntil greater now)
+                                    (LeaderGroupLockTable.slot eq slotVal) and
+                                    (LeaderGroupLockTable.token eq tokenVal) and
+                                    (LeaderGroupLockTable.lockedUntil greater now)
                         }
                     ) {
                         it[LeaderGroupLockTable.lockedUntil] = now.plusMillis(remaining.inWholeMilliseconds)
@@ -269,8 +263,8 @@ internal class ExposedJdbcGroupLock internal constructor(
                 } else {
                     LeaderGroupLockTable.deleteWhere {
                         (LeaderGroupLockTable.lockName eq lockNameVal) and
-                            (LeaderGroupLockTable.slot eq slotVal) and
-                            (LeaderGroupLockTable.token eq tokenVal)
+                                (LeaderGroupLockTable.slot eq slotVal) and
+                                (LeaderGroupLockTable.token eq tokenVal)
                     }
                 }
             }
@@ -305,9 +299,9 @@ internal class ExposedJdbcGroupLock internal constructor(
             val updated = LeaderGroupLockTable.update(
                 where = {
                     (LeaderGroupLockTable.lockName eq lockNameVal) and
-                        (LeaderGroupLockTable.slot eq slotVal) and
-                        (LeaderGroupLockTable.token eq tokenVal) and
-                        (LeaderGroupLockTable.lockedUntil greater now)  // R6: expired row revival 차단
+                            (LeaderGroupLockTable.slot eq slotVal) and
+                            (LeaderGroupLockTable.token eq tokenVal) and
+                            (LeaderGroupLockTable.lockedUntil greater now)  // R6: expired row revival 차단
                 }
             ) {
                 it[LeaderGroupLockTable.lockedUntil] = newLockedUntil
@@ -319,5 +313,16 @@ internal class ExposedJdbcGroupLock internal constructor(
                 ExtendOutcome.NotHeld
             }
         }
+    }
+
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("lockName", lockName)
+            .add("slot", slot)
+            .add("lockOwner", lockOwner)
+            .add("useDbTime", useDbTime)
+            .add("clock", clock)
+            .add("retryStrategy", retryStrategy)
+            .toString()
     }
 }

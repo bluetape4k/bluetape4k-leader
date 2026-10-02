@@ -1,25 +1,38 @@
 package io.bluetape4k.leader.micrometer
 
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.identity.LeaderIdSource
 import io.bluetape4k.leader.metrics.LeaderAopMetricsContext
 import io.bluetape4k.leader.metrics.SkipReason
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationHandler
 import io.micrometer.observation.ObservationRegistry
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CancellationException
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MicrometerObservationLeaderAopMetricsRecorderTest {
+
+    private companion object: KLogging() {
+        fun snapshot(context: Observation.Context): ObservationSnapshot =
+            ObservationSnapshot(
+                name = context.name.orEmpty(),
+                low = context.lowCardinalityKeyValues.associate { it.key to it.value },
+                high = context.highCardinalityKeyValues.associate { it.key to it.value },
+                error = context.error,
+            )
+    }
 
     private lateinit var registry: ObservationRegistry
     private lateinit var handler: CollectingObservationHandler
@@ -40,6 +53,8 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
         recorder.onLockAcquired("job-lock", options, 12.milliseconds)
 
         val stopped = handler.singleStopped()
+
+        log.debug { "stopped: $stopped" }
         stopped.name shouldBeEqualTo OBSERVATION_LEADER_AOP_ACQUIRE
         stopped.low[OBSERVATION_TAG_OPERATION] shouldBeEqualTo "acquire"
         stopped.low[OBSERVATION_TAG_OUTCOME] shouldBeEqualTo "acquired"
@@ -51,6 +66,8 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
         recorder.onLockNotAcquired("job-lock", options, SkipReason.BACKEND_ERROR)
 
         val stopped = handler.singleStopped()
+
+        log.debug { "stopped: $stopped" }
         stopped.name shouldBeEqualTo OBSERVATION_LEADER_AOP_ACQUIRE
         stopped.low[OBSERVATION_TAG_OUTCOME] shouldBeEqualTo "skipped"
         stopped.low[OBSERVATION_TAG_REASON] shouldBeEqualTo SkipReason.BACKEND_ERROR.name
@@ -61,6 +78,8 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
         recorder.onTaskFinished("job-lock", 34.milliseconds)
 
         val stopped = handler.singleStopped()
+
+        log.debug { "stopped: $stopped" }
         stopped.name shouldBeEqualTo OBSERVATION_LEADER_AOP_EXECUTION
         stopped.low[OBSERVATION_TAG_OPERATION] shouldBeEqualTo "execute"
         stopped.low[OBSERVATION_TAG_OUTCOME] shouldBeEqualTo "success"
@@ -72,11 +91,13 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
         recorder.onTaskFailed("job-lock", 56.milliseconds, IllegalStateException("secret tenant id"))
 
         val stopped = handler.singleStopped()
+
+        log.debug { "stopped: $stopped" }
         stopped.name shouldBeEqualTo OBSERVATION_LEADER_AOP_EXECUTION
         stopped.low[OBSERVATION_TAG_OUTCOME] shouldBeEqualTo "error"
         stopped.low[OBSERVATION_TAG_EXCEPTION] shouldBeEqualTo "IllegalStateException"
         stopped.error.shouldBeNull()
-        handler.errors.isEmpty().shouldBeTrue()
+        handler.errors.shouldBeEmpty()
     }
 
     @Test
@@ -90,6 +111,8 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
         recorder.onTaskFailed("job-lock", 1.milliseconds, failure)
 
         val stopped = handler.singleStopped()
+
+        log.debug { "stopped: $stopped" }
         stopped.error shouldBeEqualTo failure
         handler.errors.size shouldBeEqualTo 1
         handler.errors[0].error shouldBeEqualTo failure
@@ -101,10 +124,12 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
         recorder.onTaskFailed("job-lock", 2.milliseconds, CancellationException("cancelled"))
 
         val stopped = handler.singleStopped()
+
+        log.debug { "stopped: $stopped" }
         stopped.low[OBSERVATION_TAG_OUTCOME] shouldBeEqualTo "cancelled"
-        stopped.low.containsKey(OBSERVATION_TAG_EXCEPTION).shouldBeEqualTo(false)
+        stopped.low.containsKey(OBSERVATION_TAG_EXCEPTION).shouldBeFalse()
         stopped.error.shouldBeNull()
-        handler.errors.isEmpty().shouldBeTrue()
+        handler.errors.shouldBeEmpty()
     }
 
     @Test
@@ -114,9 +139,11 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
         recorder.onTaskFinished("job-lock", 3.milliseconds, context)
 
         val stopped = handler.singleStopped()
-        stopped.high.containsKey(MicrometerNames.TAG_LOCK_NAME).shouldBeEqualTo(false)
-        stopped.high.containsKey(TAG_LEADER_ID).shouldBeEqualTo(false)
-        stopped.low.containsKey(TAG_LEADER_ID_SOURCE).shouldBeEqualTo(false)
+
+        log.debug { "stopped: $stopped" }
+        stopped.high.containsKey(MicrometerNames.TAG_LOCK_NAME).shouldBeFalse()
+        stopped.high.containsKey(TAG_LEADER_ID).shouldBeFalse()
+        stopped.low.containsKey(TAG_LEADER_ID_SOURCE).shouldBeFalse()
     }
 
     @Test
@@ -130,6 +157,8 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
         recorder.onTaskFinished("job-lock", 3.milliseconds, context)
 
         val stopped = handler.singleStopped()
+
+        log.debug { "stopped: $stopped" }
         stopped.high[MicrometerNames.TAG_LOCK_NAME] shouldBeEqualTo "redacted-lock"
         stopped.high[TAG_LEADER_ID] shouldBeEqualTo "redacted-leader"
         stopped.low[TAG_LEADER_ID_SOURCE] shouldBeEqualTo LeaderIdSource.LITERAL.name
@@ -150,6 +179,8 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
         recorder.onTaskFinished("job-lock", 3.milliseconds, context)
 
         val stopped = handler.singleStopped()
+
+        log.debug { "stopped: $stopped" }
         stopped.high[MicrometerNames.TAG_LOCK_NAME] shouldBeEqualTo "job-lock"
         stopped.high[TAG_LEADER_ID] shouldBeEqualTo "leader-a"
     }
@@ -164,8 +195,10 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
         recorder.onTaskFinished("job-lock", 3.milliseconds, LeaderAopMetricsContext.Unknown)
 
         val stopped = handler.singleStopped()
-        stopped.high.containsKey(TAG_LEADER_ID).shouldBeEqualTo(false)
-        stopped.low.containsKey(TAG_LEADER_ID_SOURCE).shouldBeEqualTo(false)
+
+        log.debug { "stopped: $stopped" }
+        stopped.high.containsKey(TAG_LEADER_ID).shouldBeFalse()
+        stopped.low.containsKey(TAG_LEADER_ID_SOURCE).shouldBeFalse()
     }
 
     @Test
@@ -188,8 +221,8 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
         recorder.onLockAcquired("job-lock", options, 1.milliseconds)
         recorder.onTaskFinished("job-lock", 1.milliseconds)
 
-        handler.stopped.isEmpty().shouldBeTrue()
-        handler.errors.isEmpty().shouldBeTrue()
+        handler.stopped.shouldBeEmpty()
+        handler.errors.shouldBeEmpty()
     }
 
     @Test
@@ -205,17 +238,17 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
     @Test
     fun `same-lock concurrent terminal callbacks are race-free`() {
         MultithreadingTester()
-            .workers(4)
+            .workers(8)
             .rounds(25)
             .add {
                 recorder.onTaskFinished("job-lock", 1.milliseconds)
             }
             .run()
 
-        handler.stopped.size shouldBeEqualTo 100
+        handler.stopped.size shouldBeEqualTo 8 * 25
     }
 
-    private class CollectingObservationHandler : ObservationHandler<Observation.Context> {
+    private class CollectingObservationHandler: ObservationHandler<Observation.Context> {
         val stopped = CopyOnWriteArrayList<ObservationSnapshot>()
         val errors = CopyOnWriteArrayList<ObservationSnapshot>()
 
@@ -241,14 +274,4 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
         val high: Map<String, String>,
         val error: Throwable?,
     )
-
-    private companion object {
-        fun snapshot(context: Observation.Context): ObservationSnapshot =
-            ObservationSnapshot(
-                name = context.name.orEmpty(),
-                low = context.lowCardinalityKeyValues.associate { it.key to it.value },
-                high = context.highCardinalityKeyValues.associate { it.key to it.value },
-                error = context.error,
-            )
-    }
 }

@@ -12,7 +12,7 @@ import io.bluetape4k.support.requireNotEmpty
  */
 class WeightedScorer(
     val scorers: List<Pair<CandidateScorer, Double>>,
-) : CandidateScorer {
+): CandidateScorer {
 
     init {
         scorers.requireNotEmpty("scorers")
@@ -21,7 +21,7 @@ class WeightedScorer(
         }
     }
 
-    constructor(vararg scorers: Pair<CandidateScorer, Double>) : this(scorers.toList())
+    constructor(vararg scorers: Pair<CandidateScorer, Double>): this(scorers.toList())
 
     override fun score(candidate: CandidateInfo, all: List<CandidateInfo>): Double =
         scorers.sumOf { (scorer, weight) -> scorer.score(candidate, all) * weight }

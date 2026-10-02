@@ -39,9 +39,9 @@ class ZooKeeperSuspendLeaderElector private constructor(
     private val basePath: String,
     private val options: LeaderElectionOptions,
 ): SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client),
-    AutoCloseable,
-    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client),
+   AutoCloseable,
+   io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
 
     override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
         io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options)
@@ -127,7 +127,7 @@ class ZooKeeperSuspendLeaderElector private constructor(
             if (options.autoExtend) {
                 log.warn {
                     "ZooKeeper 는 TTL 이 없는 세션 기반 락 — autoExtend=true 설정이 무시됩니다. " +
-                        "ZK 세션 keepalive 가 lease 역할을 대신합니다. lockName=$lockName"
+                            "ZK 세션 keepalive 가 lease 역할을 대신합니다. lockName=$lockName"
                 }
             }
             watchdog = LeaderLeaseAutoExtender.start(
@@ -201,34 +201,3 @@ class ZooKeeperSuspendLeaderElector private constructor(
         }
     }
 }
-
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend inline fun <T> CuratorFramework.suspendRunIfLeader(
-    path: ZooKeeperElectionPath,
-    options: LeaderElectionOptions = LeaderElectionOptions.Default,
-    crossinline action: suspend () -> T,
-): T? {
-    val elector = ZooKeeperSuspendLeaderElector(this, path.basePath, options)
-    return try {
-        elector.runIfLeader(path.lockName) { action() }
-    } finally {
-        elector.close()
-    }
-}
-
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend inline fun <T> CuratorFramework.suspendRunIfLeader(
-    lockName: String,
-    basePath: String = ZooKeeperSuspendLeaderElector.DEFAULT_BASE_PATH,
-    options: LeaderElectionOptions = LeaderElectionOptions.Default,
-    crossinline action: suspend () -> T,
-): T? =
-    suspendRunIfLeader(ZooKeeperElectionPath(lockName, basePath), options, action)

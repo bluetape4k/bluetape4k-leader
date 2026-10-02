@@ -23,15 +23,15 @@ ZooKeeper 세션이 만료되면 ephemeral recipe node가 제거되어 lock이 �
 
 ## 구현체
 
-| 클래스 | 인터페이스 | 설명 |
-|--------|------------|------|
-| `ZooKeeperLeaderElector` | `LeaderElector` | 블로킹 + 비동기 단일 리더 |
-| `ZooKeeperLeaderGroupElector` | `LeaderGroupElector` | 블로킹 + 비동기 복수 리더 |
-| `ZooKeeperSuspendLeaderElector` | `SuspendLeaderElector` | 코루틴 단일 리더 |
-| `ZooKeeperSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | 코루틴 복수 리더 |
-| `ZooKeeperLeaderElectorFactory` | `LeaderElectorFactory` | 팩토리: 호출마다 `ZooKeeperLeaderElector` 생성 |
-| `ZooKeeperLeaderGroupElectorFactory` | `LeaderGroupElectorFactory` | 팩토리: 호출마다 `ZooKeeperLeaderGroupElector` 생성 |
-| `ZooKeeperSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `ZooKeeperSuspendLeaderElector` 생성 |
+| 클래스                                      | 인터페이스                         | 설명                                                       |
+|---------------------------------------------|------------------------------------|------------------------------------------------------------|
+| `ZooKeeperLeaderElector`                    | `LeaderElector`                    | 블로킹 + 비동기 단일 리더                                  |
+| `ZooKeeperLeaderGroupElector`               | `LeaderGroupElector`               | 블로킹 + 비동기 복수 리더                                  |
+| `ZooKeeperSuspendLeaderElector`             | `SuspendLeaderElector`             | 코루틴 단일 리더                                           |
+| `ZooKeeperSuspendLeaderGroupElector`        | `SuspendLeaderGroupElector`        | 코루틴 복수 리더                                           |
+| `ZooKeeperLeaderElectorFactory`             | `LeaderElectorFactory`             | 팩토리: 호출마다 `ZooKeeperLeaderElector` 생성             |
+| `ZooKeeperLeaderGroupElectorFactory`        | `LeaderGroupElectorFactory`        | 팩토리: 호출마다 `ZooKeeperLeaderGroupElector` 생성        |
+| `ZooKeeperSuspendLeaderElectorFactory`      | `SuspendLeaderElectorFactory`      | 팩토리: 호출마다 `ZooKeeperSuspendLeaderElector` 생성      |
 | `ZooKeeperSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `ZooKeeperSuspendLeaderGroupElector` 생성 |
 
 ## 사용법
@@ -120,12 +120,12 @@ val suspendElection = suspendFactory.create(LeaderElectionOptions.Default)
 
 ## 설정 옵션
 
-| 옵션 | 적용 대상 | 설명 |
-|------|-----------|------|
-| `basePath` | 모든 elector | 리더 선출 데이터를 저장할 root znode 경로 |
-| `waitTime` | 모든 elector | lock/lease 획득 최대 대기 시간 |
-| `leaseTime` | 단일 리더 옵션 | API 호환용. 실제 해제 경계는 ZooKeeper 세션 만료 |
-| `maxLeaders` | 그룹 elector | 동시에 허용할 semaphore lease 수 |
+| 옵션         | 적용 대상      | 설명                                             |
+|--------------|----------------|--------------------------------------------------|
+| `basePath`   | 모든 elector   | 리더 선출 데이터를 저장할 root znode 경로        |
+| `waitTime`   | 모든 elector   | lock/lease 획득 최대 대기 시간                   |
+| `leaseTime`  | 단일 리더 옵션 | API 호환용. 실제 해제 경계는 ZooKeeper 세션 만료 |
+| `maxLeaders` | 그룹 elector   | 동시에 허용할 semaphore lease 수                 |
 
 ## 테스트
 

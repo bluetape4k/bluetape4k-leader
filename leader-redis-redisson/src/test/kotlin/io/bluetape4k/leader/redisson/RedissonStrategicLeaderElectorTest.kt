@@ -1,5 +1,15 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.javatimes.millis
+import io.bluetape4k.javatimes.seconds
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
@@ -8,23 +18,25 @@ import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.scorers.WeightedScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldNotBeNull
-import io.bluetape4k.junit5.concurrency.MultithreadingTester
-import org.awaitility.kotlin.*
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.until
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
+
+    companion object: KLogging()
 
     private lateinit var node1: RedissonStrategicLeaderElector
     private lateinit var node2: RedissonStrategicLeaderElector
@@ -43,8 +55,8 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         val t0 = Instant.now()
         val candidates = listOf(
             CandidateInfo("node-1", registeredAt = t0),
-            CandidateInfo("node-2", registeredAt = t0.plusMillis(10)),
-            CandidateInfo("node-3", registeredAt = t0.plusMillis(20)),
+            CandidateInfo("node-2", registeredAt = t0 + 10.millis()),
+            CandidateInfo("node-3", registeredAt = t0 + 20.millis()),
         )
         candidates.forEach { node1.registerCandidate(lockName, it) }
         candidates.forEach { node2.registerCandidate(lockName, it) }
@@ -76,8 +88,9 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
         node1.listCandidates(lockName).size shouldBeEqualTo 1
 
-        await.atMost(2.seconds).withPollInterval(50.milliseconds)
-            .until { node1.listCandidates(lockName).isEmpty() }
+        await atMost 2.seconds withPollInterval 50.milliseconds until {
+            node1.listCandidates(lockName).isEmpty()
+        }
     }
 
     @Test
@@ -89,8 +102,10 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         node1.runIfLeader(lockName, FifoElectionStrategy) { "ok" }
 
         node1.listCandidates(lockName).size shouldBeEqualTo 1
-        await.atMost(2.seconds).withPollInterval(50.milliseconds)
-            .until { node1.listCandidates(lockName).isEmpty() }
+
+        await atMost 2.seconds withPollInterval 50.milliseconds until {
+            node1.listCandidates(lockName).isEmpty()
+        }
     }
 
     @Test
@@ -101,6 +116,7 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         node1.unregisterCandidate(lockName, "node-1")
 
         val candidates = node1.listCandidates(lockName)
+        candidates.forEach { log.debug { "candidate=$it" } }
         candidates.size shouldBeEqualTo 1
         candidates.first().nodeId shouldBeEqualTo "node-2"
     }
@@ -121,7 +137,7 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         val t0 = Instant.now()
         node1.registerCandidate(lockName, CandidateInfo("node-1", registeredAt = t0))
 
-        node1.runIfLeader(lockName, FifoElectionStrategy) { "ok" }
+        node1.runIfLeader(lockName, FifoElectionStrategy) { "ok" } shouldBeEqualTo "ok"
 
         val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
         updated.successCount shouldBeEqualTo 1L
@@ -132,13 +148,15 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         val lockName = randomName()
         val now = Instant.now()
         val candidates = listOf(
-            CandidateInfo("node-1", lastCompletionTime = now.minusSeconds(10)),
-            CandidateInfo("node-2", lastCompletionTime = now.minusSeconds(100)),
-            CandidateInfo("node-3", lastCompletionTime = now.minusSeconds(50)),
+            CandidateInfo("node-1", lastCompletionTime = now - 10.seconds()),
+            CandidateInfo("node-2", lastCompletionTime = now - 100.seconds()),
+            CandidateInfo("node-3", lastCompletionTime = now - 50.seconds()),
         )
         candidates.forEach { node1.registerCandidate(lockName, it) }
         candidates.forEach { node2.registerCandidate(lockName, it) }
         candidates.forEach { node3.registerCandidate(lockName, it) }
+
+        candidates.forEach { log.debug { "candidate=$it" } }
 
         val strategy = ScoredElectionStrategy(IdleTimeScorer)
 
@@ -168,6 +186,8 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         candidates.forEach { node2.registerCandidate(lockName, it) }
         candidates.forEach { node3.registerCandidate(lockName, it) }
 
+        candidates.forEach { log.debug { "candidate=$it" } }
+
         val strategy = ScoredElectionStrategy(SuccessRateScorer)
 
         // 결정론적 선출 검증
@@ -194,6 +214,8 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         candidates.forEach { node2.registerCandidate(lockName, it) }
         candidates.forEach { node3.registerCandidate(lockName, it) }
 
+        candidates.forEach { log.debug { "candidate=$it" } }
+
         // 성공률 weight 높게 → node-1 선출
         val scorer = WeightedScorer(IdleTimeScorer to 0.1, SuccessRateScorer to 0.9)
         val strategy = ScoredElectionStrategy(scorer)
@@ -215,7 +237,6 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
 
         val result = node1.runIfLeader(lockName, FifoElectionStrategy) { "executed" }
-        result.shouldNotBeNull()
         result shouldBeEqualTo "executed"
     }
 
@@ -258,7 +279,7 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
 
         val started = CountDownLatch(1)
         val completed = CountDownLatch(1)
-        val worker = Thread {
+        val worker = thread(start = false) {
             started.countDown()
             node1.registerCandidate(
                 lockName,
@@ -269,14 +290,15 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         }
         try {
             worker.start()
-            started.await(1, TimeUnit.SECONDS) shouldBeEqualTo true
-            completed.await(200, TimeUnit.MILLISECONDS) shouldBeEqualTo false
+            started.await(1.seconds).shouldBeTrue()
+            completed.await(200.milliseconds).shouldBeFalse()
         } finally {
             entryLock.unlock()
         }
 
-        completed.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+        completed.await(2.seconds).shouldBeTrue()
         worker.join(2_000)
+
         node1.listCandidates(lockName).first().metadata shouldBeEqualTo mapOf("heartbeat" to "new")
     }
 
@@ -302,6 +324,7 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         node1.updateResult(lockName, "ghost-node", CandidateResult.SUCCESS)
 
         val candidates = node1.listCandidates(lockName)
+        candidates.forEach { log.debug { "candidate=$it" } }
         candidates.size shouldBeEqualTo 1
         candidates.first().successCount shouldBeEqualTo 0L
     }
@@ -311,11 +334,13 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         val lockName = randomName()
         val now = Instant.now()
         val candidates = listOf(
-            CandidateInfo("node-1", lastCompletionTime = now.minusSeconds(100)),
-            CandidateInfo("node-2", lastCompletionTime = now.minusSeconds(10)),
+            CandidateInfo("node-1", lastCompletionTime = now - 100.seconds()),
+            CandidateInfo("node-2", lastCompletionTime = now - 10.seconds()),
         )
         candidates.forEach { node1.registerCandidate(lockName, it) }
         candidates.forEach { node2.registerCandidate(lockName, it) }
+
+        candidates.forEach { log.debug { "candidate=$it" } }
 
         val strategy = ScoredElectionStrategy(IdleTimeScorer)
 
@@ -342,6 +367,7 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
             CandidateInfo("node-b", registeredAt = t0),
         )
         candidates.forEach { node1.registerCandidate(lockName, it) }
+        candidates.forEach { log.debug { "candidate=$it" } }
 
         val winner = FifoElectionStrategy.elect(node1.listCandidates(lockName)).winner
         winner?.nodeId shouldBeEqualTo "node-a"
@@ -362,6 +388,8 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         node1.registerCandidate(lockName, original)
 
         val retrieved = node1.listCandidates(lockName).first()
+
+        log.debug { "retrieved=$retrieved" }
         retrieved.nodeId shouldBeEqualTo original.nodeId
         retrieved.successCount shouldBeEqualTo original.successCount
         retrieved.failureCount shouldBeEqualTo original.failureCount
@@ -388,15 +416,16 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
         node1.registerCandidate(lockName, CandidateInfo("node-2", successCount = 1, failureCount = 9))
 
-        val electors = (1..8).map { RedissonStrategicLeaderElector(redissonClient, "node-1") }
+        val electors = List(8) { RedissonStrategicLeaderElector(redissonClient, "node-1") }
         val actions = electors.flatMap { elector ->
-            listOf<() -> Unit>(
+            listOf(
                 { elector.updateResult(lockName, "node-1", CandidateResult.SUCCESS) },
                 { elector.updateResult(lockName, "node-1", CandidateResult.FAILURE) },
             )
         }
         val workers = actions.size
         val rounds = 20
+
         MultithreadingTester()
             .workers(workers)
             .rounds(rounds)
@@ -404,10 +433,13 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
             .run()
 
         val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        log.debug { "updated=$updated" }
+
         val expectedEach = (workers * rounds / 2).toLong()
         updated.successCount shouldBeEqualTo expectedEach
         updated.failureCount shouldBeEqualTo expectedEach
         updated.successRate shouldBeEqualTo 0.5
+
         ScoredElectionStrategy(SuccessRateScorer)
             .elect(node1.listCandidates(lockName))
             .winner?.nodeId shouldBeEqualTo "node-1"
@@ -418,7 +450,7 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         val lockName = randomName()
         val t0 = Instant.now()
         node1.registerCandidate(lockName, CandidateInfo("node-1", registeredAt = t0))
-        node2.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0.plusMillis(10)))
+        node2.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0 + 10.millis()))
 
         // node2 는 winner 가 아님 → null
         val result = node2.runIfLeader(lockName, FifoElectionStrategy) { "should-not-run" }

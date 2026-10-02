@@ -1,13 +1,22 @@
 package io.bluetape4k.leader.etcd
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeEqualTo
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.etcd.internal.EtcdLockClient
+import io.bluetape4k.leader.etcd.support.toByteSequence
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.checkNotNull
 import io.etcd.jetcd.ByteSequence
 import io.etcd.jetcd.lease.LeaseKeepAliveResponse
 import org.junit.jupiter.api.Test
@@ -19,7 +28,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -27,6 +35,8 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.seconds
 
 class EtcdAsyncLifecycleTest {
+
+    companion object: KLogging()
 
     @Test
     fun `single action completion keeps named event loop free while cleanup is blocked`() {
@@ -72,12 +82,12 @@ class EtcdAsyncLifecycleTest {
         }
 
         val result = AsyncLeaseCleanupDispatcher.completeAfter(
-            source = CompletableFuture.completedFuture("done"),
+            source = completableFutureOf("done"),
             executor = rejectingExecutor,
             cleanup = { cleanupCalls.incrementAndGet() },
         ) { value, _ -> value }
 
-        result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+        result.get(2.seconds) shouldBeEqualTo "done"
         result.isDone.shouldBeTrue()
         rejectionCalls.get() shouldBeEqualTo 1
         cleanupCalls.get() shouldBeEqualTo 1
@@ -92,8 +102,8 @@ class EtcdAsyncLifecycleTest {
         barrier.completeAcquisition("lease")
         val second = barrier.request()
 
-        (first === second).shouldBeTrue()
-        first.get(2, TimeUnit.SECONDS)
+        first shouldBe second
+        first.get(2.seconds)
         cleanupCalls.get() shouldBeEqualTo 1
     }
 
@@ -104,12 +114,14 @@ class EtcdAsyncLifecycleTest {
         val inlineExecutor = Executor { command -> command.run() }
 
         val result = AsyncLeaseCleanupDispatcher.completeAfter(
-            source = CompletableFuture.failedFuture<String>(actionFailure),
+            source = failedCompletableFutureOf<String>(actionFailure),
             executor = inlineExecutor,
             cleanup = { throw cleanupFailure },
         ) { value, _ -> value }
 
-        val thrown = assertFailsWith<CompletionException> { result.join() }
+        val thrown = assertFailsWith<CompletionException> {
+            result.join()
+        }
 
         thrown.cause shouldBeEqualTo actionFailure
         thrown.cause?.suppressed?.toList() shouldBeEqualTo listOf(cleanupFailure)
@@ -129,13 +141,14 @@ class EtcdAsyncLifecycleTest {
                 action
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(true).shouldBeTrue()
 
-            action.cancelled.await(2, TimeUnit.SECONDS).shouldBeTrue()
-            client.cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            action.cancelled.await(2.seconds).shouldBeTrue()
+            client.cleaned.await(2.seconds).shouldBeTrue()
             client.unlockCalls.get() shouldBeEqualTo 1
             client.revokeCalls.get() shouldBeEqualTo 1
+
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             action.complete("cleanup")
@@ -157,13 +170,14 @@ class EtcdAsyncLifecycleTest {
                 action
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(true).shouldBeTrue()
 
-            action.cancelled.await(2, TimeUnit.SECONDS).shouldBeTrue()
-            client.cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            action.cancelled.await(2.seconds).shouldBeTrue()
+            client.cleaned.await(2.seconds).shouldBeTrue()
             client.unlockCalls.get() shouldBeEqualTo 1
             client.revokeCalls.get() shouldBeEqualTo 1
+
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             action.complete("cleanup")
@@ -181,14 +195,14 @@ class EtcdAsyncLifecycleTest {
         try {
             val result = elector.runAsyncIfLeader("lock-a", executor) {
                 actionInvoked.set(true)
-                CompletableFuture.completedFuture("should-not-run")
+                completableFutureOf("should-not-run")
             }
 
-            client.pendingAcquisition.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            client.pendingAcquisition.await(2.seconds).shouldBeTrue()
             result.cancel(true).shouldBeTrue()
             client.completePendingOwnership()
 
-            client.cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            client.cleaned.await(2.seconds).shouldBeTrue()
             actionInvoked.get().shouldBeFalse()
             client.unlockCalls.get() shouldBeEqualTo 1
             client.revokeCalls.get() shouldBeEqualTo 1
@@ -207,14 +221,14 @@ class EtcdAsyncLifecycleTest {
         try {
             val result = elector.runAsyncIfLeader("lock-a", executor) {
                 actionInvoked.set(true)
-                CompletableFuture.completedFuture("should-not-run")
+                completableFutureOf("should-not-run")
             }
 
-            client.pendingAcquisition.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            client.pendingAcquisition.await(2.seconds).shouldBeTrue()
             result.cancel(true).shouldBeTrue()
             client.completePendingOwnership()
 
-            client.cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            client.cleaned.await(2.seconds).shouldBeTrue()
             actionInvoked.get().shouldBeFalse()
             client.unlockCalls.get() shouldBeEqualTo 1
             client.revokeCalls.get() shouldBeEqualTo 1
@@ -235,20 +249,22 @@ class EtcdAsyncLifecycleTest {
         try {
             val result = elector.runAsyncIfLeader("lock-a", executor) {
                 actionInvoked.set(true)
-                CompletableFuture.completedFuture("should-not-run")
+                completableFutureOf("should-not-run")
             }
 
-            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            blocker.started.await(2.seconds).shouldBeTrue()
             result.isDone.shouldBeFalse()
             blocker.release.countDown()
 
             val failure = assertFailsWith<CompletionException> { result.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             failure.cause?.message shouldBeEqualTo "rejected-after-acquire"
-            client.cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+
+            client.cleaned.await(2.seconds).shouldBeTrue()
             actionInvoked.get().shouldBeFalse()
             client.unlockCalls.get() shouldBeEqualTo 1
             client.revokeCalls.get() shouldBeEqualTo 1
+
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             blocker.release.countDown()
@@ -268,20 +284,22 @@ class EtcdAsyncLifecycleTest {
         try {
             val result = elector.runAsyncIfLeader("lock-a", executor) {
                 actionInvoked.set(true)
-                CompletableFuture.completedFuture("should-not-run")
+                completableFutureOf("should-not-run")
             }
 
-            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            blocker.started.await(2.seconds).shouldBeTrue()
             result.isDone.shouldBeFalse()
             blocker.release.countDown()
 
             val failure = assertFailsWith<CompletionException> { result.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             failure.cause?.message shouldBeEqualTo "rejected-after-acquire"
-            client.cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+
+            client.cleaned.await(2.seconds).shouldBeTrue()
             actionInvoked.get().shouldBeFalse()
             client.unlockCalls.get() shouldBeEqualTo 1
             client.revokeCalls.get() shouldBeEqualTo 1
+
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             blocker.release.countDown()
@@ -304,9 +322,11 @@ class EtcdAsyncLifecycleTest {
 
             failure.cause.shouldBeInstanceOf<IllegalStateException>()
             failure.cause?.message shouldBeEqualTo "action-supplier-failed"
-            client.cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+
+            client.cleaned.await(2.seconds).shouldBeTrue()
             client.unlockCalls.get() shouldBeEqualTo 1
             client.revokeCalls.get() shouldBeEqualTo 1
+
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             executor.shutdownNow()
@@ -328,9 +348,11 @@ class EtcdAsyncLifecycleTest {
 
             failure.cause.shouldBeInstanceOf<IllegalStateException>()
             failure.cause?.message shouldBeEqualTo "action-supplier-failed"
-            client.cleaned.await(2, TimeUnit.SECONDS).shouldBeTrue()
+
+            client.cleaned.await(2.seconds).shouldBeTrue()
             client.unlockCalls.get() shouldBeEqualTo 1
             client.revokeCalls.get() shouldBeEqualTo 1
+
             elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             executor.shutdownNow()
@@ -345,11 +367,11 @@ class EtcdAsyncLifecycleTest {
 
         assertFailsWith<RejectedExecutionException> {
             EtcdLeaderElector.create(singleClient, singleOptions())
-                .runAsyncIfLeader("lock-a", rejectingExecutor) { CompletableFuture.completedFuture("unused") }
+                .runAsyncIfLeader("lock-a", rejectingExecutor) { completableFutureOf("unused") }
         }
         assertFailsWith<RejectedExecutionException> {
             EtcdLeaderGroupElector.create(groupClient, groupOptions())
-                .runAsyncIfLeader("lock-a", rejectingExecutor) { CompletableFuture.completedFuture("unused") }
+                .runAsyncIfLeader("lock-a", rejectingExecutor) { completableFutureOf("unused") }
         }
 
         singleClient.backendCalls() shouldBeEqualTo 0
@@ -392,17 +414,17 @@ class EtcdAsyncLifecycleTest {
 
         try {
             val result = runAsync(eventLoop, actionFuture, actionStarted)
-            actionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(2.seconds).shouldBeTrue()
             eventLoop.execute { actionFuture.complete("done") }
 
-            blocker.started.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            blocker.started.await(2.seconds).shouldBeTrue()
             eventLoop.execute { eventLoopProbe.countDown() }
-            eventLoopProbe.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            eventLoopProbe.await(1.seconds).shouldBeTrue()
             result.isDone.shouldBeFalse()
-            (blocker.threadName.get() == "issue-900-etcd-event-loop").shouldBeFalse()
+            blocker.threadName.get() shouldNotBeEqualTo "issue-900-etcd-event-loop"
 
             blocker.release.countDown()
-            result.get(2, TimeUnit.SECONDS) shouldBeEqualTo "done"
+            result.get(2.seconds) shouldBeEqualTo "done"
         } finally {
             blocker.release.countDown()
             eventLoop.shutdownNow()
@@ -436,19 +458,20 @@ class EtcdAsyncLifecycleTest {
         private val pending = AtomicReference<PendingLock?>()
 
         override fun singleLockKey(lockName: String): ByteSequence =
-            bytes("/bluetape4k/leader/single/$lockName")
+            "/bluetape4k/leader/single/$lockName".toByteSequence()
 
         override fun groupSlotLockKey(lockName: String, zeroBasedSlot: Int): ByteSequence =
-            bytes("/bluetape4k/leader/group/$lockName/slot-$zeroBasedSlot")
+            "/bluetape4k/leader/group/$lockName/slot-$zeroBasedSlot".toByteSequence()
 
         override fun grantLease(ttlSeconds: Long): CompletableFuture<Long> {
             grantCalls.incrementAndGet()
-            return CompletableFuture.completedFuture(nextLeaseId.incrementAndGet())
+            return completableFutureOf(nextLeaseId.incrementAndGet())
         }
 
         override fun lock(lockKey: ByteSequence, leaseId: Long): CompletableFuture<ByteSequence> {
             val call = lockCalls.incrementAndGet()
-            val ownershipKey = bytes("${lockKey.toString(StandardCharsets.UTF_8)}/owner-$leaseId")
+            val ownershipKey = "${lockKey.toString(StandardCharsets.UTF_8)}/owner-$leaseId".toByteSequence()
+
             if (pendFirstLock && call == 1) {
                 val future = CompletableFuture<ByteSequence>()
                 pending.set(PendingLock(lockKey, leaseId, ownershipKey, future))
@@ -460,31 +483,31 @@ class EtcdAsyncLifecycleTest {
             }
             ownershipToLockKey[ownershipKey] = lockKey
             leaseToLockKey[leaseId] = lockKey
-            return CompletableFuture.completedFuture(ownershipKey)
+            return completableFutureOf(ownershipKey)
         }
 
         override fun unlock(ownershipKey: ByteSequence): CompletableFuture<Unit> {
             unlockCalls.incrementAndGet()
             cleanupBlocker?.block()
             ownershipToLockKey.remove(ownershipKey)?.let(activeLockKeys::remove)
-            return CompletableFuture.completedFuture(Unit)
+            return completableFutureOf(Unit)
         }
 
         override fun revokeLease(leaseId: Long): CompletableFuture<Unit> {
             revokeCalls.incrementAndGet()
             leaseToLockKey.remove(leaseId)?.let(activeLockKeys::remove)
             cleaned.countDown()
-            return CompletableFuture.completedFuture(Unit)
+            return completableFutureOf(Unit)
         }
 
         override fun keepAliveOnce(leaseId: Long): CompletableFuture<LeaseKeepAliveResponse> =
-            CompletableFuture.failedFuture(UnsupportedOperationException("keepAliveOnce is not used"))
+            failedCompletableFutureOf(UnsupportedOperationException("keepAliveOnce is not used"))
 
         override fun ownershipKeys(lockKey: ByteSequence): CompletableFuture<List<ByteSequence>> =
-            CompletableFuture.completedFuture(emptyList())
+            completableFutureOf(emptyList())
 
         fun completePendingOwnership() {
-            val request = checkNotNull(pending.getAndSet(null)) { "pending ownership does not exist" }
+            val request = pending.getAndSet(null).checkNotNull { "pending ownership does not exist" }
             activeLockKeys.add(request.lockKey)
             ownershipToLockKey[request.ownershipKey] = request.lockKey
             leaseToLockKey[request.leaseId] = request.lockKey
@@ -493,9 +516,6 @@ class EtcdAsyncLifecycleTest {
 
         fun backendCalls(): Int =
             grantCalls.get() + lockCalls.get() + unlockCalls.get() + revokeCalls.get()
-
-        private fun bytes(value: String): ByteSequence =
-            ByteSequence.from(value, StandardCharsets.UTF_8)
 
         private data class PendingLock(
             val lockKey: ByteSequence,
@@ -513,7 +533,7 @@ class EtcdAsyncLifecycleTest {
         fun block() {
             threadName.set(Thread.currentThread().name)
             started.countDown()
-            release.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            release.await(5.seconds).shouldBeTrue()
         }
     }
 }

@@ -2,27 +2,33 @@ package io.bluetape4k.leader.spring.route
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.spring.properties.LeaderRouteRedirectProperties
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.net.URI
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.concurrent.CopyOnWriteArrayList
 
 class LeaderRouteRedirectPolicyTest {
 
+    companion object: KLogging()
+
     private val now = Instant.parse("2026-08-23T00:00:00Z")
-    private val clock = Clock.fixed(now, java.time.ZoneOffset.UTC)
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
     private val slot = LeaderSlot("orders-route", "node-a")
     private val evaluation = LeaderRouteEvaluation(
         decision = LeaderRouteDecision.NotLeader,
         leaderState = LeaderState.occupied(
             "orders-route",
-            LeaderLease("node-b", leaseUntil = now.plusSeconds(30)),
+            LeaderLease("node-b", leaseUntil = now + 30.seconds()),
         ),
         evaluatedAt = now,
     )
@@ -34,7 +40,7 @@ class LeaderRouteRedirectPolicyTest {
         val target = policy.redirect(
             slot,
             evaluation,
-            LeaderRouteRedirectResolver { URI("/leader/orders") },
+            { URI("/leader/orders") },
             metadata = null,
             framework = LeaderRouteRedirectFramework.MVC,
         )
@@ -49,7 +55,7 @@ class LeaderRouteRedirectPolicyTest {
         val target = policy.redirect(
             slot,
             evaluation,
-            LeaderRouteRedirectResolver { URI("https://leader.example/orders") },
+            { URI("https://leader.example/orders") },
             metadata = null,
             framework = LeaderRouteRedirectFramework.MVC,
         )
@@ -115,7 +121,7 @@ class LeaderRouteRedirectPolicyTest {
         policy.redirect(
             slot,
             staleEvaluation,
-            LeaderRouteRedirectResolver {
+            {
                 calls++
                 URI("/leader/orders")
             },
@@ -134,13 +140,15 @@ class LeaderRouteRedirectPolicyTest {
         policy.redirect(
             slot,
             evaluation,
-            LeaderRouteRedirectResolver {
+            {
                 captured = it
                 URI("/leader/orders")
             },
             metadata = null,
             framework = LeaderRouteRedirectFramework.MVC,
         ) shouldBeEqualTo URI("/leader/orders")
+
+        log.debug { "captured=$captured" }
 
         captured?.slot shouldBeEqualTo slot
         captured?.evaluatedAt shouldBeEqualTo now
@@ -158,7 +166,7 @@ class LeaderRouteRedirectPolicyTest {
         policy.redirect(
             slot,
             evaluation,
-            LeaderRouteRedirectResolver { URI("https://leader.example/orders") },
+            { URI("https://leader.example/orders") },
             metadata = null,
             framework = LeaderRouteRedirectFramework.WEBFLUX,
         ).shouldBeNull()
@@ -178,7 +186,7 @@ class LeaderRouteRedirectPolicyTest {
         policy.redirect(
             slot,
             evaluation,
-            LeaderRouteRedirectResolver { throw Exception("sensitive resolver detail") },
+            { throw Exception("sensitive resolver detail") },
             metadata = null,
             framework = LeaderRouteRedirectFramework.MVC,
         ).shouldBeNull()

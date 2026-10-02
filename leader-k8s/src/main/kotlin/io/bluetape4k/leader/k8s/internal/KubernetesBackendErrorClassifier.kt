@@ -5,7 +5,7 @@ import io.bluetape4k.leader.internal.BackendErrorKind
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.KubernetesClientTimeoutException
 
-internal object KubernetesBackendErrorClassifier : BackendErrorClassifier {
+internal object KubernetesBackendErrorClassifier: BackendErrorClassifier {
     private const val UNAUTHORIZED = 401
     private const val FORBIDDEN = 403
     private const val CONFLICT = 409
@@ -16,9 +16,9 @@ internal object KubernetesBackendErrorClassifier : BackendErrorClassifier {
         is KubernetesClientException -> when (cause.code) {
             CONFLICT, TOO_MANY_REQUESTS -> BackendErrorKind.TRANSIENT
             UNAUTHORIZED, FORBIDDEN -> BackendErrorKind.NON_TRANSIENT
-            in 500..599 -> BackendErrorKind.TRANSIENT
-            else -> BackendErrorKind.NON_TRANSIENT
+            in 500..599             -> BackendErrorKind.TRANSIENT
+            else                    -> BackendErrorKind.NON_TRANSIENT
         }
-        else -> null
+        else                         -> null
     }
 }

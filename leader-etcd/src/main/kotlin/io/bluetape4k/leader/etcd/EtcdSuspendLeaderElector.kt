@@ -5,6 +5,8 @@ import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.etcd.internal.EtcdAcquisitionDeadline
 import io.bluetape4k.leader.etcd.internal.EtcdBackendErrorClassifier
@@ -15,6 +17,7 @@ import io.bluetape4k.leader.etcd.internal.EtcdSuspendLockExtendDelegate
 import io.bluetape4k.leader.etcd.internal.JetcdEtcdLockClient
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -41,11 +44,11 @@ class EtcdSuspendLeaderElector private constructor(
     private val lockClient: EtcdLockClient,
     val options: EtcdLeaderElectionOptions,
 ): SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics,
-    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics,
+   SuspendLeaderLeaseAcquirerSupport {
 
-    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
     companion object: KLoggingChannel() {
@@ -199,10 +202,3 @@ class EtcdSuspendLeaderElector private constructor(
     }
 
 }
-
-suspend inline fun <T> Client.suspendRunIfLeader(
-    lockName: String,
-    options: EtcdLeaderElectionOptions = EtcdLeaderElectionOptions.Default,
-    crossinline action: suspend () -> T,
-): T? =
-    EtcdSuspendLeaderElector(this, options).runIfLeader(lockName) { action() }

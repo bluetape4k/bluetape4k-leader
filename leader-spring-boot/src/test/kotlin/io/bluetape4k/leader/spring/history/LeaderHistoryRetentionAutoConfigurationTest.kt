@@ -10,11 +10,14 @@ import io.bluetape4k.leader.history.NoopSuspendLeaderHistorySink
 import io.bluetape4k.leader.history.SuspendLeaderHistorySink
 import io.bluetape4k.leader.local.LocalLeaderElectorFactory
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
 class LeaderHistoryRetentionAutoConfigurationTest {
+
+    companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(LeaderHistoryRetentionAutoConfiguration::class.java))

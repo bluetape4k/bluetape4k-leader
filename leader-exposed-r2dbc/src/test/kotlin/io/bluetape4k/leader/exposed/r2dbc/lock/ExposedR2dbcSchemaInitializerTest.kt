@@ -4,18 +4,19 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
-import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotContain
-import io.bluetape4k.leader.exposed.testing.databaseUrlRedactionContractTests
+import io.bluetape4k.coroutines.support.log
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.exposed.r2dbc.AbstractExposedR2dbcLeaderTest
 import io.bluetape4k.leader.exposed.r2dbc.TestR2dbcDB
+import io.bluetape4k.leader.exposed.r2dbc.internal.validateExposedR2dbcLockName
+import io.bluetape4k.leader.exposed.testing.databaseUrlRedactionContractTests
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
@@ -55,8 +56,10 @@ class ExposedR2dbcSchemaInitializerTest: AbstractExposedR2dbcLeaderTest() {
         ExposedR2dbcSchemaInitializer.resetFor(db)
 
         coroutineScope {
-            (1..10).map {
-                async { ExposedR2dbcSchemaInitializer.ensureSchema(db) }
+            List(10) {
+                async {
+                    ExposedR2dbcSchemaInitializer.ensureSchema(db)
+                }.log("Job #$it")
             }.awaitAll()
         }
 
@@ -68,9 +71,10 @@ class ExposedR2dbcSchemaInitializerTest: AbstractExposedR2dbcLeaderTest() {
     @MethodSource("enableDialects")
     fun `resetFor - 초기화 상태를 리셋하면 다음 호출에서 재초기화된다`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = connectDb(testDB)
-        ExposedR2dbcSchemaInitializer.resetFor(db)
 
+        ExposedR2dbcSchemaInitializer.resetFor(db)
         ExposedR2dbcSchemaInitializer.ensureSchema(db)
+
         ExposedR2dbcSchemaInitializer.resetFor(db)
         ExposedR2dbcSchemaInitializer.ensureSchema(db)
     }
@@ -116,19 +120,23 @@ class ExposedR2dbcSchemaInitializerTest: AbstractExposedR2dbcLeaderTest() {
             "test-lock-name"
         )
         validNames.forEach { name ->
-            validateExposedR2dbcLockName(name)
+            name.validateExposedR2dbcLockName()
         }
     }
 
     @Test
     fun `validateExposedR2dbcLockName - 빈 문자열은 예외가 발생한다`() {
-        assertFailsWith<IllegalArgumentException> { validateExposedR2dbcLockName("") }
+        assertFailsWith<IllegalArgumentException> {
+            "".validateExposedR2dbcLockName("emptyString")
+        }
     }
 
     @Test
     fun `validateExposedR2dbcLockName - 255자 초과 lockName은 예외가 발생한다`() {
         val tooLong = "a".repeat(256)
-        assertFailsWith<IllegalArgumentException> { validateExposedR2dbcLockName(tooLong) }
+        assertFailsWith<IllegalArgumentException> {
+            tooLong.validateExposedR2dbcLockName("tooLong")
+        }
     }
 
     @Test
@@ -139,7 +147,9 @@ class ExposedR2dbcSchemaInitializerTest: AbstractExposedR2dbcLeaderTest() {
             "has!excl",
         )
         invalidNames.forEach { name ->
-            assertFailsWith<IllegalArgumentException> { validateExposedR2dbcLockName(name) }
+            assertFailsWith<IllegalArgumentException> {
+                name.validateExposedR2dbcLockName("name")
+            }
         }
     }
 }

@@ -35,11 +35,11 @@ internal data class LeaderEventStreamConfig(
         }
         require(eventStreamReplayCapacity in REPLAY_CAPACITY_RANGE) {
             "eventStreamReplayCapacity는 ${REPLAY_CAPACITY_RANGE.first}..${REPLAY_CAPACITY_RANGE.last} 범위여야 합니다: " +
-                eventStreamReplayCapacity
+                    eventStreamReplayCapacity
         }
         require(eventStreamMaxConnections in MAX_CONNECTIONS_RANGE) {
             "eventStreamMaxConnections는 ${MAX_CONNECTIONS_RANGE.first}..${MAX_CONNECTIONS_RANGE.last} 범위여야 합니다: " +
-                eventStreamMaxConnections
+                    eventStreamMaxConnections
         }
         require(eventStreamHeartbeat.isFinite() && eventStreamHeartbeat.isPositive()) {
             "eventStreamHeartbeat는 유한한 양수여야 합니다: $eventStreamHeartbeat"

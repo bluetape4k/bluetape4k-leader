@@ -4,7 +4,7 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderSlot
 
 /** Delegation surface for built-in suspend electors and wrappers. */
-interface SuspendLeaderLeaseAcquirerSupport : SuspendLeaderLeaseAcquirer {
+interface SuspendLeaderLeaseAcquirerSupport: SuspendLeaderLeaseAcquirer {
     val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer
 
     /** delegate가 실제 suspend request-lease capability를 제공하는지 selector가 확인합니다. */

@@ -2,29 +2,40 @@ package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
-import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import io.bluetape4k.utils.Runtimex
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.until
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
-import org.awaitility.kotlin.*
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
+import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class DynamoDbLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
+class DynamoDbLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `runIfLeader acquires releases and allows sequential reacquire`() {
@@ -50,20 +61,23 @@ class DynamoDbLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
         val elected = AtomicInteger(0)
 
         MultithreadingTester()
-            .workers(6)
-            .rounds(2)
+            .workers(Runtimex.availableProcessors)
+            .rounds(4)
             .add {
                 elector.runIfLeader(lockName) {
                     val current = active.incrementAndGet()
                     peak.updateAndGet { max(it, current) }
-                    Thread.sleep(25)
+
+                    Thread.sleep(Random.nextLong(5, 25))
                     elected.incrementAndGet()
                     active.decrementAndGet()
                 }
             }
             .run()
 
-        peak.get() shouldBeLessOrEqualTo 1
+        log.debug { "peak=$peak, active=$active, elected=$elected" }
+        peak.get() shouldBeEqualTo 1
+        active.get() shouldBeEqualTo 0
         elected.get() shouldBeGreaterOrEqualTo 1
     }
 
@@ -72,7 +86,11 @@ class DynamoDbLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
         val keyPrefix = keyPrefix()
         val holder = newElector(
             keyPrefix = keyPrefix,
-            leaderOptions = LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 10.seconds, nodeId = "dynamodb-state-node-a"),
+            leaderOptions = LeaderElectionOptions(
+                waitTime = 1.seconds,
+                leaseTime = 10.seconds,
+                nodeId = "dynamodb-state-node-a"
+            ),
         )
         val contender = newElector(
             keyPrefix = keyPrefix,
@@ -85,38 +103,40 @@ class DynamoDbLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
         val executor = Executors.newSingleThreadExecutor()
 
         empty.lockName shouldBeEqualTo slot.lockName
-        empty.isEmpty shouldBeEqualTo true
-        empty.leader shouldBeEqualTo null
+        empty.isEmpty.shouldBeTrue()
+        empty.leader.shouldBeNull()
 
         try {
             val holderFuture = executor.submit<String?> {
                 holder.runIfLeader(slot) {
                     val state = holder.state(slot.lockName)
 
+                    log.debug { "state=$state" }
                     state.lockName shouldBeEqualTo slot.lockName
-                    state.isOccupied shouldBeEqualTo true
+                    state.isOccupied.shouldBeTrue()
                     state.leader.shouldNotBeNull()
                     state.leader?.auditLeaderId shouldBeEqualTo "dynamodb-state-audit-node-a"
                     state.leader?.nodeId shouldBeEqualTo "dynamodb-state-node-a"
                     state.leader?.leaseUntil.shouldNotBeNull()
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds)
                     "holder"
                 }
             }
 
-            started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+            started.await(10.seconds).shouldBeTrue()
             contender.runIfLeader(slot.lockName) { "contender" }.shouldBeNull()
-            holder.state(slot.lockName).isOccupied shouldBeEqualTo true
+            holder.state(slot.lockName).isOccupied.shouldBeTrue()
 
             release.countDown()
-            holderFuture.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+            holderFuture.get(10.seconds) shouldBeEqualTo "holder"
         } finally {
             release.countDown()
             executor.shutdownNow()
         }
 
-        holder.state(slot.lockName).isEmpty shouldBeEqualTo true
+        log.debug { "holder state=${holder.state(slot.lockName)}" }
+        holder.state(slot.lockName).isEmpty.shouldBeTrue()
         contender.runIfLeader(slot.lockName) { "takeover" } shouldBeEqualTo "takeover"
     }
 
@@ -173,6 +193,7 @@ class DynamoDbLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
             }
 
             contender.runIfLeader(lockName) { "contender" }.shouldBeNull()
+
             "holder"
         } shouldBeEqualTo "holder"
 
@@ -187,17 +208,21 @@ class DynamoDbLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
             LockExtender.extendActiveLock(5.seconds)
         }
 
-        extended shouldBeEqualTo true
+        extended.shouldBeTrue()
     }
 
     @Test
     fun `slot leader id is stored as audit identity`() {
         val elector = newElector(
-            leaderOptions = LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 5.seconds, nodeId = "dynamodb-node-a"),
+            leaderOptions = LeaderElectionOptions(
+                waitTime = 1.seconds,
+                leaseTime = 5.seconds,
+                nodeId = "dynamodb-node-a"
+            ),
         )
         val slot = LeaderSlot(randomName(), "dynamodb-audit-node-a")
 
-        elector.supportsAuditLeaderState shouldBeEqualTo true
+        elector.supportsAuditLeaderState.shouldBeTrue()
         val result = elector.runIfLeaderResult(slot) {
             val lease = elector.state(slot.lockName).leader
             lease?.auditLeaderId shouldBeEqualTo "dynamodb-audit-node-a"
@@ -214,10 +239,11 @@ class DynamoDbLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
         val lockName = randomName()
 
         val result = elector.runAsyncIfLeader(lockName, ForkJoinPool.commonPool()) {
-            CompletableFuture.completedFuture("async")
-        }.get(5, TimeUnit.SECONDS)
+            completableFutureOf("async")
+        }.get(5.seconds)
 
         result shouldBeEqualTo "async"
+
         elector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
     }
 
@@ -238,11 +264,12 @@ class DynamoDbLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
                 actionFuture
             }
 
-            actionStarted.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
-            result.cancel(false) shouldBeEqualTo true
-            actionFuture.isCancelled shouldBeEqualTo true
-            await.atMost(5.seconds).untilAsserted {
-                elector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+            actionStarted.await(2.seconds).shouldBeTrue()
+            result.cancel(false).shouldBeTrue()
+            actionFuture.isCancelled.shouldBeTrue()
+
+            await atMost 5.seconds until {
+                elector.runIfLeader(lockName) { "reacquired" } == "reacquired"
             }
         } finally {
             actionFuture.cancel(true)
@@ -256,8 +283,8 @@ class DynamoDbLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
         val slot = LeaderSlot(randomName(), "dynamodb-async-audit")
 
         val result = elector.runAsyncIfLeaderResult(slot, ForkJoinPool.commonPool()) {
-            CompletableFuture.completedFuture("async-result")
-        }.get(5, TimeUnit.SECONDS)
+            completableFutureOf("async-result")
+        }.get(5.seconds)
 
         result shouldBeEqualTo LeaderRunResult.Elected("async-result", leaderId = "dynamodb-async-audit")
     }

@@ -8,4 +8,4 @@ package io.bluetape4k.leader.spring.aop.internal
  */
 internal class InvalidLockNameException(
     cause: IllegalArgumentException,
-) : IllegalArgumentException(cause.message, cause)
+): IllegalArgumentException(cause.message, cause)
