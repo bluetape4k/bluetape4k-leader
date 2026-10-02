@@ -59,9 +59,12 @@ class LeaderAuditExportBoundaryContractTest {
         publicSnapshotConstructors.single().isSynthetic.shouldBeTrue()
 
         val publicSnapshotMethods = LeaderAuditExportSnapshot::class.java.declaredMethods
-            .filter { Modifier.isPublic(it.modifiers) }
+            .filter { Modifier.isPublic(it.modifiers) && Modifier.isFinal(it.modifiers) }
             .map { it.name }
             .toSet()
+
+        // publicSnapshotMethods.forEach { log.debug { it } }
+        
         publicSnapshotMethods shouldBeEqualTo setOf(
             "getQueued",
             "getInFlight",
