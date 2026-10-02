@@ -2,17 +2,13 @@
 
 [English](README.md) | 한국어
 
-이 예제는 Kubernetes operator에서 자주 쓰는 single-active-controller 패턴을
-보여줍니다. 같은 Spring Boot 애플리케이션을 3개 pod로 실행해도 Kubernetes
-`coordination.k8s.io/v1` Lease를 보유한 pod 하나만 mock custom resource
-reconcile loop를 실행합니다.
+이 예제는 Kubernetes operator에서 자주 쓰는 single-active-controller 패턴을 보여줍니다. 같은 Spring Boot 애플리케이션을 3개 pod로 실행해도 Kubernetes
+`coordination.k8s.io/v1` Lease를 보유한 pod 하나만 mock custom resource reconcile loop를 실행합니다.
 
 ## 시나리오
 
-3개 replica가 같은 Spring Boot operator controller를 실행합니다. 모든 replica는
-scheduled tick을 유지하지만, `KubernetesLeaseLeaderElector.runIfLeader`가
-`cronjob-reconciler` Lease를 가진 pod 하나만 reconcile workload를 호출하게 합니다.
-리더가 Lease 갱신을 멈추면 이후 tick에서 다른 pod가 인계할 수 있습니다.
+3개 replica가 같은 Spring Boot operator controller를 실행합니다. 모든 replica는 scheduled tick을 유지하지만, `KubernetesLeaseLeaderElector.runIfLeader`가
+`cronjob-reconciler` Lease를 가진 pod 하나만 reconcile workload를 호출하게 합니다. 리더가 Lease 갱신을 멈추면 이후 tick에서 다른 pod가 인계할 수 있습니다.
 
 ## 예제 시나리오
 
@@ -63,8 +59,7 @@ fun reconcileTick() {
 }
 ```
 
-현재 leader pod가 종료되거나 Lease 갱신을 멈추면 다른 pod가 다음 tick에서
-같은 lock을 획득하고 reconcile을 이어갈 수 있습니다.
+현재 leader pod가 종료되거나 Lease 갱신을 멈추면 다른 pod가 다음 tick에서 같은 lock을 획득하고 reconcile을 이어갈 수 있습니다.
 
 ## Kubernetes Manifest
 
@@ -77,15 +72,12 @@ kubectl logs deploy/bluetape4k-k8s-operator -f
 ```
 
 런타임 ServiceAccount에는 대상 namespace의 `coordination.k8s.io/leases`에 대해
-`get`, `create`, `update`, `patch` 권한만 필요합니다. Lease 삭제는 운영 중인
-operator 권한이 아니라 관리자/테스트 정리 권한으로 분리합니다.
+`get`, `create`, `update`, `patch` 권한만 필요합니다. Lease 삭제는 운영 중인 operator 권한이 아니라 관리자/테스트 정리 권한으로 분리합니다.
 
-예제 Deployment는 `latest` 대신 안정적인 `0.5.0` 이미지 태그를 사용합니다. 실제
-환경에서는 직접 빌드한 immutable tag나 digest로 교체하세요.
+예제 Deployment는 `latest` 대신 안정적인 `0.5.0` 이미지 태그를 사용합니다. 실제 환경에서는 직접 빌드한 immutable tag나 digest로 교체하세요.
 
 Probe 계약은 다음과 같습니다.
 
-- `startupProbe`는 Spring Boot actuator endpoint가 준비될 때까지 liveness 판단을
-  늦춥니다.
+- `startupProbe`는 Spring Boot actuator endpoint가 준비될 때까지 liveness 판단을 늦춥니다.
 - `livenessProbe`는 actuator health endpoint가 응답하지 않는 pod를 재시작합니다.
 - `readinessProbe`는 시작 또는 복구 중인 pod를 service routing에서 제외합니다.

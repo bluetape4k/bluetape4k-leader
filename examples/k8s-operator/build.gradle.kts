@@ -60,22 +60,20 @@ configurations.named("testRuntimeClasspath") {
 dependencies {
     implementation(project(":bluetape4k-leader-k8s"))
 
-    implementation(bt4k.bluetape4k.logging)
+    implementation(bt4k.bluetape4k.core)
     implementation(bt4k.fabric8.kubernetes.client)
 
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-web")
 
-    runtimeOnly(bt4k.logback)
-
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(bt4k.bluetape4k.testcontainers)
+    testImplementation(libs.testcontainers)
+    testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.awaitility.kotlin)
     testImplementation(libs.spring.boot.test)
     testImplementation(libs.spring.test)
-    testImplementation(libs.testcontainers)
-    testImplementation(libs.testcontainers.junit.jupiter)
 }
 
 tasks.test {
