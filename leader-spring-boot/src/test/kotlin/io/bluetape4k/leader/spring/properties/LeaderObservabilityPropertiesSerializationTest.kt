@@ -20,7 +20,6 @@ import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import org.springframework.boot.health.contributor.Status
 import java.io.ByteArrayInputStream
 import java.io.ObjectInputStream
-import java.io.ObjectStreamClass
 import java.time.Duration
 import java.util.*
 
@@ -97,6 +96,7 @@ class LeaderObservabilityPropertiesSerializationTest {
             input.readObject().shouldBeInstanceOf<LeaderObservabilityProperties>()
         }
 
+    @Suppress("DEPRECATION")
     private fun <T: Any> roundTrip(value: T): T {
         val bytes = BinarySerializers.Jdk.serialize(value)
         return BinarySerializers.Jdk.deserialize<T>(bytes).shouldNotBeNull()

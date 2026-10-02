@@ -124,9 +124,9 @@ class LeaderElectionAspect(
 
         if (method.returnType.name == FLUX_RETURN_TYPE) {
             return Flux.defer<Any> {
+                @Suppress("UNCHECKED_CAST")
                 when (val resolution = resolveMetadata(method, target)) {
                     MetadataResolution.Bypass -> {
-                        @Suppress("UNCHECKED_CAST")
                         pjp.proceed() as Flux<Any>
                     }
                     is MetadataResolution.Present -> aroundLeaderFlux(pjp, resolution.metadata) as Flux<Any>
@@ -145,6 +145,7 @@ class LeaderElectionAspect(
         }
 
         if (method.returnType.name == MONO_RETURN_TYPE) {
+            @Suppress("UNCHECKED_CAST")
             return Mono.defer<Any> {
                 when (val resolution = resolveMetadata(method, target)) {
                     MetadataResolution.Bypass -> {

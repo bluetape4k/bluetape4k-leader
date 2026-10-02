@@ -123,6 +123,7 @@ class LeaderRouteGuardPropertiesSerializationTest {
         LeaderRouteGuardProperties::class.lookup().serialVersionUID shouldBeEqualTo 1L
     }
 
+    @Suppress("DEPRECATION")
     private fun <T: Any> roundTrip(value: T): T {
         val bytes = BinarySerializers.Jdk.serialize(value)
         return BinarySerializers.Jdk.deserialize<T>(bytes).shouldNotBeNull()

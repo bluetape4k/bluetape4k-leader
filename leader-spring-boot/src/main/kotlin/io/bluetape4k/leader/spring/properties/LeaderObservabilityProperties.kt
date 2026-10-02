@@ -153,7 +153,7 @@ data class LeaderObservabilityProperties(
      * `backendHealth` 추가 전 직렬화 스트림을 읽을 때 Java serialization이 Kotlin 기본값을
      * 호출하지 않는 경계를 복구합니다.
      */
-    @Suppress("SENSELESS_COMPARISON", "UNNECESSARY_SAFE_CALL")
+    @Suppress("SENSELESS_COMPARISON", "UNNECESSARY_SAFE_CALL", "USELESS_ELVIS")
     private fun readResolve(): Any =
         if (backendHealth == null) {
             LeaderObservabilityProperties(
