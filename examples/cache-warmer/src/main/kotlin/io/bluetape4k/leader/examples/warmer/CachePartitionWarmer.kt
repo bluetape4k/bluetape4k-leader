@@ -63,7 +63,7 @@ class CachePartitionWarmer(
             }
 
             when (outcome) {
-                WarmOutcome.Warmed -> warmed += partitionId
+                WarmOutcome.Warmed  -> warmed += partitionId
                 WarmOutcome.Skipped -> {
                     skipped += partitionId
                     log.info { "[${options.nodeId}] partition=$partitionId 리더 선출 실패 — skip" }
@@ -83,6 +83,7 @@ class CachePartitionWarmer(
     private sealed interface WarmOutcome {
         data object Warmed: WarmOutcome
         data object Skipped: WarmOutcome
+
         /**
          * `Failed`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
          *
