@@ -5,13 +5,11 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import io.bluetape4k.ktor.core.Bluetape4kKtorCoreConfig
 import io.bluetape4k.ktor.core.installBluetape4kKtorCore
 import io.bluetape4k.leader.LeaderElectionOptions
-import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.ktor.LeaderElectionPlugin
 import io.bluetape4k.leader.ktor.leaderScheduled
 import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
-import io.bluetape4k.support.closeSafe
 import io.bluetape4k.utils.ShutdownQueue
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.Application
@@ -74,7 +72,7 @@ object KtorAppMain: KLogging() {
             ShutdownQueue.register { runCatching { it.shutdown() } }
         }
         val connection = client.connect(StringCodec.UTF8).also {
-            ShutdownQueue.register { it.closeSafe() }
+            ShutdownQueue.register(it)
         }
 
         embeddedServer(CIO, port = port) {

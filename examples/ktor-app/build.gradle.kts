@@ -22,25 +22,25 @@ dependencies {
     implementation(project(":bluetape4k-leader-ktor"))
     implementation(project(":bluetape4k-leader-redis-lettuce"))
 
+    // Coroutines
     implementation(bt4k.bluetape4k.coroutines)
-    implementation(bt4k.bluetape4k.logging)
+    implementation(libs.kotlinx.coroutines.core)
+    testImplementation(libs.kotlinx.coroutines.test)
+
+    // Lettuce
     implementation(bt4k.bluetape4k.lettuce)
-    implementation(bt4k.bluetape4k.ktor.core)
     implementation(libs.lettuce.core)
 
-    implementation(libs.kotlinx.coroutines.core)
-
     // Ktor 3.x — server + JSON content negotiation
+    implementation(bt4k.bluetape4k.ktor.core)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.serialization.jackson)
 
     // Jackson — Java 8 time types (Instant) + Kotlin module already provided by ktor-serialization-jackson
+    implementation(bt4k.bluetape4k.jackson2)
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-
-    // Logging
-    runtimeOnly(bt4k.logback)
 
     // Testcontainers (data layer test container singleton)
     implementation(bt4k.bluetape4k.testcontainers)
@@ -48,7 +48,6 @@ dependencies {
 
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(bt4k.bluetape4k.ktor.testing)
-    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.awaitility.kotlin)

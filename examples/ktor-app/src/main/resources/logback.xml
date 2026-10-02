@@ -3,14 +3,18 @@
     <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
         <immediateFlush>true</immediateFlush>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) [%blue(%24.24t)] %yellow(%logger{36}):%line: %msg%n%throwable</pattern>
+            <!-- @formatter:off -->
+            <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) [%blue(%32.32t)] %yellow(%logger{36}):%line: %msg%n%throwable</pattern>
+            <!-- @formatter:on -->
             <charset>UTF-8</charset>
         </encoder>
     </appender>
-    <logger name="io.bluetape4k.leader.examples.ktor" level="DEBUG"/>
-    <logger name="io.bluetape4k.leader.ktor" level="INFO"/>
+    <logger name="io.bluetape4k.leader" level="DEBUG"/>
+    <logger name="bluetape4k" level="DEBUG"/>
+
     <logger name="io.netty" level="WARN"/>
     <logger name="io.lettuce" level="WARN"/>
+
     <root level="INFO">
         <appender-ref ref="Console"/>
     </root>
