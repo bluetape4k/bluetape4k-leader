@@ -22,7 +22,7 @@ object BatchSchedulerDemo: KLogging() {
     fun main(args: Array<String>) {
         val redis = startExampleContainer { reuse -> RedisServer(reuse = reuse) }
         val client = RedisClient.create(redis.url).also {
-            ShutdownQueue.register { runCatching { it.shutdown() } }
+            ShutdownQueue.register { it.closeSafe() }
         }
 
         val executions = AtomicInteger(0)
