@@ -46,6 +46,7 @@ class CachePartitionWarmer(
             log.debug { "[${options.nodeId}] partition=$partitionId lockName=$lockName 리더 선출 시도" }
 
             val outcome: WarmOutcome = try {
+                // elector 를 이용하여 `warmFunction(partitionId)` 를 동기 방식으로 수행한다.
                 val ran = elector.runIfLeader(lockName) {
                     log.info { "[${options.nodeId}] partition=$partitionId 리더 선출 — 워밍 시작" }
                     warmFunction(partitionId)

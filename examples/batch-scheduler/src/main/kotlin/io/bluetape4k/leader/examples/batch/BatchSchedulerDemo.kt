@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.examples.batch
 
+import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
@@ -10,6 +11,7 @@ import io.lettuce.core.RedisClient
 import io.lettuce.core.codec.StringCodec
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `BatchSchedulerDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -59,6 +61,10 @@ object BatchSchedulerDemo: KLogging() {
             log.info { "실제 실행된 인스턴스 수: ${executions.get()} (기대값: 1)" }
         } finally {
             executor.shutdown()
+            executor.awaitTermination(5.seconds)
+            client.closeSafe()
+            redis.close()
+            log.info { "작업 정리 완료" }
         }
     }
 }

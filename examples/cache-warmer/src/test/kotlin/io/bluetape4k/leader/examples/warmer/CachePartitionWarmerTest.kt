@@ -6,14 +6,16 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldContainSame
+import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.hazelcast.HazelcastLeaderElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -25,12 +27,14 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
         private val DEFAULT_PARTITIONS = listOf("region-asia", "region-eu", "region-us")
     }
 
-    private fun electorFactory(): (String, LeaderElectionOptions) -> LeaderElector =
-        { _, options -> HazelcastLeaderElector(hazelcastClient, options) }
+    private fun electorFactory(): (String, LeaderElectionOptions) -> LeaderElector = { _, options ->
+        HazelcastLeaderElector(hazelcastClient, options)
+    }
 
     @Test
     fun `단일 인스턴스 - 모든 파티션이 warmed 에 포함된다`() {
-        val warmedPartitions = CopyOnWriteArrayList<String>()
+        val warmedPartitions = ConcurrentLinkedQueue<String>()
+
         val warmer = CachePartitionWarmer(
             electorFactory = electorFactory(),
             options = CachePartitionWarmerOptions(
@@ -45,9 +49,11 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
 
         val result = warmer.warmAll()
 
+        log.debug { "warm result=$result" }
         result.warmed shouldContainSame DEFAULT_PARTITIONS
         result.skipped.shouldBeEmpty()
         result.failed.shouldBeEmpty()
+
         warmedPartitions shouldContainSame DEFAULT_PARTITIONS
     }
 
@@ -63,10 +69,10 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
         DEFAULT_PARTITIONS.forEach { maxConcurrent[it] = AtomicInteger(0) }
 
         val executor = Executors.newFixedThreadPool(instanceCount)
-        val results = CopyOnWriteArrayList<WarmResult>()
+        val results = ConcurrentLinkedQueue<WarmResult>()
 
         try {
-            val futures = (1..instanceCount).map { idx ->
+            val futures = List(instanceCount) { idx ->
                 executor.submit {
                     val warmer = CachePartitionWarmer(
                         electorFactory = electorFactory(),
@@ -78,6 +84,7 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
                             leaseTime = 5.seconds,
                         ),
                         warmFunction = { partitionId ->
+                            log.debug { "partitionId[$partitionId] 의 cache 를 warm up 을 시작합니다..." }
                             val active = activeCounts.getValue(partitionId).incrementAndGet()
                             maxConcurrent.getValue(partitionId).accumulateAndGet(active, ::maxOf)
                             try {
@@ -87,6 +94,10 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
                             } finally {
                                 activeCounts.getValue(partitionId).decrementAndGet()
                             }
+                            log.debug {
+                                "partitionId[$partitionId] 의 cache 를 warm up 을 완료했습니다. " +
+                                        "warm count=${warmCounts.getValue(partitionId).get()}"
+                            }
                         },
                     )
                     results.add(warmer.warmAll())
@@ -95,6 +106,7 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
             futures.forEach { it.get(30.seconds) }
         } finally {
             executor.shutdown()
+            executor.awaitTermination(5.seconds)
         }
 
         // waitTime 동안 follower가 순차 실행될 수 있지만, 같은 partition의 워밍은 겹치지 않는다.
@@ -116,7 +128,7 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
     fun `warmFunction 일부 파티션 예외 - failed 기록 후 나머지 파티션 계속 처리`() {
         val failingPartition = "region-eu"
         val errorMessage = "워밍 실패 시뮬레이션"
-        val warmedPartitions = CopyOnWriteArrayList<String>()
+        val warmedPartitions = ConcurrentLinkedQueue<String>()
 
         val warmer = CachePartitionWarmer(
             electorFactory = electorFactory(),
@@ -129,7 +141,7 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
             ),
             warmFunction = { partitionId ->
                 if (partitionId == failingPartition) {
-                    throw IllegalStateException(errorMessage)
+                    error(errorMessage)
                 }
                 warmedPartitions.add(partitionId)
             },
@@ -137,11 +149,14 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
 
         val result = warmer.warmAll()
 
+        log.debug { "warm result=$result" }
+
         // failingPartition 은 failed 에, 나머지는 warmed 에
         result.warmed shouldContainSame DEFAULT_PARTITIONS.filterNot { it == failingPartition }
         result.skipped.shouldBeEmpty()
         result.failed.keys shouldContainSame listOf(failingPartition)
         result.failed[failingPartition] shouldBeEqualTo errorMessage
+
         warmedPartitions shouldContainSame DEFAULT_PARTITIONS.filterNot { it == failingPartition }
     }
 
@@ -192,6 +207,7 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
     @Test
     fun `result nodeId - options nodeId 와 동일`() {
         val nodeId = "verify-node-id"
+
         val warmer = CachePartitionWarmer(
             electorFactory = electorFactory(),
             options = CachePartitionWarmerOptions(
@@ -199,12 +215,18 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
                 lockNamePrefix = randomPrefix(),
                 partitions = listOf("only-one"),
                 waitTime = 200.milliseconds,
-                leaseTime = 3.seconds,
+                leaseTime = 100.milliseconds,
             ),
-            warmFunction = { /* no-op */ },
+            warmFunction = {
+                log.debug { "warm up cache ... partition=$it" }
+            },
         )
         val result = warmer.warmAll()
+
+        log.debug { "result=$result" }
         result.nodeId shouldBeEqualTo nodeId
         result.warmed shouldContain "only-one"
+        result.skipped.shouldBeEmpty()
+        result.failed.shouldBeEmpty()
     }
 }

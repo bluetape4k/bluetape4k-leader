@@ -3,8 +3,9 @@ package io.bluetape4k.leader.examples.warmer
 import com.hazelcast.client.HazelcastClient
 import com.hazelcast.client.config.ClientConfig
 import com.hazelcast.core.HazelcastInstance
-import io.bluetape4k.leader.hazelcast.HazelcastLeaderElector
+import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.leader.examples.support.startExampleContainer
+import io.bluetape4k.leader.hazelcast.HazelcastLeaderElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.testcontainers.storage.HazelcastServer
@@ -13,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `CachePartitionWarmerDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -32,7 +34,7 @@ object CachePartitionWarmerDemo: KLogging() {
             networkConfig.addAddress(server.url)
         }
         val client: HazelcastInstance = HazelcastClient.newHazelcastClient(config).also {
-            ShutdownQueue.register { runCatching { it.shutdown() } }
+            ShutdownQueue.register { it.shutdown() }
         }
 
         val warmedBy = ConcurrentHashMap<String, CopyOnWriteArrayList<String>>()
@@ -76,6 +78,10 @@ object CachePartitionWarmerDemo: KLogging() {
             }
         } finally {
             executor.shutdown()
+            executor.awaitTermination(5.seconds)
+            client.shutdown()
+            server.close()
+            log.info { "작업 완료" }
         }
     }
 }
