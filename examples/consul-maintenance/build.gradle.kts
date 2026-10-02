@@ -10,11 +10,8 @@ dependencies {
     implementation(project(":bluetape4k-leader-consul"))
 
     implementation(bt4k.bluetape4k.core)
-    implementation(bt4k.bluetape4k.logging)
     implementation(bt4k.bluetape4k.testcontainers)
     implementation(libs.testcontainers)
-
-    runtimeOnly(bt4k.logback)
 
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(libs.testcontainers.junit.jupiter)

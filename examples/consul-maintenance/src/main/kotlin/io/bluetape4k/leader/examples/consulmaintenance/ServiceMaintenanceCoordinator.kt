@@ -23,7 +23,7 @@ class ServiceMaintenanceCoordinator(
     endpoint: ConsulEndpoint,
 ) {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val elector = ConsulLeaderElector(
         endpoint = endpoint,
@@ -81,8 +81,7 @@ data class ServiceMaintenanceConfig(
     val keyPrefix: MaintenanceKeyPrefix = MaintenanceKeyPrefix("bluetape4k/examples/consul-maintenance"),
     val waitTime: Duration = 500.milliseconds,
     val leaseTime: Duration = 10.seconds,
-) : Serializable {
-
+): Serializable {
     companion object {
         private const val serialVersionUID: Long = 1L
     }
@@ -95,7 +94,7 @@ data class ServiceMaintenanceConfig(
  * @property value example workflow 계약에서 사용하는 속성입니다.
  */
 @JvmInline
-value class MaintenanceNodeId(val value: String) : Serializable {
+value class MaintenanceNodeId(val value: String): Serializable {
     init {
         value.requireNotBlank("nodeId")
     }
@@ -114,7 +113,7 @@ value class MaintenanceNodeId(val value: String) : Serializable {
  * @property value example workflow 계약에서 사용하는 속성입니다.
  */
 @JvmInline
-value class MaintenanceLockName(val value: String) : Serializable {
+value class MaintenanceLockName(val value: String): Serializable {
     init {
         value.requireNotBlank("lockName")
     }
@@ -133,7 +132,7 @@ value class MaintenanceLockName(val value: String) : Serializable {
  * @property value example workflow 계약에서 사용하는 속성입니다.
  */
 @JvmInline
-value class MaintenanceKeyPrefix(val value: String) : Serializable {
+value class MaintenanceKeyPrefix(val value: String): Serializable {
     init {
         value.requireNotBlank("keyPrefix")
     }
@@ -169,8 +168,7 @@ data class MaintenanceReport(
     val nodeId: MaintenanceNodeId,
     val status: MaintenanceStatus,
     val completedSteps: List<String>,
-) : Serializable {
-
+): Serializable {
     companion object {
         private const val serialVersionUID: Long = 1L
     }
