@@ -1,6 +1,9 @@
 package io.bluetape4k.leader.dynamodb.internal
 
 import io.bluetape4k.ToStringBuilder
+import io.bluetape4k.aws.dynamodb.model.PutItemRequest
+import io.bluetape4k.aws.dynamodb.model.UpdateItemRequest
+import io.bluetape4k.aws.dynamodb.model.toAttributeValue
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.idgenerators.uuid.Uuid
@@ -8,6 +11,7 @@ import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.unwrapCompletionException
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -24,7 +28,6 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 import kotlin.math.ceil
 import kotlin.random.Random
@@ -126,7 +129,7 @@ internal class DynamoDbLockClient(
             releaseAsync(acquired, Duration.ZERO, System.nanoTime())
                 .whenComplete { _, failure ->
                     if (failure != null) {
-                        log.warn(failure.unwrapCompletion()) { "DynamoDB late async acquire release failed. key=$key" }
+                        log.warn(failure.unwrapCompletionException()) { "DynamoDB late async acquire release failed. key=$key" }
                     }
                 }
         }
@@ -137,7 +140,7 @@ internal class DynamoDbLockClient(
             }
             acquireOnceAsync(key, ownerId, auditLeaderId, nodeId, leaseTime, ttlPadding, clockSkewTolerance)
                 .whenComplete { acquired, failure ->
-                    val cause = failure?.unwrapCompletion()
+                    val cause = failure?.unwrapCompletionException()
                     when {
                         result.isDone && acquired != null -> releaseLate(acquired)
                         result.isDone                -> Unit
@@ -150,7 +153,7 @@ internal class DynamoDbLockClient(
                                 {},
                                 CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS),
                             ).whenComplete { _, delayFailure ->
-                                val delayCause = delayFailure?.unwrapCompletion()
+                                val delayCause = delayFailure?.unwrapCompletionException()
                                 when {
                                     result.isDone -> Unit
                                     delayCause != null -> result.completeExceptionally(delayCause)
@@ -220,7 +223,7 @@ internal class DynamoDbLockClient(
             )
             .thenApply<AcquiredLock?> { AcquiredLock(key, ownerId, auditLeaderId, nodeId, leaseExpiryMillis) }
             .exceptionallyCompose { failure ->
-                val cause = failure.unwrapCompletion()
+                val cause = failure.unwrapCompletionException()!!
                 if (cause is ConditionalCheckFailedException) {
                     reconcileOwnedAsync(key, ownerId)
                 } else {
@@ -239,24 +242,25 @@ internal class DynamoDbLockClient(
         clockSkewTolerance: Duration,
     ): PutItemRequest {
         val safeNow = nowMillis() - clockSkewTolerance.inWholeMilliseconds
-        return PutItemRequest.builder()
-            .tableName(tableName)
-            .item(
+
+        return PutItemRequest {
+            tableName(tableName)
+            item(
                 mapOf(
-                    LockName to s(key),
-                    OwnerId to s(ownerId),
-                    AuditLeaderId to s(auditLeaderId),
-                    NodeId to s(nodeId),
-                    LeaseExpiry to n(leaseExpiryMillis),
-                    Ttl to n(ttlEpochSeconds(leaseExpiryMillis, ttlPadding)),
+                    LockName to key.toAttributeValue(),
+                    OwnerId to ownerId.toAttributeValue(),
+                    AuditLeaderId to auditLeaderId.toAttributeValue(),
+                    NodeId to nodeId.toAttributeValue(),
+                    LeaseExpiry to leaseExpiryMillis.toAttributeValue(),
+                    Ttl to ttlEpochSeconds(leaseExpiryMillis, ttlPadding).toAttributeValue(),
                 )
             )
-            .conditionExpression(
+            conditionExpression(
                 "attribute_not_exists($LockNameAttr) OR attribute_not_exists($LeaseAttr) OR $LeaseAttr < :safeNow"
             )
-            .expressionAttributeNames(mapOf(LockNameAttr to LockName, LeaseAttr to LeaseExpiry))
-            .expressionAttributeValues(mapOf(":safeNow" to n(safeNow)))
-            .build()
+            expressionAttributeNames(mapOf(LockNameAttr to LockName, LeaseAttr to LeaseExpiry))
+            expressionAttributeValues(mapOf(":safeNow" to safeNow.toAttributeValue()))
+        }
     }
 
     fun release(lock: AcquiredLock, minLeaseTime: Duration, acquiredAtNanos: Long) {
@@ -283,7 +287,7 @@ internal class DynamoDbLockClient(
                 client.deleteItem(deleteRequest(lock.key, lock.ownerId)).thenApply { Unit }
             }
         return future.exceptionallyCompose { failure ->
-            val cause = failure.unwrapCompletion()
+            val cause = failure.unwrapCompletionException()!!
             if (cause is ConditionalCheckFailedException) {
                 log.warn(cause) { "DynamoDB async release ignored because owner no longer matches. key=${lock.key}" }
                 completableFutureOf(Unit)
@@ -313,7 +317,7 @@ internal class DynamoDbLockClient(
         return client.updateItem(extendRequest(lock, now, leaseExpiryMillis, ttlPadding))
             .thenApply<ExtendOutcome> { ExtendOutcome.Extended(Instant.ofEpochMilli(leaseExpiryMillis)) }
             .exceptionallyCompose { failure ->
-                val cause = failure.unwrapCompletion()
+                val cause = failure.unwrapCompletionException()!!
                 if (cause is ConditionalCheckFailedException) {
                     completableFutureOf(ExtendOutcome.NotHeld)
                 } else {
@@ -404,7 +408,7 @@ internal class DynamoDbLockClient(
         mapOf(
             tableName to KeysAndAttributes.builder()
                 .consistentRead(true)
-                .keys(keys.map { key -> mapOf(LockName to s(key)) })
+                .keys(keys.map { key -> mapOf(LockName to key.toAttributeValue()) })
                 .build(),
         )
 
@@ -453,7 +457,7 @@ internal class DynamoDbLockClient(
         GetItemRequest.builder()
             .tableName(tableName)
             .consistentRead(true)
-            .key(mapOf(LockName to s(key)))
+            .key(mapOf(LockName to key.toAttributeValue()))
             .build()
 
     private fun retainUntilRequest(lock: AcquiredLock, remaining: Duration): UpdateItemRequest {
@@ -472,10 +476,10 @@ internal class DynamoDbLockClient(
             .conditionExpression("$OwnerAttr = :owner AND $LeaseAttr > :now")
             .expressionAttributeValues(
                 mapOf(
-                    ":owner" to s(lock.ownerId),
-                    ":now" to n(nowMillis),
-                    ":leaseExpiry" to n(leaseExpiryMillis),
-                    ":ttl" to n(ttlEpochSeconds(leaseExpiryMillis, ttlPadding)),
+                    ":owner" to lock.ownerId.toAttributeValue(),
+                    ":now" to nowMillis.toAttributeValue(),
+                    ":leaseExpiry" to leaseExpiryMillis.toAttributeValue(),
+                    ":ttl" to ttlEpochSeconds(leaseExpiryMillis, ttlPadding).toAttributeValue(),
                 )
             )
             .build()
@@ -485,28 +489,28 @@ internal class DynamoDbLockClient(
         leaseExpiryMillis: Long,
         ttlPadding: Duration,
     ): UpdateItemRequest =
-        UpdateItemRequest.builder()
-            .tableName(tableName)
-            .key(mapOf(LockName to s(lock.key)))
-            .updateExpression("SET $LeaseAttr = :leaseExpiry, $TtlAttr = :ttl")
-            .conditionExpression("$OwnerAttr = :owner")
-            .expressionAttributeNames(mapOf(OwnerAttr to OwnerId, LeaseAttr to LeaseExpiry, TtlAttr to Ttl))
-            .expressionAttributeValues(
+        UpdateItemRequest {
+            tableName(tableName)
+            key(mapOf(LockName to lock.key.toAttributeValue()))
+            updateExpression("SET $LeaseAttr = :leaseExpiry, $TtlAttr = :ttl")
+            conditionExpression("$OwnerAttr = :owner")
+            expressionAttributeNames(mapOf(OwnerAttr to OwnerId, LeaseAttr to LeaseExpiry, TtlAttr to Ttl))
+            expressionAttributeValues(
                 mapOf(
-                    ":owner" to s(lock.ownerId),
-                    ":leaseExpiry" to n(leaseExpiryMillis),
-                    ":ttl" to n(ttlEpochSeconds(leaseExpiryMillis, ttlPadding)),
+                    ":owner" to lock.ownerId.toAttributeValue(),
+                    ":leaseExpiry" to leaseExpiryMillis.toAttributeValue(),
+                    ":ttl" to ttlEpochSeconds(leaseExpiryMillis, ttlPadding).toAttributeValue(),
                 )
             )
-            .build()
+        }
 
     private fun deleteRequest(key: String, ownerId: String): DeleteItemRequest =
         DeleteItemRequest.builder()
             .tableName(tableName)
-            .key(mapOf(LockName to s(key)))
+            .key(mapOf(LockName to key.toAttributeValue()))
             .conditionExpression("$OwnerAttr = :owner")
             .expressionAttributeNames(mapOf(OwnerAttr to OwnerId))
-            .expressionAttributeValues(mapOf(":owner" to s(ownerId)))
+            .expressionAttributeValues(mapOf(":owner" to ownerId.toAttributeValue()))
             .build()
 
     private fun sleepBeforeRetry(deadline: MonotonicDeadline, retryDelay: Duration) {
@@ -525,9 +529,4 @@ internal class DynamoDbLockClient(
     private fun ttlEpochSeconds(leaseExpiryMillis: Long, ttlPadding: Duration): Long =
         ceil((leaseExpiryMillis + ttlPadding.inWholeMilliseconds) / 1000.0).toLong()
 
-    private fun s(value: String): AttributeValue = AttributeValue.builder().s(value).build()
-    private fun n(value: Long): AttributeValue = AttributeValue.builder().n(value.toString()).build()
-
-    private fun Throwable.unwrapCompletion(): Throwable =
-        (this as? CompletionException)?.cause ?: this
 }

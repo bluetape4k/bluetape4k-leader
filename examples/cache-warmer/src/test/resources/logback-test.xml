@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <immediateFlush>true</immediateFlush>
         <encoder>
             <!-- @formatter:off -->
@@ -12,6 +12,6 @@
     <logger name="io.bluetape4k.leader.examples.warmer" level="DEBUG"/>
     <logger name="io.bluetape4k.leader" level="INFO"/>
     <root level="INFO">
-        <appender-ref ref="Console"/>
+        <appender-ref ref="CONSOLE"/>
     </root>
 </configuration>
