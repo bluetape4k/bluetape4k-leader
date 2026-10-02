@@ -6,10 +6,7 @@ Distributed schema migration gate using Exposed JDBC backend. Demonstrates safe 
 
 ## Scenario
 
-During a Kubernetes rolling deploy, multiple pods may start with the same schema
-migration pending. `MigrationGate.runMigration(...)` checks the marker before
-locking, rechecks inside the Exposed JDBC leader lock, runs the migration once,
-and lets non-leaders confirm the marker afterward before serving.
+During a Kubernetes rolling deploy, multiple pods may start with the same schema migration pending. `MigrationGate.runMigration(...)` checks the marker before locking, rechecks inside the Exposed JDBC leader lock, runs the migration once, and lets non-leaders confirm the marker afterward before serving.
 
 ## Example Scenario
 
@@ -38,12 +35,14 @@ and lets non-leaders confirm the marker afterward before serving.
 ## Usage Example
 
 ```kotlin
-val gate = MigrationGate(db, MigrationGateOptions(
-    nodeId = System.getenv("HOSTNAME"),
-    lockName = "prod-app-schema-v3",
-    waitTime = 30.seconds,
-    leaseTime = 5.minutes,           // ⚠️ Must exceed expected migration duration
-))
+val gate = MigrationGate(
+    db, MigrationGateOptions(
+        nodeId = System.getenv("HOSTNAME"),
+        lockName = "prod-app-schema-v3",
+        waitTime = 30.seconds,
+        leaseTime = 5.minutes,           // ⚠️ Must exceed expected migration duration
+    )
+)
 
 val outcome = gate.runMigration(
     migrationId = "schema-v3",
@@ -57,7 +56,7 @@ val outcome = gate.runMigration(
 )
 
 when (outcome) {
-    is Outcome.Migrated      -> log.info { "Leader migrated in ${outcome.durationMs}ms" }
+    is Outcome.Migrated -> log.info { "Leader migrated in ${outcome.durationMs}ms" }
     is Outcome.AlreadyApplied -> log.info { "Already applied — skipping" }
     is Outcome.Skipped        -> log.warn { "Skipped: ${outcome.reason} — verify before serving" }
     is Outcome.Failed         -> error("Migration failed: ${outcome.cause.message}")
@@ -74,19 +73,20 @@ H2 in-memory DB + 3 pod simulation. Outputs 1 Migrated + 2 AlreadyApplied.
 
 ## Configuration Options
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `nodeId` | required | Pod identifier — written to lock row's `lockOwner` for tracing |
-| `lockName` | required | Distributed lock key — recommend `<env>-<app>-<schemaVersion>` |
-| `waitTime` | `30.seconds` | Max time to wait for lock before giving up |
-| `leaseTime` | `5.minutes` | Lock TTL — **must exceed worst-case migration duration** (no auto-extend) |
+| Parameter   | Default      | Description                                                               |
+|-------------|--------------|---------------------------------------------------------------------------|
+| `nodeId`    | required     | Pod identifier — written to lock row's `lockOwner` for tracing            |
+| `lockName`  | required     | Distributed lock key — recommend `<env>-<app>-<schemaVersion>`            |
+| `waitTime`  | `30.seconds` | Max time to wait for lock before giving up                                |
+| `leaseTime` | `5.minutes`  | Lock TTL — **must exceed worst-case migration duration** (no auto-extend) |
 
 ## Migration Authoring Guidelines
 
 - **Idempotent**: Migration must be safe to retry (e.g., `CREATE TABLE IF NOT EXISTS`)
 - **Atomic with marker**: Insert marker in same transaction as schema change
-- **Backward-compatible**: During rolling deploy, old pods coexist with migrated schema
-  → use expand-contract migration pattern (add column → backfill → switch reads → drop)
+-
+
+**Backward-compatible**: During rolling deploy, old pods coexist with migrated schema → use expand-contract migration pattern (add column → backfill → switch reads → drop)
 
 ## Dependency
 

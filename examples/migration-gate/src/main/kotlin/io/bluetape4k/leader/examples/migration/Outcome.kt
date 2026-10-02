@@ -4,6 +4,7 @@ package io.bluetape4k.leader.examples.migration
  * example workflow 계약을 설명하는 한국어 KDoc입니다.
  */
 sealed interface Outcome {
+
     val migrationId: String
 
     /**
