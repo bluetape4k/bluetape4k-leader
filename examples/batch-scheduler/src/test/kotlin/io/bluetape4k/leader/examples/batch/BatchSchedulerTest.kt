@@ -41,7 +41,7 @@ class BatchSchedulerTest: AbstractBatchSchedulerTest() {
         val successCount = AtomicInteger(0)
         val losersFinished = CountDownLatch(2)
         val executor = Executors.newFixedThreadPool(3)
-        val connections = (1..3).map { newConnection() }
+        val connections = List(3) { newConnection() }
 
         try {
             val futures = connections.mapIndexed { idx, conn ->

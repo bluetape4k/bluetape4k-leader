@@ -6,11 +6,7 @@ Distributed batch scheduler example using Lettuce-Redis backend. Demonstrates sa
 
 ## Scenario
 
-Three application instances receive the same periodic trigger for a batch job
-such as nightly settlement. Each instance calls `BatchScheduler.run(...)` with
-the shared `nightly-settlement` lock name. The Lettuce Redis elector allows one
-instance to execute the job while the others return `null` and skip without
-throwing.
+Three application instances receive the same periodic trigger for a batch job such as nightly settlement. Each instance calls `BatchScheduler.run(...)` with the shared `nightly-settlement` lock name. The Lettuce Redis elector allows one instance to execute the job while the others return `null` and skip without throwing.
 
 ## Example Scenario
 
@@ -61,10 +57,7 @@ if (result == null) {
 ## Demo
 
 `run<String?> { null }` does not log a skip when the job actually ran. Internally, the existing
-`LeaderRunResult.Elected(null)` and `Skipped` are distinguished. The return type remains T?, so the
-return value alone cannot distinguish them. Interpret null as contention only when the job returns a non-null value, such as Unit above.
-Action failures and cancellation propagate unchanged; InterruptedException restores the interrupt flag.
-
+`LeaderRunResult.Elected(null)` and `Skipped` are distinguished. The return type remains T?, so the return value alone cannot distinguish them. Interpret null as contention only when the job returns a non-null value, such as Unit above. Action failures and cancellation propagate unchanged; InterruptedException restores the interrupt flag.
 
 ```bash
 ./gradlew :examples:batch-scheduler:run
@@ -74,11 +67,11 @@ Or directly: run `BatchSchedulerDemo.main()` from your IDE. Spawns 3 simulated i
 
 ## Configuration Options
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `nodeId` | required | Unique identifier per instance — used in logs |
-| `lockName` | required | Distributed lock key (same across all instances of the job) |
-| `waitTime` | `2.seconds` | Time to wait for the lock before giving up |
+| Parameter   | Default      | Description                                                            |
+|-------------|--------------|------------------------------------------------------------------------|
+| `nodeId`    | required     | Unique identifier per instance — used in logs                          |
+| `lockName`  | required     | Distributed lock key (same across all instances of the job)            |
+| `waitTime`  | `2.seconds`  | Time to wait for the lock before giving up                             |
 | `leaseTime` | `30.seconds` | Lock TTL — prevents leak on crash; should exceed expected job duration |
 
 ## Dependency

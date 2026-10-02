@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.examples.batch
 
+import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
-import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.support.closeSafe
 import io.bluetape4k.testcontainers.storage.RedisServer
 import io.bluetape4k.utils.ShutdownQueue
@@ -32,7 +32,7 @@ object BatchSchedulerDemo: KLogging() {
             log.info { "=== 야간 정산 배치 데모 시작 ===" }
             log.info { "3개 인스턴스가 동시에 'nightly-settlement' lock 획득 시도" }
 
-            val futures = (1..3).map { idx ->
+            val futures = List(3) { idx ->
                 executor.submit {
                     val connection = client.connect(StringCodec.UTF8)
                     try {

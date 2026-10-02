@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.examples.batch
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.lettuce.LettuceLeaderElector
@@ -51,11 +52,19 @@ class BatchScheduler(
         }
         return when (outcome) {
             is LeaderRunResult.Elected -> outcome.value
-            LeaderRunResult.Skipped -> {
+            LeaderRunResult.Skipped    -> {
                 log.info { "[$nodeId] 리더 선출 실패 — 다른 인스턴스가 실행 중. skip." }
                 null
             }
             is LeaderRunResult.ActionFailed -> throw outcome.cause
         }
+    }
+
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("nodeId", nodeId)
+            .add("lockName", lockName)
+            .add("elector", elector)
+            .toString()
     }
 }
