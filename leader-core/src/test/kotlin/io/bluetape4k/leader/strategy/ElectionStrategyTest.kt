@@ -292,7 +292,7 @@ class ElectionStrategyTest {
     @Test
     fun `WeightedScorer - 빈 scorer 목록은 require 실패`() {
         assertFailsWith<IllegalArgumentException> {
-            WeightedScorer(emptyList())
+            WeightedScorer(emptyMap())
         }
     }
 

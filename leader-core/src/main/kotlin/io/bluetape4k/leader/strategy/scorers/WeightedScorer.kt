@@ -11,18 +11,18 @@ import io.bluetape4k.support.requireNotEmpty
  * @property scorers 가중치와 함께 조합할 후보 점수 계산기 목록입니다.
  */
 class WeightedScorer(
-    val scorers: List<Pair<CandidateScorer, Double>>,
+    val scorers: Map<CandidateScorer, Double>, // List<Pair<CandidateScorer, Double>>,
 ): CandidateScorer {
 
     init {
         scorers.requireNotEmpty("scorers")
         require(scorers.all { (_, w) -> w > 0.0 }) {
-            "All scorer weights must be positive: ${scorers.map { it.second }}"
+            "All scorer weights must be positive: ${scorers.map { it.value }}"
         }
     }
 
-    constructor(vararg scorers: Pair<CandidateScorer, Double>): this(scorers.toList())
+    constructor(vararg scorers: Pair<CandidateScorer, Double>): this(scorers.toMap())
 
     override fun score(candidate: CandidateInfo, all: List<CandidateInfo>): Double =
-        scorers.sumOf { (scorer, weight) -> scorer.score(candidate, all) * weight }
+        scorers.map { (scorer, weight) -> scorer.score(candidate, all) * weight }.sum()
 }
