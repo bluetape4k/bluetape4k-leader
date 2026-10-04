@@ -11,23 +11,29 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.lettuce.LettuceLeaderBackendDiagnostics
 import io.bluetape4k.leader.micrometer.InstrumentedLeaderElector
 import io.bluetape4k.leader.micrometer.LeaderMetricTagOptions
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.testcontainers.storage.RedisServer
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.codec.StringCodec
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
+import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
-import java.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class PrometheusLettuceConnectivityProbeTest {
+
+    companion object: KLogging()
 
     @Test
     fun `closed real Lettuce connection exports DOWN through the example probe`() {
@@ -40,11 +46,13 @@ class PrometheusLettuceConnectivityProbeTest {
             val probe = PrometheusBackendConnectivityProbe(provider, timeoutMillis = 500)
 
             connection.close()
-            await.atMost(Duration.ofSeconds(5)).untilAsserted {
+            await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
                 connection.isOpen.shouldBeFalse()
             }
-            val connectivity = LettuceLeaderBackendDiagnostics(connection)
-                .checkConnectivity(500.milliseconds)
+
+            val connectivity = LettuceLeaderBackendDiagnostics(connection).checkConnectivity(500.milliseconds)
+
+            log.debug { "connectivity=$connectivity" }
             connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.DOWN
             connectivity.reason shouldBeEqualTo LeaderBackendConnectivityReason.DISCONNECTED
             probe.probe()
@@ -53,11 +61,11 @@ class PrometheusLettuceConnectivityProbeTest {
                 LeaderBackendConnectivityStatus.DOWN,
                 LeaderBackendConnectivityReason.DISCONNECTED,
             ) shouldBeEqualTo 1.0
-            registry.scrape()
-                .hasConnectivitySeries(
-                    LeaderBackendConnectivityStatus.DOWN,
-                    LeaderBackendConnectivityReason.DISCONNECTED,
-                ).shouldBeTrue()
+
+            registry.scrape().hasConnectivitySeries(
+                LeaderBackendConnectivityStatus.DOWN,
+                LeaderBackendConnectivityReason.DISCONNECTED,
+            ).shouldBeTrue()
         } finally {
             connection.close()
         }
@@ -67,13 +75,14 @@ class PrometheusLettuceConnectivityProbeTest {
     fun `real Lettuce connection provider exception exports UNKNOWN`() {
         val failure = IllegalStateException("redis connectivity probe failed")
         val registry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
-        val connection = RedisServer.Launcher.LettuceLib.getRedisClient()
-            .connect(StringCodec.UTF8)
+        val connection = RedisServer.Launcher.LettuceLib
+            .getRedisClient().connect(StringCodec.UTF8)
 
         try {
             val failingConnection = connection.withIsOpenFailure(failure)
             val diagnostics = LettuceLeaderBackendDiagnostics(failingConnection)
             val connectivity = diagnostics.checkConnectivity(500.milliseconds)
+            log.debug { "connectivity=$connectivity" }
             connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
             connectivity.reason shouldBeEqualTo LeaderBackendConnectivityReason.PROVIDER_EXCEPTION
 
@@ -85,11 +94,11 @@ class PrometheusLettuceConnectivityProbeTest {
                 LeaderBackendConnectivityStatus.UNKNOWN,
                 LeaderBackendConnectivityReason.PROVIDER_EXCEPTION,
             ) shouldBeEqualTo 1.0
-            registry.scrape()
-                .hasConnectivitySeries(
-                    LeaderBackendConnectivityStatus.UNKNOWN,
-                    LeaderBackendConnectivityReason.PROVIDER_EXCEPTION,
-                ).shouldBeTrue()
+
+            registry.scrape().hasConnectivitySeries(
+                LeaderBackendConnectivityStatus.UNKNOWN,
+                LeaderBackendConnectivityReason.PROVIDER_EXCEPTION,
+            ).shouldBeTrue()
         } finally {
             connection.close()
         }
@@ -99,7 +108,7 @@ class PrometheusLettuceConnectivityProbeTest {
         provider: LeaderBackendDiagnosticsProvider,
         registry: PrometheusMeterRegistry,
     ): LeaderBackendDiagnosticsProvider {
-        val delegate = object :
+        val delegate = object:
             LeaderElector by StubLeaderElector,
             LeaderBackendDiagnosticsProvider by provider {}
         return requireNotNull(
@@ -153,7 +162,7 @@ class PrometheusLettuceConnectivityProbeTest {
         ) as StatefulRedisConnection<String, String>
     }
 
-    private object StubLeaderElector : LeaderElector {
+    private object StubLeaderElector: LeaderElector {
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? = null
 
         override fun <T> runAsyncIfLeader(

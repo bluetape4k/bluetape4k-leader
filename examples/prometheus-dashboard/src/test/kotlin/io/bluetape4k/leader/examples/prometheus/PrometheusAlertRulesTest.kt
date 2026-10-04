@@ -2,6 +2,8 @@ package io.bluetape4k.leader.examples.prometheus
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.testcontainers.infra.PrometheusServer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -10,6 +12,24 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class PrometheusAlertRulesTest {
+
+    companion object: KLogging() {
+        private const val PROMETHEUS_TAG = "v2.55.1"
+        private val projectRoot = findProjectRoot(Path.of("").toAbsolutePath().normalize())
+        private val prometheusRulesPath = projectRoot
+            .resolve("examples/prometheus-dashboard/provisioning/prometheus/rules/leader-alerts.yml")
+
+        private val testRulesResource = PrometheusAlertRulesTest::class.java
+            .getResource("/prometheus/leader-alert-rules-test.yml")
+            ?.toURI()
+            ?.let(Path::of)
+            ?: error("Prometheus alert rule test resource is missing")
+
+        private fun findProjectRoot(start: Path): Path =
+            generateSequence(start) { it.parent }
+                .first { Files.exists(it.resolve("settings.gradle.kts")) }
+    }
+
 
     @Test
     fun `promtool evaluates connectivity alerts and runbook annotations`(@TempDir tempDir: Path) {
@@ -34,24 +54,9 @@ class PrometheusAlertRulesTest {
                 "/tmp/leader-alert-rules-test.yml",
             )
 
+            log.debug { "result=$result" }
             result.exitCode shouldBeEqualTo 0
             result.stdout shouldContain "SUCCESS"
         }
-    }
-
-    companion object {
-        private const val PROMETHEUS_TAG = "v2.55.1"
-        private val projectRoot = findProjectRoot(Path.of("").toAbsolutePath().normalize())
-        private val prometheusRulesPath =
-            projectRoot.resolve("examples/prometheus-dashboard/provisioning/prometheus/rules/leader-alerts.yml")
-        private val testRulesResource =
-            PrometheusAlertRulesTest::class.java.getResource("/prometheus/leader-alert-rules-test.yml")
-                ?.toURI()
-                ?.let(Path::of)
-                ?: error("Prometheus alert rule test resource is missing")
-
-        private fun findProjectRoot(start: Path): Path =
-            generateSequence(start) { it.parent }
-                .first { Files.exists(it.resolve("settings.gradle.kts")) }
     }
 }

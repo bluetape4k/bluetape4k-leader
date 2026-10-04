@@ -43,10 +43,9 @@ class PrometheusDashboardApp {
     fun redisClient(
         @Value($$"${demo.redis.url:}") configuredRedisUrl: String,
     ): RedisClient {
-        val redisUrl = configuredRedisUrl
-            .ifBlank {
-                startExampleContainer { reuse -> RedisServer(reuse = reuse) }.url
-            }
+        val redisUrl = configuredRedisUrl.ifBlank {
+            startExampleContainer { reuse -> RedisServer(reuse = reuse) }.url
+        }
         return RedisClient.create(redisUrl)
     }
 
@@ -104,7 +103,7 @@ class PrometheusDashboardApp {
     }
 }
 
-class LeaderObservationLoggingHandler : ObservationHandler<Observation.Context> {
+class LeaderObservationLoggingHandler: ObservationHandler<Observation.Context> {
 
     override fun onStop(context: Observation.Context) {
         log.info {

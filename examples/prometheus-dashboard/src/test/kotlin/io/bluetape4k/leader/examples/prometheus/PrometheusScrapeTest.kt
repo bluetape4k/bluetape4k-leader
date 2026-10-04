@@ -1,15 +1,16 @@
 package io.bluetape4k.leader.examples.prometheus
 
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.leader.micrometer.LeaderMetricTagOptions
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.testcontainers.storage.RedisServer
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
 import org.awaitility.kotlin.withAlias
 import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
@@ -24,7 +25,10 @@ import java.io.IOException
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -39,6 +43,18 @@ import java.time.Duration
 )
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PrometheusScrapeTest {
+
+    companion object: KLogging() {
+        private const val EXPORTED_LOCK_NAME = LeaderMetricTagOptions.DEFAULT_LOCK_NAME_REDACTED_VALUE
+        private val redis = RedisServer.Launcher.redis
+        private val httpClient = HttpClient.newHttpClient()
+
+        @JvmStatic
+        @DynamicPropertySource
+        fun redisProperties(registry: DynamicPropertyRegistry) {
+            registry.add("demo.redis.url") { redis.url }
+        }
+    }
 
     @LocalServerPort
     private var port: Int = 0
@@ -58,8 +74,8 @@ class PrometheusScrapeTest {
 
         await
             .withAlias("Prometheus endpoint and explicitly triggered leader metrics readiness")
-            .atMost(Duration.ofSeconds(30))
-            .withPollInterval(Duration.ofMillis(100))
+            .atMost(30.seconds)
+            .withPollInterval(100.milliseconds)
             .untilAsserted {
                 val scrape = scrapePrometheus().requireSuccessful()
                 leaderScheduledJob.executionCount() shouldBeGreaterThan 0L
@@ -75,7 +91,9 @@ class PrometheusScrapeTest {
             .build()
 
         return try {
-            val response = httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString())
+            val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+            log.debug { "response=${response.body()}" }
+
             PrometheusScrapeResponse(
                 statusCode = response.statusCode(),
                 body = response.body(),
@@ -99,9 +117,11 @@ class PrometheusScrapeTest {
         requireLockNameSeries("leader_aop_attempts_total")
         requireLockNameSeries("leader_aop_acquired_total")
         requireLockNameSeries("leader_aop_active")
+
         this shouldNotContain """lock_name="${LeaderScheduledJob.LOCK_NAME}""""
         this shouldContain """leader_history_sink_failures_total{sink="NoopLeaderHistorySink"}"""
         this shouldContain """leader_history_acquire_missing_total{sink="NoopLeaderHistorySink"}"""
+
         requireConnectivitySeries(
             backendName = "redis-lettuce",
             status = "UNKNOWN",
@@ -119,18 +139,19 @@ class PrometheusScrapeTest {
 
     private fun String.requireLockNameSeries(metricName: String) {
         val lockNameTag = Regex.escape("""lock_name="$EXPORTED_LOCK_NAME"""")
+        log.debug { "lockNameTag=$lockNameTag" }
+
         if (!Regex("""$metricName\{[^}]*$lockNameTag[^}]*}\s+[0-9.Ee+-]+""").containsMatchIn(this)) {
-            throw AssertionError(
-                "Prometheus scrape is missing $metricName for lock=$EXPORTED_LOCK_NAME\nbody=$this",
-            )
+            throw AssertionError("Prometheus scrape is missing $metricName for lock=$EXPORTED_LOCK_NAME\nbody=$this")
         }
     }
 
     private fun String.sampleValue(metricName: String): Double {
         val regex = Regex("""$metricName\{[^}]*lock_name="$EXPORTED_LOCK_NAME"[^}]*}\s+([0-9.Ee+-]+)""")
-        return requireNotNull(regex.find(this)) {
-            "$metricName for $EXPORTED_LOCK_NAME not found in scrape"
-        }.groupValues[1].toDouble()
+        return regex.find(this)
+            .requireNotNull { "$metricName for $EXPORTED_LOCK_NAME not found in scrape" }
+            .groupValues[1]
+            .toDouble()
     }
 
     private fun String.requireConnectivitySeries(
@@ -143,12 +164,12 @@ class PrometheusScrapeTest {
             """status="$status"""",
             """reason="$reason"""",
         ).joinToString(separator = "") { "(?=[^}]*${Regex.escape(it)})" }
+        log.debug { "labels=$labels" }
+
         if (!Regex("""leader_backend_connectivity_total\{${labels}[^}]*}\s+[0-9.Ee+-]+""")
                 .containsMatchIn(this)
         ) {
-            throw AssertionError(
-                "Prometheus scrape is missing connectivity series for $backendName/$status/$reason\nbody=$this",
-            )
+            throw AssertionError("Prometheus scrape is missing connectivity series for $backendName/$status/$reason\nbody=$this")
         }
     }
 
@@ -162,23 +183,14 @@ class PrometheusScrapeTest {
             "status=\"$status\"",
             "reason=\"$reason\"",
         ).joinToString(separator = "") { "(?=[^}]*${Regex.escape(it)})" }
-        return requireNotNull(
-            Regex("""leader_backend_connectivity_total\{${labels}[^}]*}\s+([0-9.Ee+-]+)""")
-                .find(this),
-        ) {
-            "connectivity sample is missing for $backendName/$status/$reason"
-        }.groupValues[1].toDouble()
-    }
+        log.debug { "labels=$labels" }
 
-    companion object {
-        private const val EXPORTED_LOCK_NAME = LeaderMetricTagOptions.DEFAULT_LOCK_NAME_REDACTED_VALUE
-        private val redis = RedisServer.Launcher.redis
-        private val httpClient = HttpClient.newHttpClient()
-
-        @JvmStatic
-        @DynamicPropertySource
-        fun redisProperties(registry: DynamicPropertyRegistry) {
-            registry.add("demo.redis.url") { redis.url }
-        }
+        return Regex("""leader_backend_connectivity_total\{${labels}[^}]*}\s+([0-9.Ee+-]+)""")
+            .find(this)
+            .requireNotNull {
+                "connectivity sample is missing for $backendName/$status/$reason"
+            }
+            .groupValues[1]
+            .toDouble()
     }
 }
