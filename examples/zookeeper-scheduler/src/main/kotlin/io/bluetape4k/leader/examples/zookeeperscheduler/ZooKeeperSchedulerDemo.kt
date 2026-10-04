@@ -3,9 +3,9 @@ package io.bluetape4k.leader.examples.zookeeperscheduler
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.get
+import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
-import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.testcontainers.infra.ZooKeeperServer
 import org.apache.curator.framework.CuratorFramework
 import java.util.concurrent.CountDownLatch

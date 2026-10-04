@@ -1,9 +1,16 @@
 <configuration>
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
+        <immediateFlush>true</immediateFlush>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+            <!-- @formatter:off -->
+            <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) [%blue(%32.32t)] %yellow(%logger{36}):%line: %msg%n%throwable</pattern>
+            <!-- @formatter:on -->
+            <charset>UTF-8</charset>
         </encoder>
     </appender>
+
+    <logger name="io.bluetape4k.leader" level="DEBUG"/>
+    <logger name="bluetape4k" level="DEBUG"/>
 
     <logger name="org.apache.zookeeper" level="ERROR"/>
     <logger name="org.apache.zookeeper.ClientCnxn" level="ERROR"/>
@@ -11,6 +18,6 @@
     <logger name="org.testcontainers" level="WARN"/>
 
     <root level="INFO">
-        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="Console"/>
     </root>
 </configuration>

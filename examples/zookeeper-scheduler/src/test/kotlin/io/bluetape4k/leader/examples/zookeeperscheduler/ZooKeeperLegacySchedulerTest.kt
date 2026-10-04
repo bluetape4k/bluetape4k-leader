@@ -5,15 +5,18 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.get
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class ZooKeeperLegacySchedulerTest: AbstractZooKeeperSchedulerTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `single scheduler executes legacy job`() {
@@ -24,6 +27,7 @@ class ZooKeeperLegacySchedulerTest: AbstractZooKeeperSchedulerTest() {
             listOf("load-input", "write-output")
         }
 
+        log.debug { "report=$report" }
         report.nodeId shouldBeEqualTo SchedulerNodeId("node-a")
         report.scheduleId shouldBeEqualTo runId
         report.status shouldBeEqualTo SchedulerRunStatus.EXECUTED
@@ -62,17 +66,22 @@ class ZooKeeperLegacySchedulerTest: AbstractZooKeeperSchedulerTest() {
             }
 
             started.await(10.seconds).shouldBeTrue()
+
             val skipped = nodeB.runOnce(runId) {
                 nodeBExecutions.incrementAndGet()
                 listOf("node-b-step")
             }
+            log.debug { "skipped=$skipped" }
 
             release.countDown()
+
             val active = activeFuture.get(10.seconds)
 
+            log.debug { "active=$active" }
             active.status shouldBeEqualTo SchedulerRunStatus.EXECUTED
             active.nodeId shouldBeEqualTo SchedulerNodeId("node-a")
             active.completedSteps shouldBeEqualTo listOf("node-a-step")
+
             skipped.status shouldBeEqualTo SchedulerRunStatus.SKIPPED
             skipped.nodeId shouldBeEqualTo SchedulerNodeId("node-b")
             skipped.completedSteps shouldBeEqualTo emptyList()
@@ -94,6 +103,9 @@ class ZooKeeperLegacySchedulerTest: AbstractZooKeeperSchedulerTest() {
 
         val first = nodeA.runOnce(firstRun) { listOf("node-a-step") }
         val second = nodeB.runOnce(secondRun) { listOf("node-b-step") }
+
+        log.debug { "first=$first" }
+        log.debug { "second=$second" }
 
         first.status shouldBeEqualTo SchedulerRunStatus.EXECUTED
         first.nodeId shouldBeEqualTo SchedulerNodeId("node-a")
