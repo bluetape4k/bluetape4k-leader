@@ -47,9 +47,7 @@ object RateLimiterDemo: KLogging() {
 
         log.info { "=== rate limiter demo result ===" }
         report.dispatchReports.forEach { dispatch ->
-            log.info {
-                "[${dispatch.nodeId}] ${dispatch.status} scheduledItems=${dispatch.scheduledItems.size}"
-            }
+            log.info { "[${dispatch.nodeId}] ${dispatch.status} scheduledItems=${dispatch.scheduledItems.size}" }
         }
         report.workerReports
             .groupBy { it.nodeId }

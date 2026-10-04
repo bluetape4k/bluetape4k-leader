@@ -6,6 +6,6 @@ import io.bluetape4k.testcontainers.storage.RedisServer
 abstract class AbstractRateLimiterTest {
 
     companion object: KLogging() {
-        val redis = RedisServer.Launcher.redis
+        val redis by lazy { RedisServer.Launcher.redis }
     }
 }
