@@ -6,9 +6,7 @@ Redisson-backed long-running leader job protected by bluetape4k lease auto-exten
 
 ## Scenario
 
-Two nodes compete for the same Redis-backed lock. The elected node runs a job that can outlive the initial lease time,
-so `LeaderElectionOptions(autoExtend = true)` keeps renewing the lock while the body is active. The contending node
-skips while the lock is held and can acquire it after the leader releases.
+Two nodes compete for the same Redis-backed lock. The elected node runs a job that can outlive the initial lease time, so `LeaderElectionOptions(autoExtend = true)` keeps renewing the lock while the body is active. The contending node skips while the lock is held and can acquire it after the leader releases.
 
 ## Example Scenario
 
@@ -36,8 +34,7 @@ skips while the lock is held and can acquire it after the leader releases.
 
 ## Run
 
-The example uses the Redis Testcontainers launcher unless an external Redis URL is provided by the module code path.
-Docker is required for the default run.
+The example uses the Redis Testcontainers launcher unless an external Redis URL is provided by the module code path. Docker is required for the default run.
 
 ```bash
 ./gradlew :examples:redisson-watchdog:run

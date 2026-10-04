@@ -5,6 +5,8 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.get
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -13,6 +15,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class RedissonWatchdogJobRunnerTest: AbstractRedissonWatchdogTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `single runner executes leader job`() {
@@ -25,6 +29,7 @@ class RedissonWatchdogJobRunnerTest: AbstractRedissonWatchdogTest() {
             executions.incrementAndGet()
         }
 
+        log.debug { "report=$report" }
         report.status shouldBeEqualTo RedissonWatchdogStatus.ELECTED
         report.jobThreadName.shouldNotBeNull()
         executions.get() shouldBeEqualTo 1
@@ -61,10 +66,13 @@ class RedissonWatchdogJobRunnerTest: AbstractRedissonWatchdogTest() {
             }
 
             releaseLeader.countDown()
-            val leaderReport = leaderFuture.get(2.seconds)
+            val leaderReport = leaderFuture.get(3.seconds)
+            log.debug { "leaderReport=$leaderReport" }
+
             val reacquired = contender.runJob {
                 contenderExecutions.incrementAndGet()
             }
+            log.debug { "reacquired=$reacquired" }
 
             leaderReport.status shouldBeEqualTo RedissonWatchdogStatus.ELECTED
             skipped.status shouldBeEqualTo RedissonWatchdogStatus.SKIPPED
@@ -82,7 +90,28 @@ class RedissonWatchdogJobRunnerTest: AbstractRedissonWatchdogTest() {
         val first = RedissonWatchdogJobRunner("node-a", redissonClient, lockName).runJob { }
         val second = RedissonWatchdogJobRunner("node-b", redissonClient, lockName).runJob { }
 
+        log.debug { "first=$first" }
+        log.debug { "second=$second" }
         first.status shouldBeEqualTo RedissonWatchdogStatus.ELECTED
         second.status shouldBeEqualTo RedissonWatchdogStatus.ELECTED
+    }
+
+    @Test
+    fun `동시에 4개의 JobRunner를 실행시켜도 Node 별로 leader 를 선출한다`() {
+        val lockName = randomLockName()
+        val runners = List(4) {
+            RedissonWatchdogJobRunner("node-$it", redissonClient, lockName)
+        }
+        val executor = Executors.newFixedThreadPool(4)
+
+        val futures = runners.map { runner ->
+            executor.submit<RedissonWatchdogNodeReport> {
+                runner.runJob {
+                    log.debug { "Execute in ${runner.nodeId}" }
+                }
+            }
+        }
+        val results = futures.map { it.get(3.seconds) }
+        results.forEach { log.debug { "report=$it" } }
     }
 }

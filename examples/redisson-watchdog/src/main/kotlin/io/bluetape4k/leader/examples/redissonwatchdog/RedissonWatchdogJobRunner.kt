@@ -10,7 +10,6 @@ import java.io.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * `RedissonWatchdogJobRunner`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
