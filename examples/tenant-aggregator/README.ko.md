@@ -2,14 +2,12 @@
 
 [English](README.md) | 한국어
 
-Exposed R2DBC 리더 선출 기반 멀티테넌트 집계기. N개 인스턴스 환경에서 **테넌트별 독립 lockName** 으로 각 테넌트는 정확히 1 인스턴스만 polling 한다. long-running coroutine 워커, graceful stop, 테넌트별 예외 격리를 시연.
+Exposed R2DBC 리더 선출 기반 멀티테넌트 집계기. N개 인스턴스 환경에서 **테넌트별 독립
+lockName** 으로 각 테넌트는 정확히 1 인스턴스만 polling 한다. long-running coroutine 워커, graceful stop, 테넌트별 예외 격리를 시연.
 
 ## 시나리오
 
-각 애플리케이션 인스턴스는 테넌트마다 하나의 coroutine loop를 시작합니다. 각 loop는
-집계 함수를 호출하기 전에 테넌트별 lock 이름(`"${lockNamePrefix}-${tenantId}"`)을
-사용하므로 tenant A와 tenant B의 리더가 서로 다를 수 있지만, 각 테넌트에는 항상
-정확히 1개의 active aggregator만 존재합니다.
+각 애플리케이션 인스턴스는 테넌트마다 하나의 coroutine loop를 시작합니다. 각 loop는 집계 함수를 호출하기 전에 테넌트별 lock 이름 (`"${lockNamePrefix}-${tenantId}"`)을 사용하므로 tenant A와 tenant B의 리더가 서로 다를 수 있지만, 각 테넌트에는 항상 정확히 1개의 active aggregator만 존재합니다.
 
 ## 예제 시나리오
 
@@ -66,10 +64,7 @@ val job = aggregator.start(applicationScope)
 aggregator.stopGracefully(timeout = 30.seconds)
 ```
 
-`stopGracefully`는 취소를 요청한 뒤 timeout 동안 종료를 기다립니다. 시간 초과는 경고로 기록하며,
-정리 완료를 의미하지 않습니다. 호출자가 취소되거나 timeout이 지나도 이전 job이 실제 완료될 때까지
-같은 인스턴스의 `start`는 재시작을 거부합니다. `start`가 반환한 Job의 `isCompleted` 또는 `join()`으로 종료를 확인하세요.
-0 이하 timeout도 취소 요청은 수행합니다. 이 제한은 로컬 worker lifecycle에 관한 것으로 분산 lease 해제를 보장하지 않습니다.
+`stopGracefully`는 취소를 요청한 뒤 timeout 동안 종료를 기다립니다. 시간 초과는 경고로 기록하며, 정리 완료를 의미하지 않습니다. 호출자가 취소되거나 timeout이 지나도 이전 job이 실제 완료될 때까지 같은 인스턴스의 `start`는 재시작을 거부합니다. `start`가 반환한 Job의 `isCompleted` 또는 `join()`으로 종료를 확인하세요. 0 이하 timeout도 취소 요청은 수행합니다. 이 제한은 로컬 worker lifecycle에 관한 것으로 분산 lease 해제를 보장하지 않습니다.
 
 ## Demo
 
@@ -81,14 +76,14 @@ H2 R2DBC in-memory DB 를 공유하는 3개 in-process 집계기를 6초간 poll
 
 ## Configuration Options
 
-| 파라미터 | 기본값 | 설명 |
-|---------|--------|------|
-| `nodeId` | required | Pod 식별자 — 로그/lock owner 노출 |
-| `tenants` | required | 독립 polling 할 테넌트 식별자 — 빈 목록·blank 항목 금지 |
-| `lockNamePrefix` | `"tenant-aggregator"` | 락 prefix — 최종 이름은 `"${prefix}-${tenantId}"` |
-| `pollInterval` | `5.seconds` | 테넌트별 사이클 간 휴지 |
-| `waitTime` | `1.seconds` | 락 획득 대기 (짧게 = 빠른 skip) |
-| `leaseTime` | `60.seconds` | 락 TTL — 최대 aggregate 실행 시간보다 길게 |
+| 파라미터         | 기본값                | 설명                                                    |
+|------------------|-----------------------|---------------------------------------------------------|
+| `nodeId`         | required              | Pod 식별자 — 로그/lock owner 노출                       |
+| `tenants`        | required              | 독립 polling 할 테넌트 식별자 — 빈 목록·blank 항목 금지 |
+| `lockNamePrefix` | `"tenant-aggregator"` | 락 prefix — 최종 이름은 `"${prefix}-${tenantId}"`       |
+| `pollInterval`   | `5.seconds`           | 테넌트별 사이클 간 휴지                                 |
+| `waitTime`       | `1.seconds`           | 락 획득 대기 (짧게 = 빠른 skip)                         |
+| `leaseTime`      | `60.seconds`          | 락 TTL — 최대 aggregate 실행 시간보다 길게              |
 
 ## Failure Semantics
 

@@ -3,34 +3,43 @@ package io.bluetape4k.leader.examples.tenant
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.coroutines.support.log
+import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderElector
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderElectionOptions
-import io.bluetape4k.logging.KLogging
-import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.MethodSource
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.withPollInterval
+import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentSkipListSet
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `TenantAggregatorTest`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -39,7 +48,7 @@ import java.util.concurrent.TimeUnit
  */
 class TenantAggregatorTest: AbstractTenantAggregatorTest() {
 
-    companion object: KLogging() {
+    companion object: KLoggingChannel() {
         private val DEFAULT_TENANTS = listOf("tenant-A", "tenant-B", "tenant-C")
         private val INSTANCE_TIMEOUT = 30.seconds
     }
@@ -73,12 +82,14 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
         timeout: Duration = 10.seconds,
         condition: suspend () -> Boolean,
     ): Boolean {
-        val deadline = System.currentTimeMillis() + timeout.inWholeMilliseconds
-        while (System.currentTimeMillis() < deadline) {
-            if (condition()) return true
-            delay(50.milliseconds)
+        return try {
+            await atMost timeout withPollInterval 50.milliseconds untilSuspending {
+                condition()
+            }
+            true
+        } catch (e: org.awaitility.core.ConditionTimeoutException) {
+            false
         }
-        return false
     }
 
     @ParameterizedTest
@@ -88,23 +99,27 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
         val db = setupDb(testDB)
         cleanTables(db)
         val lockPrefix = randomPrefix()
+        val seen = ConcurrentSkipListSet<String>()
 
-        val seen = ConcurrentHashMap.newKeySet<String>()
         val aggregator = TenantAggregator(
             electorFactory = electorFactory(db),
             options = fastOptions("solo", lockPrefix),
             aggregateFunction = { tenantId -> seen.add(tenantId) },
         )
 
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
         try {
             aggregator.start(scope)
-            val ok = waitUntil(INSTANCE_TIMEOUT) { seen.size == DEFAULT_TENANTS.size }
+
+            val ok = waitUntil(INSTANCE_TIMEOUT) {
+                seen.size == DEFAULT_TENANTS.size
+            }
             ok.shouldBeTrue()
-            DEFAULT_TENANTS.forEach { seen.contains(it).shouldBeTrue() }
+            DEFAULT_TENANTS.all { seen.contains(it) }.shouldBeTrue()
         } finally {
             aggregator.stopGracefully(2.seconds)
-            scope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin()
+            scope.coroutineContext[Job]?.cancelAndJoin()
         }
     }
 
@@ -123,8 +138,9 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
         DEFAULT_TENANTS.forEach { aggregateCounts[it] = AtomicInteger(0) }
         val violations = AtomicInteger(0)
 
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val aggregators = (1..3).map { idx ->
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+        val aggregators = List(3) { idx ->
             TenantAggregator(
                 electorFactory = electorFactory(db),
                 options = fastOptions("node-$idx", lockPrefix, leaseTime = 3.seconds),
@@ -143,20 +159,22 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
 
         try {
             aggregators.forEach { it.start(scope) }
+
             // 모든 테넌트가 최소 1번 이상 집계되도록 기다림
             val ok = waitUntil(INSTANCE_TIMEOUT) {
                 DEFAULT_TENANTS.all { aggregateCounts.getValue(it).get() >= 1 }
             }
             ok.shouldBeTrue()
+
             // 추가 사이클 — 위반이 있다면 발생할 시간 확보
             delay(2.seconds)
 
             // 동시 실행 위반 0
             violations.get() shouldBeEqualTo 0
-            DEFAULT_TENANTS.forEach { aggregateCounts.getValue(it).get() shouldBeGreaterOrEqualTo 1 }
+            DEFAULT_TENANTS.all { aggregateCounts.getValue(it).get() >= 1 }.shouldBeTrue()
         } finally {
             aggregators.forEach { it.stopGracefully(2.seconds) }
-            scope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin()
+            scope.coroutineContext[Job]?.cancelAndJoin()
         }
     }
 
@@ -186,15 +204,17 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
             },
         )
 
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
             aggregator.start(scope)
+
             withTimeoutOrNull(INSTANCE_TIMEOUT) { firstFailed.await() }?.let { } ?: error("first cycle did not run")
             withTimeoutOrNull(INSTANCE_TIMEOUT) { secondSucceeded.await() }?.let { } ?: error("second cycle did not run")
+
             callCount.get() shouldBeGreaterOrEqualTo 2
         } finally {
             aggregator.stopGracefully(2.seconds)
-            scope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin()
+            scope.coroutineContext[Job]?.cancelAndJoin()
         }
     }
 
@@ -226,6 +246,7 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
         try {
             // node-A 를 먼저 시작하여 초기 리더로 선점 확보
             aggA.start(scope)
+
             // node-A 가 최소 1번 leader 로 aggregate 를 실행할 때까지 대기.
             // 이 단계가 timeout 되면 handover 검증 자체가 의미 없으므로 명시적으로 assert.
             val nodeAReady = waitUntil(INSTANCE_TIMEOUT) {
@@ -240,13 +261,16 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
             aggA.stopGracefully(2.seconds)
 
             // 차순위 인계 — node-B 가 lease 만료 후 락 획득
-            val ok = waitUntil(INSTANCE_TIMEOUT) { countsByNode.getValue("node-B").get() >= 1 }
+            val ok = waitUntil(INSTANCE_TIMEOUT) {
+                countsByNode.getValue("node-B").get() >= 1
+            }
             ok.shouldBeTrue()
+
             // node-A 는 stop 이후 더 이상 증가하면 안 됨 (관대하게 +1 정도 허용 — 사이클 race)
-            (countsByNode.getValue("node-A").get() <= countAtStop + 1).shouldBeTrue()
+            countsByNode.getValue("node-A").get() shouldBeLessOrEqualTo countAtStop + 1
         } finally {
             aggB.stopGracefully(2.seconds)
-            scope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin()
+            scope.coroutineContext[Job]?.cancelAndJoin()
         }
     }
 
@@ -264,11 +288,13 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
             aggregateFunction = { delay(50.milliseconds) },
         )
 
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val job = aggregator.start(scope)
+
         delay(300.milliseconds)
         job.cancelAndJoin()
         job.isCancelled.shouldBeTrue()
+
         // CancellationException 이 정상 전파되어 join 후 회수되었는지 확인
         job.isCompleted.shouldBeTrue()
     }
@@ -319,10 +345,14 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
             ),
             aggregateFunction = { },
         )
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
             aggregator.start(scope)
-            assertFailsWith<IllegalStateException> { aggregator.start(scope) }
+
+            // 시작을 중복하면 예외가 발생한다 
+            assertFailsWith<IllegalStateException> {
+                aggregator.start(scope)
+            }
         } finally {
             aggregator.stopGracefully(2.seconds)
             scope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin()
@@ -330,7 +360,7 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
     }
 
     @Test
-    fun `start 동시 호출 - 정확히 하나만 성공하고 나머지는 IllegalStateException`(): Unit = runBlocking {
+    fun `start 동시 호출 - 정확히 하나만 성공하고 나머지는 IllegalStateException`() = runSuspendIO {
         // P2-1 회귀 테스트: 두 개 이상의 호출자가 거의 동시에 start() 를 호출해도
         // ReentrantLock 으로 직렬화되어 단 하나의 호출만 성공해야 한다.
         repeat(20) { iteration ->
@@ -349,13 +379,14 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
                 ),
                 aggregateFunction = { },
             )
-            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
             val gate = CompletableDeferred<Unit>()
             val successCount = AtomicInteger(0)
             val failureCount = AtomicInteger(0)
+
             try {
                 val callerCount = 8
-                val callers = (1..callerCount).map {
+                val callers = List(callerCount) {
                     scope.launch {
                         gate.await() // 동시 시작
                         try {
@@ -364,17 +395,17 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
                         } catch (e: IllegalStateException) {
                             failureCount.incrementAndGet()
                         }
-                    }
+                    }.log("Caller #$it")
                 }
                 gate.complete(Unit)
-                callers.forEach { it.join() }
+                callers.joinAll()
 
                 // 정확히 하나의 호출만 성공해야 함
                 successCount.get() shouldBeEqualTo 1
                 failureCount.get() shouldBeEqualTo callerCount - 1
             } finally {
                 aggregator.stopGracefully(2.seconds)
-                scope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin()
+                scope.coroutineContext[Job]?.cancelAndJoin()
             }
         }
     }

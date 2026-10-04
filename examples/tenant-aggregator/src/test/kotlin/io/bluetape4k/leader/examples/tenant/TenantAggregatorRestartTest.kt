@@ -3,7 +3,10 @@ package io.bluetape4k.leader.examples.tenant
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -23,15 +26,24 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TenantAggregatorRestartTest {
+
+    companion object: KLogging()
+
     @ParameterizedTest
     @ValueSource(strings = ["timeout", "caller-cancel", "direct-cancel", "zero-timeout"])
     fun `정리가 끝나기 전에는 재시작을 거부하고 완료 후 허용한다`(mode: String) = runTest {
         val release = CompletableDeferred<Unit>()
         val cleaning = CompletableDeferred<Unit>()
         val elector = cleanupElector(cleaning, release)
-        val worker = TenantAggregator({ _, _ -> elector }, TenantAggregatorOptions("node", listOf("tenant"))) { }
-        val first = worker.start(backgroundScope)
+
+        val worker = TenantAggregator(
+            { _, _ -> elector },
+            TenantAggregatorOptions("node", listOf("tenant"))
+        ) { }
+
+        val first = worker.start(backgroundScope).log("first")
         runCurrent()
+
         try {
             when (mode) {
                 "timeout" -> worker.stopGracefully(10.milliseconds)
@@ -46,15 +58,23 @@ class TenantAggregatorRestartTest {
             runCurrent()
             cleaning.isCompleted.shouldBeTrue()
             first.isCompleted.shouldBeFalse()
-            assertFailsWith<IllegalStateException> { worker.start(backgroundScope) }
+
+            // 아직 진행 중이라 예외가 발생한다.
+            assertFailsWith<IllegalStateException> {
+                worker.start(backgroundScope)
+            }
         } finally {
             release.complete(Unit)
             first.cancelAndJoin()
         }
-        val next = worker.start(backgroundScope)
+
+        val next = worker.start(backgroundScope).log("next")
         runCurrent()
         try {
-            assertFailsWith<IllegalStateException> { worker.start(backgroundScope) }
+            // next job 이 실행 중이라 예외가 발생한다 
+            assertFailsWith<IllegalStateException> {
+                worker.start(backgroundScope)
+            }
         } finally {
             next.cancelAndJoin()
         }
@@ -64,17 +84,30 @@ class TenantAggregatorRestartTest {
     fun `이전 stop의 반환이 완료 callback에서 시작한 새 job을 지우지 않는다`() = runTest {
         val release = CompletableDeferred<Unit>()
         val elector = cleanupElector(CompletableDeferred(), release)
-        val worker = TenantAggregator({ _, _ -> elector }, TenantAggregatorOptions("node", listOf("tenant"))) { }
-        val first = worker.start(backgroundScope)
+
+        val worker = TenantAggregator(
+            { _, _ -> elector },
+            TenantAggregatorOptions("node", listOf("tenant"))
+        ) { }
+
+        val first = worker.start(backgroundScope).log("first")
         runCurrent()
+
+        // 연속으로 다음 작업을 진행하도록 한다 
         var next: Job? = null
-        first.invokeOnCompletion { next = worker.start(backgroundScope) }
+        first.invokeOnCompletion {
+            next = worker.start(backgroundScope).log("next")
+        }
+
         release.complete(Unit)
         worker.stopGracefully()
         runCurrent()
+
         try {
-            requireNotNull(next).isActive.shouldBeTrue()
-            assertFailsWith<IllegalStateException> { worker.start(backgroundScope) }
+            next.shouldNotBeNull().isActive.shouldBeTrue()
+            assertFailsWith<IllegalStateException> {
+                worker.start(backgroundScope)
+            }
         } finally {
             next?.cancelAndJoin()
         }
@@ -84,15 +117,25 @@ class TenantAggregatorRestartTest {
     fun `이미 취소된 scope의 즉시 완료도 재시작을 막지 않는다`() = runTest {
         val release = CompletableDeferred<Unit>().apply { complete(Unit) }
         val elector = cleanupElector(CompletableDeferred(), release)
-        val worker = TenantAggregator({ _, _ -> elector }, TenantAggregatorOptions("node", listOf("tenant"))) { }
+
+        val worker = TenantAggregator(
+            { _, _ -> elector },
+            TenantAggregatorOptions("node", listOf("tenant"))
+        ) { }
+
         val cancelledScope = CoroutineScope(backgroundScope.coroutineContext + Job().apply { cancel() })
-        val first = worker.start(cancelledScope)
+
+        val first = worker.start(cancelledScope).log("first")
         runCurrent()
         first.isCompleted.shouldBeTrue()
-        val next = worker.start(backgroundScope)
+
+        val next = worker.start(backgroundScope).log("next")
         runCurrent()
+
         try {
-            assertFailsWith<IllegalStateException> { worker.start(backgroundScope) }
+            assertFailsWith<IllegalStateException> {
+                worker.start(backgroundScope)
+            }
         } finally {
             next.cancelAndJoin()
         }
