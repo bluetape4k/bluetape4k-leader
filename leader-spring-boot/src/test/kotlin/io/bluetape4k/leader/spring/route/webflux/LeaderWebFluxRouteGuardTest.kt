@@ -535,7 +535,7 @@ class LeaderWebFluxRouteGuardTest {
                 .filter(slot, resolver, metadataProvider)
             resolver != null -> factory(authority, rejectionStatus, redirect)
                 .filter(slot, resolver)
-            else             -> factory(authority, rejectionStatus, redirect).filter(slot)
+            else -> factory(authority, rejectionStatus, redirect).filter(slot)
         }
         return WebTestClient.bindToWebHandler(handler)
             .webFilter(routeFilter)

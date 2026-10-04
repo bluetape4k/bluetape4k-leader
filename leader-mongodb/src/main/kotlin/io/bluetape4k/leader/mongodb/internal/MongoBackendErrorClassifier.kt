@@ -22,17 +22,17 @@ internal object MongoBackendErrorClassifier: BackendErrorClassifier {
     private const val AUTHENTICATION_FAILED = 18
 
     override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {
-        is MongoTimeoutException    -> BackendErrorKind.TRANSIENT
-        is MongoSocketException     -> BackendErrorKind.TRANSIENT
+        is MongoTimeoutException -> BackendErrorKind.TRANSIENT
+        is MongoSocketException -> BackendErrorKind.TRANSIENT
         is MongoNodeIsRecoveringException -> BackendErrorKind.TRANSIENT
         is MongoNotPrimaryException -> BackendErrorKind.TRANSIENT
-        is MongoSecurityException   -> BackendErrorKind.NON_TRANSIENT
-        is MongoWriteException      -> BackendErrorKind.NON_TRANSIENT
-        is MongoCommandException    -> when (cause.errorCode) {
+        is MongoSecurityException -> BackendErrorKind.NON_TRANSIENT
+        is MongoWriteException -> BackendErrorKind.NON_TRANSIENT
+        is MongoCommandException -> when (cause.errorCode) {
             AUTH_FAILED, AUTHENTICATION_FAILED -> BackendErrorKind.NON_TRANSIENT
             else -> BackendErrorKind.NON_TRANSIENT
         }
-        is MongoException           -> BackendErrorKind.NON_TRANSIENT
-        else                        -> null
+        is MongoException -> BackendErrorKind.NON_TRANSIENT
+        else -> null
     }
 }

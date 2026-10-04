@@ -71,7 +71,7 @@ internal fun String.jsonEscape(): String =
         this@jsonEscape.forEach { char ->
             when (char) {
                 '\\' -> append("\\\\")
-                '"'  -> append("\\\"")
+                '"' -> append("\\\"")
                 '\b' -> append("\\b")
                 '\u000C' -> append("\\f")
                 '\n' -> append("\\n")
@@ -129,18 +129,18 @@ private fun String.readJsonString(start: Int): JsonString? {
     var index = start + 1
     while (index < length) {
         when (val char = this[index]) {
-            '"'  -> return JsonString(value.toString(), index + 1)
+            '"' -> return JsonString(value.toString(), index + 1)
             '\\' -> {
                 index++
                 if (index >= length) return null
                 when (val escaped = this[index]) {
                     '"', '\\', '/' -> value.append(escaped)
-                    'b'  -> value.append('\b')
-                    'f'  -> value.append('\u000C')
-                    'n'  -> value.append('\n')
-                    'r'  -> value.append('\r')
-                    't'  -> value.append('\t')
-                    'u'  -> {
+                    'b' -> value.append('\b')
+                    'f' -> value.append('\u000C')
+                    'n' -> value.append('\n')
+                    'r' -> value.append('\r')
+                    't' -> value.append('\t')
+                    'u' -> {
                         if (index + 4 >= length) return null
                         val hex = substring(index + 1, index + 5)
                         val code = hex.toIntOrNull(16) ?: return null

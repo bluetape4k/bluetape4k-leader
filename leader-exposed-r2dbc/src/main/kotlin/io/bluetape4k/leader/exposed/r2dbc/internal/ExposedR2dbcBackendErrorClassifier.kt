@@ -17,12 +17,12 @@ import io.r2dbc.spi.R2dbcTransientResourceException
 internal object ExposedR2dbcBackendErrorClassifier: BackendErrorClassifier {
 
     override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {
-        is R2dbcTimeoutException      -> BackendErrorKind.TRANSIENT
+        is R2dbcTimeoutException -> BackendErrorKind.TRANSIENT
         is R2dbcTransientResourceException -> BackendErrorKind.TRANSIENT
-        is R2dbcRollbackException     -> BackendErrorKind.NON_TRANSIENT
-        is R2dbcTransientException    -> BackendErrorKind.TRANSIENT
+        is R2dbcRollbackException -> BackendErrorKind.NON_TRANSIENT
+        is R2dbcTransientException -> BackendErrorKind.TRANSIENT
         is R2dbcNonTransientException -> BackendErrorKind.NON_TRANSIENT
-        is R2dbcException             -> BackendErrorKind.NON_TRANSIENT
-        else                          -> null
+        is R2dbcException -> BackendErrorKind.NON_TRANSIENT
+        else -> null
     }
 }

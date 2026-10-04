@@ -9,7 +9,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 ROOT = Path(os.environ.get("MANUAL_CODE_ROOT", Path(__file__).resolve().parents[2])).resolve()
 MANUAL_SITE_ROOT = Path(os.environ.get("MANUAL_SITE_ROOT", ROOT)).resolve()
 MANUAL_ROOT = Path(
@@ -109,7 +108,8 @@ def main() -> int:
                 release_commit,
             ]
         )
-        run(["ruby", str(TOOL_ROOT / "export_manifest.rb"), "--check", str(MANIFEST), str(MANUAL_ROOT / "generated/manifest.json")])
+        run(["ruby", str(TOOL_ROOT / "export_manifest.rb"), "--check", str(MANIFEST),
+             str(MANUAL_ROOT / "generated/manifest.json")])
         run(
             [
                 "ruby",

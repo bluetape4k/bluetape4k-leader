@@ -11,11 +11,11 @@ pluginManagement {
 
 val bluetape4kDependenciesCatalogRef = providers.gradleProperty("bluetape4kDependenciesCatalogRef")
     .orElse(providers.environmentVariable("BLUETAPE4K_DEPENDENCIES_CATALOG_REF"))
-        .orElse("0765227c19024a86732b23a4911da7a80521a814")
+    .orElse("0765227c19024a86732b23a4911da7a80521a814")
     .get()
 require(bluetape4kDependenciesCatalogRef.matches(Regex("[0-9a-f]{40}|[0-9a-f]{64}"))) {
     "bluetape4k-dependencies catalog ref must be an immutable Git commit SHA: " +
-        bluetape4kDependenciesCatalogRef
+            bluetape4kDependenciesCatalogRef
 }
 val bluetape4kDependenciesCatalogCacheKey = bluetape4kDependenciesCatalogRef.replace(Regex("[^A-Za-z0-9._-]"), "_")
 
@@ -45,8 +45,8 @@ fun expectedCatalogSha256(checksumFile: File): String? =
 
 fun catalogChecksumMatches(catalogFile: File, checksumFile: File): Boolean =
     catalogFile.isFile &&
-        !java.nio.file.Files.isSymbolicLink(catalogFile.toPath()) &&
-        expectedCatalogSha256(checksumFile)?.let { it == catalogSha256(catalogFile) } == true
+            !java.nio.file.Files.isSymbolicLink(catalogFile.toPath()) &&
+            expectedCatalogSha256(checksumFile)?.let { it == catalogSha256(catalogFile) } == true
 
 val catalogConnectTimeoutMillis = 10_000
 val catalogReadTimeoutMillis = 30_000
@@ -102,7 +102,8 @@ fun resolveBluetape4kDependenciesCatalogFile(): File {
         }
 
     val catalogFile = file(".gradle/bluetape4k-dependencies/$bluetape4kDependenciesCatalogCacheKey/libs.versions.toml")
-    val checksumFile = file(".gradle/bluetape4k-dependencies/$bluetape4kDependenciesCatalogCacheKey/libs.versions.toml.sha256")
+    val checksumFile =
+        file(".gradle/bluetape4k-dependencies/$bluetape4kDependenciesCatalogCacheKey/libs.versions.toml.sha256")
     if (!catalogChecksumMatches(catalogFile, checksumFile)) {
         require(catalogFile.parentFile.mkdirs() || catalogFile.parentFile.isDirectory) {
             "Cannot create bluetape4k-dependencies catalog cache: ${catalogFile.parentFile}"
@@ -150,7 +151,7 @@ val bluetape4kDependenciesCatalogFile = resolveBluetape4kDependenciesCatalogFile
 
 require(bluetape4kDependenciesCatalogFile.isFile) {
     "bluetape4k-dependencies catalog not found: $bluetape4kDependenciesCatalogFile. " +
-        "Checkout bluetape4k-dependencies at the release-train tag or set bluetape4kDependenciesCatalogPath."
+            "Checkout bluetape4k-dependencies at the release-train tag or set bluetape4kDependenciesCatalogPath."
 }
 
 dependencyResolutionManagement {

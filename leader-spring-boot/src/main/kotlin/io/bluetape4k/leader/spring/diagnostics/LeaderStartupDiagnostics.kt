@@ -86,7 +86,7 @@ class LeaderStartupDiagnostics(
                 // Multiple backends without an explicit choice remains a reportable warning.
                 null
 
-            else                    ->
+            else ->
                 // A single backend must still surface provider creation/lookup failures.
                 stateSelector.selectedOrNull()
         }

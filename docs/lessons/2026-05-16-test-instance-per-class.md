@@ -1,4 +1,4 @@
-# Lesson: leader-core 테스트 클래스의 명시적 @TestInstance(PER_CLASS)
+# Lesson: leader-core 테스트 클래스의 명시적 @TestInstance (PER_CLASS)
 
 **날짜**: 2026-05-16 **문제**: #268 **PR**: #272
 
@@ -12,10 +12,11 @@
 
 6개 클래스 모두에 `@TestInstance(TestInstance.Lifecycle.PER_CLASS)` + `import org.junit.jupiter.api.TestInstance`를 추가합니다. `LeaderStateTest`에 `companion object : KLogging()`를 추가합니다.
 
-주석은 기술적으로 중복되지만(속성 파일에서 다룹니다) 다음과 같습니다.
+주석은 기술적으로 중복되지만 (속성 파일에서 다룹니다) 다음과 같습니다.
+
 - `resources/`를 읽지 않고도 수명주기를 볼 수 있게 만듭니다.
 - 프로젝트의 다른 모든 테스트 클래스와 일치
-- 프로젝트 규칙에 따라 필요함(CLAUDE.md)
+- 프로젝트 규칙에 따라 필요함 (CLAUDE.md)
 
 ## 변경된 파일
 
@@ -28,7 +29,7 @@
 
 ## 검증
 
-`./gradlew :leader-core:test` — 빌드 success(테스트 failure 없음)
+`./gradlew :leader-core:test` — 빌드 success (테스트 failure 없음)
 
 ## 향후 지침
 

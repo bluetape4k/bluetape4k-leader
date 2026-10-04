@@ -6,13 +6,15 @@
 
 
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic
+workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add Spring Boot configuration metadata and startup diagnostics for `leader-spring-boot`.
 
 **Architecture:** Add a nested diagnostics property object, a focused startup diagnostics auto-configuration, and a report/checker class that reads Spring beans and environment values without touching external leader backends. Keep warnings non-fatal by default and convert them to startup failure only when diagnostics strict mode is enabled.
 
-**Tech Stack:** Kotlin 2.3, Spring Boot 4.1 auto-configuration, `ApplicationContextRunner`, JUnit 5, MockK where needed, bluetape4k assertions, manual Spring configuration metadata JSON, CairoSVG for diagram rendering if the architecture diagram changes.
+**Tech
+Stack:** Kotlin 2.3, Spring Boot 4.1 auto-configuration, `ApplicationContextRunner`, JUnit 5, MockK where needed, bluetape4k assertions, manual Spring configuration metadata JSON, CairoSVG for diagram rendering if the architecture diagram changes.
 
 ---
 
@@ -36,6 +38,7 @@
 ## Task 1: Lock diagnostics properties and metadata tests
 
 **Files:**
+
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/diagnostics/LeaderStartupDiagnosticsAutoConfigurationTest.kt`
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metadata/LeaderConfigurationMetadataTest.kt`
 - Modify: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/LeaderProperties.kt`
@@ -109,6 +112,7 @@ Expected before metadata edit: FAIL.
 ## Task 2: Implement startup diagnostics
 
 **Files:**
+
 - Create: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/diagnostics/LeaderStartupDiagnostics.kt`
 - Create: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/diagnostics/LeaderStartupDiagnosticsAutoConfiguration.kt`
 - Create: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/diagnostics/LeaderStartupDiagnosticsException.kt`
@@ -130,8 +134,7 @@ RAW lock-name metrics without allow-list records warning
 
 - [ ] **Step 2: Implement report model and checker**
 
-`LeaderStartupDiagnostics` should expose a `lastReport(): Report?` method for tests.
-The report should contain active backend names, leader elector bean names, warning codes, and strict flag.
+`LeaderStartupDiagnostics` should expose a `lastReport(): Report?` method for tests. The report should contain active backend names, leader elector bean names, warning codes, and strict flag.
 
 - [ ] **Step 3: Implement strict exception**
 
@@ -154,6 +157,7 @@ Expected: PASS.
 ## Task 3: Expand metadata and README
 
 **Files:**
+
 - Modify: `leader-spring-boot/src/main/resources/META-INF/spring/additional-spring-configuration-metadata.json`
 - Modify: `leader-spring-boot/README.md`
 - Modify: `leader-spring-boot/README.ko.md`
@@ -191,6 +195,7 @@ Expected: PASS.
 ## Task 4: Diagram update if needed
 
 **Files:**
+
 - Modify if needed: `docs/images/readme-diagrams/leader-spring-boot-architecture-01.svg`
 - Modify if needed: `docs/images/readme-diagrams/leader-spring-boot-architecture-01.png`
 
@@ -211,6 +216,7 @@ Then inspect the PNG at full size and run available SVG/geometry checks.
 ## Task 5: Verification, review, lesson, PR
 
 **Files:**
+
 - Create: `docs/lessons/2026-07-03-issue-538-spring-diagnostics.md`
 - Create: `docs/review/2026-07-03-issue-538-spring-diagnostics-review.md`
 

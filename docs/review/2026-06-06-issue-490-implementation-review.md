@@ -21,15 +21,15 @@
 
 ## Step DoD
 
-| Step | Status | Evidence |
-|------|--------|----------|
-| Step 1 - Baseline inventory | PASS | `node scripts/regenerate-readme-diagram-graphviz-evidence.mjs --check`: baseline `diagrams=65 failures=0`; #490 issue body updated with baseline `7313520b`. |
-| Step 2 - Spec gate | PASS | `docs/superpowers/specs/2026-06-06-issue-490-layered-architecture-design.md`; `docs/review/2026-06-06-issue-490-spec-review.md` has `P0 = 0`, `P1 = 0`. |
-| Step 3 - Plan gate | PASS | `docs/superpowers/plans/2026-06-06-issue-490-layered-architecture-plan.md`; `docs/review/2026-06-06-issue-490-plan-review.md` has `P0 = 0`, `P1 = 0`. |
-| Step 4 - Layered diagram generation | PASS | `node scripts/apply-layered-architecture-bands.mjs`: 16 changed diagram pairs, each reports `badEndpointAngle=0 badBends=0 interiorCrossings=0 marginImbalance=0 titleGap=0 layerContainment=0`. |
-| Step 5 - README language switch | PASS | README language switch check passed for 75 files; English files use `English | [한국어](...)` and Korean files use `[English](...) | 한국어`. |
-| Step 6 - Rendered preview | PASS | `.omx/artifacts/issue-490-layered-architecture-contact-sheet.png`; individually inspected root, DynamoDB, K8s, and Exposed JDBC PNGs. |
-| Step 7 - Repository validation | PASS | `node scripts/regenerate-readme-diagram-graphviz-evidence.mjs --check`: `diagrams=65 failures=0`; `xmllint --noout` over README SVG assets passed; README image-link check passed; `git diff --check` passed. |
+| Step                                | Status | Evidence                                                                                                                                                                                                      |
+|-------------------------------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Step 1 - Baseline inventory         | PASS   | `node scripts/regenerate-readme-diagram-graphviz-evidence.mjs --check`: baseline `diagrams=65 failures=0`; #490 issue body updated with baseline `7313520b`.                                                  |
+| Step 2 - Spec gate                  | PASS   | `docs/superpowers/specs/2026-06-06-issue-490-layered-architecture-design.md`; `docs/review/2026-06-06-issue-490-spec-review.md` has `P0 = 0`, `P1 = 0`.                                                       |
+| Step 3 - Plan gate                  | PASS   | `docs/superpowers/plans/2026-06-06-issue-490-layered-architecture-plan.md`; `docs/review/2026-06-06-issue-490-plan-review.md` has `P0 = 0`, `P1 = 0`.                                                         |
+| Step 4 - Layered diagram generation | PASS   | `node scripts/apply-layered-architecture-bands.mjs`: 16 changed diagram pairs, each reports `badEndpointAngle=0 badBends=0 interiorCrossings=0 marginImbalance=0 titleGap=0 layerContainment=0`.              |
+| Step 5 - README language switch     | PASS   | README language switch check passed for 75 files; English files use `English                                                                                                                                  | [한국어](...)` and Korean files use `[English](...) | 한국어`. |
+| Step 6 - Rendered preview           | PASS   | `.omx/artifacts/issue-490-layered-architecture-contact-sheet.png`; individually inspected root, DynamoDB, K8s, and Exposed JDBC PNGs.                                                                         |
+| Step 7 - Repository validation      | PASS   | `node scripts/regenerate-readme-diagram-graphviz-evidence.mjs --check`: `diagrams=65 failures=0`; `xmllint --noout` over README SVG assets passed; README image-link check passed; `git diff --check` passed. |
 
 ## 메모
 

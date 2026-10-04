@@ -1,12 +1,8 @@
 # 리더 코어 벤치마크 기준 — 2026-05-21
 
-이는 문제 #326에 대한 로컬 개발자-머신 기준입니다. 이를 사용하여 동일한 시스템 및 JVM의 향후 변경 사항을 비교합니다. 릴리스 등급 처리량 청구로
-처리하지 마십시오.
+이는 문제 #326에 대한 로컬 개발자-머신 기준입니다. 이를 사용하여 동일한 시스템 및 JVM의 향후 변경 사항을 비교합니다. 릴리스 등급 처리량 청구로 처리하지 마십시오.
 
-업데이트: 문제 #327은 이러한 벤치마크 시나리오를 `leader-core/src/jmh`에서 게시되지 않은 중앙 `benchmark/` 모듈로 이동하고
-JVM 백엔드로 JMH를 사용하여 Gradle 프런트엔드를 `kotlinx-benchmark`로 전환했습니다. 아래 숫자를 PR #330 역사적 기준으로
-유지하세요. 현재 비교를 위해서는 `docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md`를
-사용하세요.
+업데이트: 문제 #327은 이러한 벤치마크 시나리오를 `leader-core/src/jmh`에서 게시되지 않은 중앙 `benchmark/` 모듈로 이동하고 JVM 백엔드로 JMH를 사용하여 Gradle 프런트엔드를 `kotlinx-benchmark`로 전환했습니다. 아래 숫자를 PR #330 역사적 기준으로 유지하세요. 현재 비교를 위해서는 `docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md`를 사용하세요.
 
 ## 주의 사항
 
@@ -18,18 +14,18 @@ JVM 백엔드로 JMH를 사용하여 Gradle 프런트엔드를 `kotlinx-benchmar
 
 ## 환경
 
-| Field | Value |
-|---|---|
-| Date | 2026-05-21 |
-| Host | Apple M4 Pro, 12 CPUs, 48 GiB RAM |
-| OS | macOS 26.5 arm64 |
-| JDK | Oracle GraalVM 21.0.11 |
-| Gradle | 9.5.1 |
-| JMH | 1.37 |
-| Warmup | 2 iterations, 1 second each |
-| Measurement | 3 iterations, 1 second each |
-| Forks | 1 |
-| Threads | 1 |
+| Field       | Value                             |
+|-------------|-----------------------------------|
+| Date        | 2026-05-21                        |
+| Host        | Apple M4 Pro, 12 CPUs, 48 GiB RAM |
+| OS          | macOS 26.5 arm64                  |
+| JDK         | Oracle GraalVM 21.0.11            |
+| Gradle      | 9.5.1                             |
+| JMH         | 1.37                              |
+| Warmup      | 2 iterations, 1 second each       |
+| Measurement | 3 iterations, 1 second each       |
+| Forks       | 1                                 |
+| Threads     | 1                                 |
 
 ## 명령
 
@@ -46,17 +42,17 @@ JVM 백엔드로 JMH를 사용하여 Gradle 프런트엔드를 `kotlinx-benchmar
 
 높을수록 처리량이 더 좋습니다. 평균 시간에는 낮을수록 좋습니다.
 
-| Benchmark | Throughput (ops/us) | Average time (us/op) |
-|---|---:|---:|
-| HistoryRecorder.blockingNoopAcquireComplete | 7.459 ± 0.632 | 0.137 ± 0.018 |
-| HistoryRecorder.blockingInMemoryAcquireComplete | 5.643 ± 0.537 | 0.180 ± 0.035 |
-| HistoryRecorder.suspendNoopAcquireComplete | 5.775 ± 0.641 | 0.172 ± 0.017 |
-| HistoryRecorder.suspendInMemoryAcquireComplete | 4.577 ± 0.213 | 0.218 ± 0.047 |
-| LocalLeader.blockingRunIfLeader | 2.208 ± 0.056 | 0.451 ± 0.123 |
-| LocalLeader.completableFutureRunIfLeader | 2.209 ± 0.629 | 0.452 ± 0.146 |
-| LocalLeader.asyncOnlyRunIfLeader | 2.194 ± 0.662 | 0.459 ± 0.232 |
-| LocalLeader.suspendRunIfLeader | 0.787 ± 0.566 | 1.247 ± 0.184 |
-| LocalLeader.virtualThreadRunIfLeader | 0.140 ± 0.006 | 7.018 ± 1.371 |
+| Benchmark                                       | Throughput (ops/us) | Average time (us/op) |
+|-------------------------------------------------|--------------------:|---------------------:|
+| HistoryRecorder.blockingNoopAcquireComplete     |       7.459 ± 0.632 |        0.137 ± 0.018 |
+| HistoryRecorder.blockingInMemoryAcquireComplete |       5.643 ± 0.537 |        0.180 ± 0.035 |
+| HistoryRecorder.suspendNoopAcquireComplete      |       5.775 ± 0.641 |        0.172 ± 0.017 |
+| HistoryRecorder.suspendInMemoryAcquireComplete  |       4.577 ± 0.213 |        0.218 ± 0.047 |
+| LocalLeader.blockingRunIfLeader                 |       2.208 ± 0.056 |        0.451 ± 0.123 |
+| LocalLeader.completableFutureRunIfLeader        |       2.209 ± 0.629 |        0.452 ± 0.146 |
+| LocalLeader.asyncOnlyRunIfLeader                |       2.194 ± 0.662 |        0.459 ± 0.232 |
+| LocalLeader.suspendRunIfLeader                  |       0.787 ± 0.566 |        1.247 ± 0.184 |
+| LocalLeader.virtualThreadRunIfLeader            |       0.140 ± 0.006 |        7.018 ± 1.371 |
 
 ## 관찰
 

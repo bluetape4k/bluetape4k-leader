@@ -524,7 +524,7 @@ object LeaderLeaseAutoExtender: KLogging() {
             return
         }
         when (outcome) {
-            is Extended               -> { /* 성공적으로 연장했으므로 계속 진행합니다. */
+            is Extended -> { /* 성공적으로 연장했으므로 계속 진행합니다. */
             }
             is ExtendOutcome.Rejected -> {
                 // Bounded watchdog admission is a transient lane decision. Keep the
@@ -537,7 +537,7 @@ object LeaderLeaseAutoExtender: KLogging() {
                     futureRef.get()?.cancel(false)
                 }
             }
-            is BackendError           -> {
+            is BackendError -> {
                 val kind = errorClassifier.classify(outcome.cause)
                     ?: BackendErrorKind.NON_TRANSIENT
                 when (kind) {

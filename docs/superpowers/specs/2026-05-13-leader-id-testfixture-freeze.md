@@ -4,12 +4,12 @@
 
 ## 목적
 
-PR1이 merge되면 PR2-6 worker branch들이 testFixture API를 의존하게 됩니다.
-testFixture 또는 factory 변경이 발생하면 coordinator 통보 → 모든 open PR rebase → 별도 follow-up PR로 freeze doc 업데이트.
+PR1이 merge되면 PR2-6 worker branch들이 testFixture API를 의존하게 됩니다. testFixture 또는 factory 변경이 발생하면 coordinator 통보 → 모든 open PR rebase → 별도 follow-up PR로 freeze doc 업데이트.
 
 ## PR2-6 Worker Branching 절차
 
 PR1 merge 후:
+
 ```bash
 git fetch origin
 git checkout -b feat/leader-id-pr2 origin/develop
@@ -23,10 +23,10 @@ commit SHA 의존 없음 — `origin/develop` HEAD 기준.
 
 ### Abstract Methods
 
-| Method | Signature |
-|--------|-----------|
-| createGroupElector | `abstract fun createGroupElector(maxLeaders: Int): LeaderGroupElector` |
-| createSingleElector | `abstract fun createSingleElector(): LeaderElector` |
+| Method              | Signature                                                              |
+|---------------------|------------------------------------------------------------------------|
+| createGroupElector  | `abstract fun createGroupElector(maxLeaders: Int): LeaderGroupElector` |
+| createSingleElector | `abstract fun createSingleElector(): LeaderElector`                    |
 
 ### Contract Test Methods (partial list)
 
@@ -64,22 +64,22 @@ Real(
 
 ## Frozen API: LeaderElectorBridgeLog Global Holder
 
-| API | Description |
-|-----|-------------|
-| `companion fun global()` | 현재 global instance 반환 |
-| `setGlobal(LeaderElectorBridgeLog)` | global 교체 — prev.dropped log.info |
-| `droppedAuditCount(): Long` | slot bridge drop 횟수 |
-| `droppedResultBridgeCount(): Long` | result bridge drop 횟수 |
-| `warnOnBridgeUse(KClass<*>, LeaderSlot)` | slot bridge 사용 경고 (LRU throttle) |
+| API                                            | Description                            |
+|------------------------------------------------|----------------------------------------|
+| `companion fun global()`                       | 현재 global instance 반환              |
+| `setGlobal(LeaderElectorBridgeLog)`            | global 교체 — prev.dropped log.info    |
+| `droppedAuditCount(): Long`                    | slot bridge drop 횟수                  |
+| `droppedResultBridgeCount(): Long`             | result bridge drop 횟수                |
+| `warnOnBridgeUse(KClass<*>, LeaderSlot)`       | slot bridge 사용 경고 (LRU throttle)   |
 | `warnOnResultBridgeUse(KClass<*>, LeaderSlot)` | result bridge 사용 경고 (LRU throttle) |
 
 ## Frozen API: LeaderRecorderContextDropLog Global Holder
 
-| API | Description |
-|-----|-------------|
-| `companion fun global()` | 현재 global instance 반환 |
-| `setGlobal(LeaderRecorderContextDropLog)` | global 교체 |
-| `droppedCount(): Long` | context drop 횟수 |
+| API                                              | Description                      |
+|--------------------------------------------------|----------------------------------|
+| `companion fun global()`                         | 현재 global instance 반환        |
+| `setGlobal(LeaderRecorderContextDropLog)`        | global 교체                      |
+| `droppedCount(): Long`                           | context drop 횟수                |
 | `warnOnDrop(KClass<*>, LeaderAopMetricsContext)` | drop 경고 (first-time per class) |
 
 ## Frozen API: LeaderAopMetricsContext.Identified

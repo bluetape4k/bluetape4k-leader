@@ -1,15 +1,17 @@
 # Lessons Learned — examples/ktor-app (2026-05-10)
 
 **관련 PR**: TBD (feat/examples-ktor-app → develop)
-**관련 Issue**: #165
-**영향 모듈**: `examples/ktor-app/`, `gradle/libs.versions.toml`, `settings.gradle.kts`, `.github/workflows/{ci,nightly}.yml`
+**관련 Issue**: #165 **영향
+모듈**: `examples/ktor-app/`, `gradle/libs.versions.toml`, `settings.gradle.kts`, `.github/workflows/{ci,nightly}.yml`
 
 ## L1: Ktor app + leader-ktor 통합 패턴 — `Application.module(connection)` 파라미터화
 
 ### 문제
-`KtorAppMain.main()` 은 `embeddedServer(CIO, ...) { module() }` 형태로 자체 Lettuce `RedisClient` + `StatefulRedisConnection` 을 생성하지만, 테스트(`testApplication { ... }`)는 Testcontainers Redis 의 connection 을 주입해야 한다.
+
+`KtorAppMain.main()` 은 `embeddedServer(CIO, ...) { module() }` 형태로 자체 Lettuce `RedisClient` + `StatefulRedisConnection` 을 생성하지만, 테스트 (`testApplication { ... }`)는 Testcontainers Redis 의 connection 을 주입해야 한다.
 
 ### 교훈
+
 모듈 함수를 파라미터화하여 main 진입점과 testApplication 양쪽 재사용. `RedisClient` 가 아닌 `StatefulRedisConnection<String, String>` 을 받도록 한다 — `LettuceSuspendLeaderElector` 의 인자 타입과 일치시켜 불필요한 변환을 피한다:
 
 ```kotlin
@@ -37,15 +39,19 @@ main 은 `RedisClient.create(url) → client.connect(StringCodec.UTF8) → modul
 ## L2: Ktor 3.x ContentNegotiation + Jackson + `Instant` 직렬화 — JSR310 모듈 등록 필수
 
 ### 문제
-`ktor-serialization-jackson` 은 Kotlin 모듈은 자동 등록하지만 `JavaTimeModule` 은 등록하지 않는다. `data class StatsAggregatorState(val lastRunAt: Instant?)` 응답 시 Jackson 이 직렬화 실패하여 **빈 응답 body** 가 반환된다 (status 는 200 OK).
+
+`ktor-serialization-jackson` 은 Kotlin 모듈은 자동 등록하지만 `JavaTimeModule` 은 등록하지 않는다. `data class StatsAggregatorState(val lastRunAt: Instant?)` 응답 시 Jackson 이 직렬화 실패하여
+**빈 응답 body** 가 반환된다 (status 는 200 OK).
 
 ### 증상
+
 ```
 GET /stats body=
 java.lang.IllegalArgumentException: runCount field missing in response:
 ```
 
 ### 교훈
+
 1. `jackson-datatype-jsr310` 의존성 명시:
    ```kotlin
    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
@@ -67,6 +73,7 @@ java.lang.IllegalArgumentException: runCount field missing in response:
 ## L3: testApplication + Awaitility 결합 — `runSuspendIO` 사용, `runTest` 금지
 
 ### 교훈
+
 `testApplication { ... }` 은 실제 코루틴 + 실시간 동작 — `runTest` 의 가상 시간과 호환되지 않는다 (leader-ktor lessons L4). Awaitility 도 실시간 polling 이므로 `runSuspendIO` (또는 `runBlocking { ... }: Unit`) 로 감싼다.
 
 ```kotlin
@@ -90,10 +97,14 @@ Polling interval 은 `aggregationPeriod` 의 1~2배로 설정하여 race conditi
 ## L4: 다중 인스턴스 시뮬레이션 — 단일 testApplication 안에서 두 leaderScheduled 등록
 
 ### 문제
+
 이상적으로는 두 개의 `testApplication` 인스턴스를 동시 실행하여 Redis 락 경합을 시연하지만, `testApplication` 의 라이프사이클은 trailing lambda 종료 시 강제 stop 되어 병렬 실행이 어렵다.
 
 ### 교훈
-같은 `application { }` 블록 안에서 두 `leaderScheduled(...)` 호출을 등록하면, 별도 elector 가 생성되어 동일 lockName 에 경합한다 — 단일 인스턴스만 cycle 마다 실행되는 동작을 검증할 수 있다. **인스턴스별 별도 `StatefulRedisConnection` 사용** — E1 batch-scheduler 의 `(1..3).map { newConnection() }` 패턴과 동일하게, 각 인스턴스는 자체 connection 을 보유해 락 경합이 실제 분산 환경과 동일하게 동작한다.
+
+같은 `application { }` 블록 안에서 두 `leaderScheduled(...)` 호출을 등록하면, 별도 elector 가 생성되어 동일 lockName 에 경합한다 — 단일 인스턴스만 cycle 마다 실행되는 동작을 검증할 수 있다.
+**인스턴스별 별도 `StatefulRedisConnection`
+사용** — E1 batch-scheduler 의 `(1..3).map { newConnection() }` 패턴과 동일하게, 각 인스턴스는 자체 connection 을 보유해 락 경합이 실제 분산 환경과 동일하게 동작한다.
 
 ```kotlin
 val connectionA = newConnection()
@@ -120,6 +131,7 @@ testApplication {
 ## L5: Gradle build cache + Testcontainers — `--no-build-cache` 플래그 강제
 
 ### 교훈 (leader-ktor L3 재확인)
+
 Testcontainers Redis 컨테이너 재시작 후 cached 결과로 인해 재실행이 스킵될 수 있다. fresh 검증:
 
 ```bash
@@ -131,6 +143,7 @@ Testcontainers Redis 컨테이너 재시작 후 cached 결과로 인해 재실�
 ## L6: 빈 응답 body 디버깅 — request 시 `Accept: application/json` 명시
 
 ### 교훈
+
 Ktor ContentNegotiation 은 클라이언트의 Accept 헤더가 명시되지 않으면 일부 라우트에서 빈 body 를 반환할 수 있다. 테스트 client 로 호출 시 명시적으로:
 
 ```kotlin

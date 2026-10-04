@@ -103,7 +103,7 @@ class DynamoDbSuspendLeaderGroupElectorIntegrationTest: AbstractDynamoDbLeaderTe
                 delay(10.seconds)
             }
         }.log("Holder A")
-        
+
         started.await()
         holder.cancelAndJoin()
 

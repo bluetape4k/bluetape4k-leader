@@ -23,14 +23,14 @@ P0/P1 발견 항목이 없습니다.
 
 ## 7층 관문
 
-| Tier | Verdict | Evidence |
-|---|---|---|
-| Tier 1 Security | PASS | No production input/output boundary changed; token is still consumed only by existing history record model. |
-| Tier 2 Architecture | PASS | New coverage stays in existing benchmark module; no production module dependency or runtime path changed. |
-| Tier 3 Data/State | PASS | In-memory benchmark sink now preserves completed and failed terminal states for equivalent sink work. |
-| Tier 4 Correctness | PASS | Compile and JMH runs generated 36 rows for throughput and 36 rows for average time. |
-| Tier 5 Test/Benchmark | PASS | `compileBenchmarkKotlin`, `benchmarkBenchmarkJar`, filtered JMH throughput, and filtered JMH average-time evidence recorded. |
-| Tier 6 Performance | PASS | Results are documented as same-machine snapshots; metadata-size and failure-path costs are called out. |
-| Tier 7 Docs/Release | PASS | README and README.ko updated together with raw JSON, charts, command, run conditions, table, and interpretation. |
+| Tier                  | Verdict | Evidence                                                                                                                     |
+|-----------------------|---------|------------------------------------------------------------------------------------------------------------------------------|
+| Tier 1 Security       | PASS    | No production input/output boundary changed; token is still consumed only by existing history record model.                  |
+| Tier 2 Architecture   | PASS    | New coverage stays in existing benchmark module; no production module dependency or runtime path changed.                    |
+| Tier 3 Data/State     | PASS    | In-memory benchmark sink now preserves completed and failed terminal states for equivalent sink work.                        |
+| Tier 4 Correctness    | PASS    | Compile and JMH runs generated 36 rows for throughput and 36 rows for average time.                                          |
+| Tier 5 Test/Benchmark | PASS    | `compileBenchmarkKotlin`, `benchmarkBenchmarkJar`, filtered JMH throughput, and filtered JMH average-time evidence recorded. |
+| Tier 6 Performance    | PASS    | Results are documented as same-machine snapshots; metadata-size and failure-path costs are called out.                       |
+| Tier 7 Docs/Release   | PASS    | README and README.ko updated together with raw JSON, charts, command, run conditions, table, and interpretation.             |
 
 P0: 0 P1: 0

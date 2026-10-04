@@ -115,7 +115,7 @@ class SuspendLeaderManagementActionRegistry(
             return immediate(LeaderManagementActionOutcome.INVALID_LOCK_NAME, surface)
         }
         when (val selection = store.select(lockName)) {
-            SuspendLeaderManagementActionStore.Selection.Closed    ->
+            SuspendLeaderManagementActionStore.Selection.Closed ->
                 return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
             SuspendLeaderManagementActionStore.Selection.NotRegistered ->
@@ -127,13 +127,13 @@ class SuspendLeaderManagementActionRegistry(
             is SuspendLeaderManagementActionStore.Selection.Record -> {
                 val (outcome, action) = store.begin(selection.value, surface)
                 when (outcome) {
-                    SuspendLeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED    ->
+                    SuspendLeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED ->
                         return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
-                    SuspendLeaderManagementActionStore.BeginOutcome.NOT_REGISTERED     ->
+                    SuspendLeaderManagementActionStore.BeginOutcome.NOT_REGISTERED ->
                         return immediate(LeaderManagementActionOutcome.NOT_REGISTERED, surface)
 
-                    SuspendLeaderManagementActionStore.BeginOutcome.AMBIGUOUS          ->
+                    SuspendLeaderManagementActionStore.BeginOutcome.AMBIGUOUS ->
                         return immediate(LeaderManagementActionOutcome.AMBIGUOUS, surface)
 
                     SuspendLeaderManagementActionStore.BeginOutcome.ACTION_IN_PROGRESS ->
@@ -142,7 +142,7 @@ class SuspendLeaderManagementActionRegistry(
                     SuspendLeaderManagementActionStore.BeginOutcome.ACTION_ADMISSION_REJECTED ->
                         return immediate(LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED, surface)
 
-                    SuspendLeaderManagementActionStore.BeginOutcome.STARTED            -> Unit
+                    SuspendLeaderManagementActionStore.BeginOutcome.STARTED -> Unit
                 }
                 val actionRecord = checkNotNull(action)
                 val deferred = CompletableDeferred<LeaderManagementActionResult>()
@@ -239,7 +239,7 @@ class SuspendLeaderManagementActionRegistry(
                 LeaseOwnershipStatus.UNKNOWN ->
                     return terminalResult(action, result(LeaderManagementActionOutcome.OWNERSHIP_UNKNOWN, false))
 
-                LeaseOwnershipStatus.HELD    -> Unit
+                LeaseOwnershipStatus.HELD -> Unit
             }
 
             if (action.timedOut.get() ||
@@ -295,7 +295,7 @@ class SuspendLeaderManagementActionRegistry(
                 when {
                     action.timedOut.get() -> timeoutResult(action)
                     postCheck == LeaseOwnershipStatus.NOT_HELD -> result(LeaderManagementActionOutcome.RELEASED, true)
-                    else                  -> result(
+                    else -> result(
                         LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
                         true
                     )
@@ -604,8 +604,8 @@ private class SuspendLeaderManagementActionStore(
         when {
             lifecycle != Lifecycle.OPEN -> Selection.Closed
             records.isEmpty() -> Selection.NotRegistered
-            records.size > 1  -> Selection.Ambiguous
-            else              -> Selection.Record(records.single())
+            records.size > 1 -> Selection.Ambiguous
+            else -> Selection.Record(records.single())
         }
     }
 

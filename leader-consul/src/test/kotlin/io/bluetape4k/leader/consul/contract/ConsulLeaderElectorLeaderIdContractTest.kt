@@ -15,7 +15,7 @@ import org.junit.jupiter.api.TestInstance
 class ConsulLeaderElectorLeaderIdContractTest: AbstractLeaderElectorLeaderIdContractTest() {
 
     companion object: KLogging()
-    
+
     override fun createElector(options: LeaderElectionOptions): LeaderElector =
         ConsulLeaderElector(
             ConsulContractSupport.endpoint(),

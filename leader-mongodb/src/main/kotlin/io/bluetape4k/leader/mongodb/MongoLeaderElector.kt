@@ -250,7 +250,7 @@ class MongoLeaderElector private constructor(
             val cause = failure?.unwrapCompletionException()
             try {
                 when (cause) {
-                    null                     -> effectiveKey?.let {
+                    null -> effectiveKey?.let {
                         historyRecorder?.recordCompleted(
                             it,
                             finishedAt,
@@ -258,7 +258,7 @@ class MongoLeaderElector private constructor(
                         )
                     }
                     is CancellationException -> Unit
-                    else                     -> effectiveKey?.let {
+                    else -> effectiveKey?.let {
                         historyRecorder?.recordFailed(
                             it,
                             finishedAt,

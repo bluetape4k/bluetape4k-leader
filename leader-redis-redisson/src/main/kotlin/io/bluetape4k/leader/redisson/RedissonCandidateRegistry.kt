@@ -264,8 +264,8 @@ internal class RedissonCandidateRegistry(
                 when (value) {
                     is RefreshScriptMapKey -> delegate.mapKeyEncoder.encode(value.value)
                     is RefreshScriptMapValue -> delegate.mapValueEncoder.encode(value.value)
-                    is RefreshScriptTtl    -> StringCodec.INSTANCE.valueEncoder.encode(value.value.toString())
-                    else                   -> error("지원하지 않는 refresh script 인자입니다: ${value::class.qualifiedName}")
+                    is RefreshScriptTtl -> StringCodec.INSTANCE.valueEncoder.encode(value.value.toString())
+                    else -> error("지원하지 않는 refresh script 인자입니다: ${value::class.qualifiedName}")
                 }
             }
 
@@ -409,7 +409,7 @@ internal class RedissonCandidateRegistry(
                                 scheduleLateEntryLockCleanup(lock, threadId)
                                 return@invokeOnCancellation
                             }
-                            else         -> return@invokeOnCancellation
+                            else -> return@invokeOnCancellation
                         }
                     }
                 }

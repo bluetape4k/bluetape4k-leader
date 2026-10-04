@@ -162,20 +162,20 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         refreshedCount: Int,
     ): Int = cachedActiveCounts.compute(lockName) { _, current ->
         when {
-            snapshot.entry == null     -> when {
+            snapshot.entry == null -> when {
                 current == null && refreshedCount > 0 -> CachedActiveCount(refreshedCount)
                 else -> current
             }
 
             current !== snapshot.entry -> current
             current.generation.get() != snapshot.generation -> current
-            refreshedCount > 0         -> {
+            refreshedCount > 0 -> {
                 current.value.set(refreshedCount)
                 current.generation.incrementAndGet()
                 current
             }
 
-            else                       -> null
+            else -> null
         }
     }?.value?.get() ?: 0
 

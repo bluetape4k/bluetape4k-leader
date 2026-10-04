@@ -16,7 +16,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RedissonLeaderGroupElectorLeaderIdContractTest: AbstractLeaderGroupElectorLeaderIdContractTest() {
 
-    companion object: KLogging() 
+    companion object: KLogging()
 
     override fun createElector(options: LeaderGroupElectionOptions): LeaderGroupElector =
         RedissonLeaderGroupElector(AbstractRedissonLeaderTest.redissonClient, options)

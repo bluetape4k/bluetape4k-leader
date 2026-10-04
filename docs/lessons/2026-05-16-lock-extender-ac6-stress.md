@@ -17,6 +17,7 @@
 ## SuspendedJobTester 의미론
 
 `SuspendedJobTester.workers(N).rounds(M)`:
+
 - `rounds(M)` = **M개의 총 호출**(N×M 아님)
 - `workers(N)` = 최대 동시성 수준
 
@@ -26,11 +27,13 @@ suspend 테스트에 대한 어설션: `rounds * extendsPerRound`(`workers * rou
 
 ## 추가된 테스트
 
-### 동기화(AbstractSyncLockExtenderContractTest)
+### 동기화 (AbstractSyncLockExtenderContractTest)
+
 - `AC-6 concurrent extends race-free — N workers each extend their own lock`: `MultithreadingTester(8 workers × 10 rounds × 5 extends = 400)`
 - `AC-6b sequential extends with random durations are all successful`: 20개의 연속 무작위 기간 확장
 
-### 일시중단(AbstractSuspendLockExtenderContractTest)
+### 일시중단 (AbstractSuspendLockExtenderContractTest)
+
 - `AC-6 concurrent suspend extends race-free — N workers each extend their own lock`: `SuspendedJobTester(8 workers, 10 rounds × 5 extends = 50)`
 - `AC-6b sequential suspend extends with random durations are all successful`: 20개의 연속 무작위 기간 확장
 

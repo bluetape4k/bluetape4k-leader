@@ -353,10 +353,10 @@ private fun String.utf8SizeAtMost(limit: Int): Int {
     while (index < length) {
         val codePoint = codePointAt(index)
         val byteCount = when {
-            codePoint <= 0x7f  -> 1
+            codePoint <= 0x7f -> 1
             codePoint <= 0x7ff -> 2
             codePoint <= 0xffff -> 3
-            else               -> 4
+            else -> 4
         }
         if (total > limit - byteCount) return limit + 1
         total += byteCount

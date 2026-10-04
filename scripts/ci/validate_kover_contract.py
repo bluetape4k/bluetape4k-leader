@@ -22,12 +22,12 @@ def _job_block(source: str, job_id: str) -> str | None:
         return None
     next_job = re.search(
         r"^  [A-Za-z0-9][A-Za-z0-9_-]*:\s*$",
-        source[start + len(marker) :],
+        source[start + len(marker):],
         flags=re.MULTILINE,
     )
     if next_job is None:
         return source[start:]
-    return source[start : start + len(marker) + next_job.start()]
+    return source[start: start + len(marker) + next_job.start()]
 
 
 def _step_block(block: str, step_name: str) -> str | None:
@@ -36,10 +36,10 @@ def _step_block(block: str, step_name: str) -> str | None:
     if start < 0:
         return None
     step_start = block.rfind("\n", 0, start) + 1
-    next_step = re.search(r"^      - name:", block[start + len(marker) :], flags=re.MULTILINE)
+    next_step = re.search(r"^      - name:", block[start + len(marker):], flags=re.MULTILINE)
     if next_step is None:
         return block[step_start:]
-    return block[step_start : start + len(marker) + next_step.start()]
+    return block[step_start: start + len(marker) + next_step.start()]
 
 
 def _gradle_kover_commands(source: str) -> list[str]:
@@ -62,15 +62,15 @@ def _validate_k8s_coverage_contract(source: str, path: Path) -> list[str]:
 
     k8s_commands = [line.strip() for line in k8s_job.splitlines() if "./gradlew" in line]
     if not any(
-        all(
-            task in command
-            for task in (
-                ":bluetape4k-leader-k8s:test",
-                ":bluetape4k-leader-k8s:k8sTest",
-                ":bluetape4k-leader-k8s:koverXmlReport",
+            all(
+                task in command
+                for task in (
+                        ":bluetape4k-leader-k8s:test",
+                        ":bluetape4k-leader-k8s:k8sTest",
+                        ":bluetape4k-leader-k8s:koverXmlReport",
+                )
             )
-        )
-        for command in k8s_commands
+            for command in k8s_commands
     ):
         violations.append(
             f"{path}: test-leader-k8s는 test, k8sTest, koverXmlReport를 same Gradle invocation으로 실행해야 합니다"

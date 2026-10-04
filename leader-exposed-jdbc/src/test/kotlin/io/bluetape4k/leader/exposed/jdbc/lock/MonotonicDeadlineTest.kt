@@ -37,7 +37,7 @@ class MonotonicDeadlineTest: AbstractMonotonicDeadlineContractTest() {
         cleanTables()
         return when (case.target) {
             LockTarget.SINGLE -> observeSingleWait(case)
-            LockTarget.GROUP  -> observeGroupWait(case)
+            LockTarget.GROUP -> observeGroupWait(case)
         }
     }
 

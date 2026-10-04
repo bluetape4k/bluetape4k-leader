@@ -1,67 +1,70 @@
 # Issue #741 Spring observation scope 구현 계획
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic
+workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 서로 다른 Spring `ObservationRegistry` 사이에서 lease-extension event와 선택적 identity가 교차 기록되지 않도록 하면서 공개 event ABI와 process-global observer 계약을 유지한다.
 
 **Architecture:** core가 registration과 함께 opaque `LeaderLeaseExtensionObservationScope` capability를 만들고 wildcard/capability bucket으로 dispatch한다. Spring은 registry identity별 manager entry에서 capability를 공유하고 context-fixed owner를 AOP에 연결한다. AOP, lease adapter, watchdog는 실행 시작 시 capability를 캡처하며 attribution이 없는 direct call은 automatic observer에서 제외한다.
 
-**Tech Stack:** Kotlin/JVM, Kotlin Coroutines, Reactor/Flow bridge, Spring Boot auto-configuration, Micrometer Observation, JUnit 5, MockK, Kluent/bluetape assertions, kotlinx-benchmark/JMH, Gradle.
+**Tech
+Stack:** Kotlin/JVM, Kotlin Coroutines, Reactor/Flow bridge, Spring Boot auto-configuration, Micrometer Observation, JUnit 5, MockK, Kluent/bluetape assertions, kotlinx-benchmark/JMH, Gradle.
 
 ---
 
 ## 파일 구조와 책임
 
-| 파일 | 책임 |
-|---|---|
-| `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionObservationScope.kt` | opaque capability, `ThreadLocal` save/restore, cached coroutine context element, revoke 상태 |
-| `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionObserver.kt` | wildcard/capability bucket registration, matching-only admission과 dispatch |
-| `leader-core/src/main/kotlin/io/bluetape4k/leader/LockExtender.kt` | 현재 capability로 USER event allocation/publish |
-| `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderLeaseAutoExtender.kt` | `start()` 시 capability capture 후 WATCHDOG event publish |
-| `leader-core/src/main/kotlin/io/bluetape4k/leader/internal/LeaderElectorLeaseAdapter.kt` | virtual-thread 경계 scope capture/restore |
-| `leader-core/src/main/kotlin/io/bluetape4k/leader/internal/SuspendLeaderElectorLeaseAdapter.kt` | IO coroutine 경계 scope context 결합 |
-| `leader-core/src/test/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionObservationScopeTest.kt` | nested/coroutine/revoke/capability identity 계약 |
-| `leader-core/src/test/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionObserversTest.kt` | wildcard/scoped matching, saturation/drop, close/reopen 회귀 |
-| `leader-core/src/test/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionApiContractTest.kt` | 기존 및 additive synthetic descriptor, 5-인자 event ABI |
-| `leader-core/src/test/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionBoundaryContractTest.kt` | USER/WATCHDOG blocking/suspend/virtual 경계 |
-| `leader-core/src/test/kotlin/io/bluetape4k/leader/internal/LeaderElectorLeaseAdapterTest.kt` | adapter thread/coroutine scope 전파와 direct-call 제외 |
-| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/metrics/LeaseExtensionObservationScopeOwner.kt` | context-fixed, one-shot capability activation과 close 후 fail-closed |
-| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/metrics/LeaseExtensionObservationRegistrationManager.kt` | registry identity entry, canonical capability와 ref-count |
-| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/metrics/LeaderObservationAutoConfiguration.kt` | owner bean 생성, late coordinator activation과 shutdown |
-| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderBeanSelector.kt` | 현재 BeanFactory의 fixed owner bean 조회 |
-| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/autoconfigure/LeaderAopAutoConfiguration.kt` | 기존 factory descriptor를 유지하며 aspect에 owner 연결 |
-| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspect.kt` | single sync/suspend/Mono/Flux/Flow 실행 scope |
-| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderGroupElectionAspect.kt` | group sync/suspend/Mono 실행 scope와 Flux/Flow 기존 거부 유지 |
-| `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metrics/LeaseExtensionObservationRegistrationManagerTest.kt` | distinct/same registry, close order, option conflict, stale scope |
-| `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metrics/LeaderObservationAutoConfigurationTest.kt` | owner/coordinator 조건과 parent/child registry 선택 |
-| `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/LeaderLeaseExtensionObservationScopeAspectTest.kt` | aspect별 execution model, fail-open/reentrant/cancellation/close race |
-| `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/compatibility/PublicJvmAbiCompatibilityTest.kt` | 기존 aspect/auto-config JVM descriptor 보존 |
-| `benchmark/src/benchmark/kotlin/io/bluetape4k/leader/benchmark/SpringLeaderAdviceBenchmark.kt` | scope match/mismatch/global의 throughput, average time, allocation evidence |
-| `docs/benchmarks/2026-08-29-issue-741-spring-observation-scope.md` | exact baseline/candidate SHA, JSON 경로, fork median과 allocation 판정 |
-| root/Spring `README.md`, `README.ko.md` | global/automatic 경계, 지원 행렬, migration, rollout/rollback |
-| `docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.{en,ko}.md` | 미출시 #741 delta와 운영 절차 |
+| 파일                                                                                                                         | 책임                                                                                         |
+|------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionObservationScope.kt`                                   | opaque capability, `ThreadLocal` save/restore, cached coroutine context element, revoke 상태 |
+| `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionObserver.kt`                                           | wildcard/capability bucket registration, matching-only admission과 dispatch                  |
+| `leader-core/src/main/kotlin/io/bluetape4k/leader/LockExtender.kt`                                                           | 현재 capability로 USER event allocation/publish                                              |
+| `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderLeaseAutoExtender.kt`                                                | `start()` 시 capability capture 후 WATCHDOG event publish                                    |
+| `leader-core/src/main/kotlin/io/bluetape4k/leader/internal/LeaderElectorLeaseAdapter.kt`                                     | virtual-thread 경계 scope capture/restore                                                    |
+| `leader-core/src/main/kotlin/io/bluetape4k/leader/internal/SuspendLeaderElectorLeaseAdapter.kt`                              | IO coroutine 경계 scope context 결합                                                         |
+| `leader-core/src/test/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionObservationScopeTest.kt`                               | nested/coroutine/revoke/capability identity 계약                                             |
+| `leader-core/src/test/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionObserversTest.kt`                                      | wildcard/scoped matching, saturation/drop, close/reopen 회귀                                 |
+| `leader-core/src/test/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionApiContractTest.kt`                                    | 기존 및 additive synthetic descriptor, 5-인자 event ABI                                      |
+| `leader-core/src/test/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionBoundaryContractTest.kt`                               | USER/WATCHDOG blocking/suspend/virtual 경계                                                  |
+| `leader-core/src/test/kotlin/io/bluetape4k/leader/internal/LeaderElectorLeaseAdapterTest.kt`                                 | adapter thread/coroutine scope 전파와 direct-call 제외                                       |
+| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/metrics/LeaseExtensionObservationScopeOwner.kt`              | context-fixed, one-shot capability activation과 close 후 fail-closed                         |
+| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/metrics/LeaseExtensionObservationRegistrationManager.kt`     | registry identity entry, canonical capability와 ref-count                                    |
+| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/metrics/LeaderObservationAutoConfiguration.kt`               | owner bean 생성, late coordinator activation과 shutdown                                      |
+| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderBeanSelector.kt`                                   | 현재 BeanFactory의 fixed owner bean 조회                                                     |
+| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/autoconfigure/LeaderAopAutoConfiguration.kt`             | 기존 factory descriptor를 유지하며 aspect에 owner 연결                                       |
+| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspect.kt`                                 | single sync/suspend/Mono/Flux/Flow 실행 scope                                                |
+| `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderGroupElectionAspect.kt`                            | group sync/suspend/Mono 실행 scope와 Flux/Flow 기존 거부 유지                                |
+| `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metrics/LeaseExtensionObservationRegistrationManagerTest.kt` | distinct/same registry, close order, option conflict, stale scope                            |
+| `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metrics/LeaderObservationAutoConfigurationTest.kt`           | owner/coordinator 조건과 parent/child registry 선택                                          |
+| `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/LeaderLeaseExtensionObservationScopeAspectTest.kt`       | aspect별 execution model, fail-open/reentrant/cancellation/close race                        |
+| `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/compatibility/PublicJvmAbiCompatibilityTest.kt`              | 기존 aspect/auto-config JVM descriptor 보존                                                  |
+| `benchmark/src/benchmark/kotlin/io/bluetape4k/leader/benchmark/SpringLeaderAdviceBenchmark.kt`                               | scope match/mismatch/global의 throughput, average time, allocation evidence                  |
+| `docs/benchmarks/2026-08-29-issue-741-spring-observation-scope.md`                                                           | exact baseline/candidate SHA, JSON 경로, fork median과 allocation 판정                       |
+| root/Spring `README.md`, `README.ko.md`                                                                                      | global/automatic 경계, 지원 행렬, migration, rollout/rollback                                |
+| `docs/manual/drafts/2026-08-27-issue-559-lease-extension-observation.{en,ko}.md`                                             | 미출시 #741 delta와 운영 절차                                                                |
 
 ## 수용 기준 추적
 
-| Spec 기준 | 구현/테스트 task |
-|---|---|
-| global observer와 5-인자 event ABI | Task 1, 2 |
-| A/B USER/WATCHDOG cross-delivery 0 | Task 3, 6, 7 |
-| identity opt-in 상대 registry 0 | Task 7 |
-| same-registry parent/child ref-count | Task 5, 7 |
-| A→B/B→A close, revoke/reopen | Task 2, 5, 7 |
-| sync/suspend/reactive/watchdog/adapter 전파 | Task 3, 4, 6 |
-| direct call와 Reactor operator fail-closed | Task 6, 7, 9 |
-| caller-owned scope 의미·수명·Java 제약 | Task 1, 6, 9 |
-| indexed dispatch/admission/drop/performance | Task 2, 8 |
-| rollout/rollback/shutdown/manual provenance | Task 9 |
-| module tests, detekt, ABI, manual, diff | Task 10 |
+| Spec 기준                                   | 구현/테스트 task |
+|---------------------------------------------|------------------|
+| global observer와 5-인자 event ABI          | Task 1, 2        |
+| A/B USER/WATCHDOG cross-delivery 0          | Task 3, 6, 7     |
+| identity opt-in 상대 registry 0             | Task 7           |
+| same-registry parent/child ref-count        | Task 5, 7        |
+| A→B/B→A close, revoke/reopen                | Task 2, 5, 7     |
+| sync/suspend/reactive/watchdog/adapter 전파 | Task 3, 4, 6     |
+| direct call와 Reactor operator fail-closed  | Task 6, 7, 9     |
+| caller-owned scope 의미·수명·Java 제약      | Task 1, 6, 9     |
+| indexed dispatch/admission/drop/performance | Task 2, 8        |
+| rollout/rollback/shutdown/manual provenance | Task 9           |
+| module tests, detekt, ABI, manual, diff     | Task 10          |
 
 ### Task 1: Opaque scope capability와 JVM ABI를 RED/GREEN으로 고정
 
 **Complexity:** Medium. Task 2~7의 선행 조건이다.
 
 **Files:**
+
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionObservationScope.kt`
 - Create: `leader-core/src/test/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionObservationScopeTest.kt`
 - Modify: `leader-core/src/test/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionApiContractTest.kt`
@@ -149,6 +152,7 @@ Rollback: remove the new class and restore the exact API test before Task 2 if d
 **Complexity:** High. Concurrency/hot-path risk; `$bluetape-kotlin-patterns`, `$test-driven-development` and performance/stability scan required.
 
 **Files:**
+
 - Modify: `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionObserver.kt`
 - Modify: `leader-core/src/test/kotlin/io/bluetape4k/leader/LeaderLeaseExtensionObserversTest.kt`
 
@@ -219,6 +223,7 @@ Rollback: revert Task 2 only; Task 1 capability can remain unused while the prev
 **Complexity:** High. Thread/coroutine/lifecycle ordering risk.
 
 **Files:**
+
 - Modify: `leader-core/src/main/kotlin/io/bluetape4k/leader/LockExtender.kt`
 - Modify: `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderLeaseAutoExtender.kt`
 - Modify: `leader-core/src/main/kotlin/io/bluetape4k/leader/internal/LeaderElectorLeaseAdapter.kt`
@@ -263,6 +268,7 @@ Rollback: revert producer wiring together; do not leave only USER or only WATCHD
 **Complexity:** High. Same-registry ref-count and startup lifecycle risk.
 
 **Files:**
+
 - Create: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/metrics/LeaseExtensionObservationScopeOwner.kt`
 - Modify: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/metrics/LeaseExtensionObservationRegistrationManager.kt`
 - Modify: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metrics/LeaseExtensionObservationRegistrationManagerTest.kt`
@@ -322,6 +328,7 @@ Rollback: restore manager global registration and remove owner; do not proceed t
 **Complexity:** Medium. Auto-configuration condition/order and JVM factory compatibility risk.
 
 **Files:**
+
 - Modify: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/metrics/LeaderObservationAutoConfiguration.kt`
 - Modify: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderBeanSelector.kt`
 - Modify: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/autoconfigure/LeaderAopAutoConfiguration.kt`
@@ -360,6 +367,7 @@ Rollback: remove owner bean/lookup and restore coordinator signature; manager/co
 **Complexity:** High. Sync, coroutine, Reactor, Flow, reentrant, fail-open and cancellation paths.
 
 **Files:**
+
 - Modify: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspect.kt`
 - Modify: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderGroupElectionAspect.kt`
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/LeaderLeaseExtensionObservationScopeAspectTest.kt`
@@ -403,11 +411,11 @@ Rollback: revert both aspect files together so single/group parity is never part
 
 Spring partial rollback is not a supported steady state:
 
-| Failed slice | Required rollback unit | Smoke evidence |
-|---|---|---|
-| Task 4 manager/owner | restore global manager registration and remove owner together | explicit global observer still receives one event; automatic observation matches pre-change behavior |
-| Task 5 auto-configuration | revert owner bean, coordinator activation, and manager scoped registration together, or set `bluetape4k.leader.observability.tracing.enabled=false` | disabled context starts cleanly and explicit global observer remains functional |
-| Task 6 AOP scope | revert both single/group aspect wiring plus Spring scoped registration, or disable tracing for the affected context | no owner-only/scoped-registration-only state; automatic telemetry is either fully old-path or intentionally off |
+| Failed slice              | Required rollback unit                                                                                                                              | Smoke evidence                                                                                                  |
+|---------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| Task 4 manager/owner      | restore global manager registration and remove owner together                                                                                       | explicit global observer still receives one event; automatic observation matches pre-change behavior            |
+| Task 5 auto-configuration | revert owner bean, coordinator activation, and manager scoped registration together, or set `bluetape4k.leader.observability.tracing.enabled=false` | disabled context starts cleanly and explicit global observer remains functional                                 |
+| Task 6 AOP scope          | revert both single/group aspect wiring plus Spring scoped registration, or disable tracing for the affected context                                 | no owner-only/scoped-registration-only state; automatic telemetry is either fully old-path or intentionally off |
 
 The rollback smoke test must cover application startup, one explicit wildcard callback, and zero silent automatic observations from a partially wired owner.
 
@@ -416,6 +424,7 @@ The rollback smoke test must cover application startup, one explicit wildcard ca
 **Complexity:** High. Security/lifecycle integration gate.
 
 **Files:**
+
 - Modify: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metrics/LeaseExtensionObservationRegistrationManagerTest.kt`
 - Modify: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metrics/LeaderObservationAutoConfigurationTest.kt`
 - Modify: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/LeaderLeaseExtensionObservationScopeAspectTest.kt`
@@ -445,6 +454,7 @@ Rollback: return to Task 4/6 depending on whether manager delivery or AOP attrib
 **Complexity:** Medium. Benchmark is non-CI evidence; no new dependency/module.
 
 **Files:**
+
 - Modify: `benchmark/src/benchmark/kotlin/io/bluetape4k/leader/benchmark/SpringLeaderAdviceBenchmark.kt`
 - Create: `docs/benchmarks/2026-08-29-issue-741-spring-observation-scope.md`
 
@@ -482,6 +492,7 @@ Rollback: remove benchmark cases only if they cannot represent the real path; im
 **Complexity:** Medium. Public behavior and operations documentation.
 
 **Files:**
+
 - Modify: `README.md`
 - Modify: `README.ko.md`
 - Modify: `leader-spring-boot/README.md`
@@ -524,6 +535,7 @@ Rollback: revert all six locale files together if source behavior changes; never
 **Complexity:** High verification breadth, no new architecture.
 
 **Files:**
+
 - Create later: `docs/review/2026-08-29-issue-741-spring-observation-scope-review.md`
 - Create later: `docs/lessons/2026-08-29-issue-741-spring-observation-scope.md`
 - Review: all branch changes against `origin/develop`
@@ -571,16 +583,16 @@ Verify remote head equals local head, required checks terminal `SUCCESS` or evid
 
 ## Risk prediction
 
-| Risk | Signal | Mitigation | Rollback/rerun |
-|---|---|---|---|
-| capability bucket close/publish race | stale callback reaches reopened registry | active flag + bucket removal + new capability per entry; close-race tests | Task 2/4 rerun |
-| global cap still couples wildcard observer | scoped latency/drop rises under global callback load | document intentional wildcard sharing; matched-only accounting stress | Task 2 performance rerun |
-| Reactor operator loses ThreadLocal | direct extension automatic count 0 | explicit unsupported boundary and negative test | Task 6; do not add lifter without design approval |
-| aspect descriptor regression | reflection/ABI test fails | internal property wiring, no new factory args | Task 5 rollback |
-| same registry parent/child duplicate | event count 2 or early close | manager identity entry/ref-count canonical scope | Task 4/7 rerun |
-| benchmark noise | >15% inconsistent regression | same-JVM same-load one retry, record caveat | persistent result blocks review |
-| raw Throwable exposes secret | source exporter sees raw message | opt-in warning/exporter redaction; assert other registry 0 | disable option; redaction remains separate issue |
-| manual release drift | versioned manual claims unreleased behavior | draft-only edit; manifest exact check | revert docs task |
+| Risk                                       | Signal                                               | Mitigation                                                                | Rollback/rerun                                    |
+|--------------------------------------------|------------------------------------------------------|---------------------------------------------------------------------------|---------------------------------------------------|
+| capability bucket close/publish race       | stale callback reaches reopened registry             | active flag + bucket removal + new capability per entry; close-race tests | Task 2/4 rerun                                    |
+| global cap still couples wildcard observer | scoped latency/drop rises under global callback load | document intentional wildcard sharing; matched-only accounting stress     | Task 2 performance rerun                          |
+| Reactor operator loses ThreadLocal         | direct extension automatic count 0                   | explicit unsupported boundary and negative test                           | Task 6; do not add lifter without design approval |
+| aspect descriptor regression               | reflection/ABI test fails                            | internal property wiring, no new factory args                             | Task 5 rollback                                   |
+| same registry parent/child duplicate       | event count 2 or early close                         | manager identity entry/ref-count canonical scope                          | Task 4/7 rerun                                    |
+| benchmark noise                            | >15% inconsistent regression                         | same-JVM same-load one retry, record caveat                               | persistent result blocks review                   |
+| raw Throwable exposes secret               | source exporter sees raw message                     | opt-in warning/exporter redaction; assert other registry 0                | disable option; redaction remains separate issue  |
+| manual release drift                       | versioned manual claims unreleased behavior          | draft-only edit; manifest exact check                                     | revert docs task                                  |
 
 ## Writer gate
 

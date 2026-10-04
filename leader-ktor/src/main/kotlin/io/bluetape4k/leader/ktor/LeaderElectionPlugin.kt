@@ -134,7 +134,7 @@ private fun Any.resolveBackendDiagnosticsProvider(): LeaderBackendDiagnosticsPro
     when (this) {
         is LeaderBackendDiagnosticsProvider -> this
         is LeaderBackendDiagnosticsAware -> backendDiagnosticsProvider
-        else                             -> null
+        else -> null
     }
 
 /**

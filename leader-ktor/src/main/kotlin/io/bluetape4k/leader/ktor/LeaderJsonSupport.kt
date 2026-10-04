@@ -6,14 +6,14 @@ internal fun String.jsonValue(): String =
 internal fun String.jsonEscape(): String = buildString(length) {
     this@jsonEscape.forEach { char ->
         when (char) {
-            '\\'     -> append("\\\\")
-            '"'      -> append("\\\"")
-            '\b'     -> append("\\b")
+            '\\' -> append("\\\\")
+            '"' -> append("\\\"")
+            '\b' -> append("\\b")
             '\u000C' -> append("\\f")
-            '\n'     -> append("\\n")
-            '\r'     -> append("\\r")
-            '\t'     -> append("\\t")
-            else     -> {
+            '\n' -> append("\\n")
+            '\r' -> append("\\r")
+            '\t' -> append("\\t")
+            else -> {
                 if (char.code < CONTROL_CHARACTER_LIMIT) {
                     append("\\u")
                     append(char.code.toString(HEX_RADIX).padStart(UNICODE_HEX_WIDTH, '0'))

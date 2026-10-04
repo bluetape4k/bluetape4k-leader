@@ -104,7 +104,7 @@ class BatchSchedulerResultTest: AbstractBatchSchedulerTest() {
             val original = when (mode) {
                 "cancel" -> CancellationException("cancel")
                 "interrupt" -> InterruptedException("interrupt")
-                else     -> IllegalStateException("action")
+                else -> IllegalStateException("action")
             }
             try {
                 val actual = assertFailsWith<Exception> {

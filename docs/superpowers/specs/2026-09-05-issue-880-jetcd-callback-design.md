@@ -16,15 +16,15 @@
 
 이 문서는 `leader-etcd` 구현자와 리뷰어가 의존성 전환과 회귀 테스트의 경계를 확인하도록 작성한다. 다음 근거를 기준으로 삼는다.
 
-| 근거 | 확인한 계약 |
-|---|---|
-| [Issue #880](https://github.com/bluetape4k/bluetape4k-leader/issues/880) | jetcd `0.8.7`, callback 순서, watch lifecycle, sync/async/suspend lease 검증 요구 |
-| [jetcd PR #1559](https://github.com/etcd-io/jetcd/pull/1559) | 기본 channel을 `VertxChannelBuilder`에서 `NettyChannelBuilder`로 바꾸어 callback 안의 blocking call과 ordered callback 실행을 지원 |
-| 중앙 catalog `9698c9d66bea6fcba373143ee8fa5bfbd9812d4b` | `jetcd-core 0.8.7`, gRPC `1.84.0`, Vert.x `5.1.7`을 포함한 다음 dependency train |
-| `EtcdLeaderElectionEventPublisher.kt` | jetcd callback에서 event 목록을 만든 뒤 별도 coroutine으로 owner를 재검증 |
-| `AsyncLeaderElector.kt` | 반환 future 취소를 acquisition, action, lease cleanup으로 전달하는 공통 계약 |
-| `EtcdLeaderElector.kt`, `EtcdLeaderGroupElector.kt` | 현재 `CompletableFuture.supplyAsync { action().join() }` 구현은 반환 future 취소를 action future로 전달하지 않음 |
-| 기존 `leader-etcd` 테스트 | 기본 catalog와 후보 catalog에서 각각 137 tests 통과 |
+| 근거                                                                     | 확인한 계약                                                                                                                        |
+|--------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| [Issue #880](https://github.com/bluetape4k/bluetape4k-leader/issues/880) | jetcd `0.8.7`, callback 순서, watch lifecycle, sync/async/suspend lease 검증 요구                                                  |
+| [jetcd PR #1559](https://github.com/etcd-io/jetcd/pull/1559)             | 기본 channel을 `VertxChannelBuilder`에서 `NettyChannelBuilder`로 바꾸어 callback 안의 blocking call과 ordered callback 실행을 지원 |
+| 중앙 catalog `9698c9d66bea6fcba373143ee8fa5bfbd9812d4b`                  | `jetcd-core 0.8.7`, gRPC `1.84.0`, Vert.x `5.1.7`을 포함한 다음 dependency train                                                   |
+| `EtcdLeaderElectionEventPublisher.kt`                                    | jetcd callback에서 event 목록을 만든 뒤 별도 coroutine으로 owner를 재검증                                                          |
+| `AsyncLeaderElector.kt`                                                  | 반환 future 취소를 acquisition, action, lease cleanup으로 전달하는 공통 계약                                                       |
+| `EtcdLeaderElector.kt`, `EtcdLeaderGroupElector.kt`                      | 현재 `CompletableFuture.supplyAsync { action().join() }` 구현은 반환 future 취소를 action future로 전달하지 않음                   |
+| 기존 `leader-etcd` 테스트                                                | 기본 catalog와 후보 catalog에서 각각 137 tests 통과                                                                                |
 
 확인되지 않은 주장은 설계에 포함하지 않는다. 특히 jetcd callback의 순서 보장은 `scope.launch` 이후 coroutine 처리 순서까지 보장하지 않으며, 현재 Leader의 deadlock이나 event loss가 재현되었다고 가정하지 않는다.
 
@@ -89,12 +89,12 @@ raw callback 순서와 Leader event 의미는 별도 테스트로 유지한다. 
 
 기존 실제 etcd 및 fake-client 테스트를 acceptance matrix로 묶고 부족한 async 경로만 보강한다.
 
-| 진입점 | 검증 내용 |
-|---|---|
-| sync | lease grant, lock, keep-alive, unlock, revoke, contention timeout 뒤 재획득 |
-| async | 단일/group action 완료·실패 뒤 재획득, 반환 future 취소가 실제 action future로 전달되고 cleanup 뒤 재획득 가능 |
-| suspend | keep-alive, cancellation/timeout 뒤 unlock·revoke와 재획득 |
-| virtual thread | blocking delegate 완료 뒤 재획득 |
+| 진입점         | 검증 내용                                                                                                      |
+|----------------|----------------------------------------------------------------------------------------------------------------|
+| sync           | lease grant, lock, keep-alive, unlock, revoke, contention timeout 뒤 재획득                                    |
+| async          | 단일/group action 완료·실패 뒤 재획득, 반환 future 취소가 실제 action future로 전달되고 cleanup 뒤 재획득 가능 |
+| suspend        | keep-alive, cancellation/timeout 뒤 unlock·revoke와 재획득                                                     |
+| virtual thread | blocking delegate 완료 뒤 재획득                                                                               |
 
 `EtcdLeaderElector`와 `EtcdLeaderGroupElector`의 현재 async wrapper는 `CompletableFuture.supplyAsync` 안에서 action future를 `join()`한다. 반환 future의 `cancel()`은 이 source task나 실제 action future를 자동으로 취소하지 않으므로 `AsyncLeaderElector` KDoc 계약과 맞지 않는다. 결정론적 RED로 확인한 뒤 기존 `LeaderFutureBridge`와 backend별 async lifecycle 패턴을 재사용해 다음 상태를 보장한다.
 
@@ -108,13 +108,16 @@ public API와 callback 실행 모델은 바꾸지 않는다. 이 lifecycle 보�
 
 ## 실패 모드와 대응
 
-1. **callback 안의 blocking KV 호출이 timeout된다.** `0.8.6`에서 RED를 확인하고 catalog 전환 뒤 같은 테스트가 GREEN인지 비교한다. `0.8.7`에서도 실패하면 graph와 channel builder를 먼저 확인한다.
+1. **callback 안의 blocking KV 호출이
+   timeout된다.** `0.8.6`에서 RED를 확인하고 catalog 전환 뒤 같은 테스트가 GREEN인지 비교한다. `0.8.7`에서도 실패하면 graph와 channel builder를 먼저 확인한다.
 2. **callback 순서 테스트가 하나의 WatchResponse batch만 검증한다.** 첫 callback 진입을 확인한 다음 두 번째 PUT을 보내서 서로 다른 delivery 시점을 만든다.
-3. **close 이후 negative assertion이 서버 지연 때문에 우연히 통과한다.** close된 watcher와 새 watcher를 동시에 비교하고, 새 watcher가 후속 PUT을 받는 positive assertion을 함께 둔다.
+3. **close 이후 negative assertion이 서버 지연 때문에 우연히
+   통과한다.** close된 watcher와 새 watcher를 동시에 비교하고, 새 watcher가 후속 PUT을 받는 positive assertion을 함께 둔다.
 4. **event collector가 늦게 구독해 첫 event를 놓친다.** `CoroutineStart.UNDISPATCHED`로 collector 등록을 완료한 뒤 lock 작업을 시작한다.
 5. **전역 catalog 변경이 다른 모듈을 깨뜨린다.** targeted test 다음 전체 build를 실행하고, 실패하면 catalog pin 두 곳을 이전 SHA로 되돌린 뒤 원인을 별도 분리한다.
 6. **원인 미확인 재시도에서만 통과한다.** 첫 실패 로그를 보존하고 원인을 설명하기 전에는 PASS로 기록하지 않는다.
-7. **async 취소와 action 시작이 경합해 lease가 남는다.** action 시작과 cleanup 소유권을 하나의 원자 상태로 관리하고, 취소된 action과 동일 lock/slot 재획득을 함께 검증한다.
+7. **async 취소와 action 시작이 경합해 lease가
+   남는다.** action 시작과 cleanup 소유권을 하나의 원자 상태로 관리하고, 취소된 action과 동일 lock/slot 재획득을 함께 검증한다.
 8. **executor가 lease 획득 뒤 작업 제출을 거부한다.** 제출 지점을 cleanup 소유권 안에 두고 원래 `RejectedExecutionException`과 재획득을 검증한다.
 
 ## 호환성·운영·rollback
@@ -154,14 +157,14 @@ public API와 callback 실행 모델은 바꾸지 않는다. 이 lifecycle 보�
 
 독립 native lane 세 개는 3분 bounded wait와 종료 요청에도 결과를 반환하지 않아 중단했다. 사용자 지침에 따라 여섯 관점을 inline으로 다시 검토했다.
 
-| 우선순위 | 관점 | 근거 | 반영 |
-|---|---|---|---|
-| P1 | stability | `watch()` 반환만으로 server-side create 완료를 알 수 없음 | `withCreateNotify(true)` created barrier를 모든 watch fixture에 추가 |
-| P1 | stability | blocking call과 첫 callback 지연을 한 테스트에 섞으면 timeout 원인을 구분할 수 없음 | blocking, ordered delivery, close/restart를 세 테스트로 분리 |
-| P1 | developer/API | `AsyncLeaderElector`는 반환 future 취소 전파를 요구하지만 Etcd 단일/group은 `supplyAsync` source와 action을 연결하지 않음 | 단일/group cancellation relay, exactly-once cleanup, executor 거부 테스트를 설계에 포함 |
-| P2 | performance | ordered callback 테스트가 긴 timeout을 반복하면 module suite 시간을 늘림 | latch timeout은 진단 상한으로만 사용하고 실제 Testcontainers invocation은 한 번에 실행 |
-| P2 | security | Netty 기본 channel 전환은 TLS/auth 설정 경계를 바꿀 수 있음 | public client 설정을 바꾸지 않고 resolved graph와 기존 client integration suite로 호환성 확인 |
-| P2 | operator/Ops | catalog rollback 두 pin 중 하나만 복구하면 local/CI graph가 달라짐 | 두 pin의 원자적 rollback과 일치 검사를 명시 |
-| P3 | user/caller | public 동작과 설정 변경이 없으므로 README 변경은 오히려 범위를 흐림 | README/KDoc 변경을 N/A로 유지하고 PR에 검증 범위만 기록 |
+| 우선순위 | 관점          | 근거                                                                                                                      | 반영                                                                                          |
+|----------|---------------|---------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| P1       | stability     | `watch()` 반환만으로 server-side create 완료를 알 수 없음                                                                 | `withCreateNotify(true)` created barrier를 모든 watch fixture에 추가                          |
+| P1       | stability     | blocking call과 첫 callback 지연을 한 테스트에 섞으면 timeout 원인을 구분할 수 없음                                       | blocking, ordered delivery, close/restart를 세 테스트로 분리                                  |
+| P1       | developer/API | `AsyncLeaderElector`는 반환 future 취소 전파를 요구하지만 Etcd 단일/group은 `supplyAsync` source와 action을 연결하지 않음 | 단일/group cancellation relay, exactly-once cleanup, executor 거부 테스트를 설계에 포함       |
+| P2       | performance   | ordered callback 테스트가 긴 timeout을 반복하면 module suite 시간을 늘림                                                  | latch timeout은 진단 상한으로만 사용하고 실제 Testcontainers invocation은 한 번에 실행        |
+| P2       | security      | Netty 기본 channel 전환은 TLS/auth 설정 경계를 바꿀 수 있음                                                               | public client 설정을 바꾸지 않고 resolved graph와 기존 client integration suite로 호환성 확인 |
+| P2       | operator/Ops  | catalog rollback 두 pin 중 하나만 복구하면 local/CI graph가 달라짐                                                        | 두 pin의 원자적 rollback과 일치 검사를 명시                                                   |
+| P3       | user/caller   | public 동작과 설정 변경이 없으므로 README 변경은 오히려 범위를 흐림                                                       | README/KDoc 변경을 N/A로 유지하고 PR에 검증 범위만 기록                                       |
 
 최종 통합 판정은 `P0=0`, `P1=0`이다. P1 세 건은 위 설계에 반영했고 P2/P3는 계획의 검증·N/A 근거로 추적한다.

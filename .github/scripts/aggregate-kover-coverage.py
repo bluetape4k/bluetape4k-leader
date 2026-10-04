@@ -89,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     for artifact_dir in artifact_dirs:
         if not any(artifact_dir.glob("**/report.xml")) and not any(
-            artifact_dir.glob("**/reportJvm.xml")
+                artifact_dir.glob("**/reportJvm.xml")
         ):
             errors.append(f"{artifact_dir}: no Kover XML report found")
     for expected_artifact in expected_artifacts:
@@ -97,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
         if not expected_path.is_dir():
             errors.append(f"{expected_path}: expected coverage artifact is missing")
         elif not any(expected_path.glob("**/report.xml")) and not any(
-            expected_path.glob("**/reportJvm.xml")
+                expected_path.glob("**/reportJvm.xml")
         ):
             errors.append(f"{expected_path}: expected Kover XML report is missing")
 

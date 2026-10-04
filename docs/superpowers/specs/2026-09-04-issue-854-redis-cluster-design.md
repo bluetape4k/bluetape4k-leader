@@ -30,14 +30,14 @@
 
 ### 근거 계층
 
-| 근거 | 역할 |
-|---|---|
-| [Redis Cluster specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/) | CRC16 hash slot, `{...}` hash tag, multi-key same-slot 계약 |
-| [Redis multi-key operations](https://redis.io/docs/latest/develop/using-commands/multi-key-operations/) | `MGET`·transaction·Lua의 same-slot 및 `CROSSSLOT` 동작 |
-| [Redis scripting API](https://redis.io/docs/latest/develop/programmability/lua-api/) | Lua에 전달하는 declared keys의 Cluster 제약 |
-| [Lettuce architecture](https://github.com/redis/lettuce/blob/main/.agents/docs/architecture.md) | `RedisClusterClient`와 `StatefulRedisClusterConnection` 연결 모델 |
-| local source | 현재 v2/legacy codec, registry script, strategic elector와 테스트 계약 |
-| sibling `infra/lettuce` | 공통 `RedisScriptingCommands`/`RedisScriptingAsyncCommands`와 Cluster overload 패턴 |
+| 근거                                                                                                      | 역할                                                                                |
+|-----------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
+| [Redis Cluster specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/) | CRC16 hash slot, `{...}` hash tag, multi-key same-slot 계약                         |
+| [Redis multi-key operations](https://redis.io/docs/latest/develop/using-commands/multi-key-operations/)   | `MGET`·transaction·Lua의 same-slot 및 `CROSSSLOT` 동작                              |
+| [Redis scripting API](https://redis.io/docs/latest/develop/programmability/lua-api/)                      | Lua에 전달하는 declared keys의 Cluster 제약                                         |
+| [Lettuce architecture](https://github.com/redis/lettuce/blob/main/.agents/docs/architecture.md)           | `RedisClusterClient`와 `StatefulRedisClusterConnection` 연결 모델                   |
+| local source                                                                                              | 현재 v2/legacy codec, registry script, strategic elector와 테스트 계약              |
+| sibling `infra/lettuce`                                                                                   | 공통 `RedisScriptingCommands`/`RedisScriptingAsyncCommands`와 Cluster overload 패턴 |
 
 Redis 공식 문서의 핵심 제약은 하나의 command, transaction 또는 Lua script에 전달되는 여러 key가 같은 hash slot에 있어야 한다는 것이다. hash tag의 `{...}` 안쪽 substring만 slot 계산에 사용되며, 기본 slot 수는 16384이다. 이는 설계의 외부 계약이고 로컬 테스트보다 우선한다.
 
@@ -69,12 +69,12 @@ legacy value: <prefix>:<lockName>:<nodeId>
 
 현재 호출 경로는 다음과 같다.
 
-| 계층 | blocking | suspend |
-|---|---|---|
+| 계층                     | blocking                                                              | suspend                                                                             |
+|--------------------------|-----------------------------------------------------------------------|-------------------------------------------------------------------------------------|
 | public strategic elector | `LettuceStrategicLeaderElector`, `LettuceStrategicLeaderGroupElector` | `LettuceStrategicSuspendLeaderElector`, `LettuceStrategicSuspendLeaderGroupElector` |
-| registry | `LettuceCandidateRegistry` | `LettuceSuspendCandidateRegistry` |
-| script | `RedisScriptRunner.run` | `runSuspending` |
-| 기존 검증 | `LettuceCandidateKeyIsolationTest`, `LettuceStrategicHeartbeatTest` | 동일 테스트의 suspend 경로 |
+| registry                 | `LettuceCandidateRegistry`                                            | `LettuceSuspendCandidateRegistry`                                                   |
+| script                   | `RedisScriptRunner.run`                                               | `runSuspending`                                                                     |
+| 기존 검증                | `LettuceCandidateKeyIsolationTest`, `LettuceStrategicHeartbeatTest`   | 동일 테스트의 suspend 경로                                                          |
 
 일반 `LettuceLock`, `LettuceSlotTokenGroup` 등은 이번 이슈의 대상이 아니다. 특히 `LettuceSlotTokenGroup`은 이미 `lg:{lockName}` 형식의 same-slot key 계약을 갖고 있으므로 중복 재설계하지 않는다.
 
@@ -203,7 +203,7 @@ colon legacy: <prefix>:<lockName>[:<nodeId>]
 3. stale cleanup Lua의 첫 index key와 모든 candidate key는 v3만 전달한다.
 4. v3 `MGET`은 candidate reader가 제공하는 v3 key에만 사용한다. Cluster에서는 모든 key가 같은 lockName hash tag를 가지며, standalone은 `RedisCommands.mget`을 사용한다.
 5. v2/legacy migration과 cleanup은 multi-key 명령을 사용하지 않는다.
-6. lifecycle tombstone/fence와 migration token도 candidate/index와 같은 slot이며, source(v2/colon) key는 multi-key script에 전달하지 않는다.
+6. lifecycle tombstone/fence와 migration token도 candidate/index와 같은 slot이며, source (v2/colon) key는 multi-key script에 전달하지 않는다.
 7. 서로 다른 lock name의 candidate pool은 key가 분리되고, 서로 다른 namespace도 key가 분리된다.
 
 standalone `RedisCommands`는 `RedisStringCommands`를 통해 `mget`을 제공하므로 기존 일괄 조회 계약을 유지한다. Cluster adapter는 `RedisAdvancedClusterCommands.mget`을 사용한다. 두 경로 모두 v3 candidate key만 전달하며, v2/colon source는 단건 `GET`/`PTTL` 경계를 유지한다.
@@ -226,12 +226,12 @@ standalone `RedisCommands`는 `RedisStringCommands`를 통해 `mget`을 제공�
 
 동일 node의 source가 여러 버전에 동시에 존재할 때는 다음 표를 적용한다.
 
-| v3 | v2 | colon legacy | 선택 결과 | 정리/이행 |
-|---|---|---|---|---|
-| 유효 | 임의 | 임의 | v3 | source는 보존하고 index 누락만 repair |
-| 없음/불일치 | 유효 | 임의 | v2 | v3로 `SET NX` migration, v2 source 보존 |
-| 없음/불일치 | 없음/불일치 | 유효 | legacy | v3로 `SET NX` migration, legacy source 보존 |
-| 없음/만료 | 없음/만료 | 없음/만료 | 없음 | index member만 version별 제거, candidate 부활 금지 |
+| v3          | v2          | colon legacy | 선택 결과 | 정리/이행                                          |
+|-------------|-------------|--------------|-----------|----------------------------------------------------|
+| 유효        | 임의        | 임의         | v3        | source는 보존하고 index 누락만 repair              |
+| 없음/불일치 | 유효        | 임의         | v2        | v3로 `SET NX` migration, v2 source 보존            |
+| 없음/불일치 | 없음/불일치 | 유효         | legacy    | v3로 `SET NX` migration, legacy source 보존        |
+| 없음/만료   | 없음/만료   | 없음/만료    | 없음      | index member만 version별 제거, candidate 부활 금지 |
 
 payload decode 오류는 더 낮은 우선순위 source로 조용히 숨기지 않고 기존 malformed 예외 계약을 따른다. index member와 payload의 nodeId가 다르면 해당 version의 member만 제거한다.
 
@@ -268,17 +268,17 @@ TTL은 candidate value에만 둔다. index set은 `PERSIST`하여 한 finite can
 - caller-owned connection과 Testcontainers singleton lifecycle은 registry/elector가 소유하지 않는다.
 - `REGISTER`는 v3 candidate, index, tombstone, migration token을 같은 slot의 Lua `KEYS`로 받아 tombstone과 이전 token을 먼저 지운 뒤 candidate write/index repair를 수행한다. negative TTL은 기존 caller validation/error contract를 유지하고, persistent는 `Duration.ZERO`에서만 허용한다.
 - `MIGRATE`는 v3 candidate, index, tombstone, migration token 네 key만 받는다. tombstone이 존재하면 `ABSENT`를 반환하고 아무것도 만들지 않는다. source raw value/observed PTTL은 single-key command로 읽어 `ARGV`로만 전달하며, 성공적인 `SET NX` 뒤에는 이 호출을 식별하는 unique token을 token key에 persistent하게 기록한다. destination이 이미 있으면 token을 탈취하지 않고 index만 repair한다.
-- `REMOVE_IF_VALUE`는 v3 candidate/index/token 세 key와 raw value/member/token 세 argument를 비교한다. candidate raw value와 token이 모두 일치할 때만 candidate를 삭제하고 index member와 token을 정리한다. source(v2/colon) key는 이 script의 `KEYS`에 포함하지 않으며 source 삭제는 unregister의 별도 single-key cleanup에서만 수행한다. candidate/index/token 조작을 한 same-slot Lua 경계로 묶어 중간 crash와 동일 payload writer 삭제를 방지한다.
+- `REMOVE_IF_VALUE`는 v3 candidate/index/token 세 key와 raw value/member/token 세 argument를 비교한다. candidate raw value와 token이 모두 일치할 때만 candidate를 삭제하고 index member와 token을 정리한다. source (v2/colon) key는 이 script의 `KEYS`에 포함하지 않으며 source 삭제는 unregister의 별도 single-key cleanup에서만 수행한다. candidate/index/token 조작을 한 same-slot Lua 경계로 묶어 중간 crash와 동일 payload writer 삭제를 방지한다.
 - unregister와 migration의 경쟁은 두 script 중 Redis가 먼저 실행한 하나의 원자 순서로 결정된다. unregister가 먼저면 persistent tombstone이 migration을 거부하고, migration이 먼저면 unregister가 tombstone을 세운 뒤 destination을 제거한다. source read 이후 unregister가 끼어드는 결정론적 barrier 테스트로 이 순서를 입증한다.
 
 v3와 v2를 동시에 쓰는 이전 바이너리와의 실시간 양방향 동기화는 제공하지 않는다. 따라서 mixed-version writer 운용과 cutover 이후 rollback은 지원하지 않는 명시적 안전 경계로 둔다.
 
-| 단계 | 허용 writer/reader | migration | rollback 판정 |
-|---|---|---|---|
-| 준비 | 기존 v2/legacy writer만 | 새 binary를 기동하지 않으므로 없음 | 허용 |
-| cutover | 모든 strategic writer를 일시 정지한 뒤 새 binary로 교체 | 모든 writer 교체 확인 후에만 허용 | v3 write 전까지만 허용 |
-| 안정 | 새 v3 writer/reader만 | 허용, v2/legacy source 보존 | 구버전 binary rollback 금지, forward fix만 허용 |
-| 비상 복구 | 모든 writer 정지 | 중단 | v3 key가 한 번이라도 쓰였으면 old binary 재기동 금지; source를 진단용으로 보존하고 forward fix만 수행 |
+| 단계      | 허용 writer/reader                                      | migration                          | rollback 판정                                                                                         |
+|-----------|---------------------------------------------------------|------------------------------------|-------------------------------------------------------------------------------------------------------|
+| 준비      | 기존 v2/legacy writer만                                 | 새 binary를 기동하지 않으므로 없음 | 허용                                                                                                  |
+| cutover   | 모든 strategic writer를 일시 정지한 뒤 새 binary로 교체 | 모든 writer 교체 확인 후에만 허용  | v3 write 전까지만 허용                                                                                |
+| 안정      | 새 v3 writer/reader만                                   | 허용, v2/legacy source 보존        | 구버전 binary rollback 금지, forward fix만 허용                                                       |
+| 비상 복구 | 모든 writer 정지                                        | 중단                               | v3 key가 한 번이라도 쓰였으면 old binary 재기동 금지; source를 진단용으로 보존하고 forward fix만 수행 |
 
 구버전 writer가 v2를 갱신한 뒤 새 reader가 stale v3를 우선하는 시나리오는 지원 계약 밖이며, integration test는 이를 감지 가능한 진단 상태로 고정한다. cutover 이후 장애에는 이 이슈가 별도 recovery tool이나 v3→v2 parity 변환을 제공하지 않는다. 모든 writer를 정지하고 v2/colon source와 v3 상태를 보존·조사한 뒤 forward fix를 배포하며, destructive conversion은 별도 승인된 migration 이슈로 분리한다. 이 절차를 지키지 않으면 leader safety와 중복 실행 방지를 보장하지 않는다.
 
@@ -286,21 +286,21 @@ v3와 v2를 동시에 쓰는 이전 바이너리와의 실시간 양방향 동�
 
 ### 4.1 단위/계약 테스트
 
-| 대상 | 검증 |
-|---|---|
-| codec | v3 index/candidate가 같은 slot인지 `SlotHash.getSlot(StringCodec.UTF8.encodeKey(key))`로 확인 |
-| codec | 서로 다른 lock name은 보통 다른 slot일 수 있지만 각 lock 내부 key는 항상 동일 slot인지 확인 |
-| codec | `DEFAULT`와 `GROUP` prefix key가 서로 다르고 같은 lock name에서 same-slot인지 확인 |
-| validation | lock name에 `{` 또는 `}`가 있으면 기존 validation 예외가 유지되는지 확인 |
-| migration | v2 persistent/finite TTL과 colon legacy가 v3으로 복사되고 TTL이 보존되는지 확인 |
-| precedence | v3 값이 v2/legacy와 다를 때 v3이 노출되는지 확인 |
-| cleanup | v3 stale index cleanup이 유효 candidate를 지우지 않고, missing candidate만 제거하는지 확인 |
-| API | 네 strategic elector의 standalone constructor와 Cluster constructor가 모두 노출되는지 ABI/API 검사로 확인 |
-| migration race | 동시 reader가 하나의 destination만 만들고 source를 삭제하지 않는지, destination 기존 값과 index 누락을 repair하는지 확인 |
-| lifecycle fence | source read와 migration 사이 unregister barrier에서 persistent tombstone이 resurrection을 막고, 이후 list/refresh/update가 source를 숨기는지 확인 |
-| migration ownership | migration token과 raw value가 모두 일치할 때만 destination cleanup이 일어나고, 같은 payload를 다시 쓴 writer의 값은 보존되는지 확인 |
-| migration TTL | `PTTL` 1ms/0/-1/-2, `GET` 직후 만료, expired source 비부활 및 bounded stale window를 확인 |
-| script failure | `WRONGTYPE`, `NOSCRIPT` fallback, `MOVED`/`TRYAGAIN` 전파와 sync/async/suspend 반환·취소 semantics를 확인 |
+| 대상                | 검증                                                                                                                                              |
+|---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| codec               | v3 index/candidate가 같은 slot인지 `SlotHash.getSlot(StringCodec.UTF8.encodeKey(key))`로 확인                                                     |
+| codec               | 서로 다른 lock name은 보통 다른 slot일 수 있지만 각 lock 내부 key는 항상 동일 slot인지 확인                                                       |
+| codec               | `DEFAULT`와 `GROUP` prefix key가 서로 다르고 같은 lock name에서 same-slot인지 확인                                                                |
+| validation          | lock name에 `{` 또는 `}`가 있으면 기존 validation 예외가 유지되는지 확인                                                                          |
+| migration           | v2 persistent/finite TTL과 colon legacy가 v3으로 복사되고 TTL이 보존되는지 확인                                                                   |
+| precedence          | v3 값이 v2/legacy와 다를 때 v3이 노출되는지 확인                                                                                                  |
+| cleanup             | v3 stale index cleanup이 유효 candidate를 지우지 않고, missing candidate만 제거하는지 확인                                                        |
+| API                 | 네 strategic elector의 standalone constructor와 Cluster constructor가 모두 노출되는지 ABI/API 검사로 확인                                         |
+| migration race      | 동시 reader가 하나의 destination만 만들고 source를 삭제하지 않는지, destination 기존 값과 index 누락을 repair하는지 확인                          |
+| lifecycle fence     | source read와 migration 사이 unregister barrier에서 persistent tombstone이 resurrection을 막고, 이후 list/refresh/update가 source를 숨기는지 확인 |
+| migration ownership | migration token과 raw value가 모두 일치할 때만 destination cleanup이 일어나고, 같은 payload를 다시 쓴 writer의 값은 보존되는지 확인               |
+| migration TTL       | `PTTL` 1ms/0/-1/-2, `GET` 직후 만료, expired source 비부활 및 bounded stale window를 확인                                                         |
+| script failure      | `WRONGTYPE`, `NOSCRIPT` fallback, `MOVED`/`TRYAGAIN` 전파와 sync/async/suspend 반환·취소 semantics를 확인                                         |
 
 ### 4.2 실제 Redis Cluster 통합 테스트
 
@@ -323,12 +323,12 @@ v3와 v2를 동시에 쓰는 이전 바이너리와의 실시간 양방향 동�
 
 공개 elector별 최소 matrix는 다음과 같다.
 
-| elector | namespace | 필수 lifecycle |
-|---|---|---|
-| `LettuceStrategicLeaderElector` | `DEFAULT` | register/list/refresh/updateResult/unregister/migration/TTL |
-| `LettuceStrategicLeaderGroupElector` | `GROUP` | register/list/refresh/updateResult/unregister/migration/TTL |
-| `LettuceStrategicSuspendLeaderElector` | `DEFAULT` | register/list/refresh/updateResult/unregister/migration/TTL/cancellation |
-| `LettuceStrategicSuspendLeaderGroupElector` | `GROUP` | register/list/refresh/updateResult/unregister/migration/TTL/cancellation |
+| elector                                     | namespace | 필수 lifecycle                                                           |
+|---------------------------------------------|-----------|--------------------------------------------------------------------------|
+| `LettuceStrategicLeaderElector`             | `DEFAULT` | register/list/refresh/updateResult/unregister/migration/TTL              |
+| `LettuceStrategicLeaderGroupElector`        | `GROUP`   | register/list/refresh/updateResult/unregister/migration/TTL              |
+| `LettuceStrategicSuspendLeaderElector`      | `DEFAULT` | register/list/refresh/updateResult/unregister/migration/TTL/cancellation |
+| `LettuceStrategicSuspendLeaderGroupElector` | `GROUP`   | register/list/refresh/updateResult/unregister/migration/TTL/cancellation |
 
 각 matrix 행은 별도 test method 또는 parameterized case로 추적하고, 네 elector 모두에 대해 실제 Cluster `MGET`, refresh Lua, stale-cleanup Lua가 `CROSSSLOT` 없이 완료되는지 단정한다. v3 stale value와 변경된 v2 source를 함께 심는 case는 mixed-version drift가 지원 범위 밖임을 명시적으로 진단한다. 필수 method 이름은 `leader-redis-lettuce/src/test/resources/redis-cluster-test-matrix.txt`에 한 줄씩 고정하며, 현재 17개 항목을 Gradle과 Nightly XML guard가 모두 확인한다. suspend matrix에는 group cancellation과 직접 script capability의 취소 전파·caller connection 보존도 포함한다.
 
@@ -362,17 +362,17 @@ v3와 v2를 동시에 쓰는 이전 바이너리와의 실시간 양방향 동�
 
 ## 6. 위험과 대응
 
-| 위험 | 신호 | 대응/rollback |
-|---|---|---|
-| v2/legacy key를 다중 key command에 전달 | 실제 Cluster `CROSSSLOT` | migration 경로를 단건 command로 되돌리고 v3 key만 Lua/MGET에 허용 |
-| hash tag injection | brace lock name에서 slot mismatch | `validateLockName` 유지, 거부 테스트 고정 |
-| source TTL 복사 중 만료 | `PTTL == -2`, empty list | source를 absent로 처리하고 새 candidate를 만들지 않음 |
-| v3/v2 precedence 오류 | 서로 다른 payload가 노출됨 | v3 > v2 > legacy 순서와 exact node 검증 강화 |
-| suspend async 호출이 common interface와 맞지 않음 | compile 또는 cancellation test 실패 | direct는 `RedisClusterCoroutinesCommands`, script는 `RedisScriptingAsyncCommands` + `await()` 경로로 고정 |
-| migration/register crash window | candidate/index 불일치 또는 unregister resurrection | v3 candidate/index SET·SADD·PERSIST와 tombstone/token fence를 same-slot Lua로 묶고 index repair·barrier race를 검증 |
-| mixed-version writer drift | v2만 갱신되고 v3가 stale | cutover 전 writer quiesce, cutover 후 old binary rollback 금지, 상태 보존 후 forward fix |
-| Cluster fixture 환경 실패 | Docker bind/포트/cluster_state 오류 | Colima/context/fixture 진단과 image/ref/digest를 보존 후 테스트를 `PENDING`/`BLOCKED`로 보고; skip을 PASS로 취급하지 않음 |
-| ABI/API surface drift | descriptor·consumer compile 불일치 | release baseline dump, `checkBinaryCompatibility`, `javap`, Kotlin/Java consumer compile을 모두 통과시킴 |
+| 위험                                              | 신호                                                | 대응/rollback                                                                                                             |
+|---------------------------------------------------|-----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| v2/legacy key를 다중 key command에 전달           | 실제 Cluster `CROSSSLOT`                            | migration 경로를 단건 command로 되돌리고 v3 key만 Lua/MGET에 허용                                                         |
+| hash tag injection                                | brace lock name에서 slot mismatch                   | `validateLockName` 유지, 거부 테스트 고정                                                                                 |
+| source TTL 복사 중 만료                           | `PTTL == -2`, empty list                            | source를 absent로 처리하고 새 candidate를 만들지 않음                                                                     |
+| v3/v2 precedence 오류                             | 서로 다른 payload가 노출됨                          | v3 > v2 > legacy 순서와 exact node 검증 강화                                                                              |
+| suspend async 호출이 common interface와 맞지 않음 | compile 또는 cancellation test 실패                 | direct는 `RedisClusterCoroutinesCommands`, script는 `RedisScriptingAsyncCommands` + `await()` 경로로 고정                 |
+| migration/register crash window                   | candidate/index 불일치 또는 unregister resurrection | v3 candidate/index SET·SADD·PERSIST와 tombstone/token fence를 same-slot Lua로 묶고 index repair·barrier race를 검증       |
+| mixed-version writer drift                        | v2만 갱신되고 v3가 stale                            | cutover 전 writer quiesce, cutover 후 old binary rollback 금지, 상태 보존 후 forward fix                                  |
+| Cluster fixture 환경 실패                         | Docker bind/포트/cluster_state 오류                 | Colima/context/fixture 진단과 image/ref/digest를 보존 후 테스트를 `PENDING`/`BLOCKED`로 보고; skip을 PASS로 취급하지 않음 |
+| ABI/API surface drift                             | descriptor·consumer compile 불일치                  | release baseline dump, `checkBinaryCompatibility`, `javap`, Kotlin/Java consumer compile을 모두 통과시킴                  |
 
 rollback은 v3 write 전의 branch/commit 되돌리기만 허용한다. cutover 이후에는 모든 writer를 정지하고 이전 binary를 재기동하지 않는다. 이 이슈는 별도 복구 도구나 v3→v2 parity 변환을 제공하지 않으므로, v2/legacy source와 v3 상태를 보존해 진단한 뒤 forward fix를 배포한다. 검증되지 않은 destructive cleanup은 수행하지 않으며, 변환이 필요하면 별도 승인된 migration 이슈로 분리한다.
 
@@ -399,7 +399,7 @@ rollback은 v3 write 전의 branch/commit 되돌리기만 허용한다. cutover 
 
 - 변경 파일과 public API descriptor
 - targeted/cluster/module/static/ABI/docs 검증 명령과 실제 결과
-- 테스트 수(성공/실패/error/skip)와 Cluster fixture 상태
+- 테스트 수 (성공/실패/error/skip)와 Cluster fixture 상태
 - 남은 gap: hosted CI, PR, merge, failover benchmark는 별도 gate로 `PENDING`
 - `Required checks: X/Y; N/A: N; Blocked: N`
 - unchecked checklist ID와 rollback/운영 주의사항
@@ -409,11 +409,11 @@ rollback은 v3 write 전의 branch/commit 되돌리기만 허용한다. cutover 
 
 사용자 설계 승인 뒤 세 개의 read-only lane이 기준 커밋과 현재 Lettuce API/source를 대조했다. 모든 lane은 소스·문서 변경 없이 완료했다. 아래 REQUEST CHANGES 결과를 반영해 이 문서를 보정했으며, 버전·ABI·lifecycle fence·token·CI guard를 추가한 material revision에 대해 사용자가 fresh `승인`을 재확인했다. 구현·로컬 검증은 완료했고 hosted delivery gate는 별도로 남긴다.
 
-| lane | 판정 | P0 | P1 | P2 | 핵심 대응 |
-|---|---|---:|---:|---:|---|
-| `spec-architecture` | REQUEST CHANGES | 0 | 2 | 4 | command capability, suspend cancellation, rollout/rollback, TTL/crash/source precedence를 본문과 acceptance에 추가 |
-| `spec-test-risk` | REQUEST CHANGES | 0 | 0 | 6 | `clusterTest`, fixture diagnostics/provenance, 네 elector matrix, 실제 `CROSSSLOT`, ABI/API 명령을 추가 |
-| `spec-compatibility` | REQUEST CHANGES | 0 | 2 | 3 | command capability 분리, mixed-version rollback 금지 경계, README parity와 resolved Lettuce version을 추가 |
+| lane                 | 판정            | P0 | P1 | P2 | 핵심 대응                                                                                                          |
+|----------------------|-----------------|---:|---:|---:|--------------------------------------------------------------------------------------------------------------------|
+| `spec-architecture`  | REQUEST CHANGES |  0 |  2 |  4 | command capability, suspend cancellation, rollout/rollback, TTL/crash/source precedence를 본문과 acceptance에 추가 |
+| `spec-test-risk`     | REQUEST CHANGES |  0 |  0 |  6 | `clusterTest`, fixture diagnostics/provenance, 네 elector matrix, 실제 `CROSSSLOT`, ABI/API 명령을 추가            |
+| `spec-compatibility` | REQUEST CHANGES |  0 |  2 |  3 | command capability 분리, mixed-version rollback 금지 경계, README parity와 resolved Lettuce version을 추가         |
 
 초기 P1은 다음과 같이 revised 설계와 구현에 반영했다. 아래 로컬 증거로 해소를 확인하며, hosted Nightly/PR/merge는 별도 승인 게이트다.
 

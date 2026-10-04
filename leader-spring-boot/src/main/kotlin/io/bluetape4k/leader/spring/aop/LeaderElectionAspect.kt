@@ -252,7 +252,7 @@ class LeaderElectionAspect(
                     fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                     throw wrapped
                 }
-                LeaderAspectFailureMode.SKIP    -> {
+                LeaderAspectFailureMode.SKIP -> {
                     fanOut { it.onLockNotAcquired(effectiveName, opts, SkipReason.BACKEND_ERROR) }
                     fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                     log.warn(backendEx) { "leader.aop.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
@@ -394,13 +394,13 @@ class LeaderElectionAspect(
                 val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
                 val wrapped = LeaderElectionException("leader backend error for lock '$effectiveName'", backendEx)
                 when (meta.failureMode) {
-                    LeaderAspectFailureMode.INHERIT       -> error("INHERIT must be resolved in resolveMetadata")
-                    LeaderAspectFailureMode.RETHROW       -> {
+                    LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
+                    LeaderAspectFailureMode.RETHROW -> {
                         fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.BACKEND_ERROR) }
                         fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                         throw wrapped
                     }
-                    LeaderAspectFailureMode.SKIP          -> {
+                    LeaderAspectFailureMode.SKIP -> {
                         fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.BACKEND_ERROR) }
                         fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                         log.warn(backendEx) { "leader.aop.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
@@ -566,8 +566,8 @@ class LeaderElectionAspect(
                     val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
                     val wrapped = LeaderElectionException("leader backend error for lock '$effectiveName'", backendEx)
                     when (meta.failureMode) {
-                        LeaderAspectFailureMode.INHERIT       -> error("INHERIT must be resolved in resolveMetadata")
-                        LeaderAspectFailureMode.RETHROW       -> {
+                        LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
+                        LeaderAspectFailureMode.RETHROW -> {
                             fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.BACKEND_ERROR) }
                             fanOut {
                                 it.onTaskFailed(
@@ -578,7 +578,7 @@ class LeaderElectionAspect(
                             }
                             throw wrapped
                         }
-                        LeaderAspectFailureMode.SKIP          -> {
+                        LeaderAspectFailureMode.SKIP -> {
                             fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.BACKEND_ERROR) }
                             fanOut {
                                 it.onTaskFailed(
@@ -736,13 +736,13 @@ class LeaderElectionAspect(
                 val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
                 val wrapped = LeaderElectionException("leader backend error for lock '$effectiveName'", backendEx)
                 when (meta.failureMode) {
-                    LeaderAspectFailureMode.INHERIT       -> error("INHERIT must be resolved in resolveMetadata")
-                    LeaderAspectFailureMode.RETHROW       -> {
+                    LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
+                    LeaderAspectFailureMode.RETHROW -> {
                         fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.BACKEND_ERROR) }
                         fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                         throw wrapped
                     }
-                    LeaderAspectFailureMode.SKIP          -> {
+                    LeaderAspectFailureMode.SKIP -> {
                         fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.BACKEND_ERROR) }
                         fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                         log.warn(backendEx) { "leader.aop.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
@@ -872,8 +872,8 @@ class LeaderElectionAspect(
                     val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
                     val wrapped = LeaderElectionException("leader backend error for lock '$effectiveName'", backendEx)
                     when (meta.failureMode) {
-                        LeaderAspectFailureMode.INHERIT       -> error("INHERIT must be resolved in resolveMetadata")
-                        LeaderAspectFailureMode.RETHROW       -> {
+                        LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
+                        LeaderAspectFailureMode.RETHROW -> {
                             fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.BACKEND_ERROR) }
                             fanOut {
                                 it.onTaskFailed(
@@ -884,7 +884,7 @@ class LeaderElectionAspect(
                             }
                             throw wrapped
                         }
-                        LeaderAspectFailureMode.SKIP          -> {
+                        LeaderAspectFailureMode.SKIP -> {
                             fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.BACKEND_ERROR) }
                             fanOut {
                                 it.onTaskFailed(
@@ -1050,7 +1050,7 @@ class LeaderElectionAspect(
         val branch = when {
             isSuspend || isFlow -> AdviceBranch.COROUTINES
             isMono || isFlux -> AdviceBranch.REACTIVE
-            else             -> AdviceBranch.SYNC
+            else -> AdviceBranch.SYNC
         }
 
         val (suspendElectorFactory, suspendElectorFactoryBeanName) = if (isSuspend || isMono || isFlux || isFlow) {

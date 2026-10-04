@@ -100,7 +100,7 @@ class LeaseOperationScheduler(
         val timeoutNanos = when {
             !timeout.isFinite() -> SHUTDOWN_TIMEOUT_SECONDS.seconds.inWholeNanoseconds
             timeout <= Duration.ZERO -> 0L
-            else                -> timeout.inWholeNanoseconds
+            else -> timeout.inWholeNanoseconds
         }
         val terminated = try {
             executor.awaitTermination(timeoutNanos, TimeUnit.NANOSECONDS)

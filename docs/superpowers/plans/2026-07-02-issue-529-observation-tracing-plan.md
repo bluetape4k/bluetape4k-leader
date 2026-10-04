@@ -6,13 +6,15 @@
 
 
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic
+workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add optional Micrometer Observation tracing for leader AOP execution, with Spring Boot auto-configuration, example code, and README coverage.
 
 **Architecture:** `leader-micrometer` owns the framework-neutral `ObservationRegistry` recorder. `leader-spring-boot` wires it when the registry is present and binds safe tracing properties. `examples/prometheus-dashboard` demonstrates the user-facing setup without adding an OpenTelemetry SDK/exporter.
 
-**Tech Stack:** Kotlin 2.4.0, Micrometer 1.16 Observation API, Spring Boot 4 auto-configuration, JUnit 5, bluetape4k assertions, `MultithreadingTester`.
+**Tech
+Stack:** Kotlin 2.4.0, Micrometer 1.16 Observation API, Spring Boot 4 auto-configuration, JUnit 5, bluetape4k assertions, `MultithreadingTester`.
 
 ---
 
@@ -50,20 +52,20 @@
 - [ ] Use class-level `ObservationRegistry`, collecting handler, recorder, and options fields; reset in `@BeforeEach`.
 - [ ] Add a local collecting `ObservationHandler<Observation.Context>` that captures `onStart`, `onStop`, `onError`, and context key values.
 - [ ] Write failing tests for:
-  - `onLockAcquired` emits one `leader.aop.acquire` observation with outcome `acquired` and high-cardinality `acquire.elapsed.ms`;
-  - `onLockNotAcquired(BACKEND_ERROR)` emits outcome `skipped` and reason `BACKEND_ERROR`;
-  - `onTaskFinished` emits `leader.aop.execution` outcome `success` and high-cardinality `execution.elapsed.ms`;
-  - `onTaskFailed(IllegalStateException)` emits outcome `error` and exception simple class name without raw throwable export by default;
-  - `LeaderObservationOptions(includeExceptionDetails = true)` calls `Observation.error(...)` for non-cancellation failures;
-  - `onTaskStarted` then `onTaskFailed(CancellationException)` emits outcome `cancelled` and does not call `Observation.error`;
-  - lock name and leader id are absent by default;
-  - lock name and leader id are present as high-cardinality key values when `LeaderObservationOptions(includeLockName = true, includeLeaderId = true)`;
-  - context-bearing overloads with `LeaderAopMetricsContext.Identified` emit `leader.id` and `leader.id.source` only when `includeLeaderId=true`;
-  - context-bearing overloads with `LeaderAopMetricsContext.Unknown` never emit `leader.id`;
-  - backend failure sequence `onLockAttempt -> onLockNotAcquired(BACKEND_ERROR) -> onTaskFailed` emits a skipped acquire observation and a standalone execution error observation;
-  - `ObservationRegistry.NOOP` does not emit handler callbacks;
-  - recorder observations do not become the current `ObservationRegistry.currentObservation` around a user body because #529 emits standalone terminal observations only;
-  - same-lock concurrent terminal callbacks use `MultithreadingTester().workers(4).rounds(25)` and complete without race failures.
+    - `onLockAcquired` emits one `leader.aop.acquire` observation with outcome `acquired` and high-cardinality `acquire.elapsed.ms`;
+    - `onLockNotAcquired(BACKEND_ERROR)` emits outcome `skipped` and reason `BACKEND_ERROR`;
+    - `onTaskFinished` emits `leader.aop.execution` outcome `success` and high-cardinality `execution.elapsed.ms`;
+    - `onTaskFailed(IllegalStateException)` emits outcome `error` and exception simple class name without raw throwable export by default;
+    - `LeaderObservationOptions(includeExceptionDetails = true)` calls `Observation.error(...)` for non-cancellation failures;
+    - `onTaskStarted` then `onTaskFailed(CancellationException)` emits outcome `cancelled` and does not call `Observation.error`;
+    - lock name and leader id are absent by default;
+    - lock name and leader id are present as high-cardinality key values when `LeaderObservationOptions(includeLockName = true, includeLeaderId = true)`;
+    - context-bearing overloads with `LeaderAopMetricsContext.Identified` emit `leader.id` and `leader.id.source` only when `includeLeaderId=true`;
+    - context-bearing overloads with `LeaderAopMetricsContext.Unknown` never emit `leader.id`;
+    - backend failure sequence `onLockAttempt -> onLockNotAcquired(BACKEND_ERROR) -> onTaskFailed` emits a skipped acquire observation and a standalone execution error observation;
+    - `ObservationRegistry.NOOP` does not emit handler callbacks;
+    - recorder observations do not become the current `ObservationRegistry.currentObservation` around a user body because #529 emits standalone terminal observations only;
+    - same-lock concurrent terminal callbacks use `MultithreadingTester().workers(4).rounds(25)` and complete without race failures.
 - [ ] Run:
 
 ```bash
@@ -78,16 +80,16 @@ Expected: FAIL because `MicrometerObservationLeaderAopMetricsRecorder` and `Lead
 - [ ] Add `api(libs.micrometer.observation)` to `leader-micrometer/build.gradle.kts` because `ObservationRegistry` is public API.
 - [ ] Add `LeaderObservationOptions` as a public serializable data class with English KDoc, safe defaults, and `serialVersionUID`.
 - [ ] Add public top-level observation constants, keeping `MicrometerNames` internal:
-  - `OBSERVATION_LEADER_AOP_ACQUIRE = "leader.aop.acquire"`
-  - `OBSERVATION_LEADER_AOP_EXECUTION = "leader.aop.execution"`
-  - `OBSERVATION_LEADER_ELECTION_EVENT = "leader.election.event"`
-  - `OBSERVATION_TAG_OPERATION = "leader.operation"`
-  - `OBSERVATION_TAG_OUTCOME = "outcome"`
-  - `OBSERVATION_TAG_REASON = "reason"`
-  - `OBSERVATION_TAG_EXCEPTION = "exception"`
-  - `OBSERVATION_TAG_EVENT = "event"`
-  - `OBSERVATION_TAG_ACQUIRE_ELAPSED_MS = "acquire.elapsed.ms"`
-  - `OBSERVATION_TAG_EXECUTION_ELAPSED_MS = "execution.elapsed.ms"`
+    - `OBSERVATION_LEADER_AOP_ACQUIRE = "leader.aop.acquire"`
+    - `OBSERVATION_LEADER_AOP_EXECUTION = "leader.aop.execution"`
+    - `OBSERVATION_LEADER_ELECTION_EVENT = "leader.election.event"`
+    - `OBSERVATION_TAG_OPERATION = "leader.operation"`
+    - `OBSERVATION_TAG_OUTCOME = "outcome"`
+    - `OBSERVATION_TAG_REASON = "reason"`
+    - `OBSERVATION_TAG_EXCEPTION = "exception"`
+    - `OBSERVATION_TAG_EVENT = "event"`
+    - `OBSERVATION_TAG_ACQUIRE_ELAPSED_MS = "acquire.elapsed.ms"`
+    - `OBSERVATION_TAG_EXECUTION_ELAPSED_MS = "execution.elapsed.ms"`
 - [ ] Add `MicrometerObservationLeaderAopMetricsRecorder`.
 - [ ] Keep `onLockAttempt` and `onTaskStarted` as no-ops in this recorder because the SPI has no invocation id.
 - [ ] On terminal callbacks, create a short observation, add bounded low-cardinality attributes plus numeric elapsed values as high-cardinality attributes, optionally record non-cancellation raw errors only when `includeExceptionDetails=true`, start, and stop immediately.
@@ -116,18 +118,18 @@ Expected: FAIL before implementation, PASS after `MicrometerObservationLeaderEle
 - [ ] Use `ApplicationContextRunner` with `LeaderMicrometerAutoConfiguration`, `LeaderObservationAutoConfiguration`, and `LeaderAopAutoConfiguration`.
 - [ ] Add test configurations for `ObservationRegistry`, `SimpleMeterRegistry`, custom observation recorder, and custom generic recorder.
 - [ ] Write failing tests for:
-  - observation recorder auto-registers when `ObservationRegistry` exists;
-  - no recorder is registered without `ObservationRegistry`;
-  - `bluetape4k.leader.observability.enabled=false` disables observation recorder and listener beans even if `bluetape4k.leader.observability.tracing.enabled=true`;
-  - `bluetape4k.leader.observability.tracing.enabled=false` disables it;
-  - `include-lock-name=true` and `include-leader-id=true` bind into options;
-  - `include-exception-details=true` binds into options;
-  - meter and observation recorders coexist when both registries exist;
-  - user-supplied `MicrometerObservationLeaderAopMetricsRecorder` plus `MeterRegistry` still preserves default `MicrometerLeaderAopMetricsRecorder`;
-  - unrelated custom generic `LeaderAopMetricsRecorder` still suppresses the default meter recorder;
-  - custom `MicrometerObservationLeaderAopMetricsRecorder` wins over auto-config;
-  - `MicrometerObservationLeaderElectionListener` appears when tracing is enabled;
-  - `AutoConfiguration.imports` keeps `LeaderObservationAutoConfiguration` after `LeaderMicrometerAutoConfiguration` and before `LeaderAopAutoConfiguration`.
+    - observation recorder auto-registers when `ObservationRegistry` exists;
+    - no recorder is registered without `ObservationRegistry`;
+    - `bluetape4k.leader.observability.enabled=false` disables observation recorder and listener beans even if `bluetape4k.leader.observability.tracing.enabled=true`;
+    - `bluetape4k.leader.observability.tracing.enabled=false` disables it;
+    - `include-lock-name=true` and `include-leader-id=true` bind into options;
+    - `include-exception-details=true` binds into options;
+    - meter and observation recorders coexist when both registries exist;
+    - user-supplied `MicrometerObservationLeaderAopMetricsRecorder` plus `MeterRegistry` still preserves default `MicrometerLeaderAopMetricsRecorder`;
+    - unrelated custom generic `LeaderAopMetricsRecorder` still suppresses the default meter recorder;
+    - custom `MicrometerObservationLeaderAopMetricsRecorder` wins over auto-config;
+    - `MicrometerObservationLeaderElectionListener` appears when tracing is enabled;
+    - `AutoConfiguration.imports` keeps `LeaderObservationAutoConfiguration` after `LeaderMicrometerAutoConfiguration` and before `LeaderAopAutoConfiguration`.
 - [ ] Run:
 
 ```bash
@@ -188,9 +190,9 @@ Expected: PASS.
 - [ ] README text must say raw lock names and leader IDs may contain tenant/user/job identifiers, are not redacted by #529, and require application-level naming hygiene or filtering.
 - [ ] README text must say raw exception details are disabled by default because exporters can include messages and stack traces.
 - [ ] README text must include rollback snippets:
-  - disable all leader observability with `bluetape4k.leader.observability.enabled=false`;
-  - disable only tracing with `bluetape4k.leader.observability.tracing.enabled=false`;
-  - keep metrics on with `bluetape4k.leader.aop.metrics.enabled=true`.
+    - disable all leader observability with `bluetape4k.leader.observability.enabled=false`;
+    - disable only tracing with `bluetape4k.leader.observability.tracing.enabled=false`;
+    - keep metrics on with `bluetape4k.leader.aop.metrics.enabled=true`.
 - [ ] README text must include a property table covering `aop.metrics.enabled`, `observability.enabled`, `observability.tracing.enabled`, `include-lock-name`, `include-leader-id`, and `include-exception-details`, including defaults and migration notes.
 - [ ] README text must state observations are standalone terminal observations and do not make the leader body run under a new current `Observation.Scope`.
 - [ ] README text must state `include-leader-id=true` emits `leader.id` only when the recorder receives `LeaderAopMetricsContext.Identified`; current Spring AOP does not invent a leader ID from node IDs or lock names.

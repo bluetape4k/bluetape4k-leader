@@ -124,7 +124,7 @@ class SuspendLeaderManagementActionRegistryTest {
         assertFailsWith<CancellationException> {
             request.await()
         }
-        
+
         handle.releaseCalls.get() shouldBeEqualTo 0
         unblock.complete(Unit)
         registry.closeAndDrain().shouldBeTrue()

@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import java.time.Duration
-import kotlin.math.log
 
 class LeaderRouteLeasePropertiesTest {
 

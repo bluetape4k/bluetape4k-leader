@@ -8,7 +8,7 @@ import java.util.concurrent.Executor
 class KubernetesAsyncLeaseCleanupContractTest: AbstractAsyncLeaseCleanupContractTest() {
 
     companion object: KLogging()
-    
+
     override fun <T, R> completeAfter(
         source: CompletableFuture<T>,
         executor: Executor?,
@@ -23,7 +23,7 @@ class KubernetesAsyncLeaseCleanupContractTest: AbstractAsyncLeaseCleanupContract
             cleanup,
             transform = transform
         )
-        else                     -> AsyncLeaseCleanupDispatcher.completeAfter(
+        else -> AsyncLeaseCleanupDispatcher.completeAfter(
             source,
             executor,
             cleanup,

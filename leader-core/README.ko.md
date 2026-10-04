@@ -465,8 +465,8 @@ fun runJob() {
 
 // 상세 sealed result
 when (val outcome = LockExtender.extendActiveLockDetailed(60.seconds)) {
-    is ExtendOutcome.Extended    -> log.info { "만료 시각 ${outcome.observedExpireAt}" }
-    is ExtendOutcome.NotHeld     -> rollback()
+    is ExtendOutcome.Extended -> log.info { "만료 시각 ${outcome.observedExpireAt}" }
+    is ExtendOutcome.NotHeld -> rollback()
     is ExtendOutcome.WrongThread -> log.warn { "Redisson thread-bound 위반" }
     is ExtendOutcome.BackendError -> retry(outcome.cause)
 }

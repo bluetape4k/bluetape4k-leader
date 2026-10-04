@@ -8,7 +8,6 @@ import re
 import sys
 from pathlib import Path
 
-
 TARGET_PATTERNS: dict[str, tuple[tuple[re.Pattern[str], str], ...]] = {
     "leader-redis-redisson/src/test/kotlin/io/bluetape4k/leader/redisson/RedissonSuspendLeaderGroupElectorTest.kt": (
         (re.compile(r"(?m)^\s*while\s*\("), "무제한 polling"),

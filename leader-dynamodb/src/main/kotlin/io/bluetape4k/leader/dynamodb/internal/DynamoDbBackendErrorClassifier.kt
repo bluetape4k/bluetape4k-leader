@@ -27,7 +27,7 @@ internal object DynamoDbBackendErrorClassifier: BackendErrorClassifier {
     override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {
         is SdkClientException -> BackendErrorKind.TRANSIENT
         is DynamoDbException -> classifyDynamoDb(cause)
-        else                 -> null
+        else -> null
     }
 
     private fun classifyDynamoDb(cause: DynamoDbException): BackendErrorKind? {
@@ -35,8 +35,8 @@ internal object DynamoDbBackendErrorClassifier: BackendErrorClassifier {
         return when {
             code in transientErrorCodes -> BackendErrorKind.TRANSIENT
             code in nonTransientErrorCodes -> BackendErrorKind.NON_TRANSIENT
-            cause.statusCode() >= 500   -> BackendErrorKind.TRANSIENT
-            else                        -> null
+            cause.statusCode() >= 500 -> BackendErrorKind.TRANSIENT
+            else -> null
         }
     }
 }

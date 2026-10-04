@@ -139,9 +139,9 @@ class ConsulLeaderElector private constructor(
             when {
                 cause is CancellationException -> throw cause
                 cause != null && elected -> LeaderRunResult.ActionFailed(cause)
-                cause != null            -> throw CompletionException(cause)
-                elected                  -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else                     -> LeaderRunResult.Skipped
+                cause != null -> throw CompletionException(cause)
+                elected -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else -> LeaderRunResult.Skipped
             }
         }
     }
@@ -206,7 +206,7 @@ class ConsulLeaderElector private constructor(
             when {
                 lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
                 lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else                                      -> completableFutureOf(
+                else -> completableFutureOf(
                     Unit
                 )
             }

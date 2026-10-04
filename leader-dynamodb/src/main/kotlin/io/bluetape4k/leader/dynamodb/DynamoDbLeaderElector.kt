@@ -192,9 +192,9 @@ class DynamoDbLeaderElector(
                 when {
                     cause is CancellationException -> throw cause
                     cause != null && elected.get() -> LeaderRunResult.ActionFailed(cause)
-                    cause != null                  -> throw CompletionException(cause)
-                    elected.get()                  -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                    else                           -> LeaderRunResult.Skipped
+                    cause != null -> throw CompletionException(cause)
+                    elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                    else -> LeaderRunResult.Skipped
                 }
             }
     }

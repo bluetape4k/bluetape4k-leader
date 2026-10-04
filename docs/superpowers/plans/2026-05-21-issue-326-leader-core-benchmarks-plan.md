@@ -4,54 +4,49 @@
 
 이 문서는 `Issue #326 — leader-core JMH benchmarks plan`에 대한 설계 또는 실행 계획 기록입니다. 아래 원문 구조의 범위, 결정, 작업 순서, 검증 조건, 위험 및 후속 조치는 기록 보존을 위해 유지합니다. 검토자는 각 `Action`, `Expected DoD`, `Validation`, `Target files` 항목을 한국어 해설과 함께 읽고, 코드 식별자와 명령은 원문 그대로 취급해야 합니다.
 
-
-
 ## Goal
 
-Create the first executable benchmark baseline for `leader-core`, then use that
-baseline as the input for cross-backend comparison and later self-improve work.
+Create the first executable benchmark baseline for `leader-core`, then use that baseline as the input for cross-backend comparison and later self-improve work.
 
 ## Tasks
 
 1. Add JMH convention plugin.
-   - Update `buildSrc/build.gradle.kts` with the plugin marker dependency.
-   - Add `gradlePluginPortal()` to `buildSrc` repositories.
-   - Register `bluetape4k.jmh-conventions`.
-   - Implement `JmhConventionPlugin`.
+    - Update `buildSrc/build.gradle.kts` with the plugin marker dependency.
+    - Add `gradlePluginPortal()` to `buildSrc` repositories.
+    - Register `bluetape4k.jmh-conventions`.
+    - Implement `JmhConventionPlugin`.
 
 2. Wire `leader-core`.
-   - Apply `bluetape4k.jmh-conventions`.
-   - Add `jmh` dependencies needed by benchmark sources.
-   - Keep benchmark sources out of publication and normal tests.
+    - Apply `bluetape4k.jmh-conventions`.
+    - Add `jmh` dependencies needed by benchmark sources.
+    - Keep benchmark sources out of publication and normal tests.
 
 3. Add local elector benchmarks.
-   - Implement `LocalLeaderElectorBenchmark`.
-   - Use uncontended locks and `@State(Scope.Benchmark)` state objects.
-   - Include blocking, async, async-only, virtual-thread, and suspend paths.
-   - Wrap suspend calls in `runBlocking`; report that bridge cost explicitly.
+    - Implement `LocalLeaderElectorBenchmark`.
+    - Use uncontended locks and `@State(Scope.Benchmark)` state objects.
+    - Include blocking, async, async-only, virtual-thread, and suspend paths.
+    - Wrap suspend calls in `runBlocking`; report that bridge cost explicitly.
 
 4. Add history recorder benchmarks.
-   - Implement `HistoryRecorderBenchmark`.
-   - Add benchmark-local in-memory blocking and suspend sinks.
-   - Measure acquire + complete as the hot path.
+    - Implement `HistoryRecorderBenchmark`.
+    - Add benchmark-local in-memory blocking and suspend sinks.
+    - Measure acquire + complete as the hot path.
 
 5. Verify.
-   - Run `:bluetape4k-leader-core:compileJmhKotlin`.
-   - Run `:bluetape4k-leader-core:jmhRunBytecodeGenerator`.
-   - Run targeted `:bluetape4k-leader-core:jmh` for the new benchmark package.
-   - Run `:bluetape4k-leader-core:test` if benchmark wiring affects main/test
-     classpaths.
+    - Run `:bluetape4k-leader-core:compileJmhKotlin`.
+    - Run `:bluetape4k-leader-core:jmhRunBytecodeGenerator`.
+    - Run targeted `:bluetape4k-leader-core:jmh` for the new benchmark package.
+    - Run `:bluetape4k-leader-core:test` if benchmark wiring affects main/test classpaths.
 
 ## Fallback
 
-If `me.champeau.jmh` 0.7.3 fails on the current Gradle/Kotlin stack, replace the
-convention plugin with a manual `jmh` source set plus a `JavaExec` task using
+If `me.champeau.jmh` 0.7.3 fails on the current Gradle/Kotlin stack, replace the convention plugin with a manual `jmh` source set plus a `JavaExec` task using
 `org.openjdk.jmh:jmh-core:1.37` and `org.openjdk.jmh:jmh-generator-bytecode:1.37`.
 
 6. Document.
-   - Add `docs/benchmarks/2026-05-21-leader-core-baseline.md`.
-   - Add `docs/lessons/2026-05-21-issue-326-leader-core-benchmarks.md`.
-   - Link issue #326 in the PR body.
+    - Add `docs/benchmarks/2026-05-21-leader-core-baseline.md`.
+    - Add `docs/lessons/2026-05-21-issue-326-leader-core-benchmarks.md`.
+    - Link issue #326 in the PR body.
 
 ## Validation Evidence To Capture
 
@@ -62,6 +57,4 @@ convention plugin with a manual `jmh` source set plus a `JavaExec` task using
 
 ## Stop Condition
 
-Stop this PR when `leader-core` benchmark setup and baseline report are merged
-as an independent artifact. Start issue #327 only after this PR has a clean
-benchmark harness.
+Stop this PR when `leader-core` benchmark setup and baseline report are merged as an independent artifact. Start issue #327 only after this PR has a clean benchmark harness.

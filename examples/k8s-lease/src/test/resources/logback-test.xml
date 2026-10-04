@@ -3,7 +3,9 @@
     <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
         <immediateFlush>true</immediateFlush>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) [%blue(%24.24t)] %yellow(%logger{36}):%line: %msg%n%throwable</pattern>
+            <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) [%blue(%24.24t)] %yellow(%logger{36}):%line:
+                %msg%n%throwable
+            </pattern>
             <charset>UTF-8</charset>
         </encoder>
     </appender>

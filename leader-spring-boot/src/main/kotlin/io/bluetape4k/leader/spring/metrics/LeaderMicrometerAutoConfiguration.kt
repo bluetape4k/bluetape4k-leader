@@ -107,8 +107,8 @@ private fun LeaderAopProperties.Metrics.TagRule.toMicrometerRule(): LeaderMetric
 private fun LeaderAopProperties.Metrics.TagMode.toMicrometerMode(): LeaderMetricTagMode =
     when (this) {
         LeaderAopProperties.Metrics.TagMode.REDACT -> LeaderMetricTagMode.REDACT
-        LeaderAopProperties.Metrics.TagMode.RAW    -> LeaderMetricTagMode.RAW
-        LeaderAopProperties.Metrics.TagMode.HASH   -> LeaderMetricTagMode.HASH
+        LeaderAopProperties.Metrics.TagMode.RAW -> LeaderMetricTagMode.RAW
+        LeaderAopProperties.Metrics.TagMode.HASH -> LeaderMetricTagMode.HASH
         LeaderAopProperties.Metrics.TagMode.TRUNCATE -> LeaderMetricTagMode.TRUNCATE
     }
 

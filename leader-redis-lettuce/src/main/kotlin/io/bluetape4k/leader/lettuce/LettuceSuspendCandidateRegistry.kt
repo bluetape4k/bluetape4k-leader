@@ -105,7 +105,7 @@ internal class LettuceSuspendCandidateRegistry private constructor(
             when (reply.firstOrNull()?.toString()?.toLongOrNull()) {
                 REGISTERED -> return
                 TOMBSTONED -> Unit
-                else       -> requireStatus(reply, REGISTERED)
+                else -> requireStatus(reply, REGISTERED)
             }
         }
         error("Candidate registration fence changed too many times")
@@ -337,16 +337,16 @@ internal class LettuceSuspendCandidateRegistry private constructor(
                     args = arrayOf(sourceRaw, observedTtl.toString(), nodeId, token),
                 )
                 when (reply.firstOrNull()?.toString()?.toLongOrNull()) {
-                    MIGRATED          -> {
+                    MIGRATED -> {
                         cleanupExpiredMigration(lockName, nodeId, source.key, sourceRaw, observedTtl, token)
                         commands.get(candidateKey(lockName, nodeId)) != null
                     }
                     EXISTING_REPAIRED -> true
-                    MALFORMED         -> {
+                    MALFORMED -> {
                         LettuceCandidateInfoCodec.decode(reply.getOrNull(1)?.toString().orEmpty())
                         false
                     }
-                    else              -> false
+                    else -> false
                 }
             }
         }

@@ -3,13 +3,14 @@
 날짜: 2026-07-04
 
 범위:
+
 - 문제: #568, #569
 - 모듈: `leader-core`, `leader-exposed-r2dbc`, `leader-redis-lettuce`, `leader-redis-redisson`
 - 패키지:
-  - `io.bluetape4k.leader.local`
-  - `io.bluetape4k.leader.exposed.r2dbc.lock`
-  - `io.bluetape4k.leader.lettuce`
-  - `io.bluetape4k.leader.redisson`
+    - `io.bluetape4k.leader.local`
+    - `io.bluetape4k.leader.exposed.r2dbc.lock`
+    - `io.bluetape4k.leader.lettuce`
+    - `io.bluetape4k.leader.redisson`
 
 ## 조사 결과
 
@@ -25,30 +26,30 @@
 - 광범위한 `Throwable` 대신 백엔드/로그 폴백을 위해 `Exception`를 포착하세요.
 - 회귀 테스트에서 취소 및 비취소 실패를 직접 강제할 수 있도록 패키지 내부 취소 보존 도우미를 추출했습니다.
 - 이전의 취소 불가 대체 동작을 유지했습니다.
-  - R2DBC `isHeldByCurrentInstance()`는 DB 오류에 대해 `false`를 반환합니다.
-  - R2DBC `unlock()`는 다른 소유자의 잠금을 삭제하지 않고 백엔드 오류를 기록합니다.
-  - 전략적 선출기 결과 업데이트 오류는 취소가 발생하지 않는 한 작업 결과를 숨기지 않고 기록됩니다.
+    - R2DBC `isHeldByCurrentInstance()`는 DB 오류에 대해 `false`를 반환합니다.
+    - R2DBC `unlock()`는 다른 소유자의 잠금을 삭제하지 않고 백엔드 오류를 기록합니다.
+    - 전략적 선출기 결과 업데이트 오류는 취소가 발생하지 않는 한 작업 결과를 숨기지 않고 기록됩니다.
 
 ## 패턴 검토
 
 - `bluetape4k-code-patterns`: 통과
-  - 일시 중단 호출과 관련된 `runCatching`는 영향을 받는 suspend 경로에 남아 있지 않습니다.
-  - 일반 예외 처리 전에 `CancellationException`가 다시 발생합니다.
-  - 생산 `runBlocking`가 추가되지 않았습니다.
-  - `!!`가 추가되지 않았습니다.
-  - 공개 API 형태는 변경되지 않았습니다.
+    - 일시 중단 호출과 관련된 `runCatching`는 영향을 받는 suspend 경로에 남아 있지 않습니다.
+    - 일반 예외 처리 전에 `CancellationException`가 다시 발생합니다.
+    - 생산 `runBlocking`가 추가되지 않았습니다.
+    - `!!`가 추가되지 않았습니다.
+    - 공개 API 형태는 변경되지 않았습니다.
 
 ## 검증
 
 - `./gradlew :bluetape4k-leader-core:compileKotlin :bluetape4k-leader-core:compileTestKotlin :bluetape4k-leader-exposed-r2dbc:compileKotlin :bluetape4k-leader-exposed-r2dbc:compileTestKotlin :bluetape4k-leader-redis-lettuce:compileKotlin :bluetape4k-leader-redis-lettuce:compileTestKotlin :bluetape4k-leader-redis-redisson:compileKotlin :bluetape4k-leader-redis-redisson:compileTestKotlin --warning-mode all`
-  - 통과, `BUILD SUCCESSFUL in 13s`.
+    - 통과, `BUILD SUCCESSFUL in 13s`.
 - `./gradlew :bluetape4k-leader-core:test --tests 'io.bluetape4k.leader.local.LocalStrategicSuspendLeaderElectorTest' --warning-mode all`
-  - PASS, 14개 테스트.
+    - PASS, 14개 테스트.
 - `./gradlew :bluetape4k-leader-exposed-r2dbc:test --tests 'io.bluetape4k.leader.exposed.r2dbc.lock.R2dbcLockCancellationTest' --tests 'io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcLockTest' --tests 'io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLockTest' --warning-mode all --rerun-tasks`
-  - PASS, `R2dbcLockCancellationTest`를 포함하여 H2, PostgreSQL 및 MySQL에 대한 74개 테스트.
+    - PASS, `R2dbcLockCancellationTest`를 포함하여 H2, PostgreSQL 및 MySQL에 대한 74개 테스트.
 - `./gradlew :bluetape4k-leader-redis-lettuce:test --tests 'io.bluetape4k.leader.lettuce.LettuceStrategicSuspendLeaderElectorTest' --warning-mode all`
-  - PASS, 17개 테스트.
+    - PASS, 17개 테스트.
 - `./gradlew :bluetape4k-leader-redis-redisson:test --tests 'io.bluetape4k.leader.redisson.RedissonStrategicSuspendLeaderElectorTest' --warning-mode all`
-  - PASS, 11개 테스트.
+    - PASS, 11개 테스트.
 - 정적 스캔:
-  - `runCatching`는 이 검색 패턴에 대한 동기식 전략적 선출기 구현에만 남아 있습니다.
+    - `runCatching`는 이 검색 패턴에 대한 동기식 전략적 선출기 구현에만 남아 있습니다.

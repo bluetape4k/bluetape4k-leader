@@ -112,7 +112,7 @@ class SharedLeaseAcquire(
                         // 열지 않고 정상적으로 경합합니다.
                         return completedAttempt(slot)
                     }
-                    else                                                      -> {
+                    else -> {
                         existing.waiters.incrementAndGet()
                         return existing
                     }

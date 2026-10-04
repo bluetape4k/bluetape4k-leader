@@ -77,7 +77,7 @@ object LeaderEventSseAdapter {
 
 private fun LeaderStreamItem.toServerSentEvent(config: LeaderEventStreamConfig): ServerSentEvent =
     when (this) {
-        is LeaderStreamItem.Event   -> ServerSentEvent(
+        is LeaderStreamItem.Event -> ServerSentEvent(
             data = LeaderEventStreamPayload.event(event, sequence, config),
             event = event.typeName(),
             id = sequence.toString(),
@@ -91,7 +91,7 @@ private fun LeaderStreamItem.toServerSentEvent(config: LeaderEventStreamConfig):
                 data = LeaderEventStreamPayload.replayGap(requireNotNull(from), requireNotNull(to)),
                 event = "replay_gap",
             )
-            LeaderStreamItem.Kind.EVENT     -> error("EVENT cannot be a control item")
+            LeaderStreamItem.Kind.EVENT -> error("EVENT cannot be a control item")
         }
     }
 

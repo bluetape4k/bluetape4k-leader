@@ -1,12 +1,14 @@
 # Issue #533 backend diagnostics 구현 계획
 
-> **Agent 작업 지침:** 각 작업을 순서대로 구현할 때 `superpowers:subagent-driven-development`(권장) 또는 `superpowers:executing-plans`를 사용합니다. 진행 상태는 체크박스(`- [ ]`)로 추적합니다.
+> **Agent 작업
+지침:** 각 작업을 순서대로 구현할 때 `superpowers:subagent-driven-development`(권장) 또는 `superpowers:executing-plans`를 사용합니다. 진행 상태는 체크박스 (`- [ ]`)로 추적합니다.
 
 **목표:** 모든 leader backend가 공통 capability descriptor와 안전한 opt-in connectivity 결과를 Spring Boot와 Ktor에 제공하게 한다.
 
 **아키텍처:** `leader-core`에 immutable diagnostics 모델과 provider SPI를 추가하고, 각 backend elector가 client 수명주기를 재사용해 provider를 구현한다. 기존 Spring/Ktor 상태 endpoint는 유지하며 별도 diagnostics endpoint와 기본 비활성 health/probe 설정을 추가한다.
 
-**기술 스택:** Kotlin 2.3, Java 25, Kotlin Duration, Spring Boot 4.1 Actuator, Ktor 3.x, JUnit 5, MockK, bluetape4k assertions, Gradle, source-backed JSON validator.
+**기술
+스택:** Kotlin 2.3, Java 25, Kotlin Duration, Spring Boot 4.1 Actuator, Ktor 3.x, JUnit 5, MockK, bluetape4k assertions, Gradle, source-backed JSON validator.
 
 ---
 
@@ -29,6 +31,7 @@
 ## Task 1: Core diagnostics contract
 
 **파일:**
+
 - Create: `leader-core/src/test/kotlin/io/bluetape4k/leader/diagnostics/LeaderBackendDiagnosticsTest.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/diagnostics/LeaderBackendDiagnostics.kt`
 
@@ -74,6 +77,7 @@ Commit the core contract and test with Lore trailers; record the RED and GREEN c
 ## Task 2: Local provider and decorator preservation
 
 **파일:**
+
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/diagnostics/LocalLeaderBackendDiagnostics.kt`
 - Modify: local single/group blocking/async/suspend/virtual elector base classes
 - Modify: `leader-core/src/main/kotlin/io/bluetape4k/leader/ListeningLeaderElectors.kt`
@@ -104,6 +108,7 @@ Commit Local and decorator changes with Lore trailers.
 ## Task 3: External backend descriptors and passive probes
 
 **파일:**
+
 - Create: `<Backend>LeaderBackendDiagnostics.kt` in Lettuce, Redisson, Exposed JDBC/R2DBC, MongoDB, DynamoDB, etcd, Consul, Kubernetes, Hazelcast, ZooKeeper modules
 - Modify: each module's canonical single/group blocking/suspend/virtual elector classes
 - Test: one `<Backend>LeaderBackendDiagnosticsTest.kt` per module
@@ -140,6 +145,7 @@ Commit backend providers in reviewable batches with Lore trailers.
 ## Task 4: Spring endpoint and health indicator
 
 **파일:**
+
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/observability/LeaderBackendDiagnosticsEndpointTest.kt`
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/observability/LeaderBackendHealthIndicatorTest.kt`
 - Create: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/observability/LeaderBackendDiagnosticsEndpoint.kt`
@@ -175,6 +181,7 @@ Commit Spring changes with Lore trailers.
 ## Task 5: Ktor diagnostics route
 
 **파일:**
+
 - Create: `leader-ktor/src/test/kotlin/io/bluetape4k/leader/ktor/LeaderBackendDiagnosticsRouteTest.kt`
 - Create: `leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderBackendDiagnosticsRoute.kt`
 - Modify: `leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionPluginConfig.kt`
@@ -209,6 +216,7 @@ Commit Ktor changes with Lore trailers.
 ## Task 6: Manifest and documentation parity
 
 **파일:**
+
 - Modify: `scripts/ci/leader-contract-capabilities.json`
 - Modify: `scripts/ci/validate_leader_contract_matrix.py`
 - Modify: `scripts/ci/validate_leader_contract_matrix_test.py`
@@ -237,6 +245,7 @@ Commit manifest and documentation with Lore trailers.
 ## Task 7: Fresh verification, 7-tier review, and PR
 
 **파일:**
+
 - Create: `docs/review/2026-08-16-issue-533-backend-diagnostics-review.md`
 - Create: `docs/lessons/2026-08-16-issue-533-backend-diagnostics.md`
 

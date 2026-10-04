@@ -9,7 +9,6 @@ from pathlib import Path
 
 from validate_timing_contract import validate_sources
 
-
 TARGETS = {
     "leader-redis-redisson/src/test/kotlin/io/bluetape4k/leader/redisson/RedissonSuspendLeaderGroupElectorTest.kt":
         "await.atMost(5.seconds) untilAsserted { startedCount.get() == maxLeaders }",
@@ -44,12 +43,14 @@ class TestTimingContractValidator(unittest.TestCase):
             )
             self._write_target(
                 root,
-                next(path for path in TARGETS if path.startswith("leader-core/src/test/kotlin/io/bluetape4k/leader/Leader")),
+                next(path for path in TARGETS if
+                     path.startswith("leader-core/src/test/kotlin/io/bluetape4k/leader/Leader")),
                 "delay(5.seconds)\nThread.sleep(500)\nextendStartedLatch.await(600, TimeUnit.MILLISECONDS)",
             )
             self._write_target(
                 root,
-                next(path for path in TARGETS if path.startswith("leader-core/src/test/kotlin/io/bluetape4k/leader/coroutines")),
+                next(path for path in TARGETS if
+                     path.startswith("leader-core/src/test/kotlin/io/bluetape4k/leader/coroutines")),
                 "delay(300.milliseconds)",
             )
 

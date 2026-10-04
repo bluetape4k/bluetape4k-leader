@@ -227,7 +227,7 @@ class LeaderEventStreamHubTest {
         val collector = launch {
             hub.subscribe(lockName = "job", afterSequence = null).collect { }
         }.log("collector")
-        
+
         hub.awaitSubscriberCount(1)
         collector.cancelAndJoin()
 

@@ -150,12 +150,12 @@ private val LeaderElectionErrorCode.defaultStatus: HttpStatusCode
 private val LeaderElectionErrorCode.defaultMessage: String
     get() = when (this) {
         LeaderElectionErrorCode.INVALID_LOCK_NAME -> "lock name is invalid"
-        LeaderElectionErrorCode.NOT_LEADER        -> "leader state does not allow this request"
-        LeaderElectionErrorCode.LEADER_LOCKED     -> "leader lock is already held"
+        LeaderElectionErrorCode.NOT_LEADER -> "leader state does not allow this request"
+        LeaderElectionErrorCode.LEADER_LOCKED -> "leader lock is already held"
         LeaderElectionErrorCode.BACKEND_UNAVAILABLE -> "leader backend is temporarily unavailable"
-        LeaderElectionErrorCode.CONFIGURATION     -> "leader election configuration is invalid"
-        LeaderElectionErrorCode.INTERNAL          -> "leader election request failed"
-        LeaderElectionErrorCode.INVALID_CURSOR    -> "cursor is invalid"
+        LeaderElectionErrorCode.CONFIGURATION -> "leader election configuration is invalid"
+        LeaderElectionErrorCode.INTERNAL -> "leader election request failed"
+        LeaderElectionErrorCode.INVALID_CURSOR -> "cursor is invalid"
     }
 
 private object LeaderElectionErrorLogger: KLogging()

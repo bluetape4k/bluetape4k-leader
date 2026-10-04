@@ -102,7 +102,7 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
      */
     override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
         log.debug { "runAsyncIfLeaderResult... slot=$slot" }
-        
+
         var elected = false
         val value = try {
             tryWithPermit(

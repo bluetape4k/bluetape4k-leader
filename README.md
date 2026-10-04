@@ -15,8 +15,7 @@ Current development line: `1.1.0`
 ![Bluetape4k leader election workbench](./docs/assets/leader-election-workbench.png)
 
 A standalone Kotlin/JVM library for **distributed leader election**.  
-Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis, Exposed, MongoDB, DynamoDB, etcd, Consul, Kubernetes, Hazelcast, and ZooKeeper.
-Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
+Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis, Exposed, MongoDB, DynamoDB, etcd, Consul, Kubernetes, Hazelcast, and ZooKeeper. Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 
 ---
 
@@ -25,12 +24,15 @@ Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 - **Null-returning API** — `runIfLeader()` returns `null` when not elected (no exceptions thrown on contention)
 - **Multiple execution models** — blocking, `CompletableFuture`, virtual threads, coroutines
 - **Multi-leader support** — `LeaderGroupElector` allows N concurrent leaders via distributed semaphore
-- **Strategic election** — pluggable candidate-registry + election strategy (FIFO, scored, weighted); no distributed lock required
-- **Strategic group election** — `GroupElectionStrategy` selects a deterministic top-N candidate list for blocking and coroutine APIs
+- **Strategic
+  election** — pluggable candidate-registry + election strategy (FIFO, scored, weighted); no distributed lock required
+- **Strategic group
+  election** — `GroupElectionStrategy` selects a deterministic top-N candidate list for blocking and coroutine APIs
 - **Self-contained Redis test infrastructure** — Testcontainers, no external test-util dependencies
 - **ShedLock-compatible skip semantics** — action is simply skipped if the lock cannot be acquired
 
 <!-- README_VISUAL_OVERVIEW:START -->
+
 ## Overview Diagram
 
 ![Bluetape4k Leader overview diagram](docs/images/readme-diagrams/root-readme-overview-01.png)
@@ -47,24 +49,20 @@ The [Leader 1.0.0 manual](https://bluetape4k.github.io/manual/bluetape4k-leader/
 ## Development status
 
 `1.0.0` is the latest stable release, while `develop` tracks the
-`1.1.0-SNAPSHOT` build on the `1.1.0+` development line. [`WIP.md`](./WIP.md) records the dated project snapshot and
-release boundary; [`CHANGELOG.md`](./CHANGELOG.md) lists released and upcoming
-changes. The versioned manual is pinned to the exact `1.0.0` release commit.
+`1.1.0-SNAPSHOT` build on the `1.1.0+` development line. [`WIP.md`](./WIP.md) records the dated project snapshot and release boundary; [`CHANGELOG.md`](./CHANGELOG.md) lists released and upcoming changes. The versioned manual is pinned to the exact `1.0.0` release commit.
 
 ## Benchmarks
 
 The non-published [`benchmark`](./benchmark) module publishes comparable
-`kotlinx-benchmark` suites for leader election backends. The JVM runner is JMH;
-results are intended for same-machine before/after comparison, not release-grade
-performance claims.
+`kotlinx-benchmark` suites for leader election backends. The JVM runner is JMH; results are intended for same-machine before/after comparison, not release-grade performance claims.
 
 ![Leader benchmark distributed throughput](docs/images/readme-charts/leader-benchmark-distributed-throughput-chart-01.png)
 
-| Comparison | Primary signal |
-|---|---|
-| Blocking distributed backends | Hazelcast, Lettuce, and Redisson are tightly grouped at the top in the 2026-05-29 run. |
-| Suspend distributed backends | Lettuce, Redisson, and Hazelcast remain the leading group; RDB rows are much slower in this single-container run. |
-| Local and H2 rows | Kept out of the distributed backend chart because they measure in-process or local SQL/R2DBC overhead, not distributed backend cost. |
+| Comparison                    | Primary signal                                                                                                                       |
+|-------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| Blocking distributed backends | Hazelcast, Lettuce, and Redisson are tightly grouped at the top in the 2026-05-29 run.                                               |
+| Suspend distributed backends  | Lettuce, Redisson, and Hazelcast remain the leading group; RDB rows are much slower in this single-container run.                    |
+| Local and H2 rows             | Kept out of the distributed backend chart because they measure in-process or local SQL/R2DBC overhead, not distributed backend cost. |
 
 Full tables, latency chart, run command, and caveats are in the
 [`benchmark` README](./benchmark/README.md) and the
@@ -76,44 +74,34 @@ Full tables, latency chart, run command, and caveats are in the
 
 ## Modules
 
-| Module | Status | Description |
-|--------|--------|-------------|
-| `leader-core` | Stable | Interfaces + local in-process implementations |
-| `leader-redis-lettuce` | Stable | Lettuce-based Redis backend |
-| `leader-redis-redisson` | Stable | Redisson-based Redis backend |
-| `leader-hazelcast` | Stable | Hazelcast backend (IMap-based, no CP Subsystem) |
-| `leader-exposed-core` | Stable | Common Exposed schema (no JDBC/R2DBC driver) |
-| `leader-exposed-jdbc` | Stable | Exposed JDBC backend (H2, PostgreSQL, MySQL) |
-| `leader-exposed-r2dbc` | Stable | Exposed R2DBC backend (coroutine-native, H2/PostgreSQL/MySQL) |
-| `leader-mongodb` | Stable | MongoDB backend (`findOneAndUpdate` + TTL index) |
-| `leader-dynamodb` | Preview | AWS DynamoDB backend (conditional writes + logical TTL) |
-| `leader-etcd` | Preview | etcd v3 backend (jetcd Lock service + leases, single/group leader) |
-| `leader-consul` | Preview | Consul Session + KV backend (single/group leader, Spring Boot auto-config) |
-| `leader-k8s` | Preview | Kubernetes Lease backend (`coordination.k8s.io/v1`) |
-| `leader-micrometer` | Stable | Micrometer metrics integration (`MicrometerLeaderAopMetricsRecorder`) |
-| `leader-spring-boot` | Stable | Spring Boot 4 auto-configuration + AOP (AspectJ CTW, Freefair post-compile weaving) |
-| `leader-zookeeper` | Stable | ZooKeeper/Curator backend (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
-| `leader-ktor` | Stable | Ktor 3.x integration — `LeaderElectionPlugin` + `leaderScheduled()` |
+| Module                  | Status  | Description                                                                         |
+|-------------------------|---------|-------------------------------------------------------------------------------------|
+| `leader-core`           | Stable  | Interfaces + local in-process implementations                                       |
+| `leader-redis-lettuce`  | Stable  | Lettuce-based Redis backend                                                         |
+| `leader-redis-redisson` | Stable  | Redisson-based Redis backend                                                        |
+| `leader-hazelcast`      | Stable  | Hazelcast backend (IMap-based, no CP Subsystem)                                     |
+| `leader-exposed-core`   | Stable  | Common Exposed schema (no JDBC/R2DBC driver)                                        |
+| `leader-exposed-jdbc`   | Stable  | Exposed JDBC backend (H2, PostgreSQL, MySQL)                                        |
+| `leader-exposed-r2dbc`  | Stable  | Exposed R2DBC backend (coroutine-native, H2/PostgreSQL/MySQL)                       |
+| `leader-mongodb`        | Stable  | MongoDB backend (`findOneAndUpdate` + TTL index)                                    |
+| `leader-dynamodb`       | Preview | AWS DynamoDB backend (conditional writes + logical TTL)                             |
+| `leader-etcd`           | Preview | etcd v3 backend (jetcd Lock service + leases, single/group leader)                  |
+| `leader-consul`         | Preview | Consul Session + KV backend (single/group leader, Spring Boot auto-config)          |
+| `leader-k8s`            | Preview | Kubernetes Lease backend (`coordination.k8s.io/v1`)                                 |
+| `leader-micrometer`     | Stable  | Micrometer metrics integration (`MicrometerLeaderAopMetricsRecorder`)               |
+| `leader-spring-boot`    | Stable  | Spring Boot 4 auto-configuration + AOP (AspectJ CTW, Freefair post-compile weaving) |
+| `leader-zookeeper`      | Stable  | ZooKeeper/Curator backend (`InterProcessMutex` / `InterProcessSemaphoreV2`)         |
+| `leader-ktor`           | Stable  | Ktor 3.x integration — `LeaderElectionPlugin` + `leaderScheduled()`                 |
 
 ## Backend capability matrix
 
 `N` is a backend-native execution path. `B` is a bridge that runs blocking work through an `Executor`, `Dispatchers.IO`, or a virtual-thread wrapper; it does not promise non-blocking backend I/O. `—` means that execution API is not provided. `S` and `G` mean single-leader and group-leader support, respectively.
 
 | Backend | Module | S-Block | S-Async | S-Suspend | S-Virtual | G-Block | G-Async | G-Suspend | G-Virtual | `autoExtend` | State | Audit ID |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+|---------|--------|--------:|--------:|----------:|----------:|--------:|--------:|----------:|----------:|-------------:|------:|---------:|
+
 <!-- LEADER_CAPABILITY_MATRIX:START -->
-| Local | `bluetape4k-leader-core` | N | B | N | B | N | B | N | B | S | S/G | S |
-| Lettuce | `bluetape4k-leader-redis-lettuce` | N | N | N | — | N | N | N | — | S | G | — |
-| Redisson | `bluetape4k-leader-redis-redisson` | N | N | N | — | N | N | N | — | S | G | — |
-| Exposed JDBC | `bluetape4k-leader-exposed-jdbc` | N | B | — | B | N | B | — | — | S | G | — |
-| Exposed R2DBC | `bluetape4k-leader-exposed-r2dbc` | — | — | N | — | — | — | N | — | S | G | — |
-| MongoDB | `bluetape4k-leader-mongodb` | N | N | N | — | N | N | N | — | S | G | — |
-| Hazelcast | `bluetape4k-leader-hazelcast` | N | B | B | — | N | B | B | — | S | G | — |
-| etcd | `bluetape4k-leader-etcd` | N | B | N | B | N | B | N | — | S | G | — |
-| Consul | `bluetape4k-leader-consul` | N | B | N | — | N | B | N | — | S | S/G | S |
-| DynamoDB | `bluetape4k-leader-dynamodb` | N | B | N | B | N | B | N | B | S | S/G | S |
-| Kubernetes | `bluetape4k-leader-k8s` | N | B | B | — | N | B | B | — | S | S/G | S |
-| ZooKeeper | `bluetape4k-leader-zookeeper` | N | B | B | — | N | B | B | — | — | G | — |
+| Local | `bluetape4k-leader-core` | N | B | N | B | N | B | N | B | S | S/G | S | | Lettuce | `bluetape4k-leader-redis-lettuce` | N | N | N | — | N | N | N | — | S | G | — | | Redisson | `bluetape4k-leader-redis-redisson` | N | N | N | — | N | N | N | — | S | G | — | | Exposed JDBC | `bluetape4k-leader-exposed-jdbc` | N | B | — | B | N | B | — | — | S | G | — | | Exposed R2DBC | `bluetape4k-leader-exposed-r2dbc` | — | — | N | — | — | — | N | — | S | G | — | | MongoDB | `bluetape4k-leader-mongodb` | N | N | N | — | N | N | N | — | S | G | — | | Hazelcast | `bluetape4k-leader-hazelcast` | N | B | B | — | N | B | B | — | S | G | — | | etcd | `bluetape4k-leader-etcd` | N | B | N | B | N | B | N | — | S | G | — | | Consul | `bluetape4k-leader-consul` | N | B | N | — | N | B | N | — | S | S/G | S | | DynamoDB | `bluetape4k-leader-dynamodb` | N | B | N | B | N | B | N | B | S | S/G | S | | Kubernetes | `bluetape4k-leader-k8s` | N | B | B | — | N | B | B | — | S | S/G | S | | ZooKeeper | `bluetape4k-leader-zookeeper` | N | B | B | — | N | B | B | — | — | G | — |
 <!-- LEADER_CAPABILITY_MATRIX:END -->
 
 This matrix is validated against the current source tree. The versioned manual remains pinned to its release commit, so use it for stable-release behavior and this matrix for development-line capability selection.
@@ -123,6 +111,7 @@ This matrix is validated against the current source tree. The versioned manual r
 `autoExtend` is opt-in and single-leader only. Local, Redis, Exposed, MongoDB, Hazelcast, etcd, Consul, DynamoDB, and Kubernetes renew their own TTL, lease, or session through the shared extender contract. Redisson always acquires with an explicit `leaseTime`, then uses the shared extender when enabled. ZooKeeper locks are session-bound and have no TTL, so `autoExtend = true` is ignored with a warning. Group options do not expose `autoExtend`; use explicit `LockExtender` operations when a group slot must outlive its lease.
 
 <!-- LEADER_BACKEND_DIAGNOSTICS:START -->
+
 ### Runtime backend diagnostics
 
 Built-in electors expose their immutable capability descriptor through `LeaderBackendDiagnosticsProvider`. A static diagnostics read performs no backend I/O and reports connectivity as `NOT_CHECKED`. Active connectivity checks are separate, opt-in operations; `UNKNOWN` means the bounded check could not determine connectivity, not that the backend is healthy.
@@ -135,21 +124,19 @@ Built-in providers use the public `LeaderBackendDiagnosticsProbe.check` helper. 
 
 Connectivity results also carry the bounded `LeaderBackendConnectivityReason` value:
 
-| Status | Reason | Meaning |
-|---|---|---|
-| `UP` | `CONNECTED` | The existing client confirmed that the backend is reachable at probe time. |
-| `DOWN` | `DISCONNECTED` | The existing client confirmed that the backend is unavailable. |
-| `UNKNOWN` | `CLIENT_STATE_UNCONFIRMED` | A bounded read-only check could not prove connectivity. |
-| `UNKNOWN` | `PROVIDER_UNSUPPORTED` | The provider does not expose a supported active probe. |
-| `UNKNOWN` | `PROVIDER_EXCEPTION` | An ordinary provider exception was normalized without retaining its details. |
-| `NOT_CHECKED` | `NOT_CHECKED` | No active probe was requested; this is not a health signal. |
+| Status        | Reason                     | Meaning                                                                      |
+|---------------|----------------------------|------------------------------------------------------------------------------|
+| `UP`          | `CONNECTED`                | The existing client confirmed that the backend is reachable at probe time.   |
+| `DOWN`        | `DISCONNECTED`             | The existing client confirmed that the backend is unavailable.               |
+| `UNKNOWN`     | `CLIENT_STATE_UNCONFIRMED` | A bounded read-only check could not prove connectivity.                      |
+| `UNKNOWN`     | `PROVIDER_UNSUPPORTED`     | The provider does not expose a supported active probe.                       |
+| `UNKNOWN`     | `PROVIDER_EXCEPTION`       | An ordinary provider exception was normalized without retaining its details. |
+| `NOT_CHECKED` | `NOT_CHECKED`              | No active probe was requested; this is not a health signal.                  |
 
 When an instrumented elector from `leader-micrometer` performs an active
 `checkConnectivity` or `diagnostics(probe = true)` call, it increments the
 `leader.backend.connectivity` counter once. The only tags are the sanitized
-`backend.name`, `status`, and `reason`; passive diagnostics do not create a
-series, and exception text, endpoints, credentials, and lock names are never
-exported. `UNKNOWN` is a dashboard and warning signal, not an automatic
+`backend.name`, `status`, and `reason`; passive diagnostics do not create a series, and exception text, endpoints, credentials, and lock names are never exported. `UNKNOWN` is a dashboard and warning signal, not an automatic
 `DOWN` or page condition.
 
 For the operational decision table and timeout/bypass runbook, see the
@@ -162,35 +149,32 @@ For selection guidance, see [backend selection](https://bluetape4k.github.io/man
 
 ## Examples
 
-Runnable example modules under `examples/` demonstrate production scenarios across every supported backend. Examples are **not** publishing artifacts (`path.startsWith(":examples:")` is excluded from publish/sign/NMCP); copy them into your own service to start.
+Runnable example modules under `examples/` demonstrate production scenarios across every supported backend. Examples are
+**not** publishing artifacts (`path.startsWith(":examples:")` is excluded from publish/sign/NMCP); copy them into your own service to start.
 
-| Example | Backend | Scenario |
-|---------|---------|----------|
-| [`examples/batch-scheduler`](./examples/batch-scheduler) | Lettuce Redis | Periodic batch job (e.g. nightly settlement) — single execution across N instances |
-| [`examples/migration-gate`](./examples/migration-gate) | Exposed JDBC (PostgreSQL/H2) | Boot-time schema migration gate — exactly one instance runs migrations |
-| [`examples/webhook-poller`](./examples/webhook-poller) | MongoDB | External webhook polling — only the leader polls and dispatches |
-| [`examples/cache-warmer`](./examples/cache-warmer) | Hazelcast | Per-partition leader election — exactly one instance warms each partition |
-| [`examples/tenant-aggregator`](./examples/tenant-aggregator) | Exposed R2DBC | Coroutine-native multi-tenant aggregation — independent leader per tenant |
-| [`examples/ktor-app`](./examples/ktor-app) | Ktor 3.x + Lettuce Redis | Ktor application using `LeaderElectionPlugin` and `Application.leaderScheduled()` |
-| [`examples/prometheus-dashboard`](./examples/prometheus-dashboard) | Spring Boot + Lettuce Redis | Prometheus/Grafana dashboard for leader AOP metrics, backend connectivity, and scrape readiness |
-| [`examples/etcd-reconciler`](./examples/etcd-reconciler) | etcd v3 | Control-plane reconciler where one node applies desired state |
-| [`examples/consul-maintenance`](./examples/consul-maintenance) | Consul | Service maintenance/drain workflow where one instance performs the action |
-| [`examples/dynamodb-export`](./examples/dynamodb-export) | DynamoDB Local / AWS DynamoDB | Scheduled export or billing job where only the leader writes export records |
-| [`examples/zookeeper-scheduler`](./examples/zookeeper-scheduler) | ZooKeeper / Curator | Legacy scheduled job where only one node executes and contenders skip |
-| [`examples/k8s-lease`](./examples/k8s-lease) | Kubernetes Lease | Low-level Lease acquire/release/reacquire workflow against K3s |
-| [`examples/k8s-operator`](./examples/k8s-operator) | Kubernetes Lease + Spring Boot | 3-replica operator pattern where one pod runs the reconcile loop |
-| [`examples/rate-limiter`](./examples/rate-limiter) | Lettuce Redis + Bucket4j | Leader-dispatched external API probes with shared rate limiting |
-| [`examples/strategic-election`](./examples/strategic-election) | Local strategic election | Weighted health, capacity, success-rate, and idle-time scoring for a maintenance node |
-| [`examples/virtual-thread-runner`](./examples/virtual-thread-runner) | Local virtual-thread election | High-concurrency leader-only maintenance runner using Java virtual threads |
-| [`examples/redisson-watchdog`](./examples/redisson-watchdog) | Redisson Redis | Long-running leader-only job protected by bluetape4k lease auto-extension |
+| Example                                                              | Backend                        | Scenario                                                                                        |
+|----------------------------------------------------------------------|--------------------------------|-------------------------------------------------------------------------------------------------|
+| [`examples/batch-scheduler`](./examples/batch-scheduler)             | Lettuce Redis                  | Periodic batch job (e.g. nightly settlement) — single execution across N instances              |
+| [`examples/migration-gate`](./examples/migration-gate)               | Exposed JDBC (PostgreSQL/H2)   | Boot-time schema migration gate — exactly one instance runs migrations                          |
+| [`examples/webhook-poller`](./examples/webhook-poller)               | MongoDB                        | External webhook polling — only the leader polls and dispatches                                 |
+| [`examples/cache-warmer`](./examples/cache-warmer)                   | Hazelcast                      | Per-partition leader election — exactly one instance warms each partition                       |
+| [`examples/tenant-aggregator`](./examples/tenant-aggregator)         | Exposed R2DBC                  | Coroutine-native multi-tenant aggregation — independent leader per tenant                       |
+| [`examples/ktor-app`](./examples/ktor-app)                           | Ktor 3.x + Lettuce Redis       | Ktor application using `LeaderElectionPlugin` and `Application.leaderScheduled()`               |
+| [`examples/prometheus-dashboard`](./examples/prometheus-dashboard)   | Spring Boot + Lettuce Redis    | Prometheus/Grafana dashboard for leader AOP metrics, backend connectivity, and scrape readiness |
+| [`examples/etcd-reconciler`](./examples/etcd-reconciler)             | etcd v3                        | Control-plane reconciler where one node applies desired state                                   |
+| [`examples/consul-maintenance`](./examples/consul-maintenance)       | Consul                         | Service maintenance/drain workflow where one instance performs the action                       |
+| [`examples/dynamodb-export`](./examples/dynamodb-export)             | DynamoDB Local / AWS DynamoDB  | Scheduled export or billing job where only the leader writes export records                     |
+| [`examples/zookeeper-scheduler`](./examples/zookeeper-scheduler)     | ZooKeeper / Curator            | Legacy scheduled job where only one node executes and contenders skip                           |
+| [`examples/k8s-lease`](./examples/k8s-lease)                         | Kubernetes Lease               | Low-level Lease acquire/release/reacquire workflow against K3s                                  |
+| [`examples/k8s-operator`](./examples/k8s-operator)                   | Kubernetes Lease + Spring Boot | 3-replica operator pattern where one pod runs the reconcile loop                                |
+| [`examples/rate-limiter`](./examples/rate-limiter)                   | Lettuce Redis + Bucket4j       | Leader-dispatched external API probes with shared rate limiting                                 |
+| [`examples/strategic-election`](./examples/strategic-election)       | Local strategic election       | Weighted health, capacity, success-rate, and idle-time scoring for a maintenance node           |
+| [`examples/virtual-thread-runner`](./examples/virtual-thread-runner) | Local virtual-thread election  | High-concurrency leader-only maintenance runner using Java virtual threads                      |
+| [`examples/redisson-watchdog`](./examples/redisson-watchdog)         | Redisson Redis                 | Long-running leader-only job protected by bluetape4k lease auto-extension                       |
 
 Run any example with `./gradlew :examples:<name>:run` (Docker required for Testcontainers-backed demos).
 
-Testcontainers-backed examples create non-reusable containers by default. For an explicit developer-local opt-in,
-set `testcontainers.reuse.enable=true` in `~/.testcontainers.properties`; the examples ignore this setting when
-either the `CI` or `GITHUB_ACTIONS` marker is present, regardless of its value. Module tests always use one
-non-reusable launcher container per test JVM. Reusable example containers remain developer-owned and are not
-registered for shutdown removal.
+Testcontainers-backed examples create non-reusable containers by default. For an explicit developer-local opt-in, set `testcontainers.reuse.enable=true` in `~/.testcontainers.properties`; the examples ignore this setting when either the `CI` or `GITHUB_ACTIONS` marker is present, regardless of its value. Module tests always use one non-reusable launcher container per test JVM. Reusable example containers remain developer-owned and are not registered for shutdown removal.
 
 ## Quick Start
 
@@ -252,14 +236,9 @@ val result = groupElection.runIfLeader("parallel-batch") {
 }
 ```
 
-`useDbTime` is an Exposed JDBC/R2DBC group option. It evaluates ownership and
-active-slot expiry with one `SELECT CURRENT_TIMESTAMP` inside each ownership
-transaction, so JVM clock skew does not change the lease boundary. It defaults
-to `false`; when database time is unavailable, group state is reported
-conservatively and `runIfLeader` skips rather than claiming ownership.
+`useDbTime` is an Exposed JDBC/R2DBC group option. It evaluates ownership and active-slot expiry with one `SELECT CURRENT_TIMESTAMP` inside each ownership transaction, so JVM clock skew does not change the lease boundary. It defaults to `false`; when database time is unavailable, group state is reported conservatively and `runIfLeader` skips rather than claiming ownership.
 
-The option is available in `1.0.0`. The versioned manual pages are pinned to
-that release provenance.
+The option is available in `1.0.0`. The versioned manual pages are pinned to that release provenance.
 
 ### Exposed R2DBC group (coroutine-native, 1.0.0+)
 
@@ -437,18 +416,18 @@ Multiple nodes call `runIfLeader` concurrently — only one acquires the lock an
 
 ### Core interfaces
 
-| Interface | Returns | Description |
-|-----------|---------|-------------|
-| `LeaderElector` | `T?` | Blocking single-leader |
-| `AsyncLeaderElector` | `CompletableFuture<T?>` | Async single-leader |
-| `VirtualThreadLeaderElector` | `T?` | Virtual thread single-leader |
-| `SuspendLeaderElector` | `T?` | Coroutine suspend single-leader |
-| `LeaderGroupElector` | `T?` | Blocking multi-leader (semaphore) |
-| `SuspendLeaderGroupElector` | `T?` | Coroutine multi-leader (semaphore) |
-| `StrategicLeaderElector` | `T?` | Blocking strategic election (candidate registry) |
-| `StrategicSuspendLeaderElector` | `T?` | Coroutine strategic election (candidate registry) |
-| `StrategicLeaderGroupElector` | `T?` | Blocking strategic group election (advisory top-N candidate list) |
-| `StrategicSuspendLeaderGroupElector` | `T?` | Coroutine strategic group election (advisory top-N candidate list) |
+| Interface                            | Returns                 | Description                                                        |
+|--------------------------------------|-------------------------|--------------------------------------------------------------------|
+| `LeaderElector`                      | `T?`                    | Blocking single-leader                                             |
+| `AsyncLeaderElector`                 | `CompletableFuture<T?>` | Async single-leader                                                |
+| `VirtualThreadLeaderElector`         | `T?`                    | Virtual thread single-leader                                       |
+| `SuspendLeaderElector`               | `T?`                    | Coroutine suspend single-leader                                    |
+| `LeaderGroupElector`                 | `T?`                    | Blocking multi-leader (semaphore)                                  |
+| `SuspendLeaderGroupElector`          | `T?`                    | Coroutine multi-leader (semaphore)                                 |
+| `StrategicLeaderElector`             | `T?`                    | Blocking strategic election (candidate registry)                   |
+| `StrategicSuspendLeaderElector`      | `T?`                    | Coroutine strategic election (candidate registry)                  |
+| `StrategicLeaderGroupElector`        | `T?`                    | Blocking strategic group election (advisory top-N candidate list)  |
+| `StrategicSuspendLeaderGroupElector` | `T?`                    | Coroutine strategic group election (advisory top-N candidate list) |
 
 `runIfLeader(lockName, action)` — returns `action()` result on success, `null` if not elected.
 
@@ -491,7 +470,8 @@ LeaderGroupElectionOptions(
 
 ## Strategic Election
 
-Strategic election replaces the distributed-lock acquisition race with a **candidate registry + pluggable strategy**. Each node registers itself as a candidate; on each `runIfLeader` call, all candidates are loaded and a strategy deterministically selects the winner. No lock is held — only the winning node executes the action.
+Strategic election replaces the distributed-lock acquisition race with a **candidate registry + pluggable
+strategy**. Each node registers itself as a candidate; on each `runIfLeader` call, all candidates are loaded and a strategy deterministically selects the winner. No lock is held — only the winning node executes the action.
 
 ### CandidateInfo
 
@@ -508,20 +488,20 @@ CandidateInfo(
 
 ### Built-in strategies
 
-| Strategy | Description |
-|----------|-------------|
-| `FifoElectionStrategy` | Earliest `registeredAt` wins; ties broken by `nodeId` lexicographic order |
-| `RandomElectionStrategy` | Random pick each round |
-| `ScoredElectionStrategy(scorer)` | Highest-score candidate wins |
+| Strategy                         | Description                                                               |
+|----------------------------------|---------------------------------------------------------------------------|
+| `FifoElectionStrategy`           | Earliest `registeredAt` wins; ties broken by `nodeId` lexicographic order |
+| `RandomElectionStrategy`         | Random pick each round                                                    |
+| `ScoredElectionStrategy(scorer)` | Highest-score candidate wins                                              |
 
 ### Built-in scorers
 
-| Scorer | Description |
-|--------|-------------|
-| `SuccessRateScorer` | `successCount / (successCount + failureCount)` |
-| `IdleTimeScorer` | Longer idle time → higher score (load balancing) |
-| `RecentSuccessScorer` | Recency-weighted success rate |
-| `WeightedScorer(vararg pairs)` | Linear combination of multiple scorers |
+| Scorer                         | Description                                      |
+|--------------------------------|--------------------------------------------------|
+| `SuccessRateScorer`            | `successCount / (successCount + failureCount)`   |
+| `IdleTimeScorer`               | Longer idle time → higher score (load balancing) |
+| `RecentSuccessScorer`          | Recency-weighted success rate                    |
+| `WeightedScorer(vararg pairs)` | Linear combination of multiple scorers           |
 
 ### Example — FIFO (Lettuce)
 
@@ -578,26 +558,20 @@ val result = election.runIfLeader(
 ) { processShard() }
 ```
 
-`registerCandidate` replaces the complete `CandidateInfo` record, so do not use it as a
-heartbeat after `updateResult`: a stale candidate record can roll back the result counters and
-timestamps. Use `refreshCandidate` for an existing candidate instead. It preserves
-`registeredAt`, `lastStartTime`, `lastCompletionTime`, `successCount`, and `failureCount`,
-while replacing `metadata` and applying the requested TTL. Redis implementations perform
-this merge atomically; a refresh for an expired or missing Redis candidate is a no-op, so
-call `registerCandidate` for initial enrollment. `updateResult` keeps the current TTL,
-whereas `refreshCandidate(..., Duration.ZERO)` makes the candidate persistent.
+`registerCandidate` replaces the complete `CandidateInfo` record, so do not use it as a heartbeat after `updateResult`: a stale candidate record can roll back the result counters and timestamps. Use `refreshCandidate` for an existing candidate instead. It preserves
+`registeredAt`, `lastStartTime`, `lastCompletionTime`, `successCount`, and `failureCount`, while replacing `metadata` and applying the requested TTL. Redis implementations perform this merge atomically; a refresh for an expired or missing Redis candidate is a no-op, so call `registerCandidate` for initial enrollment. `updateResult` keeps the current TTL, whereas `refreshCandidate(..., Duration.ZERO)` makes the candidate persistent.
 
 `maxLeaders` is an advisory top-N limit for the candidate list read by that invocation; it is not a global distributed concurrency cap. Different nodes can observe different candidate lists and their union can exceed N. Use `LeaderGroupElector` when a hard global slot limit is required. Redis strategic group registries use separate backend-qualified namespaces (`leader:strategy:group-candidates:lettuce:v1` and `leader:strategy:group-candidates:redisson:v1`) from strategic single-leader registries. A non-zero candidate TTL requires re-registration or heartbeat before expiry; `Duration.ZERO` is persistent, while the Local implementation keeps candidates for the process lifetime and ignores TTL. Lettuce keeps the candidate index independent from per-candidate TTLs, so an expiring candidate cannot hide a persistent candidate with the same lock name. Custom strategies must return a complete, non-overlapping winner/elimination partition of the same candidate list, or the elector fails fast with `IllegalArgumentException`.
 
 ### Strategic election vs lock-based election
 
-| Aspect | Lock-based | Strategic |
-|--------|-----------|-----------|
-| Winner selection | First to acquire lock | Deterministic strategy |
-| Candidate history | None | `successCount`, `failureCount`, `idleDuration` |
-| TTL per candidate | No (lock-level TTL) | Yes (per-node expiry) |
-| Custom scorer | No | Yes (`CandidateScorer`) |
-| Network RTT | 1 (tryLock) | 2 (list + elect) |
+| Aspect            | Lock-based            | Strategic                                      |
+|-------------------|-----------------------|------------------------------------------------|
+| Winner selection  | First to acquire lock | Deterministic strategy                         |
+| Candidate history | None                  | `successCount`, `failureCount`, `idleDuration` |
+| TTL per candidate | No (lock-level TTL)   | Yes (per-node expiry)                          |
+| Custom scorer     | No                    | Yes (`CandidateScorer`)                        |
+| Network RTT       | 1 (tryLock)           | 2 (list + elect)                               |
 
 ## Spring Boot AOP
 
@@ -634,11 +608,11 @@ Stream return rules:
 
 Controls what happens when the lock is **not** acquired (contention or backend error):
 
-| Value | Behaviour |
-|-------|-----------|
+| Value               | Behaviour                                                  |
+|---------------------|------------------------------------------------------------|
 | `RETHROW` (default) | Throw `LeaderElectionException` wrapping the backend error |
-| `SKIP` | Return `null` — body is not executed |
-| `FAIL_OPEN_RUN` | Run the method body anyway and return its result |
+| `SKIP`              | Return `null` — body is not executed                       |
+| `FAIL_OPEN_RUN`     | Run the method body anyway and return its result           |
 
 `FAIL_OPEN_RUN` is designed for jobs where skipping is worse than running without the distributed lock guarantee (e.g., best-effort idempotent tasks). Metrics record `SkipReason.FAIL_OPEN_FORCED` so dashboards can track lock-free executions separately.
 
@@ -695,17 +669,13 @@ GET /actuator/leaderElection
 
 `LeaderElectionEventPublisher` is the framework-neutral observability surface. Kotlin users can collect the hot
 `events` `Flow`; framework adapters and Java users can register callback consumers with `onEvent`, `onElected`,
-`onRevoked`, or `onSkipped` and close the returned handle during shutdown. Spring Boot Actuator, Ktor management
-routes, Micrometer, logging, tracing, and custom dashboards should adapt from this core event stream instead of
-introducing framework-specific event contracts.
+`onRevoked`, or `onSkipped` and close the returned handle during shutdown. Spring Boot Actuator, Ktor management routes, Micrometer, logging, tracing, and custom dashboards should adapt from this core event stream instead of introducing framework-specific event contracts.
 
 ### Lease-extension observation
 
-This API is included in `1.0.0`; use the release-pinned manual for the complete
-contract and adapter guidance.
+This API is included in `1.0.0`; use the release-pinned manual for the complete contract and adapter guidance.
 
-`LockExtender` and `LeaderLeaseAutoExtender` publish the same framework-neutral terminal event contract. Register an
-observer only when the application needs lease-extension diagnostics:
+`LockExtender` and `LeaderLeaseAutoExtender` publish the same framework-neutral terminal event contract. Register an observer only when the application needs lease-extension diagnostics:
 
 ```kotlin
 val registration = LeaderLeaseExtensionObservers.addObserver { event ->
@@ -728,33 +698,16 @@ try {
 `#529` continues to cover acquire/execution observations; this `#559` hook covers terminal lease-extension attempts.
 `event.source` distinguishes `USER` calls from the `WATCHDOG`; `event.execution` distinguishes `BLOCKING` from
 `SUSPEND`. `event.outcome` is the existing `ExtendOutcome` (`Extended`, `Rejected`, `NotHeld`, `WrongThread`, or
-`BackendError`), and `elapsedNanos` is the caller-side delegate duration. `Rejected` can mean a watchdog reservation
-failed, a user bounded operation queue was full, or a queued user operation timed out before its command completed;
-that command may still run later. It is a skip signal, not proof that no backend work will occur. The observer registry is process-local and dispatches
-through bounded, non-blocking in-flight admission. A saturated observer increments
-`LeaderLeaseExtensionObservers.droppedCount()` instead of waiting for a permit or callback. Registration count and
-callback fan-out are not bounded by this registry, so applications should keep registrations small and callbacks
-short. `droppedCount()` is therefore separate from `ExtendOutcome.Rejected`: it counts observer-delivery admission drops.
-Close removes only that registration; an already accepted callback may still finish, and callback ordering is
-not guaranteed.
+`BackendError`), and `elapsedNanos` is the caller-side delegate duration. `Rejected` can mean a watchdog reservation failed, a user bounded operation queue was full, or a queued user operation timed out before its command completed; that command may still run later. It is a skip signal, not proof that no backend work will occur. The observer registry is process-local and dispatches through bounded, non-blocking in-flight admission. A saturated observer increments
+`LeaderLeaseExtensionObservers.droppedCount()` instead of waiting for a permit or callback. Registration count and callback fan-out are not bounded by this registry, so applications should keep registrations small and callbacks short. `droppedCount()` is therefore separate from `ExtendOutcome.Rejected`: it counts observer-delivery admission drops. Close removes only that registration; an already accepted callback may still finish, and callback ordering is not guaranteed.
 
 `addObserver` remains a process-wide wildcard API. Spring's automatic Micrometer adapter is narrower: each
-`ObservationRegistry` identity owns an opaque execution scope, so two application contexts with different registries
-receive only their own AOP-attributed `USER` and `WATCHDOG` events. Parent and child contexts that intentionally share
-one registry share one telemetry domain. Calls made outside `@LeaderElection`/`@LeaderGroupElection`, including direct
-elector calls and Reactor callbacks outside the aspect-owned coroutine bridge, fail closed for automatic Spring
-telemetry but still reach explicit global observers. Do not register the same Micrometer observer both globally and
-automatically, because that produces duplicate observations.
+`ObservationRegistry` identity owns an opaque execution scope, so two application contexts with different registries receive only their own AOP-attributed `USER` and `WATCHDOG` events. Parent and child contexts that intentionally share one registry share one telemetry domain. Calls made outside `@LeaderElection`/`@LeaderGroupElection`, including direct elector calls and Reactor callbacks outside the aspect-owned coroutine bridge, fail closed for automatic Spring telemetry but still reach explicit global observers. Do not register the same Micrometer observer both globally and automatically, because that produces duplicate observations.
 
-The snippet above closes after one explicit `USER` attempt. To observe `WATCHDOG` ticks, keep the registration open for
-the entire single-leader action or component lifetime with `autoExtend = true`, then close it during shutdown. Group
-elections support explicit `LockExtender` calls inside their active slot bodies, but they do not produce `WATCHDOG`
+The snippet above closes after one explicit `USER` attempt. To observe `WATCHDOG` ticks, keep the registration open for the entire single-leader action or component lifetime with `autoExtend = true`, then close it during shutdown. Group elections support explicit `LockExtender` calls inside their active slot bodies, but they do not produce `WATCHDOG`
 events because group auto-extension is disabled.
 
-Callback exceptions do not change the extension result. `CancellationException` and `Error` from the extension path
-are not flattened into an outcome or published as events. `BackendError.cause` remains the original backend `Exception`;
-core does not redact it, so custom observers must sanitise the cause before logging or exporting. `LeaderLeaseExtensionContext.toString()` is redacted, so applications should still
-avoid logging raw `lockName` or `auditLeaderId`. A fail-open `NotHeld` event still carries its lock name in `context` with
+Callback exceptions do not change the extension result. `CancellationException` and `Error` from the extension path are not flattened into an outcome or published as events. `BackendError.cause` remains the original backend `Exception`; core does not redact it, so custom observers must sanitise the cause before logging or exporting. `LeaderLeaseExtensionContext.toString()` is redacted, so applications should still avoid logging raw `lockName` or `auditLeaderId`. A fail-open `NotHeld` event still carries its lock name in `context` with
 `auditLeaderId = null`; scope-free and named-mismatch events have `context = null`. The [lease extension guide](https://bluetape4k.github.io/manual/bluetape4k-leader/1.0/core/lease-extension/)
 contains the complete contract and adapter guidance.
 
@@ -787,31 +740,22 @@ val exporter = MicrometerLeaderAuditExporter(
 
 The adapter uses `POST`, bounded retries, and `BodyHandlers.discarding()`. Only
 `Content-Type` and `Authorization` headers are accepted; redirects are disabled.
-`LeaderAuditTrustedHttpsEndpoint` validates the HTTPS syntax and records that the
-caller owns endpoint allow-list and DNS/SSRF policy. `submit` returning `ACCEPTED`
-means admission only, so receivers should be idempotent. JSONL and OpenTelemetry
-transports remain separate application choices.
+`LeaderAuditTrustedHttpsEndpoint` validates the HTTPS syntax and records that the caller owns endpoint allow-list and DNS/SSRF policy. `submit` returning `ACCEPTED`
+means admission only, so receivers should be idempotent. JSONL and OpenTelemetry transports remain separate application choices.
 
 `bluetape4k.leader.observability.lock-names` seeds the JVM-local status registry before the first runtime event. Listener-aware electors can also add names as they observe lifecycle events. The fallback `LeaderElectionEventPublisher` is publisher-only and never becomes a `LeaderElector` candidate, so existing elector injection remains stable.
 
 Spring diagnostics, readiness, and the Actuator endpoint select from both blocking and suspend
-`LeaderElectionState` beans. A non-local suspend backend therefore wins over the blocking local fallback.
-When more than one non-local backend is active, set
-`bluetape4k.leader.observability.state-provider-bean` to the bean used for operational state.
-If that provider does not support audit state, the endpoint reports `stateSupported=false` and lock
-status `Unsupported`; opt-in readiness reports `UNKNOWN` instead of a false `UP`.
+`LeaderElectionState` beans. A non-local suspend backend therefore wins over the blocking local fallback. When more than one non-local backend is active, set
+`bluetape4k.leader.observability.state-provider-bean` to the bean used for operational state. If that provider does not support audit state, the endpoint reports `stateSupported=false` and lock status `Unsupported`; opt-in readiness reports `UNKNOWN` instead of a false `UP`.
 
-`LeaderLeaseAutoExtender` remains JVM-global. Live Spring contexts may share defaults or the same
-explicit `watchdog-threads` / `watchdog-async-extend` values, but a context with conflicting explicit
-values is rejected before it can overwrite the active scheduler configuration. The scheduler stops only
-after the last registered context closes.
+`LeaderLeaseAutoExtender` remains JVM-global. Live Spring contexts may share defaults or the same explicit `watchdog-threads` / `watchdog-async-extend` values, but a context with conflicting explicit values is rejected before it can overwrite the active scheduler configuration. The scheduler stops only after the last registered context closes.
 
 ---
 
 ## Management Endpoints
 
-Spring Boot applications can expose a best-effort leader status endpoint through Actuator. Enable
-leader observability beans and the endpoint explicitly:
+Spring Boot applications can expose a best-effort leader status endpoint through Actuator. Enable leader observability beans and the endpoint explicitly:
 
 ```yaml
 bluetape4k:
@@ -834,11 +778,8 @@ management:
 
 The HTTP path is `GET /actuator/leaderElection`. Lock names come from the JVM-local
 `LeaderElectionStatusRegistry`: configure static names with
-`bluetape4k.leader.observability.lock-names`, or let Spring AOP observations register names as
-leader-election methods run. The endpoint does not enumerate backend locks.
-The response identifies the selected backend and provider bean. In multi-backend applications, configure
-`bluetape4k.leader.observability.state-provider-bean`; otherwise endpoint/readiness startup fails rather
-than selecting an arbitrary backend.
+`bluetape4k.leader.observability.lock-names`, or let Spring AOP observations register names as leader-election methods run. The endpoint does not enumerate backend locks. The response identifies the selected backend and provider bean. In multi-backend applications, configure
+`bluetape4k.leader.observability.state-provider-bean`; otherwise endpoint/readiness startup fails rather than selecting an arbitrary backend.
 
 Ktor applications can expose the same status shape with `leaderElectionManagementRoute()`:
 
@@ -852,9 +793,7 @@ install(LeaderElectionPlugin) {
 leaderElectionManagementRoute()
 ```
 
-The Ktor route defaults to `GET /management/leaderElection` and is installed on the application's
-main routing pipeline. Protect it with authentication, network policy, or a dedicated internal port
-before exposing it outside a trusted management boundary.
+The Ktor route defaults to `GET /management/leaderElection` and is installed on the application's main routing pipeline. Protect it with authentication, network policy, or a dedicated internal port before exposing it outside a trusted management boundary.
 
 ---
 
@@ -883,23 +822,24 @@ Metric tag values are sanitized before export. By default, dynamic `lock.name` v
 
 ### Meter Catalog
 
-| Meter name | Type | Description |
-|------------|------|-------------|
-| `leader.aop.attempts` | Counter | Lock acquisition attempts per `lock.name` |
-| `leader.aop.acquired` | Counter | Successful leader elections |
-| `leader.aop.acquire.duration` | Timer | Time from lock attempt to successful acquisition |
-| `leader.aop.lock.not.acquired` | Counter | Skipped executions; tagged with `reason` (`CONTENTION` / `BACKEND_ERROR`) |
-| `leader.aop.execution.duration` | Timer | Elapsed time of the leader action |
-| `leader.aop.task.failed` | Counter | Action body exceptions; tagged with `exception` class name |
-| `leader.aop.active` | Gauge | Currently running leader actions (JVM-local) |
-| `shedlock.leader.acquired` | Counter | Decorator-based successful leader executions |
-| `shedlock.leader.not_acquired` | Counter | Decorator-based skipped executions |
-| `shedlock.leader.duration` | Timer | Decorator-based leader action duration |
-| `shedlock.leader.active` | Gauge | Decorator-based currently running leader actions (JVM-local) |
+| Meter name                      | Type    | Description                                                               |
+|---------------------------------|---------|---------------------------------------------------------------------------|
+| `leader.aop.attempts`           | Counter | Lock acquisition attempts per `lock.name`                                 |
+| `leader.aop.acquired`           | Counter | Successful leader elections                                               |
+| `leader.aop.acquire.duration`   | Timer   | Time from lock attempt to successful acquisition                          |
+| `leader.aop.lock.not.acquired`  | Counter | Skipped executions; tagged with `reason` (`CONTENTION` / `BACKEND_ERROR`) |
+| `leader.aop.execution.duration` | Timer   | Elapsed time of the leader action                                         |
+| `leader.aop.task.failed`        | Counter | Action body exceptions; tagged with `exception` class name                |
+| `leader.aop.active`             | Gauge   | Currently running leader actions (JVM-local)                              |
+| `shedlock.leader.acquired`      | Counter | Decorator-based successful leader executions                              |
+| `shedlock.leader.not_acquired`  | Counter | Decorator-based skipped executions                                        |
+| `shedlock.leader.duration`      | Timer   | Decorator-based leader action duration                                    |
+| `shedlock.leader.active`        | Gauge   | Decorator-based currently running leader actions (JVM-local)              |
 
 All meters use the exported `lock.name` tag after cardinality control. Micrometer's `NamingConvention` converts names per backend (e.g., `leader_aop_attempts_total` for Prometheus).
 
-> **Multi-instance note:** `leader.aop.active` is JVM-local. Use `max by (lock_name) (leader_aop_active)` in Prometheus — not `sum` — to avoid counting each node's gauge separately.
+> **Multi-instance
+note:** `leader.aop.active` is JVM-local. Use `max by (lock_name) (leader_aop_active)` in Prometheus — not `sum` — to avoid counting each node's gauge separately.
 
 ### Decorator metrics
 
@@ -965,22 +905,22 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 
 ## Comparison with ShedLock
 
-| Feature | bluetape4k-leader | ShedLock |
-|---------|-------------------|----------|
-| Skip on contention | `null` return | annotation-based skip |
-| Coroutine support | Native | No |
-| Virtual thread support | Yes | No |
-| Multi-leader (group) | `LeaderGroupElector` | No |
-| Redis (Lettuce) | Yes | Yes |
-| Redis (Redisson) | Yes | Yes |
-| Spring integration | Yes (Boot 4 + AspectJ CTW) | Yes (core feature) |
-| JDBC/SQL | Yes (Exposed JDBC) | Yes |
-| MongoDB | Yes | Yes |
-| etcd | Yes | No |
-| Consul | Preview single/group blocking/async/coroutine + Spring Boot | No |
-| DynamoDB | Preview single/group blocking/async/coroutine + virtual thread + Spring Boot | No |
-| Hazelcast | Yes | Yes |
-| ZooKeeper | Yes | No |
+| Feature                | bluetape4k-leader                                                            | ShedLock              |
+|------------------------|------------------------------------------------------------------------------|-----------------------|
+| Skip on contention     | `null` return                                                                | annotation-based skip |
+| Coroutine support      | Native                                                                       | No                    |
+| Virtual thread support | Yes                                                                          | No                    |
+| Multi-leader (group)   | `LeaderGroupElector`                                                         | No                    |
+| Redis (Lettuce)        | Yes                                                                          | Yes                   |
+| Redis (Redisson)       | Yes                                                                          | Yes                   |
+| Spring integration     | Yes (Boot 4 + AspectJ CTW)                                                   | Yes (core feature)    |
+| JDBC/SQL               | Yes (Exposed JDBC)                                                           | Yes                   |
+| MongoDB                | Yes                                                                          | Yes                   |
+| etcd                   | Yes                                                                          | No                    |
+| Consul                 | Preview single/group blocking/async/coroutine + Spring Boot                  | No                    |
+| DynamoDB               | Preview single/group blocking/async/coroutine + virtual thread + Spring Boot | No                    |
+| Hazelcast              | Yes                                                                          | Yes                   |
+| ZooKeeper              | Yes                                                                          | No                    |
 
 ## Requirements
 
@@ -989,17 +929,13 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 
 ## Publication metadata validation
 
-Release, snapshot, and publishable-module upload tasks run this gate before
-uploading a Maven publication. To run it standalone, use:
+Release, snapshot, and publishable-module upload tasks run this gate before uploading a Maven publication. To run it standalone, use:
 
 ```bash
 ./gradlew verifyPublishedPomLicenses
 ```
 
-The gate regenerates all 17 publishable POMs and verifies the MIT license name,
-URL, and `repo` distribution. It also rejects any remaining Apache license
-metadata before publication, and requires both README locales to retain the MIT
-badge link and `[LICENSE](LICENSE)` reference.
+The gate regenerates all 17 publishable POMs and verifies the MIT license name, URL, and `repo` distribution. It also rejects any remaining Apache license metadata before publication, and requires both README locales to retain the MIT badge link and `[LICENSE](LICENSE)` reference.
 
 ## License
 

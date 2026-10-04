@@ -150,7 +150,7 @@ class LeaderGroupElectionAspect(
             val identity = resolveIdentity(resolvedName, AdviceBranch.SYNC)
             val existing = AopScopeAccess.peekSyncMatching(resolvedName)
             when {
-                existing is LeaderLockHandle.Real && existing.matchesIdentity(identity)     -> {
+                existing is LeaderLockHandle.Real && existing.matchesIdentity(identity) -> {
                     log.debug { "leader.aop.group.reentrant lockName=$resolvedName depth=${existing.reentryDepth + 1}" }
                     val reentrantHandle = AopScopeAccess.incrementReentryDepth(existing)
                     return AopScopeAccess.withPushedSync(reentrantHandle) {
@@ -179,7 +179,7 @@ class LeaderGroupElectionAspect(
                 executeBody(pjp, resolvedName, start)
             }
             when (runResult) {
-                is LeaderRunResult.Skipped      -> {
+                is LeaderRunResult.Skipped -> {
                     if (meta.failureMode == LeaderAspectFailureMode.FAIL_OPEN_RUN) {
                         val failOpenHandle = AopScopeAccess.createFailOpen(identity)
                         fanOut {
@@ -199,7 +199,7 @@ class LeaderGroupElectionAspect(
                         null
                     }
                 }
-                is LeaderRunResult.Elected      -> {
+                is LeaderRunResult.Elected -> {
                     val elapsed = System.nanoTime() - start
                     fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
                     log.debug { "leader.aop.group.elected lockName=$resolvedName elapsedNs=$elapsed" }
@@ -222,13 +222,13 @@ class LeaderGroupElectionAspect(
             val wrapped =
                 LeaderGroupElectionException("leader group backend error for lock '$effectiveName'", backendEx)
             when (meta.failureMode) {
-                LeaderAspectFailureMode.INHERIT       -> error("INHERIT must be resolved in resolveMetadata")
-                LeaderAspectFailureMode.RETHROW       -> {
+                LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
+                LeaderAspectFailureMode.RETHROW -> {
                     fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
                     fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                     throw wrapped
                 }
-                LeaderAspectFailureMode.SKIP          -> {
+                LeaderAspectFailureMode.SKIP -> {
                     fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
                     fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                     log.warn(backendEx) { "leader.aop.group.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
@@ -370,13 +370,13 @@ class LeaderGroupElectionAspect(
                 val wrapped =
                     LeaderGroupElectionException("leader group backend error for lock '$effectiveName'", backendEx)
                 when (meta.failureMode) {
-                    LeaderAspectFailureMode.INHERIT       -> error("INHERIT must be resolved in resolveMetadata")
-                    LeaderAspectFailureMode.RETHROW       -> {
+                    LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
+                    LeaderAspectFailureMode.RETHROW -> {
                         fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
                         fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                         throw wrapped
                     }
-                    LeaderAspectFailureMode.SKIP          -> {
+                    LeaderAspectFailureMode.SKIP -> {
                         fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
                         fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                         log.warn(backendEx) { "leader.aop.group.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
@@ -519,8 +519,8 @@ class LeaderGroupElectionAspect(
                     val wrapped =
                         LeaderGroupElectionException("leader group backend error for lock '$effectiveName'", backendEx)
                     when (meta.failureMode) {
-                        LeaderAspectFailureMode.INHERIT       -> error("INHERIT must be resolved in resolveMetadata")
-                        LeaderAspectFailureMode.RETHROW       -> {
+                        LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
+                        LeaderAspectFailureMode.RETHROW -> {
                             fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
                             fanOut {
                                 it.onTaskFailed(
@@ -531,7 +531,7 @@ class LeaderGroupElectionAspect(
                             }
                             throw wrapped
                         }
-                        LeaderAspectFailureMode.SKIP          -> {
+                        LeaderAspectFailureMode.SKIP -> {
                             fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
                             fanOut {
                                 it.onTaskFailed(
@@ -711,7 +711,7 @@ class LeaderGroupElectionAspect(
          */
         fun resolveLockIdentity(lockName: String, branch: AdviceBranch): LockIdentity {
             val beanName = when (branch) {
-                AdviceBranch.SYNC                              -> factoryBeanName
+                AdviceBranch.SYNC -> factoryBeanName
                 AdviceBranch.COROUTINES, AdviceBranch.REACTIVE -> suspendElectorFactoryBeanName
             }
             return LockIdentity(

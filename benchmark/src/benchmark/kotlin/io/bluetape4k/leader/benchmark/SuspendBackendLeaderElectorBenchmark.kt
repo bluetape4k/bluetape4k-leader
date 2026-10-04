@@ -104,19 +104,19 @@ class SuspendBackendLeaderElectorBenchmark {
     fun setup() = runBlocking {
         lockName = "bench-$backend-suspend"
         elector = when (backend) {
-            "local"                    -> LocalSuspendLeaderElector(leaderOptions)
-            "lettuce"                  -> createLettuceElector()
-            "redisson"                 -> createRedissonElector()
-            "exposed-r2dbc-h2"         -> createExposedR2dbcH2Elector()
+            "local" -> LocalSuspendLeaderElector(leaderOptions)
+            "lettuce" -> createLettuceElector()
+            "redisson" -> createRedissonElector()
+            "exposed-r2dbc-h2" -> createExposedR2dbcH2Elector()
             "exposed-r2dbc-postgresql" -> createExposedR2dbcPostgreSqlElector()
-            "exposed-r2dbc-mysql"      -> createExposedR2dbcMySqlElector()
-            "mongo"                    -> createMongoElector()
-            "hazelcast"                -> createHazelcastElector()
-            "zookeeper"                -> createZooKeeperElector()
-            "consul"                   -> createConsulElector()
-            "etcd"                     -> createEtcdElector()
-            "dynamodb"                 -> createDynamoDbElector()
-            else                       -> error("Unsupported backend: $backend")
+            "exposed-r2dbc-mysql" -> createExposedR2dbcMySqlElector()
+            "mongo" -> createMongoElector()
+            "hazelcast" -> createHazelcastElector()
+            "zookeeper" -> createZooKeeperElector()
+            "consul" -> createConsulElector()
+            "etcd" -> createEtcdElector()
+            "dynamodb" -> createDynamoDbElector()
+            else -> error("Unsupported backend: $backend")
         }
         require(elector.runIfLeader("$lockName-smoke") { true } == true) {
             "Benchmark backend failed suspend leader election smoke check. backend=$backend"

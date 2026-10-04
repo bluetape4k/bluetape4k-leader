@@ -47,7 +47,7 @@ data class LeaderState(
     init {
         lockName.requireNotBlank("lockName")
         when (status) {
-            LeaderStatus.Empty    -> leader.requireNull { "leader must be null when status is Empty" }
+            LeaderStatus.Empty -> leader.requireNull { "leader must be null when status is Empty" }
             LeaderStatus.Occupied -> leader.requireNotNull { "leader must not be null when status is Occupied" }
         }
     }

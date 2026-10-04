@@ -147,7 +147,7 @@ class LettuceExtendDelegateReferenceTest: AbstractLettuceLeaderTest() {
         elector.runIfLeader(lockName) {
             // user explicit extend — delegate.lastExtendDeadline 갱신
             preExtend = LockExtender.extendActiveLockDetailed(LockAtMostFor * 2)
-            
+
             // 동일 delegate reference 가 watchdog 와 handle 양쪽에서 공유된다는 invariant 검증.
             // 즉시 다시 extend 호출 — 토큰이 유지되어 있으므로 Extended 반환되어야 함.
             postExtend = LockExtender.extendActiveLockDetailed(LockAtMostFor)

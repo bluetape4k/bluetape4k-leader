@@ -8,7 +8,6 @@ import re
 import sys
 from pathlib import Path
 
-
 FORBIDDEN_KOTLIN_TEST_IMPORT = re.compile(
     r"^\s*import\s+kotlin\.test\.assert[A-Z]\w*\b"
 )
@@ -129,11 +128,11 @@ def _run_catching_violations(path: Path, source: str) -> list[str]:
         closing = _matching_brace(source, source.find("{", match.start(), match.end()))
         if closing is None:
             continue
-        suffix = source[closing + 1 : closing + 700]
+        suffix = source[closing + 1: closing + 700]
         direct_access = re.match(r"\s*\.\s*(isFailure|isSuccess|exceptionOrNull)\b", suffix)
         variable_match = re.search(
             r"\b(?:val|var)\s+(\w+)\s*=\s*$",
-            source[max(0, match.start() - 120) : match.start()],
+            source[max(0, match.start() - 120): match.start()],
         )
         variable_access = False
         if variable_match:

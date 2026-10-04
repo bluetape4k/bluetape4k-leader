@@ -36,7 +36,7 @@ class LeaderConfigurationMetadataTest {
                     defaultValue == null -> ""
                     defaultValue.isArray -> defaultValue.values().map { it.asString() }.toList()
                         .joinToString(",")
-                    else                 -> defaultValue.asString()
+                    else -> defaultValue.asString()
                 }
                 node.path("name").asString() to MetadataProperty(defaultValueAsString)
             }

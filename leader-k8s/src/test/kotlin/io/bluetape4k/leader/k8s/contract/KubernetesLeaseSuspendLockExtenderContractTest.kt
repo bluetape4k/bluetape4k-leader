@@ -19,7 +19,7 @@ import org.junit.jupiter.api.TestInstance
 class KubernetesLeaseSuspendLockExtenderContractTest: AbstractSuspendLockExtenderContractTest() {
 
     companion object: KLogging()
-    
+
     private val client: KubernetesClient = KubernetesContractSupport.newClient()
 
     override val elector: SuspendLeaderElector =

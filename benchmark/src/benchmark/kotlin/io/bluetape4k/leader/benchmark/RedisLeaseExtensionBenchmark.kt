@@ -57,7 +57,7 @@ class RedisLeaseExtensionBenchmark {
         renewalLockName = newLockName("blocking-renewal")
 
         when (redisMode.backend) {
-            RedisLeaseBackend.LETTUCE  -> {
+            RedisLeaseBackend.LETTUCE -> {
                 val redis = RedisServer.Launcher.redis
                 val client = RedisClient.create(redis.url)
                 val connection = client.connect(StringCodec.UTF8)
@@ -156,7 +156,7 @@ class SuspendRedisLeaseExtensionBenchmark {
         renewalLockName = newLockName("suspend-renewal")
 
         when (redisMode.backend) {
-            RedisLeaseBackend.LETTUCE  -> {
+            RedisLeaseBackend.LETTUCE -> {
                 val redis = RedisServer.Launcher.redis
                 val client = RedisClient.create(redis.url)
                 val connection = client.connect(StringCodec.UTF8)

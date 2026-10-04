@@ -25,17 +25,17 @@ internal object ExposedJdbcBackendErrorClassifier: BackendErrorClassifier {
     private const val SQL_STATE_SERIALIZATION_FAILURE = "40001"
 
     override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {
-        is SQLTransientException   -> BackendErrorKind.TRANSIENT
+        is SQLTransientException -> BackendErrorKind.TRANSIENT
         is SQLRecoverableException -> BackendErrorKind.TRANSIENT
         is SQLNonTransientException -> BackendErrorKind.NON_TRANSIENT
-        is SQLException            -> classifyBySqlState(cause.sqlState)  // ExposedSQLException 도 SQLException 상속
-        else                       -> null
+        is SQLException -> classifyBySqlState(cause.sqlState)  // ExposedSQLException 도 SQLException 상속
+        else -> null
     }
 
     private fun classifyBySqlState(sqlState: String?): BackendErrorKind = when {
-        sqlState.isNullOrBlank()                    -> BackendErrorKind.NON_TRANSIENT
+        sqlState.isNullOrBlank() -> BackendErrorKind.NON_TRANSIENT
         sqlState.startsWith(SQL_STATE_CONNECTION_PREFIX) -> BackendErrorKind.TRANSIENT
         sqlState == SQL_STATE_SERIALIZATION_FAILURE -> BackendErrorKind.TRANSIENT
-        else                                        -> BackendErrorKind.NON_TRANSIENT
+        else -> BackendErrorKind.NON_TRANSIENT
     }
 }

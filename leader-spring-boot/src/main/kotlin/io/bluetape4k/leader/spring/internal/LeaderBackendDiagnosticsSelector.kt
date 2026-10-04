@@ -15,7 +15,7 @@ internal class LeaderBackendDiagnosticsSelector(
         return when (val state = selectedState.state) {
             is LeaderBackendDiagnosticsProvider -> state
             is LeaderBackendDiagnosticsAware -> state.backendDiagnosticsProvider
-            else                             -> null
+            else -> null
         }
     }
 }

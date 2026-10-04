@@ -285,13 +285,13 @@ return 0
                 }
             }.thenCompose { result ->
                 when {
-                    !result.isNullOrEmpty()     -> completableFutureOf(result)
+                    !result.isNullOrEmpty() -> completableFutureOf(result)
                     deadline.hasTimeRemaining() -> {
                         val delayMillis = deadline.remainingMillisForDelay(SPIN_DELAY_MS)
                         val delayed = CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS)
                         CompletableFuture.runAsync({}, delayed).thenCompose { attempt() }
                     }
-                    else                        -> {
+                    else -> {
                         // deadline 도달 시점에 마지막 error 가 있으면 backend outage 로 간주하여 surface.
                         // contention (script 정상 실행 + 빈 문자열 반환) 만 null 로 반환.
                         val terminalError = lastError.get()

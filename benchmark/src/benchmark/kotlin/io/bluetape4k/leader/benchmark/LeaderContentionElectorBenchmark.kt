@@ -2,7 +2,6 @@ package io.bluetape4k.leader.benchmark
 
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.await
-import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
@@ -164,7 +163,7 @@ class BlockingLeaderContentionElectorBenchmark {
 
     private fun createElectorFactory(suffix: String): BlockingElectorFactory =
         when (backend) {
-            "lettuce"   -> {
+            "lettuce" -> {
                 val redis = RedisServer.Launcher.redis
                 val client = RedisClient.create(redis.url)
                 val connection = client.connect(StringCodec.UTF8)
@@ -172,7 +171,7 @@ class BlockingLeaderContentionElectorBenchmark {
                 lettuceConnection = connection
                 BlockingElectorFactory { options -> LettuceLeaderElector(connection, options) }
             }
-            "redisson"  -> {
+            "redisson" -> {
                 val redis = RedisServer.Launcher.redis
                 val client = Redisson.create(
                     Config().apply {
@@ -197,7 +196,7 @@ class BlockingLeaderContentionElectorBenchmark {
                     )
                 }
             }
-            "mongo"     -> {
+            "mongo" -> {
                 val db = MongoDBServer.Launcher.getClient().getDatabase("leader_contention_benchmark")
                 val collection = db.getCollection(MongoLock.LOCK_COLLECTION_NAME)
                 BlockingElectorFactory { options ->
@@ -217,7 +216,7 @@ class BlockingLeaderContentionElectorBenchmark {
                 curator = client
                 BlockingElectorFactory { options -> ZooKeeperLeaderElector(client, options = options) }
             }
-            else        -> error("Unsupported backend: $backend")
+            else -> error("Unsupported backend: $backend")
         }
 
     private fun holdBlockingLock(lockName: String): BlockingHolder {
@@ -424,7 +423,7 @@ class SuspendLeaderContentionElectorBenchmark {
 
     private suspend fun createElectorFactory(suffix: String): SuspendElectorFactory =
         when (backend) {
-            "lettuce"   -> {
+            "lettuce" -> {
                 val redis = RedisServer.Launcher.redis
                 val client = RedisClient.create(redis.url)
                 val connection = client.connect(StringCodec.UTF8)
@@ -432,7 +431,7 @@ class SuspendLeaderContentionElectorBenchmark {
                 lettuceConnection = connection
                 SuspendElectorFactory { options -> LettuceSuspendLeaderElector(connection, options) }
             }
-            "redisson"  -> {
+            "redisson" -> {
                 val redis = RedisServer.Launcher.redis
                 val client = Redisson.create(
                     Config().apply {
@@ -458,7 +457,7 @@ class SuspendLeaderContentionElectorBenchmark {
                     )
                 }
             }
-            "mongo"     -> {
+            "mongo" -> {
                 val db = MongoDBServer.Launcher.getCoroutineClient().getDatabase("leader_contention_benchmark")
                 val collection = db.getCollection<Document>(MongoLock.LOCK_COLLECTION_NAME)
                 SuspendElectorFactory { options ->
@@ -478,7 +477,7 @@ class SuspendLeaderContentionElectorBenchmark {
                 curator = client
                 SuspendElectorFactory { options -> ZooKeeperSuspendLeaderElector(client, options = options) }
             }
-            else        -> error("Unsupported backend: $backend")
+            else -> error("Unsupported backend: $backend")
         }
 
     private fun holdSuspendLock(lockName: String): SuspendHolder {

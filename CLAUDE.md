@@ -1,6 +1,6 @@
 # CLAUDE.md — bluetape4k-leader
 
-분산 리더 선출 라이브러리. blocking/async/coroutine/virtual-thread API, Redis(Lettuce·Redisson) 백엔드.
+분산 리더 선출 라이브러리. blocking/async/coroutine/virtual-thread API, Redis (Lettuce·Redisson) 백엔드.
 
 - **Group**: `io.github.bluetape4k.leader` · **Publishing**: Maven Central (NMCP)
 
@@ -40,7 +40,7 @@ buildSrc/                # Versions, plugins, dependency catalog
 
 ### `runIfLeader()` 반환값
 
-**절대 throw 하지 않음**. 리더 선출 실패(lock 미획득) 시 `null` 반환. ShedLock 의 skip-on-contention 동작과 동일.
+**절대 throw 하지 않음**. 리더 선출 실패 (lock 미획득) 시 `null` 반환. ShedLock 의 skip-on-contention 동작과 동일.
 
 ```kotlin
 val result = leaderElection.runIfLeader("job-lock") { doWork() }
@@ -49,14 +49,14 @@ val result = leaderElection.runIfLeader("job-lock") { doWork() }
 
 ### Interfaces
 
-| Interface | Execution model |
-|---|---|
-| `LeaderElector` | Blocking (synchronous) |
-| `AsyncLeaderElector` | `CompletableFuture`-based async |
-| `VirtualThreadLeaderElector` | Virtual thread per election |
-| `SuspendLeaderElector` | Kotlin coroutine suspend |
-| `LeaderGroupElector` | Blocking, semaphore-based multi-leader |
-| `SuspendLeaderGroupElector` | Coroutine, semaphore-based multi-leader |
+| Interface                    | Execution model                         |
+|------------------------------|-----------------------------------------|
+| `LeaderElector`              | Blocking (synchronous)                  |
+| `AsyncLeaderElector`         | `CompletableFuture`-based async         |
+| `VirtualThreadLeaderElector` | Virtual thread per election             |
+| `SuspendLeaderElector`       | Kotlin coroutine suspend                |
+| `LeaderGroupElector`         | Blocking, semaphore-based multi-leader  |
+| `SuspendLeaderGroupElector`  | Coroutine, semaphore-based multi-leader |
 
 ### Options
 
@@ -70,14 +70,14 @@ LeaderGroupElectionOptions(maxLeaders = 3, waitTime = 5.seconds, leaseTime = 60.
 
 `bluetape4k-leader-redis-lettuce` / `bluetape4k-leader-redis-redisson` 의 group elector 는 모두 **slot-token TTL 모델** 로 동작.
 
-| 항목 | Lettuce (`LettuceSlotTokenGroup`) | Redisson (`RPermitExpirableSemaphore`) |
-|---|---|---|
-| Key | `lg:{lockName}` ZSET | `lg:{lockName}` permit semaphore |
-| Slot 식별자 | `Base58 token (8자)` | Redisson 발급 `permitId` |
-| 시간 기준 | Lua `redis.call('TIME')` (server-side) | Redisson 내부 |
-| 초기화 | 첫 acquire 시 `ZREMRANGEBYSCORE` 만료 정리 | 첫 access 시 `trySetPermits(maxLeaders)` 멱등 호출 |
-| `minLeaseTime > 0` | RELEASE 시 `ZADD XX` 로 score 갱신 | `updateLeaseTime` / `updateLeaseTimeAsync` |
-| Crash recovery | `leaseTime` 만료 후 다음 acquire 시 자동 회수 | `leaseTime` 만료 후 Redisson 자동 회수 |
+| 항목               | Lettuce (`LettuceSlotTokenGroup`)             | Redisson (`RPermitExpirableSemaphore`)             |
+|--------------------|-----------------------------------------------|----------------------------------------------------|
+| Key                | `lg:{lockName}` ZSET                          | `lg:{lockName}` permit semaphore                   |
+| Slot 식별자        | `Base58 token (8자)`                          | Redisson 발급 `permitId`                           |
+| 시간 기준          | Lua `redis.call('TIME')` (server-side)        | Redisson 내부                                      |
+| 초기화             | 첫 acquire 시 `ZREMRANGEBYSCORE` 만료 정리    | 첫 access 시 `trySetPermits(maxLeaders)` 멱등 호출 |
+| `minLeaseTime > 0` | RELEASE 시 `ZADD XX` 로 score 갱신            | `updateLeaseTime` / `updateLeaseTimeAsync`         |
+| Crash recovery     | `leaseTime` 만료 후 다음 acquire 시 자동 회수 | `leaseTime` 만료 후 Redisson 자동 회수             |
 
 **핵심 계약**:
 
@@ -95,13 +95,10 @@ LeaderGroupElectionOptions(maxLeaders = 3, waitTime = 5.seconds, leaseTime = 60.
 - CTW → `open` 불필요 (final Kotlin 메서드에도 동작)
 - `@EnableAspectJAutoProxy` **사용 금지** — CTW가 컴파일 타임에 weaving 처리
 - `private` 메서드는 인터셉트 안 됨 — startup validation에서 warn/fail
-- `@LeaderElection` 은 `T?`, `suspend T?`, `Mono<T>`, `Flux<T>`,
-  Kotlin `Flow<T>` 반환을 지원
-- `Flux` / `Flow` 는 긴 stream 에 `autoExtend = true`, lease 안에 끝나는
-  stream 에만 `streamBounded = true`
+- `@LeaderElection` 은 `T?`, `suspend T?`, `Mono<T>`, `Flux<T>`, Kotlin `Flow<T>` 반환을 지원
+- `Flux` / `Flow` 는 긴 stream 에 `autoExtend = true`, lease 안에 끝나는 stream 에만 `streamBounded = true`
 - `@LeaderGroupElection` 은 `T?`, `suspend T?`, `Mono<T>` 만 지원. group
-  `Flux` / `Flow` 는 slot 별 stream lease extension 의미가 없으므로
-  validator/subscription 시점에 거부
+  `Flux` / `Flow` 는 slot 별 stream lease extension 의미가 없으므로 validator/subscription 시점에 거부
 - `CompletableFuture` / `Future` / `ListenableFuture` / `kotlinx.coroutines.Deferred` 반환 타입 차단 (#79 — lock release 가 future 완료 전 발생 → split-brain 위험)
 
 ### SpEL name 규칙

@@ -304,7 +304,7 @@ def is_intentionally_ignored(block: str) -> str | None:
     incompatible_members = [
         line.lstrip() for line in block.splitlines()[1:]
         if line.lstrip().startswith(("---!", "***!"))
-        and CLASS_FILE_FORMAT_MARKER not in line
+           and CLASS_FILE_FORMAT_MARKER not in line
     ]
     if "REMOVED CLASS:" in header and name in LEGACY_INTERNAL_JVM_FACADES:
         return "legacy Kotlin-internal JVM facade"
@@ -314,17 +314,17 @@ def is_intentionally_ignored(block: str) -> str | None:
         if (descriptor := _member_descriptor(line)) is not None
     }
     if (
-        member_descriptors
-        and len(member_descriptors) == len(incompatible_members)
-        and name in KNOWN_REDIS_BRIDGE_METHODS
-        and member_descriptors <= KNOWN_REDIS_BRIDGE_METHODS[name]
+            member_descriptors
+            and len(member_descriptors) == len(incompatible_members)
+            and name in KNOWN_REDIS_BRIDGE_METHODS
+            and member_descriptors <= KNOWN_REDIS_BRIDGE_METHODS[name]
     ):
         return "known Redis JVM bridge descriptor"
     if (
-        member_descriptors
-        and len(member_descriptors) == len(incompatible_members)
-        and name in KNOWN_SYNTHETIC_ACCESSORS
-        and member_descriptors <= KNOWN_SYNTHETIC_ACCESSORS[name]
+            member_descriptors
+            and len(member_descriptors) == len(incompatible_members)
+            and name in KNOWN_SYNTHETIC_ACCESSORS
+            and member_descriptors <= KNOWN_SYNTHETIC_ACCESSORS[name]
     ):
         return "compiler-generated synthetic accessor"
     if not incompatible_members and has_class_file_format_change:
@@ -366,11 +366,11 @@ def main() -> int:
             f"https://repo.maven.apache.org/maven2/{REPOSITORY}/{maven_artifact}/{base_version}/{filename}",
         )
         current = (
-            current_artifact_root
-            / artifact
-            / "build"
-            / "libs"
-            / f"{maven_artifact}-{current_version}{suffix}.jar"
+                current_artifact_root
+                / artifact
+                / "build"
+                / "libs"
+                / f"{maven_artifact}-{current_version}{suffix}.jar"
         )
         if not current.is_file():
             print(f"Missing current artifact: {current}", file=sys.stderr)

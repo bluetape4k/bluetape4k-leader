@@ -11,32 +11,32 @@
 ## 7계층 결과
 
 1. 정확성: 통과
-   - 테스트 재작성은 부울 동등성 검사를 전용 bluetape4k 부울 일치자로 대체하면서 동일한 어설션을 유지합니다.
-   - 검토된 테스트 범위의 강제 풀림은 명시적인 `shouldNotBeNull()` 어설션으로 대체되었습니다.
+    - 테스트 재작성은 부울 동등성 검사를 전용 bluetape4k 부울 일치자로 대체하면서 동일한 어설션을 유지합니다.
+    - 검토된 테스트 범위의 강제 풀림은 명시적인 `shouldNotBeNull()` 어설션으로 대체되었습니다.
 
 2. API 및 계약 호환성: 통과
-   - 공개 API 서명이 변경되지 않았습니다.
-   - `ExtendOutcome`, `ElectionResult`, `Elimination` 및 `CandidateInfo`는 이미 `Serializable`를 구현하고 현재 스택 기준선에서 `serialVersionUID`를 정의합니다.
+    - 공개 API 서명이 변경되지 않았습니다.
+    - `ExtendOutcome`, `ElectionResult`, `Elimination` 및 `CandidateInfo`는 이미 `Serializable`를 구현하고 현재 스택 기준선에서 `serialVersionUID`를 정의합니다.
 
 3. 동시성 및 취소: PASS
-   - 프로덕션 동시성 동작이 변경되지 않았습니다.
-   - 어설션 정리 후 기존 코루틴 및 Spring AOP 테스트가 다시 실행되었습니다.
+    - 프로덕션 동시성 동작이 변경되지 않았습니다.
+    - 어설션 정리 후 기존 코루틴 및 Spring AOP 테스트가 다시 실행되었습니다.
 
 4. 백엔드 소유권 안전성: 통과
-   - 백엔드 잠금 소유권, 리스, 네임스페이스 또는 지속성 논리가 변경되지 않았습니다.
+    - 백엔드 잠금 소유권, 리스, 네임스페이스 또는 지속성 논리가 변경되지 않았습니다.
 
 5. 테스트: 합격
-   - 검토된 나머지 부울 동등 어설션을 `shouldBeTrue()` / `shouldBeFalse()`로 대체했습니다.
-   - Null이 아닌 값을 명시적으로 어설션하여 검토된 나머지 테스트 범위 Null이 아닌 어설션(`!!`)을 제거했습니다.
-   - `kotlin.test` 가져오기는 `leader-*` 및 예제 전체에 없습니다.
+    - 검토된 나머지 부울 동등 어설션을 `shouldBeTrue()` / `shouldBeFalse()`로 대체했습니다.
+    - Null이 아닌 값을 명시적으로 어설션하여 검토된 나머지 테스트 범위 Null이 아닌 어설션 (`!!`)을 제거했습니다.
+    - `kotlin.test` 가져오기는 `leader-*` 및 예제 전체에 없습니다.
 
 6. 보안 및 관찰 가능성: 통과
-   - 자격 증명, 토큰 또는 비밀 로깅이 변경되지 않습니다.
-   - 프로덕션 관찰 가능성 카디널리티 또는 로그 형식 동작이 변경되지 않았습니다.
+    - 자격 증명, 토큰 또는 비밀 로깅이 변경되지 않습니다.
+    - 프로덕션 관찰 가능성 카디널리티 또는 로그 형식 동작이 변경되지 않았습니다.
 
 7. 유지보수성: 합격
-   - 이제 어설션 스타일은 검토된 범위에서 bluetape4k 테스트 규칙을 따릅니다.
-   - AssertJ는 `AssertableApplicationContext`가 `AssertProvider`를 노출하므로 Spring Boot 테스트 클래스 경로 종속성으로만 유지됩니다. AssertJ 어설션 사용법이 남아 있지 않습니다.
+    - 이제 어설션 스타일은 검토된 범위에서 bluetape4k 테스트 규칙을 따릅니다.
+    - AssertJ는 `AssertableApplicationContext`가 `AssertProvider`를 노출하므로 Spring Boot 테스트 클래스 경로 종속성으로만 유지됩니다. AssertJ 어설션 사용법이 남아 있지 않습니다.
 
 ## 검증 증거
 

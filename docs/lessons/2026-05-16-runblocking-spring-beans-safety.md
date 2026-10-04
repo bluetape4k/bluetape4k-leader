@@ -4,7 +4,7 @@
 
 ## 근본 원인 조사
 
-2개의 Spring Boot 자동 구성 클래스에 걸쳐 4개의 `@Bean` 메서드는 `runBlocking { }`를 사용하여 일시 중지 생성자(스키마/TTL 인덱스 초기화)를 동기 Spring 빈 팩토리에 연결했습니다.
+2개의 Spring Boot 자동 구성 클래스에 걸쳐 4개의 `@Bean` 메서드는 `runBlocking { }`를 사용하여 일시 중지 생성자 (스키마/TTL 인덱스 초기화)를 동기 Spring 빈 팩토리에 연결했습니다.
 
 - `ExposedR2dbcLeaderConfiguration.exposedR2dbcSuspendLeaderElector`
 - `ExposedR2dbcLeaderConfiguration.exposedR2dbcSuspendLeaderGroupElector`
@@ -17,13 +17,14 @@
 
 `leader-mongodb/src/main` 및 `leader-exposed-r2dbc/src/main`의 `rg "synchronized|@Synchronized"`가 **0개 일치**를 반환했습니다.
 
-가상 스레드는 `synchronized` 블록 또는 `Object.wait()` 호출 내부에서만 캐리어 스레드를 고정합니다. 코루틴 본문이나 정지 생성자에서 접근할 수 있는 코드는 모두 `synchronized`를 사용하지 않으므로 캐리어는 코루틴이 IO에서 정지되는 동안 다른 가상 스레드를 자유롭게 마운트 해제하고 제공할 수 있습니다. **고정 위험**이 없습니다.
+가상 스레드는 `synchronized` 블록 또는 `Object.wait()` 호출 내부에서만 캐리어 스레드를 고정합니다. 코루틴 본문이나 정지 생성자에서 접근할 수 있는 코드는 모두 `synchronized`를 사용하지 않으므로 캐리어는 코루틴이 IO에서 정지되는 동안 다른 가상 스레드를 자유롭게 마운트 해제하고 제공할 수 있습니다.
+**고정 위험**이 없습니다.
 
 ## 결론
 
 기존 `runBlocking` 사용법은 정확하고 의도적입니다.
 
-1. Spring Bean 초기화는 플랫폼 스레드(또는 캐리어 고정 코드가 없는 가상 스레드)에서 실행됩니다. 어느 쪽이든 `runBlocking`는 안전합니다.
+1. Spring Bean 초기화는 플랫폼 스레드 (또는 캐리어 고정 코드가 없는 가상 스레드)에서 실행됩니다. 어느 쪽이든 `runBlocking`는 안전합니다.
 2. 블록은 시작 시 **한 번** 호출됩니다. 정상 상태 처리량에는 영향을 미치지 않습니다.
 3. 이는 CLAUDE.md 허용과 일치합니다: _"엄격하게 제어되는 지연 초기화를 제외하고 프로덕션 코드에서 `runBlocking`를 사용하지 마십시오."_
 

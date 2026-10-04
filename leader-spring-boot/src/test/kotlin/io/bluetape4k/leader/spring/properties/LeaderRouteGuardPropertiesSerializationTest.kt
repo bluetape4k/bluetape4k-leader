@@ -80,7 +80,7 @@ class LeaderRouteGuardPropertiesSerializationTest {
             rejectionStatus = LeaderRouteRejectionStatus.LOCKED,
         )
         log.debug { "legacyShape=$legacyShape" }
-        
+
         val redirectField = LeaderRouteGuardProperties::class.java.getDeclaredField("redirect")
         redirectField.isAccessible = true
         redirectField.set(legacyShape, null)

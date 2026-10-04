@@ -14,7 +14,7 @@ import org.junit.jupiter.api.TestInstance
 class EtcdLockExtenderContractTest: AbstractSyncLockExtenderContractTest() {
 
     companion object: KLogging()
-    
+
     override val elector: LeaderElector =
         EtcdLeaderElector(
             EtcdContractSupport.client,

@@ -7,7 +7,7 @@ lease-extension observer는 process-global 등록 모델이었고 Spring 자동 
 ## 결정
 
 - core registration이 opaque `LeaderLeaseExtensionObservationScope` capability를 소유하고 global bucket과 scope identity bucket을 분리한다.
-- producer는 event를 만들기 전에 현재 scope를 한 번 캡처하고 global bucket과 일치 bucket만 O(1)로 조회한다.
+- producer는 event를 만들기 전에 현재 scope를 한 번 캡처하고 global bucket과 일치 bucket만 O (1)로 조회한다.
 - Spring manager는 `ObservationRegistry` object identity별 canonical scope를 ref-count로 공유한다. 같은 registry를 쓰는 parent/child context는 한 scope를 공유하고 서로 다른 registry는 분리한다.
 - AOP가 sync, suspend, `Mono`, `Flux`, Kotlin `Flow`, group 지원 경계에 scope를 설치한다. watchdog와 virtual/coroutine adapter는 실행 시작 시 scope를 캡처해 비동기 경계 너머로 전달한다.
 - attribution이 없는 direct elector call과 Reactor operator 내부의 direct extension은 자동 observer에 귀속시키지 않는다. 명시적인 global observer는 기존처럼 event를 받는다.

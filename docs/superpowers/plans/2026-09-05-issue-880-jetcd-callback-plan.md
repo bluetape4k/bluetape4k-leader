@@ -1,12 +1,14 @@
 # Issue #880 jetcd callback·watch·lease 회귀 검증 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic
+workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 중앙 catalog의 jetcd `0.8.7` 전환을 원자적으로 적용하고, callback 내부 blocking 호출·ordered watch delivery·watch close/restart·publisher event·단일/group async 취소 정리 계약을 결정적 테스트와 최소 내부 수정으로 보장한다.
 
 **Architecture:** raw jetcd watch 테스트는 `WatchOption.withCreateNotify(true)`의 created response를 준비 완료 barrier로 사용하고 blocking callback, ordered delivery, close/restart를 독립 시나리오로 분리한다. publisher 테스트는 `CoroutineStart.UNDISPATCHED`와 latch/future barrier로 collector 및 경합 시작을 고정한다. Etcd 단일/group async adapter는 기존 `LeaderFutureBridge`와 `WAITING`/`STARTED`/`CLEANUP` 원자 lifecycle 패턴을 재사용해 반환 future 취소를 실제 action과 lease cleanup에 전달한다. public API, key layout, client ownership, lease 정책은 바꾸지 않는다.
 
-**Tech Stack:** Kotlin/JVM, jetcd `0.8.7`, JUnit 5, kotlinx-coroutines, bluetape assertions, Testcontainers etcd, Gradle dependency locking/version catalog, detekt, binary API checker, GitHub Actions.
+**Tech
+Stack:** Kotlin/JVM, jetcd `0.8.7`, JUnit 5, kotlinx-coroutines, bluetape assertions, Testcontainers etcd, Gradle dependency locking/version catalog, detekt, binary API checker, GitHub Actions.
 
 ---
 
@@ -34,37 +36,37 @@
 
 ## 1. 파일 소유와 변경 지도
 
-| 경로 | 작업 | 책임 |
-|---|---|---|
-| `settings.gradle.kts` | 수정 | 기본 중앙 catalog ref를 `9698c9d...`로 전환 |
-| `.github/workflows/ci.yml` | 수정 | CI catalog ref를 기본 ref와 동일하게 전환 |
-| `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/internal/JetcdWatchCallbackIntegrationTest.kt` | 신규 | blocking callback, ordered delivery, close/restart raw jetcd 검증 |
-| `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderElectionEventPublisherIntegrationTest.kt` | 수정 | collector 준비와 contender 경합에서 고정 delay 제거, close 계약 강화 |
-| `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/EtcdAsyncLifecycleTest.kt` | 신규 | 단일/group action 취소, cleanup, 재획득, executor 거부 회귀 |
-| `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/EtcdAsyncLeaderElectorIntegrationTest.kt` | 신규 | 실제 etcd에서 단일/group async 취소와 재획득 검증 |
-| `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdVirtualThreadLeaderElectorContractTest.kt` | 수정 | virtual-thread 취소 뒤 실제 etcd 재획득 검증 |
-| `leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderElector.kt` | 수정 | 단일 async cancellation relay와 원자 cleanup |
-| `leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderGroupElector.kt` | 수정 | group async cancellation relay와 원자 cleanup |
-| `docs/review/2026-09-05-issue-880-jetcd-callback-review.md` | 신규 | 7-Tier exact-diff 검토와 P0/P1 수렴 증거 |
-| `docs/lessons/2026-09-05-issue-880-jetcd-callback.md` | 신규 | jetcd watch readiness와 async lease cleanup 재사용 교훈 |
-| `.flow-inputs/checklist.md` | 로컬 갱신 | Type A gate 명령·count·SHA 증거, commit 제외 |
+| 경로                                                                                                           | 작업      | 책임                                                                 |
+|----------------------------------------------------------------------------------------------------------------|-----------|----------------------------------------------------------------------|
+| `settings.gradle.kts`                                                                                          | 수정      | 기본 중앙 catalog ref를 `9698c9d...`로 전환                          |
+| `.github/workflows/ci.yml`                                                                                     | 수정      | CI catalog ref를 기본 ref와 동일하게 전환                            |
+| `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/internal/JetcdWatchCallbackIntegrationTest.kt`          | 신규      | blocking callback, ordered delivery, close/restart raw jetcd 검증    |
+| `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderElectionEventPublisherIntegrationTest.kt`     | 수정      | collector 준비와 contender 경합에서 고정 delay 제거, close 계약 강화 |
+| `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/EtcdAsyncLifecycleTest.kt`                              | 신규      | 단일/group action 취소, cleanup, 재획득, executor 거부 회귀          |
+| `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/EtcdAsyncLeaderElectorIntegrationTest.kt`               | 신규      | 실제 etcd에서 단일/group async 취소와 재획득 검증                    |
+| `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdVirtualThreadLeaderElectorContractTest.kt` | 수정      | virtual-thread 취소 뒤 실제 etcd 재획득 검증                         |
+| `leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderElector.kt`                                   | 수정      | 단일 async cancellation relay와 원자 cleanup                         |
+| `leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderGroupElector.kt`                              | 수정      | group async cancellation relay와 원자 cleanup                        |
+| `docs/review/2026-09-05-issue-880-jetcd-callback-review.md`                                                    | 신규      | 7-Tier exact-diff 검토와 P0/P1 수렴 증거                             |
+| `docs/lessons/2026-09-05-issue-880-jetcd-callback.md`                                                          | 신규      | jetcd watch readiness와 async lease cleanup 재사용 교훈              |
+| `.flow-inputs/checklist.md`                                                                                    | 로컬 갱신 | Type A gate 명령·count·SHA 증거, commit 제외                         |
 
 모든 production/test 파일은 inline main lane이 소유한다. 독립 검토 lane은 read-only이며, lane이 실패하거나 결과를 내지 못하면 사용자 지침대로 즉시 inline 검토로 대체한다.
 
 ## 2. Acceptance traceability
 
-| Issue/설계 acceptance | 구현 작업 | 완료 증거 |
-|---|---|---|
-| `jetcd-core:0.8.7`과 중앙 gRPC/Netty/Vert.x graph | Task 1, 2 | 전·후 `dependencyInsight`, pin equality |
-| callback 내부 blocking KV 호출이 deadlock 없이 완료 | Task 1, 2 | old ref RED, new ref GREEN인 targeted integration test |
-| 느린 첫 callback 뒤 PUT/DELETE 순서 보존 | Task 1, 2 | ordered callback list와 bounded completion |
-| watcher close 뒤 전달 중지, 새 watcher 재개 | Task 1, 2 | closed listener count 고정 + restarted listener event |
-| publisher의 elected/revoked 의미와 queued contender 억제 | Task 3 | sleep 없는 publisher integration suite |
-| sync/suspend/virtual-thread 및 단일/group lease 회귀 없음 | Task 5, 6 | 기존 contract/integration tests와 module full suite |
-| 반환 future 취소가 실제 action으로 전파되고 lease 정리 | Task 4, 5 | single/group action `isCancelled`, unlock/revoke, 동일 lock/slot 재획득 |
-| executor 거부 시 원래 예외 보존과 lease 정리 | Task 4, 5 | `RejectedExecutionException`, unlock/revoke, 재획득 |
-| 첫 실행 안정성과 광역 catalog 호환성 | Task 6 | retry 없는 module test, full build, detekt, ABI |
-| P0/P1 0 및 exact-head CI | Task 7 | 7-Tier artifact, PR checks/threads/mergeability read-back |
+| Issue/설계 acceptance                                     | 구현 작업 | 완료 증거                                                               |
+|-----------------------------------------------------------|-----------|-------------------------------------------------------------------------|
+| `jetcd-core:0.8.7`과 중앙 gRPC/Netty/Vert.x graph         | Task 1, 2 | 전·후 `dependencyInsight`, pin equality                                 |
+| callback 내부 blocking KV 호출이 deadlock 없이 완료       | Task 1, 2 | old ref RED, new ref GREEN인 targeted integration test                  |
+| 느린 첫 callback 뒤 PUT/DELETE 순서 보존                  | Task 1, 2 | ordered callback list와 bounded completion                              |
+| watcher close 뒤 전달 중지, 새 watcher 재개               | Task 1, 2 | closed listener count 고정 + restarted listener event                   |
+| publisher의 elected/revoked 의미와 queued contender 억제  | Task 3    | sleep 없는 publisher integration suite                                  |
+| sync/suspend/virtual-thread 및 단일/group lease 회귀 없음 | Task 5, 6 | 기존 contract/integration tests와 module full suite                     |
+| 반환 future 취소가 실제 action으로 전파되고 lease 정리    | Task 4, 5 | single/group action `isCancelled`, unlock/revoke, 동일 lock/slot 재획득 |
+| executor 거부 시 원래 예외 보존과 lease 정리              | Task 4, 5 | `RejectedExecutionException`, unlock/revoke, 재획득                     |
+| 첫 실행 안정성과 광역 catalog 호환성                      | Task 6    | retry 없는 module test, full build, detekt, ABI                         |
+| P0/P1 0 및 exact-head CI                                  | Task 7    | 7-Tier artifact, PR checks/threads/mergeability read-back               |
 
 ## 3. Task 1 — 기준 graph와 jetcd callback RED 고정
 
@@ -267,17 +269,17 @@
 
 독립 test-engineering lane은 90초 bounded wait 안에 결과를 반환하지 않아 중단했다. 사용자 standing rule에 따라 같은 범위를 inline으로 검토했고, 설계 검토에서 사용한 여섯 관점과 test-engineering·spec traceability를 함께 적용했다.
 
-| 우선순위 | 관점 | 발견 | 계획 반영 |
-|---|---|---|---|
-| P1 | Stability/Test | 단순 call-count fake에서는 cleanup 없이도 후속 acquisition이 성공해 재획득 assertion이 무효가 될 수 있음 | fake가 active ownership을 유지하고 unlock/revoke 전 재획득을 막도록 Task 4를 보강 |
-| P1 | Test/Operator | always-reject executor는 lease 획득 뒤 제출 거부를 재현하지 못함 | 첫 acquisition task는 받고 두 번째 제출만 거부하는 scripted executor를 명시 |
-| P1 | Developer/API | fake만으로 direct async와 virtual-thread 실제 etcd 재획득을 증명할 수 없음 | `EtcdAsyncLeaderElectorIntegrationTest`와 virtual cancellation contract를 파일 지도·Task 5에 추가 |
-| P1 | Developer/API | 다른 backend의 async pattern을 그대로 복사하면 Etcd의 기존 AOP scope/auto-extend 의미가 축소될 수 있음 | `extendActiveLock()` supplier 의미와 watchdog cleanup을 먼저 테스트하고 불명확하면 설계로 복귀 |
-| P2 | Stability | close 이후 불발 검증이 추상적인 polling이면 구현마다 다른 wait가 생김 | `first()` future의 bounded `TimeoutException`과 명시적 collector cancel로 고정 |
-| P2 | Performance | callback block을 순서 테스트와 섞으면 원인과 suite 시간이 불명확함 | blocking, ordered delivery, close/restart를 독립 test로 유지하고 한 container invocation에서 실행 |
-| P2 | Security | jetcd channel 전환과 중앙 catalog 광역 변경이 TLS/auth 또는 transitive downgrade를 숨길 수 있음 | client 설정 불변, 네 graph의 before/after selection reason, full build를 요구 |
-| P2 | Operator/Ops | local/CI pin 불일치와 retry-only green이 rollout 결함을 숨길 수 있음 | 두 pin 원자 변경·rollback, retry 없는 local first-run, exact-head CI read-back을 요구 |
-| P3 | User/caller | public 계약 불변인데 README/manual을 바꾸면 검증 범위를 사용자 기능처럼 보이게 함 | README/KDoc/manual은 근거를 적어 `N/A` 유지 |
+| 우선순위 | 관점           | 발견                                                                                                     | 계획 반영                                                                                         |
+|----------|----------------|----------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| P1       | Stability/Test | 단순 call-count fake에서는 cleanup 없이도 후속 acquisition이 성공해 재획득 assertion이 무효가 될 수 있음 | fake가 active ownership을 유지하고 unlock/revoke 전 재획득을 막도록 Task 4를 보강                 |
+| P1       | Test/Operator  | always-reject executor는 lease 획득 뒤 제출 거부를 재현하지 못함                                         | 첫 acquisition task는 받고 두 번째 제출만 거부하는 scripted executor를 명시                       |
+| P1       | Developer/API  | fake만으로 direct async와 virtual-thread 실제 etcd 재획득을 증명할 수 없음                               | `EtcdAsyncLeaderElectorIntegrationTest`와 virtual cancellation contract를 파일 지도·Task 5에 추가 |
+| P1       | Developer/API  | 다른 backend의 async pattern을 그대로 복사하면 Etcd의 기존 AOP scope/auto-extend 의미가 축소될 수 있음   | `extendActiveLock()` supplier 의미와 watchdog cleanup을 먼저 테스트하고 불명확하면 설계로 복귀    |
+| P2       | Stability      | close 이후 불발 검증이 추상적인 polling이면 구현마다 다른 wait가 생김                                    | `first()` future의 bounded `TimeoutException`과 명시적 collector cancel로 고정                    |
+| P2       | Performance    | callback block을 순서 테스트와 섞으면 원인과 suite 시간이 불명확함                                       | blocking, ordered delivery, close/restart를 독립 test로 유지하고 한 container invocation에서 실행 |
+| P2       | Security       | jetcd channel 전환과 중앙 catalog 광역 변경이 TLS/auth 또는 transitive downgrade를 숨길 수 있음          | client 설정 불변, 네 graph의 before/after selection reason, full build를 요구                     |
+| P2       | Operator/Ops   | local/CI pin 불일치와 retry-only green이 rollout 결함을 숨길 수 있음                                     | 두 pin 원자 변경·rollback, retry 없는 local first-run, exact-head CI read-back을 요구             |
+| P3       | User/caller    | public 계약 불변인데 README/manual을 바꾸면 검증 범위를 사용자 기능처럼 보이게 함                        | README/KDoc/manual은 근거를 적어 `N/A` 유지                                                       |
 
 통합 뒤 남은 계획 finding은 `P0=0`, `P1=0`이다. P2는 Task 1–7의 실행 검증 항목으로 추적한다.
 

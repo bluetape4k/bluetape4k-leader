@@ -1,12 +1,14 @@
 # Scheduled Task Property 기반 Leader Policy Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic
+workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 기존 `@Scheduled` method을 YAML의 exact `beanName#methodName` selector로 선택해 기존 Spring scheduler와 `LeaderElectionAspect` 경로를 재사용하는 property 기반 leader policy를 추가한다.
 
 **Architecture:** `LeaderScheduledPolicyProperties`가 별도 configuration model을 제공하고, `LeaderScheduledPolicyBeanPostProcessor`가 startup에 `@Scheduled` method와 policy를 exact-match해 immutable metadata registry를 만든다. `LeaderElectionAspect`는 명시적 annotation을 먼저 해석하고, annotation이 없을 때만 registry policy를 `AdviceMetadata`로 변환하며, 두 metadata가 없으면 즉시 `pjp.proceed()`한다. Spring `ScheduledAnnotationBeanPostProcessor`, `ScheduledTaskRegistrar`, trigger, subscription, Observation lifecycle은 변경하지 않는다.
 
-**Tech Stack:** Kotlin/JVM, Spring Boot 4, Spring Framework 7.0.8, AspectJ compile-time weaving, Spring `ApplicationContextRunner`, JUnit 5, MockK, Reactor, Kotlin Coroutines, Micrometer Observation.
+**Tech
+Stack:** Kotlin/JVM, Spring Boot 4, Spring Framework 7.0.8, AspectJ compile-time weaving, Spring `ApplicationContextRunner`, JUnit 5, MockK, Reactor, Kotlin Coroutines, Micrometer Observation.
 
 ---
 
@@ -24,56 +26,56 @@
 ### 생성 파일
 
 - `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyProperties.kt`
-  - `bluetape4k.leader.scheduling` binding model과 nested `Policy`를 정의한다.
+    - `bluetape4k.leader.scheduling` binding model과 nested `Policy`를 정의한다.
 - `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyRegistry.kt`
-  - startup에 등록된 target/method/policy binding을 immutable lookup으로 제공한다. scheduler task나 trigger를 만들지 않는다.
+    - startup에 등록된 target/method/policy binding을 immutable lookup으로 제공한다. scheduler task나 trigger를 만들지 않는다.
 - `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyBeanPostProcessor.kt`
-  - user bean의 merged `@Scheduled` method를 수집하고 policy validation, exact selector match, unmatched selector fail-fast를 담당한다.
+    - user bean의 merged `@Scheduled` method를 수집하고 policy validation, exact selector match, unmatched selector fail-fast를 담당한다.
 - `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyAutoConfiguration.kt`
-  - enabled 조건, properties, registry, BPP를 등록하고 `LeaderAopAutoConfiguration`보다 먼저 적용한다.
+    - enabled 조건, properties, registry, BPP를 등록하고 `LeaderAopAutoConfiguration`보다 먼저 적용한다.
 - `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/validator/LeaderMethodValidationSupport.kt`
-  - annotation policy와 property policy가 공유하는 final/private, Future, stream, min-lease, SpEL validation을 분리한다.
+    - annotation policy와 property policy가 공유하는 final/private, Future, stream, min-lease, SpEL validation을 분리한다.
 - `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyPropertiesTest.kt`
-  - defaults와 YAML-style binding 계약을 검증한다.
+    - defaults와 YAML-style binding 계약을 검증한다.
 - `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyRegistryTest.kt`
-  - exact selector, explicit annotation skip, duplicate/overload/unmatched validation과 target identity lookup을 검증한다.
+    - exact selector, explicit annotation skip, duplicate/overload/unmatched validation과 target identity lookup을 검증한다.
 - `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyBeanPostProcessorTest.kt`
-  - policy BPP의 scheduled scan, explicit precedence, startup failure, ordering을 검증한다.
+    - policy BPP의 scheduled scan, explicit precedence, startup failure, ordering을 검증한다.
 - `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyAutoConfigurationTest.kt`
-  - ApplicationContextRunner 조건, startup failure, auto-configuration ordering을 검증한다.
+    - ApplicationContextRunner 조건, startup failure, auto-configuration ordering을 검증한다.
 - `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspectScheduledPolicyTest.kt`
-  - plain `@Scheduled` bypass, property precedence, sync/suspend/Mono/Flux/Flow metadata path를 검증한다.
+    - plain `@Scheduled` bypass, property precedence, sync/suspend/Mono/Flux/Flow metadata path를 검증한다.
 - `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledTaskLifecycleTest.kt`
-  - Spring task cardinality, scheduler close, Observation 중복 등록 방지를 검증한다.
+    - Spring task cardinality, scheduler close, Observation 중복 등록 방지를 검증한다.
 
 ### 수정 파일
 
 - `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspect.kt`
-  - plain `@Scheduled` pointcut, optional registry, explicit/property/bypass resolution, target-aware metadata cache를 추가한다.
+    - plain `@Scheduled` pointcut, optional registry, explicit/property/bypass resolution, target-aware metadata cache를 추가한다.
 - `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/autoconfigure/LeaderAopAutoConfiguration.kt`
-  - optional `LeaderScheduledPolicyRegistry`를 aspect에 주입한다.
+    - optional `LeaderScheduledPolicyRegistry`를 aspect에 주입한다.
 - `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/validator/LeaderAnnotationValidatorBeanPostProcessor.kt`
-  - 공통 method validation support를 사용하도록 바꾼다.
+    - 공통 method validation support를 사용하도록 바꾼다.
 - `leader-spring-boot/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
-  - `LeaderScheduledPolicyAutoConfiguration`을 factory 이후, AOP 이전에 등록한다.
+    - `LeaderScheduledPolicyAutoConfiguration`을 factory 이후, AOP 이전에 등록한다.
 - `leader-spring-boot/src/main/resources/META-INF/spring/additional-spring-configuration-metadata.json`
-  - scheduling group와 policy property metadata를 추가한다.
+    - scheduling group와 policy property metadata를 추가한다.
 - `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metadata/LeaderConfigurationMetadataTest.kt`
-  - 새 enabled/default property metadata를 검증한다.
+    - 새 enabled/default property metadata를 검증한다.
 - `leader-spring-boot/README.md`, `leader-spring-boot/README.ko.md`
-  - YAML-only selector 예시, precedence, stable bean-name 선택, rollback과 제한 사항을 양쪽 locale에 추가한다.
+    - YAML-only selector 예시, precedence, stable bean-name 선택, rollback과 제한 사항을 양쪽 locale에 추가한다.
 
 공개 `LeaderProperties`의 constructor/copy ABI, `@LeaderScheduled` contract, 새 module/dependency, versioned manual은 변경하지 않는다.
 
 ## Plan Writer DoD (SPW-01..SPW-05)
 
-| Check | Status | Evidence |
-| --- | --- | --- |
-| SPW-01 scope, audience, source ledger, identifiers, unknowns | PASS | 승인된 Issue #603 spec, current source paths, base SHA, worktree/branch, explicit non-goals recorded above |
-| SPW-02 executable implementation plan | PASS | Tasks 1-12 pin exact files, failing-first tests, implementation order, commands, rollback points, and approval gates |
-| SPW-03 Korean reader-facing plan quality | PASS | Korean naturalness checklist applied; `audit-korean-terms.mjs` reports `findings=0` |
-| SPW-04 spec-to-plan traceability | PASS | AC-01..12, AC-10a, and spec DoD map to owning tasks and evidence in the traceability table |
-| SPW-05 final Markdown readback | PASS | Full plan read back after edits; placeholder scan and `git diff --no-index --check` are clean |
+| Check                                                        | Status | Evidence                                                                                                             |
+|--------------------------------------------------------------|--------|----------------------------------------------------------------------------------------------------------------------|
+| SPW-01 scope, audience, source ledger, identifiers, unknowns | PASS   | 승인된 Issue #603 spec, current source paths, base SHA, worktree/branch, explicit non-goals recorded above           |
+| SPW-02 executable implementation plan                        | PASS   | Tasks 1-12 pin exact files, failing-first tests, implementation order, commands, rollback points, and approval gates |
+| SPW-03 Korean reader-facing plan quality                     | PASS   | Korean naturalness checklist applied; `audit-korean-terms.mjs` reports `findings=0`                                  |
+| SPW-04 spec-to-plan traceability                             | PASS   | AC-01..12, AC-10a, and spec DoD map to owning tasks and evidence in the traceability table                           |
+| SPW-05 final Markdown readback                               | PASS   | Full plan read back after edits; placeholder scan and `git diff --no-index --check` are clean                        |
 
 ## 구현 전 승인 게이트
 
@@ -120,6 +122,7 @@ Expected: 두 문서가 같은 commit에 있고 `git status --short`에는 runti
 ## Task 1: Property model과 binding 실패 테스트 작성
 
 **Files:**
+
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyPropertiesTest.kt`
 - Reference: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/properties/LeaderAopProperties.kt`
 - Reference: `leader-core/src/main/kotlin/io/bluetape4k/leader/annotation/LeaderAspectFailureMode.kt`
@@ -197,6 +200,7 @@ Expected: `FAIL` because `LeaderScheduledPolicyProperties` does not exist.
 ## Task 2: Property model 구현과 semantic helper 작성
 
 **Files:**
+
 - Create: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyProperties.kt`
 - Create: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/validator/LeaderMethodValidationSupport.kt`
 - Modify: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/validator/LeaderAnnotationValidatorBeanPostProcessor.kt`
@@ -266,6 +270,7 @@ Expected: targeted tests `BUILD SUCCESSFUL`.
 ## Task 3: Registry/BPP의 exact selector 실패 테스트 작성
 
 **Files:**
+
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyRegistryTest.kt`
 - Reference: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduled.kt`
 - Reference: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderBeanSelector.kt`
@@ -290,7 +295,7 @@ private class ScheduledFixture {
 
 - [x] **Step 2: registry success, explicit precedence, and target identity lookup를 테스트한다.**
 
-Assert that `orderJob#reconcile` returns one policy binding, `explicit` is marked as observed but not registered as a property policy, and the same method signature on a second target instance does not reuse a first target's binding. The lookup must be O(1) map access after `freeze()` and must not scan annotations on each call.
+Assert that `orderJob#reconcile` returns one policy binding, `explicit` is marked as observed but not registered as a property policy, and the same method signature on a second target instance does not reuse a first target's binding. The lookup must be O (1) map access after `freeze()` and must not scan annotations on each call.
 
 - [x] **Step 3: duplicate, missing, non-scheduled, overload, and invalid policy tests를 추가한다.**
 
@@ -310,6 +315,7 @@ Expected: `FAIL` because registry and BPP do not exist.
 ## Task 4: Immutable registry와 policy BPP 구현
 
 **Files:**
+
 - Create: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyRegistry.kt`
 - Create: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyBeanPostProcessor.kt`
 - Modify: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/validator/LeaderAnnotationValidatorBeanPostProcessor.kt`
@@ -362,6 +368,7 @@ Expected: exact selector success and every invalid selector/policy failure test 
 ## Task 5: Auto-configuration과 metadata 실패 테스트 작성
 
 **Files:**
+
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyAutoConfigurationTest.kt`
 - Modify: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metadata/LeaderConfigurationMetadataTest.kt`
 - Reference: `leader-spring-boot/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
@@ -385,7 +392,8 @@ runner.withPropertyValues(
 }
 ```
 
-- [x] **Step 2: empty policy, missing selector, duplicate selector, non-scheduled selector, and backend errors의 context failure를 고정한다.**
+- [x] **Step 2: empty policy, missing selector, duplicate selector, non-scheduled selector, and backend errors의 context
+  failure를 고정한다.**
 
 Use `ctx.startupFailure.shouldNotBeNull()` and assert the failure message contains the exact selector/property. The disabled path must keep the normal `@Scheduled` bean and must not create the registry/BPP.
 
@@ -413,6 +421,7 @@ Expected: `FAIL` because the auto-configuration, import entry, and metadata do n
 ## Task 6: Auto-configuration, imports, and configuration metadata 구현
 
 **Files:**
+
 - Create: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyAutoConfiguration.kt`
 - Modify: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/autoconfigure/LeaderAopAutoConfiguration.kt`
 - Modify: `leader-spring-boot/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
@@ -478,6 +487,7 @@ Expected: disabled/enabled conditions, startup failures, import order, and metad
 ## Task 7: Aspect fallback과 precedence 실패 테스트 작성
 
 **Files:**
+
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspectScheduledPolicyTest.kt`
 - Reference: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspectTest.kt`
 - Reference: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/internal/AdviceMetadata.kt`
@@ -523,6 +533,7 @@ Expected: `FAIL` because the pointcut and registry fallback do not exist.
 ## Task 8: Aspect pointcut, metadata resolution, and target-aware cache 구현
 
 **Files:**
+
 - Modify: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspect.kt`
 - Modify: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/autoconfigure/LeaderAopAutoConfiguration.kt`
 - Test: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspectScheduledPolicyTest.kt`
@@ -571,6 +582,7 @@ Expected: existing annotation sync/reactive/coroutine/failure-mode tests and new
 ## Task 9: Spring scheduler lifecycle, cardinality, and Observation tests
 
 **Files:**
+
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledTaskLifecycleTest.kt`
 - Modify: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metrics/LeaderObservationAutoConfigurationTest.kt`
 - Reference: Spring 7.0.8 `ScheduledAnnotationBeanPostProcessor` and `ScheduledTaskRegistrar` source jar.
@@ -600,6 +612,7 @@ Expected: task cardinality is unchanged, Observation is single-registered, and c
 ## Task 10: README locale pair와 configuration metadata 문서화
 
 **Files:**
+
 - Modify: `leader-spring-boot/README.md`
 - Modify: `leader-spring-boot/README.ko.md`
 - Modify: `leader-spring-boot/src/main/resources/META-INF/spring/additional-spring-configuration-metadata.json`
@@ -645,6 +658,7 @@ Expected: terminology audit reports `findings=0`; no whitespace errors; metadata
 ## Task 11: Performance/stability risk review and cleanup
 
 **Files:**
+
 - Review all changed Kotlin files and tests.
 - Add regression assertions only to the targeted test files above.
 
@@ -663,6 +677,7 @@ Delete duplicate validation code, reuse `DurationParser`, `LeaderBeanSelector`, 
 ## Task 12: Full verification, diff review, and implementation handoff
 
 **Files:**
+
 - All changed files in the feature worktree.
 - Optional review artifact: `docs/review/2026-08-23-issue-603-plan-review.md` only if the integrated plan review needs durable PR evidence.
 
@@ -701,36 +716,36 @@ Before PR creation, record changed files, commit SHA, test output, AOT/Detekt st
 
 ## Spec-to-plan traceability
 
-| Spec item | Plan task | Evidence |
-| --- | --- | --- |
-| AC-01 disabled default and unchanged `@Scheduled` | Tasks 1, 5, 8, 9 | binder default, no registry/BPP, bypass test, task cardinality |
-| AC-02 exact selector and overload rejection | Tasks 3, 4 | registry exact-match and ambiguity tests |
-| AC-03 duplicate/missing/non-scheduled startup failure | Tasks 3, 4, 5, 6 | BPP validation and `ApplicationContextRunner.startupFailure` |
-| AC-04 explicit annotation precedence | Tasks 3, 7, 8 | explicit observed-but-unregistered and aspect precedence tests |
-| AC-05 policy-to-AOP metadata conversion | Tasks 1, 2, 7, 8 | binding, options/factory/failure-mode assertions |
-| AC-06 invalid SpEL/duration/min-lease/strict footgun | Tasks 1, 2, 4, 5 | binder and shared validation tests |
-| AC-07 contention skip | Task 7 | `LeaderRunResult.Skipped` returns null and body is not called |
-| AC-08 sync/suspend/Mono/Flux/Flow release/cancellation | Tasks 7, 8 | branch and cancellation tests |
-| AC-09 task cardinality and no duplicate registration | Task 9 | `ScheduledTaskHolder` count before/after policy |
-| AC-10 single Observation compatibility | Task 9 | recording handler and context-close assertions |
-| AC-10a mismatch fast path | Tasks 7, 8, 11 | zero factory/backend/recorder counters |
-| AC-11 README EN/KO and metadata | Task 10 | locale pair, audit, metadata test |
-| AC-12 tests, Detekt, diff, final review, exact-head PR | Task 12 | module test, AOT, Detekt, diff, review and PR evidence |
-| Spec DoD: ABI/rollback/manual boundary | Tasks 2, 6, 10, 12 | no `LeaderProperties` change, disabled rollback docs, manual untouched, final diff |
+| Spec item                                              | Plan task          | Evidence                                                                           |
+|--------------------------------------------------------|--------------------|------------------------------------------------------------------------------------|
+| AC-01 disabled default and unchanged `@Scheduled`      | Tasks 1, 5, 8, 9   | binder default, no registry/BPP, bypass test, task cardinality                     |
+| AC-02 exact selector and overload rejection            | Tasks 3, 4         | registry exact-match and ambiguity tests                                           |
+| AC-03 duplicate/missing/non-scheduled startup failure  | Tasks 3, 4, 5, 6   | BPP validation and `ApplicationContextRunner.startupFailure`                       |
+| AC-04 explicit annotation precedence                   | Tasks 3, 7, 8      | explicit observed-but-unregistered and aspect precedence tests                     |
+| AC-05 policy-to-AOP metadata conversion                | Tasks 1, 2, 7, 8   | binding, options/factory/failure-mode assertions                                   |
+| AC-06 invalid SpEL/duration/min-lease/strict footgun   | Tasks 1, 2, 4, 5   | binder and shared validation tests                                                 |
+| AC-07 contention skip                                  | Task 7             | `LeaderRunResult.Skipped` returns null and body is not called                      |
+| AC-08 sync/suspend/Mono/Flux/Flow release/cancellation | Tasks 7, 8         | branch and cancellation tests                                                      |
+| AC-09 task cardinality and no duplicate registration   | Task 9             | `ScheduledTaskHolder` count before/after policy                                    |
+| AC-10 single Observation compatibility                 | Task 9             | recording handler and context-close assertions                                     |
+| AC-10a mismatch fast path                              | Tasks 7, 8, 11     | zero factory/backend/recorder counters                                             |
+| AC-11 README EN/KO and metadata                        | Task 10            | locale pair, audit, metadata test                                                  |
+| AC-12 tests, Detekt, diff, final review, exact-head PR | Task 12            | module test, AOT, Detekt, diff, review and PR evidence                             |
+| Spec DoD: ABI/rollback/manual boundary                 | Tasks 2, 6, 10, 12 | no `LeaderProperties` change, disabled rollback docs, manual untouched, final diff |
 
 ## Step 3-R 계획 검토
 
 Six independent lenses plus an integration/maintainability leader pass were applied to the exact plan after the spec approval. Findings are recorded here so implementation starts only from a reviewed, bounded plan.
 
-| Lens | Review result | Disposition |
-| --- | --- | --- |
-| Performance | PASS; the mismatch path is a direct proceed, and matching metadata is cached once per target/method | Task 8 requires an instance-only cache; Task 11 verifies zero factory/backend/SpEL/recorder calls for bypass and bounded cache lifetime |
-| Stability | PASS; BPP validation precedes scheduled-task finalization and failed contexts rely on Spring-owned cancellation | Tasks 4 and 9 verify ordering, one task per method, close behavior, and no registry-owned scheduler resources |
-| Security | PASS; selectors are exact and validation reuses the existing SpEL/backend components | Task 4 constrains error messages to selector/property context and excludes addresses, credentials, resolved lock names, and dynamic reload |
-| Operations | PASS; the feature is opt-in and rollback is a single property change | Task 10 documents `enabled=false`, failure modes, stream limits, and unsupported wildcards/reload; Task 12 records CI/verification evidence |
-| API/ABI | PASS; `LeaderProperties` and `@LeaderScheduled` remain unchanged | Task 2 uses an additive public properties model; Task 6 keeps a five-argument aspect constructor for existing direct callers and introduces no dependency/module |
-| User/documentation | PASS; EN/KO locale pair explains the exact selector and precedence with a complete YAML example | Task 10 updates both READMEs and metadata, then runs the Korean terminology audit |
-| Integration/maintainability | PASS; the change stays inside `leader-spring-boot` and reuses existing scheduler/AOP/Observation paths | No `settings.gradle.kts`, BOM, CI, nightly, or versioned-manual change is required because no module or publishable surface is added; Task 11 removes duplicate validation and new abstractions |
+| Lens                        | Review result                                                                                                   | Disposition                                                                                                                                                                                     |
+|-----------------------------|-----------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Performance                 | PASS; the mismatch path is a direct proceed, and matching metadata is cached once per target/method             | Task 8 requires an instance-only cache; Task 11 verifies zero factory/backend/SpEL/recorder calls for bypass and bounded cache lifetime                                                         |
+| Stability                   | PASS; BPP validation precedes scheduled-task finalization and failed contexts rely on Spring-owned cancellation | Tasks 4 and 9 verify ordering, one task per method, close behavior, and no registry-owned scheduler resources                                                                                   |
+| Security                    | PASS; selectors are exact and validation reuses the existing SpEL/backend components                            | Task 4 constrains error messages to selector/property context and excludes addresses, credentials, resolved lock names, and dynamic reload                                                      |
+| Operations                  | PASS; the feature is opt-in and rollback is a single property change                                            | Task 10 documents `enabled=false`, failure modes, stream limits, and unsupported wildcards/reload; Task 12 records CI/verification evidence                                                     |
+| API/ABI                     | PASS; `LeaderProperties` and `@LeaderScheduled` remain unchanged                                                | Task 2 uses an additive public properties model; Task 6 keeps a five-argument aspect constructor for existing direct callers and introduces no dependency/module                                |
+| User/documentation          | PASS; EN/KO locale pair explains the exact selector and precedence with a complete YAML example                 | Task 10 updates both READMEs and metadata, then runs the Korean terminology audit                                                                                                               |
+| Integration/maintainability | PASS; the change stays inside `leader-spring-boot` and reuses existing scheduler/AOP/Observation paths          | No `settings.gradle.kts`, BOM, CI, nightly, or versioned-manual change is required because no module or publishable surface is added; Task 11 removes duplicate validation and new abstractions |
 
 Integrated result: `P0=0`, `P1=0`, `P2=0`, `P3=0`. No unresolved design or implementation-planning finding remains. The only intentional stop is the user approval gate above; source implementation has not started.
 

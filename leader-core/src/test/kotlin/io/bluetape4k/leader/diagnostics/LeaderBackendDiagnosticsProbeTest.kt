@@ -214,7 +214,7 @@ class LeaderBackendDiagnosticsProbeTest {
                 actual shouldBeEqualTo when (expectedStatus) {
                     LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivity.up(expectedAt)
                     LeaderBackendConnectivityStatus.DOWN -> LeaderBackendConnectivity.down(expectedAt)
-                    else                               -> error("unexpected test status: $expectedStatus")
+                    else -> error("unexpected test status: $expectedStatus")
                 }
                 results.add(actual)
             }

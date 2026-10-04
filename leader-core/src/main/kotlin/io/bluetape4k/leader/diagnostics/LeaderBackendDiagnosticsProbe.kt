@@ -71,8 +71,8 @@ object LeaderBackendDiagnosticsProbe: KLogging() {
         }
 
         return when (status) {
-            LeaderBackendConnectivityStatus.UP      -> LeaderBackendConnectivity.up(checkedAt)
-            LeaderBackendConnectivityStatus.DOWN    -> LeaderBackendConnectivity.down(checkedAt)
+            LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivity.up(checkedAt)
+            LeaderBackendConnectivityStatus.DOWN -> LeaderBackendConnectivity.down(checkedAt)
             LeaderBackendConnectivityStatus.UNKNOWN ->
                 LeaderBackendConnectivity.unknown(checkedAt, reason = unknownReason)
             LeaderBackendConnectivityStatus.NOT_CHECKED -> invalidProbeStatus()

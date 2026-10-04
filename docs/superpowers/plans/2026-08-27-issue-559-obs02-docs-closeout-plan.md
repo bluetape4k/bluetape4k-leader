@@ -1,12 +1,14 @@
 # Issue #559 OBS-02 Documentation Closeout Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic
+workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 현재 `develop`에 병합된 OBS-02 lease-extension observation 계약을 EN/KO README와 미배포 manual 초안에 정확히 반영하고, Issue #559 PR을 merge-ready 상태로 만든다.
 
 **Architecture:** production Kotlin 구현은 변경하지 않는다. `LeaderLeaseExtensionObservers`가 제공하는 framework-neutral event를 기준으로 core README와 manual draft를 작성하고, `MicrometerObservationLeaderLeaseExtensionObserver` 및 `LeaderObservationAutoConfiguration`의 실제 동작을 모듈 README에 연결한다. `0.5.0`으로 고정된 published manual은 보존하고 `docs/manual/drafts/`에만 새 API를 기록한다.
 
-**Tech Stack:** Markdown, Kotlin API/source inspection, Gradle, `git diff --check`, repository manual validators, `bluetape-writer` SPW-01..05.
+**Tech
+Stack:** Markdown, Kotlin API/source inspection, Gradle, `git diff --check`, repository manual validators, `bluetape-writer` SPW-01..05.
 
 ---
 
@@ -32,7 +34,7 @@
   Record these exact claims before editing:
 
   | Claim | Source evidence |
-  | --- | --- |
+      | --- | --- |
   | USER and WATCHDOG source plus BLOCKING and SUSPEND execution are explicit enums | `LeaderLeaseExtensionObserver.kt`, `LeaderLeaseAutoExtender.kt` |
   | `Extended`, `Rejected`, `NotHeld`, `WrongThread`, and `BackendError` map to terminal events; callback errors do not alter lease results | `LeaderLeaseExtensionObserver.kt`, `LockExtender.kt`, `LeaderLeaseAutoExtender.kt` |
   | observer delivery is process-local, bounded (global 1024 / registration 256), non-blocking, and drops are counted | `LeaderLeaseExtensionObservers` constants and `droppedCount()` |

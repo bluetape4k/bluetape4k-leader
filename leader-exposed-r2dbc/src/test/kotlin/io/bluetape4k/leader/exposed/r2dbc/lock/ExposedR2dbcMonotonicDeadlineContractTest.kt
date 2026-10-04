@@ -62,7 +62,7 @@ class ExposedR2dbcMonotonicDeadlineContractTest: AbstractMonotonicDeadlineContra
             cleanTables()
             observed = when (case.target) {
                 LockTarget.SINGLE -> observeSingleWait(case)
-                LockTarget.GROUP  -> observeGroupWait(case)
+                LockTarget.GROUP -> observeGroupWait(case)
             }
         }
         return requireNotNull(observed)

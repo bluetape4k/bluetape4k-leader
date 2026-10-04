@@ -80,9 +80,9 @@ interface AsyncLeaderGroupElector: LeaderGroupElectionState {
             ) { value, failure ->
                 when {
                     failure != null && elected.get() -> failure.toActionFailedResult()
-                    failure != null                  -> throw failure.asCompletionException()
-                    elected.get()                    -> LeaderRunResult.Elected(value)
-                    else                             -> LeaderRunResult.Skipped
+                    failure != null -> throw failure.asCompletionException()
+                    elected.get() -> LeaderRunResult.Elected(value)
+                    else -> LeaderRunResult.Skipped
                 }
             }
     }

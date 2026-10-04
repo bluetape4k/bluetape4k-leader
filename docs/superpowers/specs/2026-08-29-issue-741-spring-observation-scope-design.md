@@ -93,8 +93,7 @@ core에 Spring type을 모르는 실행 scope carrier를 둔다.
 - scope token은 event, log, `toString()`, exception, metric tag에 포함하지 않는다.
 - cross-module bridge는 registration handle의 instance operation으로만 제공하고 Java source 호출은 `@JvmSynthetic`로 막는다. ambient capability를 읽는 accessor는 core `internal`로 유지하며 binary API test로 public `current()` descriptor가 없음을 고정한다.
 
-중첩 scope는 이전 값을 복원한다. scope가 없으면 `null`이며 scoped Spring observer와 일치하지 않는다.
-외부 Kotlin caller가 자기 scoped observer/capability를 만들 수 있어도 ambient capability를 읽는 public API가 없고 다른 registration의 capability를 얻거나 지정할 수 없으므로 다른 Spring context를 impersonate할 수 없다. Spring context owner bean과 manager entry는 `internal`로 유지한다.
+중첩 scope는 이전 값을 복원한다. scope가 없으면 `null`이며 scoped Spring observer와 일치하지 않는다. 외부 Kotlin caller가 자기 scoped observer/capability를 만들 수 있어도 ambient capability를 읽는 public API가 없고 다른 registration의 capability를 얻거나 지정할 수 없으므로 다른 Spring context를 impersonate할 수 없다. Spring context owner bean과 manager entry는 `internal`로 유지한다.
 
 정확한 cross-module bridge shape은 다음과 같다.
 
@@ -116,7 +115,7 @@ registration은 observer와 선택적 capability를 함께 가진다.
 - 기존 `addObserver(observer)`는 scope가 없는 wildcard registration을 만든다.
 - Spring용 scoped registration factory는 non-null capability와 registration handle을 함께 반환하며 caller-supplied token을 받지 않는다.
 - wildcard registrations와 capability별 registrations는 별도 copy-on-write bucket에 저장한다. capability bucket index는 capability의 identity semantics를 사용한다.
-- `hasObservers(scope)`는 wildcard bucket 또는 해당 capability bucket의 비어 있지 않은 상태만 O(1), 무할당으로 확인한다.
+- `hasObservers(scope)`는 wildcard bucket 또는 해당 capability bucket의 비어 있지 않은 상태만 O (1), 무할당으로 확인한다.
 - `publish`는 wildcard와 해당 capability bucket의 읽기 시점 항목만 순회하고 다른 scope registration은 복사하거나 검사하지 않는다.
 - matching되지 않은 registration에는 global/per-observer admission permit을 요청하지 않고 drop count도 증가시키지 않는다.
 - scope close는 한 번만 `active=false`로 선형화한 뒤 registration을 닫고 identity bucket을 map에서 제거한다. 반복 close는 no-op이고 accepted task의 late callback 정책은 유지한다. close/publish race와 weak-reference collection test로 dispatcher가 닫힌 capability를 계속 보유하지 않음을 검증한다.
@@ -166,7 +165,7 @@ Spring automatic observation의 telemetry domain은 선택된 `ObservationRegist
 
 `LeaderAopAutoConfiguration`은 기존 factory parameter/descriptor를 바꾸지 않고, aspect 생성 직후 selector가 반환한 fixed owner를 internal property로 연결한다. 수동 생성 aspect와 owner bean이 없는 경우는 no-op scope다. owner는 활성화 전/close 후 `null`을 반환해 fail-closed하고 다른 registry를 동적으로 resolve하지 않는다. 기존 5/6-인자 factory와 aspect constructor descriptor는 모두 유지한다.
 
-registry 선택은 Spring의 기존 single-candidate/`@Primary` 규칙을 따른다. 같은 registry parent/child는 하나의 manager entry와 capability를 공유하고, distinct registry는 context마다 자기 owner에 고정된다. 동일 registry가 다른 options로 두 번째 등록되면 startup을 fail-fast하며 예외는 원인과 복구 방법(옵션 통일 또는 해당 context tracing 비활성화)을 포함하되 registry object/string identity를 노출하지 않는다.
+registry 선택은 Spring의 기존 single-candidate/`@Primary` 규칙을 따른다. 같은 registry parent/child는 하나의 manager entry와 capability를 공유하고, distinct registry는 context마다 자기 owner에 고정된다. 동일 registry가 다른 options로 두 번째 등록되면 startup을 fail-fast하며 예외는 원인과 복구 방법 (옵션 통일 또는 해당 context tracing 비활성화)을 포함하되 registry object/string identity를 노출하지 않는다.
 
 ### 6. AOP 적용 경계
 
@@ -183,26 +182,26 @@ metadata resolution bypass에는 scope를 적용하지 않는다. 해당 호출�
 
 지원 행렬은 다음과 같다.
 
-| Aspect | sync | suspend | Mono | Flux | Flow |
-|---|---:|---:|---:|---:|---:|
-| `LeaderElectionAspect` | 지원 | 지원 | 지원 | 지원 | 지원 |
-| `LeaderGroupElectionAspect` | 지원 | 지원 | 지원 | 미지원/기존 검증 오류 | 미지원/기존 검증 오류 |
+| Aspect                      | sync | suspend | Mono |                  Flux |                  Flow |
+|-----------------------------|-----:|--------:|-----:|----------------------:|----------------------:|
+| `LeaderElectionAspect`      | 지원 |    지원 | 지원 |                  지원 |                  지원 |
+| `LeaderGroupElectionAspect` | 지원 |    지원 | 지원 | 미지원/기존 검증 오류 | 미지원/기존 검증 오류 |
 
 group `Flux`/`Flow`는 scope 설치 전에 기존 validation에서 거부되며 telemetry event를 만들지 않는다.
 
 ## 실패 모드와 대응
 
-| 실패 모드 | 영향 | 대응 |
-|---|---|---|
-| scope를 event public field에 추가 | 5-인자 constructor ABI 파손 및 token 노출 | event 외부 dispatch metadata로 제한하고 API contract test를 유지한다. |
-| caller-supplied registry/token으로 scope 설치 | 다른 context scope impersonation | core가 registration과 capability를 함께 만들고 arbitrary token 입력 API를 제공하지 않는다. |
-| watchdog가 ambient ThreadLocal을 tick 시점에 조회 | scheduler thread의 다른/없는 scope로 오귀속 | `start()`에서 immutable scope를 캡처하고 tick publish에 명시적으로 전달한다. |
-| matching 전에 admission permit 획득 | 다른 context traffic이 registry quota/drop count를 오염 | scope matching 후 permit을 획득한다. |
-| suspend/reactive에서 scope context element 누락 | dispatcher 전환 후 event가 unscoped 처리 | blocking/suspend/Mono/Flux/Flow 경계별 회귀 테스트를 둔다. |
-| same-registry context마다 core registration 추가 | event 중복 기록 | 기존 registry identity manager의 단일 entry/ref-count를 유지한다. |
-| close와 accepted callback 경쟁 | 닫힌 context resource에 late callback | 기존 close 시점 semantics를 문서화하고 새 event acceptance만 차단한다. 이미 accepted된 callback은 기존 계약대로 완료될 수 있다. |
-| 직접 elector 호출을 잘못된 context에 추론 귀속 | identity 교차 노출 | automatic registry에는 전달하지 않는 fail-closed 정책을 문서화하고 global explicit observer만 유지한다. |
-| close 후 stale watchdog가 재등록 context에 전달 | 종료된 context identity의 새 registry 오염 | last-close로 capability를 revoke하고 재등록 entry는 새 capability를 사용한다. |
+| 실패 모드                                         | 영향                                                    | 대응                                                                                                                            |
+|---------------------------------------------------|---------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| scope를 event public field에 추가                 | 5-인자 constructor ABI 파손 및 token 노출               | event 외부 dispatch metadata로 제한하고 API contract test를 유지한다.                                                           |
+| caller-supplied registry/token으로 scope 설치     | 다른 context scope impersonation                        | core가 registration과 capability를 함께 만들고 arbitrary token 입력 API를 제공하지 않는다.                                      |
+| watchdog가 ambient ThreadLocal을 tick 시점에 조회 | scheduler thread의 다른/없는 scope로 오귀속             | `start()`에서 immutable scope를 캡처하고 tick publish에 명시적으로 전달한다.                                                    |
+| matching 전에 admission permit 획득               | 다른 context traffic이 registry quota/drop count를 오염 | scope matching 후 permit을 획득한다.                                                                                            |
+| suspend/reactive에서 scope context element 누락   | dispatcher 전환 후 event가 unscoped 처리                | blocking/suspend/Mono/Flux/Flow 경계별 회귀 테스트를 둔다.                                                                      |
+| same-registry context마다 core registration 추가  | event 중복 기록                                         | 기존 registry identity manager의 단일 entry/ref-count를 유지한다.                                                               |
+| close와 accepted callback 경쟁                    | 닫힌 context resource에 late callback                   | 기존 close 시점 semantics를 문서화하고 새 event acceptance만 차단한다. 이미 accepted된 callback은 기존 계약대로 완료될 수 있다. |
+| 직접 elector 호출을 잘못된 context에 추론 귀속    | identity 교차 노출                                      | automatic registry에는 전달하지 않는 fail-closed 정책을 문서화하고 global explicit observer만 유지한다.                         |
+| close 후 stale watchdog가 재등록 context에 전달   | 종료된 context identity의 새 registry 오염              | last-close로 capability를 revoke하고 재등록 entry는 새 capability를 사용한다.                                                   |
 
 ## 호환성
 
@@ -271,7 +270,7 @@ group `Flux`/`Flow`는 scope 설치 전에 기존 validation에서 거부되며 
 
 ### 성능
 
-1. `hasObservers(scope)`는 O(1), 무할당이고 `publish`는 wildcard와 matching capability bucket만 순회한다.
+1. `hasObservers(scope)`는 O (1), 무할당이고 `publish`는 wildcard와 matching capability bucket만 순회한다.
 2. capability별 `ThreadContextElement`는 manager entry 수명 동안 재사용하며 event/signal당 만들지 않는다.
 3. 기존 Spring advice JMH에 no-observer, scoped-match, scoped-mismatch, global과 sync/suspend/Mono/Flux/Flow/watchdog case를 추가한다.
 4. 동일 환경의 변경 전/후 3-fork 비교에서 `gc.alloc.rate.norm`이 새 per-event allocation을 보이지 않고 throughput/average-time median 회귀가 15% 이내인지 기록한다. 이 수치는 비결정적 CI fail gate가 아니라 구현 검토 evidence다.

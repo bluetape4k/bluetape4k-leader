@@ -35,7 +35,7 @@ Issue #227은 전체 etcd v3 리더 선출 백엔드에 대한 서사시입니�
 - `./gradlew :bluetape4k-leader-spring-boot:test --tests 'io.bluetape4k.leader.spring.BackendConditionalTest' --tests 'io.bluetape4k.leader.spring.LeaderPropertiesBindingTest' --tests 'io.bluetape4k.leader.spring.aop.autoconfigure.EtcdAopFactoryAutoConfigurationTest' --no-build-cache --no-daemon --console=plain`
 - `git diff --check`
 
-최신 전체 테스트 실행에서는 59개의 `leader-etcd` 테스트가 실행되었습니다. 즉, 순수 단위 테스트 31개, 모의 jetcd 경계 테스트 3개, 실제 EtcdServer 통합 테스트 25개(단일/그룹 이벤트 전달에 대한 감시 게시자 적용 범위, 대기열에 있는 경쟁자 억제 및 호출자 소유 클라이언트 수명 주기 포함).
+최신 전체 테스트 실행에서는 59개의 `leader-etcd` 테스트가 실행되었습니다. 즉, 순수 단위 테스트 31개, 모의 jetcd 경계 테스트 3개, 실제 EtcdServer 통합 테스트 25개 (단일/그룹 이벤트 전달에 대한 감시 게시자 적용 범위, 대기열에 있는 경쟁자 억제 및 호출자 소유 클라이언트 수명 주기 포함).
 
 ## 퓨쳐 가드
 

@@ -119,7 +119,7 @@ class MongoSuspendLock private constructor(
                         log.error(e) { "MongoDB 인증 오류 (code=${e.errorCode}) 발생: lockKey=$lockKey" }
                         return false
                     }
-                    else  -> {
+                    else -> {
                         log.warn(e) { "MongoDB 커맨드 오류 (code=${e.errorCode}) 발생: lockKey=$lockKey" }
                         return false
                     }

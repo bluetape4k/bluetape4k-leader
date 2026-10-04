@@ -1,13 +1,8 @@
 # #920: Duration 정책을 재사용하되 정밀도를 잘라내지 않는다
 
-양수 검증만으로 요청의 양수 초를 보장할 수 없다. seconds.toInt는 500ms를 0초로 만들고
-Int 상한 초과도 잘라낸다. mock create/update 및 기간 누락 fallback에서 총 8건 RED를 확인했다.
-초기 mock 테스트의 Called import 누락은 컴파일 오류로 구분하고 수정 후 행동 RED를 확인했다.
+양수 검증만으로 요청의 양수 초를 보장할 수 없다. seconds.toInt는 500ms를 0초로 만들고 Int 상한 초과도 잘라낸다. mock create/update 및 기간 누락 fallback에서 총 8건 RED를 확인했다. 초기 mock 테스트의 Called import 누락은 컴파일 오류로 구분하고 수정 후 행동 RED를 확인했다.
 
-기존 leader-k8s의 양수·올림·Int 상한 정책을 따르되, 이 예제의 Java Duration은
-seconds/nano로 정확히 올림한다. milliseconds로 내렸다 올리면 1s+1ns를 잃을 수 있다.
-상한 검증을 더하기/Int 변환 전에 하여 Long.MAX_VALUE초 같은 값도 안전하게 거부한다.
-하나의 private 변환값을 create/update/만료 fallback에서 재사용한다.
+기존 leader-k8s의 양수·올림·Int 상한 정책을 따르되, 이 예제의 Java Duration은 seconds/nano로 정확히 올림한다. milliseconds로 내렸다 올리면 1s+1ns를 잃을 수 있다. 상한 검증을 더하기/Int 변환 전에 하여 Long.MAX_VALUE초 같은 값도 안전하게 거부한다. 하나의 private 변환값을 create/update/만료 fallback에서 재사용한다.
 
 ## 검증 및 직접 검토
 

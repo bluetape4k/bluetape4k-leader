@@ -13,17 +13,17 @@ suspend 그룹 선출은 더 이상 `CaptureScope`, `AopScopeAccess.setCapture` 
 ## 검증
 
 - `./gradlew :leader-core:test --tests 'io.bluetape4k.leader.internal.CaptureScopeTest' --tests 'io.bluetape4k.leader.coroutines.LocalSuspendLeaderGroupElectorCaptureTest' --console=plain`
-  - 5개의 테스트를 통과했습니다.
+    - 5개의 테스트를 통과했습니다.
 - `./gradlew :leader-core:test --console=plain`
-  - 605개의 테스트를 통과했습니다.
+    - 605개의 테스트를 통과했습니다.
 - Claude Tier 4 Advisor 검토에서는 백엔드 suspend 그룹 선출기에서 동일한 ThreadLocal 주변 일시 중지 패턴을 발견했습니다. 결과가 승인되고 수정되었습니다.
 - `./gradlew :leader-core:test :leader-spring-boot:compileKotlin :leader-redis-lettuce:compileTestKotlin :leader-redis-redisson:compileTestKotlin :leader-mongodb:compileTestKotlin :leader-hazelcast:compileTestKotlin :leader-zookeeper:compileTestKotlin :leader-exposed-r2dbc:compileTestKotlin --console=plain`
-  - 빌드 성공 `leader-core` 605 테스트를 통과했습니다.
+    - 빌드 성공 `leader-core` 605 테스트를 통과했습니다.
 - PR 생성 후 7-R단계 이중 PR 검토가 실행되었습니다.
-  - Codex PR 검토: 승인, P0/P1/P2/P3 결과 없음.
-  - Claude PR 검토: Spring AOP 검증 누락에 대한 초기 의견, 그 다음
-`./gradlew :leader-spring-boot:test --console=plain`가 280개의 테스트를 통과하고 `pollCapture`가 suspend 그룹 측면 런타임 경로에 없는 것으로 검증된 후 승인됩니다.
-  - GitHub CI는 녹색이었고 병합 상태는 깨끗했습니다. PR은 초안으로 남아 있습니다.
+    - Codex PR 검토: 승인, P0/P1/P2/P3 결과 없음.
+    - Claude PR 검토: Spring AOP 검증 누락에 대한 초기 의견, 그 다음
+      `./gradlew :leader-spring-boot:test --console=plain`가 280개의 테스트를 통과하고 `pollCapture`가 suspend 그룹 측면 런타임 경로에 없는 것으로 검증된 후 승인됩니다.
+    - GitHub CI는 녹색이었고 병합 상태는 깨끗했습니다. PR은 초안으로 남아 있습니다.
 
 ## 향후 지침
 

@@ -209,7 +209,8 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
             aggregator.start(scope)
 
             withTimeoutOrNull(INSTANCE_TIMEOUT) { firstFailed.await() }?.let { } ?: error("first cycle did not run")
-            withTimeoutOrNull(INSTANCE_TIMEOUT) { secondSucceeded.await() }?.let { } ?: error("second cycle did not run")
+            withTimeoutOrNull(INSTANCE_TIMEOUT) { secondSucceeded.await() }?.let { }
+                ?: error("second cycle did not run")
 
             callCount.get() shouldBeGreaterOrEqualTo 2
         } finally {

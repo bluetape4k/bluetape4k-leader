@@ -18,12 +18,12 @@ internal suspend fun R2dbcTransaction.currentTime(
 
 internal fun Any?.toExposedR2dbcInstant(): Instant =
     when (this) {
-        is Instant       -> this
-        is Timestamp     -> toInstant()
+        is Instant -> this
+        is Timestamp -> toInstant()
         is OffsetDateTime -> toInstant()
         is ZonedDateTime -> toInstant()
         is LocalDateTime -> toInstant(ZoneOffset.UTC)
-        else             -> error("Unsupported CURRENT_TIMESTAMP value: ${this?.javaClass?.name ?: "null"}")
+        else -> error("Unsupported CURRENT_TIMESTAMP value: ${this?.javaClass?.name ?: "null"}")
     }
 
 private suspend fun R2dbcTransaction.dbCurrentTimestamp(): Instant =

@@ -84,7 +84,7 @@ class LeaderAuditPendingContextStoreTest {
 
         val first = firstStore.remove(firstKey).shouldNotBeNull()
         val second = secondStore.remove(secondKey).shouldNotBeNull()
-        
+
         val firstBytes = first.metadata.entries.sumOf { (key, value) ->
             key.toUtf8Bytes().size + value.toUtf8Bytes().size
         }
@@ -103,7 +103,7 @@ class LeaderAuditPendingContextStoreTest {
         }
         val descending = ascending.entries.reversed()
             .associateTo(linkedMapOf()) { it.key to it.value }
-        
+
         val firstKey = LeaderHistoryKey(lockName = "ascending", token = "token-1")
         val secondKey = LeaderHistoryKey(lockName = "descending", token = "token-2")
         val firstStore = LeaderAuditPendingContextStore()

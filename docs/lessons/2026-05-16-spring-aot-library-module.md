@@ -7,8 +7,7 @@
 
 ## 배경
 
-`leader-spring-boot` 라이브러리 모듈에서 Spring AOT 호환성 검증 테스트(`LocalLeaderAotTest`)를 구성했다.
-5개 테스트 중 suspend 관련 테스트 1개가 `NoSuchMethodError: Mutex.lock$default`로 실패했다.
+`leader-spring-boot` 라이브러리 모듈에서 Spring AOT 호환성 검증 테스트 (`LocalLeaderAotTest`)를 구성했다. 5개 테스트 중 suspend 관련 테스트 1개가 `NoSuchMethodError: Mutex.lock$default`로 실패했다.
 
 ---
 
@@ -16,9 +15,9 @@
 
 ### kotlinx-coroutines 버전 분기
 
-| 모듈 | coroutines 버전 |
-|------|----------------|
-| `leader-core` (컴파일 시) | **1.11.0** |
+| 모듈                                      | coroutines 버전                   |
+|-------------------------------------------|-----------------------------------|
+| `leader-core` (컴파일 시)                 | **1.11.0**                        |
 | `leader-spring-boot:testRuntimeClasspath` | **1.10.2** (Spring Boot BOM 강제) |
 
 coroutines **1.11.0**에서는 `Mutex.lock$default`가 **인터페이스 자체**에 static 메서드로 존재한다.
@@ -36,20 +35,17 @@ public static java.lang.Object lock$default(Mutex, Object, Continuation, int, Ob
 ```
 
 `leader-core`가 1.11.0으로 컴파일될 때 `mutex.lock()` (default owner = null) 호출은
-`Mutex.lock$default(...)` (interface static)을 참조하는 바이트코드를 생성한다.
-런타임에 Spring Boot BOM이 coroutines를 1.10.2로 다운그레이드하면 해당 메서드가 없어서 `NoSuchMethodError`가 발생한다.
+`Mutex.lock$default(...)` (interface static)을 참조하는 바이트코드를 생성한다. 런타임에 Spring Boot BOM이 coroutines를 1.10.2로 다운그레이드하면 해당 메서드가 없어서 `NoSuchMethodError`가 발생한다.
 
 ### AOT 테스트에서만 나타나는 이유
 
-일반 `leader-spring-boot:test`에는 `LocalSuspendLeaderElector.tryWithLock()`을 직접 호출하는 경로가 없다.
-AOT 테스트에서 처음으로 suspend API를 end-to-end로 호출하면서 문제가 드러났다.
+일반 `leader-spring-boot:test`에는 `LocalSuspendLeaderElector.tryWithLock()`을 직접 호출하는 경로가 없다. AOT 테스트에서 처음으로 suspend API를 end-to-end로 호출하면서 문제가 드러났다.
 
 ---
 
 ## 해결책
 
-`leader-spring-boot/build.gradle.kts`의 `dependencyManagement`에 `kotlinx-coroutines-bom`을 명시적으로 추가.
-Spring Boot BOM 이후에 import하여 coroutines 버전을 프로젝트 기준(1.11.0)으로 고정.
+`leader-spring-boot/build.gradle.kts`의 `dependencyManagement`에 `kotlinx-coroutines-bom`을 명시적으로 추가. Spring Boot BOM 이후에 import하여 coroutines 버전을 프로젝트 기준 (1.11.0)으로 고정.
 
 ```kotlin
 dependencyManagement {
@@ -99,6 +95,7 @@ test   : 321/321 passing (1m 27s)
 
 ## 핵심 교훈
 
-**Spring Boot 모듈에서 `dependencyManagement`에 BOM을 추가할 때**, Spring Boot BOM이 다운그레이드할 수 있는 의존성이 있는지 확인해야 한다. 특히 라이브러리 모듈은 Spring Boot App과 달리 의존성이 바깥에서 공급되므로, 버전 불일치가 런타임에만 드러날 수 있다.
+**Spring Boot 모듈에서 `dependencyManagement`에 BOM을 추가할
+때**, Spring Boot BOM이 다운그레이드할 수 있는 의존성이 있는지 확인해야 한다. 특히 라이브러리 모듈은 Spring Boot App과 달리 의존성이 바깥에서 공급되므로, 버전 불일치가 런타임에만 드러날 수 있다.
 
-`kotlinx-coroutines-bom`처럼 다른 모듈이 더 높은 버전으로 컴파일한 경우 Spring Boot BOM의 다운그레이드는 바이너리 비호환성(ABI break)을 야기할 수 있다.
+`kotlinx-coroutines-bom`처럼 다른 모듈이 더 높은 버전으로 컴파일한 경우 Spring Boot BOM의 다운그레이드는 바이너리 비호환성 (ABI break)을 야기할 수 있다.

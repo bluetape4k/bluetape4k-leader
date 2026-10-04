@@ -20,7 +20,7 @@ import org.junit.jupiter.api.TestInstance
 class KubernetesLeaseGroupLockExtenderContractTest: AbstractGroupLockExtenderContractTest() {
 
     companion object: KLogging()
-    
+
     private val client: KubernetesClient = KubernetesContractSupport.newClient()
 
     override val elector: LeaderGroupElector =

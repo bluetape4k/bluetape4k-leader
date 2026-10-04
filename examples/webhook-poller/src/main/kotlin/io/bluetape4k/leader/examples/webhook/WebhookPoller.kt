@@ -92,7 +92,7 @@ class WebhookPoller(
                 throw e
             }
         }.log("Webhook")
-        
+
         pollerJob = job
         job.invokeOnCompletion {
             lifecycleLock.withLock {

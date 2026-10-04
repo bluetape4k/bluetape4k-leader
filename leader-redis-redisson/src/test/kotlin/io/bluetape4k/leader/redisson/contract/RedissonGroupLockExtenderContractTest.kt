@@ -16,7 +16,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RedissonGroupLockExtenderContractTest: AbstractGroupLockExtenderContractTest() {
 
-    companion object: KLogging() 
+    companion object: KLogging()
 
     override val elector: LeaderGroupElector =
         RedissonLeaderGroupElector(

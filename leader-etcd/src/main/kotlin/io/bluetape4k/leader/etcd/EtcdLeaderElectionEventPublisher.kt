@@ -205,7 +205,7 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
             val eventOwnerKey = event.keyValue.key.toUtf8String()
             val currentOwnerKey = currentOwnerKey(resource)
             when (event.eventType) {
-                WatchEvent.EventType.PUT    -> handlePut(resource, eventOwnerKey, currentOwnerKey)
+                WatchEvent.EventType.PUT -> handlePut(resource, eventOwnerKey, currentOwnerKey)
                 WatchEvent.EventType.DELETE -> handleDelete(resource, eventOwnerKey, currentOwnerKey)
                 WatchEvent.EventType.UNRECOGNIZED -> Unit
             }

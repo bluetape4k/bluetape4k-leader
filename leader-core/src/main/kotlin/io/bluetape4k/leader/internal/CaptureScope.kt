@@ -21,7 +21,7 @@ internal object CaptureScope: KLogging() {
      */
     inline fun <T> runWithCapture(handle: LeaderLockHandle.Real, action: () -> T): T {
         log.debug { "runWithCapture. handle=$handle" }
-        
+
         LeaderLockHandleCapture.set(handle)
         try {
             return action()

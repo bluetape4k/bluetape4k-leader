@@ -15,8 +15,8 @@ internal object LettuceBackendErrorClassifier: BackendErrorClassifier {
 
     override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {
         is RedisCommandTimeoutException -> BackendErrorKind.TRANSIENT
-        is RedisConnectionException     -> BackendErrorKind.TRANSIENT
+        is RedisConnectionException -> BackendErrorKind.TRANSIENT
         is RedisCommandExecutionException -> BackendErrorKind.NON_TRANSIENT
-        else                            -> null
+        else -> null
     }
 }

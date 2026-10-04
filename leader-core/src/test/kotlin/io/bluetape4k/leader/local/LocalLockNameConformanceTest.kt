@@ -71,7 +71,7 @@ class LocalBlockingLockNameConformanceTest: AbstractLockNameConformanceTest() {
     fun `단일 및 그룹 후보 등록은 전체 invalid corpus를 거부한다`() {
         invalidLockNames.forEach { lockName ->
             val candidate = CandidateInfo("contract-${Base58.randomString(8)}")
-            
+
             assertFailsWith<IllegalArgumentException> {
                 single.registerCandidate(lockName, candidate)
             }

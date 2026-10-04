@@ -1,58 +1,71 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="660" viewBox="0 0 1500 660" role="img" aria-labelledby="title desc" data-intent="Show the benchmark improvement that justified the current HistoryRecorder implementation shape." data-evidence="benchmark/README.md latest self-improve result table" data-source-read="benchmark/README.md; benchmark/README.ko.md">
-<title id="title">History Recorder Self-Improve Throughput</title>
-<desc id="desc">Before and after throughput for the four HistoryRecorder microbenchmarks.</desc>
-<defs>
-  <style>
-    .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-    .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-    .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-    .axis{stroke:#D7E2EC;stroke-width:1.5}
-    .label{font-family:"Architects Daughter";font-size:22px;fill:#22344A;font-weight:400}
-    .value{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-    .legend{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-    .note{font-family:"Comic Mono";font-size:13px;fill:#536476;font-weight:400}
-  </style>
-</defs>
-<rect class="canvas" width="1500" height="660"/>
-<rect class="frame" x="32" y="28" width="1436" height="604" rx="28"/>
-<text class="title" x="66" y="82">History Recorder Self-Improve Throughput</text>
-<text class="subtitle" x="70" y="116">Before and after throughput for the four HistoryRecorder microbenchmarks.</text>
-<g><rect x="1070" y="142" width="26" height="14" rx="4" fill="#6477D8" opacity="0.84"/><text class="legend" x="1106" y="154">Before</text></g>
-<g><rect x="1240" y="142" width="26" height="14" rx="4" fill="#D67B35" opacity="0.84"/><text class="legend" x="1276" y="154">After</text></g>
-<line class="axis" x1="430" y1="159" x2="1170" y2="159"/>
-<text class="legend" x="430" y="143">million ops/s</text>
-<g>
-  <text class="label" x="120" y="203" dominant-baseline="middle">Blocking in-memory</text>
-  <rect x="430" y="183" width="740" height="42" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="430" y="185" width="63.78" height="18" rx="5" fill="#6477D8" opacity="0.84"/>
-  <text class="value" x="505.77526061538464" y="201">5.6M</text>
-  <rect x="430" y="209" width="227.90" height="18" rx="5" fill="#D67B35" opacity="0.84"/>
-  <text class="value" x="669.8986652307692" y="225">20M</text>
-</g>
-<g>
-  <text class="label" x="120" y="289" dominant-baseline="middle">Blocking noop</text>
-  <rect x="430" y="269" width="740" height="42" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="430" y="271" width="87.01" height="18" rx="5" fill="#6477D8" opacity="0.84"/>
-  <text class="value" x="529.0108849230769" y="287">7.6M</text>
-  <rect x="430" y="295" width="714.27" height="18" rx="5" fill="#D67B35" opacity="0.84"/>
-  <text class="value" x="1156.2724427692308" y="311">62.7M</text>
-</g>
-<g>
-  <text class="label" x="120" y="375" dominant-baseline="middle">Suspend in-memory</text>
-  <rect x="430" y="355" width="740" height="42" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="430" y="357" width="55.14" height="18" rx="5" fill="#6477D8" opacity="0.84"/>
-  <text class="value" x="497.14150984615384" y="373">4.8M</text>
-  <rect x="430" y="381" width="130.26" height="18" rx="5" fill="#D67B35" opacity="0.84"/>
-  <text class="value" x="572.2615169230769" y="397">11.4M</text>
-</g>
-<g>
-  <text class="label" x="120" y="461" dominant-baseline="middle">Suspend noop</text>
-  <rect x="430" y="441" width="740" height="42" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="430" y="443" width="59.85" height="18" rx="5" fill="#6477D8" opacity="0.84"/>
-  <text class="value" x="501.8524523076923" y="459">5.3M</text>
-  <rect x="430" y="467" width="263.59" height="18" rx="5" fill="#D67B35" opacity="0.84"/>
-  <text class="value" x="705.5914836923077" y="483">23.2M</text>
-</g>
-<rect x="94" y="560" width="1312" height="44" rx="12" fill="#FFFFFF" stroke="#D7E2EC" stroke-width="1.4"/>
-<text class="note" x="750" y="587" text-anchor="middle">Higher is better. Values converted from ops/s to million ops/s.</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="660" viewBox="0 0 1500 660" role="img"
+     aria-labelledby="title desc"
+     data-intent="Show the benchmark improvement that justified the current HistoryRecorder implementation shape."
+     data-evidence="benchmark/README.md latest self-improve result table"
+     data-source-read="benchmark/README.md; benchmark/README.ko.md">
+    <title id="title">History Recorder Self-Improve Throughput</title>
+    <desc id="desc">Before and after throughput for the four HistoryRecorder microbenchmarks.</desc>
+    <defs>
+        <style>
+            .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
+            .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
+            .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
+            .axis{stroke:#D7E2EC;stroke-width:1.5}
+            .label{font-family:"Architects Daughter";font-size:22px;fill:#22344A;font-weight:400}
+            .value{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
+            .legend{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
+            .note{font-family:"Comic Mono";font-size:13px;fill:#536476;font-weight:400}
+        </style>
+    </defs>
+    <rect class="canvas" width="1500" height="660"/>
+    <rect class="frame" x="32" y="28" width="1436" height="604" rx="28"/>
+    <text class="title" x="66" y="82">History Recorder Self-Improve Throughput</text>
+    <text class="subtitle" x="70" y="116">Before and after throughput for the four HistoryRecorder microbenchmarks.
+    </text>
+    <g>
+        <rect x="1070" y="142" width="26" height="14" rx="4" fill="#6477D8" opacity="0.84"/>
+        <text class="legend" x="1106" y="154">Before</text>
+    </g>
+    <g>
+        <rect x="1240" y="142" width="26" height="14" rx="4" fill="#D67B35" opacity="0.84"/>
+        <text class="legend" x="1276" y="154">After</text>
+    </g>
+    <line class="axis" x1="430" y1="159" x2="1170" y2="159"/>
+    <text class="legend" x="430" y="143">million ops/s</text>
+    <g>
+        <text class="label" x="120" y="203" dominant-baseline="middle">Blocking in-memory</text>
+        <rect x="430" y="183" width="740" height="42" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
+        <rect x="430" y="185" width="63.78" height="18" rx="5" fill="#6477D8" opacity="0.84"/>
+        <text class="value" x="505.77526061538464" y="201">5.6M</text>
+        <rect x="430" y="209" width="227.90" height="18" rx="5" fill="#D67B35" opacity="0.84"/>
+        <text class="value" x="669.8986652307692" y="225">20M</text>
+    </g>
+    <g>
+        <text class="label" x="120" y="289" dominant-baseline="middle">Blocking noop</text>
+        <rect x="430" y="269" width="740" height="42" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
+        <rect x="430" y="271" width="87.01" height="18" rx="5" fill="#6477D8" opacity="0.84"/>
+        <text class="value" x="529.0108849230769" y="287">7.6M</text>
+        <rect x="430" y="295" width="714.27" height="18" rx="5" fill="#D67B35" opacity="0.84"/>
+        <text class="value" x="1156.2724427692308" y="311">62.7M</text>
+    </g>
+    <g>
+        <text class="label" x="120" y="375" dominant-baseline="middle">Suspend in-memory</text>
+        <rect x="430" y="355" width="740" height="42" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
+        <rect x="430" y="357" width="55.14" height="18" rx="5" fill="#6477D8" opacity="0.84"/>
+        <text class="value" x="497.14150984615384" y="373">4.8M</text>
+        <rect x="430" y="381" width="130.26" height="18" rx="5" fill="#D67B35" opacity="0.84"/>
+        <text class="value" x="572.2615169230769" y="397">11.4M</text>
+    </g>
+    <g>
+        <text class="label" x="120" y="461" dominant-baseline="middle">Suspend noop</text>
+        <rect x="430" y="441" width="740" height="42" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
+        <rect x="430" y="443" width="59.85" height="18" rx="5" fill="#6477D8" opacity="0.84"/>
+        <text class="value" x="501.8524523076923" y="459">5.3M</text>
+        <rect x="430" y="467" width="263.59" height="18" rx="5" fill="#D67B35" opacity="0.84"/>
+        <text class="value" x="705.5914836923077" y="483">23.2M</text>
+    </g>
+    <rect x="94" y="560" width="1312" height="44" rx="12" fill="#FFFFFF" stroke="#D7E2EC" stroke-width="1.4"/>
+    <text class="note" x="750" y="587" text-anchor="middle">Higher is better. Values converted from ops/s to million
+        ops/s.
+    </text>
 </svg>

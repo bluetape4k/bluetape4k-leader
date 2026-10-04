@@ -18,10 +18,10 @@ Issue #236은 `leader-redis-lettuce` 라인 적용 범위를 80% 이상으로 �
 ## 검증
 
 - `./gradlew :leader-redis-lettuce:test --console=plain`
-  - 204개의 테스트가 통과되었습니다.
+    - 204개의 테스트가 통과되었습니다.
 - `./gradlew :leader-redis-lettuce:koverXmlReportJvm :leader-redis-lettuce:koverLogJvm --console=plain`
-  - 회선 적용 범위: 84.6002%.
-  - 구문 분석된 XML: `TOTAL_LINE 857/1013 84.60%`.
+    - 회선 적용 범위: 84.6002%.
+    - 구문 분석된 XML: `TOTAL_LINE 857/1013 84.60%`.
 
 ## 레슨
 

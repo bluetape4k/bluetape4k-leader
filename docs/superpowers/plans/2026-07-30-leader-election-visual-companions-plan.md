@@ -1,12 +1,14 @@
 # Leader Election Visual Companions Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic
+workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Publish bilingual, deterministic visual companions that teach the Redis Lettuce `LeaderElector` lock-and-lease model and the `LeaderGroupElector` 1-to-N slot delta, then register exact-commit snapshots in `bluetape4k.github.io`.
 
 **Architecture:** `bluetape4k-leader` owns the manifest, four standalone HTML documents, validator, tests, manual links, and reviewed PNG fallbacks. The single-leader companion defines the complete time-dependent model; the group companion reuses that model and adds only bounded slot admission and state. `bluetape4k.github.io` snapshots the exact merged source commit in a separate PR, so site work cannot begin until the source merge gate has passed.
 
-**Tech Stack:** Static HTML/CSS/JavaScript, Node.js built-in test runner, Playwright browser automation, Ruby manual validators, Gradle, Astro/Starlight.
+**Tech
+Stack:** Static HTML/CSS/JavaScript, Node.js built-in test runner, Playwright browser automation, Ruby manual validators, Gradle, Astro/Starlight.
 
 ---
 
@@ -15,24 +17,24 @@
 ### `bluetape4k-leader`
 
 - Create `docs/visual-companions/manifest.json`
-  - Registers two public companion IDs, four locale files, release metadata, public routes, manual entry points, and fallback images.
+    - Registers two public companion IDs, four locale files, release metadata, public routes, manual entry points, and fallback images.
 - Create `scripts/validate-visual-companions.mjs`
-  - Validates manifest shape, path containment, standalone HTML, release/design baselines, locale parity, required technical anchors, interaction controls, accessibility, and fallback images.
+    - Validates manifest shape, path containment, standalone HTML, release/design baselines, locale parity, required technical anchors, interaction controls, accessibility, and fallback images.
 - Create `tests/visual-companions/validator.test.mjs`
-  - Exercises the passing repository and negative fixtures for duplicate IDs, missing files, external surfaces, missing anchors, and locale drift.
+    - Exercises the passing repository and negative fixtures for duplicate IDs, missing files, external surfaces, missing anchors, and locale drift.
 - Create `docs/superpowers/specs/2026-07-30-leader-elector-visual-companion.html`
-  - English detailed single-leader companion.
+    - English detailed single-leader companion.
 - Create `docs/superpowers/specs/2026-07-30-leader-elector-visual-companion.ko.html`
-  - Korean source-equivalent single-leader companion.
+    - Korean source-equivalent single-leader companion.
 - Create `docs/superpowers/specs/2026-07-30-leader-group-elector-visual-companion.html`
-  - English group delta companion.
+    - English group delta companion.
 - Create `docs/superpowers/specs/2026-07-30-leader-group-elector-visual-companion.ko.html`
-  - Korean source-equivalent group delta companion.
+    - Korean source-equivalent group delta companion.
 - Create four 2x reviewed PNG fallbacks under `docs/manual/assets/visual-companions/`
-  - `leader-elector.en.png`
-  - `leader-elector.ko.png`
-  - `leader-group-elector.en.png`
-  - `leader-group-elector.ko.png`
+    - `leader-elector.en.png`
+    - `leader-elector.ko.png`
+    - `leader-group-elector.en.png`
+    - `leader-group-elector.ko.png`
 - Modify `docs/manual/en/core/single-group-strategic.md`
 - Modify `docs/manual/ko/core/single-group-strategic.md`
 - Modify `docs/manual/en/frameworks/spring-boot.md`
@@ -46,12 +48,13 @@
 - Modify `tests/visual-companions/navigation.test.mjs`
 - Create `src/data/visual-companions/bluetape4k-leader.snapshot.json`
 - Create four snapshot routes under:
-  - `public/visual-companions/bluetape4k-leader/`
-  - `public/ko/visual-companions/bluetape4k-leader/`
+    - `public/visual-companions/bluetape4k-leader/`
+    - `public/ko/visual-companions/bluetape4k-leader/`
 
 ## Task 0: Prove the isolated baseline
 
 **Files:**
+
 - Verify only; do not modify repository files.
 
 - [ ] **Step 1: Confirm the worktree baseline**
@@ -82,6 +85,7 @@ Expected: every baseline command exits zero. If a command fails, diagnose the ba
 ## Task 1: Prove the source publication contract
 
 **Files:**
+
 - Create: `tests/visual-companions/validator.test.mjs`
 - Create: `docs/visual-companions/manifest.json`
 - Create: `scripts/validate-visual-companions.mjs`
@@ -313,6 +317,7 @@ Commit with Lore trailers. Record that the red state is intentional and limited 
 ## Task 2: Build the English LeaderElector companion
 
 **Files:**
+
 - Modify: `tests/visual-companions/validator.test.mjs`
 - Create: `docs/superpowers/specs/2026-07-30-leader-elector-visual-companion.html`
 
@@ -418,6 +423,7 @@ Commit with Lore trailers and record that Korean parity and browser rendering re
 ## Task 3: Add the Korean LeaderElector companion
 
 **Files:**
+
 - Modify: `tests/visual-companions/validator.test.mjs`
 - Create: `docs/superpowers/specs/2026-07-30-leader-elector-visual-companion.ko.html`
 
@@ -446,6 +452,7 @@ Commit with Lore trailers. Record that the locale structure and state machine ar
 ## Task 4: Build the English LeaderGroupElector delta companion
 
 **Files:**
+
 - Modify: `tests/visual-companions/validator.test.mjs`
 - Create: `docs/superpowers/specs/2026-07-30-leader-group-elector-visual-companion.html`
 
@@ -565,6 +572,7 @@ Commit with Lore trailers. Record that Korean parity and browser rendering remai
 ## Task 5: Add the Korean LeaderGroupElector companion
 
 **Files:**
+
 - Modify: `tests/visual-companions/validator.test.mjs`
 - Create: `docs/superpowers/specs/2026-07-30-leader-group-elector-visual-companion.ko.html`
 
@@ -593,6 +601,7 @@ Commit with Lore trailers. Record that the group companion remains a delta rathe
 ## Task 6: Add manual entry points and deterministic fallbacks
 
 **Files:**
+
 - Modify: `docs/manual/en/core/single-group-strategic.md`
 - Modify: `docs/manual/ko/core/single-group-strategic.md`
 - Modify: `docs/manual/en/frameworks/spring-boot.md`
@@ -652,6 +661,7 @@ Commit with Lore trailers and include deterministic hash comparison plus full-si
 ## Task 7: Run repository validation and final review
 
 **Files:**
+
 - Review all source-branch changes.
 
 - [ ] **Step 1: Run the complete manual validation sequence**
@@ -695,6 +705,7 @@ Confirm the worktree is clean, the branch contains only intended commits, every 
 ## Task 8: Deliver the source PR and stop at the merge gate
 
 **Files:**
+
 - No new repository files.
 
 - [ ] **Step 1: Push the exact source branch**
@@ -727,6 +738,7 @@ Report the exact PR and head with current CI and review evidence. Stop before me
 ## Task 9: Publish the site snapshot after the source merge
 
 **Files:**
+
 - Modify: `bluetape4k.github.io/src/data/visual-companions/repositories.json`
 - Modify: `bluetape4k.github.io/src/data/visual-companions/catalog.json`
 - Modify: `bluetape4k.github.io/tests/visual-companions/repositories.test.mjs`

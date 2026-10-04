@@ -58,7 +58,7 @@ class SuspendLeaderElectorLeaseAdapter(
     @Suppress("TooGenericExceptionCaught")
     override suspend fun tryAcquire(slot: LeaderSlot): SuspendLeaderLeaseHandle? {
         log.debug { "try acquire lease handle. slot=$slot" }
-        
+
         slot.lockName.requireNotBlank("lockName")
         currentCoroutineContext().ensureActive()
 

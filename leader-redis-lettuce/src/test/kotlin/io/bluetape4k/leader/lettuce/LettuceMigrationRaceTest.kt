@@ -144,7 +144,7 @@ internal class MigrationRaceScenario(
                     actual.pttl(sourceKey) shouldBeEqualTo -2L
                 }
                 MigrationRace.SAME_BEFORE_TTL, MigrationRace.SAME_AFTER_COPY -> actual.set(sourceKey, raw)
-                else                                                         -> {
+                else -> {
                     // 복사 후 일반 writer와 source 삭제를 완료한 다음 이전 migration의 cleanup을 재개한다.
                     writeCurrent(race)
                     actual.get(token).shouldBeNull()
@@ -176,7 +176,7 @@ internal class MigrationRaceScenario(
                 when (race) {
                     MigrationRace.REGISTER_CHANGED_AFTER_COPY -> candidate shouldBeEqualTo changed
                     MigrationRace.RESULT_AFTER_COPY -> candidate.successCount shouldBeEqualTo 1L
-                    else                            -> candidate shouldBeEqualTo original
+                    else -> candidate shouldBeEqualTo original
                 }
                 actual.get(destination) shouldBeEqualTo LettuceCandidateInfoCodec.encode(candidate)
                 actual.sismember(destinationIndex, nodeId).shouldBeTrue()
@@ -276,17 +276,17 @@ internal class MigrationRaceScenario(
                     keys, REGISTER,
                     if (race == MigrationRace.REGISTER_CHANGED_AFTER_COPY) changedRaw else raw, "0", nodeId,
                 )
-            MigrationRace.REFRESH_SAME_AFTER_COPY                                             ->
+            MigrationRace.REFRESH_SAME_AFTER_COPY ->
                 RedisScriptRunner.run(
                     actual, LettuceCandidateRefreshScript.REFRESH, ScriptOutputType.MULTI,
                     arrayOf(destination, destinationIndex, token), raw, "0",
                 )
-            MigrationRace.RESULT_AFTER_COPY                                                   ->
+            MigrationRace.RESULT_AFTER_COPY ->
                 RedisScriptRunner.run<List<Any>>(
                     actual, LettuceCandidateResultScript.UPDATE, ScriptOutputType.MULTI,
                     arrayOf(destination, token), CandidateResult.SUCCESS.name, "123",
                 )
-            else                                                                              ->
+            else ->
                 error("v3 writer 시나리오가 아님: $race")
         }
     }

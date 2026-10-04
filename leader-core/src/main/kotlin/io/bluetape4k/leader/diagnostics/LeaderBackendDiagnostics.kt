@@ -194,9 +194,9 @@ data class LeaderBackendConnectivity @JvmOverloads constructor(
                 "$status connectivity must not use NOT_CHECKED reason"
             }
             val allowedReasons = when (status) {
-                LeaderBackendConnectivityStatus.UP      ->
+                LeaderBackendConnectivityStatus.UP ->
                     setOf(LeaderBackendConnectivityReason.CONNECTED)
-                LeaderBackendConnectivityStatus.DOWN    ->
+                LeaderBackendConnectivityStatus.DOWN ->
                     setOf(LeaderBackendConnectivityReason.DISCONNECTED)
                 LeaderBackendConnectivityStatus.UNKNOWN -> setOf(
                     LeaderBackendConnectivityReason.PROVIDER_UNSUPPORTED,
@@ -272,8 +272,8 @@ data class LeaderBackendConnectivity @JvmOverloads constructor(
 
 private fun LeaderBackendConnectivityStatus.defaultReason(): LeaderBackendConnectivityReason =
     when (this) {
-        LeaderBackendConnectivityStatus.UP      -> LeaderBackendConnectivityReason.CONNECTED
-        LeaderBackendConnectivityStatus.DOWN    -> LeaderBackendConnectivityReason.DISCONNECTED
+        LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivityReason.CONNECTED
+        LeaderBackendConnectivityStatus.DOWN -> LeaderBackendConnectivityReason.DISCONNECTED
         LeaderBackendConnectivityStatus.UNKNOWN -> LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED
         LeaderBackendConnectivityStatus.NOT_CHECKED -> LeaderBackendConnectivityReason.NOT_CHECKED
     }
@@ -351,7 +351,7 @@ internal fun Any.resolveLeaderBackendDiagnosticsProvider(): LeaderBackendDiagnos
     when (this) {
         is LeaderBackendDiagnosticsProvider -> this
         is LeaderBackendDiagnosticsAware -> backendDiagnosticsProvider
-        else                             -> null
+        else -> null
     }
 
 internal fun Duration.requirePositiveFiniteProbeTimeout(): Duration {

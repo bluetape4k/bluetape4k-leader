@@ -284,7 +284,7 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
                     "cancelled-action"
                 }
             }.log("Cancelling lg:{$cancelLock}")
-            
+
             // action 진입 직후 취소
             delay(20.milliseconds)
             deferred.cancelAndJoin()

@@ -240,7 +240,7 @@ class KubernetesBackendLeaderElectorBenchmark {
             }
     }
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         private const val CONFLICT = 409
         internal const val K8S_NAMESPACE = "default"
     }

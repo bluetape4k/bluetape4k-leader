@@ -138,6 +138,7 @@ val election = ExposedJdbcLeaderElector(db, options)
 2.
 
 **INSERT** `LeaderLockTable (lockName, token, lockedUntil, ...)` — creates a new lock if no row exists (PK conflict on contention → silently skipped)
+
 3. **SELECT** `WHERE lockName=? AND token=?` — confirms ownership
 
 This pattern works on all supported databases without database-specific syntax.

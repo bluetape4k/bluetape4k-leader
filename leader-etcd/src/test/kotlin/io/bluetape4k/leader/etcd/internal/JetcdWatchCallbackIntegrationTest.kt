@@ -160,7 +160,7 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
 
     private fun WatchEvent.label(): String =
         when (eventType) {
-            WatchEvent.EventType.PUT    -> "PUT:${keyValue.value.toUtf8String()}"
+            WatchEvent.EventType.PUT -> "PUT:${keyValue.value.toUtf8String()}"
             WatchEvent.EventType.DELETE -> "DELETE"
             WatchEvent.EventType.UNRECOGNIZED -> "UNRECOGNIZED"
         }

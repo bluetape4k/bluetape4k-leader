@@ -81,7 +81,7 @@ internal class LeaderRouteLeaseShutdownCoordinator(
 
     override fun close() {
         when (drain()) {
-            State.DRAINED                         -> {
+            State.DRAINED -> {
                 disposeSchedulers()
                 state.compareAndSet(State.DRAINED, State.CLOSED)
             }

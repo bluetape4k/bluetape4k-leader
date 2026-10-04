@@ -255,7 +255,7 @@ class LeaderElectionObservabilityAutoConfigurationTest {
         publisher.onRevoked("job-a")
 
         events.await().forEach { log.debug { "event=$it" } }
-        
+
         events.await() shouldBeEqualTo listOf(
             LeaderElectionEvent.Elected("job-a"),
             LeaderElectionEvent.Skipped("job-b"),

@@ -15,10 +15,10 @@ import io.bluetape4k.leader.internal.BackendErrorKind
 internal object HazelcastBackendErrorClassifier: BackendErrorClassifier {
 
     override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {
-        is WrongTargetException        -> BackendErrorKind.TRANSIENT
-        is TargetNotMemberException    -> BackendErrorKind.TRANSIENT
+        is WrongTargetException -> BackendErrorKind.TRANSIENT
+        is TargetNotMemberException -> BackendErrorKind.TRANSIENT
         is RetryableHazelcastException -> BackendErrorKind.TRANSIENT
-        is HazelcastException          -> BackendErrorKind.NON_TRANSIENT
-        else                           -> null
+        is HazelcastException -> BackendErrorKind.NON_TRANSIENT
+        else -> null
     }
 }

@@ -6,7 +6,7 @@
 
 ## 결정
 
-`0.3.1`를 현재 릴리스-열 정렬(게시 가능한 Exposed 모듈의 `bluetape4k-bom` 1.10.0, `bluetape4k-exposed-bom` 1.10.0 및 `implementation(platform(...))`)에서 패치 릴리스로 게시합니다.
+`0.3.1`를 현재 릴리스-열 정렬 (게시 가능한 Exposed 모듈의 `bluetape4k-bom` 1.10.0, `bluetape4k-exposed-bom` 1.10.0 및 `implementation(platform(...))`)에서 패치 릴리스로 게시합니다.
 
 ## 결과
 

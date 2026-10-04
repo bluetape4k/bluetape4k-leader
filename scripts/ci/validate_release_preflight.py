@@ -8,7 +8,6 @@ import re
 import sys
 from pathlib import Path
 
-
 GROUP = "io.github.bluetape4k"
 REQUIRED_MODULES = (
     "bluetape4k-virtualthread-api",
@@ -29,7 +28,7 @@ def read_gradle_properties(path: Path) -> dict[str, str]:
 
 
 def validate_provider_version(
-    properties: dict[str, str],
+        properties: dict[str, str],
 ) -> tuple[str | None, list[str]]:
     version = properties.get("bluetape4kVirtualThreadJdk25Version", "").strip()
     if not version:
@@ -45,8 +44,8 @@ def validate_provider_version(
 
 
 def validate_resolved_dependencies(
-    resolution: str,
-    expected_version: str,
+        resolution: str,
+        expected_version: str,
 ) -> list[str]:
     errors: list[str] = []
     for module in REQUIRED_MODULES:
@@ -74,8 +73,8 @@ def validate_resolved_dependencies(
 
 
 def validate(
-    properties_path: Path,
-    resolution_path: Path,
+        properties_path: Path,
+        resolution_path: Path,
 ) -> tuple[str | None, list[str]]:
     version, errors = validate_provider_version(read_gradle_properties(properties_path))
     if version is None:

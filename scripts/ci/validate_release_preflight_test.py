@@ -8,7 +8,6 @@ import sys
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 PROPERTIES = ROOT / "gradle.properties"
 WORKFLOW = ROOT / ".github/workflows/release.yml"
@@ -58,7 +57,7 @@ class ReleasePreflightContractTest(unittest.TestCase):
         self.assertIn("필요하다", errors[0])
 
     def test_resolution_validation_requires_the_same_immutable_api_and_provider(
-        self,
+            self,
     ) -> None:
         resolution = """
         +--- io.github.bluetape4k:bluetape4k-virtualthread-api:1.13.0-SNAPSHOT -> 1.13.0-20260813.192107-9

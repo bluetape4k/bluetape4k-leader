@@ -38,7 +38,7 @@ import kotlin.time.Duration.Companion.seconds
 class KubernetesLeaseExecutorOverloadContractTest {
 
     companion object: KLogging()
-    
+
     private val client: KubernetesClient = KubernetesContractSupport.newClient()
 
     @AfterAll

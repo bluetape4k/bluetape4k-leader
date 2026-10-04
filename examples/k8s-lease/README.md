@@ -8,10 +8,7 @@ This example demonstrates leader election with the Kubernetes
 
 ## Scenario
 
-Two holder identities compete for the same Kubernetes Lease. The first holder
-creates or renews the Lease, a competing holder receives `CONFLICT` while the
-Lease is still valid, and the current holder can release it so another holder
-can acquire the same Lease later.
+Two holder identities compete for the same Kubernetes Lease. The first holder creates or renews the Lease, a competing holder receives `CONFLICT` while the Lease is still valid, and the current holder can release it so another holder can acquire the same Lease later.
 
 ## Example Scenario
 
@@ -38,21 +35,15 @@ can acquire the same Lease later.
 
 ## Run
 
-`leaseDuration` accepts positive `java.time.Duration` values up to `Int.MAX_VALUE` seconds.
-Fractional seconds are rounded up: 1ns and 500ms become 1 second, and 1s + 1ns becomes 2 seconds.
-Zero, negative values, and values above the limit fail before any client call.
-Create, update, and the fallback for an existing Lease with no duration use the same converted value.
-Normal `test` validates mock requests; `k8sTest` separately validates real subsecond create/update requests.
+`leaseDuration` accepts positive `java.time.Duration` values up to `Int.MAX_VALUE` seconds. Fractional seconds are rounded up: 1ns and 500ms become 1 second, and 1s + 1ns becomes 2 seconds. Zero, negative values, and values above the limit fail before any client call. Create, update, and the fallback for an existing Lease with no duration use the same converted value. Normal `test` validates mock requests; `k8sTest` separately validates real subsecond create/update requests.
 
-K3s requires Docker privileged mode. The test is tagged `k8s` and is excluded
-from the normal `test` task.
+K3s requires Docker privileged mode. The test is tagged `k8s` and is excluded from the normal `test` task.
 
 ```bash
 ./gradlew :examples:k8s-lease:k8sTest
 ```
 
-Use this only on a local Docker daemon or CI runner that supports privileged
-containers.
+Use this only on a local Docker daemon or CI runner that supports privileged containers.
 
 ## Design
 

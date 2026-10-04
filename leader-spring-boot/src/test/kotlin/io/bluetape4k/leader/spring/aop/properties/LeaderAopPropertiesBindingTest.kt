@@ -44,7 +44,7 @@ class LeaderAopPropertiesBindingTest {
             .get()
 
         log.debug { "props=$props" }
-        
+
         props.enabled.shouldBeFalse()
 
         props.strict.shouldBeTrue()

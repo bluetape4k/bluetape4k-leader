@@ -16,13 +16,13 @@ Issue #309에서는 Lettuce 잠금 및 슬롯 획득 경로에서 벽시계 `Sys
 
 - `./gradlew :bluetape4k-leader-redis-lettuce:compileKotlin :bluetape4k-leader-redis-lettuce:compileTestKotlin --no-build-cache --stacktrace`
 - `./gradlew :bluetape4k-leader-redis-lettuce:test --tests 'io.bluetape4k.leader.lettuce.internal.MonotonicDeadlineTest' --no-build-cache --stacktrace`
-  - 5 통과
+    - 5 통과
 - `./gradlew :bluetape4k-leader-redis-lettuce:test --tests 'io.bluetape4k.leader.lettuce.LettuceLeaderGroupElectionTest.maxLeaders 동시 점유 + 모두 minLease 보유 - 추가 client 는 실패한다' --no-build-cache --stacktrace`
-  - 1 통과
+    - 1 통과
 - `./gradlew :bluetape4k-leader-redis-lettuce:test --no-build-cache --stacktrace`
-  - 첫 번째 검토 후 실행에는 시간에 민감한 그룹 minLease 오류가 하나 있었습니다.
-  - 즉시 대상 재실행 및 전체 모듈 재실행이 통과되었습니다.
-  - 최종 전체 모듈 결과: 212 통과
+    - 첫 번째 검토 후 실행에는 시간에 민감한 그룹 minLease 오류가 하나 있었습니다.
+    - 즉시 대상 재실행 및 전체 모듈 재실행이 통과되었습니다.
+    - 최종 전체 모듈 결과: 212 통과
 
 ## 향후 지침
 

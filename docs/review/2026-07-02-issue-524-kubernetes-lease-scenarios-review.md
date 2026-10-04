@@ -23,14 +23,14 @@ P0/P1 발견 항목이 없습니다.
 
 ## 7층 관문
 
-| Tier | Verdict | Evidence |
-|---|---|---|
-| Tier 1 Security | PASS | No production auth, credential, or network policy boundary changed; the benchmark uses the existing local K3s Testcontainers wrapper. |
-| Tier 2 Architecture | PASS | New coverage stays in the existing benchmark source set and does not change production leader APIs. |
-| Tier 3 Data/State | PASS | Lease fixtures are created, updated, cleaned, and isolated by scenario-specific JMH state. |
-| Tier 4 Correctness | PASS | Blocking and suspend rows cover fresh acquire, pre-held skip, expired takeover, renewal update, and stale conflict scenarios. |
-| Tier 5 Test/Benchmark | PASS | `compileKubernetesBenchmarkKotlin`, `kubernetesBenchmarkBenchmarkJar`, and two K3s JMH smoke runs produced 10 throughput rows and 10 average-time rows. |
-| Tier 6 Performance | PASS | README and benchmark report state that the numbers are short K3s smoke snapshots and separate direct API probes from full elector paths. |
-| Tier 7 Docs/Release | PASS | README and README.ko were updated together with raw JSON, generated SVG/PNG charts, commands, tables, and interpretation. |
+| Tier                  | Verdict | Evidence                                                                                                                                                |
+|-----------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Tier 1 Security       | PASS    | No production auth, credential, or network policy boundary changed; the benchmark uses the existing local K3s Testcontainers wrapper.                   |
+| Tier 2 Architecture   | PASS    | New coverage stays in the existing benchmark source set and does not change production leader APIs.                                                     |
+| Tier 3 Data/State     | PASS    | Lease fixtures are created, updated, cleaned, and isolated by scenario-specific JMH state.                                                              |
+| Tier 4 Correctness    | PASS    | Blocking and suspend rows cover fresh acquire, pre-held skip, expired takeover, renewal update, and stale conflict scenarios.                           |
+| Tier 5 Test/Benchmark | PASS    | `compileKubernetesBenchmarkKotlin`, `kubernetesBenchmarkBenchmarkJar`, and two K3s JMH smoke runs produced 10 throughput rows and 10 average-time rows. |
+| Tier 6 Performance    | PASS    | README and benchmark report state that the numbers are short K3s smoke snapshots and separate direct API probes from full elector paths.                |
+| Tier 7 Docs/Release   | PASS    | README and README.ko were updated together with raw JSON, generated SVG/PNG charts, commands, tables, and interpretation.                               |
 
 P0: 0 P1: 0

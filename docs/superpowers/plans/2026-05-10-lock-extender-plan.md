@@ -1,18 +1,21 @@
 # LockExtender / LockAssert + Reentrant `@LeaderElection` + Explicit Lease Extension Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic
+workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** ShedLock-등가 `LockAssert.assertLocked()` / `LockExtender.extendActiveLock(Duration)` 추가 + `@LeaderElection`/`@LeaderGroupElection` 의 reentrant 의미론 정의 + 8 backend 의 atomic explicit lease extension API 신설.
 
-**Architecture:** sealed `LeaderLockHandle { Real, FailOpen }` + `LockIdentity` 4-tuple (lockName, kind, factoryBean, groupParams) + ThreadLocal Deque(`LockStateHolder`) + `CoroutineContext.Element`(`LockHandleElement`) 로 sync/suspend/Mono 3 분기 propagation. Watchdog 와 LockExtender 는 단일 `ExtendDelegate` reference 공유 → race-free atomic backend extend. Aspect 가 full identity reentrant peek + fail-open sentinel push (contention + backend exception 양쪽) 을 수행.
+**Architecture:** sealed `LeaderLockHandle { Real, FailOpen }` + `LockIdentity` 4-tuple (lockName, kind, factoryBean, groupParams) + ThreadLocal Deque (`LockStateHolder`) + `CoroutineContext.Element`(`LockHandleElement`) 로 sync/suspend/Mono 3 분기 propagation. Watchdog 와 LockExtender 는 단일 `ExtendDelegate` reference 공유 → race-free atomic backend extend. Aspect 가 full identity reentrant peek + fail-open sentinel push (contention + backend exception 양쪽) 을 수행.
 
-**Tech Stack:** Kotlin 2.3, Java 21, Spring Boot 4.x AOP (AspectJ CTW), Coroutines, Lettuce/Redisson/MongoDB/Exposed JDBC·R2DBC/Hazelcast/ZooKeeper/Local, JUnit 5 + MockK + bluetape4k-assertions + Testcontainers.
+**Tech
+Stack:** Kotlin 2.3, Java 21, Spring Boot 4.x AOP (AspectJ CTW), Coroutines, Lettuce/Redisson/MongoDB/Exposed JDBC·R2DBC/Hazelcast/ZooKeeper/Local, JUnit 5 + MockK + bluetape4k-assertions + Testcontainers.
 
 **Spec:** [`docs/superpowers/specs/2026-05-10-lock-extender-design.md`](../specs/2026-05-10-lock-extender-design.md) — Round 8 architectural convergence (Codex P0/P1=0), 117 finding 통합.
 
 **Critical path:** T1 → T2 → T3 → T4 → T14 → T17 → T18 → T19.
 
 **Parallel windows** (Plan-R3-P1-1 + Plan-R4-P1 — dependency graph 정확화 + handoff 동기화):
+
 - T5 는 T1, T3 후 시작 (BackendErrorClassifier SPI + LeaderLeaseAutoExtender signature)
 - T6 는 T4, T5 후 시작 (AbstractLockExtenderContractTest base)
 - T7~T13 backend tasks 는 **T5, T6 모두 완료 후** 병렬 가능 (단 T11 R2DBC 는 T10 JDBC 의 SQL 패턴 참조 — T10 → T11 직렬)
@@ -21,6 +24,7 @@
 - T16 (validator) 는 T1~T4 의존 — T14 와 병렬 가능
 
 **Effort estimate (19 tasks):**
+
 - high (8): T7, T8, T12, T14, T15, T17 + critical paths
 - medium (8): T1, T4, T5, T6, T9, T10, T11, T16, T18
 - low (3): T2, T3, T13, T19
@@ -30,6 +34,7 @@
 ## File Structure Map
 
 ### `leader-core` (신규 + 수정)
+
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderLockHandle.kt` — sealed class Real/FailOpen
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/LockIdentity.kt` — 4-tuple identity
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/ExtendOutcome.kt` — sealed result
@@ -46,6 +51,7 @@
 - Modify: `leader-core/src/main/kotlin/io/bluetape4k/leader/local/*` — capture + extend 메서드 추가
 
 ### Backend modules (각 8 backend 별 lock + elector)
+
 - `leader-redis-lettuce/.../lock/LettuceLock.kt`, `LettuceSuspendLock.kt`, `semaphore/LettuceSlotTokenGroup.kt`, `LettuceLeaderElector.kt`, `LettuceSuspendLeaderElector.kt`, `LettuceLeaderGroupElector.kt`, `LettuceSuspendLeaderGroupElector.kt`, `internal/LettuceBackendErrorClassifier.kt` (Create)
 - `leader-redis-redisson/.../RedissonLeaderElector.kt`, `RedissonSuspendLeaderElector.kt`, `RedissonLeaderGroupElector.kt`, `RedissonSuspendLeaderGroupElector.kt`, `internal/RedissonBackendErrorClassifier.kt` (Create)
 - `leader-mongodb/.../lock/MongoLock.kt`, `MongoSuspendLock.kt`, `MongoLeaderGroupElector.kt`, `MongoSuspendLeaderGroupElector.kt`, `internal/MongoBackendErrorClassifier.kt` (Create)
@@ -55,12 +61,14 @@
 - `leader-zookeeper/.../ZkLeaderElector.kt`, `ZkSuspendLeaderElector.kt` (passthrough extend), `internal/ZkBackendErrorClassifier.kt`
 
 ### `leader-spring-boot` (aspect + validator)
+
 - Modify: `leader-spring-boot/.../aop/LeaderElectionAspect.kt` — 3 분기 + reentrant peek + sentinel + capture
 - Modify: `leader-spring-boot/.../aop/LeaderGroupElectionAspect.kt` — group 분기 동일
 - Modify: `leader-spring-boot/.../aop/validator/LeaderAnnotationValidatorBeanPostProcessor.kt` — CompletableFuture/Future/ListenableFuture 차단
 - Create: `leader-spring-boot/.../aop/internal/AdviceMetadata.kt` + `AdviceBranch.kt` + `BodyThrownMarker.kt` + `CaptureInvariantException.kt`
 
 ### Docs
+
 - Modify: `leader-spring-boot/README.md` + `README.ko.md`
 - Modify: `CHANGELOG.md`, `WIP.md`
 - Modify: `CLAUDE.md` (3 군데 — workspace root, project root, worktree)
@@ -71,12 +79,11 @@
 
 ## Task 1: Core types — `LeaderLockHandle`, `LockIdentity`, `ExtendOutcome`, internal mechanisms
 
-**Complexity:** medium
-**Module:** `leader-core`
-**Depends on:** —
-**Satisfies AC:** AC-10 (KDoc), part of AC-2/2b (identity), AC-11 (detekt)
+**Complexity:** medium **Module:** `leader-core`
+**Depends on:** — **Satisfies AC:** AC-10 (KDoc), part of AC-2/2b (identity), AC-11 (detekt)
 
 **Files:**
+
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/LockIdentity.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/ExtendOutcome.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderLockHandle.kt`
@@ -165,24 +172,19 @@ package io.bluetape4k.leader
  * val groupId = LockIdentity("group-job", LockIdentity.AnnotationKind.GROUP, "lettuceGroupFactory",
  *     LockIdentity.GroupParams(maxLeaders = 3))
  * ```
- */
-data class LockIdentity(
-    val lockName: String,
-    val kind: AnnotationKind,
-    val factoryBeanName: String,
-    val groupParams: GroupParams? = null,
-) {
-    init {
-        require((kind == AnnotationKind.GROUP) == (groupParams != null)) {
-            "GROUP kind requires groupParams; SINGLE kind forbids it (kind=$kind, groupParams=$groupParams)"
-        }
-    }
+
+*/ data class LockIdentity (val lockName: String, val kind: AnnotationKind, val factoryBeanName: String, val groupParams: GroupParams? = null,
+) { init { require ((kind == AnnotationKind.GROUP) == (groupParams != null)) {
+"GROUP kind requires groupParams; SINGLE kind forbids it (kind=$kind, groupParams=$groupParams)"
+} }
 
     enum class AnnotationKind { SINGLE, GROUP }
 
     /** Currently `maxLeaders` only — 신규 필드 추가 시 default value 필수 (binary-compat). */
     data class GroupParams(val maxLeaders: Int)
+
 }
+
 ```
 
 - [ ] **Step 4: Run test, expect PASS**
@@ -433,13 +435,8 @@ import kotlin.time.Duration
  *     extendDelegate = myDelegate)
  * if (handle is LeaderLockHandle.Real) handle.extend(60.seconds)
  * ```
- */
-sealed class LeaderLockHandle {
-    abstract val identity: LockIdentity
-    val lockName: String get() = identity.lockName
-    abstract val reentryDepth: Int
-    val isReentrant: Boolean get() = reentryDepth > 0
-    fun matchesIdentity(other: LockIdentity): Boolean = identity == other
+
+*/ sealed class LeaderLockHandle { abstract val identity: LockIdentity val lockName: String get () = identity.lockName abstract val reentryDepth: Int val isReentrant: Boolean get () = reentryDepth > 0 fun matchesIdentity (other: LockIdentity): Boolean = identity == other
 
     class Real internal constructor(
         override val identity: LockIdentity,
@@ -502,7 +499,9 @@ sealed class LeaderLockHandle {
 
         internal fun failOpen(identity: LockIdentity): FailOpen = FailOpen(identity)
     }
+
 }
+
 ```
 
 - [ ] **Step 13: Run handle test, expect PASS**
@@ -725,12 +724,11 @@ git commit -m "feat(leader-core): T1 core types (LockIdentity, ExtendOutcome, Le
 
 ## Task 2: `LockHandleElement` (CoroutineContext.Element)
 
-**Complexity:** low
-**Module:** `leader-core`
-**Depends on:** T1
-**Satisfies AC:** AC-5 (suspend/Mono propagation), AC-10 (KDoc), part of binary-compat (R8 / Type T8)
+**Complexity:** low **Module:** `leader-core`
+**Depends on:** T1 **Satisfies AC:** AC-5 (suspend/Mono propagation), AC-10 (KDoc), part of binary-compat (R8 / Type T8)
 
 **Files:**
+
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/coroutines/LockHandleElement.kt`
 - Test: `leader-core/src/test/kotlin/io/bluetape4k/leader/coroutines/LockHandleElementTest.kt`
 
@@ -828,12 +826,11 @@ git commit -m "feat(leader-core): T2 LockHandleElement coroutine context propaga
 
 ## Task 3: `runIfLeaderResultSuspend` default fun on suspend electors
 
-**Complexity:** low
-**Module:** `leader-core`
-**Depends on:** T1
-**Satisfies AC:** AC-25 (binary-compat default fun), part of AC-4b (Skipped detection)
+**Complexity:** low **Module:** `leader-core`
+**Depends on:** T1 **Satisfies AC:** AC-25 (binary-compat default fun), part of AC-4b (Skipped detection)
 
 **Files:**
+
 - Modify: `leader-core/src/main/kotlin/io/bluetape4k/leader/SuspendLeaderElector.kt`
 - Modify: `leader-core/src/main/kotlin/io/bluetape4k/leader/SuspendLeaderGroupElector.kt`
 - Test: `leader-core/src/test/kotlin/io/bluetape4k/leader/SuspendLeaderElectorDefaultFunTest.kt`
@@ -962,12 +959,12 @@ git commit -m "feat(leader-core): T3 runIfLeaderResultSuspend default fun (binar
 
 ## Task 4: `LockAssert` + `LockExtender` top-level objects
 
-**Complexity:** medium
-**Module:** `leader-core`
-**Depends on:** T1, T2
-**Satisfies AC:** AC-3 (assertLocked outside body), AC-4 (extend in fail-open), AC-10 (KDoc), AC-19 (Java Duration overload), partial AC-5 (sync/suspend API surface)
+**Complexity:** medium **Module:** `leader-core`
+**Depends on:** T1, T2 **Satisfies
+AC:** AC-3 (assertLocked outside body), AC-4 (extend in fail-open), AC-10 (KDoc), AC-19 (Java Duration overload), partial AC-5 (sync/suspend API surface)
 
 **Files:**
+
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/LockAssert.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/LockExtender.kt`
 - Test: `leader-core/src/test/kotlin/io/bluetape4k/leader/LockAssertTest.kt`
@@ -1089,15 +1086,11 @@ import kotlin.coroutines.coroutineContext
  *     LockAssert.assertLocked()           // ✅
  * }
  * ```
- */
-object LockAssert : KLogging() {
-    @JvmStatic fun assertLocked() {
-        val h = LockStateHolder.peekSync()
-            ?: error("LockAssert.assertLocked() called outside @LeaderElection body — no active scope on this thread")
-        if (h is LeaderLockHandle.FailOpen) {
-            error("LockAssert.assertLocked() called inside fail-open sentinel scope (lockName=${h.lockName})")
-        }
-    }
+
+*/ object LockAssert : KLogging () { @JvmStatic fun assertLocked () { val h = LockStateHolder.peekSync ()
+?: error ("LockAssert.assertLocked () called outside @LeaderElection body — no active scope on this thread")
+if (h is LeaderLockHandle.FailOpen) { error ("LockAssert.assertLocked () called inside fail-open sentinel scope (lockName=${h.lockName})")
+} }
 
     @JvmStatic fun assertLocked(lockName: String) {
         val h = LockStateHolder.peekSyncMatching(lockName)
@@ -1142,7 +1135,9 @@ object LockAssert : KLogging() {
         val h = coroutineContext[LockHandleElement]?.handle ?: return false
         return h is LeaderLockHandle.Real && h.lockName == lockName
     }
+
 }
+
 ```
 
 - [ ] **Step 4: Run LockAssert tests, expect PASS**
@@ -1301,8 +1296,8 @@ import kotlin.time.toKotlinDuration
  *     doWork()
  * }
  * ```
- */
-object LockExtender : KLogging() {
+
+*/ object LockExtender : KLogging () {
 
     @JvmStatic fun extendActiveLock(lockAtMostFor: Duration): Boolean =
         extendActiveLockDetailed(lockAtMostFor).isExtended
@@ -1377,7 +1372,9 @@ object LockExtender : KLogging() {
         }
         return (h as LeaderLockHandle.Real).extendSuspend(lockAtMostFor)
     }
+
 }
+
 ```
 
 - [ ] **Step 8: Run LockExtender tests, expect PASS**
@@ -1436,12 +1433,12 @@ git commit -m "feat(leader-core): T4 LockAssert + LockExtender top-level API (Sh
 
 ## Task 5: `BackendErrorClassifier` SPI + `LeaderLeaseAutoExtender` 시그니처 변경 + Local elector capture/extend
 
-**Complexity:** medium
-**Module:** `leader-core`
-**Depends on:** T1, T3
-**Satisfies AC:** AC-15 (delegate reference 동일성), AC-24 (SPI core 의존성 역전), part of AC-1 (Local contract), AC-6 (race-free)
+**Complexity:** medium **Module:** `leader-core`
+**Depends on:** T1, T3 **Satisfies
+AC:** AC-15 (delegate reference 동일성), AC-24 (SPI core 의존성 역전), part of AC-1 (Local contract), AC-6 (race-free)
 
 **Files:**
+
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/internal/BackendErrorClassifier.kt`
 - Modify: `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderLeaseAutoExtender.kt`
 - Modify: `leader-core/src/main/kotlin/io/bluetape4k/leader/local/*` (local registry + electors)
@@ -1676,12 +1673,11 @@ git commit -m "feat(leader-core): T5 BackendErrorClassifier SPI + ExtendDelegate
 
 ## Task 6: Abstract contract bases + Local concrete contract tests
 
-**Complexity:** medium
-**Module:** `leader-core`
-**Depends on:** T4, T5
-**Satisfies AC:** AC-1 (capability matrix Local row), AC-6 (race-free), AC-12 (coverage)
+**Complexity:** medium **Module:** `leader-core`
+**Depends on:** T4, T5 **Satisfies AC:** AC-1 (capability matrix Local row), AC-6 (race-free), AC-12 (coverage)
 
 **Files:**
+
 - Create: `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/AbstractSyncLockExtenderContractTest.kt`
 - Create: `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/AbstractSuspendLockExtenderContractTest.kt`
 - Create: `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/AbstractGroupLockExtenderContractTest.kt`
@@ -1992,12 +1988,13 @@ git commit -m "test(leader-core): T6 abstract contract bases + Local concrete te
 
 ## Task 7: Lettuce — single sync/suspend `extend` + group `extendSlot` Lua (server-side TIME) + capture + classifier
 
-**Complexity:** high
-**Module:** `leader-redis-lettuce`
+**Complexity:** high **Module:** `leader-redis-lettuce`
 **Depends on:** T1, T3, T5, T6 (AbstractLockExtenderContractTest base — Plan-R2-P1-2)
-**Satisfies AC:** AC-1 (Lettuce rows), AC-15 (delegate ref), AC-16 (server-side TIME grep), AC-18 (CancellationException re-throw), AC-21 (extendSuspend override), AC-23 (per-module ref test), AC-24 (Lettuce classifier)
+**Satisfies
+AC:** AC-1 (Lettuce rows), AC-15 (delegate ref), AC-16 (server-side TIME grep), AC-18 (CancellationException re-throw), AC-21 (extendSuspend override), AC-23 (per-module ref test), AC-24 (Lettuce classifier)
 
 **Files:**
+
 - Modify: `leader-redis-lettuce/.../lock/LettuceLock.kt` — `extend(d): ExtendOutcome` (반환형 변경)
 - Modify: `leader-redis-lettuce/.../lock/LettuceSuspendLock.kt` — `suspend fun extend(d): ExtendOutcome`
 - Modify: `leader-redis-lettuce/.../semaphore/LettuceSlotTokenGroup.kt` — `extendSlot(token, d): ExtendOutcome` + `suspend extendSlot`
@@ -2244,7 +2241,7 @@ rg -n "redis\.call\('TIME'\)" leader-redis-lettuce/src/main/kotlin/
 # Expected: 2+ matches in EXTEND_SLOT_SCRIPT (group) — AC-16 검증
 ```
 
-- [ ] **Step 11: Verify AC-21 — extendSuspend override + withContext(IO)**
+- [ ] **Step 11: Verify AC-21 — extendSuspend override + withContext (IO)**
 
 ```bash
 rg -n "object\s*:\s*ExtendDelegate" leader-redis-lettuce/src/main/kotlin/
@@ -2272,7 +2269,8 @@ class LettuceExtendDelegateReferenceTest {
 > - `ExposedJdbcExtendDelegateReferenceTest` (T10), `ExposedR2dbcExtendDelegateReferenceTest` (T11),
 > - `HazelcastExtendDelegateReferenceTest` (T12), `ZkExtendDelegateReferenceTest` (T13).
 >
-> 각 backend module 의 test sourceSet 안에 위치 — `extendDelegate` 가 `internal` 이므로 cross-module 접근 불가, same-module test 만 가능. **각 task 의 마지막 step 으로 "Write `{Backend}ExtendDelegateReferenceTest` (AC-23)" 추가 의무.**
+> 각 backend module 의 test sourceSet 안에 위치 — `extendDelegate` 가 `internal` 이므로 cross-module 접근 불가, same-module test 만 가능.
+> **각 task 의 마지막 step 으로 "Write `{Backend}ExtendDelegateReferenceTest` (AC-23)" 추가 의무.**
 
 - [ ] **Step 13: Run module build + tests**
 
@@ -2292,12 +2290,12 @@ git commit -m "feat(leader-redis-lettuce): T7 extend ExtendOutcome + group exten
 
 ## Task 8: Redisson — owner-guarded Lua single + group `updateLeaseTime` + thread-id guard + capture + classifier
 
-**Complexity:** high
-**Module:** `leader-redis-redisson`
+**Complexity:** high **Module:** `leader-redis-redisson`
 **Depends on:** T1, T3, T5, T6 (AbstractLockExtenderContractTest base — Plan-R2-P1-2)
 **Satisfies AC:** AC-1 (Redisson rows), AC-8 (thread-id semantics), AC-15, AC-18, AC-21, AC-23, AC-24
 
 **Files:**
+
 - Modify: `leader-redis-redisson/.../RedissonLeaderElector.kt` — owner-guarded Lua extend + capture
 - Modify: `leader-redis-redisson/.../RedissonSuspendLeaderElector.kt`
 - Modify: `leader-redis-redisson/.../RedissonLeaderGroupElector.kt` — `updateLeaseTime` 호출
@@ -2458,6 +2456,7 @@ class RedissonExtendDelegateReferenceTest {
     }
 }
 ```
+
 ```bash
 ./gradlew :leader-redis-redisson:test --tests "*ExtendDelegateReferenceTest" --no-daemon
 ```
@@ -2473,12 +2472,12 @@ git commit -m "feat(leader-redis-redisson): T8 owner-guarded Lua + group updateL
 
 ## Task 9: MongoDB — extend filter `expireAt > now` + group `extendSlot` 신규 + capture + classifier
 
-**Complexity:** medium
-**Module:** `leader-mongodb`
+**Complexity:** medium **Module:** `leader-mongodb`
 **Depends on:** T1, T3, T5, T6 (AbstractLockExtenderContractTest base — Plan-R2-P1-2)
 **Satisfies AC:** AC-1 (Mongo rows), AC-15, AC-17 (filter grep), AC-18, AC-21, AC-23, AC-24
 
 **Files:**
+
 - Modify: `leader-mongodb/.../lock/MongoLock.kt` — filter 강화 + `extend` 반환형 변경
 - Modify: `leader-mongodb/.../lock/MongoSuspendLock.kt`
 - Modify: `leader-mongodb/.../MongoLeaderElector.kt` + suspend variant — capture
@@ -2622,6 +2621,7 @@ class MongoExtendDelegateReferenceTest {
     @Test fun `delegate reference shared with watchdog`() { /* T7 패턴 — MongoLeaderElector */ }
 }
 ```
+
 ```bash
 ./gradlew :leader-mongodb:test --tests "*ExtendDelegateReferenceTest" --no-daemon
 ```
@@ -2637,12 +2637,12 @@ git commit -m "feat(leader-mongodb): T9 extend filter expireAt>now + group exten
 
 ## Task 10: Exposed JDBC — `extend` SQL + group `extendSlot` SQL + capture + classifier
 
-**Complexity:** medium
-**Module:** `leader-exposed-jdbc`
+**Complexity:** medium **Module:** `leader-exposed-jdbc`
 **Depends on:** T1, T3, T5, T6 (AbstractLockExtenderContractTest base — Plan-R2-P1-2)
 **Satisfies AC:** AC-1 (Exposed JDBC rows), AC-15, AC-18, AC-21, AC-23, AC-24
 
 **Files:**
+
 - Create: `leader-exposed-jdbc/.../lock/ExposedJdbcLock.kt` — `extend(d): ExtendOutcome`
 - Create: `leader-exposed-jdbc/.../lock/ExposedJdbcGroupLock.kt`
 - Modify: `leader-exposed-jdbc/.../ExposedJdbcLeaderElector.kt` + group variant — capture
@@ -2724,6 +2724,7 @@ class ExposedJdbcExtendDelegateReferenceTest {
     @Test fun `delegate reference shared with watchdog`() { /* T7 패턴 — ExposedJdbcLeaderElector */ }
 }
 ```
+
 ```bash
 ./gradlew :leader-exposed-jdbc:test --tests "*ExtendDelegateReferenceTest" --no-daemon
 ```
@@ -2739,12 +2740,12 @@ git commit -m "feat(leader-exposed-jdbc): T10 extend SQL + group extendSlot + cl
 
 ## Task 11: Exposed R2DBC — suspend `extend` SQL + capture + classifier
 
-**Complexity:** medium
-**Module:** `leader-exposed-r2dbc`
-**Depends on:** T10
-**Satisfies AC:** AC-1 (R2DBC suspend/suspend-group rows), AC-15, AC-18 (CancellationException), AC-21 (suspend native — default OK), AC-23, AC-24
+**Complexity:** medium **Module:** `leader-exposed-r2dbc`
+**Depends on:** T10 **Satisfies
+AC:** AC-1 (R2DBC suspend/suspend-group rows), AC-15, AC-18 (CancellationException), AC-21 (suspend native — default OK), AC-23, AC-24
 
 **Files:**
+
 - Create: `leader-exposed-r2dbc/.../lock/ExposedR2dbcLock.kt`
 - Create: `leader-exposed-r2dbc/.../lock/ExposedR2dbcGroupLock.kt`
 - Modify: `leader-exposed-r2dbc/.../ExposedR2dbcSuspendLeaderElector.kt` + group — capture
@@ -2820,6 +2821,7 @@ class ExposedR2dbcExtendDelegateReferenceTest {
     @Test fun `delegate reference shared with watchdog`() { /* T7 패턴 — ExposedR2dbcSuspendLeaderElector */ }
 }
 ```
+
 ```bash
 ./gradlew :leader-exposed-r2dbc:test --tests "*ExtendDelegateReferenceTest" --no-daemon
 ```
@@ -2835,12 +2837,12 @@ git commit -m "feat(leader-exposed-r2dbc): T11 suspend extend SQL + classifier"
 
 ## Task 12: Hazelcast — `ExtendEntryProcessor` 신규 + capture + classifier
 
-**Complexity:** high
-**Module:** `leader-hazelcast`
+**Complexity:** high **Module:** `leader-hazelcast`
 **Depends on:** T1, T3, T5, T6 (AbstractLockExtenderContractTest base — Plan-R2-P1-2)
 **Satisfies AC:** AC-1 (Hazelcast rows), AC-7 (EntryProcessor — plain setTtl 금지), AC-15, AC-18, AC-21, AC-23, AC-24
 
 **Files:**
+
 - Create: `leader-hazelcast/.../lock/ExtendEntryProcessor.kt`
 - Modify: `leader-hazelcast/.../lock/HazelcastLock.kt` + suspend variant — `extend(d)` via `executeOnKey`
 - Modify: `leader-hazelcast/.../HazelcastLeaderElector.kt` + 3 variants — capture
@@ -2958,6 +2960,7 @@ class HazelcastExtendDelegateReferenceTest {
     @Test fun `delegate reference shared with watchdog`() { /* T7 패턴 — HazelcastLeaderElector */ }
 }
 ```
+
 ```bash
 ./gradlew :leader-hazelcast:test --tests "*ExtendDelegateReferenceTest" --no-daemon
 ```
@@ -2973,12 +2976,12 @@ git commit -m "feat(leader-hazelcast): T12 ExtendEntryProcessor + capture + clas
 
 ## Task 13: ZooKeeper — passthrough extend + `autoExtend=false` 강제 + capture + classifier
 
-**Complexity:** low
-**Module:** `leader-zookeeper`
+**Complexity:** low **Module:** `leader-zookeeper`
 **Depends on:** T1, T3, T5, T6 (AbstractLockExtenderContractTest base — Plan-R2-P1-2)
 **Satisfies AC:** AC-1 (ZK rows — passthrough), AC-15, AC-20 (autoExtend WARN), AC-23, AC-24
 
 **Files:**
+
 - Modify: `leader-zookeeper/.../ZkLeaderElector.kt` — `extend` passthrough + `autoExtend=false` enforce
 - Modify: `leader-zookeeper/.../ZkSuspendLeaderElector.kt`
 - Modify: group variants
@@ -3067,6 +3070,7 @@ class ZkExtendDelegateReferenceTest {
     }
 }
 ```
+
 ```bash
 ./gradlew :leader-zookeeper:test --tests "*ExtendDelegateReferenceTest" --no-daemon
 ```
@@ -3082,12 +3086,13 @@ git commit -m "feat(leader-zookeeper): T13 passthrough extend + autoExtend=false
 
 ## Task 14: `LeaderElectionAspect` — 3 분기 + reentrant peek (full identity) + sentinel push + capture invariant
 
-**Complexity:** high
-**Module:** `leader-spring-boot`
+**Complexity:** high **Module:** `leader-spring-boot`
 **Depends on:** T1, T2, T3, T4 (LockAssert/LockExtender 사용)
-**Satisfies AC:** AC-2 (reentrant counter 0), AC-2b (cross-kind dedupe 차단), AC-4 (fail-open sentinel), AC-4b (failure mode 행렬), AC-5 (sync/suspend/Mono), AC-22 (CTW weave)
+**Satisfies
+AC:** AC-2 (reentrant counter 0), AC-2b (cross-kind dedupe 차단), AC-4 (fail-open sentinel), AC-4b (failure mode 행렬), AC-5 (sync/suspend/Mono), AC-22 (CTW weave)
 
 **Files:**
+
 - Create: `leader-spring-boot/.../aop/internal/AdviceBranch.kt`
 - Create: `leader-spring-boot/.../aop/internal/AdviceMetadata.kt`
 - Create: `leader-spring-boot/.../aop/internal/BodyThrownMarker.kt`
@@ -3097,7 +3102,8 @@ git commit -m "feat(leader-zookeeper): T13 passthrough extend + autoExtend=false
 - Test: `leader-spring-boot/.../aop/LeaderElectionAspectFailureModeMatrixTest.kt`
 - Test: `leader-spring-boot/.../aop/LeaderElectionAspectCtwWeaveSmokeTest.kt`
 
-- [ ] **Step 1: Create `AdviceBranch` enum + `AdviceMetadata` data class + `BodyThrownMarker` + `CaptureInvariantException`**
+- [ ] **Step 1: Create `AdviceBranch` enum + `AdviceMetadata` data
+  class + `BodyThrownMarker` + `CaptureInvariantException`**
 
 ```kotlin
 // leader-spring-boot/.../aop/internal/AdviceBranch.kt
@@ -3464,12 +3470,12 @@ git commit -m "feat(leader-spring-boot): T14 aspect 3-branch + reentrant + senti
 
 ## Task 15: `LeaderGroupElectionAspect` — group 분기 동일 패턴
 
-**Complexity:** high
-**Module:** `leader-spring-boot`
-**Depends on:** T14
-**Satisfies AC:** AC-1 (group), AC-2 (group reentrant), AC-5 (group sync/suspend), AC-22 (CTW weave for group)
+**Complexity:** high **Module:** `leader-spring-boot`
+**Depends on:** T14 **Satisfies
+AC:** AC-1 (group), AC-2 (group reentrant), AC-5 (group sync/suspend), AC-22 (CTW weave for group)
 
 **Files:**
+
 - Modify: `leader-spring-boot/.../aop/LeaderGroupElectionAspect.kt`
 - Test: `leader-spring-boot/.../aop/LeaderGroupElectionAspectReentrantTest.kt`
 - Test: `leader-spring-boot/.../aop/LeaderGroupElectionAspectCtwWeaveSmokeTest.kt`
@@ -3562,12 +3568,11 @@ git commit -m "feat(leader-spring-boot): T15 group aspect 3-branch + reentrant +
 
 ## Task 16: `LeaderAnnotationValidatorBeanPostProcessor` — `CompletableFuture`/Future/ListenableFuture 차단
 
-**Complexity:** medium
-**Module:** `leader-spring-boot`
-**Depends on:** —
-**Satisfies AC:** AC-14 (CompletableFuture validator)
+**Complexity:** medium **Module:** `leader-spring-boot`
+**Depends on:** — **Satisfies AC:** AC-14 (CompletableFuture validator)
 
 **Files:**
+
 - Modify: `leader-spring-boot/.../aop/validator/LeaderAnnotationValidatorBeanPostProcessor.kt`
 - Test: `leader-spring-boot/.../aop/validator/CompletableFutureRejectionTest.kt`
 
@@ -3661,13 +3666,18 @@ git commit -m "feat(leader-spring-boot): T16 validator rejects CompletableFuture
 ## Task 17: Cross-cutting integration tests — aspect 통합 + watchdog race + ktor smoke + AC grep (각 backend contract test 는 backend module 안 — Plan-R1-P1-2)
 
 **Complexity:** high
-**Module:** `leader-spring-boot` (AOP integration) + `leader-ktor` (smoke) — backend contract test 는 각 backend module 안 (T7~T13)
-**Depends on:** T7–T16
-**Satisfies AC:** AC-1 (각 backend module 의 contract test — T7~T13 에서 검증), AC-4b matrix integration, AC-5 (sync/suspend/Mono 3 분기 × 2 API), AC-6 (watchdog race-free), AC-6b (watchdog override WARN/clock 진행 검증 — Plan-R1-P1-4), AC-9 (Mermaid 검증은 T18), AC-12 (coverage 80%+), AC-18 (CancellationException grep — 통합 점검), AC-22b (leader-ktor `leaderScheduled`), AC-23 (extendDelegate reference — 각 backend module 안)
+**Module:** `leader-spring-boot` (AOP integration) + `leader-ktor` (smoke) — backend contract test 는 각 backend module 안 (T7
+~T13)
+**Depends on:** T7–T16 **Satisfies AC:** AC-1 (각 backend module 의 contract test —
+T7~T13 에서 검증), AC-4b matrix integration, AC-5 (sync/suspend/Mono 3 분기 × 2 API), AC-6 (watchdog race-free), AC-6b (watchdog override WARN/clock 진행 검증 — Plan-R1-P1-4), AC-9 (Mermaid 검증은 T18), AC-12 (coverage 80%+), AC-18 (CancellationException grep — 통합 점검), AC-22b (leader-ktor `leaderScheduled`), AC-23 (extendDelegate reference — 각 backend module 안)
 
-> ⚠️ **Test ownership (Plan-R1-P1-2 — Codex)**: backend contract test (Lettuce/Redisson/Mongo/JDBC/R2DBC/Hazelcast/ZK) 는 **각 backend module 안** 위치 — AC-23 의 `extendDelegate === watchdog.delegate` 가 `internal` 접근 필요. leader-spring-boot 는 backend module 의존성 없음 (특히 `leader-zookeeper` 미의존). T17 은 **aspect-level cross-cutting** (Local backend 만 spring-boot 안 통합) + ktor smoke + AC grep 검증에 한정.
+> ⚠️ **Test ownership (Plan-R1-P1-2 — Codex)**: backend contract test (Lettuce/Redisson/Mongo/JDBC/R2DBC/Hazelcast/ZK) 는
+> **각 backend module
+안** 위치 — AC-23 의 `extendDelegate === watchdog.delegate` 가 `internal` 접근 필요. leader-spring-boot 는 backend module 의존성 없음 (특히 `leader-zookeeper` 미의존). T17 은
+> **aspect-level cross-cutting** (Local backend 만 spring-boot 안 통합) + ktor smoke + AC grep 검증에 한정.
 
 **Files:**
+
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/integration/LockExtenderCrossBackendIntegrationTest.kt`
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/integration/WatchdogExtenderRaceTest.kt`
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/integration/WatchdogOverrideWarnTest.kt`
@@ -3868,12 +3878,11 @@ git commit -m "test: T17 cross-backend integration + watchdog race + ktor smoke 
 
 ## Task 18: README — Mermaid sequenceDiagram + 8 backend "extend supported" 노트 + ktor 노트
 
-**Complexity:** medium
-**Module:** docs
-**Depends on:** T17
-**Satisfies AC:** AC-9 (Mermaid sequenceDiagram), AC-10 (KDoc 검토 — public API surface)
+**Complexity:** medium **Module:** docs **Depends on:** T17 **Satisfies
+AC:** AC-9 (Mermaid sequenceDiagram), AC-10 (KDoc 검토 — public API surface)
 
 **Files:**
+
 - Modify: `leader-spring-boot/README.md` + `README.ko.md` — 신규 섹션
 - Modify: 8 backend module README.md/README.ko.md — "extend supported" 한 줄
 - Modify: `leader-ktor/README.md` + `README.ko.md` — `LockAssert.assertLockedSuspend()` 사용 노트
@@ -3933,19 +3942,19 @@ sequenceDiagram
 
 ### Failure mode 행렬
 
-| 분기 | `RETHROW` | `SKIP` | `FAIL_OPEN_RUN` |
-|---|---|---|---|
-| `Elected` | body 실행 + lock | body 실행 + lock | body 실행 + lock |
-| `Skipped` (contention) | `null` | `null` | sentinel push + body 실행 |
-| `Exception` (backend) | throw | `null` | sentinel push + body 실행 |
+| 분기                   | `RETHROW`        | `SKIP`           | `FAIL_OPEN_RUN`           |
+|------------------------|------------------|------------------|---------------------------|
+| `Elected`              | body 실행 + lock | body 실행 + lock | body 실행 + lock          |
+| `Skipped` (contention) | `null`           | `null`           | sentinel push + body 실행 |
+| `Exception` (backend)  | throw            | `null`           | sentinel push + body 실행 |
 
 `FAIL_OPEN_RUN` 분기에서 `LockAssert.assertLocked()` 는 throw, `LockExtender.extendActiveLock` 는 `false` 반환.
 
 ### Watchdog 와의 상호작용
 
-`autoExtend = true` 와 `LockExtender.extendActiveLock` 동시 사용은 race-free 이지만 **last-write-wins**.
-명시적 사용자 의도가 다음 watchdog tick 에서 덮어 씌워질 수 있으면 WARN log + metric (`lock_extender_overridden_total`) 발생.
-정확한 TTL 보호가 필요하면 `autoExtend = false`.
+`autoExtend = true` 와 `LockExtender.extendActiveLock` 동시 사용은 race-free 이지만
+**last-write-wins**. 명시적 사용자 의도가 다음 watchdog tick 에서 덮어 씌워질 수 있으면 WARN log + metric (`lock_extender_overridden_total`) 발생. 정확한 TTL 보호가 필요하면 `autoExtend = false`.
+
 ```
 
 - [ ] **Step 2: Korean translation in `README.ko.md`** — 동일 구조 + 한국어.
@@ -3987,12 +3996,11 @@ git commit -m "docs: T18 LockAssert/LockExtender README + Mermaid sequenceDiagra
 
 ## Task 19: CHANGELOG + WIP + 3 CLAUDE.md drift fix + examples/ktor-app `LockAssertSuspend` 예제
 
-**Complexity:** low
-**Module:** docs
-**Depends on:** T18
-**Satisfies AC:** AC-13 (full build) — 빌드 통과 검증, R7-A2 drift fix
+**Complexity:** low **Module:** docs **Depends on:** T18 **Satisfies
+AC:** AC-13 (full build) — 빌드 통과 검증, R7-A2 drift fix
 
 **Files:**
+
 - Modify: `CHANGELOG.md`
 - Modify: `WIP.md`
 - Modify: `/Users/debop/work/bluetape4k/CLAUDE.md` (workspace root)
@@ -4078,6 +4086,7 @@ fun Application.module() {
     }
 }
 ```
+
 ```
 
 - [ ] **Step 7: Add example source modification** — `examples/ktor-app/src/main/kotlin/.../Application.kt` 안의 background job 에 `LockAssert.assertLockedSuspend()` 한 줄 추가 (compile + runtime 검증).
@@ -4115,37 +4124,37 @@ git commit -m "docs: T19 CHANGELOG + WIP + CLAUDE.md drift fix + ktor-app LockAs
 
 ### 1. Spec coverage — 29 AC mapping
 
-| AC | Tasks |
-|---|---|
-| AC-1 (capability matrix ✅ cells) | T6 (Local) + T7 (Lettuce) + T8 (Redisson) + T9 (Mongo) + T10 (JDBC) + T11 (R2DBC) + T12 (Hazelcast) + T13 (ZK) + T17 (cross-backend integration) |
-| AC-2 (reentrant counter 0) | T14 (sync aspect reentrant peek) |
-| AC-2b (cross-kind dedupe blocked) | T14 + T15 (group) |
-| AC-3 (assertLocked outside throws) | T4 (LockAssert) |
-| AC-4 (extend in fail-open returns false) | T4 (LockExtender) |
-| AC-4b (failure mode × branch matrix) | T14 (matrix test) + T17 (integration) |
-| AC-5 (sync/suspend/Mono × 2 API) | T14 + T15 + T17 |
-| AC-6 (watchdog race-free) | T17 (WatchdogExtenderRaceTest) |
-| AC-6b (watchdog override WARN) | T17 (WatchdogOverrideWarnTest) |
-| AC-7 (Hazelcast EntryProcessor, no setTtl) | T12 + T17 (grep verify) |
-| AC-8 (Redisson thread-id semantics) | T8 (RedissonThreadIdSemanticsTest) |
-| AC-9 (Mermaid sequenceDiagram) | T18 |
-| AC-10 (KDoc public surface) | T1 (handle) + T4 (LockAssert/Extender) + ongoing |
-| AC-11 (detekt zero new HIGH/CRITICAL) | T19 final check |
-| AC-12 (Kover 80%+) | T17 Step 8 |
-| AC-13 (`./gradlew build -x test`) | T19 |
-| AC-14 (validator CompletableFuture) | T16 |
-| AC-15 (delegate reference 동일성) | T5 (Local) + T7..T13 (각 backend ref test) |
-| AC-16 (Lettuce server-side TIME grep) | T7 Step 10 + T17 grep verify |
-| AC-17 (Mongo expireAt>now filter) | T9 + T17 grep verify |
-| AC-18 (suspend CancellationException re-throw) | T7 (Lettuce) + T9 (Mongo) + T11 (R2DBC) + T12 (Hazelcast) + T17 grep |
-| AC-19 (Java Duration overload) | T4 (LockExtenderJavaCompatTest) |
-| AC-20 (ZK autoExtend WARN) | T13 |
-| AC-21 (blocking backends override extendSuspend) | T7 + T8 + T9 + T10 + T12 + T13 (각 backend) + T17 grep |
-| AC-22 (CTW weave smoke) | T14 (LeaderElectionAspectCtwWeaveSmokeTest) + T15 (group variant) |
-| AC-22b (leader-ktor leaderScheduled smoke) | T17 |
-| AC-23 (per-module extendDelegate ref test) | T7..T13 (각 backend ref test) |
-| AC-24 (SPI core 의존성 역전) | T5 (core SPI) + T7..T13 (각 backend classifier) + T17 grep |
-| AC-25 (default fun bytecode) | T3 Step 6 (javap) |
+| AC                                               | Tasks                                                                                                                                            |
+|--------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| AC-1 (capability matrix ✅ cells)                | T6 (Local) + T7 (Lettuce) + T8 (Redisson) + T9 (Mongo) + T10 (JDBC) + T11 (R2DBC) + T12 (Hazelcast) + T13 (ZK) + T17 (cross-backend integration) |
+| AC-2 (reentrant counter 0)                       | T14 (sync aspect reentrant peek)                                                                                                                 |
+| AC-2b (cross-kind dedupe blocked)                | T14 + T15 (group)                                                                                                                                |
+| AC-3 (assertLocked outside throws)               | T4 (LockAssert)                                                                                                                                  |
+| AC-4 (extend in fail-open returns false)         | T4 (LockExtender)                                                                                                                                |
+| AC-4b (failure mode × branch matrix)             | T14 (matrix test) + T17 (integration)                                                                                                            |
+| AC-5 (sync/suspend/Mono × 2 API)                 | T14 + T15 + T17                                                                                                                                  |
+| AC-6 (watchdog race-free)                        | T17 (WatchdogExtenderRaceTest)                                                                                                                   |
+| AC-6b (watchdog override WARN)                   | T17 (WatchdogOverrideWarnTest)                                                                                                                   |
+| AC-7 (Hazelcast EntryProcessor, no setTtl)       | T12 + T17 (grep verify)                                                                                                                          |
+| AC-8 (Redisson thread-id semantics)              | T8 (RedissonThreadIdSemanticsTest)                                                                                                               |
+| AC-9 (Mermaid sequenceDiagram)                   | T18                                                                                                                                              |
+| AC-10 (KDoc public surface)                      | T1 (handle) + T4 (LockAssert/Extender) + ongoing                                                                                                 |
+| AC-11 (detekt zero new HIGH/CRITICAL)            | T19 final check                                                                                                                                  |
+| AC-12 (Kover 80%+)                               | T17 Step 8                                                                                                                                       |
+| AC-13 (`./gradlew build -x test`)                | T19                                                                                                                                              |
+| AC-14 (validator CompletableFuture)              | T16                                                                                                                                              |
+| AC-15 (delegate reference 동일성)                | T5 (Local) + T7..T13 (각 backend ref test)                                                                                                       |
+| AC-16 (Lettuce server-side TIME grep)            | T7 Step 10 + T17 grep verify                                                                                                                     |
+| AC-17 (Mongo expireAt>now filter)                | T9 + T17 grep verify                                                                                                                             |
+| AC-18 (suspend CancellationException re-throw)   | T7 (Lettuce) + T9 (Mongo) + T11 (R2DBC) + T12 (Hazelcast) + T17 grep                                                                             |
+| AC-19 (Java Duration overload)                   | T4 (LockExtenderJavaCompatTest)                                                                                                                  |
+| AC-20 (ZK autoExtend WARN)                       | T13                                                                                                                                              |
+| AC-21 (blocking backends override extendSuspend) | T7 + T8 + T9 + T10 + T12 + T13 (각 backend) + T17 grep                                                                                           |
+| AC-22 (CTW weave smoke)                          | T14 (LeaderElectionAspectCtwWeaveSmokeTest) + T15 (group variant)                                                                                |
+| AC-22b (leader-ktor leaderScheduled smoke)       | T17                                                                                                                                              |
+| AC-23 (per-module extendDelegate ref test)       | T7..T13 (각 backend ref test)                                                                                                                    |
+| AC-24 (SPI core 의존성 역전)                     | T5 (core SPI) + T7..T13 (각 backend classifier) + T17 grep                                                                                       |
+| AC-25 (default fun bytecode)                     | T3 Step 6 (javap)                                                                                                                                |
 
 ✅ 모든 29 AC 가 적어도 하나의 task 에 매핑됨.
 
@@ -4179,12 +4188,14 @@ git commit -m "docs: T19 CHANGELOG + WIP + CLAUDE.md drift fix + ktor-app LockAs
 
 Two execution options:
 
-1. **Subagent-Driven (recommended)** — fresh subagent per task with two-stage review (REQUIRED SUB-SKILL: `superpowers:subagent-driven-development`).
+1. **Subagent-Driven (
+   recommended)** — fresh subagent per task with two-stage review (REQUIRED SUB-SKILL: `superpowers:subagent-driven-development`).
 2. **Inline Execution** — batch execution with checkpoints (REQUIRED SUB-SKILL: `superpowers:executing-plans`).
 
 **Critical path:** T1 → T2 → T3 → T4 → T14 → T17 → T18 → T19.
 
 **Parallel windows** (Plan-R3-P1-1 — handoff 동기화, 상단 dependency graph 와 일치):
+
 - T5 는 T1, T3 후 시작 (BackendErrorClassifier SPI + LeaderLeaseAutoExtender signature)
 - T6 는 T4, T5 후 시작 (AbstractLockExtenderContractTest base)
 - T7~T13 backend tasks 는 **T5, T6 완료 후** 병렬 가능
@@ -4193,7 +4204,7 @@ Two execution options:
 - T15 는 T14 후
 - T16 (validator) 는 T1~T4 의존 — T14 와 병렬 가능
 
-**Estimated effort:** 19 tasks — high(6) / medium(8) / low(5).
+**Estimated effort:** 19 tasks — high (6) / medium (8) / low (5).
 
 ---
 
@@ -4203,17 +4214,17 @@ Devil's Advocate scope challenge + Reliability isolation 권고 통합. Full sco
 
 ### PR 순서 (직렬 + backend별 isolated)
 
-| PR | Tasks | Module | Effort | Goal |
-|---|---|---|---|---|
-| **PR 1 (Core)** | T1-T6 + T14-T16 + T18 (core) + T19 | leader-core + leader-spring-boot + docs | 3-4일 | SPI/sealed types/aspect/validator invariant 잠금 + Local backend + Issue #79 본질 (ShedLock ergonomic API) early delivery |
-| **PR 2** | T7 + AC-15/16/18 grep | leader-redis-lettuce | 2일 | Lettuce single + group (server-side TIME Lua) — most-used backend, SPI 검증 |
-| **PR 3** | T8 + AC-8 thread-id semantics | leader-redis-redisson | 2일 | Redisson owner-guarded Lua + group `updateLeaseTime` |
-| **PR 4** | T9 + AC-17 (`$$NOW` server-side 강화) | leader-mongodb | 1.5일 | MongoDB extend filter + group `extendSlot` |
-| **PR 5** | T10 | leader-exposed-jdbc | 1일 | Exposed JDBC extend SQL |
-| **PR 6** | T11 (T10 dependency) | leader-exposed-r2dbc | 1일 | Exposed R2DBC suspend SQL |
-| **PR 7** | T12 + AC-7 (EntryProcessor) | leader-hazelcast | 1.5일 | Hazelcast atomic extend |
-| **PR 8** | T13 + AC-20 (autoExtend=false) | leader-zookeeper | 0.5일 | ZK passthrough |
-| **PR 9** | T17 leader-ktor smoke (AC-22b) | leader-ktor | 0.5일 | leaderScheduled smoke test |
+| PR              | Tasks                                 | Module                                  | Effort | Goal                                                                                                                      |
+|-----------------|---------------------------------------|-----------------------------------------|--------|---------------------------------------------------------------------------------------------------------------------------|
+| **PR 1 (Core)** | T1-T6 + T14-T16 + T18 (core) + T19    | leader-core + leader-spring-boot + docs | 3-4일  | SPI/sealed types/aspect/validator invariant 잠금 + Local backend + Issue #79 본질 (ShedLock ergonomic API) early delivery |
+| **PR 2**        | T7 + AC-15/16/18 grep                 | leader-redis-lettuce                    | 2일    | Lettuce single + group (server-side TIME Lua) — most-used backend, SPI 검증                                               |
+| **PR 3**        | T8 + AC-8 thread-id semantics         | leader-redis-redisson                   | 2일    | Redisson owner-guarded Lua + group `updateLeaseTime`                                                                      |
+| **PR 4**        | T9 + AC-17 (`$$NOW` server-side 강화) | leader-mongodb                          | 1.5일  | MongoDB extend filter + group `extendSlot`                                                                                |
+| **PR 5**        | T10                                   | leader-exposed-jdbc                     | 1일    | Exposed JDBC extend SQL                                                                                                   |
+| **PR 6**        | T11 (T10 dependency)                  | leader-exposed-r2dbc                    | 1일    | Exposed R2DBC suspend SQL                                                                                                 |
+| **PR 7**        | T12 + AC-7 (EntryProcessor)           | leader-hazelcast                        | 1.5일  | Hazelcast atomic extend                                                                                                   |
+| **PR 8**        | T13 + AC-20 (autoExtend=false)        | leader-zookeeper                        | 0.5일  | ZK passthrough                                                                                                            |
+| **PR 9**        | T17 leader-ktor smoke (AC-22b)        | leader-ktor                             | 0.5일  | leaderScheduled smoke test                                                                                                |
 
 **합계 ~13-14일** (full scope 4-5주 vs).
 
@@ -4226,6 +4237,7 @@ Devil's Advocate scope challenge + Reliability isolation 권고 통합. Full sco
 ### Per-PR DoD
 
 각 PR 마다 다음 의무:
+
 - 해당 backend 의 `*LockExtenderContractTest` (4 capability) 통과
 - `*ExtendDelegateReferenceTest` (AC-23) 통과
 - Detekt + Kover 80%+ 신규 코드
@@ -4242,6 +4254,7 @@ Devil's Advocate scope challenge + Reliability isolation 권고 통합. Full sco
 **문제**: elector `LeaderLockHandleCapture.set()` 누락 시 → `BodyThrownMarker` 가 `CaptureInvariantException` 을 catch → silent fail-open. spec §7.1/§7.2 이미 `catch (e: CaptureInvariantException) { throw e }` 가 `BodyThrownMarker` 보다 먼저 위치.
 
 **추가 mitigation (PR 1 적용)**:
+
 - `internal inline fun <T> runWithCapture(handle: LeaderLockHandle.Real, action: () -> T): T` helper 추출 (`leader-core/.../internal/CaptureScope.kt`)
 - 각 elector 가 `LeaderLockHandleCapture.set/clear` 직접 호출 X → `runWithCapture(handle) { ... action ... }` 사용
 - AC 추가: `grep -r "LeaderLockHandleCapture.set" leader-*/src/main` → 0 match (CaptureScope.kt 외)
@@ -4251,6 +4264,7 @@ Devil's Advocate scope challenge + Reliability isolation 권고 통합. Full sco
 **문제**: user `extend(60s)` 후 watchdog tick (lease/3) 가 `lease=30s` 로 silently override → 사용자 작업 중 lock 만료.
 
 **Mitigation (PR 1 적용)**:
+
 - `ExtendDelegate` interface 에 `lastExtendDeadline: AtomicReference<Instant>` 필드 추가
 - `LeaderLeaseAutoExtender` tick 마다 `now() + watchdogCadence < lastExtendDeadline.get()` 이면 backend extend 호출 skip (이미 충분히 큰 lease 보유)
 - AC-6b 강화: TestDispatcher 로 watchdog tick skip 동작 검증
@@ -4260,6 +4274,7 @@ Devil's Advocate scope challenge + Reliability isolation 권고 통합. Full sco
 **문제**: `runBlocking { @LeaderElectionSuspend }` 동일 lockName + 다른 factoryBean → 별개 identity → inner physical acquire → wait timeout deadlock.
 
 **Mitigation (PR 1 적용)**:
+
 - `LockIdentity.equals/hashCode` 에서 `factoryBeanName` 제거 — `(lockName, kind, groupParams)` 만 비교
 - `factoryBeanName` 은 진단 metadata 로 demote
 - AC 추가: sync→suspend 동일 lockName nested reentrant test (inner 가 backend acquire 0 호출)
@@ -4269,6 +4284,7 @@ Devil's Advocate scope challenge + Reliability isolation 권고 통합. Full sco
 **문제**: spec `expireAt > now` 인데 `now` 출처 미명시. Client `Instant.now()` 사용 시 clock skew → expired lock revival.
 
 **Mitigation (PR 4 적용 — leader-mongodb)**:
+
 - `findOneAndUpdate` aggregation pipeline `$expr: { $gt: ["$expireAt", "$$NOW"] }` server-side 강제
 - AC-17 강화: `grep "Instant.now()" leader-mongodb/src/main` → extend filter 안 0 match
 
@@ -4277,16 +4293,19 @@ Devil's Advocate scope challenge + Reliability isolation 권고 통합. Full sco
 **문제**: `@LeaderElection fun foo(): Mono<X> = svc.call().map { LockAssert.assertLocked(); ... }` → ThreadLocal/CoroutineContext 둘 다 없음 → throw.
 
 **Mitigation (PR 1 적용)**:
+
 - `LockAssert.assertLocked()` / `LockExtender.extendActiveLock()` KDoc 명시:
   > ⚠️ Reactor non-suspend operator (`.map`, `.filter`) 미지원. `.flatMap { mono { LockAssert.assertLockedSuspend() } }` 패턴 사용.
 - 부정 테스트 추가: `MonoReactorOperatorTest`
-  - `.map { assertLocked() }` → throw 검증
-  - `.flatMap { mono { assertLockedSuspend() } }` → 통과 검증
+    - `.map { assertLocked() }` → throw 검증
+    - `.flatMap { mono { assertLockedSuspend() } }` → 통과 검증
 
 ### Additional Security Mitigations (PR 1 적용)
 
-- **S1 handle forgery**: `internal` 우회 reflection 명시 — KDoc "not a security boundary" (이미 spec). 추가: production 환경 JPMS module export 제한 권장 README
-- **S2 lockName injection**: `LeaderAnnotationValidatorBeanPostProcessor` 에 `^[a-zA-Z0-9_:\-]{1,128}$` regex validation 추가 (resolved name 검증)
+- **S1 handle
+  forgery**: `internal` 우회 reflection 명시 — KDoc "not a security boundary" (이미 spec). 추가: production 환경 JPMS module export 제한 권장 README
+- **S2 lockName
+  injection**: `LeaderAnnotationValidatorBeanPostProcessor` 에 `^[a-zA-Z0-9_:\-]{1,128}$` regex validation 추가 (resolved name 검증)
 - **S4 SpEL RCE**: `SimpleEvaluationContext.forReadOnlyDataBinding().build()` 강제 — `StandardEvaluationContext` 금지
 
 ### Performance Mitigations
@@ -4298,8 +4317,8 @@ Devil's Advocate scope challenge + Reliability isolation 권고 통합. Full sco
 
 ## PR 1 Implementation Scope (확정)
 
-**Tasks**: T1, T2, T3, T4, T5, T6, T14, T15, T16, T18(core), T19
-**Excluded from PR 1**: T7~T13 (backend별 후속 PR), T17 (cross-backend integration — 후속 PR 통합)
+**Tasks**: T1, T2, T3, T4, T5, T6, T14, T15, T16, T18 (core), T19 **Excluded from PR
+1**: T7~T13 (backend별 후속 PR), T17 (cross-backend integration — 후속 PR 통합)
 **Estimated**: 3-4일
 
 PR 1 머지 후 → PR 2 (Lettuce) 시작.

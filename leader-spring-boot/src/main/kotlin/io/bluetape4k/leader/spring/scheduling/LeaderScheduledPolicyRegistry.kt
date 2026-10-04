@@ -61,7 +61,7 @@ class LeaderScheduledPolicyRegistry(
             previousSignature != signature -> error(
                 "Ambiguous scheduled policy selector '$selector': overloaded methods are not supported",
             )
-            else                      -> error("Duplicate scheduled policy registration for selector '$selector'")
+            else -> error("Duplicate scheduled policy registration for selector '$selector'")
         }
 
         mutableBindings.getOrPut(targetIdentity) { linkedMapOf() }[signature] = policy
@@ -136,6 +136,7 @@ class LeaderScheduledPolicyRegistry(
                 name = method.name,
                 parameterTypes = method.parameterTypes.toList(),
             )
+
             private const val serialVersionUID: Long = 1L
         }
     }

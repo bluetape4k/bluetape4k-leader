@@ -1,7 +1,6 @@
 # Lessons Learned — leader-exposed-jdbc 구현 (2026-05-03)
 
-**관련 이슈**: #21
-**영향 모듈**: `leader-exposed-jdbc`, `leader-exposed-core`, `leader-core`
+**관련 이슈**: #21 **영향 모듈**: `leader-exposed-jdbc`, `leader-exposed-core`, `leader-core`
 
 ---
 
@@ -12,6 +11,7 @@
 `LeaderLockTable.update {}`, `insert {}`, `deleteWhere {}` 람다 내부에서 `lockOwner`, `lockName`, `token` 등 클래스 프로퍼티를 사용하면, Kotlin implicit receiver 우선순위에 의해 테이블 컬럼으로 해석된다.
 
 예:
+
 ```kotlin
 LeaderLockTable.insert {
     it[lockOwner] = lockOwner  // lockOwner = LeaderLockTable.lockOwner (컬럼)
@@ -23,7 +23,7 @@ H2/PostgreSQL에서는 INSERT가 예외로 실패하고 `runCatching.onFailure {
 
 ### 교훈
 
-Exposed 람다(`update {}`, `insert {}`, `deleteWhere {}`) 진입 **직전**에 클래스 프로퍼티를 로컬 변수로 반드시 추출.
+Exposed 람다 (`update {}`, `insert {}`, `deleteWhere {}`) 진입 **직전**에 클래스 프로퍼티를 로컬 변수로 반드시 추출.
 
 ```kotlin
 private fun tryAcquireOnce(leaseTime: Duration): Boolean {
@@ -39,7 +39,7 @@ private fun tryAcquireOnce(leaseTime: Duration): Boolean {
 }
 ```
 
-DB별 증상 차이(H2/PSQL 실패 vs MySQL 통과)로 인해 DB 방언 버그로 오인할 수 있다.
+DB별 증상 차이 (H2/PSQL 실패 vs MySQL 통과)로 인해 DB 방언 버그로 오인할 수 있다.
 
 ---
 
@@ -69,7 +69,7 @@ LeaderLockTable.selectAll().where { ... }.count() > 0
 
 ### 문제
 
-원본 코드의 `getOrElse { return false }` 패턴은 일시적 DB 오류(connection timeout, deadlock) 발생 시 남은 waitTime 예산을 버리고 즉시 실패한다.
+원본 코드의 `getOrElse { return false }` 패턴은 일시적 DB 오류 (connection timeout, deadlock) 발생 시 남은 waitTime 예산을 버리고 즉시 실패한다.
 
 ### 교훈
 

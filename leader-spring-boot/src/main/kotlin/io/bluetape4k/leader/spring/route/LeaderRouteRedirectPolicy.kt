@@ -21,7 +21,7 @@ internal class LeaderRouteRedirectPolicy(
         null
     } else {
         when (evaluation.decision) {
-            LeaderRouteDecision.Allowed   -> null
+            LeaderRouteDecision.Allowed -> null
             LeaderRouteDecision.Unavailable -> {
                 observe(LeaderRouteRedirectFailureReason.UNAVAILABLE, framework)
                 null
@@ -49,19 +49,19 @@ internal class LeaderRouteRedirectPolicy(
             null
         }
         return when {
-            stale                                           -> {
+            stale -> {
                 observe(LeaderRouteRedirectFailureReason.STALE_LEASE, framework)
                 null
             }
 
-            target == null                                  -> null
+            target == null -> null
             !isMetadataTrusted(target, metadata, framework) -> null
             !LeaderRouteRedirectUriValidator.isSafe(target, normalized.allowedHosts) -> {
                 observe(LeaderRouteRedirectFailureReason.URI_REJECTED, framework)
                 null
             }
 
-            else                                            -> target
+            else -> target
         }
     }
 

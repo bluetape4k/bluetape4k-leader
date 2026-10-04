@@ -10,8 +10,8 @@
 
 - 해결된 Redisson 런타임은 `org.redisson:redisson:4.4.0`입니다.
 - 로컬 Redisson 4.4.0 아티팩트에 대한 `javap`는 다음을 검증합니다.
-  - `org.redisson.RedissonBaseLock.getLockName(long)`가 존재하며 Redisson가 잠금 소유권에 사용하는 소유자 해시 필드 형태를 반환합니다.
-  - `org.redisson.RedissonObject.getRawName()`가 존재하며 원시 Redis 키 이름을 제공합니다.
+    - `org.redisson.RedissonBaseLock.getLockName(long)`가 존재하며 Redisson가 잠금 소유권에 사용하는 소유자 해시 필드 형태를 반환합니다.
+    - `org.redisson.RedissonObject.getRawName()`가 존재하며 원시 Redis 키 이름을 제공합니다.
 - 구현에서는 `redissonClient.getScript(StringCodec.INSTANCE)`를 사용하므로 스크립트 인수는 기본 개체 코덱 대신 Redisson 잠금 소유자 필드처럼 인코딩됩니다.
 
 ## 코드 패턴 감사
@@ -26,16 +26,16 @@
 ## 검증
 
 - 패턴 파악:
-  - 나머지 `mockk(...)` 일치 항목은 클래스 수준 필드뿐입니다.
-  - 나머지 `runCatching` 일치 항목은 실행 가능한 코드가 아닌 기존 KDoc 경고입니다.
+    - 나머지 `mockk(...)` 일치 항목은 클래스 수준 필드뿐입니다.
+    - 나머지 `runCatching` 일치 항목은 실행 가능한 코드가 아닌 기존 KDoc 경고입니다.
 - `./gradlew :bluetape4k-leader-redis-redisson:test --tests '*RedissonOwnerAtomicExtendDelegateTest' --no-parallel`
-  - `BUILD SUCCESSFUL in 13s`
+    - `BUILD SUCCESSFUL in 13s`
 - `./gradlew :bluetape4k-leader-redis-redisson:test --tests '*RedissonExtendDelegateReferenceTest' --tests '*RedissonLockExtenderContractTest' --tests '*RedissonSuspendLockExtenderContractTest' --no-parallel`
-  - `BUILD SUCCESSFUL in 4s`
+    - `BUILD SUCCESSFUL in 4s`
 - `./gradlew :bluetape4k-leader-redis-redisson:test --no-parallel`
-  - `BUILD SUCCESSFUL in 19s`
+    - `BUILD SUCCESSFUL in 19s`
 - `git diff --check`
-  - 통과
+    - 통과
 
 ## 메모
 

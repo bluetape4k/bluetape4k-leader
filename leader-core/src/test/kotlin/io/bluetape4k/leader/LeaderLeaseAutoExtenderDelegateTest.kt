@@ -206,7 +206,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
         delay(200.milliseconds)
         watchdog.close()
 
-        delegate.extendCalls.get() shouldBeGreaterOrEqualTo 1 
+        delegate.extendCalls.get() shouldBeGreaterOrEqualTo 1
     }
 
     // ── cadence 계산 ──────────────────────────────────────────────────────

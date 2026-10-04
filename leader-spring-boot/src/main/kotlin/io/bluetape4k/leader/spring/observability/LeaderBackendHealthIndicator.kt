@@ -48,7 +48,7 @@ class LeaderBackendHealthIndicator(
                 LeaderBackendConnectivityStatus.DOWN -> builder.down()
                 LeaderBackendConnectivityStatus.UNKNOWN,
                 LeaderBackendConnectivityStatus.NOT_CHECKED,
-                                                   -> builder.status(Status.UNKNOWN)
+                    -> builder.status(Status.UNKNOWN)
             }
             builder
                 .withDetail(DETAIL_BACKEND, diagnostics.descriptor.backendId)

@@ -500,7 +500,7 @@ class MicrometerLeaderAuditExporter(
             if (compromised) return detachedSnapshot.cumulativeValues()
             val active = activeDelegate
             return when (state) {
-                ManagerState.OPEN    -> offsets +
+                ManagerState.OPEN -> offsets +
                         (active?.let(::readSnapshot)?.cumulativeValues() ?: lastTrustedCumulative)
                 ManagerState.CLOSING -> offsets +
                         (closingSnapshot
@@ -515,7 +515,7 @@ class MicrometerLeaderAuditExporter(
             if (compromised) return detachedSnapshot.gaugeValues()
             val active = activeDelegate
             return when (state) {
-                ManagerState.OPEN    -> active?.let(::readSnapshot)?.gaugeValues() ?: lastTrustedGauge
+                ManagerState.OPEN -> active?.let(::readSnapshot)?.gaugeValues() ?: lastTrustedGauge
                 ManagerState.CLOSING -> closingSnapshot?.gaugeValues() ?: lastTrustedGauge
                 ManagerState.DETACHED -> detachedSnapshot.gaugeValues()
             }
@@ -549,7 +549,7 @@ class MicrometerLeaderAuditExporter(
             if (!compromised) {
                 compromised = true
                 val trustedCumulative = when (state) {
-                    ManagerState.OPEN    -> offsets + lastTrustedCumulative
+                    ManagerState.OPEN -> offsets + lastTrustedCumulative
                     ManagerState.CLOSING -> offsets + (
                             closingSnapshot
                                 ?.cumulativeValues()
@@ -559,7 +559,7 @@ class MicrometerLeaderAuditExporter(
                     ManagerState.DETACHED -> offsets
                 }
                 val trustedGauge = when (state) {
-                    ManagerState.OPEN    -> lastTrustedGauge
+                    ManagerState.OPEN -> lastTrustedGauge
                     ManagerState.CLOSING -> closingSnapshot?.gaugeValues() ?: lastTrustedGauge
                     ManagerState.DETACHED -> detachedSnapshot.gaugeValues()
                 }
@@ -652,17 +652,17 @@ class MicrometerLeaderAuditExporter(
         )
 
         internal fun value(field: SnapshotField): Long = when (field) {
-            SnapshotField.ACCEPTED             -> accepted
-            SnapshotField.DROPPED_QUEUE_FULL   -> droppedQueueFull
-            SnapshotField.DROPPED_CLOSED       -> droppedClosed
-            SnapshotField.RETRIES              -> retries
-            SnapshotField.FAILURES             -> failures
-            SnapshotField.CANCELLATIONS        -> cancellations
-            SnapshotField.REJECTIONS           -> executorRejections + schedulerRejections
-            SnapshotField.OBSERVER_DROPS       -> observerDrops
+            SnapshotField.ACCEPTED -> accepted
+            SnapshotField.DROPPED_QUEUE_FULL -> droppedQueueFull
+            SnapshotField.DROPPED_CLOSED -> droppedClosed
+            SnapshotField.RETRIES -> retries
+            SnapshotField.FAILURES -> failures
+            SnapshotField.CANCELLATIONS -> cancellations
+            SnapshotField.REJECTIONS -> executorRejections + schedulerRejections
+            SnapshotField.OBSERVER_DROPS -> observerDrops
             SnapshotField.OBSERVER_REGISTRATION_DROPS -> observerRegistrationDrops
             SnapshotField.DIAGNOSTICS_FAILURES -> diagnosticsFailures
-            else                               -> 0
+            else -> 0
         }
 
         companion object {
@@ -676,10 +676,10 @@ class MicrometerLeaderAuditExporter(
         val diagnosticsClosed: Boolean,
     ) {
         internal fun value(field: SnapshotField): Double = when (field) {
-            SnapshotField.QUEUED    -> queued.toDouble()
+            SnapshotField.QUEUED -> queued.toDouble()
             SnapshotField.IN_FLIGHT -> inFlight.toDouble()
             SnapshotField.DIAGNOSTICS_CLOSED -> if (diagnosticsClosed) 1.0 else 0.0
-            else                    -> 0.0
+            else -> 0.0
         }
     }
 

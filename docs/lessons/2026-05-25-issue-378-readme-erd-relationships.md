@@ -26,8 +26,8 @@
 - 현재 모듈/예제 이름에 대해 `README.md`, `settings.gradle.kts` 및 `examples/`에 대해 다이어그램 레이블을 검증했습니다.
 - `rsvg-convert`로 PNG를 렌더링하고 결과를 시각적으로 검사했습니다.
 - 작업 트리 감사 아티팩트:
-  - `.omx/artifacts/issue-378-audit-readme-diagrams-worktree.log`
-  - `.omx/artifacts/issue-378-audit-readme-diagram-quality-worktree.log`
+    - `.omx/artifacts/issue-378-audit-readme-diagrams-worktree.log`
+    - `.omx/artifacts/issue-378-audit-readme-diagram-quality-worktree.log`
 
 글로벌 감사 스크립트는 여전히 이전의 비ERD 다이어그램에서 관련되지 않은 기존 결과와 함께 종료되지만 새 ERD 자산에는 작업 트리 감사 결과가 없습니다.
 

@@ -136,9 +136,9 @@ class EtcdLeaderGroupElector private constructor(
             when {
                 lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) ->
                     cleanupBarrier.request()
-                lifecycle.get() == AsyncLifecycle.CLEANUP                               ->
+                lifecycle.get() == AsyncLifecycle.CLEANUP ->
                     cleanupBarrier.request()
-                else                                                                    ->
+                else ->
                     completableFutureOf(Unit)
             }
         }
@@ -155,11 +155,11 @@ class EtcdLeaderGroupElector private constructor(
         val pipelineFuture = acquisitionFuture.thenComposeAsync(
             { handle ->
                 when {
-                    handle == null                                                           ->
+                    handle == null ->
                         completableFutureOf(null)
                     !lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED) ->
                         failedCompletableFutureOf(CancellationException("leader result future was cancelled before action"))
-                    else                                                                     ->
+                    else ->
                         runAcquiredAsync(
                             handle,
                             cancellationRelay,

@@ -124,9 +124,9 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
             when {
                 cause is CancellationException -> throw cause
                 cause != null && elected -> LeaderRunResult.ActionFailed(cause)
-                cause != null            -> throw cause
-                elected                  -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else                     -> LeaderRunResult.Skipped
+                cause != null -> throw cause
+                elected -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else -> LeaderRunResult.Skipped
             }
         }
     }
@@ -174,7 +174,7 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
             when {
                 lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
                 lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else                                      -> completableFutureOf(Unit)
+                else -> completableFutureOf(Unit)
             }
         }
         val acquisitionFuture = futureOf(executor) {

@@ -14,7 +14,7 @@ import org.junit.jupiter.api.TestInstance
 class ConsulLockExtenderContractTest: AbstractSyncLockExtenderContractTest() {
 
     companion object: KLogging()
-    
+
     override val elector: LeaderElector =
         ConsulLeaderElector(
             ConsulContractSupport.endpoint(),

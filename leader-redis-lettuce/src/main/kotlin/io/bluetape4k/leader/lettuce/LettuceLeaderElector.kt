@@ -197,8 +197,8 @@ class LettuceLeaderElector @JvmOverloads constructor(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get()   -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else            -> LeaderRunResult.Skipped
+                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else -> LeaderRunResult.Skipped
             }
         }
     }
@@ -359,7 +359,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
                     }
                     error is java.util.concurrent.CancellationException -> { /* cancelled — no audit */
                     }
-                    else          -> historyKey?.let {
+                    else -> historyKey?.let {
                         historyRecorder?.recordFailed(
                             it,
                             finishedAt,

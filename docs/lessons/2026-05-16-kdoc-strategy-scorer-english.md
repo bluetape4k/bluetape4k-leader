@@ -8,17 +8,17 @@
 
 ## 업데이트된 파일
 
-| 파일 | 변경 |
-|------|--------|
-| `strategy/CandidateScorer.kt` | 한국어 → 영어; `## Behavior / Contract` 및 `## Example` 추가 |
-| `strategy/ElectionStrategy.kt` | 한국어 → 영어; `## Behavior / Contract`, `## Built-in strategies` 추가 및 사용자 정의 전략 예제 갱신 |
-| `strategy/scorers/IdleTimeScorer.kt` | 한국어 → 영어; `## Behavior / Contract` 및 `## Example` 추가 |
-| `strategy/scorers/RecentSuccessScorer.kt` | 한국어 → 영어; 섹션 제목 변경 |
-| `strategy/scorers/SuccessRateScorer.kt` | 한국어 → 영어 |
-| `strategy/scorers/WeightedScorer.kt` | 한국어 → 영어; `## Behavior / Contract` 추가 |
-| `strategy/strategies/FifoElectionStrategy.kt` | 한국어 → 영어; 탈락 사유 문자열도 변환 |
-| `strategy/strategies/RandomElectionStrategy.kt` | 한국어 → 영어; 탈락 사유 문자열 변환 |
-| `strategy/strategies/ScoredElectionStrategy.kt` | 한국어 → 영어; 탈락 사유 문자열 변환 |
+| 파일                                            | 변경                                                                                                 |
+|-------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| `strategy/CandidateScorer.kt`                   | 한국어 → 영어; `## Behavior / Contract` 및 `## Example` 추가                                         |
+| `strategy/ElectionStrategy.kt`                  | 한국어 → 영어; `## Behavior / Contract`, `## Built-in strategies` 추가 및 사용자 정의 전략 예제 갱신 |
+| `strategy/scorers/IdleTimeScorer.kt`            | 한국어 → 영어; `## Behavior / Contract` 및 `## Example` 추가                                         |
+| `strategy/scorers/RecentSuccessScorer.kt`       | 한국어 → 영어; 섹션 제목 변경                                                                        |
+| `strategy/scorers/SuccessRateScorer.kt`         | 한국어 → 영어                                                                                        |
+| `strategy/scorers/WeightedScorer.kt`            | 한국어 → 영어; `## Behavior / Contract` 추가                                                         |
+| `strategy/strategies/FifoElectionStrategy.kt`   | 한국어 → 영어; 탈락 사유 문자열도 변환                                                               |
+| `strategy/strategies/RandomElectionStrategy.kt` | 한국어 → 영어; 탈락 사유 문자열 변환                                                                 |
+| `strategy/strategies/ScoredElectionStrategy.kt` | 한국어 → 영어; 탈락 사유 문자열 변환                                                                 |
 
 참고: `ListeningLeaderElectors.kt` 및 `TenantScopedLeaderElectors.kt`에는 이미 완전한 영어 KDoc가 있으므로 변경할 필요가 없습니다.
 
@@ -35,6 +35,7 @@
 ## KDoc 형식 적용
 
 공개 수업의 경우 CLAUDE.md 기준:
+
 1. 한 줄 요약 문장입니다.
 2. 불변 및 엣지 케이스를 나열하는 `## Behavior / Contract` 섹션.
 3. `## Example` 또는 `## Example / Built-in strategies` Kotlin 코드 블록.
@@ -43,7 +44,8 @@
 ## 향후 지침
 
 새로운 `ElectionStrategy` 또는 `CandidateScorer`를 추가하는 경우:
+
 1. 처음부터 영어 KDoc를 작성하세요.
 2. `## Behavior / Contract` 포함 — `ElectionStrategy`에는 결정론 불변이 필수입니다.
 3. 일반적인 사용법을 보여주는 `## Example`를 포함합니다.
-4. 사용자에게 표시되는 모든 문자열 리터럴(제거 이유, 로그 메시지)을 영어로 번역합니다.
+4. 사용자에게 표시되는 모든 문자열 리터럴 (제거 이유, 로그 메시지)을 영어로 번역합니다.

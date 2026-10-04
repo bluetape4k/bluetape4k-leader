@@ -37,11 +37,11 @@ fun redactDatabaseUrlForLog(url: String): String {
 
 private fun unwrapDatabaseUrl(url: String): Pair<String, String>? {
     val unwrapped = when {
-        url.isBlank()                              -> null
+        url.isBlank() -> null
         url.startsWith("jdbc:", ignoreCase = true) -> url.take(5) to url.substring(5)
         url.startsWith("r2dbc:", ignoreCase = true) -> url.take(6) to url.substring(6)
-        "://" in url                               -> "" to url
-        else                                       -> null
+        "://" in url -> "" to url
+        else -> null
     }
     return unwrapped?.takeIf { (_, databaseUrl) -> databaseUrl.isNotBlank() }
 }

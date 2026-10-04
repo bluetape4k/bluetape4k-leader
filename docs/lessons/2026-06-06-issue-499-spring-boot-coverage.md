@@ -10,16 +10,16 @@
 
 ## 결과
 
-이제 모듈은 87.36% 라인 커버리지(`1327/1519`)를 보고하고 거버넌스 정책은 `leader-spring-boot`를 80% 프로덕션 소스 목표로 기록합니다. 보존 작업 Bean 생성을 차단하고 이벤트 게시자 방출/레지스트리 등록을 관찰하기 위한 작은 테스트가 추가되었습니다.
+이제 모듈은 87.36% 라인 커버리지 (`1327/1519`)를 보고하고 거버넌스 정책은 `leader-spring-boot`를 80% 프로덕션 소스 목표로 기록합니다. 보존 작업 Bean 생성을 차단하고 이벤트 게시자 방출/레지스트리 등록을 관찰하기 위한 작은 테스트가 추가되었습니다.
 
 ## 검증
 
 - `./gradlew :bluetape4k-leader-spring-boot:test --tests 'io.bluetape4k.leader.spring.history.LeaderHistoryRetentionAutoConfigurationTest' --tests 'io.bluetape4k.leader.spring.observability.LeaderElectionObservabilityAutoConfigurationTest' --no-daemon --no-configuration-cache --console=plain`
-  - 9번의 테스트를 통과했습니다.
+    - 9번의 테스트를 통과했습니다.
 - `./gradlew :bluetape4k-leader-spring-boot:cleanTest :bluetape4k-leader-spring-boot:test :bluetape4k-leader-spring-boot:koverXmlReport --no-daemon --no-configuration-cache --console=plain`
-  - 335개의 테스트를 통과했습니다.
-  - `aotTest` 5개 테스트를 통과했습니다.
-  - 커버 XML: `LINE 1327/1519 = 87.36%`.
+    - 335개의 테스트를 통과했습니다.
+    - `aotTest` 5개 테스트를 통과했습니다.
+    - 커버 XML: `LINE 1327/1519 = 87.36%`.
 - `git diff --check`
 
 ## 향후 지침

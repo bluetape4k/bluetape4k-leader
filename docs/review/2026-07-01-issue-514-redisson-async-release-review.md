@@ -5,12 +5,12 @@
 - 문제: #514 - 릴리스가 완료되기 전에 Redisson 비동기 선택 미래가 완료됨
 - 모듈: `leader-redis-redisson`
 - 파일:
-  - `RedissonLeaderElector.kt`
-  - `RedissonLeaderGroupElector.kt`
-  - `RedissonLeaderElectionTest.kt`
-  - `RedissonLeaderGroupElectionTest.kt`
-  - `leader-redis-redisson/README.md`
-  - `leader-redis-redisson/README.ko.md`
+    - `RedissonLeaderElector.kt`
+    - `RedissonLeaderGroupElector.kt`
+    - `RedissonLeaderElectionTest.kt`
+    - `RedissonLeaderGroupElectionTest.kt`
+    - `leader-redis-redisson/README.md`
+    - `leader-redis-redisson/README.ko.md`
 
 ## 검토 결과
 

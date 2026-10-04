@@ -12,14 +12,14 @@
 
 ## 6-lane 결과
 
-| lane | 검토 초점 | 최신 결과 | 근거와 disposition |
-| --- | --- | --- | --- |
-| Architecture / API | additive core facade, public JVM surface, data/value modeling, context source | `CLEAR` | Event/context를 일반 immutable non-`Serializable` class로 고정하고 explicit equality와 redacted `toString`을 정의했다. `@JvmStatic`은 object member로 고정하고 `hasObservers`/`publish`는 `@JvmSynthetic internal` bridge 및 Java/bytecode fixture로 검증한다. |
-| Security / privacy | raw identity, exception cause, token, log exposure, reflection boundary | `CLEAR` | `BackendError.cause`는 callback-time reference로만 유지하고 기본 observer/Micrometer가 저장·직렬화하지 않는다. Event/Context `toString()`은 bounded 값만 출력하며 exception detail, token, lock/leader identity를 제외한다. synthetic bridge는 security boundary가 아님을 문서화했다. |
-| Performance / concurrency | zero-allocation path, snapshot linearization, bounded dispatch, fairness | `CLEAR` | 모든 detailed/watchdog boundary의 `hasObservers()` guard, COW array reference read 선형화, false→add 누락 및 true→remove 불필요 allocation 허용, global 1024/per-registration 256 permits, non-blocking drop/warning을 고정했다. |
-| Stability / operations | callback failure, fatal error, lifecycle, scheduler rejection, shutdown | `CLEAR` | 일반 `Exception`은 task 안에서 격리하고 `Error`는 재전파한다. scheduler admission rejection과 delegate-thrown `RejectedExecutionException`을 분리하고, accepted task-after-close, permit `finally`, Spring context destroy/multi-context 중복·누수 테스트를 acceptance로 고정했다. |
-| Developer / Kotlin / testing | Kotlin API idiom, cancellation, parity, ABI/fixture quality | `CLEAR` | blocking/suspend detailed 경로와 watchdog source/execution parity, `CancellationException` 재전파, public facade `javap`/Java fixture, `copy`/`componentN` 부재, `@JvmSynthetic` 비노출, callback redaction/error tests를 acceptance에 포함했다. |
-| User / docs / compatibility | Issue acceptance, Korean technical register, README/manual, train compatibility | `CLEAR` | #529와 #559 관계, source/outcome/redaction/cancellation/watchdog 규칙, all-README 정확한 #559 stale marker scan, manual EN/KO 경로, milestone/labels/assignee/PR DoD를 명시했다. unrelated Issue #74 marker는 scan에서 제외한다. |
+| lane                         | 검토 초점                                                                       | 최신 결과 | 근거와 disposition                                                                                                                                                                                                                                                                    |
+|------------------------------|---------------------------------------------------------------------------------|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Architecture / API           | additive core facade, public JVM surface, data/value modeling, context source   | `CLEAR`   | Event/context를 일반 immutable non-`Serializable` class로 고정하고 explicit equality와 redacted `toString`을 정의했다. `@JvmStatic`은 object member로 고정하고 `hasObservers`/`publish`는 `@JvmSynthetic internal` bridge 및 Java/bytecode fixture로 검증한다.                        |
+| Security / privacy           | raw identity, exception cause, token, log exposure, reflection boundary         | `CLEAR`   | `BackendError.cause`는 callback-time reference로만 유지하고 기본 observer/Micrometer가 저장·직렬화하지 않는다. Event/Context `toString()`은 bounded 값만 출력하며 exception detail, token, lock/leader identity를 제외한다. synthetic bridge는 security boundary가 아님을 문서화했다. |
+| Performance / concurrency    | zero-allocation path, snapshot linearization, bounded dispatch, fairness        | `CLEAR`   | 모든 detailed/watchdog boundary의 `hasObservers()` guard, COW array reference read 선형화, false→add 누락 및 true→remove 불필요 allocation 허용, global 1024/per-registration 256 permits, non-blocking drop/warning을 고정했다.                                                      |
+| Stability / operations       | callback failure, fatal error, lifecycle, scheduler rejection, shutdown         | `CLEAR`   | 일반 `Exception`은 task 안에서 격리하고 `Error`는 재전파한다. scheduler admission rejection과 delegate-thrown `RejectedExecutionException`을 분리하고, accepted task-after-close, permit `finally`, Spring context destroy/multi-context 중복·누수 테스트를 acceptance로 고정했다.    |
+| Developer / Kotlin / testing | Kotlin API idiom, cancellation, parity, ABI/fixture quality                     | `CLEAR`   | blocking/suspend detailed 경로와 watchdog source/execution parity, `CancellationException` 재전파, public facade `javap`/Java fixture, `copy`/`componentN` 부재, `@JvmSynthetic` 비노출, callback redaction/error tests를 acceptance에 포함했다.                                      |
+| User / docs / compatibility  | Issue acceptance, Korean technical register, README/manual, train compatibility | `CLEAR`   | #529와 #559 관계, source/outcome/redaction/cancellation/watchdog 규칙, all-README 정확한 #559 stale marker scan, manual EN/KO 경로, milestone/labels/assignee/PR DoD를 명시했다. unrelated Issue #74 marker는 scan에서 제외한다.                                                      |
 
 ## 수리된 review findings
 
@@ -43,7 +43,7 @@
 - 사양 문서 미완료 표식 검색: 0건, PASS
 - Markdown fence parity: 2개, PASS
 - source anchor 존재 검증: `LockExtender`, `ExtendOutcome`, `ExtendDelegate`, `LeaderLeaseAutoExtender`, `LeaderLockHandle`, `LockStateHolder`, `LockHandleElement`, `LeaderElectionListener`, Micrometer recorder 모두 PASS
-- baseline 영향 모듈 테스트(사양 작성 전): `./gradlew :bluetape4k-leader-core:test :bluetape4k-leader-micrometer:test --no-daemon --no-configuration-cache --console=plain` — 77 tests, BUILD SUCCESSFUL
+- baseline 영향 모듈 테스트 (사양 작성 전): `./gradlew :bluetape4k-leader-core:test :bluetape4k-leader-micrometer:test --no-daemon --no-configuration-cache --console=plain` — 77 tests, BUILD SUCCESSFUL
 - 최신 review lane은 사양-only read-only 범위로 Gradle을 재실행하지 않았다.
 
 ## PR1 이후 잔여 상태

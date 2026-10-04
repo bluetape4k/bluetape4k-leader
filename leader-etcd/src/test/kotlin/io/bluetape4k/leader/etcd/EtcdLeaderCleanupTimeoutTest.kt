@@ -169,7 +169,7 @@ class EtcdLeaderCleanupTimeoutTest {
             when {
                 interruptLock -> InterruptingFuture()
                 cancelLock -> CompletableFuture<ByteSequence>().also { it.cancel(false) }
-                else       -> completableFutureOf(ownershipKey)
+                else -> completableFutureOf(ownershipKey)
             }
 
         override fun unlock(ownershipKey: ByteSequence): CompletableFuture<Unit> =

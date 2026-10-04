@@ -69,8 +69,8 @@ timestamp(42 bits) | pid%(2^10)(10 bits) | seq(12 bits)
 - `trySetPermits(maxLeaders)` is invoked idempotently on the first access for each `lockName`. Without this, the semaphore would default to 0 permits and `tryAcquire` would always return `null`.
 - Each `tryAcquire(waitTime, leaseTime, ms)` returns a unique `permitId: String?` (or `null` on contention). The `permitId` is used to release or extend the exact slot — no positional ambiguity even when one elector instance holds multiple slots concurrently.
 - On `runIfLeader` finally:
-  - if `remainingMinLeaseTime > 0` → `updateLeaseTime(permitId, remainingMs, MILLISECONDS)` extends the backend TTL (the async path uses `updateLeaseTimeAsync`).
-  - otherwise → `release(permitId)` returns the slot immediately.
+    - if `remainingMinLeaseTime > 0` → `updateLeaseTime(permitId, remainingMs, MILLISECONDS)` extends the backend TTL (the async path uses `updateLeaseTimeAsync`).
+    - otherwise → `release(permitId)` returns the slot immediately.
 - Crash recovery is automatic: when a holder dies without releasing, Redisson reclaims the permit after `leaseTime` expires.
 - `minLeaseTime` is delegated to the backend TTL (no caller-side park) — `runIfLeader` returns as soon as `action` finishes.
 

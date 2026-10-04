@@ -4,8 +4,6 @@
 
 이 문서는 `Issue 443 Framework-neutral Leader Events Design`에 대한 설계 또는 실행 계획 기록입니다. 아래 원문 구조의 범위, 결정, 작업 순서, 검증 조건, 위험 및 후속 조치는 기록 보존을 위해 유지합니다. 검토자는 각 `Action`, `Expected DoD`, `Validation`, `Target files` 항목을 한국어 해설과 함께 읽고, 코드 식별자와 명령은 원문 그대로 취급해야 합니다.
 
-
-
 ## Context
 
 Issue #443 asks for a framework-neutral observability API built around
@@ -16,8 +14,7 @@ Issue #443 asks for a framework-neutral observability API built around
 - Spring observability adapters and a publisher-only fallback;
 - Micrometer listeners and Ktor/Spring status endpoints as adapters.
 
-The missing API is a callback registration surface on the event publisher itself
-so Java and framework integration users do not have to collect `Flow` directly.
+The missing API is a callback registration surface on the event publisher itself so Java and framework integration users do not have to collect `Flow` directly.
 
 ## Design
 
@@ -28,18 +25,13 @@ Add default methods to `LeaderElectionEventPublisher`:
 - `onRevoked(scope, listener)`
 - `onSkipped(scope, listener)`
 
-Each method accepts an explicit `CoroutineScope` and a Java `Consumer` callback,
-then returns `AutoCloseable`. Closing the handle cancels the collection job.
+Each method accepts an explicit `CoroutineScope` and a Java `Consumer` callback, then returns `AutoCloseable`. Closing the handle cancels the collection job.
 
-Scope ownership stays explicit. The core module will not create a hidden global
-scope for Java users, and adapters can bind callbacks to their own lifecycle.
+Scope ownership stays explicit. The core module will not create a hidden global scope for Java users, and adapters can bind callbacks to their own lifecycle.
 
-Event delivery remains best-effort. Callback exceptions are logged and ignored
-so one failing observability callback does not stop the publisher collection.
+Event delivery remains best-effort. Callback exceptions are logged and ignored so one failing observability callback does not stop the publisher collection.
 
-`LeaderElectionEvent` should be serializable as a sealed framework-neutral event
-family. `Elected` already is serializable; `Revoked` and `Skipped` should also
-declare explicit `serialVersionUID` values.
+`LeaderElectionEvent` should be serializable as a sealed framework-neutral event family. `Elected` already is serializable; `Revoked` and `Skipped` should also declare explicit `serialVersionUID` values.
 
 ## Non-goals
 
@@ -54,7 +46,5 @@ declare explicit `serialVersionUID` values.
 - Framework-neutral API: default callback methods live on `LeaderElectionEventPublisher`.
 - Java-friendly registration: methods use `java.util.function.Consumer` and return `AutoCloseable`.
 - Flow compatibility: `events` remains unchanged.
-- Adapter model: README explains that Spring, Ktor, Micrometer, logging, tracing,
-  and custom dashboards should adapt from the core publisher.
-- Tests: cover callback registration, unregister handles, event filtering, and
-  callback exception isolation.
+- Adapter model: README explains that Spring, Ktor, Micrometer, logging, tracing, and custom dashboards should adapt from the core publisher.
+- Tests: cover callback registration, unregister handles, event filtering, and callback exception isolation.

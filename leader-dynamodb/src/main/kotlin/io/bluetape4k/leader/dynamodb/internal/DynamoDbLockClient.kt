@@ -143,11 +143,11 @@ internal class DynamoDbLockClient(
                     val cause = failure?.unwrapCompletionException()
                     when {
                         result.isDone && acquired != null -> releaseLate(acquired)
-                        result.isDone                -> Unit
-                        cause != null                -> result.completeExceptionally(cause)
-                        acquired != null             -> result.complete(acquired)
+                        result.isDone -> Unit
+                        cause != null -> result.completeExceptionally(cause)
+                        acquired != null -> result.complete(acquired)
                         !deadline.hasTimeRemaining() -> result.complete(null)
-                        else                         -> {
+                        else -> {
                             val delayMillis = jitterDelayMillis(deadline, retryDelay)
                             CompletableFuture.runAsync(
                                 {},
@@ -157,7 +157,7 @@ internal class DynamoDbLockClient(
                                 when {
                                     result.isDone -> Unit
                                     delayCause != null -> result.completeExceptionally(delayCause)
-                                    else          -> attempt()
+                                    else -> attempt()
                                 }
                             }
                         }

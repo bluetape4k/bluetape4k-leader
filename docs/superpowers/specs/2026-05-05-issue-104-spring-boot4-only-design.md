@@ -21,42 +21,43 @@
 
 ### 2.1 모듈 변경
 
-| 변경 | 상세 |
-|------|------|
-| **삭제** | `leader-spring-boot-common` |
-| **삭제** | `leader-spring-boot3` |
-| **삭제** | `leader-spring-boot4` |
-| **신규** | `leader-spring-boot` (boot4 + common 통합) |
-| **확장** | `leader-core` — annotation 3개 + metrics SPI 2개 추가 |
+| 변경     | 상세                                                   |
+|----------|--------------------------------------------------------|
+| **삭제** | `leader-spring-boot-common`                            |
+| **삭제** | `leader-spring-boot3`                                  |
+| **삭제** | `leader-spring-boot4`                                  |
+| **신규** | `leader-spring-boot` (boot4 + common 통합)             |
+| **확장** | `leader-core` — annotation 3개 + metrics SPI 2개 추가  |
 | **수정** | `leader-micrometer` — common 의존 → core 의존으로 교체 |
-| **수정** | `leader-bom`, `settings.gradle.kts` |
-| **수정** | `.github/workflows/ci.yml`, `nightly.yml` |
+| **수정** | `leader-bom`, `settings.gradle.kts`                    |
+| **수정** | `.github/workflows/ci.yml`, `nightly.yml`              |
 
 ### 2.2 파일 분류 및 처리
 
 #### `leader-core`로 이동 (순수 Kotlin, Spring 의존 없음)
 
-| 원본 파일 (leader-spring-boot-common) | 새 위치 (leader-core) | 새 패키지 |
-|---|---|---|
-| `aop/LeaderElection.kt` | `annotation/LeaderElection.kt` | `io.bluetape4k.leader.annotation` |
-| `aop/LeaderGroupElection.kt` | `annotation/LeaderGroupElection.kt` | `io.bluetape4k.leader.annotation` |
-| `aop/LeaderAspectFailureMode.kt` | `annotation/LeaderAspectFailureMode.kt` | `io.bluetape4k.leader.annotation` |
-| `aop/metrics/LeaderAopMetricsRecorder.kt` | `metrics/LeaderAopMetricsRecorder.kt` | `io.bluetape4k.leader.metrics` |
-| `aop/metrics/SkipReason.kt` | `metrics/SkipReason.kt` | `io.bluetape4k.leader.metrics` |
+| 원본 파일 (leader-spring-boot-common)     | 새 위치 (leader-core)                   | 새 패키지                         |
+|-------------------------------------------|-----------------------------------------|-----------------------------------|
+| `aop/LeaderElection.kt`                   | `annotation/LeaderElection.kt`          | `io.bluetape4k.leader.annotation` |
+| `aop/LeaderGroupElection.kt`              | `annotation/LeaderGroupElection.kt`     | `io.bluetape4k.leader.annotation` |
+| `aop/LeaderAspectFailureMode.kt`          | `annotation/LeaderAspectFailureMode.kt` | `io.bluetape4k.leader.annotation` |
+| `aop/metrics/LeaderAopMetricsRecorder.kt` | `metrics/LeaderAopMetricsRecorder.kt`   | `io.bluetape4k.leader.metrics`    |
+| `aop/metrics/SkipReason.kt`               | `metrics/SkipReason.kt`                 | `io.bluetape4k.leader.metrics`    |
 
 #### 삭제 (dead code / Boot 4 비호환)
 
-| 파일 | 이유 |
-|---|---|
-| `aop/health/LeaderAopHealthIndicator.kt` | Boot 4에서 HealthIndicator 경로 변경 (`spring.boot.health.contributor`), Boot 3 전용 |
-| `config/LeaderElectionConfigSupport.kt` | 상속자 없음 (zero inheritors), Boot3/4 분리 시절 설계 |
-| `aop/metrics/LeaderAopMetricsRecorder.kt`, `SkipReason.kt` | `leader-core`로 이동 후 삭제 |
-| `aop/LeaderElection.kt`, `LeaderGroupElection.kt`, `LeaderAspectFailureMode.kt` | `leader-core`로 이동 후 삭제 |
-| **leader-spring-boot3** `metrics/LeaderMicrometerHealthAutoConfiguration.kt` | Boot 3 전용 `HealthIndicator` |
+| 파일                                                                            | 이유                                                                                 |
+|---------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| `aop/health/LeaderAopHealthIndicator.kt`                                        | Boot 4에서 HealthIndicator 경로 변경 (`spring.boot.health.contributor`), Boot 3 전용 |
+| `config/LeaderElectionConfigSupport.kt`                                         | 상속자 없음 (zero inheritors), Boot3/4 분리 시절 설계                                |
+| `aop/metrics/LeaderAopMetricsRecorder.kt`, `SkipReason.kt`                      | `leader-core`로 이동 후 삭제                                                         |
+| `aop/LeaderElection.kt`, `LeaderGroupElection.kt`, `LeaderAspectFailureMode.kt` | `leader-core`로 이동 후 삭제                                                         |
+| **leader-spring-boot3** `metrics/LeaderMicrometerHealthAutoConfiguration.kt`    | Boot 3 전용 `HealthIndicator`                                                        |
 
 #### `leader-spring-boot`로 이동 (Spring 의존 — common에서)
 
 모든 나머지 `leader-spring-boot-common` 파일:
+
 - `aop/LeaderAspectOrder.kt`, `LeaderBeanSelector.kt`, `LeaderElectionAspect.kt`, `LeaderGroupElectionAspect.kt`
 - `aop/cache/FactoryCacheKey.kt` (**주의**: 이 파일에 `FactoryCacheKey` AND `GroupFactoryCacheKey` 두 클래스 포함 — 분리 금지)
 - `aop/properties/LeaderAopProperties.kt`
@@ -69,30 +70,30 @@
 
 이동/이름변경 후 반드시 수정해야 하는 파일별 import:
 
-| 파일 | 수정 내용 |
-|------|-----------|
-| `LeaderElectionAspect.kt` | `@Around("@annotation(io.bluetape4k.leader.spring.aop.LeaderElection)")` → `@Around("@annotation(io.bluetape4k.leader.annotation.LeaderElection)")` (**⚠️ CRITICAL: 문자열 리터럴 — 컴파일러 미검출, 침묵하며 aspect 동작 중단**) |
-| `LeaderGroupElectionAspect.kt` | `@Around("@annotation(io.bluetape4k.leader.spring.aop.LeaderGroupElection)")` → `@Around("@annotation(io.bluetape4k.leader.annotation.LeaderGroupElection)")` |
-| `LeaderAnnotationValidatorBeanPostProcessor.kt` | `import io.bluetape4k.leader.spring.aop.LeaderElection` → `import io.bluetape4k.leader.annotation.LeaderElection` 및 `LeaderGroupElection` 동일 |
-| `LeaderAopProperties.kt` | `import io.bluetape4k.leader.spring.aop.LeaderAspectFailureMode` → `import io.bluetape4k.leader.annotation.LeaderAspectFailureMode` |
-| `leader-micrometer/MicrometerLeaderAopMetricsRecorder.kt` | `import io.bluetape4k.leader.spring.aop.metrics.LeaderAopMetricsRecorder` → `import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder` 및 `SkipReason` 동일 |
-| `leader-micrometer` 테스트 파일 | 동일 import 업데이트 |
-| `additional-spring-configuration-metadata.json` | `"type": "io.bluetape4k.leader.spring.aop.LeaderAspectFailureMode"` → `"type": "io.bluetape4k.leader.annotation.LeaderAspectFailureMode"` |
+| 파일                                                      | 수정 내용                                                                                                                                                                                                                         |
+|-----------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `LeaderElectionAspect.kt`                                 | `@Around("@annotation(io.bluetape4k.leader.spring.aop.LeaderElection)")` → `@Around("@annotation(io.bluetape4k.leader.annotation.LeaderElection)")` (**⚠️ CRITICAL: 문자열 리터럴 — 컴파일러 미검출, 침묵하며 aspect 동작 중단**) |
+| `LeaderGroupElectionAspect.kt`                            | `@Around("@annotation(io.bluetape4k.leader.spring.aop.LeaderGroupElection)")` → `@Around("@annotation(io.bluetape4k.leader.annotation.LeaderGroupElection)")`                                                                     |
+| `LeaderAnnotationValidatorBeanPostProcessor.kt`           | `import io.bluetape4k.leader.spring.aop.LeaderElection` → `import io.bluetape4k.leader.annotation.LeaderElection` 및 `LeaderGroupElection` 동일                                                                                   |
+| `LeaderAopProperties.kt`                                  | `import io.bluetape4k.leader.spring.aop.LeaderAspectFailureMode` → `import io.bluetape4k.leader.annotation.LeaderAspectFailureMode`                                                                                               |
+| `leader-micrometer/MicrometerLeaderAopMetricsRecorder.kt` | `import io.bluetape4k.leader.spring.aop.metrics.LeaderAopMetricsRecorder` → `import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder` 및 `SkipReason` 동일                                                                   |
+| `leader-micrometer` 테스트 파일                           | 동일 import 업데이트                                                                                                                                                                                                              |
+| `additional-spring-configuration-metadata.json`           | `"type": "io.bluetape4k.leader.spring.aop.LeaderAspectFailureMode"` → `"type": "io.bluetape4k.leader.annotation.LeaderAspectFailureMode"`                                                                                         |
 
 #### `leader-spring-boot`로 이동 (패키지 재편 — boot4에서)
 
-| 원본 패키지 | 새 패키지 |
-|---|---|
-| `io.bluetape4k.leader.spring.boot4` | `io.bluetape4k.leader.spring` |
-| `io.bluetape4k.leader.spring.boot4.adapter` | `io.bluetape4k.leader.spring.adapter` |
+| 원본 패키지                                           | 새 패키지                                       |
+|-------------------------------------------------------|-------------------------------------------------|
+| `io.bluetape4k.leader.spring.boot4`                   | `io.bluetape4k.leader.spring`                   |
+| `io.bluetape4k.leader.spring.boot4.adapter`           | `io.bluetape4k.leader.spring.adapter`           |
 | `io.bluetape4k.leader.spring.boot4.aop.autoconfigure` | `io.bluetape4k.leader.spring.aop.autoconfigure` |
-| `io.bluetape4k.leader.spring.boot4.backend` | `io.bluetape4k.leader.spring.backend` |
-| `io.bluetape4k.leader.spring.boot4.metrics` | `io.bluetape4k.leader.spring.metrics` |
+| `io.bluetape4k.leader.spring.boot4.backend`           | `io.bluetape4k.leader.spring.backend`           |
+| `io.bluetape4k.leader.spring.boot4.metrics`           | `io.bluetape4k.leader.spring.metrics`           |
 
 #### 클래스 이름 변경
 
-| 구 이름 | 새 이름 | 위치 |
-|---|---|---|
+| 구 이름                 | 새 이름            | 위치                          |
+|-------------------------|--------------------|-------------------------------|
 | `Boot4LeaderProperties` | `LeaderProperties` | `io.bluetape4k.leader.spring` |
 
 ---
@@ -103,20 +104,22 @@
 
 **결정: Freefair post-compile weaving (CTW) 유지, `@EnableAspectJAutoProxy` 제거**
 
-| 항목 | 결정 |
-|------|------|
-| Weaving 방식 | Freefair AspectJ post-compile weaving (ajc 빌드타임 weave) |
-| `@EnableAspectJAutoProxy` | **제거** — CTW와 중복 시 double-advice 발생, AOT 비호환 |
-| Aspect 등록 | `@Bean`으로만 (Spring DI/lifecycle 목적, weaving 아님) |
-| `open` 키워드 | 불필요 (CGLIB proxy 없음, CTW는 바이트코드 직접 주입) |
-| GraalVM Native Image | 호환 (런타임 proxy 생성 없음) |
-| Spring Boot 4 AOT | 호환 (빌드타임 weaving = AOT-friendly) |
+| 항목                      | 결정                                                       |
+|---------------------------|------------------------------------------------------------|
+| Weaving 방식              | Freefair AspectJ post-compile weaving (ajc 빌드타임 weave) |
+| `@EnableAspectJAutoProxy` | **제거** — CTW와 중복 시 double-advice 발생, AOT 비호환    |
+| Aspect 등록               | `@Bean`으로만 (Spring DI/lifecycle 목적, weaving 아님)     |
+| `open` 키워드             | 불필요 (CGLIB proxy 없음, CTW는 바이트코드 직접 주입)      |
+| GraalVM Native Image      | 호환 (런타임 proxy 생성 없음)                              |
+| Spring Boot 4 AOT         | 호환 (빌드타임 weaving = AOT-friendly)                     |
 
 **현재 `leader-spring-boot4` 코드에서 제거할 항목:**
+
 - `LeaderAopAutoConfiguration.kt` 의 `@EnableAspectJAutoProxy` (line 51 근처)
 - 이유: Freefair CTW가 이미 aspect를 bytecode에 weave. Spring proxy가 추가되면 advice가 두 번 실행됨
 
 **유지 항목:**
+
 - `aspect()` 설정 불필요 — `@Aspect` 클래스가 동일 모듈 main sourceset에 위치하므로 자동 weave
 - Aspect `@Bean` 등록 — Spring이 의존성 주입 및 lifecycle 관리
 - `LeaderAnnotationValidatorBeanPostProcessor` — aspect weaving과 무관, 별도 BPP로 유지
@@ -126,6 +129,7 @@
 `LeaderBeanSelector`는 factory가 2개 이상일 때 `@Primary` 없으면 ambiguous 예외를 던진다.
 
 **정책 (현재 코드 동작 유지):**
+
 - `LocalLeaderElectionFactory`는 `@ConditionalOnMissingBean`으로 등록 → 다른 factory가 없을 때만 fallback
 - 여러 factory 공존 시 `@LeaderElection(bean = "redissonLeaderElectionFactory")` 명시 필요
 - `@Primary` 미설정 + `bean=""` 상태에서 2개 이상 factory → 설계 의도적 fail-fast (명시적 선택 강제)
@@ -138,6 +142,7 @@
 개선: `leader-micrometer → leader-core` (순수 Kotlin만 의존)
 
 `leader-micrometer/build.gradle.kts`:
+
 ```diff
 -    api(project(":leader-spring-boot-common"))
 +    api(project(":leader-core"))
@@ -156,12 +161,13 @@ AutoConfiguration.imports 등록 순서:
 
 ### 3.4 삭제 판단
 
-- `LeaderAopHealthIndicator`: Boot 4의 HealthContributor API 경로 변경으로 Boot 3 전용. 별도 후속 PR(#80 범위)에서 Boot 4 호환 구현 예정.
+- `LeaderAopHealthIndicator`: Boot 4의 HealthContributor API 경로 변경으로 Boot 3 전용. 별도 후속 PR (#80 범위)에서 Boot 4 호환 구현 예정.
 - `LeaderElectionConfigSupport`: 상속자 전무. Boot3/4 분리 구조에서 필요했던 추상 클래스이나 통합 후 무용.
 
 ### 3.5 Breaking Changes 문서화
 
 release 전이므로 migration guide 필요 없으나 CHANGELOG에 명시:
+
 - `io.bluetape4k.leader.spring.aop.LeaderElection` → `io.bluetape4k.leader.annotation.LeaderElection`
 - `io.bluetape4k.leader.spring.aop.LeaderGroupElection` → `io.bluetape4k.leader.annotation.LeaderGroupElection`
 - `io.bluetape4k.leader.spring.aop.LeaderAspectFailureMode` → `io.bluetape4k.leader.annotation.LeaderAspectFailureMode`
@@ -364,12 +370,12 @@ io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 
 ### nightly.yml
 
-| 변경 | 잡 이름 |
-|------|---------|
+| 변경 | 잡 이름                   |
+|------|---------------------------|
 | 삭제 | `test-spring-boot-common` |
-| 삭제 | `test-spring-boot3` |
-| 삭제 | `test-spring-boot4` |
-| 추가 | `test-spring-boot` |
+| 삭제 | `test-spring-boot3`       |
+| 삭제 | `test-spring-boot4`       |
+| 추가 | `test-spring-boot`        |
 
 `coverage-report.needs`와 `nightly-status.needs`도 동일하게 업데이트.
 
@@ -379,59 +385,61 @@ io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 
 ### 8.1 leader-core 신규 테스트 (⚠️ 필수 — 신규 annotation/metrics SPI 커버리지)
 
-| 테스트 파일 | 검증 내용 |
-|---|---|
-| `annotation/LeaderElectionAnnotationTest.kt` | annotation attribute 기본값, `@Retention(RUNTIME)`, `@Target(FUNCTION)` |
+| 테스트 파일                                       | 검증 내용                                                                                       |
+|---------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| `annotation/LeaderElectionAnnotationTest.kt`      | annotation attribute 기본값, `@Retention(RUNTIME)`, `@Target(FUNCTION)`                         |
 | `annotation/LeaderGroupElectionAnnotationTest.kt` | annotation attribute 기본값 (maxLeaders default=-1 확인만, 유효성 검증은 Spring validator 담당) |
-| `annotation/LeaderAspectFailureModeTest.kt` | enum values 열거 완전성 (INHERIT, RETHROW, SKIP) |
-| `metrics/SkipReasonTest.kt` | enum values 열거 완전성 |
-| `metrics/NoOpLeaderAopMetricsRecorderTest.kt` | NoOp 구현체 콜백 예외 없이 동작 |
+| `annotation/LeaderAspectFailureModeTest.kt`       | enum values 열거 완전성 (INHERIT, RETHROW, SKIP)                                                |
+| `metrics/SkipReasonTest.kt`                       | enum values 열거 완전성                                                                         |
+| `metrics/NoOpLeaderAopMetricsRecorderTest.kt`     | NoOp 구현체 콜백 예외 없이 동작                                                                 |
 
-> **Note**: `maxLeaders ≤ 1` 검증 (`IllegalStateException`)은 annotation 자체가 아닌 `LeaderAnnotationValidatorBeanPostProcessor`에서 수행 → `leader-spring-boot` 테스트에서 검증
+>
+**Note**: `maxLeaders ≤ 1` 검증 (`IllegalStateException`)은 annotation 자체가 아닌 `LeaderAnnotationValidatorBeanPostProcessor`에서 수행 → `leader-spring-boot` 테스트에서 검증
 
 ### 8.2 leader-spring-boot-common 테스트 이동 (→ leader-spring-boot)
 
 패키지 rename: `io.bluetape4k.leader.spring.aop.*` → 동일 경로 유지 (모듈만 변경)
 
-| 원본 테스트 파일 | 처리 |
-|---|---|
-| `LeaderElectionAspectTest.kt` | 이동 + `@Around` pointcut 참조 업데이트 확인 |
-| `LeaderGroupElectionAspectTest.kt` | 이동 + `@Around` pointcut 참조 업데이트 확인 |
-| `LeaderBeanSelectorTest.kt` | 이동 |
-| `LeaderAnnotationValidatorBeanPostProcessorTest.kt` | 이동 + annotation import 업데이트 |
-| `LeaderAopPropertiesBindingTest.kt` | 이동 + `LeaderAspectFailureMode` import 업데이트 |
-| `FactoryCacheKeyTest.kt` | 이동 (`GroupFactoryCacheKey` 테스트 포함 여부 확인) |
-| `SpelExpressionEvaluatorTest.kt` | 이동 |
-| `DurationParserTest.kt` | 이동 |
-| `LockNameValidatorTest.kt` | 이동 |
-| `LeaderElectionPropertiesTest.kt` | 이동 |
-| `LeaderGroupPropertiesTest.kt` | 이동 |
-| `aop/health/LeaderAopHealthIndicatorTest.kt` | **삭제** (삭제된 클래스) |
-| `config/LeaderElectionConfigSupportTest.kt` | **삭제** (삭제된 클래스) |
+| 원본 테스트 파일                                    | 처리                                                |
+|-----------------------------------------------------|-----------------------------------------------------|
+| `LeaderElectionAspectTest.kt`                       | 이동 + `@Around` pointcut 참조 업데이트 확인        |
+| `LeaderGroupElectionAspectTest.kt`                  | 이동 + `@Around` pointcut 참조 업데이트 확인        |
+| `LeaderBeanSelectorTest.kt`                         | 이동                                                |
+| `LeaderAnnotationValidatorBeanPostProcessorTest.kt` | 이동 + annotation import 업데이트                   |
+| `LeaderAopPropertiesBindingTest.kt`                 | 이동 + `LeaderAspectFailureMode` import 업데이트    |
+| `FactoryCacheKeyTest.kt`                            | 이동 (`GroupFactoryCacheKey` 테스트 포함 여부 확인) |
+| `SpelExpressionEvaluatorTest.kt`                    | 이동                                                |
+| `DurationParserTest.kt`                             | 이동                                                |
+| `LockNameValidatorTest.kt`                          | 이동                                                |
+| `LeaderElectionPropertiesTest.kt`                   | 이동                                                |
+| `LeaderGroupPropertiesTest.kt`                      | 이동                                                |
+| `aop/health/LeaderAopHealthIndicatorTest.kt`        | **삭제** (삭제된 클래스)                            |
+| `config/LeaderElectionConfigSupportTest.kt`         | **삭제** (삭제된 클래스)                            |
 
 ### 8.3 leader-spring-boot4 테스트 이동 (→ leader-spring-boot)
 
 패키지 rename: `io.bluetape4k.leader.spring.boot4.*` → `io.bluetape4k.leader.spring.*`
 
-| 원본 테스트 파일 | 처리 |
-|---|---|
-| `AbstractRedissonAutoConfigurationTest.kt` | 이동 + 패키지 rename |
-| `LeaderElectionAutoConfigurationTest.kt` | 이동 + 패키지 rename |
-| `BackendConditionalTest.kt` | 이동 + 패키지 rename |
-| `Boot4LeaderPropertiesBindingTest.kt` | **이름 변경** → `LeaderPropertiesBindingTest.kt` + `Boot4LeaderProperties` → `LeaderProperties` 내부 참조 업데이트 |
-| `adapter/PropertiesAdapterTest.kt` | 이동 + 패키지 rename + `Boot4LeaderProperties` → `LeaderProperties` |
-| `metrics/LeaderMicrometerAutoConfigurationBoot4Test.kt` | **이름 변경** → `LeaderMicrometerAutoConfigurationTest.kt` + 패키지 rename |
+| 원본 테스트 파일                                        | 처리                                                                                                               |
+|---------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| `AbstractRedissonAutoConfigurationTest.kt`              | 이동 + 패키지 rename                                                                                               |
+| `LeaderElectionAutoConfigurationTest.kt`                | 이동 + 패키지 rename                                                                                               |
+| `BackendConditionalTest.kt`                             | 이동 + 패키지 rename                                                                                               |
+| `Boot4LeaderPropertiesBindingTest.kt`                   | **이름 변경** → `LeaderPropertiesBindingTest.kt` + `Boot4LeaderProperties` → `LeaderProperties` 내부 참조 업데이트 |
+| `adapter/PropertiesAdapterTest.kt`                      | 이동 + 패키지 rename + `Boot4LeaderProperties` → `LeaderProperties`                                                |
+| `metrics/LeaderMicrometerAutoConfigurationBoot4Test.kt` | **이름 변경** → `LeaderMicrometerAutoConfigurationTest.kt` + 패키지 rename                                         |
 
 ### 8.4 leader-spring-boot3 테스트 처리
 
-| 테스트 파일 | 처리 |
-|---|---|
-| `LeaderMicrometerAutoConfigurationBoot3Test.kt` | **삭제** (boot3 전용) |
-| 나머지 boot3 테스트 | boot4에 이미 동등한 테스트 존재 → **삭제** |
+| 테스트 파일                                     | 처리                                       |
+|-------------------------------------------------|--------------------------------------------|
+| `LeaderMicrometerAutoConfigurationBoot3Test.kt` | **삭제** (boot3 전용)                      |
+| 나머지 boot3 테스트                             | boot4에 이미 동등한 테스트 존재 → **삭제** |
 
 ### 8.5 junit-platform.properties 표준
 
 새 모듈 `leader-spring-boot/src/test/resources/junit-platform.properties`:
+
 ```properties
 junit.jupiter.extensions.autodetection.enabled=true
 junit.jupiter.testinstance.lifecycle.default=per_class
@@ -445,21 +453,21 @@ junit.jupiter.execution.parallel.mode.classes.default=concurrent
 
 ## 9. DoD (Definition of Done)
 
-| 항목 | 검증 방법 |
-|------|-----------|
-| `leader-spring-boot-common`, `leader-spring-boot3`, `leader-spring-boot4` 디렉토리 삭제 | `git status` — 세 모듈 없음 |
-| `leader-spring-boot` 모듈 빌드 성공 | `./gradlew :leader-spring-boot:build` |
-| `leader-core` annotation + metrics SPI 추가 빌드 성공 | `./gradlew :leader-core:build` |
-| `leader-micrometer` 의존 수정 후 테스트 통과 | `./gradlew :leader-micrometer:test` |
-| 전체 프로젝트 컴파일 성공 | `./gradlew build -x test --parallel` |
-| 전체 leader-spring-boot 테스트 통과 | `./gradlew :leader-spring-boot:test` |
-| `settings.gradle.kts` — 3개 구 모듈 제거, 1개 신규 모듈 추가 | 파일 확인 |
-| `leader-bom` 업데이트 | `./gradlew :leader-bom:build` |
-| `CLAUDE.md` 모듈 목록 업데이트 | 파일 확인 |
-| GitHub workflow CI + nightly 업데이트 | 파일 확인 |
-| README.md + README.ko.md 업데이트 | 파일 확인 |
-| Grep 잔재 확인 (코드 파일) | `rg "io\.bluetape4k\.leader\.spring\.boot[34]\|leader-spring-boot[34]\|leader-spring-boot-common\|Boot4LeaderProperties\|LeaderAopHealthIndicator\|LeaderElectionConfigSupport\|LeaderMicrometerHealthAutoConfiguration" --include="*.kt" --include="*.kts" --include="*.yml" --include="*.json" --include="*.imports" --glob="!docs/**"` → 0건 (`libs.plugins.spring.boot4`, `libs.spring.boot4.dependencies` 같은 Gradle 카탈로그 식별자는 대상 아님) |
-| `@Around` pointcut FQCN 확인 | `rg "leader.spring.aop.Leader"` → `LeaderElectionAspect.kt`, `LeaderGroupElectionAspect.kt`에서 0건 |
-| `additional-spring-configuration-metadata.json` FQCN | `rg "leader.spring.aop.LeaderAspectFailureMode"` → 0건 |
-| Kover coverage ≥ 60% | `./gradlew :leader-spring-boot:koverVerify` |
-| Step 6-R Tier 1-6 리뷰 CRITICAL/HIGH 0 | 리뷰 결과 확인 |
+| 항목                                                                                    | 검증 방법                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+|-----------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `leader-spring-boot-common`, `leader-spring-boot3`, `leader-spring-boot4` 디렉토리 삭제 | `git status` — 세 모듈 없음                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `leader-spring-boot` 모듈 빌드 성공                                                     | `./gradlew :leader-spring-boot:build`                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `leader-core` annotation + metrics SPI 추가 빌드 성공                                   | `./gradlew :leader-core:build`                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `leader-micrometer` 의존 수정 후 테스트 통과                                            | `./gradlew :leader-micrometer:test`                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 전체 프로젝트 컴파일 성공                                                               | `./gradlew build -x test --parallel`                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 전체 leader-spring-boot 테스트 통과                                                     | `./gradlew :leader-spring-boot:test`                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `settings.gradle.kts` — 3개 구 모듈 제거, 1개 신규 모듈 추가                            | 파일 확인                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `leader-bom` 업데이트                                                                   | `./gradlew :leader-bom:build`                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `CLAUDE.md` 모듈 목록 업데이트                                                          | 파일 확인                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| GitHub workflow CI + nightly 업데이트                                                   | 파일 확인                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| README.md + README.ko.md 업데이트                                                       | 파일 확인                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Grep 잔재 확인 (코드 파일)                                                              | `rg "io\.bluetape4k\.leader\.spring\.boot[34]\|leader-spring-boot[34]\|leader-spring-boot-common\|Boot4LeaderProperties\|LeaderAopHealthIndicator\|LeaderElectionConfigSupport\|LeaderMicrometerHealthAutoConfiguration" --include="*.kt" --include="*.kts" --include="*.yml" --include="*.json" --include="*.imports" --glob="!docs/**"` → 0건 (`libs.plugins.spring.boot4`, `libs.spring.boot4.dependencies` 같은 Gradle 카탈로그 식별자는 대상 아님) |
+| `@Around` pointcut FQCN 확인                                                            | `rg "leader.spring.aop.Leader"` → `LeaderElectionAspect.kt`, `LeaderGroupElectionAspect.kt`에서 0건                                                                                                                                                                                                                                                                                                                                                     |
+| `additional-spring-configuration-metadata.json` FQCN                                    | `rg "leader.spring.aop.LeaderAspectFailureMode"` → 0건                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Kover coverage ≥ 60%                                                                    | `./gradlew :leader-spring-boot:koverVerify`                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Step 6-R Tier 1-6 리뷰 CRITICAL/HIGH 0                                                  | 리뷰 결과 확인                                                                                                                                                                                                                                                                                                                                                                                                                                          |

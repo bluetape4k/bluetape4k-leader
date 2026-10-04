@@ -47,7 +47,7 @@ abstract class AbstractTenantAggregatorTest {
         fun enableDialects(): List<TestTenantDB> {
             val filter = System.getenv("LEADER_TEST_DB")?.uppercase()
                 ?: return listOf(TestTenantDB.H2, TestTenantDB.POSTGRESQL, TestTenantDB.MYSQL_V8)
-            
+
             return when (filter) {
                 "H2" -> listOf(TestTenantDB.H2)
                 "POSTGRESQL", "POSTGRES" -> listOf(TestTenantDB.POSTGRESQL)

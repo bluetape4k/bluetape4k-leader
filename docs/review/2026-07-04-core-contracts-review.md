@@ -6,23 +6,23 @@
 
 - 백엔드 소유권 토큰이 진단 문자열로 내보내지지 않도록 `LeaderLockHandle.Real.toString()`를 수정했습니다.
 - 검토 결과에 영향을 받은 공개 핵심 결과/가치 모델에 `Serializable` 계약 및 `serialVersionUID` 값을 추가했습니다.
-  - `ExtendOutcome`
-  - `ElectionResult`
-  - `Elimination`
-  - `CandidateInfo`
+    - `ExtendOutcome`
+    - `ElectionResult`
+    - `Elimination`
+    - `CandidateInfo`
 - `kotlin.test` 및 부울 동등성 어설션 패턴에서 터치 테스트를 마이그레이션했습니다.
-  - `MetadataJsonCodecTest`
-  - `LeaderSlotTest`
-  - `LeaderLockHandleTest` 교정 회귀 범위
+    - `MetadataJsonCodecTest`
+    - `LeaderSlotTest`
+    - `LeaderLockHandleTest` 교정 회귀 범위
 
 ## 검증 증거
 
 - 타겟 테스트:
-  - `./gradlew :bluetape4k-leader-core:test --tests 'io.bluetape4k.leader.LeaderLockHandleTest' --tests 'io.bluetape4k.leader.identity.LeaderSlotTest' :bluetape4k-leader-exposed-core:test --tests 'io.bluetape4k.leader.exposed.history.MetadataJsonCodecTest' --warning-mode all`
-  - 결과: 통과, `BUILD SUCCESSFUL in 20s`
+    - `./gradlew :bluetape4k-leader-core:test --tests 'io.bluetape4k.leader.LeaderLockHandleTest' --tests 'io.bluetape4k.leader.identity.LeaderSlotTest' :bluetape4k-leader-exposed-core:test --tests 'io.bluetape4k.leader.exposed.history.MetadataJsonCodecTest' --warning-mode all`
+    - 결과: 통과, `BUILD SUCCESSFUL in 20s`
 - 컴파일/테스트 컴파일:
-  - `./gradlew :bluetape4k-leader-core:compileKotlin :bluetape4k-leader-core:compileTestKotlin :bluetape4k-leader-exposed-core:compileKotlin :bluetape4k-leader-exposed-core:compileTestKotlin :bluetape4k-leader-spring-boot:compileKotlin :bluetape4k-leader-spring-boot:compileTestKotlin --warning-mode all`
-  - 결과: Spring Boot `AssertableApplicationContext`에 필요한 AssertJ 테스트 종속성을 유지한 후 통과합니다.
+    - `./gradlew :bluetape4k-leader-core:compileKotlin :bluetape4k-leader-core:compileTestKotlin :bluetape4k-leader-exposed-core:compileKotlin :bluetape4k-leader-exposed-core:compileTestKotlin :bluetape4k-leader-spring-boot:compileKotlin :bluetape4k-leader-spring-boot:compileTestKotlin --warning-mode all`
+    - 결과: Spring Boot `AssertableApplicationContext`에 필요한 AssertJ 테스트 종속성을 유지한 후 통과합니다.
 
 ## 리뷰 노트
 

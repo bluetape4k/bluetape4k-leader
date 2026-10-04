@@ -61,7 +61,7 @@ object MetadataJsonCodec {
         append('"')
         for (ch in s) {
             when (ch) {
-                '"'  -> append("\\\"")
+                '"' -> append("\\\"")
                 '\\' -> append("\\\\")
                 '\n' -> append("\\n")
                 '\r' -> append("\\r")
@@ -86,19 +86,19 @@ object MetadataJsonCodec {
             val ch = s[i]
             if (ch == '\\' && i + 1 < s.length) {
                 when (s[i + 1]) {
-                    '"'  -> {
+                    '"' -> {
                         sb.append('"'); i += 2
                     }
                     '\\' -> {
                         sb.append('\\'); i += 2
                     }
-                    'n'  -> {
+                    'n' -> {
                         sb.append('\n'); i += 2
                     }
-                    'r'  -> {
+                    'r' -> {
                         sb.append('\r'); i += 2
                     }
-                    't'  -> {
+                    't' -> {
                         sb.append('\t'); i += 2
                     }
                     else -> {

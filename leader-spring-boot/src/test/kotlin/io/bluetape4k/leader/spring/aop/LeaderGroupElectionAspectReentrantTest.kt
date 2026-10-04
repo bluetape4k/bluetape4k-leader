@@ -172,7 +172,7 @@ class LeaderGroupElectionAspectReentrantTest {
             maxLeaders = MAX_LEADERS,
         )
         log.debug { "otherHandle=$otherHandle" }
-        
+
         val result = AopScopeAccess.withPushedSync(otherHandle) {
             aspect.aroundLeader(pjp)
         }

@@ -37,12 +37,12 @@
 
 ## Stacked PR train
 
-| 순서 | branch | base | 책임 | 완료 조건 |
-| --- | --- | --- | --- | --- |
-| 1 | `feat/obs-02-core-contract` | `develop` | core event/value/registry contract와 registry concurrency tests | core contract tests PASS, ABI fixture PASS |
-| 2 | `feat/obs-02-renewal-boundaries` | PR 1 exact head | `LockExtender` 4개 detailed boundary와 watchdog blocking/suspend 연결 | core boundary/watchdog tests PASS, 기존 delegate semantics 유지 |
-| 3 | `feat/obs-02-micrometer-spring` | PR 2 exact head | Micrometer observer, Spring auto-configuration, lifecycle tests | micrometer/spring targeted tests PASS, NOOP 조건 PASS |
-| 4 | `feat/obs-02-docs` | PR 3 exact head | manual/README EN·KO, stale-marker 제거, 문서 검증 | docs scan/links/`git diff --check` PASS |
+| 순서 | branch                           | base            | 책임                                                                  | 완료 조건                                                       |
+|------|----------------------------------|-----------------|-----------------------------------------------------------------------|-----------------------------------------------------------------|
+| 1    | `feat/obs-02-core-contract`      | `develop`       | core event/value/registry contract와 registry concurrency tests       | core contract tests PASS, ABI fixture PASS                      |
+| 2    | `feat/obs-02-renewal-boundaries` | PR 1 exact head | `LockExtender` 4개 detailed boundary와 watchdog blocking/suspend 연결 | core boundary/watchdog tests PASS, 기존 delegate semantics 유지 |
+| 3    | `feat/obs-02-micrometer-spring`  | PR 2 exact head | Micrometer observer, Spring auto-configuration, lifecycle tests       | micrometer/spring targeted tests PASS, NOOP 조건 PASS           |
+| 4    | `feat/obs-02-docs`               | PR 3 exact head | manual/README EN·KO, stale-marker 제거, 문서 검증                     | docs scan/links/`git diff --check` PASS                         |
 
 모든 PR은 #559를 링크하고 Issue의 assignee `debop`, milestone `0.6.0`, labels `enhancement`, `feature`, `integration`을 반영한다. 각 PR의 마지막 H2는 정확히 `## DoD Status`이며, PR 4가 전체 acceptance와 최종 CI를 대표한다. PR 2~4는 선행 PR이 merge된 뒤 base/head를 다시 읽어 rebase 또는 branch recreation을 결정한다.
 

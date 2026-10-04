@@ -12,26 +12,26 @@
 
 ## 환경
 
-| 항목 | 값 |
-|---|---|
-| 측정일 | 2026-08-29 |
-| 호스트 | Apple M4 Pro, 48 GiB RAM |
-| OS | Darwin 25.6.0 arm64 |
-| JDK | Oracle GraalVM 25.3.4.1, Java 25.0.4.1 LTS |
-| Gradle | 9.7.0 |
-| kotlinx-benchmark | 0.4.17 |
-| JMH | 1.37 |
-| 스레드 | 1 |
-| 워밍업 | fork별 2회, 각 1초 |
-| 측정 | fork별 3회, 각 1초 |
-| Fork | 3 |
-| 측정 직후 load average | 3.47 / 3.75 / 3.77 |
+| 항목                   | 값                                         |
+|------------------------|--------------------------------------------|
+| 측정일                 | 2026-08-29                                 |
+| 호스트                 | Apple M4 Pro, 48 GiB RAM                   |
+| OS                     | Darwin 25.6.0 arm64                        |
+| JDK                    | Oracle GraalVM 25.3.4.1, Java 25.0.4.1 LTS |
+| Gradle                 | 9.7.0                                      |
+| kotlinx-benchmark      | 0.4.17                                     |
+| JMH                    | 1.37                                       |
+| 스레드                 | 1                                          |
+| 워밍업                 | fork별 2회, 각 1초                         |
+| 측정                   | fork별 3회, 각 1초                         |
+| Fork                   | 3                                          |
+| 측정 직후 load average | 3.47 / 3.75 / 3.77                         |
 
 ## 비교 대상
 
-| 구분 | Git SHA | 설명 |
-|---|---|---|
-| baseline | `4c0d1156c268cde6191f6901c933b60ae6b92cff` | PR 생성 직전 `origin/develop` 기준 |
+| 구분      | Git SHA                                    | 설명                                                      |
+|-----------|--------------------------------------------|-----------------------------------------------------------|
+| baseline  | `4c0d1156c268cde6191f6901c933b60ae6b92cff` | PR 생성 직전 `origin/develop` 기준                        |
 | candidate | `575cccdc505284528eea5bcf645d0b2e8b62124b` | 구현·문서와 정상 active USER benchmark를 포함한 측정 대상 |
 
 최종 delivery head는 이 결과 문서를 갱신한 candidate의 descendant다. 측정한 실행 코드는 `575cccdc505284528eea5bcf645d0b2e8b62124b`와 동일하다.
@@ -73,18 +73,18 @@ JSON은 Gradle build output으로 보존되며 커밋하지 않는다. 위 명�
 
 각 값은 fork별 측정 평균 3개의 중앙값이다. 처리량은 높을수록, 평균 시간은 낮을수록 좋다.
 
-| 모드 | baseline 중앙값 | candidate 중앙값 | 회귀율 | 한도 | 판정 |
-|---|---:|---:|---:|---:|---|
-| Throughput | 1,538,565.461 ops/s | 1,559,104.688 ops/s | -1.335% (개선) | 15% | PASS |
-| Average time | 0.645029 us/op | 0.645176 us/op | 0.023% | 15% | PASS |
+| 모드         |     baseline 중앙값 |    candidate 중앙값 |         회귀율 | 한도 | 판정 |
+|--------------|--------------------:|--------------------:|---------------:|-----:|------|
+| Throughput   | 1,538,565.461 ops/s | 1,559,104.688 ops/s | -1.335% (개선) |  15% | PASS |
+| Average time |      0.645029 us/op |      0.645176 us/op |         0.023% |  15% | PASS |
 
 참고로 전체 9회 측정에서 계산된 JMH score와 99.9% 신뢰 오차는 throughput baseline `1,541,977.343 ± 23,227.277 ops/s`, candidate `1,558,809.965 ± 16,710.785 ops/s`; average time baseline `0.644943 ± 0.012040 us/op`, candidate `0.645219 ± 0.003962 us/op`이었다.
 
 ## Scope mismatch allocation
 
-| 경로 | no-observer | scoped-mismatch | 차이 | 해석 |
-|---|---:|---:|---:|---|
-| `USER blocking` | 1,031.566 ± 15.531 B/op | 1,022.882 ± 17.417 B/op | -8.683 B/op | mismatch 추가 할당 없음 |
+| 경로                |             no-observer |         scoped-mismatch |         차이 | 해석                    |
+|---------------------|------------------------:|------------------------:|-------------:|-------------------------|
+| `USER blocking`     | 1,031.566 ± 15.531 B/op | 1,022.882 ± 17.417 B/op |  -8.683 B/op | mismatch 추가 할당 없음 |
 | `WATCHDOG blocking` | 1,963.116 ± 28.137 B/op | 1,947.582 ± 10.947 B/op | -15.533 B/op | mismatch 추가 할당 없음 |
 
 `scoped-mismatch`는 일치하는 observer가 없을 때 `hasObservers(scope)`에서 빠져나가므로 lease-extension event, 관측 context, timer를 만들지 않는다. 이 표의 총 `B/op`는 benchmark harness와 실제 lease/watchdog 실행 비용까지 포함하며, 오차 구간 밖의 양의 증분은 관찰되지 않았다.

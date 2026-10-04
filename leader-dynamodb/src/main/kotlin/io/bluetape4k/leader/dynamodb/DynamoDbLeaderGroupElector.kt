@@ -202,7 +202,7 @@ class DynamoDbLeaderGroupElector(
                 cause != null && elected.get() -> LeaderRunResult.ActionFailed(cause)
                 cause != null -> throw CompletionException(cause)
                 elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else          -> LeaderRunResult.Skipped
+                else -> LeaderRunResult.Skipped
             }
         }
     }

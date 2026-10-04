@@ -124,7 +124,7 @@ abstract class AbstractLocalLeaderGroupElector(
         action: () -> T,
     ): T? {
         log.debug { "tryWithPermit. lockName=$lockName auditLeaderId=$auditLeaderId" }
-        
+
         val semaphore = getSemaphore(lockName)
         val acquired = semaphore.tryAcquire(options.waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         if (!acquired) {

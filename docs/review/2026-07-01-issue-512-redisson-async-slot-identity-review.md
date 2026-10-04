@@ -12,15 +12,15 @@ P0/P1 발견 항목: 0
 
 ## 수표
 
-| Tier | Result | Evidence |
-|---|---|---|
-| Correctness | PASS | `runAsyncIfLeader(slot)` now overrides the bridge default and routes through an audit-aware internal path. |
-| Result contract | PASS | `runAsyncIfLeaderResult(slot)` returns `LeaderRunResult.Elected(..., leaderId = slot.leaderId)` when the action runs, including null-returning actions. |
-| Backend audit path | PASS | Redisson group async acquire writes `auditLeaderId` into the audit map and removes it during async cleanup. |
-| Release semantics | PASS | Existing Redisson async release behavior remains unchanged; release-completion ordering is tracked separately by issue #514. |
-| Exception semantics | PASS | Action failures still become `LeaderRunResult.ActionFailed`; cancellation is rethrown rather than wrapped. Backend failures before election still complete exceptionally. |
-| Bridge warning regression | PASS | New contract tests assert `LeaderElectorBridgeLog` slot/result counters stay at zero. |
-| Test coverage | PASS | `./gradlew :bluetape4k-leader-redis-redisson:test --no-parallel` passed, 198 tests, 0 failures, 0 errors, 0 skipped. |
+| Tier                      | Result | Evidence                                                                                                                                                                  |
+|---------------------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Correctness               | PASS   | `runAsyncIfLeader(slot)` now overrides the bridge default and routes through an audit-aware internal path.                                                                |
+| Result contract           | PASS   | `runAsyncIfLeaderResult(slot)` returns `LeaderRunResult.Elected(..., leaderId = slot.leaderId)` when the action runs, including null-returning actions.                   |
+| Backend audit path        | PASS   | Redisson group async acquire writes `auditLeaderId` into the audit map and removes it during async cleanup.                                                               |
+| Release semantics         | PASS   | Existing Redisson async release behavior remains unchanged; release-completion ordering is tracked separately by issue #514.                                              |
+| Exception semantics       | PASS   | Action failures still become `LeaderRunResult.ActionFailed`; cancellation is rethrown rather than wrapped. Backend failures before election still complete exceptionally. |
+| Bridge warning regression | PASS   | New contract tests assert `LeaderElectorBridgeLog` slot/result counters stay at zero.                                                                                     |
+| Test coverage             | PASS   | `./gradlew :bluetape4k-leader-redis-redisson:test --no-parallel` passed, 198 tests, 0 failures, 0 errors, 0 skipped.                                                      |
 
 ## 툴링 노트
 

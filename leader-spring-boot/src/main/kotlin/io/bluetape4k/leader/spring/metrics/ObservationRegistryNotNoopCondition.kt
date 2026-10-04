@@ -39,7 +39,7 @@ internal class ObservationRegistryNotNoopCondition: ConfigurationCondition {
             is ListableBeanFactory -> parent
                 .getBeanNamesForType<ObservationRegistry>(includeNonSingletons = false, allowEagerInit = false)
                 .isNotEmpty()
-            else                   -> false
+            else -> false
         }
     }
 }

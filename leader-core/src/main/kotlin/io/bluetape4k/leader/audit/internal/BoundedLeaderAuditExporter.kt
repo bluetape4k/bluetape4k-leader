@@ -272,14 +272,14 @@ internal class BoundedLeaderAuditExporter(
     private fun claimCloseHandoff(): Boolean {
         while (true) {
             when (workerHandoffState.get()) {
-                WorkerHandoffState.IDLE      -> {
+                WorkerHandoffState.IDLE -> {
                     if (workerHandoffState.compareAndSet(WorkerHandoffState.IDLE, WorkerHandoffState.CLOSED)) {
                         closed.set(true)
                         return true
                     }
                 }
 
-                WorkerHandoffState.CLAIMED   -> {
+                WorkerHandoffState.CLAIMED -> {
                     if (workerHandoffState.compareAndSet(WorkerHandoffState.CLAIMED, WorkerHandoffState.CLOSED)) {
                         closed.set(true)
                         return true
@@ -290,7 +290,7 @@ internal class BoundedLeaderAuditExporter(
                     return closed.compareAndSet(false, true)
                 }
 
-                WorkerHandoffState.CLOSED    -> return false
+                WorkerHandoffState.CLOSED -> return false
             }
         }
     }
@@ -411,14 +411,14 @@ internal class BoundedLeaderAuditExporter(
             return
         }
         when {
-            failure is Error                            -> {
+            failure is Error -> {
                 finishWork(item, LeaderAuditExportObservation.TERMINAL_FAILURE)
                 rethrowOnUncaughtBoundary(failure)
             }
-            failure != null                             -> completeFailure(item, attempt, failure)
+            failure != null -> completeFailure(item, attempt, failure)
             result == LeaderAuditDeliveryResult.SUCCESS -> finishWork(item, null)
             result == LeaderAuditDeliveryResult.RETRYABLE_FAILURE -> retryOrFail(item)
-            else                                        -> finishWork(
+            else -> finishWork(
                 item,
                 LeaderAuditExportObservation.TERMINAL_FAILURE
             )
@@ -569,11 +569,11 @@ internal class BoundedLeaderAuditExporter(
         if (!item.terminalized.compareAndSet(false, true)) return
         if (observation != null) {
             when (observation) {
-                LeaderAuditExportObservation.TERMINAL_FAILURE  -> terminalFailures.incrementAndGet()
-                LeaderAuditExportObservation.CANCELLED         -> cancellations.incrementAndGet()
+                LeaderAuditExportObservation.TERMINAL_FAILURE -> terminalFailures.incrementAndGet()
+                LeaderAuditExportObservation.CANCELLED -> cancellations.incrementAndGet()
                 LeaderAuditExportObservation.EXECUTOR_REJECTED -> executorRejections.incrementAndGet()
                 LeaderAuditExportObservation.SCHEDULER_REJECTED -> schedulerRejections.incrementAndGet()
-                else                                           -> Unit
+                else -> Unit
             }
         }
         active.remove(item)

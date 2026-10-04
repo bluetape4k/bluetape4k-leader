@@ -10,7 +10,6 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-
 NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
 POINT_RE = re.compile(rf"({NUMBER})\s*,?\s*({NUMBER})")
 CSS_MARKER_RE = re.compile(r"\.([A-Za-z0-9_-]+)\s*\{[^}]*marker-end:\s*url\(#([^\)]+)\)", re.DOTALL)
@@ -75,7 +74,7 @@ def validate_svg(path: Path) -> list[str]:
         element
         for element in root.iter()
         if local_name(element.tag) in {"path", "line", "polyline", "polygon"}
-        and effective_marker(element) is not None
+           and effective_marker(element) is not None
     ]
     for marker_id, marker in markers.items():
         try:
@@ -96,11 +95,14 @@ def validate_svg(path: Path) -> list[str]:
         if marker_id not in markers:
             errors.append(f"{relative}: directed element references unknown marker {marker_id!r}")
         if local_name(element.tag) == "path":
-            points = [(float(match.group(1)), float(match.group(2))) for match in POINT_RE.finditer(element.attrib.get("d", ""))]
+            points = [(float(match.group(1)), float(match.group(2))) for match in
+                      POINT_RE.finditer(element.attrib.get("d", ""))]
             if len(points) < 2 or len(set(points)) < 2:
-                errors.append(f"{relative}: directed path {element.attrib.get('id', '<anonymous>')} has degenerate geometry")
+                errors.append(
+                    f"{relative}: directed path {element.attrib.get('id', '<anonymous>')} has degenerate geometry")
             if not re.search(r"[LHVCSQTAZ]", element.attrib.get("d", "").upper()):
-                errors.append(f"{relative}: directed path {element.attrib.get('id', '<anonymous>')} has no drawable segment")
+                errors.append(
+                    f"{relative}: directed path {element.attrib.get('id', '<anonymous>')} has no drawable segment")
 
     return errors
 
@@ -128,7 +130,8 @@ def main() -> int:
     parser.add_argument("paths", nargs="*")
     args = parser.parse_args()
     root = args.root.resolve()
-    paths = [root / path for path in args.paths] if args.paths else changed_svg_paths(root, args.base_ref, args.head_ref)
+    paths = [root / path for path in args.paths] if args.paths else changed_svg_paths(root, args.base_ref,
+                                                                                      args.head_ref)
     if not paths:
         print("Diagram XML/geometry/arrowhead contract: N/A (no changed SVG files)")
         return 0

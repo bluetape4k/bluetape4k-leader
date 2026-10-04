@@ -17,7 +17,7 @@ class RetryStrategyTest {
     fun `Jitter - remaining이 1일 때 반환값은 1이다`() {
         val strategy = RetryStrategy.Jitter(baseDelayMs = 50L)
         log.debug { "strategy=$strategy" }
-        
+
         val delay = strategy.delayMs(attempt = 0, remaining = 1L)
         delay shouldBeInRange 1L..1L
     }

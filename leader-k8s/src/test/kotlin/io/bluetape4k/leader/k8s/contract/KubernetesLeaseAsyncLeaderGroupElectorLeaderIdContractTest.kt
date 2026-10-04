@@ -21,7 +21,7 @@ class KubernetesLeaseAsyncLeaderGroupElectorLeaderIdContractTest:
     AbstractAsyncLeaderGroupElectorLeaderIdContractTest() {
 
     companion object: KLogging()
-    
+
     private val client: KubernetesClient = KubernetesContractSupport.newClient()
 
     override fun createElector(options: LeaderGroupElectionOptions): AsyncLeaderGroupElector =

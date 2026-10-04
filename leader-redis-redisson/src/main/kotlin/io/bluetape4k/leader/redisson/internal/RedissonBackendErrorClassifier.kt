@@ -16,7 +16,7 @@ internal object RedissonBackendErrorClassifier: BackendErrorClassifier {
     override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {
         is RedisTimeoutException -> BackendErrorKind.TRANSIENT
         is RedisConnectionException -> BackendErrorKind.TRANSIENT
-        is RedisException        -> BackendErrorKind.NON_TRANSIENT
-        else                     -> null
+        is RedisException -> BackendErrorKind.NON_TRANSIENT
+        else -> null
     }
 }

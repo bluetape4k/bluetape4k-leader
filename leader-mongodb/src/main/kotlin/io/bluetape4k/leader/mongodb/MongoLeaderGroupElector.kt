@@ -271,9 +271,9 @@ class MongoLeaderGroupElector private constructor(
             val cause = failure?.unwrapCompletionException()
             try {
                 when (cause) {
-                    null                     -> recordCompleted(historyKey, finishedAt, durationMs)
+                    null -> recordCompleted(historyKey, finishedAt, durationMs)
                     is CancellationException -> Unit
-                    else                     -> recordFailed(historyKey, finishedAt, durationMs, cause)
+                    else -> recordFailed(historyKey, finishedAt, durationMs, cause)
                 }
             } finally {
                 runCatching {

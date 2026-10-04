@@ -63,7 +63,7 @@ class CachePartitionWarmer(
             }
 
             when (outcome) {
-                WarmOutcome.Warmed  -> warmed += partitionId
+                WarmOutcome.Warmed -> warmed += partitionId
                 WarmOutcome.Skipped -> {
                     skipped += partitionId
                     log.info { "[${options.nodeId}] partition=$partitionId 리더 선출 실패 — skip" }

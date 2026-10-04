@@ -16,14 +16,14 @@ P0/P1 차단제가 없습니다.
 
 ## 수표
 
-| Check | Result | Evidence |
-|---|---:|---|
-| Scope split is explicit | PASS | #489 excludes #490 layered architecture and #491 example scenario/flow expansion |
-| `bluetape4k-diagram` is mandatory | PASS | Spec identifies it as the primary visual/gate contract |
-| Semantic palette is concrete | PASS | Neutral, acquired/success, skipped/failure, release/contention, retry/reacquire colors have roles and hex values |
-| Decoration-only color is rejected | PASS | Non-goals and visual requirements forbid recoloring purely linear paths |
-| Validation is gate-shaped | PASS | Acceptance criteria require generator/evidence, XML, README link, diff, color, geometry, and visual QA evidence |
-| Existing blocker is acknowledged | PASS | Spec records current evidence-check failures for two ZooKeeper scheduler assets |
+| Check                             | Result | Evidence                                                                                                         |
+|-----------------------------------|-------:|------------------------------------------------------------------------------------------------------------------|
+| Scope split is explicit           |   PASS | #489 excludes #490 layered architecture and #491 example scenario/flow expansion                                 |
+| `bluetape4k-diagram` is mandatory |   PASS | Spec identifies it as the primary visual/gate contract                                                           |
+| Semantic palette is concrete      |   PASS | Neutral, acquired/success, skipped/failure, release/contention, retry/reacquire colors have roles and hex values |
+| Decoration-only color is rejected |   PASS | Non-goals and visual requirements forbid recoloring purely linear paths                                          |
+| Validation is gate-shaped         |   PASS | Acceptance criteria require generator/evidence, XML, README link, diff, color, geometry, and visual QA evidence  |
+| Existing blocker is acknowledged  |   PASS | Spec records current evidence-check failures for two ZooKeeper scheduler assets                                  |
 
 ## 잔여 위험
 

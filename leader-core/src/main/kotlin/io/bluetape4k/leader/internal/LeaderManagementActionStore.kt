@@ -126,8 +126,8 @@ internal class LeaderManagementActionStore(
         when {
             lifecycle != Lifecycle.OPEN -> Selection.Closed
             activeRecords.isEmpty() -> Selection.NotRegistered
-            activeRecords.size > 1  -> Selection.Ambiguous
-            else                    -> Selection.Record(activeRecords.single())
+            activeRecords.size > 1 -> Selection.Ambiguous
+            else -> Selection.Record(activeRecords.single())
         }
     }
 

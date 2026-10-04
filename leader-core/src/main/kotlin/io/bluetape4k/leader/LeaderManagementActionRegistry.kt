@@ -114,7 +114,7 @@ class LeaderManagementActionRegistry(
         }
 
         when (val selection = store.select(lockName)) {
-            LeaderManagementActionStore.Selection.Closed    ->
+            LeaderManagementActionStore.Selection.Closed ->
                 return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
             LeaderManagementActionStore.Selection.NotRegistered ->
@@ -126,13 +126,13 @@ class LeaderManagementActionRegistry(
             is LeaderManagementActionStore.Selection.Record -> {
                 val (beginOutcome, action) = store.beginRecord(selection.value, surface)
                 when (beginOutcome) {
-                    LeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED    ->
+                    LeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED ->
                         return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
-                    LeaderManagementActionStore.BeginOutcome.NOT_REGISTERED     ->
+                    LeaderManagementActionStore.BeginOutcome.NOT_REGISTERED ->
                         return immediate(LeaderManagementActionOutcome.NOT_REGISTERED, surface)
 
-                    LeaderManagementActionStore.BeginOutcome.AMBIGUOUS          ->
+                    LeaderManagementActionStore.BeginOutcome.AMBIGUOUS ->
                         return immediate(LeaderManagementActionOutcome.AMBIGUOUS, surface)
 
                     LeaderManagementActionStore.BeginOutcome.ACTION_IN_PROGRESS ->
@@ -141,7 +141,7 @@ class LeaderManagementActionRegistry(
                     LeaderManagementActionStore.BeginOutcome.ACTION_ADMISSION_REJECTED ->
                         return immediate(LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED, surface)
 
-                    LeaderManagementActionStore.BeginOutcome.STARTED            -> Unit
+                    LeaderManagementActionStore.BeginOutcome.STARTED -> Unit
                 }
 
                 val actionRecord = checkNotNull(action)
@@ -273,7 +273,7 @@ class LeaderManagementActionRegistry(
                         ),
                     )
 
-                LeaseOwnershipStatus.HELD    -> Unit
+                LeaseOwnershipStatus.HELD -> Unit
             }
 
             if (action.timedOut.get() || !deadline.hasTimeRemaining() || !action.phase.compareAndSet(
@@ -351,7 +351,7 @@ class LeaderManagementActionRegistry(
                         mutationAttempted = true,
                     )
 
-                    else                  -> LeaderManagementActionResult(
+                    else -> LeaderManagementActionResult(
                         LeaderManagementAction.RELEASE,
                         LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
                         mutationAttempted = true,

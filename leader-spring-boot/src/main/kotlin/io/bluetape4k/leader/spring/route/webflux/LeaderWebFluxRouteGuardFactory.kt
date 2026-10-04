@@ -123,8 +123,8 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
                         Thread.currentThread().interrupt()
                         Mono.error(unwrapped)
                     }
-                    is Error                -> Mono.error(unwrapped)
-                    else                    -> Mono.just(
+                    is Error -> Mono.error(unwrapped)
+                    else -> Mono.just(
                         RedirectResult(
                             LeaderRouteEvaluation(LeaderRouteDecision.Unavailable, null, java.time.Instant.now()),
                             null,
@@ -178,7 +178,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
     ): Mono<Void>? {
         val existing = lock.withLock { exchange.attributes[LEASE_HANDLE_ATTRIBUTE] }
         return when (existing) {
-            null                  -> null
+            null -> null
             is LeaseExchangeHolder -> if (
                 existing.fingerprint == requestedFingerprint && retainHolderUse(exchange, existing)
             ) {
@@ -199,7 +199,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
             } else {
                 staleRejection(runtime, exchange)
             }
-            else                  -> staleRejection(runtime, exchange)
+            else -> staleRejection(runtime, exchange)
         }
     }
 
@@ -220,7 +220,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
             when {
                 failure != null -> sink.error(failure)
                 holder != null -> sink.success(holder)
-                else           -> sink.success()
+                else -> sink.success()
             }
         }
     }
@@ -308,7 +308,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         marker: LeaseAcquireMarker,
         fingerprint: Int,
     ): Mono<Void> = when (resource) {
-        LeaseResource.Rejected   -> {
+        LeaseResource.Rejected -> {
             clearAcquireMarker(exchange, marker)
             reject(exchange)
         }
@@ -366,7 +366,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         return when {
             !resource.released.compareAndSet(false, true) -> Mono.empty()
             resource is LeaseResource.Rejected -> Mono.empty()
-            else                               -> {
+            else -> {
                 val physical = lock.withLock {
                     if (!resource.published.get()) {
                         true
@@ -380,7 +380,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
     }
 
     private fun releasePhysicalResource(resource: LeaseResource): Mono<Void> = when (resource) {
-        LeaseResource.Rejected   -> Mono.empty()
+        LeaseResource.Rejected -> Mono.empty()
         is LeaseResource.Blocking -> Mono.fromRunnable { resource.handle.release() }
         is LeaseResource.Suspend -> mono<Void> {
             resource.handle.release()

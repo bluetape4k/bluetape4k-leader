@@ -1,9 +1,9 @@
-import java.util.Base64
+import org.gradle.testfixtures.ProjectBuilder
+import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
-import org.gradle.testfixtures.ProjectBuilder
 
 class PublishingSigningSupportTest {
     @Test
@@ -12,7 +12,10 @@ class PublishingSigningSupportTest {
         val expected = armor.replace("\\n", "\n")
 
         assertEquals(expected, io.bluetape4k.gradle.resolveSigningKey(armor))
-        assertEquals(expected, io.bluetape4k.gradle.resolveSigningKey(Base64.getEncoder().encodeToString(armor.toByteArray())))
+        assertEquals(
+            expected,
+            io.bluetape4k.gradle.resolveSigningKey(Base64.getEncoder().encodeToString(armor.toByteArray()))
+        )
     }
 
     @Test

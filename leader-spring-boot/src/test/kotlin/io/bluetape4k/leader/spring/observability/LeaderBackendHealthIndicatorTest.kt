@@ -398,8 +398,8 @@ class LeaderBackendHealthIndicatorTest {
             probeCalls.incrementAndGet()
             lastTimeout = timeout
             return when (connectivityStatus) {
-                LeaderBackendConnectivityStatus.UP      -> LeaderBackendConnectivity.up(Instant.EPOCH)
-                LeaderBackendConnectivityStatus.DOWN    -> LeaderBackendConnectivity.down(Instant.EPOCH)
+                LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivity.up(Instant.EPOCH)
+                LeaderBackendConnectivityStatus.DOWN -> LeaderBackendConnectivity.down(Instant.EPOCH)
                 LeaderBackendConnectivityStatus.UNKNOWN -> LeaderBackendConnectivity.unknown(Instant.EPOCH)
                 LeaderBackendConnectivityStatus.NOT_CHECKED -> LeaderBackendConnectivity.notChecked()
             }

@@ -24,7 +24,7 @@ class LeaderElectionErrorTest {
         )
 
         log.debug { "context=$context" }
-        
+
         context.toJson(exposeLockName = false) shouldBeEqualTo
                 """{"code":"BACKEND_UNAVAILABLE","message":"leader state is temporarily unavailable","status":503}"""
     }

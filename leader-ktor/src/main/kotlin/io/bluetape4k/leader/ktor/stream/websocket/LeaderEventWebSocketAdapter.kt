@@ -82,13 +82,13 @@ private fun webSocketPath(path: String): String =
 
 private fun LeaderStreamItem.toWebSocketPayload(config: LeaderEventStreamConfig): String =
     when (this) {
-        is LeaderStreamItem.Event   -> LeaderEventStreamPayload.event(event, sequence, config)
+        is LeaderStreamItem.Event -> LeaderEventStreamPayload.event(event, sequence, config)
         is LeaderStreamItem.Control -> when (control) {
-            LeaderStreamItem.Kind.HEARTBEAT  -> LeaderEventStreamPayload.heartbeat()
+            LeaderStreamItem.Kind.HEARTBEAT -> LeaderEventStreamPayload.heartbeat()
             LeaderStreamItem.Kind.REPLAY_GAP -> LeaderEventStreamPayload.replayGap(
                 from.requireNotNull("from"),
                 to.requireNotNull("to"),
             )
-            LeaderStreamItem.Kind.EVENT      -> error("EVENT cannot be a control item")
+            LeaderStreamItem.Kind.EVENT -> error("EVENT cannot be a control item")
         }
     }

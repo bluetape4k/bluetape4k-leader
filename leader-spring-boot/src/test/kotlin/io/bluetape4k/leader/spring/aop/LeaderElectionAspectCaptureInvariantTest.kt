@@ -119,7 +119,7 @@ class LeaderElectionAspectCaptureInvariantTest {
         every {
             beanSelector.selectElectionFactory(any(), any())
         } returns LeaderBeanSelector.Selected("testFactory", factoryMock)
-        
+
         return LeaderElectionAspect(
             beanSelector = beanSelector,
             props = LeaderAopProperties(),

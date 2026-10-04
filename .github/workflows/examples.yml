@@ -78,7 +78,7 @@ jobs:
     name: Test / ${{ matrix.example }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, snapshot-warmup]
+    needs: [ build, snapshot-warmup ]
     strategy:
       fail-fast: false
       matrix:

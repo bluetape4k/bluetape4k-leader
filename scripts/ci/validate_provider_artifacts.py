@@ -34,7 +34,7 @@ def _job_block(source: str, job_id: str) -> str | None:
         return None
     next_job_match = re.search(
         r"^  [A-Za-z0-9][A-Za-z0-9_-]*:\s*$",
-        source[start + len(marker) :],
+        source[start + len(marker):],
         flags=re.MULTILINE,
     )
     if next_job_match is None:
@@ -50,7 +50,7 @@ def _step_block(block: str, step_name: str) -> str | None:
         return None
     step_start = block.rfind("\n", 0, start) + 1
     next_step = block.find("\n      - name:", start + len(marker))
-    return block[step_start:] if next_step < 0 else block[step_start : next_step + 1]
+    return block[step_start:] if next_step < 0 else block[step_start: next_step + 1]
 
 
 def _step_block_with_name_prefix(block: str, step_name_prefix: str) -> str | None:
@@ -62,10 +62,10 @@ def _step_block_with_name_prefix(block: str, step_name_prefix: str) -> str | Non
     if match is None:
         return None
     step_start = match.start()
-    next_step = re.search(r"^      - name:", block[match.end() :], flags=re.MULTILINE)
+    next_step = re.search(r"^      - name:", block[match.end():], flags=re.MULTILINE)
     if next_step is None:
         return block[step_start:]
-    return block[step_start : match.end() + next_step.start()]
+    return block[step_start: match.end() + next_step.start()]
 
 
 def _step_field_block(step: str, field_name: str) -> str:
@@ -75,10 +75,10 @@ def _step_field_block(step: str, field_name: str) -> str:
         return ""
     next_field = re.search(
         r"^        [A-Za-z0-9_-]+:",
-        step[start + len(marker) :],
+        step[start + len(marker):],
         flags=re.MULTILINE,
     )
-    return step[start:] if next_field is None else step[start : start + len(marker) + next_field.start()]
+    return step[start:] if next_field is None else step[start: start + len(marker) + next_field.start()]
 
 
 def _has_env_provider(step: str, provider: str) -> bool:
@@ -174,10 +174,10 @@ def validate_workflow(path: Path) -> list[str]:
         artifact_module = module.removeprefix("leader-")
         expected_test_artifact = f"test-results-{artifact_module}-{artifact_suffix}"
         if (
-            test_upload is None
-            or not _has_with_name(test_upload, expected_test_artifact)
-            or not _with_contains(test_upload, "**/build/test-results/test/*.xml")
-            or not _with_contains(test_upload, MARKER_NAME)
+                test_upload is None
+                or not _has_with_name(test_upload, expected_test_artifact)
+                or not _with_contains(test_upload, "**/build/test-results/test/*.xml")
+                or not _with_contains(test_upload, MARKER_NAME)
         ):
             violations.append(
                 f"{path}: {job_id} test artifact 이름/내용이 {expected_test_artifact}/{MARKER_NAME}이어야 합니다"
@@ -186,10 +186,10 @@ def validate_workflow(path: Path) -> list[str]:
         coverage_upload = _step_block(block, "Upload coverage report")
         expected_coverage_artifact = f"coverage-{artifact_module}-{artifact_suffix}"
         if (
-            coverage_upload is None
-            or not _has_with_name(coverage_upload, expected_coverage_artifact)
-            or not _with_contains(coverage_upload, "**/build/reports/kover/")
-            or not _with_contains(coverage_upload, MARKER_NAME)
+                coverage_upload is None
+                or not _has_with_name(coverage_upload, expected_coverage_artifact)
+                or not _with_contains(coverage_upload, "**/build/reports/kover/")
+                or not _with_contains(coverage_upload, MARKER_NAME)
         ):
             violations.append(
                 f"{path}: {job_id} coverage artifact 이름/경로/marker가 올바르지 않습니다"

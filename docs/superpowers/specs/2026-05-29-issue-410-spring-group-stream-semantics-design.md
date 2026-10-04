@@ -4,8 +4,6 @@
 
 이 문서는 `Design Spec - Issue #410 Spring group stream semantics`에 대한 설계 또는 실행 계획 기록입니다. 아래 원문 구조의 범위, 결정, 작업 순서, 검증 조건, 위험 및 후속 조치는 기록 보존을 위해 유지합니다. 검토자는 각 `Action`, `Expected DoD`, `Validation`, `Target files` 항목을 한국어 해설과 함께 읽고, 코드 식별자와 명령은 원문 그대로 취급해야 합니다.
 
-
-
 ## Context
 
 `@LeaderElection` supports `Flux<T>` and Kotlin `Flow<T>` because single-leader streams can either opt into watchdog-style extension with `autoExtend=true` or declare a finite stream with `streamBounded=true`.
@@ -67,14 +65,14 @@ Until that exists, group streams remain rejected even if validation is configure
 
 ## Step 2-R Local 7-Tier Review
 
-| Tier | Verdict | Evidence |
-| --- | --- | --- |
-| 1 Security | PASS | Unsupported streams do not execute user code without a lease and introduce no new input surface. |
-| 2 Ops/SRE | PASS | Contract prefers fail-fast startup/runtime errors over ambiguous long-lived slot ownership. |
-| 3 Architecture | PASS | Keeps group election on existing slot model; avoids adding group auto-extension in 0.3.0. |
-| 4 Kotlin/API | PASS | No new public annotation property; KDoc clarifies existing supported return shapes. |
-| 5 Tests | PASS | Existing tests cover runtime rejection; this work adds group Flow validator coverage and no-body verification. |
-| 6 Performance/Stability | PASS | Rejection is cold and performs no backend acquisition or stream collection. |
-| 7 Docs/Release | PASS | README locale set and KDoc are updated to reflect the 0.3.0 contract. |
+| Tier                    | Verdict | Evidence                                                                                                       |
+|-------------------------|---------|----------------------------------------------------------------------------------------------------------------|
+| 1 Security              | PASS    | Unsupported streams do not execute user code without a lease and introduce no new input surface.               |
+| 2 Ops/SRE               | PASS    | Contract prefers fail-fast startup/runtime errors over ambiguous long-lived slot ownership.                    |
+| 3 Architecture          | PASS    | Keeps group election on existing slot model; avoids adding group auto-extension in 0.3.0.                      |
+| 4 Kotlin/API            | PASS    | No new public annotation property; KDoc clarifies existing supported return shapes.                            |
+| 5 Tests                 | PASS    | Existing tests cover runtime rejection; this work adds group Flow validator coverage and no-body verification. |
+| 6 Performance/Stability | PASS    | Rejection is cold and performs no backend acquisition or stream collection.                                    |
+| 7 Docs/Release          | PASS    | README locale set and KDoc are updated to reflect the 0.3.0 contract.                                          |
 
 P0: 0. P1: 0. P2: 0. P3: 0.

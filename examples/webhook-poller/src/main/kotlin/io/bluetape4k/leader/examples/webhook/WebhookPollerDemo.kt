@@ -107,6 +107,6 @@ object WebhookPollerDemo: KLogging() {
             log.info { "[demo] DONE=$totalDone (expected $DEMO_EVENT_COUNT)" }
             log.info { "[demo] processed-by distribution=${processedBy.values.groupingBy { it }.eachCount()}" }
             log.info { "[demo] no duplicate processing? ${processedBy.size == DEMO_EVENT_COUNT}" }
-        } 
+        }
     }
 }

@@ -113,7 +113,7 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
                     awaitCancellation()
                 }
             }.log("Cancelling Job")
-            
+
             actionStarted.await()
             deferred.cancelAndJoin()
             deferred.isCancelled.shouldBeTrue()
@@ -246,10 +246,10 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
 
             val candidates = node1.listCandidates(lockName)
             candidates.forEach { log.debug { "candidate=$it" } }
-            
+
             val updated = candidates.first { it.nodeId == "node-1" }
             log.debug { "updated=$updated" }
-            
+
             val expectedEach = (workers * rounds / 2).toLong()
             updated.successCount shouldBeEqualTo expectedEach
             updated.failureCount shouldBeEqualTo expectedEach

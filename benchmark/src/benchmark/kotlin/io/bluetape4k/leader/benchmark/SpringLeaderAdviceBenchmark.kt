@@ -17,13 +17,13 @@ import io.bluetape4k.leader.spring.aop.LeaderElectionAspect
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.reactor.flux
 import kotlinx.coroutines.reactor.mono
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.Signature
 import org.aspectj.lang.reflect.MethodSignature
@@ -39,8 +39,8 @@ import org.springframework.beans.factory.support.StaticListableBeanFactory
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 import kotlin.coroutines.Continuation
-import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.milliseconds
@@ -83,7 +83,8 @@ class SpringLeaderAdviceBenchmark {
         suspendSpelAspect = newAspect(beanSelector, recorders)
 
         val syncTarget = SyncAdviceServiceImpl()
-        syncStaticPjp = syncJoinPoint(SyncAdviceService::class.java.getDeclaredMethod("runStatic"), syncTarget, emptyArray())
+        syncStaticPjp =
+            syncJoinPoint(SyncAdviceService::class.java.getDeclaredMethod("runStatic"), syncTarget, emptyArray())
         syncSpelPjp = syncJoinPoint(
             SyncAdviceService::class.java.getDeclaredMethod("runSpel", String::class.java),
             syncTarget,
@@ -200,7 +201,7 @@ class SpringLeaderAdviceBenchmark {
         fun runSpel(region: String): String?
     }
 
-    private class SyncAdviceServiceImpl : SyncAdviceService {
+    private class SyncAdviceServiceImpl: SyncAdviceService {
         @LeaderElection(name = "spring-advice-static")
         override fun runStatic(): String? = RESULT
 
@@ -213,7 +214,7 @@ class SpringLeaderAdviceBenchmark {
         suspend fun runSpel(region: String): String?
     }
 
-    private class SuspendAdviceServiceImpl : SuspendAdviceService {
+    private class SuspendAdviceServiceImpl: SuspendAdviceService {
         @LeaderElection(name = "spring-advice-suspend-static")
         override suspend fun runStatic(): String? = RESULT
 
@@ -227,7 +228,7 @@ class SpringLeaderAdviceBenchmark {
         private val argsProvider: (Continuation<Any?>) -> Array<Any?>,
         private val proceed: () -> Any?,
         private val continuation: Continuation<Any?>? = null,
-    ) : ProceedingJoinPoint {
+    ): ProceedingJoinPoint {
 
         private val signature = methodSignature(method)
 
@@ -263,7 +264,7 @@ class SpringLeaderAdviceBenchmark {
     companion object {
         private const val RESULT = "spring-advice-ok"
 
-        private object NoopContinuation : Continuation<Any?> {
+        private object NoopContinuation: Continuation<Any?> {
             override val context = EmptyCoroutineContext
 
             override fun resumeWith(result: Result<Any?>) = Unit

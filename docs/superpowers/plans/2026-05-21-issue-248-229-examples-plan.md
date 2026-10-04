@@ -4,8 +4,6 @@
 
 이 문서는 `Issue 248/229 Examples Plan`에 대한 설계 또는 실행 계획 기록입니다. 아래 원문 구조의 범위, 결정, 작업 순서, 검증 조건, 위험 및 후속 조치는 기록 보존을 위해 유지합니다. 검토자는 각 `Action`, `Expected DoD`, `Validation`, `Target files` 항목을 한국어 해설과 함께 읽고, 코드 식별자와 명령은 원문 그대로 취급해야 합니다.
 
-
-
 ## Step 0: Worktree
 
 - Branch: `feat/issue-248-229-examples`
@@ -15,33 +13,31 @@
 ## Step 1: Requirements
 
 - Implement #248 first, then #229.
-- Use `$bluetape4k-workflow` Type A Full Design because this work adds new
-  example modules and workflow coverage.
-- Keep #231 out of scope unless #248 exposes a small reusable helper that is
-  clearly useful for a future `leader-k8s` module.
+- Use `$bluetape4k-workflow` Type A Full Design because this work adds new example modules and workflow coverage.
+- Keep #231 out of scope unless #248 exposes a small reusable helper that is clearly useful for a future `leader-k8s` module.
 
 ## Step 2: Implementation Tasks
 
 1. Add missing dependency aliases to `gradle/libs.versions.toml`.
-   - fabric8 Kubernetes client.
-   - Bucket4j core and Lettuce artifacts.
-   - `bluetape4k-bucket4j`.
+    - fabric8 Kubernetes client.
+    - Bucket4j core and Lettuce artifacts.
+    - `bluetape4k-bucket4j`.
 2. Register modules in `settings.gradle.kts`.
-   - `examples:k8s-lease`
-   - `examples:rate-limiter`
+    - `examples:k8s-lease`
+    - `examples:rate-limiter`
 3. Implement #248.
-   - Add `examples/k8s-lease/build.gradle.kts`.
-   - Add `K8sLeaseLeaderElectionExample`.
-   - Add `K8sLeaseLeaderElectionExampleTest` tagged `@Tag("k8s")`.
-   - Add English and Korean README files.
+    - Add `examples/k8s-lease/build.gradle.kts`.
+    - Add `K8sLeaseLeaderElectionExample`.
+    - Add `K8sLeaseLeaderElectionExampleTest` tagged `@Tag("k8s")`.
+    - Add English and Korean README files.
 4. Implement #229.
-   - Add `examples/rate-limiter/build.gradle.kts`.
-   - Add demo classes and test.
-   - Add English and Korean README files.
+    - Add `examples/rate-limiter/build.gradle.kts`.
+    - Add demo classes and test.
+    - Add English and Korean README files.
 5. Wire workflows.
-   - CI path filters and rate-limiter test job.
-   - Scheduled/manual examples workflow entries for both modules.
-   - K3s example runs only through `k8sTest`.
+    - CI path filters and rate-limiter test job.
+    - Scheduled/manual examples workflow entries for both modules.
+    - K3s example runs only through `k8sTest`.
 6. Add lessons entry.
 
 ## Step 3: Validation Plan
@@ -60,13 +56,11 @@ If K3s cannot run locally, compile the module and report the K3s runtime gap.
 
 - Spec review: verify scope excludes `leader-k8s` backend and #231.
 - Plan review: verify new-module CI/examples workflow checklist is complete.
-- Code review: focus on resource cleanup, coroutine cancellation, Testcontainers
-  singleton use, workflow wiring, and README/API drift.
+- Code review: focus on resource cleanup, coroutine cancellation, Testcontainers singleton use, workflow wiring, and README/API drift.
 
 ## Step 5: Stop Conditions
 
 - Stop as complete only after targeted verification and lessons are done.
 - Stop as blocked if `bluetape4k-testcontainers` published artifact lacks
   `K3sServer` and no local project substitution is configured.
-- Stop as blocked if Bucket4j dependency resolution fails and no compatible
-  artifact alias can be added without a broader dependency upgrade.
+- Stop as blocked if Bucket4j dependency resolution fails and no compatible artifact alias can be added without a broader dependency upgrade.

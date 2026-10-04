@@ -8,8 +8,8 @@
 - Claude 최종 조언자: COMMENT로 승인하세요.
 - 게이트: P0=0, P1=0.
 - 클로드 유물:
-  - `.omx/artifacts/ask-claude-code-review-consul-runtime-20260522232205.md`
-  - `.omx/artifacts/ask-claude-code-review-consul-runtime-final-20260522232633.md`
+    - `.omx/artifacts/ask-claude-code-review-consul-runtime-20260522232205.md`
+    - `.omx/artifacts/ask-claude-code-review-consul-runtime-final-20260522232633.md`
 
 ## 계층 1 - 보안
 
@@ -53,9 +53,9 @@
 
 - `git diff --check`
 - `./gradlew :bluetape4k-leader-consul:test --no-daemon --console=plain`
-  - 통과: 25개 테스트.
+    - 통과: 25개 테스트.
 - `./gradlew :bluetape4k-leader-consul:check --no-daemon --console=plain`
-  - 통과.
+    - 통과.
 
 ## 후속 후보자
 

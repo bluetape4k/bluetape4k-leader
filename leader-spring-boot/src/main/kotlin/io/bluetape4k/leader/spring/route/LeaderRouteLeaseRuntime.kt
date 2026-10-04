@@ -213,7 +213,7 @@ internal class LeaderRouteLeaseRuntime(
             when (failure) {
                 is java.util.concurrent.CancellationException -> throw failure
                 is Error -> throw failure
-                else     -> {
+                else -> {
                     observe(LeaseObservationCode.ORDINARY_FAILURE)
                     return null
                 }

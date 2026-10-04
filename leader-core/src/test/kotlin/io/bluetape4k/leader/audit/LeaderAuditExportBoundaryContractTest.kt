@@ -64,7 +64,7 @@ class LeaderAuditExportBoundaryContractTest {
             .toSet()
 
         // publicSnapshotMethods.forEach { log.debug { it } }
-        
+
         publicSnapshotMethods shouldBeEqualTo setOf(
             "getQueued",
             "getInFlight",

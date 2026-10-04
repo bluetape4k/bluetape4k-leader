@@ -228,7 +228,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                 val finishedAt = Instant.now()
                 val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                 when {
-                    actionSucceeded       -> effectiveKey?.let {
+                    actionSucceeded -> effectiveKey?.let {
                         historyRecorder?.recordCompleted(
                             it,
                             finishedAt,
@@ -320,7 +320,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
             acquired?.also { acquiredSlotRef.set(it) }
             acquired
         }
-        
+
         val pipelineFuture: CompletableFuture<T?> = try {
             acquisitionFuture.thenComposeAsync({ acquired ->
                 if (acquired == null) {
@@ -335,7 +335,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                                 log.debug { "외부 취소 후 획득한 슬롯을 즉시 반납했습니다. lockName=$lockName, slot=$slot" }
                             ExposedJdbcUnlockOutcome.NOT_HELD ->
                                 log.warn { "외부 취소 후 반납할 슬롯이 없습니다. lockName=$lockName, slot=$slot" }
-                            ExposedJdbcUnlockOutcome.FAILED   ->
+                            ExposedJdbcUnlockOutcome.FAILED ->
                                 log.warn { "외부 취소 후 슬롯 해제에 실패했습니다(DB 오류). lockName=$lockName, slot=$slot" }
                         }
                         return@thenComposeAsync failedCompletableFutureOf(CancellationException("runAsyncIfLeader result was cancelled"))
@@ -365,7 +365,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                                         throwable == null -> effectiveKey?.let {
                                             historyRecorder?.recordCompleted(it, finishedAt, durationMs)
                                         }
-                                        else              -> effectiveKey?.let {
+                                        else -> effectiveKey?.let {
                                             historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable)
                                         }
                                     }
@@ -383,7 +383,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                                             log.debug { "비동기 그룹 슬롯 반납. lockName=$lockName, slot=$slot" }
                                         ExposedJdbcUnlockOutcome.NOT_HELD ->
                                             log.warn { "비동기 그룹 슬롯 반납 대상이 없습니다. lockName=$lockName, slot=$slot" }
-                                        ExposedJdbcUnlockOutcome.FAILED   ->
+                                        ExposedJdbcUnlockOutcome.FAILED ->
                                             log.warn { "비동기 그룹 슬롯 해제 실패(DB 오류). lockName=$lockName, slot=$slot" }
                                     }
                                 }.onFailure { e ->

@@ -386,7 +386,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
             )
             ExposedR2dbcUnlockOutcome.RELEASED,
             ExposedR2dbcUnlockOutcome.NOT_HELD,
-                 -> Unit
+                -> Unit
         }
     }
 

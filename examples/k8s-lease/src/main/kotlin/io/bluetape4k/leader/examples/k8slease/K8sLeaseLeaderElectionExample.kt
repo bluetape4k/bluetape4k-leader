@@ -78,7 +78,12 @@ class K8sLeaseLeaderElectionExample(
                     .withHolderIdentity(holderIdentity)
                     .withLeaseDurationSeconds(leaseDurationSeconds)
                     .withRenewTime(now)
-                    .withLeaseTransitions((current.spec?.leaseTransitions ?: 0) + transitionIncrement(current, holderIdentity))
+                    .withLeaseTransitions(
+                        (current.spec?.leaseTransitions ?: 0) + transitionIncrement(
+                            current,
+                            holderIdentity
+                        )
+                    )
                     .build()
             )
             .build()
@@ -143,7 +148,11 @@ class K8sLeaseLeaderElectionExample(
             if (e.code != CONFLICT_STATUS) {
                 throw e
             }
-            LeaseAttempt(LeaseOutcome.CONFLICT, holderIdentity = lease(leaseName)?.spec?.holderIdentity, leaseName = leaseName)
+            LeaseAttempt(
+                LeaseOutcome.CONFLICT,
+                holderIdentity = lease(leaseName)?.spec?.holderIdentity,
+                leaseName = leaseName
+            )
         }
     }
 

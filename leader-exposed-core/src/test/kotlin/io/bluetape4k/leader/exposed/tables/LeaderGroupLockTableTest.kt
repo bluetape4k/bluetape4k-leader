@@ -105,7 +105,7 @@ class LeaderGroupLockTableTest: AbstractExposedTableTest() {
                 it[slot] = 1
                 it[token] = Base58.randomString(8)
                 it[lockedAt] = now
-                it[lockedUntil] = now + 60.seconds() 
+                it[lockedUntil] = now + 60.seconds()
             }
 
             val activeCount = LeaderGroupLockTable.selectAll()

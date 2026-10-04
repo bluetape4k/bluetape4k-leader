@@ -16,7 +16,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RedissonSuspendLeaderElectorLeaderIdContractTest: AbstractSuspendLeaderElectorLeaderIdContractTest() {
 
-    companion object: KLoggingChannel() 
+    companion object: KLoggingChannel()
 
     override fun createElector(options: LeaderElectionOptions): SuspendLeaderElector =
         RedissonSuspendLeaderElector(AbstractRedissonLeaderTest.redissonClient, options)

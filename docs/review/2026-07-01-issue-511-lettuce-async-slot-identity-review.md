@@ -13,15 +13,15 @@ P0/P1 발견 항목: 0
 
 ## 수표
 
-| Tier | Result | Evidence |
-|---|---|---|
-| Correctness | PASS | `runAsyncIfLeader(slot)` now overrides the bridge default and routes through an audit-aware internal path. |
-| Result contract | PASS | `runAsyncIfLeaderResult(slot)` returns `LeaderRunResult.Elected(..., leaderId = slot.leaderId)` when the action runs, including null-returning actions. |
-| Backend audit path | PASS | Group async acquire now passes `auditLeaderId` into `LettuceSlotTokenGroup.tryAcquireAsync`, matching sync and suspend paths. |
-| Release semantics | PASS | Existing async release-after-action behavior remains in `releaseAndPropagate`; lock/slot release is still awaited before outer completion. |
-| Exception semantics | PASS | Action failures still become `LeaderRunResult.ActionFailed`; cancellation is rethrown rather than wrapped. Backend failures before election still complete exceptionally. |
-| Bridge warning regression | PASS | New contract tests assert `LeaderElectorBridgeLog` slot/result counters stay at zero. |
-| Test coverage | PASS | `./gradlew :bluetape4k-leader-redis-lettuce:test --no-parallel` passed, 221 tests, 0 failures, 0 errors, 0 skipped. |
+| Tier                      | Result | Evidence                                                                                                                                                                  |
+|---------------------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Correctness               | PASS   | `runAsyncIfLeader(slot)` now overrides the bridge default and routes through an audit-aware internal path.                                                                |
+| Result contract           | PASS   | `runAsyncIfLeaderResult(slot)` returns `LeaderRunResult.Elected(..., leaderId = slot.leaderId)` when the action runs, including null-returning actions.                   |
+| Backend audit path        | PASS   | Group async acquire now passes `auditLeaderId` into `LettuceSlotTokenGroup.tryAcquireAsync`, matching sync and suspend paths.                                             |
+| Release semantics         | PASS   | Existing async release-after-action behavior remains in `releaseAndPropagate`; lock/slot release is still awaited before outer completion.                                |
+| Exception semantics       | PASS   | Action failures still become `LeaderRunResult.ActionFailed`; cancellation is rethrown rather than wrapped. Backend failures before election still complete exceptionally. |
+| Bridge warning regression | PASS   | New contract tests assert `LeaderElectorBridgeLog` slot/result counters stay at zero.                                                                                     |
+| Test coverage             | PASS   | `./gradlew :bluetape4k-leader-redis-lettuce:test --no-parallel` passed, 221 tests, 0 failures, 0 errors, 0 skipped.                                                       |
 
 ## 툴링 노트
 

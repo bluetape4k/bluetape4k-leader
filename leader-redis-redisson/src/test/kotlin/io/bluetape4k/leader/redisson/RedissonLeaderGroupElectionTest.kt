@@ -228,11 +228,11 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
         StructuredTaskScopeTester().rounds(options.maxLeaders * 8).add {
             elector.runIfLeader(lockName) {
-                    val current = currentConcurrent.incrementAndGet()
-                    peakConcurrent.updateAndGet { max(it, current) }
-                    Thread.sleep(Random.nextLong(5, 15))
-                    currentConcurrent.decrementAndGet()
-                }
+                val current = currentConcurrent.incrementAndGet()
+                peakConcurrent.updateAndGet { max(it, current) }
+                Thread.sleep(Random.nextLong(5, 15))
+                currentConcurrent.decrementAndGet()
+            }
         }.run()
 
         log.debug { "최대 동시 실행 수: ${peakConcurrent.get()} / maxLeaders=${options.maxLeaders}" }
@@ -250,16 +250,16 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
         StructuredTaskScopeTester().rounds(numThreads * roundsPerThread).add {
             elector.runIfLeader(lockName) {
-                    log.debug { "작업 1. task1=${task1.get()}" }
-                    Thread.sleep(Random.nextLong(1, 5))
-                    task1.incrementAndGet()
-                }
+                log.debug { "작업 1. task1=${task1.get()}" }
+                Thread.sleep(Random.nextLong(1, 5))
+                task1.incrementAndGet()
+            }
         }.add {
             elector.runIfLeader(lockName) {
-                    log.debug { "작업 2. task2=${task2.get()}" }
-                    Thread.sleep(Random.nextLong(1, 5))
-                    task2.incrementAndGet()
-                }
+                log.debug { "작업 2. task2=${task2.get()}" }
+                Thread.sleep(Random.nextLong(1, 5))
+                task2.incrementAndGet()
+            }
         }.run()
 
         log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
@@ -277,11 +277,11 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
         MultithreadingTester().workers(elector.maxLeaders * 4).rounds(2).add {
             elector.runIfLeader(lockName) {
-                    val current = currentConcurrent.incrementAndGet()
-                    peakConcurrent.updateAndGet { max(it, current) }
-                    Thread.sleep(Random.nextLong(5, 15))
-                    currentConcurrent.decrementAndGet()
-                }
+                val current = currentConcurrent.incrementAndGet()
+                peakConcurrent.updateAndGet { max(it, current) }
+                Thread.sleep(Random.nextLong(5, 15))
+                currentConcurrent.decrementAndGet()
+            }
         }.run()
 
         log.debug { "최대 동시 실행 수: ${peakConcurrent.get()} / maxLeaders=${elector.maxLeaders}" }
@@ -346,16 +346,16 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
         MultithreadingTester().workers(numThreads).rounds(roundsPerThread * 2).add {
             elector.runIfLeader(lockName) {
-                    log.debug { "작업 1. task1=${task1.get()}" }
-                    Thread.sleep(Random.nextLong(1, 5))
-                    task1.incrementAndGet()
-                }
+                log.debug { "작업 1. task1=${task1.get()}" }
+                Thread.sleep(Random.nextLong(1, 5))
+                task1.incrementAndGet()
+            }
         }.add {
             elector.runIfLeader(lockName) {
-                    log.debug { "작업 2. task2=${task2.get()}" }
-                    Thread.sleep(Random.nextLong(1, 5))
-                    task2.incrementAndGet()
-                }
+                log.debug { "작업 2. task2=${task2.get()}" }
+                Thread.sleep(Random.nextLong(1, 5))
+                task2.incrementAndGet()
+            }
         }.run()
 
         task1.get() shouldBeEqualTo numThreads * roundsPerThread
@@ -386,18 +386,18 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
         val attempts = AtomicInteger(0)
 
         MultithreadingTester().workers(4).rounds(5).add {
-                val attempt = attempts.incrementAndGet()
-                val attemptLockName = "$lockName-$attempt"
+            val attempt = attempts.incrementAndGet()
+            val attemptLockName = "$lockName-$attempt"
 
-                val first = election.runAsyncIfLeader(attemptLockName) {
-                    completableFutureOf("first-$attempt")
-                }
-                first.get(2.seconds) shouldBeEqualTo "first-$attempt"
+            val first = election.runAsyncIfLeader(attemptLockName) {
+                completableFutureOf("first-$attempt")
+            }
+            first.get(2.seconds) shouldBeEqualTo "first-$attempt"
 
-                val second = election.runAsyncIfLeader(attemptLockName) {
-                    completableFutureOf("second-$attempt")
-                }
-                second.get(2.seconds) shouldBeEqualTo "second-$attempt"
+            val second = election.runAsyncIfLeader(attemptLockName) {
+                completableFutureOf("second-$attempt")
+            }
+            second.get(2.seconds) shouldBeEqualTo "second-$attempt"
         }.run()
 
         attempts.get() shouldBeEqualTo 4 * 5
@@ -471,13 +471,13 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
         MultithreadingTester().workers(options.maxLeaders * 4).rounds(2).add {
             elector.runAsyncIfLeader(lockName) {
-                    futureOf {
-                        val current = currentConcurrent.incrementAndGet()
-                        peakConcurrent.updateAndGet { max(it, current) }
-                        Thread.sleep(Random.nextLong(5, 15))
-                        currentConcurrent.decrementAndGet()
-                    }
-                }.join()
+                futureOf {
+                    val current = currentConcurrent.incrementAndGet()
+                    peakConcurrent.updateAndGet { max(it, current) }
+                    Thread.sleep(Random.nextLong(5, 15))
+                    currentConcurrent.decrementAndGet()
+                }
+            }.join()
         }.run()
 
         log.debug { "최대 동시 실행 수: ${peakConcurrent.get()} / maxLeaders=${options.maxLeaders}" }
@@ -494,20 +494,20 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
         MultithreadingTester().workers(numThreads).rounds(roundsPerThread * 2).add {
             elector.runAsyncIfLeader(lockName) {
-                    futureOf {
-                        log.debug { "비동기 작업 1. task1=${task1.get()}" }
-                        Thread.sleep(Random.nextLong(1, 5))
-                        task1.incrementAndGet()
-                    }
-                }.join()
+                futureOf {
+                    log.debug { "비동기 작업 1. task1=${task1.get()}" }
+                    Thread.sleep(Random.nextLong(1, 5))
+                    task1.incrementAndGet()
+                }
+            }.join()
         }.add {
             elector.runAsyncIfLeader(lockName) {
-                    futureOf {
-                        log.debug { "비동기 작업 2. task2=${task2.get()}" }
-                        Thread.sleep(Random.nextLong(1, 5))
-                        task2.incrementAndGet()
-                    }
-                }.join()
+                futureOf {
+                    log.debug { "비동기 작업 2. task2=${task2.get()}" }
+                    Thread.sleep(Random.nextLong(1, 5))
+                    task2.incrementAndGet()
+                }
+            }.join()
         }.run()
 
         task1.get() shouldBeEqualTo numThreads * roundsPerThread
@@ -525,13 +525,13 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
         StructuredTaskScopeTester().rounds(options.maxLeaders * 8).add {
             elector.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-                    futureOf {
-                        val current = currentConcurrent.incrementAndGet()
-                        peakConcurrent.updateAndGet { max(it, current) }
-                        Thread.sleep(Random.nextLong(5, 15))
-                        currentConcurrent.decrementAndGet()
-                    }
-                }.join()
+                futureOf {
+                    val current = currentConcurrent.incrementAndGet()
+                    peakConcurrent.updateAndGet { max(it, current) }
+                    Thread.sleep(Random.nextLong(5, 15))
+                    currentConcurrent.decrementAndGet()
+                }
+            }.join()
         }.run()
 
         log.debug { "최대 동시 실행 수: ${peakConcurrent.get()} / maxLeaders=${options.maxLeaders}" }

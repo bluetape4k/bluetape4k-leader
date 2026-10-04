@@ -52,7 +52,7 @@ class BatchScheduler(
         }
         return when (outcome) {
             is LeaderRunResult.Elected -> outcome.value
-            LeaderRunResult.Skipped    -> {
+            LeaderRunResult.Skipped -> {
                 log.info { "[$nodeId] 리더 선출 실패 — 다른 인스턴스가 실행 중. skip." }
                 null
             }

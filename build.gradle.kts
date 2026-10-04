@@ -186,14 +186,15 @@ subprojects {
                 kotlin.srcDir(rootProject.file("examples/shared/src/main/kotlin"))
             }
         }
-        configurations.matching { it.name == "kotlinCompilerClasspath" || it.name == "kotlinCompilerPluginClasspath" }.configureEach {
-            resolutionStrategy.eachDependency {
-                if (requested.group == "org.jetbrains.kotlin") {
-                    useVersion(bt4kVersion("kotlin"))
-                    because("KGP build-tools requires matching kotlin-compiler version")
+        configurations.matching { it.name == "kotlinCompilerClasspath" || it.name == "kotlinCompilerPluginClasspath" }
+            .configureEach {
+                resolutionStrategy.eachDependency {
+                    if (requested.group == "org.jetbrains.kotlin") {
+                        useVersion(bt4kVersion("kotlin"))
+                        because("KGP build-tools requires matching kotlin-compiler version")
+                    }
                 }
             }
-        }
         kotlin {
             jvmToolchain(25)
             compilerOptions {
@@ -601,7 +602,8 @@ subprojects {
     }
 }
 
-val binaryCompatibilityProjects = subprojects.filterNot { it.isNonPublishedProject() || it.name == "bluetape4k-leader-bom" }
+val binaryCompatibilityProjects =
+    subprojects.filterNot { it.isNonPublishedProject() || it.name == "bluetape4k-leader-bom" }
 tasks.register<Exec>("checkBinaryCompatibility") {
     group = "verification"
     description = "Compare publishable JVM artifacts with the configured published baseline."

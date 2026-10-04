@@ -164,8 +164,8 @@ class BinaryApiClassificationTest(unittest.TestCase):
                 stderr="",
             )
             with patch("check_binary_api.subprocess.run", return_value=git_tags), self.assertRaisesRegex(
-                ValueError,
-                "baseline",
+                    ValueError,
+                    "baseline",
             ):
                 self._resolve_versions(root, environ={})
 

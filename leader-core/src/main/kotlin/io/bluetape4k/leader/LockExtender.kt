@@ -319,18 +319,18 @@ object LockExtender: KLogging() {
      * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     private fun processBooleanResult(outcome: ExtendOutcome): Boolean = when (outcome) {
-        is ExtendOutcome.Extended     -> true
-        is ExtendOutcome.NotHeld      -> {
+        is ExtendOutcome.Extended -> true
+        is ExtendOutcome.NotHeld -> {
             // backend-origin NotHeld: token mismatch, takeover, lease expired를 포함합니다.
             // (outsideScope / FailOpen path 에서 온 NotHeld 는 path-specific WARN 이미 발생 — double log)
             log.warn { "LockExtender — extend returned NotHeld (token mismatch / takeover / lease expired / scope absent)" }
             false
         }
-        is ExtendOutcome.WrongThread  -> {
+        is ExtendOutcome.WrongThread -> {
             log.warn { "LockExtender — extend failed: WrongThread (Redisson thread-bound lock called from wrong thread)" }
             false
         }
-        is ExtendOutcome.Rejected     -> {
+        is ExtendOutcome.Rejected -> {
             log.warn { "LockExtender — extend rejected by the bounded operation queue" }
             false
         }

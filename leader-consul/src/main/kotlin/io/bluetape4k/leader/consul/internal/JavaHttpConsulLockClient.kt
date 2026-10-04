@@ -117,8 +117,8 @@ internal class JavaHttpConsulLockClient(
 
         return sendString(request).thenApply { response ->
             when (response.statusCode()) {
-                200  -> parseKvEntry(response.body())
-                404  -> null
+                200 -> parseKvEntry(response.body())
+                404 -> null
                 else -> throw LeaderElectionException(
                     "Failed to read Consul KV key. status=${response.statusCode()}, body=${response.body()}",
                 )
@@ -219,17 +219,17 @@ private fun String.jsonUnescape(): String {
             index++
             when (val escaped = this[index]) {
                 '"', '\\', '/' -> result.append(escaped)
-                'b'            -> result.append('\b')
-                'f'            -> result.append('\u000C')
-                'n'            -> result.append('\n')
-                'r'            -> result.append('\r')
-                't'            -> result.append('\t')
-                'u'            -> {
+                'b' -> result.append('\b')
+                'f' -> result.append('\u000C')
+                'n' -> result.append('\n')
+                'r' -> result.append('\r')
+                't' -> result.append('\t')
+                'u' -> {
                     val hex = substring(index + 1, index + 5)
                     result.append(hex.toInt(16).toChar())
                     index += 4
                 }
-                else           -> result.append(escaped)
+                else -> result.append(escaped)
             }
         } else {
             result.append(char)

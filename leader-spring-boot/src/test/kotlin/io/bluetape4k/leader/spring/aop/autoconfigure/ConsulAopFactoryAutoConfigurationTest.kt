@@ -46,7 +46,8 @@ class ConsulAopFactoryAutoConfigurationTest {
             ctx.getBean("consulLeaderElectionFactory").shouldBeInstanceOf<ConsulLeaderElectorFactory>()
             ctx.getBean("consulLeaderGroupElectionFactory").shouldBeInstanceOf<ConsulLeaderGroupElectorFactory>()
             ctx.getBean("consulSuspendLeaderElectorFactory").shouldBeInstanceOf<ConsulSuspendLeaderElectorFactory>()
-            ctx.getBean("consulSuspendLeaderGroupElectorFactory").shouldBeInstanceOf<ConsulSuspendLeaderGroupElectorFactory>()
+            ctx.getBean("consulSuspendLeaderGroupElectorFactory")
+                .shouldBeInstanceOf<ConsulSuspendLeaderGroupElectorFactory>()
 
             ctx.getBean("consulLeaderElectionFactory").shouldBeInstanceOf<LeaderElectorFactory>()
             ctx.getBean("consulLeaderGroupElectionFactory").shouldBeInstanceOf<LeaderGroupElectorFactory>()

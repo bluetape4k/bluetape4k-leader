@@ -4,8 +4,6 @@
 
 이 문서는 `Issue #419 Strategic Election Example Plan`에 대한 설계 또는 실행 계획 기록입니다. 아래 원문 구조의 범위, 결정, 작업 순서, 검증 조건, 위험 및 후속 조치는 기록 보존을 위해 유지합니다. 검토자는 각 `Action`, `Expected DoD`, `Validation`, `Target files` 항목을 한국어 해설과 함께 읽고, 코드 식별자와 명령은 원문 그대로 취급해야 합니다.
 
-
-
 ## Step 0: Worktree
 
 - Branch: `feat/issue-419-strategic-election-example`
@@ -14,8 +12,7 @@
 
 ## Step 1: Requirements
 
-- Use the Type A full-feature lane because this adds a new example module plus
-  CI/workflow wiring.
+- Use the Type A full-feature lane because this adds a new example module plus CI/workflow wiring.
 - Reuse the existing strategic election API from `leader-core`.
 - Keep the example backend-neutral to avoid Docker/Testcontainers scope.
 
@@ -25,9 +22,9 @@
 2. Add `examples/strategic-election/build.gradle.kts` with the `application`
    plugin and a dependency on `bluetape4k-leader-core`.
 3. Implement the strategic election demo.
-   - Domain profiles with health/capacity/success-rate inputs.
-   - Custom scorer plus `WeightedScorer` and `ScoredElectionStrategy`.
-   - Report model with selected and skipped outcomes.
+    - Domain profiles with health/capacity/success-rate inputs.
+    - Custom scorer plus `WeightedScorer` and `ScoredElectionStrategy`.
+    - Report model with selected and skipped outcomes.
 4. Add deterministic tests for winner selection and skip behavior.
 5. Add `README.md` and `README.ko.md` for the example.
 6. Update root README locale set.
@@ -47,12 +44,9 @@ Run in order:
 
 - Spec review: confirm no new public API or backend dependency is introduced.
 - Plan review: confirm all new-module registration points are covered.
-- Code review: check deterministic scoring, skip semantics, serializable report
-  models, README/source drift, and workflow YAML expression correctness.
+- Code review: check deterministic scoring, skip semantics, serializable report models, README/source drift, and workflow YAML expression correctness.
 
 ## Step 5: Stop Conditions
 
-- Stop as complete only after targeted verification, local review, lesson,
-  commit, push, and PR creation.
-- Stop as blocked if existing `leader-core` strategic API cannot express the
-  required scoring scenario without public API changes.
+- Stop as complete only after targeted verification, local review, lesson, commit, push, and PR creation.
+- Stop as blocked if existing `leader-core` strategic API cannot express the required scoring scenario without public API changes.

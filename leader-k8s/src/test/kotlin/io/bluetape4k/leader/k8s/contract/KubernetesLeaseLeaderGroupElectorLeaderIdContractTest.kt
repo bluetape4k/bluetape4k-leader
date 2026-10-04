@@ -20,7 +20,7 @@ import org.junit.jupiter.api.TestInstance
 class KubernetesLeaseLeaderGroupElectorLeaderIdContractTest: AbstractLeaderGroupElectorLeaderIdContractTest() {
 
     companion object: KLogging()
-    
+
     private val client: KubernetesClient = KubernetesContractSupport.newClient()
 
     override fun createElector(options: LeaderGroupElectionOptions): LeaderGroupElector =

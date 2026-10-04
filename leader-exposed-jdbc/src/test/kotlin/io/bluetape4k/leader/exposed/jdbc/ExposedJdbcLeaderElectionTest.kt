@@ -825,7 +825,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
 
         result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
         result.cause shouldBeEqualTo failure
-        
+
         election.runIfLeader(lockName) { "복구 성공" } shouldBeEqualTo "복구 성공"
     }
 

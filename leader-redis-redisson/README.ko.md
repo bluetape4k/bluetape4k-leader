@@ -68,8 +68,8 @@ timestamp(42비트) | pid%(2^10)(10비트) | seq(12비트)
 - 각 `lockName` 의 첫 접근에서 `trySetPermits(maxLeaders)` 를 멱등적으로 호출. 호출하지 않으면 0 permits 로 시작해 `tryAcquire` 가 항상 `null` 을 반환합니다.
 - 각 `tryAcquire(waitTime, leaseTime, ms)` 는 고유한 `permitId: String?` 를 반환 (경합 시 `null`). 이 `permitId` 로 정확한 슬롯을 release / 연장하므로 동일 elector 인스턴스가 동시에 여러 슬롯을 보유해도 안전합니다.
 - `runIfLeader` finally 블록에서:
-  - `remainingMinLeaseTime > 0` → `updateLeaseTime(permitId, remainingMs, MILLISECONDS)` 로 backend TTL 연장 (async 경로는 `updateLeaseTimeAsync`).
-  - 그 외 → `release(permitId)` 로 즉시 슬롯 반납.
+    - `remainingMinLeaseTime > 0` → `updateLeaseTime(permitId, remainingMs, MILLISECONDS)` 로 backend TTL 연장 (async 경로는 `updateLeaseTimeAsync`).
+    - 그 외 → `release(permitId)` 로 즉시 슬롯 반납.
 - 클라이언트 crash 시 (release 미호출) `leaseTime` 만료 후 Redisson 이 자동으로 permit 을 회수합니다.
 - `minLeaseTime` 을 backend TTL 에 위임 (caller-park 없음) — `runIfLeader` 는 `action` 종료 직후 즉시 반환.
 

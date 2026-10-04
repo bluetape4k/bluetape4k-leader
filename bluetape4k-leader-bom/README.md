@@ -3,8 +3,7 @@
 English | [한국어](./README.ko.md)
 
 Maven BOM (Bill of Materials) for the **bluetape4k-leader** ecosystem. Manages versions of all
-`io.github.bluetape4k.leader:*` modules so consumers can declare dependencies without specifying
-individual versions.
+`io.github.bluetape4k.leader:*` modules so consumers can declare dependencies without specifying individual versions.
 
 ## Architecture
 
@@ -20,20 +19,20 @@ The BOM is a Gradle `java-platform` that publishes only `<dependencyManagement>`
 
 ## Modules Managed
 
-| Module | Description |
-|--------|-------------|
-| `bluetape4k-leader-core` | Leader election core API (blocking / async / coroutine / virtual-thread) |
-| `bluetape4k-leader-redis-lettuce` | Redis backend using Lettuce |
-| `bluetape4k-leader-redis-redisson` | Redis backend using Redisson |
-| `bluetape4k-leader-exposed-core` | Exposed (RDB) backend core |
-| `bluetape4k-leader-exposed-jdbc` | Exposed JDBC backend |
-| `bluetape4k-leader-exposed-r2dbc` | Exposed R2DBC backend |
-| `bluetape4k-leader-mongodb` | MongoDB backend |
-| `bluetape4k-leader-hazelcast` | Hazelcast backend |
-| `bluetape4k-leader-zookeeper` | Apache ZooKeeper backend |
-| `bluetape4k-leader-spring-boot` | Spring Boot auto-configuration + AOP (`@LeaderElection`) |
-| `bluetape4k-leader-micrometer` | Micrometer metrics instrumentation |
-| `bluetape4k-leader-ktor` | Ktor 3.x integration — `LeaderElectionPlugin` + `leaderScheduled()` |
+| Module                             | Description                                                              |
+|------------------------------------|--------------------------------------------------------------------------|
+| `bluetape4k-leader-core`           | Leader election core API (blocking / async / coroutine / virtual-thread) |
+| `bluetape4k-leader-redis-lettuce`  | Redis backend using Lettuce                                              |
+| `bluetape4k-leader-redis-redisson` | Redis backend using Redisson                                             |
+| `bluetape4k-leader-exposed-core`   | Exposed (RDB) backend core                                               |
+| `bluetape4k-leader-exposed-jdbc`   | Exposed JDBC backend                                                     |
+| `bluetape4k-leader-exposed-r2dbc`  | Exposed R2DBC backend                                                    |
+| `bluetape4k-leader-mongodb`        | MongoDB backend                                                          |
+| `bluetape4k-leader-hazelcast`      | Hazelcast backend                                                        |
+| `bluetape4k-leader-zookeeper`      | Apache ZooKeeper backend                                                 |
+| `bluetape4k-leader-spring-boot`    | Spring Boot auto-configuration + AOP (`@LeaderElection`)                 |
+| `bluetape4k-leader-micrometer`     | Micrometer metrics instrumentation                                       |
+| `bluetape4k-leader-ktor`           | Ktor 3.x integration — `LeaderElectionPlugin` + `leaderScheduled()`      |
 
 ## Usage Examples
 

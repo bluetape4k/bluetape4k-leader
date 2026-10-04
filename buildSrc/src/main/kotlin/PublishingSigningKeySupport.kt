@@ -6,7 +6,7 @@ package io.bluetape4k.gradle
 
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
-import java.util.Base64
+import java.util.*
 
 private const val PRIVATE_KEY_HEADER = "-----BEGIN PGP PRIVATE KEY BLOCK-----"
 private const val PRIVATE_KEY_FOOTER = "-----END PGP PRIVATE KEY BLOCK-----"
@@ -87,5 +87,5 @@ private fun String.isAsciiArmoredPrivateKey(): Boolean {
     }
     val trimmed = trim()
     return trimmed.startsWith(PRIVATE_KEY_HEADER) &&
-        trimmed.endsWith(PRIVATE_KEY_FOOTER)
+            trimmed.endsWith(PRIVATE_KEY_FOOTER)
 }

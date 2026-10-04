@@ -102,7 +102,7 @@ class LeaderElectionReadinessHealthIndicator private constructor(
         when {
             failedLockNames.isNotEmpty() -> builder.down()
             expiringLockNames.isNotEmpty() -> builder.status(Status.OUT_OF_SERVICE)
-            else                         -> builder.up()
+            else -> builder.up()
         }
     }
 

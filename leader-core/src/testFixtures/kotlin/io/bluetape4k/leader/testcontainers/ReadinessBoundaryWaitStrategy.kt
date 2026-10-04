@@ -68,12 +68,12 @@ internal class ReadinessBoundaryDiagnostic(
     val containerState: String = containerState.toDiagnosticDetail()
 
     val boundary: ReadinessFailureBoundary = when {
-        mapping.status == ReadinessProbeStatus.FAILURE         -> ReadinessFailureBoundary.PORT_MAPPING
-        internal.status == ReadinessProbeStatus.FAILURE        -> ReadinessFailureBoundary.CONTAINER_SERVICE
+        mapping.status == ReadinessProbeStatus.FAILURE -> ReadinessFailureBoundary.PORT_MAPPING
+        internal.status == ReadinessProbeStatus.FAILURE -> ReadinessFailureBoundary.CONTAINER_SERVICE
         internal.status == ReadinessProbeStatus.SUCCESS &&
                 host.status == ReadinessProbeStatus.FAILURE &&
                 mapping.status == ReadinessProbeStatus.SUCCESS -> ReadinessFailureBoundary.HOST_FORWARDING
-        else                                                   -> ReadinessFailureBoundary.UNKNOWN
+        else -> ReadinessFailureBoundary.UNKNOWN
     }
 
     fun render(): String =

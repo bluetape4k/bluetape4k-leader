@@ -19,15 +19,15 @@ pre-action 정리는 획득 완료, action 시작, 정리 요청이 경합한다
 ## 작업 순서와 완료 조건
 
 1. 기존 dispatcher 테스트를 기준으로 비표준 scheduler 예외를 주입한다.
-   - 완료 조건: 수정 전 `TimeoutException`으로 재현되고 fixture/컴파일 실패가 아님을 확인한다.
+    - 완료 조건: 수정 전 `TimeoutException`으로 재현되고 fixture/컴파일 실패가 아님을 확인한다.
 2. single/group의 action 제출 거부와 늦은 획득에 대한 정리 완료 순서를 테스트한다.
-   - 완료 조건: 정리 barrier가 닫힌 동안 결과 실패가 노출되지 않고, 해제 후 재획득하며 release는 한 번만 수행된다.
+    - 완료 조건: 정리 barrier가 닫힌 동안 결과 실패가 노출되지 않고, 해제 후 재획득하며 release는 한 번만 수행된다.
 3. scheduler 실패를 terminal 상태로 처리하고 pre-action 정리 소유권을 수정한다.
-   - 완료 조건: caller 스레드의 inline blocking 정리 없음, 원본 오류·suppressed chain 보존, cancellation 전달 보존.
+    - 완료 조건: caller 스레드의 inline blocking 정리 없음, 원본 오류·suppressed chain 보존, cancellation 전달 보존.
 4. 대상 회귀 테스트 후 MongoDB 전체 테스트, detekt, `checkBinaryCompatibility`를 순차 실행한다.
-   - 완료 조건: 테스트 결과와 artifact별 ABI 분류를 확인하고 미확인 결과를 PASS로 기록하지 않는다.
+    - 완료 조건: 테스트 결과와 artifact별 ABI 분류를 확인하고 미확인 결과를 PASS로 기록하지 않는다.
 5. 독립 코드 리뷰와 문서 대조 후 PR을 생성한다.
-   - 완료 조건: 변경 범위의 P0/P1 없음, `Fixes #916`, milestone `1.1.0`, 담당자 `debop`, 이슈 라벨 반영 및 실제 PR 재조회.
+    - 완료 조건: 변경 범위의 P0/P1 없음, `Fixes #916`, milestone `1.1.0`, 담당자 `debop`, 이슈 라벨 반영 및 실제 PR 재조회.
 
 ## 검증 정책
 

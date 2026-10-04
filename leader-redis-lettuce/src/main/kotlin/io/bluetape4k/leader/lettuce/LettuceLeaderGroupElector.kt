@@ -185,8 +185,8 @@ class LettuceLeaderGroupElector(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get()   -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else            -> LeaderRunResult.Skipped
+                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else -> LeaderRunResult.Skipped
             }
         }
     }

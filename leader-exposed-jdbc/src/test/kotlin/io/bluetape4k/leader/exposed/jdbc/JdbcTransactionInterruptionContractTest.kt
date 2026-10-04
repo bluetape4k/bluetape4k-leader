@@ -125,7 +125,7 @@ class JdbcTransactionInterruptionContractTest: AbstractExposedJdbcLeaderTest() {
             running.assertRolledBack()
 
             val expectedHistoryStatus = when (outcome) {
-                JdbcCancelTerminalOutcome.DRIVER_EXCEPTION  -> {
+                JdbcCancelTerminalOutcome.DRIVER_EXCEPTION -> {
                     val failure = assertFailsWith<CompletionException> { resultFuture.join() }
                     failure.cause?.javaClass?.name shouldBeEqualTo running.contract.exceptionClass
                     (failure.cause as SQLException).sqlState shouldBeEqualTo running.contract.cancelSqlState
@@ -385,7 +385,7 @@ private enum class JdbcDriverInterruptionContract(
     }
 
     fun longRunningQuery(marker: String): String = when (this) {
-        H2    -> "/* $marker */ SELECT SUM(RAND()) FROM SYSTEM_RANGE(1, 1000000000)"
+        H2 -> "/* $marker */ SELECT SUM(RAND()) FROM SYSTEM_RANGE(1, 1000000000)"
         POSTGRESQL -> "/* $marker */ SELECT pg_sleep(30)"
         MYSQL -> "/* $marker */ SELECT SLEEP(30)"
     }
@@ -400,13 +400,13 @@ private enum class JdbcDriverInterruptionContract(
     }
 
     private fun sessionIdQuery(): String = when (this) {
-        H2    -> "SELECT SESSION_ID()"
+        H2 -> "SELECT SESSION_ID()"
         POSTGRESQL -> "SELECT pg_backend_pid()"
         MYSQL -> "SELECT CONNECTION_ID()"
     }
 
     private fun activeQuerySql(): String = when (this) {
-        H2    -> "SELECT EXECUTING_STATEMENT FROM INFORMATION_SCHEMA.SESSIONS WHERE SESSION_ID = ?"
+        H2 -> "SELECT EXECUTING_STATEMENT FROM INFORMATION_SCHEMA.SESSIONS WHERE SESSION_ID = ?"
         POSTGRESQL -> "SELECT query FROM pg_stat_activity WHERE pid = ? AND state = 'active'"
         MYSQL -> "SELECT INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID = ?"
     }
