@@ -42,7 +42,7 @@ class VirtualThreadLeaderRunner(
     companion object: KLogging() {
         fun defaultNodeIds(count: Int = 64): List<String> {
             count.requirePositiveNumber("count")
-            return (1..count).map { "node-$it" }
+            return List(count) { "node-$it" }
         }
     }
 

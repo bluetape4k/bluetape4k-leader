@@ -6,9 +6,7 @@ High-concurrency leader-only runner using Java virtual threads.
 
 ## Scenario
 
-Several service nodes race for one local leader lock. One node executes bounded maintenance work on a Java virtual
-thread while the rest skip without throwing. The example keeps the body blocking-friendly without tying up platform
-threads.
+Several service nodes race for one local leader lock. One node executes bounded maintenance work on a Java virtual thread while the rest skip without throwing. The example keeps the body blocking-friendly without tying up platform threads.
 
 ## Example Scenario
 

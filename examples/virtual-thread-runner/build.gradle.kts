@@ -9,12 +9,8 @@ application {
 dependencies {
     implementation(project(":bluetape4k-leader-core"))
 
-    implementation(bt4k.bluetape4k.logging)
-
+    implementation(bt4k.bluetape4k.core)
     runtimeOnly(bt4k.bluetape4k.virtualthread.jdk25)
-    runtimeOnly(bt4k.logback)
 
     testImplementation(bt4k.bluetape4k.junit5)
-
-    testRuntimeOnly(bt4k.logback)
 }

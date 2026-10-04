@@ -6,8 +6,7 @@ Java virtual thread를 사용하는 고동시성 leader-only runner 예제입니
 
 ## 시나리오
 
-여러 service node가 하나의 local leader lock을 경쟁합니다. 한 node만 Java virtual thread에서 bounded maintenance 작업을
-실행하고 나머지는 예외 없이 skip합니다. Blocking body를 platform thread에 오래 묶어 두지 않는 형태를 보여줍니다.
+여러 service node가 하나의 local leader lock을 경쟁합니다. 한 node만 Java virtual thread에서 bounded maintenance 작업을 실행하고 나머지는 예외 없이 skip합니다. Blocking body를 platform thread에 오래 묶어 두지 않는 형태를 보여줍니다.
 
 ## 예제 시나리오
 

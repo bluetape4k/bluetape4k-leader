@@ -16,6 +16,7 @@ object VirtualThreadRunnerDemo: KLogging() {
 
         log.info { "=== virtual-thread leader runner result ===" }
         log.info { "lock=${report.lockName}, elected=${report.electedNodeId}, skipped=${report.skippedCount}" }
+
         report.nodeReports.forEach { nodeReport ->
             log.info {
                 "[${nodeReport.nodeId}] ${nodeReport.status} virtualThread=${nodeReport.ranOnVirtualThread}"
