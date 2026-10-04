@@ -8,14 +8,12 @@ import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Sorts
 import com.mongodb.client.model.Updates
 import com.mongodb.kotlin.client.coroutine.MongoCollection
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
-import kotlin.coroutines.cancellation.CancellationException
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -28,6 +26,9 @@ import org.bson.Document
 import java.time.Instant
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `WebhookPoller`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -90,7 +91,8 @@ class WebhookPoller(
                 log.warn(e) { "[${options.nodeId}] webhook poller loop terminated unexpectedly" }
                 throw e
             }
-        }
+        }.log("Webhook")
+        
         pollerJob = job
         job.invokeOnCompletion {
             lifecycleLock.withLock {
@@ -297,17 +299,17 @@ class WebhookPoller(
             if (result.matchedCount == 0L) {
                 log.warn {
                     "[${options.nodeId}] markFailureOrRequeue — claim ownership lost " +
-                        "eventId=${event.eventId} (skip update)"
+                            "eventId=${event.eventId} (skip update)"
                 }
             } else if (event.attempts >= options.maxAttempts) {
                 log.info {
                     "[${options.nodeId}] eventId=${event.eventId} FAILED " +
-                        "(maxAttempts=${options.maxAttempts} reached)"
+                            "(maxAttempts=${options.maxAttempts} reached)"
                 }
             } else {
                 log.debug {
                     "[${options.nodeId}] eventId=${event.eventId} returned to PENDING " +
-                        "(attempts=${event.attempts}/${options.maxAttempts})"
+                            "(attempts=${event.attempts}/${options.maxAttempts})"
                 }
             }
         } catch (e: CancellationException) {

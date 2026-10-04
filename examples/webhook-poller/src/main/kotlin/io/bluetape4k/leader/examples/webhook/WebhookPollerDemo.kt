@@ -5,14 +5,14 @@ import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.mongodb.MongoSuspendLeaderElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.bson.Document
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `WebhookPollerDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -37,8 +37,8 @@ object WebhookPollerDemo: KLogging() {
     fun main(args: Array<String>) = runBlocking {
         val mongoUrl = System.getenv("MONGO_URL") ?: "mongodb://localhost:27017"
         log.info { "[demo] Mongo connection: $mongoUrl (override via MONGO_URL env var)" }
-        val client = MongoClient.create(mongoUrl)
-        try {
+
+        MongoClient.create(mongoUrl).use { client ->
             val db = client.getDatabase(DEMO_DB_NAME)
             val eventCollection = db.getCollection<Document>(DEMO_EVENT_COLLECTION)
             val lockCollection = db.getCollection<Document>(DEMO_LOCK_COLLECTION)
@@ -81,7 +81,7 @@ object WebhookPollerDemo: KLogging() {
                         } else {
                             log.info {
                                 "[$nodeId] duplicate processing detected. eventId=${event.eventId} " +
-                                    "(already processed by $first)"
+                                        "(already processed by $first)"
                             }
                         }
                         delay(50.milliseconds)
@@ -95,7 +95,9 @@ object WebhookPollerDemo: KLogging() {
                     delay(200.milliseconds)
                 }
 
-                pollers.forEach { (_, poller) -> poller.stopGracefully(2.seconds) }
+                pollers.forEach { (_, poller) ->
+                    poller.stopGracefully(2.seconds)
+                }
             }
 
             val totalDone = eventCollection.countDocuments(
@@ -105,8 +107,6 @@ object WebhookPollerDemo: KLogging() {
             log.info { "[demo] DONE=$totalDone (expected $DEMO_EVENT_COUNT)" }
             log.info { "[demo] processed-by distribution=${processedBy.values.groupingBy { it }.eachCount()}" }
             log.info { "[demo] no duplicate processing? ${processedBy.size == DEMO_EVENT_COUNT}" }
-        } finally {
-            client.close()
-        }
+        } 
     }
 }

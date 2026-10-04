@@ -2,13 +2,11 @@
 
 [English](README.md) | 한국어
 
-MongoDB 리더 선출을 이용한 분산 webhook event 폴러. N 개 pod 환경에서 단일 리더만 webhook event 를 점유·처리하며, at-least-once 전달, 재시도, `FAILED` 종결 상태(DLQ 대체)를 제공한다.
+MongoDB 리더 선출을 이용한 분산 webhook event 폴러. N 개 pod 환경에서 단일 리더만 webhook event 를 점유·처리하며, at-least-once 전달, 재시도, `FAILED` 종결 상태 (DLQ 대체)를 제공한다.
 
 ## 시나리오
 
-여러 poller 인스턴스가 같은 polling loop를 실행하지만, 선출된 리더만 MongoDB event를
-claim합니다. 리더는 `findOneAndUpdate`로 event를 원자적으로 점유하고 handler를
-실행한 뒤, 성공 시 `DONE`으로 표시하고 handler 예외 시 재시도 가능 상태로 돌리거나
+여러 poller 인스턴스가 같은 polling loop를 실행하지만, 선출된 리더만 MongoDB event를 claim합니다. 리더는 `findOneAndUpdate`로 event를 원자적으로 점유하고 handler를 실행한 뒤, 성공 시 `DONE`으로 표시하고 handler 예외 시 재시도 가능 상태로 돌리거나
 `FAILED`로 종결합니다.
 
 ## 예제 시나리오
@@ -33,7 +31,7 @@ claim합니다. 리더는 `findOneAndUpdate`로 event를 원자적으로 점유�
 - `findOneAndUpdate` atomic claim — 동시 처리 충돌 시에도 중복 처리 없음
 - Lease 기반 reclaim — 리더 사망 시 만료된 CLAIMED event 를 차순위가 인계
 - `maxAttempts` 도달 시 `FAILED` 로 종결 (DLQ 대체)
-- `attempts` 는 **claim 시점에만 증가** — 단일 진실 원천(single source of truth)
+- `attempts` 는 **claim 시점에만 증가** — 단일 진실 원천 (single source of truth)
 - `MongoSuspendLeaderElector` (TTL + token 기반 lock) 사용 — 코루틴 안전
 
 ## Usage Example
@@ -60,10 +58,7 @@ val job = poller.start(applicationScope)
 poller.stopGracefully(timeout = 30.seconds)
 ```
 
-`stopGracefully`는 취소를 요청한 뒤 timeout 동안 종료를 기다립니다. 시간 초과는 경고로 기록하며,
-정리 완료를 의미하지 않습니다. 호출자가 취소되거나 timeout이 지나도 이전 job이 실제 완료될 때까지
-같은 인스턴스의 `start`는 재시작을 거부합니다. `start`가 반환한 Job의 `isCompleted` 또는 `join()`으로 종료를 확인하세요.
-0 이하 timeout도 취소 요청은 수행합니다. 이 제한은 로컬 worker lifecycle에 관한 것으로 분산 lease 해제를 보장하지 않습니다.
+`stopGracefully`는 취소를 요청한 뒤 timeout 동안 종료를 기다립니다. 시간 초과는 경고로 기록하며, 정리 완료를 의미하지 않습니다. 호출자가 취소되거나 timeout이 지나도 이전 job이 실제 완료될 때까지 같은 인스턴스의 `start`는 재시작을 거부합니다. `start`가 반환한 Job의 `isCompleted` 또는 `join()`으로 종료를 확인하세요. 0 이하 timeout도 취소 요청은 수행합니다. 이 제한은 로컬 worker lifecycle에 관한 것으로 분산 lease 해제를 보장하지 않습니다.
 
 ## Demo
 
@@ -75,27 +70,24 @@ MONGO_URL=mongodb://localhost:27017 ./gradlew :examples:webhook-poller:run
 
 ### Event ID 형식
 
-데모는 `evt-<sequence>-<UUID v4>` 형식의 event ID를 사용한다. sequence는 예제
-출력을 읽기 쉽게 만들고, `Uuid.V4.nextUUID()`는 매 실행마다 새로운 correlation·dedup
-suffix를 제공한다. 데모는 insert 전에 collection을 비우므로 매번 새로운 suffix를
-생성해도 unique `eventId` index와 충돌하지 않으며 MongoDB document field는 유지된다.
+데모는 `evt-<sequence>-<UUID v4>` 형식의 event ID를 사용한다. sequence는 예제 출력을 읽기 쉽게 만들고, `Uuid.V4.nextUUID()`는 매 실행마다 새로운 correlation·dedup suffix를 제공한다. 데모는 insert 전에 collection을 비우므로 매번 새로운 suffix를 생성해도 unique `eventId` index와 충돌하지 않으며 MongoDB document field는 유지된다.
 
 ## Configuration Options
 
-| 파라미터 | 기본값 | 설명 |
-|---------|--------|-----|
-| `nodeId` | 필수 | pod 식별자 — 점유 시 `claimedBy` 에 기록 |
-| `lockName` | 필수 | leader-lock 키 — collection 단위로 다르게 권장 |
-| `pollInterval` | `1.seconds` | 리더 batch 처리 후 다음 사이클까지 휴지 |
-| `batchSize` | `10` | 한 사이클당 최대 claim 수 |
-| `maxAttempts` | `5` | 시도 상한 — 도달 시 `FAILED` |
-| `claimDuration` | `30.seconds` | claim lease — handler 최악 실행 시간 + 여유 |
+| 파라미터        | 기본값       | 설명                                           |
+|-----------------|--------------|------------------------------------------------|
+| `nodeId`        | 필수         | pod 식별자 — 점유 시 `claimedBy` 에 기록       |
+| `lockName`      | 필수         | leader-lock 키 — collection 단위로 다르게 권장 |
+| `pollInterval`  | `1.seconds`  | 리더 batch 처리 후 다음 사이클까지 휴지        |
+| `batchSize`     | `10`         | 한 사이클당 최대 claim 수                      |
+| `maxAttempts`   | `5`          | 시도 상한 — 도달 시 `FAILED`                   |
+| `claimDuration` | `30.seconds` | claim lease — handler 최악 실행 시간 + 여유    |
 
 ## Failure Semantics
 
 - handler 예외 → `attempts` 는 claim 시점에 이미 증가됨 → 상태 전이:
-  - `attempts >= maxAttempts` → `FAILED`, `lastError` 기록 (재처리 안 됨)
-  - 그 외 → `PENDING`, `claimedBy=null`, `claimExpiresAt=null` (다음 사이클에 재점유)
+    - `attempts >= maxAttempts` → `FAILED`, `lastError` 기록 (재처리 안 됨)
+    - 그 외 → `PENDING`, `claimedBy=null`, `claimExpiresAt=null` (다음 사이클에 재점유)
 - 리더 pod 가 handle 도중 사망 → `claimExpiresAt` 경과 → 차순위 리더가 reclaim (at-least-once)
 - 환경별 `lockName` 충돌 시 silent skip — 환경별 네임스페이스 권장
 

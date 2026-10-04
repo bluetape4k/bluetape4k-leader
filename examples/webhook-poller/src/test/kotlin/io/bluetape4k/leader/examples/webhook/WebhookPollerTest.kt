@@ -8,11 +8,6 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.logging.KLogging
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,9 +20,14 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.bson.Document
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `WebhookPollerTest`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -94,18 +94,18 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
 
             val indexes = eventCollection.listIndexes().toList().associateBy { it.getString("name") }
             indexes.getValue(WebhookPoller.INDEX_PENDING_CLAIM).indexKeys() shouldBeEqualTo
-                listOf(
-                    WebhookPoller.FIELD_STATUS,
-                    WebhookPoller.FIELD_CREATED_AT,
-                    WebhookPoller.FIELD_ATTEMPTS,
-                )
+                    listOf(
+                        WebhookPoller.FIELD_STATUS,
+                        WebhookPoller.FIELD_CREATED_AT,
+                        WebhookPoller.FIELD_ATTEMPTS,
+                    )
             indexes.getValue(WebhookPoller.INDEX_EXPIRED_CLAIM).indexKeys() shouldBeEqualTo
-                listOf(
-                    WebhookPoller.FIELD_STATUS,
-                    WebhookPoller.FIELD_CREATED_AT,
-                    WebhookPoller.FIELD_ATTEMPTS,
-                    WebhookPoller.FIELD_CLAIM_EXPIRES_AT,
-                )
+                    listOf(
+                        WebhookPoller.FIELD_STATUS,
+                        WebhookPoller.FIELD_CREATED_AT,
+                        WebhookPoller.FIELD_ATTEMPTS,
+                        WebhookPoller.FIELD_CLAIM_EXPIRES_AT,
+                    )
         } finally {
             poller.stopGracefully(2.seconds)
             scope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin()

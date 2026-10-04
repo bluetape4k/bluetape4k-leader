@@ -3,6 +3,7 @@ package io.bluetape4k.leader.examples.webhook
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.mongodb.MongoLeaderElectionOptions
 import io.bluetape4k.leader.mongodb.MongoSuspendLeaderElector
 import io.bluetape4k.leader.mongodb.lock.MongoLock
@@ -10,7 +11,6 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.storage.MongoDBServer
 import io.bluetape4k.utils.ShutdownQueue
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.runBlocking
 import org.bson.Document
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInstance
@@ -26,12 +26,11 @@ abstract class AbstractWebhookPollerTest {
     companion object: KLogging() {
         const val EVENT_COLLECTION_NAME = "webhook_events"
 
-        val mongoServer: MongoDBServer = MongoDBServer.Launcher.mongoDB
+        val mongoServer: MongoDBServer by lazy { MongoDBServer.Launcher.mongoDB }
 
         val coroutineMongoClient by lazy {
-            MongoDBServer.Launcher.getCoroutineClient().also {
-                ShutdownQueue.register { it.close() }
-            }
+            MongoDBServer.Launcher.getCoroutineClient()
+                .apply(ShutdownQueue::register)
         }
 
         val coroutineDb: MongoDatabase by lazy { coroutineMongoClient.getDatabase("webhook_test") }
@@ -50,7 +49,7 @@ abstract class AbstractWebhookPollerTest {
 
     @BeforeEach
     fun cleanCollections() {
-        runBlocking {
+        runSuspendIO {
             eventCollection.deleteMany(Document())
             lockCollection.deleteMany(Document())
         }
@@ -63,7 +62,8 @@ abstract class AbstractWebhookPollerTest {
      */
     protected suspend fun newElector(
         options: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,
-    ): MongoSuspendLeaderElector = MongoSuspendLeaderElector(lockCollection, options)
+    ): MongoSuspendLeaderElector =
+        MongoSuspendLeaderElector(lockCollection, options)
 
     /**
      * `insertPending` 호출은 example workflow 계약의 일부 동작을 수행합니다.

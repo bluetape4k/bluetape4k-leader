@@ -1,17 +1,20 @@
 package io.bluetape4k.leader.examples.webhook
 
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldHaveSize
+import io.bluetape4k.assertions.shouldStartWith
 import io.bluetape4k.idgenerators.uuid.Uuid
+import io.bluetape4k.logging.KLogging
 import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import io.mockk.verify
-import java.util.UUID
 import org.junit.jupiter.api.Test
+import java.util.*
 
 class WebhookPollerDemoEventIdTest {
+
+    companion object: KLogging()
 
     @Test
     fun `demo event id delegates to bluetape4k UUID v4 generator`() {
@@ -46,8 +49,9 @@ class WebhookPollerDemoEventIdTest {
         // Then
         allEventIds shouldHaveSize eventsPerRun * 2
         allEventIds.toSet() shouldHaveSize eventsPerRun * 2
+
         allEventIds.forEach { eventId ->
-            eventId.startsWith("evt-1-").shouldBeTrue()
+            eventId shouldStartWith "evt-1-"
             val uuidText = eventId.removePrefix("evt-1-")
             val parsed = UUID.fromString(uuidText)
             uuidText shouldBeEqualTo parsed.toString()
