@@ -3,9 +3,9 @@
 
 The release gate reports every japicmp incompatibility, then filters only
 compiler-generated classes, exact historical JVM descriptors, JVM class-file
-format changes, and explicitly retired Kotlin-internal facades. A new public
-incompatibility must therefore be classified in the migration notes or the
-command fails.
+format changes, and explicitly retired Kotlin-internal facades or exact
+Kotlin-internal ABI transitions. A new public incompatibility must therefore
+be classified in the migration notes or the command fails.
 """
 
 from __future__ import annotations
@@ -214,6 +214,72 @@ KNOWN_REDIS_BRIDGE_METHODS["io.bluetape4k.leader.redisson.RedissonLeaderElector"
     }
 )
 
+# Kotlin `internal` declarations can still be public JVM ABI. These reviewed
+# transitions are keyed by exact owner and every incompatible japicmp line;
+# package names alone must never suppress public changes.
+KNOWN_KOTLIN_INTERNAL_ABI_CHANGES: dict[str, frozenset[str]] = {
+    "io.bluetape4k.leader.internal.CaptureScope": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.internal.LeaseCleanupBoundaryImpl": frozenset(
+        {
+            "---! REMOVED CONSTRUCTOR: PUBLIC(-) LeaseCleanupBoundaryImpl("
+            + "io.bluetape4k.leader.internal.LeaseOperationScheduler, "
+            + "io.bluetape4k.leader.internal.ResidualLeaseRegistry, "
+            + "kotlin.jvm.functions.Function0<? extends io.bluetape4k.leader.LeaseCleanupResult>)",
+            "---! REMOVED CONSTRUCTOR: PUBLIC(-) LeaseCleanupBoundaryImpl("
+            + "io.bluetape4k.leader.internal.LeaseOperationScheduler, "
+            + "io.bluetape4k.leader.internal.ResidualLeaseRegistry, "
+            + "kotlin.jvm.functions.Function1<? super java.lang.Long,? extends "
+            + "io.bluetape4k.leader.LeaseCleanupResult>)",
+        }
+    ),
+    "io.bluetape4k.leader.internal.LocalRequestLeaseStore$Companion": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.internal.LockStateHolder": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.internal.MonotonicDeadline$Companion": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.dynamodb.internal.DynamoDbLockClient": frozenset(
+        {
+            "---! REMOVED CONSTRUCTOR: PUBLIC(-) DynamoDbLockClient("
+            + "java.lang.String, software.amazon.awssdk.services.dynamodb.DynamoDbClient, "
+            + "software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient, "
+            + "kotlin.jvm.functions.Function0<java.lang.Long>)",
+            "---! REMOVED CONSTRUCTOR: PUBLIC(-) SYNTHETIC(-) DynamoDbLockClient("
+            + "java.lang.String, software.amazon.awssdk.services.dynamodb.DynamoDbClient, "
+            + "software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient, "
+            + "kotlin.jvm.functions.Function0, int, "
+            + "kotlin.jvm.internal.DefaultConstructorMarker)",
+        }
+    ),
+    "io.bluetape4k.leader.dynamodb.internal.MonotonicDeadline$Companion": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.etcd.internal.EtcdKeyEncoder": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.etcd.internal.EtcdKeyEncoderKt": frozenset(
+        {
+            "---! REMOVED SUPERCLASS: java.lang.Object",
+            "---! REMOVED METHOD: PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) "
+            + "char[] access$getHEX_DIGITS$p()",
+        }
+    ),
+    "io.bluetape4k.leader.etcd.internal.EtcdLeaderPaths$Companion": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.spring.aop.internal.BodyThrownMarker": frozenset(
+        {
+            "---! REMOVED INTERFACE: java.io.Serializable",
+            "---! REMOVED SUPERCLASS: java.lang.RuntimeException",
+        }
+    ),
+}
+
 VERSION_PATTERN = re.compile(r"^v?(?P<release>\d+(?:\.\d+){1,3})(?:[-+][0-9A-Za-z.-]+)?$")
 
 
@@ -387,10 +453,15 @@ def is_intentionally_ignored(block: str) -> str | None:
             and member_descriptors <= KNOWN_SYNTHETIC_ACCESSORS[name]
     ):
         return "compiler-generated synthetic accessor"
+    known_internal_changes = KNOWN_KOTLIN_INTERNAL_ABI_CHANGES.get(name)
+    if (
+            known_internal_changes is not None
+            and len(incompatible_members) == len(known_internal_changes)
+            and set(incompatible_members) == known_internal_changes
+    ):
+        return "exact Kotlin-internal ABI transition"
     if not incompatible_members and has_class_file_format_change:
         return "JVM class-file format"
-    if ".internal." in name:
-        return "Kotlin-internal implementation package"
     if "$AjcClosure" in name or "$$inlined$" in name or "$executeActionAsync$" in name:
         return "compiler-generated implementation class"
     if "$" in name and ("Strategic" in name or "mapNotNull" in name):

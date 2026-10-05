@@ -114,6 +114,38 @@ class BinaryApiClassificationTest(unittest.TestCase):
             "legacy Kotlin-internal JVM facade",
         )
 
+    def test_public_member_removal_from_internal_package_stays_unclassified(self) -> None:
+        block = """***! MODIFIED CLASS: PUBLIC FINAL io.bluetape4k.leader.internal.LeaseOperationScheduler  (not serializable)
+\t---! REMOVED METHOD: PUBLIC(-) FINAL(-) java.util.concurrent.CompletableFuture submit(java.lang.Runnable)
+"""
+
+        self.assertIsNone(is_intentionally_ignored(block))
+        self.assertTrue(check_binary_api.is_unclassified_incompatibility(block))
+
+    def test_only_exact_internal_abi_transitions_are_allowlisted(self) -> None:
+        for owner, changes in check_binary_api.KNOWN_KOTLIN_INTERNAL_ABI_CHANGES.items():
+            with self.subTest(owner=owner):
+                header = (
+                    f"---! REMOVED CLASS: PUBLIC(-) FINAL(-) {owner}  (not serializable)"
+                    if owner.endswith("EtcdKeyEncoderKt")
+                    else f"***! MODIFIED CLASS: PUBLIC FINAL {owner}  (not serializable)"
+                )
+                block = "\n".join([header, *(f"\t{line}" for line in sorted(changes))]) + "\n"
+
+                self.assertEqual(
+                    is_intentionally_ignored(block),
+                    "exact Kotlin-internal ABI transition",
+                )
+
+    def test_additional_member_change_on_allowlisted_internal_owner_stays_unclassified(self) -> None:
+        owner = "io.bluetape4k.leader.internal.CaptureScope"
+        block = f"""***! MODIFIED CLASS: PUBLIC FINAL {owner}  (not serializable)
+\t---! REMOVED SUPERCLASS: java.lang.Object
+\t---! REMOVED METHOD: PUBLIC(-) FINAL(-) void close()
+"""
+
+        self.assertIsNone(is_intentionally_ignored(block))
+
     def test_real_public_member_removal_with_class_format_stays_unclassified(self) -> None:
         block = """***! MODIFIED CLASS: PUBLIC FINAL io.example.PublicApi  (not serializable)
 \t***! CLASS FILE FORMAT VERSION: 69.0 <- 65.0
