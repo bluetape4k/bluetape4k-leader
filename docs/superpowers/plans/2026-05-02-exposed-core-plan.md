@@ -61,16 +61,16 @@ Group 8 (T17, T18 완료 후)
       ```toml
       # Exposed — java.time 지원
       exposed-java-time = { module = "org.jetbrains.exposed:exposed-java-time", version.ref = "exposed" }
-  
+
       # bluetape4k — Exposed JDBC 테스트 유틸리티
       bluetape4k-exposed-jdbc-tests = { module = "io.github.bluetape4k.exposed:bluetape4k-exposed-jdbc-tests", version.ref = "bluetape4k" }
-  
+
       # H2 Database (테스트용)
       h2-v2 = { module = "com.h2database:h2", version = "2.4.240" }
-  
+
       # MySQL Connector/J (테스트용)
       mysql-connector-j = { module = "com.mysql:mysql-connector-j", version = "9.6.0" }
-  
+
       # Testcontainers — MySQL
       testcontainers-mysql = { module = "org.testcontainers:mysql", version.ref = "testcontainers" }
       ```
@@ -139,31 +139,31 @@ Group 8 (T17, T18 완료 후)
       configurations {
           testImplementation.get().extendsFrom(compileOnly.get(), runtimeOnly.get())
       }
-  
+
       dependencies {
           api(project(":leader-core"))
-  
+
           // Exposed core (스키마 정의 — JDBC/R2DBC 드라이버 없음)
           api(libs.exposed.core)
           api(libs.exposed.java.time)
           compileOnly(libs.exposed.dao)
-  
+
           // Test — Multi-DB (H2, PostgreSQL, MySQL)
           testImplementation(libs.bluetape4k.junit5)
           testImplementation(libs.bluetape4k.exposed.jdbc.tests)
-  
+
           testImplementation(libs.exposed.jdbc)
           testImplementation(libs.hikaricp)
-  
+
           // H2 (in-memory, 빠른 단위 테스트)
           testImplementation(libs.h2.v2)
-  
+
           // PostgreSQL (Testcontainers)
           testImplementation(libs.postgresql)
           testImplementation(libs.testcontainers)
           testImplementation(libs.testcontainers.junit.jupiter)
           testImplementation(libs.testcontainers.postgresql)
-  
+
           // MySQL (Testcontainers)
           testImplementation(libs.mysql.connector.j)
           testImplementation(libs.testcontainers.mysql)
@@ -295,11 +295,11 @@ Group 8 (T17, T18 완료 후)
     - `leader-core`에 `LockNameValidator.kt` 신규 생성:
       ```kotlin
       package io.bluetape4k.leader
-  
+
       // 첫 문자 1자(영숫자) + 이후 0~254자(영숫자/언더스코어/하이픈/콜론) = 최대 255자
       // 콜론(:)은 허용 — 백엔드별 `:slot:` 등의 특수 패턴 검증은 각 백엔드 담당
       private val LOCK_NAME_PATTERN = Regex("^[a-zA-Z0-9][a-zA-Z0-9_\\-:]{0,254}$")
-  
+
       /**
        * lockName의 공통 최소 검증. 백엔드 고유 규칙(예: MongoDB의 `:slot:` 금지)은
        * 각 백엔드 모듈의 내부 검증 함수가 추가로 수행.
@@ -540,7 +540,7 @@ Group 8 (T17, T18 완료 후)
       ```properties
       junit.jupiter.extensions.autodetection.enabled=true
       junit.jupiter.testinstance.lifecycle.default=per_class
-  
+
       junit.jupiter.execution.parallel.enabled=false
       junit.jupiter.execution.parallel.mode.default=same_thread
       junit.jupiter.execution.parallel.mode.classes.default=concurrent

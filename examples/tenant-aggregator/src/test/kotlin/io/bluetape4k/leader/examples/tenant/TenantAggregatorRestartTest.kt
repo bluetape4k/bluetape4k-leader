@@ -71,7 +71,7 @@ class TenantAggregatorRestartTest {
         val next = worker.start(backgroundScope).log("next")
         runCurrent()
         try {
-            // next job 이 실행 중이라 예외가 발생한다 
+            // next job 이 실행 중이라 예외가 발생한다
             assertFailsWith<IllegalStateException> {
                 worker.start(backgroundScope)
             }
@@ -93,7 +93,7 @@ class TenantAggregatorRestartTest {
         val first = worker.start(backgroundScope).log("first")
         runCurrent()
 
-        // 연속으로 다음 작업을 진행하도록 한다 
+        // 연속으로 다음 작업을 진행하도록 한다
         var next: Job? = null
         first.invokeOnCompletion {
             next = worker.start(backgroundScope).log("next")

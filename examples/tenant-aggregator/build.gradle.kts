@@ -13,7 +13,7 @@ configurations {
 dependencies {
     implementation(project(":bluetape4k-leader-exposed-r2dbc"))
 
-    // Exposed 
+    // Exposed
     implementation(bt4k.bluetape4k.exposed.r2dbc)
     testImplementation(bt4k.bluetape4k.exposed.r2dbc.tests)
     implementation(bt4k.exposed.core)

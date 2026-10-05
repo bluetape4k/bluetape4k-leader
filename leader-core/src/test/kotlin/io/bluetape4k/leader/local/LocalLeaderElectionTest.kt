@@ -339,7 +339,7 @@ class LocalLeaderElectionTest {
 
         latch.await()
 
-        // Leader 선출 실패 
+        // Leader 선출 실패
         val result = skipElection.runAsyncIfLeader(lockName) {
             completableFutureOf("should-skip")
         }.join()

@@ -970,13 +970,13 @@ unsupported 행은 concrete test class 부재 (skip 아님). matrix 자체가 AC
 
 ## 9. Acceptance Criteria
 
-- [ ] 
+- [ ]
   **AC-1**: §8.1 capability matrix 의 ✅ 모든 cell 에 concrete contract test 통과 (R3-F10 — ZK group/suspend-group 실제 존재; R2DBC 는 sync 미지원만 unsupported).
 - [ ] **AC-2**: `@LeaderElection` 동일 full-identity reentrant 호출 시 backend acquire counter 정확히 1회 (mockk verify).
 - [ ] **AC-2b**: `@LeaderElection` ↔ `@LeaderGroupElection` 동일 lockName 은 dedupe 안 됨 — 둘 다 정상 acquire (Codex F3).
-- [ ] 
+- [ ]
   **AC-3**: `LockAssert.assertLocked()` annotated 외부 호출 시 IllegalStateException (메시지에 "outside" / "no active scope" 포함).
-- [ ] 
+- [ ]
   **AC-4**: `LockExtender.extendActiveLock(d)` 가 fail-open sentinel scope 에서 `false` + WARN 로그 + metric (rate-limited).
 - [ ] **AC-4b**: failure mode × 분기 행렬 검증 (Architect A2 / R2-F1 / R3-F1):
 
@@ -991,9 +991,9 @@ unsupported 행은 concrete test class 부재 (skip 아님). matrix 자체가 AC
 - sentinel push 는 `FAIL_OPEN_RUN` 분기에서만 (Skipped + Exception 모두).
 - `catch` 범위는 `Exception` — `OutOfMemoryError`/`StackOverflowError`/`LinkageError` 등은 제외 (R3-F5).
 - [ ] **AC-5**: Sync, suspend, Mono 3 분기 모두 `LockAssert` / `LockExtender` 동작 (각 분기 × 2 API = 6).
-- [ ] 
+- [ ]
   **AC-6**: Watchdog 활성 + `extendActiveLock` 동시 호출 race-free — torn write 0 (TTL 가 두 마지막 호출의 최댓값 또는 그 사이 값, 단조 가정 X).
-- [ ] 
+- [ ]
   **AC-6b**: watchdog cadence 다음 tick 에서 user-extended 큰 값이 watchdog 작은 값으로 silently 줄어들 때 WARN log + metric (R5 / SF5).
 - [ ] **AC-7**: Hazelcast extend 는 EntryProcessor 사용 — plain `setTtl` 호출 0회 (소스 grep + Mockk verify).
 - [ ] **AC-8**: Redisson extend thread-id semantics (R2-F11):
@@ -1002,14 +1002,14 @@ unsupported 행은 concrete test class 부재 (skip 아님). matrix 자체가 AC
     - 시나리오 검증: (a) virtual thread carrier hop, (b) `Dispatchers.IO` hop, (c) `mono { withContext(IO) }` 모두에서 thread-id mismatch 시 WrongThread
     - KDoc: "Redisson `RLock` 은 acquire 한 platform/virtual thread 와 동일 thread 에서만 explicit extend 가능. dispatcher hop 시 WrongThread 가능"
 - [ ] **AC-9**: README + README.ko.md (`leader-spring-boot`) — Mermaid sequenceDiagram 포함 reentrant 시나리오.
-- [ ] 
+- [ ]
   **AC-10**: `LockAssert`, `LockExtender`, `LeaderLockHandle.Real`, `LeaderLockHandle.FailOpen`, `ExtendOutcome` 의 모든 public 멤버 KDoc + `## 동작/계약` + `kotlin` 예제.
 - [ ] **AC-11**: `./gradlew detekt` 통과 — 신규 HIGH/CRITICAL 0건.
 - [ ] **AC-12**: Kover coverage 신규 코드 80%+.
 - [ ] **AC-13**: `./gradlew build -x test` 로컬 빌드 통과.
-- [ ] 
+- [ ]
   **AC-14**: `LeaderAnnotationValidatorBeanPostProcessor` — `CompletableFuture` 반환 메서드 strict=true → throw, strict=false → WARN (Codex F9).
-- [ ] 
+- [ ]
   **AC-15**: 각 backend elector 가 동일 `ExtendDelegate` 객체를 watchdog (`LeaderLeaseAutoExtender.start(delegate=...)`) 와 `LeaderLockHandle.Real.extendDelegate` 양쪽에 전달 — `handle.extendDelegate === watchdog.delegate` 검증 (test verify) (R5 / Architect A3 / R2-F4).
 - [ ] **AC-16**: Lettuce group extend Lua — `redis.call('TIME')` 사용 검증 (소스 grep) (R14).
 - [ ] **AC-17**: Mongo extend filter `expireAt: { $gt: now }` 포함 검증 (소스 inspect) (R6 / Codex F6).
@@ -1017,7 +1017,7 @@ unsupported 행은 concrete test class 부재 (skip 아님). matrix 자체가 AC
     - grep 패턴: `runCatching|Result\.runCatching|catch\s*\(\s*(Throwable|Exception)\s*[):]`
     - 매칭된 모든 위치에 `catch(CancellationException) { throw e }` 가 선행하는지 inspect
     - helper 함수 안에 swallow 된 케이스도 점검
-- [ ] 
+- [ ]
   **AC-19**: Java caller 가 `LockExtender.extendActiveLock(java.time.Duration)` 호출 가능 — `LockExtenderJavaCompatTest` (R15).
 - [ ] **AC-20**: ZK + autoExtend=true 시 startup WARN — watchdog noop (R16).
 - [ ] **AC-21**: Blocking backend 의 `ExtendDelegate.extendSuspend` 가 default 사용 0회 (R3-F8 / R4-F7):
@@ -1032,7 +1032,7 @@ unsupported 행은 concrete test class 부재 (skip 아님). matrix 자체가 AC
       rg -n "withContext\(Dispatchers\.IO\)" leader-redis-lettuce leader-redis-redisson leader-mongodb leader-exposed-jdbc leader-hazelcast leader-zookeeper
       ```
     - R2DBC / Local 은 native suspend → default OK (Local 은 non-blocking, R2DBC 는 suspend native)
-- [ ] 
+- [ ]
   **AC-22**: AOP CTW weave smoke test — sync/suspend/Mono 각각 실제 woven bean 호출로 `LockHandleElement` propagation 검증 (R3-F13).
 - [ ] **AC-22b**: `leader-ktor` plugin propagation smoke test (R7-A1 + R7-Codex-3):
     - 실제 plugin surface = `leaderScheduled { ... }` background action (request routing 아님)
@@ -1040,7 +1040,7 @@ unsupported 행은 concrete test class 부재 (skip 아님). matrix 자체가 AC
     - plugin 자체는 `Application.attributes` 만 사용 — `LockHandleElement` 전파는 `leaderScheduled` 가 호출하는 elector 의 capture 메커니즘에 의존
     - 만약 background action 외 surface (request routing, custom interceptor 등) 에서 propagation 실패 → README "미지원 시나리오" 명시 (Mono 분기 동일 정책)
     - T17/T18 task 에 leader-ktor 통합 검증 포함, 또는 별도 unsupported 문서화 commit
-- [ ] 
+- [ ]
   **AC-23**: `handle.extendDelegate === watchdog.delegate` reference 검증 — 각 backend elector 모듈 안에 unit test (`leader-redis-lettuce`, `leader-redis-redisson`, ...) — `extendDelegate` 가 `internal` 이라 cross-module access 불가 (R3-F14).
 - [ ] **AC-24**: SPI 분산 backend classifier 검증 (R3-F9 / R5-F4):
     - `leader-core` 의 `BackendErrorClassifier` SPI + `CoreBackendErrorClassifier` (JDK/공통) + `CompositeBackendErrorClassifier`

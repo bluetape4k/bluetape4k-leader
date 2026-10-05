@@ -22,7 +22,7 @@ class K8sLeaseValidationTest {
             assertFailsWith<IllegalArgumentException> {
                 example.tryAcquire("InvalidLease", "node-a")
             }
-            // leaseName는 `-` 만 가능, `_` 는 불가  
+            // leaseName는 `-` 만 가능, `_` 는 불가
             assertFailsWith<IllegalArgumentException> {
                 example.release("lease_name", "node-a")
             }

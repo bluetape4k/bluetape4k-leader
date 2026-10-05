@@ -350,7 +350,7 @@ class TenantAggregatorTest: AbstractTenantAggregatorTest() {
         try {
             aggregator.start(scope)
 
-            // 시작을 중복하면 예외가 발생한다 
+            // 시작을 중복하면 예외가 발생한다
             assertFailsWith<IllegalStateException> {
                 aggregator.start(scope)
             }

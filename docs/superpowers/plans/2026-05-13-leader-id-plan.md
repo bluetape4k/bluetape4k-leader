@@ -2194,7 +2194,7 @@ Step 3-R 의 P0=0 / P1≤2 도달 후 PR1 implementation 진입.
 
 본 plan 의 모든 acceptance criteria 가 충족되면 issue #72 close 조건 만족:
 
-- [ ] 
+- [ ]
   **PR1** merged (freeze doc T67 self-contained in PR1, NO PR1.5 — workspace branch protection. Step 3-R Round 3 NEW-3-1 fix)
 - [ ] **PR2** merged (Lettuce + Redisson)
 - [ ] **PR3** merged (Mongo)

@@ -112,9 +112,9 @@ class LeaderAopAutoConfiguration {
 
 ## 6. 빌드 검증 필요 항목 (구현 단계 flag)
 
-- [ ] 
+- [ ]
   **B-1** Boot 4: `aspect(project(":leader-spring-boot-common"))` 설정으로 `kotlinc` 산출 `@Aspect` 클래스가 ajc aspectpath 도달 + advice 삽입 검증 (Kotlin 케이스만 unverified)
-- [ ] 
+- [ ]
   **B-2** Boot 4: `spring-boot-starter-aop` (Spring AOP 런타임 프록시) + Freefair (compile-time weaving) 동시 활성 시 advice 2회 발화 위험 (issue #1050) — 정책 결정 필요. 우선 starter-aop 의존성 미추가 + `@EnableAspectJAutoProxy` 만 활성화로 1회 발화 확보 시도
 - [ ] **B-3** `@Bean` method `@Order` 와 class-level `@Order` 의 aspect 우선순위 동치성 1회 smoke test
 - [ ] **B-4** Spring Boot 3.x context 기동 시 final `@Aspect` 클래스 `@Bean` 등록 + advice 적용 smoke test
