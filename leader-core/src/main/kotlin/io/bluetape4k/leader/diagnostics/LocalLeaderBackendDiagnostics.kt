@@ -1,10 +1,9 @@
 package io.bluetape4k.leader.diagnostics
 
-import io.bluetape4k.logging.KLogging
 import kotlin.time.Duration
 
 /** Process 내부 Local leader elector가 공유하는 backend diagnostics provider입니다. */
-object LocalLeaderBackendDiagnostics: LeaderBackendDiagnosticsProvider, KLogging() {
+object LocalLeaderBackendDiagnostics: LeaderBackendDiagnosticsProvider {
 
     private val SupportedModes = LeaderBackendModeSupport(
         single = LeaderBackendSupport.SUPPORTED,

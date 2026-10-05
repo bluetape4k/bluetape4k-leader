@@ -59,7 +59,10 @@ class LeaderAuditExportBoundaryContractTest {
         publicSnapshotConstructors.single().isSynthetic.shouldBeTrue()
 
         val publicSnapshotMethods = LeaderAuditExportSnapshot::class.java.declaredMethods
-            .filter { Modifier.isPublic(it.modifiers) && Modifier.isFinal(it.modifiers) }
+            .filter {
+                Modifier.isPublic(it.modifiers) &&
+                    (Modifier.isFinal(it.modifiers) || it.name == "toString")
+            }
             .map { it.name }
             .toSet()
 
@@ -83,7 +86,35 @@ class LeaderAuditExportBoundaryContractTest {
             "getDiagnosticsFatalErrors",
             "getDiagnosticsClosed",
             "getClosed",
+            "toString",
         )
+    }
+
+    @Test
+    fun `snapshot string renders each counter exactly once`() {
+        val snapshot = LeaderAuditExportSnapshot.create(
+            queued = 1,
+            inFlight = 2,
+            scheduledRetries = 3,
+            admitted = 4,
+            accepted = 5,
+            droppedQueueFull = 6,
+            droppedClosed = 7,
+            retries = 8,
+            terminalFailures = 9,
+            cancellations = 10,
+            executorRejections = 11,
+            schedulerRejections = 12,
+            observerDrops = 13,
+            observerRegistrationDrops = 14,
+            diagnosticsFatalErrors = 15,
+            diagnosticsClosed = false,
+            closed = true,
+        )
+
+        snapshot.toString() shouldBeEqualTo """
+            LeaderAuditExportSnapshot(queued=1,inFlight=2,scheduledRetries=3,admitted=4,accepted=5,droppedQueueFull=6,droppedClosed=7,retries=8,terminalFailures=9,cancellations=10,executorRejections=11,schedulerRejections=12,observerDrops=13,observerRegistrationDrops=14,diagnosticsFatalErrors=15,diagnosticsClosed=false,closed=true)
+        """.trimIndent()
     }
 
     @Test

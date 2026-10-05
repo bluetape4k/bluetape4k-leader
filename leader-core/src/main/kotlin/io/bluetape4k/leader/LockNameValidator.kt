@@ -17,7 +17,6 @@ private val LOCK_NAME_PATTERN = Regex("^[a-zA-Z0-9][a-zA-Z0-9_\\-:]{0,254}$")
  * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 @Deprecated("use validateLockName extension method instead")
-@JvmName("validateLockNameMethod")
 fun validateLockName(lockName: String) {
     lockName.requireNotBlank("lockName")
     lockName.length.requireLe(255, "lockName.length")

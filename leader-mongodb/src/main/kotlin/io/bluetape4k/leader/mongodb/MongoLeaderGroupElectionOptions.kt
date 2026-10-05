@@ -35,6 +35,7 @@ data class MongoLeaderGroupElectionOptions(
         @JvmField
         val Default = MongoLeaderGroupElectionOptions()
 
-        private const val serialVersionUID = 1L
+        /** Kotlin의 no-arg constructor 추가 전 공개된 직렬화 UID를 유지합니다. */
+        private const val serialVersionUID: Long = -6752496615359943498L
     }
 }

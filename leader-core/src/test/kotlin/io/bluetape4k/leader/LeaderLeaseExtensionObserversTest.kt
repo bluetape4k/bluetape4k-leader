@@ -69,8 +69,8 @@ class LeaderLeaseExtensionObserversTest {
         eventMethods shouldNotContain "copy"
         eventMethods shouldNotContain "component1"
 
-        context.shouldBeInstanceOf<Serializable>()
-        event.shouldBeInstanceOf<Serializable>()
+        Serializable::class.java.isAssignableFrom(context.javaClass).shouldBeFalse()
+        Serializable::class.java.isAssignableFrom(event.javaClass).shouldBeFalse()
     }
 
     @Test

@@ -2,6 +2,7 @@ package io.bluetape4k.leader.exposed.r2dbc.lock
 
 import io.bluetape4k.leader.exposed.ExposedLeaderSchema
 import io.bluetape4k.leader.exposed.internal.redactDatabaseUrlForLog
+import io.bluetape4k.leader.exposed.r2dbc.internal.validateExposedR2dbcLockName as validateInternalExposedR2dbcLockName
 import io.bluetape4k.leader.identity.LeaderInternalApi
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -73,4 +74,13 @@ internal object ExposedR2dbcSchemaInitializer: KLoggingChannel() {
     internal fun resetFor(db: R2dbcDatabase) {
         initializedDbs.remove(db.url)
     }
+}
+
+/**
+ * 1.0.0에서 노출된 JVM facade를 유지하는 호환용 lock name 검증 함수입니다.
+ */
+@Deprecated("use String.validateExposedR2dbcLockName() instead")
+@Suppress("DEPRECATION")
+fun validateExposedR2dbcLockName(lockName: String) {
+    validateInternalExposedR2dbcLockName(lockName)
 }

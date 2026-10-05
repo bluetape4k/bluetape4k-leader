@@ -1,6 +1,5 @@
 package io.bluetape4k.leader.diagnostics
 
-import io.bluetape4k.logging.KLogging
 import java.time.Clock
 import java.util.concurrent.CancellationException
 import kotlin.time.Duration
@@ -15,7 +14,7 @@ import kotlin.time.Duration
  * [CancellationException]과 [InterruptedException]은 동일 인스턴스로 재전파하고
  * interrupt flag를 복원합니다. 치명적인 [Error]도 숨기지 않고 재전파합니다.
  */
-object LeaderBackendDiagnosticsProbe: KLogging() {
+object LeaderBackendDiagnosticsProbe {
 
     /**
      * 기존 client 상태를 한 번 확인하고 framework-neutral connectivity 결과로 매핑합니다.

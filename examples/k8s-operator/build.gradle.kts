@@ -7,11 +7,11 @@ plugins {
 apply(plugin = "org.springframework.boot.aot")
 
 application {
-    mainClass.set("io.bluetape4k.leader.examples.k8soperator.K8sOperatorApp")
+    mainClass.set("io.bluetape4k.leader.examples.k8soperator.K8sOperatorAppKt")
 }
 
 springBoot {
-    mainClass.set("io.bluetape4k.leader.examples.k8soperator.K8sOperatorApp")
+    mainClass.set("io.bluetape4k.leader.examples.k8soperator.K8sOperatorAppKt")
 }
 
 configurations {

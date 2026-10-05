@@ -14,6 +14,7 @@ import io.bluetape4k.leader.k8s.internal.KubernetesLeaseGroupAcquisitionDeadline
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseNames
+import io.bluetape4k.leader.k8s.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -221,3 +222,12 @@ class KubernetesLeaseSuspendLeaderGroupElector @JvmOverloads constructor(
         val acquiredAtNanos: Long,
     )
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeaderGroup")
+suspend fun <T> KubernetesClient.legacySuspendRunIfLeaderGroup(
+    lockName: String,
+    options: KubernetesLeaseGroupOptions = KubernetesLeaseGroupOptions.Default,
+    action: suspend () -> T,
+): T? = this.currentSuspendRunIfLeaderGroup(lockName, options, action)

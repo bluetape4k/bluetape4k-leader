@@ -2,7 +2,6 @@ package io.bluetape4k.leader.spring.observability
 
 import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.LeaderElectionState
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireGe
 import org.springframework.boot.health.contributor.AbstractHealthIndicator
 import org.springframework.boot.health.contributor.Health
@@ -137,7 +136,7 @@ class LeaderElectionReadinessHealthIndicator private constructor(
             DETAIL_FAILED_LOCK_NAMES to emptyList<String>(),
         ) + failureDetails
 
-    companion object: KLogging() {
+    companion object {
         /** `0.5.0`에서 공개된 내부 JVM descriptor를 새 failure window 경계 뒤로 연결합니다. */
         @JvmSynthetic
         @Suppress("LongParameterList")

@@ -14,6 +14,7 @@ import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.leader.mongodb.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoSuspendSlotExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
@@ -219,3 +220,13 @@ class MongoSuspendLeaderGroupElector private constructor(
     ) =
         historyKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, error) }
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeaderGroup")
+suspend fun <T> MongoCollection<Document>.legacySuspendRunIfLeaderGroup(
+    coroutineGroupCollection: CoroutineMongoCollection<Document>,
+    lockName: String,
+    options: MongoLeaderGroupElectionOptions = MongoLeaderGroupElectionOptions.Default,
+    action: suspend () -> T,
+): T? = this.currentSuspendRunIfLeaderGroup(coroutineGroupCollection, lockName, options, action)

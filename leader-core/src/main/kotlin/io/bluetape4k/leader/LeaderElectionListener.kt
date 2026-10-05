@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import java.io.Serializable
 import java.time.Instant
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.function.Consumer
 
 /**
@@ -259,12 +259,10 @@ interface LeaderElectionListenerRegistry {
  */
 open class LeaderElectionListenerSupport: LeaderElectionListenerRegistry {
 
-    private val listeners = ConcurrentLinkedQueue<LeaderElectionListener>()
+    private val listeners = CopyOnWriteArrayList<LeaderElectionListener>()
 
     override fun addListener(listener: LeaderElectionListener): AutoCloseable {
-        if (listeners.contains(listener).not()) {
-            listeners.add(listener)
-        }
+        listeners.addIfAbsent(listener)
         return AutoCloseable { removeListener(listener) }
     }
 

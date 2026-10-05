@@ -77,9 +77,11 @@ fun <T> Client.runVirtualIfLeader(
     lockName: String,
     options: EtcdLeaderElectionOptions = EtcdLeaderElectionOptions.Default,
     action: () -> T,
-): VirtualFuture<T?> =
-    EtcdVirtualThreadLeaderElector(EtcdLeaderElector(this, options))
+): VirtualFuture<T?> {
+    lockName.validateLockName()
+    return EtcdVirtualThreadLeaderElector(EtcdLeaderElector(this, options))
         .runAsyncIfLeader(lockName, action)
+}
 
 fun <T> Client.runVirtualIfLeaderGroup(
     lockName: String,

@@ -18,6 +18,7 @@ import io.bluetape4k.leader.etcd.internal.JetcdEtcdLockClient
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
+import io.bluetape4k.leader.etcd.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -202,3 +203,12 @@ class EtcdSuspendLeaderElector private constructor(
     }
 
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeader")
+suspend inline fun <T> Client.legacySuspendRunIfLeader(
+    lockName: String,
+    options: EtcdLeaderElectionOptions = EtcdLeaderElectionOptions.Default,
+    noinline action: suspend () -> T,
+): T? = this.currentSuspendRunIfLeader(lockName, options, action)

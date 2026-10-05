@@ -39,11 +39,12 @@ class LeaderAuditExportSnapshot private constructor(payload: Payload) {
             .add("retries", retries)
             .add("terminalFailures", terminalFailures)
             .add("cancellations", cancellations)
-            .add("schedulerRejections", schedulerRejections)
+            .add("executorRejections", executorRejections)
             .add("schedulerRejections", schedulerRejections)
             .add("observerDrops", observerDrops)
             .add("observerRegistrationDrops", observerRegistrationDrops)
             .add("diagnosticsFatalErrors", diagnosticsFatalErrors)
+            .add("diagnosticsClosed", diagnosticsClosed)
             .add("closed", closed)
             .toString()
     }

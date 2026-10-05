@@ -2,12 +2,14 @@ package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.concurrent.virtualthread.virtualFuture
+import io.bluetape4k.leader.dynamodb.runVirtualIfLeaderGroup as currentRunVirtualIfLeaderGroup
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.VirtualThreadLeaderGroupElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 
 /**
  * `DynamoDbVirtualThreadLeaderGroupElector`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
@@ -45,3 +47,12 @@ class DynamoDbVirtualThreadLeaderGroupElector(
             virtualFuture { delegate.runIfLeaderResult(slot, action) }
         )
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runVirtualIfLeaderGroup")
+fun <T> DynamoDbClient.legacyRunVirtualIfLeaderGroup(
+    lockName: String,
+    options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
+    action: () -> T,
+): VirtualFuture<T?> = this.currentRunVirtualIfLeaderGroup(lockName, options, action)

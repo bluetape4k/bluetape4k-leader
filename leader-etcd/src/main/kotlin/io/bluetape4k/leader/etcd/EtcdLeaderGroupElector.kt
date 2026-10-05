@@ -25,6 +25,8 @@ import io.bluetape4k.leader.etcd.internal.etcdCleanupTimeout
 import io.bluetape4k.leader.etcd.internal.getWithinEtcdCleanupTimeout
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.leader.etcd.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
+import io.bluetape4k.leader.etcd.runIfLeaderGroup as currentRunIfLeaderGroup
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -438,3 +440,22 @@ class EtcdLeaderGroupElector private constructor(
         }
     }
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runIfLeaderGroup")
+inline fun <T> Client.legacyRunIfLeaderGroup(
+    lockName: String,
+    options: EtcdLeaderGroupElectionOptions = EtcdLeaderGroupElectionOptions.Default,
+    crossinline action: () -> T,
+): T? = this.currentRunIfLeaderGroup(lockName, options, action)
+
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("runAsyncIfLeaderGroup")
+fun <T> Client.legacyRunAsyncIfLeaderGroup(
+    lockName: String,
+    options: EtcdLeaderGroupElectionOptions = EtcdLeaderGroupElectionOptions.Default,
+    executor: Executor = io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor,
+    action: () -> CompletableFuture<T>,
+): CompletableFuture<T?> = this.currentRunAsyncIfLeaderGroup(lockName, options, executor, action)

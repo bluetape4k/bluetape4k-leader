@@ -1,7 +1,6 @@
 package io.bluetape4k.leader.spring.properties
 
 import io.bluetape4k.leader.LeaderGroupElectionOptions
-import io.bluetape4k.logging.KLogging
 import java.time.Duration
 import kotlin.jvm.internal.DefaultConstructorMarker
 import kotlin.time.toKotlinDuration
@@ -54,7 +53,7 @@ data class LeaderGroupProperties(
         useDbTime = useDbTime,
     )
 
-    companion object: KLogging() {
+    companion object {
         const val DefaultMaxLeaders: Int = 2
         val DefaultWaitTime: Duration = Duration.ofSeconds(5)
         val DefaultLeaseTime: Duration = Duration.ofSeconds(60)

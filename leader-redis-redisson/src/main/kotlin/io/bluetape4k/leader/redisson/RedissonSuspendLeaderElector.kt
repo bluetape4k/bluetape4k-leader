@@ -16,6 +16,7 @@ import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonSuspendLockExtendDelegate
+import io.bluetape4k.leader.redisson.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -188,3 +189,12 @@ class RedissonSuspendLeaderElector private constructor(
         }
     }
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeader")
+suspend inline fun <T> RedissonClient.legacySuspendRunIfLeader(
+    jobName: String,
+    options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    crossinline action: suspend () -> T,
+): T? = this.currentSuspendRunIfLeader(jobName, options, action)

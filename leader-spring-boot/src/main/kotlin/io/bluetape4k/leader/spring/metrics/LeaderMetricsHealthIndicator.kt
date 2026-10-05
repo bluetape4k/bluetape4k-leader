@@ -1,6 +1,6 @@
 package io.bluetape4k.leader.spring.metrics
 
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.KotlinLogging
 import io.bluetape4k.logging.debug
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.boot.health.contributor.AbstractHealthIndicator
@@ -16,7 +16,9 @@ class LeaderMetricsHealthIndicator(
     private val registry: MeterRegistry,
 ): AbstractHealthIndicator("Leader AOP metrics health check failed") {
 
-    companion object: KLogging() {
+    companion object {
+        private val log = KotlinLogging.logger {}
+
         private const val METER_ACTIVE = "leader.aop.active"
         private const val DETAIL_ACTIVE = "active"
         private const val DETAIL_TRACKED_LOCKS = "trackedLocks"

@@ -98,7 +98,18 @@ non-published [`benchmark`](./benchmark) 모듈은 leader election backend를 �
 |--------|------|--------:|--------:|----------:|----------:|--------:|--------:|----------:|----------:|-------------:|------:|---------:|
 
 <!-- LEADER_CAPABILITY_MATRIX:START -->
-| Local | `bluetape4k-leader-core` | N | B | N | B | N | B | N | B | S | S/G | S | | Lettuce | `bluetape4k-leader-redis-lettuce` | N | N | N | — | N | N | N | — | S | G | — | | Redisson | `bluetape4k-leader-redis-redisson` | N | N | N | — | N | N | N | — | S | G | — | | Exposed JDBC | `bluetape4k-leader-exposed-jdbc` | N | B | — | B | N | B | — | — | S | G | — | | Exposed R2DBC | `bluetape4k-leader-exposed-r2dbc` | — | — | N | — | — | — | N | — | S | G | — | | MongoDB | `bluetape4k-leader-mongodb` | N | N | N | — | N | N | N | — | S | G | — | | Hazelcast | `bluetape4k-leader-hazelcast` | N | B | B | — | N | B | B | — | S | G | — | | etcd | `bluetape4k-leader-etcd` | N | B | N | B | N | B | N | — | S | G | — | | Consul | `bluetape4k-leader-consul` | N | B | N | — | N | B | N | — | S | S/G | S | | DynamoDB | `bluetape4k-leader-dynamodb` | N | B | N | B | N | B | N | B | S | S/G | S | | Kubernetes | `bluetape4k-leader-k8s` | N | B | B | — | N | B | B | — | S | S/G | S | | ZooKeeper | `bluetape4k-leader-zookeeper` | N | B | B | — | N | B | B | — | — | G | — |
+| Local | `bluetape4k-leader-core` | N | B | N | B | N | B | N | B | S | S/G | S |
+| Lettuce | `bluetape4k-leader-redis-lettuce` | N | N | N | — | N | N | N | — | S | G | — |
+| Redisson | `bluetape4k-leader-redis-redisson` | N | N | N | — | N | N | N | — | S | G | — |
+| Exposed JDBC | `bluetape4k-leader-exposed-jdbc` | N | B | — | B | N | B | — | — | S | G | — |
+| Exposed R2DBC | `bluetape4k-leader-exposed-r2dbc` | — | — | N | — | — | — | N | — | S | G | — |
+| MongoDB | `bluetape4k-leader-mongodb` | N | N | N | — | N | N | N | — | S | G | — |
+| Hazelcast | `bluetape4k-leader-hazelcast` | N | B | B | — | N | B | B | — | S | G | — |
+| etcd | `bluetape4k-leader-etcd` | N | B | N | B | N | B | N | — | S | G | — |
+| Consul | `bluetape4k-leader-consul` | N | B | N | — | N | B | N | — | S | S/G | S |
+| DynamoDB | `bluetape4k-leader-dynamodb` | N | B | N | B | N | B | N | B | S | S/G | S |
+| Kubernetes | `bluetape4k-leader-k8s` | N | B | B | — | N | B | B | — | S | S/G | S |
+| ZooKeeper | `bluetape4k-leader-zookeeper` | N | B | B | — | N | B | B | — | — | G | — |
 <!-- LEADER_CAPABILITY_MATRIX:END -->
 
 이 matrix는 현재 source tree를 기준으로 검증합니다. 버전별 매뉴얼은 해당 release commit에 고정되어 있으므로 안정판 동작은 매뉴얼을, 개발 중인 capability 선택은 이 matrix를 기준으로 확인하세요.

@@ -4,7 +4,6 @@ import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.LeaderElectionState
 import io.bluetape4k.leader.LeaderElector
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotNull
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation
@@ -31,7 +30,7 @@ class LeaderElectionStatusEndpoint private constructor(
     constructorMarker: Any?,
 ) {
 
-    companion object: KLogging() {
+    companion object {
         /** `0.5.0`에서 공개된 내부 JVM descriptor를 새 failure window 경계 뒤로 연결합니다. */
         @JvmSynthetic
         internal fun fromSelectedState(
@@ -239,7 +238,7 @@ data class LeaderElectionStatusResponse(
         acquisitionFailures = acquisitionFailures,
     )
 
-    companion object: KLogging() {
+    companion object {
         /** Preserves Kotlin's published single-argument `copy$default` descriptor. */
         @JvmStatic
         @Suppress("UNUSED_PARAMETER", "FunctionNaming")

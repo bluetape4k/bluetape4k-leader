@@ -18,6 +18,70 @@ from check_binary_api import is_intentionally_ignored
 
 
 class BinaryApiClassificationTest(unittest.TestCase):
+    def test_report_blocks_split_plain_modified_class_headers(self) -> None:
+        output = """***  MODIFIED CLASS: PUBLIC FINAL io.example.First  (not serializable)
+\t***  MODIFIED SUPERCLASS: java.lang.Exception (<- java.lang.RuntimeException)
+***  MODIFIED CLASS: PUBLIC FINAL io.example.Second  (not serializable)
+\t***  MODIFIED SUPERCLASS: java.lang.Error (<- java.lang.RuntimeException)
+"""
+
+        blocks = check_binary_api.report_blocks(output)
+
+        self.assertEqual(len(blocks), 2)
+        self.assertEqual(check_binary_api.block_class_name(blocks[0]), "io.example.First")
+        self.assertEqual(check_binary_api.block_class_name(blocks[1]), "io.example.Second")
+
+    def test_same_class_file_format_does_not_hide_default_serial_uid_change(self) -> None:
+        block = """***  MODIFIED CLASS: PUBLIC FINAL io.example.SerializableApi  (default serialVersionUID changed)
+\t===  CLASS FILE FORMAT VERSION: 69.0 <- 69.0
+\t===  UNCHANGED SUPERCLASS: java.lang.Object (<- java.lang.Object)
+"""
+
+        self.assertIsNone(is_intentionally_ignored(block))
+        self.assertTrue(check_binary_api.is_unclassified_incompatibility(block))
+
+    def test_explicitly_preserved_mongodb_serial_uids_are_classified_exactly(self) -> None:
+        for owner, serial_uid in check_binary_api.EXPLICITLY_PRESERVED_SERIAL_UIDS.items():
+            with self.subTest(owner=owner, serial_uid=serial_uid):
+                block = (
+                    f"***  MODIFIED CLASS: PUBLIC FINAL {owner}  "
+                    "(serialVersionUID removed but not matches new default serialVersionUID)\n"
+                    "\t===  CLASS FILE FORMAT VERSION: 69.0 <- 69.0\n"
+                    "\t===  UNCHANGED SUPERCLASS: java.lang.Object (<- java.lang.Object)\n"
+                )
+                self.assertEqual(
+                    is_intentionally_ignored(block),
+                    f"explicit legacy serialVersionUID retained ({serial_uid})",
+                )
+
+    def test_kotlin_file_facade_lambda_removal_is_classified_narrowly(self) -> None:
+        block = """---! REMOVED CLASS: PUBLIC(-) STATIC(-) FINAL(-) io.bluetape4k.leader.etcd.EtcdSuspendLeaderElectorKt$suspendRunIfLeader$2  (not serializable)
+\t---! REMOVED CONSTRUCTOR: PUBLIC(-) EtcdSuspendLeaderElectorKt$suspendRunIfLeader$2(kotlin.coroutines.Continuation)
+\t---! REMOVED METHOD: PUBLIC(-) FINAL(-) java.lang.Object invokeSuspend(java.lang.Object)
+"""
+        unrelated = """---! REMOVED CLASS: PUBLIC(-) STATIC(-) FINAL(-) io.example.PublicApi$runIfLeader$1  (not serializable)
+\t---! REMOVED METHOD: PUBLIC(-) FINAL(-) java.lang.Object invoke()
+"""
+
+        self.assertEqual(
+            is_intentionally_ignored(block),
+            "compiler-generated Kotlin lambda/state-machine class",
+        )
+        self.assertIsNone(is_intentionally_ignored(unrelated))
+
+    def test_known_synthetic_accessors_require_exact_owner_and_descriptor(self) -> None:
+        for owner, descriptors in check_binary_api.KNOWN_SYNTHETIC_ACCESSORS.items():
+            for descriptor in descriptors:
+                with self.subTest(owner=owner, descriptor=descriptor):
+                    block = (
+                        f"***! MODIFIED CLASS: PUBLIC FINAL {owner}  (not serializable)\n"
+                        f"\t---! REMOVED METHOD: {descriptor}\n"
+                    )
+                    self.assertEqual(
+                        is_intentionally_ignored(block),
+                        "compiler-generated synthetic accessor",
+                    )
+
     def test_class_format_and_synthetic_accessor_are_ignored_together(self) -> None:
         block = """***! MODIFIED CLASS: PUBLIC FINAL io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcLockKt  (not serializable)
 \t***! CLASS FILE FORMAT VERSION: 69.0 <- 65.0

@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import java.time.Duration
 import java.time.Instant
 
 class ExposedLeaderHistorySinkTest: AbstractExposedJdbcLeaderTest() {
@@ -45,7 +46,13 @@ class ExposedLeaderHistorySinkTest: AbstractExposedJdbcLeaderTest() {
         row[LeaderLockHistoryTable.lockName] shouldBeEqualTo record.lockName
         row[LeaderLockHistoryTable.token] shouldBeEqualTo record.token
         row[LeaderLockHistoryTable.kind] shouldBeEqualTo record.kind
-        row[LeaderLockHistoryTable.lockedUntil] shouldBeEqualTo record.lockedUntil
+        val persistedLeaseDeadline = row[LeaderLockHistoryTable.lockedUntil]
+        check(
+            Duration.between(persistedLeaseDeadline, record.lockedUntil).abs() < Duration.ofSeconds(1),
+        ) {
+            "Persisted lease deadline differs by more than the database timestamp precision: " +
+                    "expected=${record.lockedUntil}, actual=$persistedLeaseDeadline"
+        }
 
         row[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.ACQUIRED
         row[LeaderLockHistoryTable.finishedAt].shouldBeNull()

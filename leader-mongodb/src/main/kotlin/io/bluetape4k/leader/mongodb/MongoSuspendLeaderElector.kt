@@ -15,6 +15,7 @@ import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
+import io.bluetape4k.leader.mongodb.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoSuspendLockExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
@@ -142,3 +143,12 @@ class MongoSuspendLeaderElector private constructor(
         }
     }
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeader")
+suspend fun <T> MongoCollection<Document>.legacySuspendRunIfLeader(
+    lockName: String,
+    options: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,
+    action: suspend () -> T,
+): T? = this.currentSuspendRunIfLeader(lockName, options, action)

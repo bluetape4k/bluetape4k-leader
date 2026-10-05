@@ -1,4 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1320" height="940" viewBox="0 0 1320 940">
+    <title>Kubernetes Lease Scenario Latency</title>
+    <desc>Latency comparison for Kubernetes Lease scenarios; lower microseconds per operation is better, and renewal and conflict rows use direct Lease API probes.</desc>
     <rect width="1320" height="940" fill="#f8f6ef"/>
     <style>text{font-family:"Comic Mono","Comic Sans MS","Comic
         Neue",Arial,sans-serif;fill:#24313f}.title{font-family:"Architects Daughter","Comic Sans

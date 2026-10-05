@@ -14,6 +14,8 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.leader.zookeeper.runAsyncIfLeader as currentRunAsyncIfLeader
+import io.bluetape4k.leader.zookeeper.runIfLeader as currentRunIfLeader
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperLockExtendDelegate
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperOwnedInterProcessMutex
@@ -160,3 +162,43 @@ class ZooKeeperLeaderElector private constructor(
         )
     }
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runIfLeader")
+inline fun <T> CuratorFramework.legacyRunIfLeaderByPath(
+    path: ZooKeeperElectionPath,
+    options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    crossinline action: () -> T,
+): T? = this.currentRunIfLeader(path, options, action)
+
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("runIfLeader")
+inline fun <T> CuratorFramework.legacyRunIfLeaderByName(
+    lockName: String,
+    basePath: String = ZooKeeperLeaderElector.DEFAULT_BASE_PATH,
+    options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    crossinline action: () -> T,
+): T? = this.currentRunIfLeader(lockName, basePath, options, action)
+
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("runAsyncIfLeader")
+fun <T> CuratorFramework.legacyRunAsyncIfLeaderByPath(
+    path: ZooKeeperElectionPath,
+    executor: Executor = VirtualThreadExecutor,
+    options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    action: () -> CompletableFuture<T>,
+): CompletableFuture<T?> = this.currentRunAsyncIfLeader(path, executor, options, action)
+
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("runAsyncIfLeader")
+fun <T> CuratorFramework.legacyRunAsyncIfLeaderByName(
+    lockName: String,
+    executor: Executor = VirtualThreadExecutor,
+    basePath: String = ZooKeeperLeaderElector.DEFAULT_BASE_PATH,
+    options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    action: () -> CompletableFuture<T>,
+): CompletableFuture<T?> = this.currentRunAsyncIfLeader(lockName, executor, basePath, options, action)

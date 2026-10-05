@@ -15,7 +15,6 @@ import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.exists
 import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.insertAndGetId
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
@@ -66,13 +65,13 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
         withTables(testDB, LeaderLockHistoryTable) {
             val now = Instant.now()
 
-            fun insertRow(): UUID = LeaderLockHistoryTable.insertAndGetId {
+            fun insertRow(): Long = LeaderLockHistoryTable.insert {
                 it[lockName] = "auto-inc"
                 it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
                 it[status] = LeaderHistoryStatus.ACQUIRED
                 it[startedAt] = now
-            }.value
+            }[LeaderLockHistoryTable.id]
 
             val id1 = insertRow()
             val id2 = insertRow()
@@ -111,14 +110,14 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
         withTables(testDB, LeaderLockHistoryTable) {
             val now = Instant.now()
 
-            val id = LeaderLockHistoryTable.insertAndGetId {
+            val id = LeaderLockHistoryTable.insert {
                 it[lockName] = "nullable-test"
                 it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
                 it[status] = LeaderHistoryStatus.ACQUIRED
                 it[startedAt] = now
                 // finishedAt, durationMs 미설정 — null 허용
-            }
+            }[LeaderLockHistoryTable.id]
 
             val row = LeaderLockHistoryTable.selectAll()
                 .where { LeaderLockHistoryTable.id eq id }

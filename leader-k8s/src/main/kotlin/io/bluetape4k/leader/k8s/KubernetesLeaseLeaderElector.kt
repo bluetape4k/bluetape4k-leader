@@ -17,6 +17,8 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.leader.k8s.runAsyncIfLeader as currentRunAsyncIfLeader
+import io.bluetape4k.leader.k8s.runIfLeader as currentRunIfLeader
 import io.bluetape4k.leader.k8s.internal.KubernetesBackendErrorClassifier
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
@@ -300,3 +302,22 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
         )
     }
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runIfLeader")
+fun <T> KubernetesClient.legacyRunIfLeader(
+    lockName: String,
+    options: KubernetesLeaseOptions = KubernetesLeaseOptions.Default,
+    action: () -> T,
+): T? = this.currentRunIfLeader(lockName, options, action)
+
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("runAsyncIfLeader")
+fun <T> KubernetesClient.legacyRunAsyncIfLeader(
+    lockName: String,
+    executor: Executor = io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor,
+    options: KubernetesLeaseOptions = KubernetesLeaseOptions.Default,
+    action: () -> CompletableFuture<T>,
+): CompletableFuture<T?> = this.currentRunAsyncIfLeader(lockName, executor, options, action)

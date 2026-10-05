@@ -19,7 +19,7 @@ import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LocalRequestLeaseStore
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.leader.parkRemainingMinLeaseTime
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.KotlinLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.support.requireNotBlank
 import kotlinx.atomicfu.locks.withLock
@@ -29,6 +29,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.time.Duration
+
+private val log = KotlinLogging.logger {}
 
 /**
  * `AbstractLocalLeaderElector` 선언은 leader election 계약에서 사용되는 class입니다.
@@ -43,7 +45,7 @@ abstract class AbstractLocalLeaderElector(
    LeaderLeaseAcquirer,
    LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
 
-    companion object: KLogging() {
+    companion object {
         /**
          * `LOCAL_FACTORY_BEAN_NAME`는 backend별 leader elector 인스턴스를 생성하는 factory 계약입니다.
          */

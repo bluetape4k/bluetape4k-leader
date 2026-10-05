@@ -101,7 +101,18 @@ Full tables, latency chart, run command, and caveats are in the
 |---------|--------|--------:|--------:|----------:|----------:|--------:|--------:|----------:|----------:|-------------:|------:|---------:|
 
 <!-- LEADER_CAPABILITY_MATRIX:START -->
-| Local | `bluetape4k-leader-core` | N | B | N | B | N | B | N | B | S | S/G | S | | Lettuce | `bluetape4k-leader-redis-lettuce` | N | N | N | — | N | N | N | — | S | G | — | | Redisson | `bluetape4k-leader-redis-redisson` | N | N | N | — | N | N | N | — | S | G | — | | Exposed JDBC | `bluetape4k-leader-exposed-jdbc` | N | B | — | B | N | B | — | — | S | G | — | | Exposed R2DBC | `bluetape4k-leader-exposed-r2dbc` | — | — | N | — | — | — | N | — | S | G | — | | MongoDB | `bluetape4k-leader-mongodb` | N | N | N | — | N | N | N | — | S | G | — | | Hazelcast | `bluetape4k-leader-hazelcast` | N | B | B | — | N | B | B | — | S | G | — | | etcd | `bluetape4k-leader-etcd` | N | B | N | B | N | B | N | — | S | G | — | | Consul | `bluetape4k-leader-consul` | N | B | N | — | N | B | N | — | S | S/G | S | | DynamoDB | `bluetape4k-leader-dynamodb` | N | B | N | B | N | B | N | B | S | S/G | S | | Kubernetes | `bluetape4k-leader-k8s` | N | B | B | — | N | B | B | — | S | S/G | S | | ZooKeeper | `bluetape4k-leader-zookeeper` | N | B | B | — | N | B | B | — | — | G | — |
+| Local | `bluetape4k-leader-core` | N | B | N | B | N | B | N | B | S | S/G | S |
+| Lettuce | `bluetape4k-leader-redis-lettuce` | N | N | N | — | N | N | N | — | S | G | — |
+| Redisson | `bluetape4k-leader-redis-redisson` | N | N | N | — | N | N | N | — | S | G | — |
+| Exposed JDBC | `bluetape4k-leader-exposed-jdbc` | N | B | — | B | N | B | — | — | S | G | — |
+| Exposed R2DBC | `bluetape4k-leader-exposed-r2dbc` | — | — | N | — | — | — | N | — | S | G | — |
+| MongoDB | `bluetape4k-leader-mongodb` | N | N | N | — | N | N | N | — | S | G | — |
+| Hazelcast | `bluetape4k-leader-hazelcast` | N | B | B | — | N | B | B | — | S | G | — |
+| etcd | `bluetape4k-leader-etcd` | N | B | N | B | N | B | N | — | S | G | — |
+| Consul | `bluetape4k-leader-consul` | N | B | N | — | N | B | N | — | S | S/G | S |
+| DynamoDB | `bluetape4k-leader-dynamodb` | N | B | N | B | N | B | N | B | S | S/G | S |
+| Kubernetes | `bluetape4k-leader-k8s` | N | B | B | — | N | B | B | — | S | S/G | S |
+| ZooKeeper | `bluetape4k-leader-zookeeper` | N | B | B | — | N | B | B | — | — | G | — |
 <!-- LEADER_CAPABILITY_MATRIX:END -->
 
 This matrix is validated against the current source tree. The versioned manual remains pinned to its release commit, so use it for stable-release behavior and this matrix for development-line capability selection.

@@ -19,11 +19,22 @@ import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.slf4j.LoggerFactory
+import java.lang.reflect.Modifier
 import java.util.concurrent.atomic.AtomicInteger
 
 class ExposedJdbcSchemaInitializerTest: AbstractExposedJdbcLeaderTest() {
 
     companion object: KLogging()
+
+    @org.junit.jupiter.api.Test
+    fun `legacy lock-name JVM facade remains available`() {
+        val method = Class.forName(
+            "io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializerKt"
+        ).getDeclaredMethod("validateExposedLockName", String::class.java)
+
+        method.returnType shouldBeEqualTo Void.TYPE
+        (Modifier.isPublic(method.modifiers) && Modifier.isStatic(method.modifiers)) shouldBeEqualTo true
+    }
 
     @TestFactory
     fun `database URL redaction contract`() =

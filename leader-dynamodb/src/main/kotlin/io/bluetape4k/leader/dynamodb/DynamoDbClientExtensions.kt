@@ -3,9 +3,13 @@ package io.bluetape4k.leader.dynamodb
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.validateLockName
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+
+import io.bluetape4k.leader.dynamodb.suspendRunIfLeader as currentSuspendRunIfLeader
+import io.bluetape4k.leader.dynamodb.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 
 /**
  * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
@@ -99,3 +103,21 @@ fun <T> DynamoDbClient.runVirtualIfLeaderGroup(
     return DynamoDbVirtualThreadLeaderGroupElector(DynamoDbLeaderGroupElector(this, options))
         .runAsyncIfLeader(lockName, action)
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeader")
+suspend fun <T> DynamoDbAsyncClient.legacySuspendRunIfLeader(
+    lockName: String,
+    options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
+    action: suspend () -> T,
+): T? = this.currentSuspendRunIfLeader(lockName, options, action)
+
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeaderGroup")
+suspend fun <T> DynamoDbAsyncClient.legacySuspendRunIfLeaderGroup(
+    lockName: String,
+    options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
+    action: suspend () -> T,
+): T? = this.currentSuspendRunIfLeaderGroup(lockName, options, action)

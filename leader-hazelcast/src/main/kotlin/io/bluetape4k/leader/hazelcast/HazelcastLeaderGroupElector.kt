@@ -19,6 +19,7 @@ import io.bluetape4k.leader.hazelcast.internal.HazelcastSlotExtendDelegate
 import io.bluetape4k.leader.hazelcast.lock.HazelcastLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.leader.hazelcast.runIfLeaderGroup as currentRunIfLeaderGroup
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -271,3 +272,12 @@ class HazelcastLeaderGroupElector private constructor(
     private fun Throwable.unwrapCompletionCause(): Throwable =
         (this as? CompletionException)?.cause ?: this
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runIfLeaderGroup")
+inline fun <T> HazelcastInstance.legacyRunIfLeaderGroup(
+    lockName: String,
+    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
+    crossinline action: () -> T,
+): T? = this.currentRunIfLeaderGroup(lockName, options, action)

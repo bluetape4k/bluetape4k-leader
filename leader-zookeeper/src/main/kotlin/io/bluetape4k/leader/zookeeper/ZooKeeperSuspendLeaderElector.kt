@@ -8,6 +8,7 @@ import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.zookeeper.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperOwnedInterProcessMutex
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperSuspendLockExtendDelegate
@@ -201,3 +202,22 @@ class ZooKeeperSuspendLeaderElector private constructor(
         }
     }
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeader")
+suspend inline fun <T> CuratorFramework.legacySuspendRunIfLeaderByPath(
+    path: ZooKeeperElectionPath,
+    options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    crossinline action: suspend () -> T,
+): T? = this.currentSuspendRunIfLeader(path, options, action)
+
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeader")
+suspend inline fun <T> CuratorFramework.legacySuspendRunIfLeaderByName(
+    lockName: String,
+    basePath: String = ZooKeeperSuspendLeaderElector.DEFAULT_BASE_PATH,
+    options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    crossinline action: suspend () -> T,
+): T? = this.currentSuspendRunIfLeader(lockName, basePath, options, action)

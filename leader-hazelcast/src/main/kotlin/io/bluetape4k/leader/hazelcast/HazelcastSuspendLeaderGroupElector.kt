@@ -15,6 +15,7 @@ import io.bluetape4k.leader.hazelcast.internal.HazelcastSuspendSlotExtendDelegat
 import io.bluetape4k.leader.hazelcast.lock.HazelcastSuspendLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.leader.hazelcast.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -145,3 +146,12 @@ class HazelcastSuspendLeaderGroupElector private constructor(
         }
     }
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeaderGroup")
+suspend inline fun <T> HazelcastInstance.legacySuspendRunIfLeaderGroup(
+    lockName: String,
+    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
+    crossinline action: suspend () -> T,
+): T? = this.currentSuspendRunIfLeaderGroup(lockName, options, action)

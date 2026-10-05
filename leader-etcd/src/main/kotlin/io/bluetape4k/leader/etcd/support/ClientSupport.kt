@@ -12,16 +12,17 @@ fun etcdClientOf(
     endpoint: String,
     connectTimeout: kotlin.time.Duration? = null,
     retryMaxDelay: Long? = null,
-    retryMaxAttemps: Int? = null,
+    retryMaxAttempts: Int? = null,
     keepaliveTimeout: kotlin.time.Duration? = null,
     executorService: ExecutorService? = null,
     block: ClientBuilder.() -> Unit = {},
 ): Client =
     etcdClient {
         endpoints(endpoint)
-        connectTimeout?.let { connectTimeout(it.toJavaDuration()) }
-        retryMaxDelay?.let { retryMaxDelay(it) }
-        retryMaxAttemps?.let { retryMaxAttempts(it) }
-        keepaliveTimeout?.let { keepaliveTimeout(it.toJavaDuration()) }
-        executorService?.let { executorService(executorService) }
+        connectTimeout?.let { this.connectTimeout(it.toJavaDuration()) }
+        retryMaxDelay?.let { this.retryMaxDelay(it) }
+        retryMaxAttempts?.let { this.retryMaxAttempts(it) }
+        keepaliveTimeout?.let { this.keepaliveTimeout(it.toJavaDuration()) }
+        executorService?.let { this.executorService(it) }
+        block()
     }

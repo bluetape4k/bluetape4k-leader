@@ -2,7 +2,6 @@ package io.bluetape4k.leader.spring.aop.util
 
 import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.validateLockName
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireLe
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
@@ -21,7 +20,7 @@ class LockNameValidator(
     val prefix: String = "",
     val maxLength: Int = DEFAULT_MAX_LENGTH,
 ) {
-    companion object: KLogging() {
+    companion object {
         const val DEFAULT_MAX_LENGTH: Int = 256
         private val NAME_PATTERN = Regex("^[A-Za-z0-9_:.\\-]+$")
     }

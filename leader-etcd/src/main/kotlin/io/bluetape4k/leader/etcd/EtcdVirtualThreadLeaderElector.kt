@@ -2,8 +2,10 @@ package io.bluetape4k.leader.etcd
 
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.concurrent.virtualthread.virtualFuture
+import io.bluetape4k.leader.etcd.runVirtualIfLeader as currentRunVirtualIfLeader
 import io.bluetape4k.leader.VirtualThreadLeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.etcd.jetcd.Client
 
 /**
  * `EtcdVirtualThreadLeaderElector`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
@@ -21,3 +23,12 @@ class EtcdVirtualThreadLeaderElector(
             delegate.runIfLeader(lockName, action)
         }
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runVirtualIfLeader")
+fun <T> Client.legacyRunVirtualIfLeader(
+    lockName: String,
+    options: EtcdLeaderElectionOptions = EtcdLeaderElectionOptions.Default,
+    action: () -> T,
+): VirtualFuture<T?> = this.currentRunVirtualIfLeader(lockName, options, action)

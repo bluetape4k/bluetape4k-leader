@@ -32,14 +32,14 @@
             "path": "leader-core/src/main/kotlin/io/bluetape4k/leader/local/LocalAsyncLeaderElector.kt",
             "tokens": [
               "class LocalAsyncLeaderElector",
-              "CompletableFuture.supplyAsync"
+              "futureOf("
             ]
           },
           {
             "path": "leader-core/src/main/kotlin/io/bluetape4k/leader/local/LocalAsyncLeaderGroupElector.kt",
             "tokens": [
               "class LocalAsyncLeaderGroupElector",
-              "CompletableFuture.supplyAsync"
+              "futureOf("
             ]
           },
           {
@@ -175,7 +175,7 @@
             "tokens": [
               "class ExposedJdbcLeaderGroupElector",
               "override fun state(",
-              "CompletableFuture.supplyAsync"
+              "futureOf("
             ]
           },
           {
@@ -297,7 +297,7 @@
             "tokens": [
               "class HazelcastLeaderGroupElector",
               "override fun state(",
-              "CompletableFuture.supplyAsync"
+              "futureOf("
             ]
           },
           {
@@ -337,7 +337,7 @@
             "path": "leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderElector.kt",
             "tokens": [
               "class EtcdLeaderElector",
-              "CompletableFuture.supplyAsync",
+              "futureOf(",
               "options.leaderOptions.autoExtend"
             ]
           },
@@ -346,7 +346,7 @@
             "tokens": [
               "class EtcdLeaderGroupElector",
               "override fun state(",
-              "CompletableFuture.supplyAsync"
+              "futureOf("
             ]
           },
           {
@@ -388,7 +388,7 @@
             "path": "leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/ConsulLeaderElector.kt",
             "tokens": [
               "class ConsulLeaderElector",
-              "CompletableFuture.supplyAsync",
+              "futureOf(",
               "supportsAuditLeaderState: Boolean = true",
               "options.leaderOptions.autoExtend"
             ]
@@ -398,7 +398,7 @@
             "tokens": [
               "class ConsulLeaderGroupElector",
               "override fun state(",
-              "CompletableFuture.supplyAsync"
+              "futureOf("
             ]
           },
           {
@@ -433,7 +433,7 @@
             "path": "leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/DynamoDbLeaderElector.kt",
             "tokens": [
               "class DynamoDbLeaderElector",
-              "CompletableFuture.supplyAsync",
+              "futureOf(",
               "supportsAuditLeaderState: Boolean = true",
               "options.leaderOptions.autoExtend"
             ]
@@ -443,7 +443,7 @@
             "tokens": [
               "class DynamoDbLeaderGroupElector",
               "override fun state(",
-              "CompletableFuture.supplyAsync"
+              "futureOf("
             ]
           },
           {
@@ -494,7 +494,7 @@
             "tokens": [
               "class KubernetesLeaseLeaderGroupElector",
               "override fun state(",
-              "CompletableFuture.supplyAsync"
+              "futureOf("
             ]
           },
           {
@@ -529,7 +529,7 @@
             "path": "leader-zookeeper/src/main/kotlin/io/bluetape4k/leader/zookeeper/ZooKeeperLeaderElector.kt",
             "tokens": [
               "class ZooKeeperLeaderElector",
-              "CompletableFuture.supplyAsync",
+              "futureOf(",
               "autoExtend=true 설정이 무시됩니다"
             ]
           },
@@ -538,7 +538,7 @@
             "tokens": [
               "class ZooKeeperLeaderGroupElector",
               "override fun state(",
-              "CompletableFuture.supplyAsync"
+              "futureOf("
             ]
           },
           {

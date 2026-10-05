@@ -13,7 +13,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.deleteWhere
-import org.jetbrains.exposed.v1.r2dbc.insertAndGetId
+import org.jetbrains.exposed.v1.r2dbc.insert
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
 import java.time.Instant
@@ -32,7 +32,7 @@ class ExposedSuspendLeaderHistorySink(
 
     override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
         val id = suspendTransaction(database) {
-            LeaderLockHistoryTable.insertAndGetId {
+            LeaderLockHistoryTable.insert {
                 it[lockName] = record.lockName
                 it[token] = record.token
                 it[lockedUntil] = record.lockedUntil
@@ -43,7 +43,7 @@ class ExposedSuspendLeaderHistorySink(
                 it[slotId] = record.slotId
                 it[slot] = record.slotId?.toIntOrNull()
                 it[metadata] = MetadataJsonCodec.encode(record.metadata)
-            }.value
+            }[LeaderLockHistoryTable.id]
         }
         return LeaderHistoryKey(id = id, lockName = record.lockName, token = record.token, slotId = record.slotId)
     }

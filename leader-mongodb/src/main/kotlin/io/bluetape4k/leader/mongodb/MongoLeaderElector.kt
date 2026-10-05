@@ -18,6 +18,8 @@ import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.leader.mongodb.runAsyncIfLeader as currentRunAsyncIfLeader
+import io.bluetape4k.leader.mongodb.runIfLeader as currentRunIfLeader
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoLockExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoLock
@@ -344,3 +346,22 @@ class MongoLeaderElector private constructor(
         }
     }
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runIfLeader")
+fun <T> MongoCollection<Document>.legacyRunIfLeader(
+    lockName: String,
+    options: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,
+    action: () -> T,
+): T? = this.currentRunIfLeader(lockName, options, action)
+
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("runAsyncIfLeader")
+fun <T> MongoCollection<Document>.legacyRunAsyncIfLeader(
+    lockName: String,
+    executor: Executor = io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor,
+    options: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,
+    action: () -> CompletableFuture<T>,
+): CompletableFuture<T?> = this.currentRunAsyncIfLeader(lockName, executor, options, action)

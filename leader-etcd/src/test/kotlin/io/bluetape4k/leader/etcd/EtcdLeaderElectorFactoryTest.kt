@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.etcd
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -13,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -78,5 +81,18 @@ class EtcdLeaderElectorFactoryTest {
         suspendElector.options.leaderGroupOptions shouldBeEqualTo groupOptions
 
         verify(exactly = 0) { client.close() }
+    }
+
+    @Test
+    fun `virtual client extension rejects invalid lock name before submission`() {
+        val actionInvoked = AtomicBoolean(false)
+
+        assertFailsWith<IllegalArgumentException> {
+            client.runVirtualIfLeader("invalid lock") {
+                actionInvoked.set(true)
+            }
+        }
+
+        actionInvoked.get().shouldBeFalse()
     }
 }

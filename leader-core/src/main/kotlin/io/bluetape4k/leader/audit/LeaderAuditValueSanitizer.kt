@@ -1,7 +1,6 @@
 package io.bluetape4k.leader.audit
 
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.truncateUtf8
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
@@ -17,7 +16,7 @@ import java.util.*
  */
 sealed interface LeaderAuditValueSanitizer {
 
-    companion object: KLogging() {
+    companion object {
         /** v1에서 raw export를 허용하는 field의 고정 목록입니다. */
         val RAW_ALLOWED_FIELDS: Set<LeaderAuditField> = Collections.unmodifiableSet(setOf(LeaderAuditField.KIND))
     }

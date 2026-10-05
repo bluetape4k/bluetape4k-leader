@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.leader.dynamodb.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
+import io.bluetape4k.leader.dynamodb.runIfLeaderGroup as currentRunIfLeaderGroup
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
@@ -207,3 +209,22 @@ class DynamoDbLeaderGroupElector(
         }
     }
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runIfLeaderGroup")
+fun <T> DynamoDbClient.legacyRunIfLeaderGroup(
+    lockName: String,
+    options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
+    action: () -> T,
+): T? = this.currentRunIfLeaderGroup(lockName, options, action)
+
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("runAsyncIfLeaderGroup")
+fun <T> DynamoDbClient.legacyRunAsyncIfLeaderGroup(
+    lockName: String,
+    executor: Executor = io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor,
+    options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
+    action: () -> CompletableFuture<T>,
+): CompletableFuture<T?> = this.currentRunAsyncIfLeaderGroup(lockName, executor, options, action)

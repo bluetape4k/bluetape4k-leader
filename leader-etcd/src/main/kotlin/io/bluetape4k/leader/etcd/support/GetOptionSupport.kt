@@ -19,6 +19,5 @@ fun getOptionOf(
     sortField?.let { withSortField(it) }
     sortOrder?.let { withSortOrder(it) }
     limit?.let { withLimit(it) }
-
-    build()
+    block()
 }

@@ -17,6 +17,7 @@ import io.bluetape4k.leader.asCompletionException
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.leader.redisson.runIfLeaderGroup as currentRunIfLeaderGroup
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonSemaphoreExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
@@ -487,3 +488,12 @@ class RedissonLeaderGroupElector private constructor(
         }
     }
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runIfLeaderGroup")
+inline fun <T> RedissonClient.legacyRunIfLeaderGroup(
+    lockName: String,
+    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
+    crossinline action: () -> T,
+): T? = this.currentRunIfLeaderGroup(lockName, options, action)

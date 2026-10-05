@@ -30,12 +30,11 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
-import org.jetbrains.exposed.v1.r2dbc.insertAndGetId
+import org.jetbrains.exposed.v1.r2dbc.insert
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
 import java.time.Instant
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -293,7 +292,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
             val acquiredAtNanos = System.nanoTime()
             val startedAt = Instant.now()
             var cachedActiveCount: CachedActiveCount? = null
-            var historyId: UUID? = null
+            var historyId: Long? = null
             var watchdog: AutoCloseable? = null
             var actionSucceeded = false
             var actionFailed = false
@@ -378,14 +377,14 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         return null
     }
 
-    private suspend fun recordAcquired(lockName: String, token: String, slot: Int): UUID? {
+    private suspend fun recordAcquired(lockName: String, token: String, slot: Int): Long? {
         if (!options.recordHistory) return null
         val lockOwner = options.lockOwner
         val leaseTimeMs = options.leaderGroupOptions.leaseTime.inWholeMilliseconds
         return try {
             suspendTransaction(db) {
                 val now = Instant.now()
-                LeaderLockHistoryTable.insertAndGetId {
+                LeaderLockHistoryTable.insert {
                     it[LeaderLockHistoryTable.lockName] = lockName
                     it[LeaderLockHistoryTable.lockOwner] = lockOwner
                     it[LeaderLockHistoryTable.token] = token
@@ -393,7 +392,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                     it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(leaseTimeMs)
                     it[LeaderLockHistoryTable.status] = LeaderHistoryStatus.ACQUIRED
                     it[LeaderLockHistoryTable.startedAt] = now
-                }.value
+                }[LeaderLockHistoryTable.id]
             }
         } catch (e: CancellationException) {
             throw e
@@ -403,14 +402,14 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         }
     }
 
-    private suspend fun recordCompleted(historyId: UUID?, token: String, startedAt: Instant, slot: Int) =
+    private suspend fun recordCompleted(historyId: Long?, token: String, startedAt: Instant, slot: Int) =
         recordFinished(historyId, token, startedAt, slot, LeaderHistoryStatus.COMPLETED)
 
-    private suspend fun recordFailed(historyId: UUID?, token: String, startedAt: Instant, slot: Int) =
+    private suspend fun recordFailed(historyId: Long?, token: String, startedAt: Instant, slot: Int) =
         recordFinished(historyId, token, startedAt, slot, LeaderHistoryStatus.FAILED)
 
     private suspend fun recordFinished(
-        historyId: UUID?,
+        historyId: Long?,
         token: String,
         startedAt: Instant,
         slot: Int,

@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.spring.aop.validator
 
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.KotlinLogging
 import io.bluetape4k.logging.debug
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
@@ -13,7 +13,9 @@ import java.time.Duration
 internal class LeaderMethodValidationSupport(
     private val spel: SpelExpressionEvaluator,
 ) {
-    companion object: KLogging() {
+    companion object {
+        private val log = KotlinLogging.logger {}
+
         fun isStreamReturn(returnTypeName: String): Boolean =
             returnTypeName == "reactor.core.publisher.Flux" ||
                     returnTypeName == "kotlinx.coroutines.flow.Flow"

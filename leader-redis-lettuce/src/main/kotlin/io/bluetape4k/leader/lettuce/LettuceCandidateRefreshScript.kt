@@ -10,6 +10,10 @@ import io.bluetape4k.leader.lettuce.script.RedisScript
  */
 internal object LettuceCandidateRefreshScript {
 
+    const val ABSENT = 0L
+    const val UPDATED = 1L
+    const val MALFORMED = -1L
+
     val REFRESH = RedisScript(
         """
         local ttl = tonumber(ARGV[2])

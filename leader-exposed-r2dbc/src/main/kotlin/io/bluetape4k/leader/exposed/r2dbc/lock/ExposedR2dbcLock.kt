@@ -17,6 +17,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -29,6 +30,7 @@ import org.jetbrains.exposed.v1.r2dbc.insertIgnore
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
+import java.time.Instant
 import kotlin.time.Duration
 
 /**
@@ -294,6 +296,25 @@ internal class ExposedR2dbcLock internal constructor(
             .toString()
     }
 }
+
+/**
+ * 1.0.0에서 노출된 JVM facade를 유지하는 호환용 cancellation 보존 연산 함수입니다.
+ */
+@Suppress("unused")
+@JvmName("runR2dbcLockOperationPreservingCancellation")
+public suspend fun <T> legacyRunR2dbcLockOperationPreservingCancellation(
+    onFailure: (Exception) -> T,
+    operation: suspend () -> T,
+): T = runR2dbcLockOperationPreservingCancellation(onFailure, operation)
+
+// Keep the 1.0.0 file-facade accessors while current-time behavior lives in
+// ExposedR2dbcCurrentTime.kt. These private declarations are retained solely for
+// already-compiled callers that resolve the generated access$currentTime methods.
+@Suppress("unused")
+private suspend fun R2dbcTransaction.currentTime(): Instant = currentTime(useDbTime = true)
+
+@Suppress("unused")
+private suspend fun R2dbcTransaction.dbCurrentTimestamp(): Instant = currentTime(useDbTime = true)
 
 //// Keep the 0.4.x file-facade ABI while the shared current-time implementation lives in
 //// ExposedR2dbcCurrentTime.kt. This private declaration intentionally retains compiler-generated

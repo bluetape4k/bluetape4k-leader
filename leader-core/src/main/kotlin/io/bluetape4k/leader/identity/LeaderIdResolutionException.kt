@@ -1,7 +1,5 @@
 package io.bluetape4k.leader.identity
 
-import io.bluetape4k.leader.LeaderElectionException
-
 /**
  * `LeaderIdResolutionException` 선언은 leader election 계약에서 사용되는 class입니다.
  *
@@ -12,4 +10,4 @@ import io.bluetape4k.leader.LeaderElectionException
 class LeaderIdResolutionException(
     message: String,
     cause: Throwable? = null,
-): LeaderElectionException(message, cause)
+): RuntimeException(message, cause)

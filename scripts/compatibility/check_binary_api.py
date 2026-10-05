@@ -39,9 +39,16 @@ ARTIFACTS = (
     ("leader-zookeeper", ""),
 )
 
-REPORT_START = re.compile(r"^(?:---!|\*\*!|\*\*\*!)")
+REPORT_START = re.compile(
+    r"^(?:---!|\*\*!|\*\*\*!|\*\*\*[ \t]+(?:MODIFIED|REMOVED|ADDED) CLASS:)"
+)
 CLASS_NAME = re.compile(r"(?:PUBLIC|PROTECTED|PACKAGE|PRIVATE).*?\s([\w.$]+)\s(?:\(|\(|$)")
 CLASS_FILE_FORMAT_MARKER = "CLASS FILE FORMAT VERSION:"
+KOTLIN_LAMBDA_CLASS = re.compile(r"^[\w.]+Kt\$[a-z][A-Za-z0-9_]*(?:\$\d+)+$")
+EXPLICITLY_PRESERVED_SERIAL_UIDS = {
+    "io.bluetape4k.leader.mongodb.MongoLeaderElectionOptions": 8621706450900702701,
+    "io.bluetape4k.leader.mongodb.MongoLeaderGroupElectionOptions": -6752496615359943498,
+}
 LEGACY_INTERNAL_JVM_FACADES = frozenset(
     {
         "io.bluetape4k.leader.exposed.jdbc.lock.MonotonicDeadline",
@@ -123,6 +130,49 @@ KNOWN_SYNTHETIC_ACCESSORS: dict[str, frozenset[str]] = {
             + "SYNTHETIC(-) io.bluetape4k.leader.spring.aop.internal.AdviceMetadata "
             + "access$resolveMetadata(io.bluetape4k.leader.spring.aop.LeaderElectionAspect, "
             + "java.lang.reflect.Method, java.lang.Object)",
+            "PUBLIC(-) STATIC(-) SYNTHETIC(-) "
+            + "io.bluetape4k.leader.spring.metrics.LeaseExtensionObservationScopeOwner "
+            + "ajc$inlineAccessFieldGet$io_bluetape4k_leader_spring_aop_LeaderElectionAspect$"
+            + "io_bluetape4k_leader_spring_aop_LeaderElectionAspect$observationScopeOwner("
+            + "io.bluetape4k.leader.spring.aop.LeaderElectionAspect)",
+            "PUBLIC(-) STATIC(-) SYNTHETIC(-) java.lang.Object "
+            + "ajc$inlineAccessMethod$io_bluetape4k_leader_spring_aop_LeaderElectionAspect$"
+            + "io_bluetape4k_leader_spring_aop_LeaderElectionAspect$aroundLeaderInternal("
+            + "io.bluetape4k.leader.spring.aop.LeaderElectionAspect, "
+            + "org.aspectj.lang.ProceedingJoinPoint)",
+        }
+    ),
+    "io.bluetape4k.leader.spring.aop.LeaderGroupElectionAspect": frozenset(
+        {
+            "PUBLIC(-) STATIC(-) SYNTHETIC(-) "
+            + "io.bluetape4k.leader.spring.metrics.LeaseExtensionObservationScopeOwner "
+            + "ajc$inlineAccessFieldGet$io_bluetape4k_leader_spring_aop_LeaderGroupElectionAspect$"
+            + "io_bluetape4k_leader_spring_aop_LeaderGroupElectionAspect$observationScopeOwner("
+            + "io.bluetape4k.leader.spring.aop.LeaderGroupElectionAspect)",
+            "PUBLIC(-) STATIC(-) SYNTHETIC(-) java.lang.Object "
+            + "ajc$inlineAccessMethod$io_bluetape4k_leader_spring_aop_LeaderGroupElectionAspect$"
+            + "io_bluetape4k_leader_spring_aop_LeaderGroupElectionAspect$aroundLeaderInternal("
+            + "io.bluetape4k.leader.spring.aop.LeaderGroupElectionAspect, "
+            + "org.aspectj.lang.ProceedingJoinPoint)",
+        }
+    ),
+    "io.bluetape4k.leader.k8s.KubernetesLeaseLeaderElectorKt": frozenset(
+        {
+            "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) java.lang.Throwable "
+            + "access$unwrapCompletionException(java.lang.Throwable)"
+        }
+    ),
+    "io.bluetape4k.leader.k8s.KubernetesLeaseLeaderGroupElectorKt": frozenset(
+        {
+            "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) java.lang.Throwable "
+            + "access$unwrapCompletionException(java.lang.Throwable)"
+        }
+    ),
+    "io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector": frozenset(
+        {
+            "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) java.time.Duration "
+            + "access$toJavaDuration-LRDsOJo("
+            + "io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector, long)"
         }
     ),
     "io.bluetape4k.leader.spring.route.mvc.LeaderMvcRouteGuardFactory": frozenset(
@@ -299,7 +349,10 @@ def is_intentionally_ignored(block: str) -> str | None:
     name = block_class_name(block)
     header = block.splitlines()[0]
     has_class_file_format_change = any(
-        CLASS_FILE_FORMAT_MARKER in line for line in block.splitlines()
+        versions.group(1) != versions.group(2)
+        for line in block.splitlines()
+        if CLASS_FILE_FORMAT_MARKER in line
+        if (versions := re.search(r"CLASS FILE FORMAT VERSION:\s*(\S+)\s*<-\s*(\S+)", line))
     )
     incompatible_members = [
         line.lstrip() for line in block.splitlines()[1:]
@@ -308,6 +361,13 @@ def is_intentionally_ignored(block: str) -> str | None:
     ]
     if "REMOVED CLASS:" in header and name in LEGACY_INTERNAL_JVM_FACADES:
         return "legacy Kotlin-internal JVM facade"
+    if "REMOVED CLASS:" in header and KOTLIN_LAMBDA_CLASS.fullmatch(name):
+        return "compiler-generated Kotlin lambda/state-machine class"
+    if (
+            name in EXPLICITLY_PRESERVED_SERIAL_UIDS
+            and "serialVersionUID removed but not matches new default serialVersionUID" in header
+    ):
+        return f"explicit legacy serialVersionUID retained ({EXPLICITLY_PRESERVED_SERIAL_UIDS[name]})"
     member_descriptors = {
         descriptor
         for line in incompatible_members
@@ -336,6 +396,12 @@ def is_intentionally_ignored(block: str) -> str | None:
     if "$" in name and ("Strategic" in name or "mapNotNull" in name):
         return "compiler-generated implementation class"
     return None
+
+
+def is_unclassified_incompatibility(block: str) -> bool:
+    """Keep ordinary incompatible findings and unmarked class-level changes visible."""
+    header = block.splitlines()[0]
+    return "!" in header or re.match(r"^\*{3}[ \t]+MODIFIED CLASS:", header) is not None
 
 
 def main() -> int:
@@ -401,7 +467,7 @@ def main() -> int:
             reason = is_intentionally_ignored(block)
             if reason:
                 ignored.append((artifact, reason, block.splitlines()[0]))
-            elif "!" in block.splitlines()[0]:
+            elif is_unclassified_incompatibility(block):
                 unknown.append((artifact, block))
 
     print(f"ABI inventory: artifacts={len(ARTIFACTS)} ignored={len(ignored)} unknown={len(unknown)}")

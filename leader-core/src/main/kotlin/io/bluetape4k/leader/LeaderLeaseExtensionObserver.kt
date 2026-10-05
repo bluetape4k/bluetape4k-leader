@@ -1,15 +1,13 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.AbstractValueObject
-import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.logging.KotlinLogging
 import io.bluetape4k.logging.warn
-import io.bluetape4k.support.hashOf
 import io.bluetape4k.support.requireGe
 import io.bluetape4k.support.requireNotBlank
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executor
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
@@ -41,19 +39,18 @@ enum class LeaderLeaseExtensionExecution {
 class LeaderLeaseExtensionContext(
     val lockName: String,
     val auditLeaderId: String?,
-): AbstractValueObject() {
+) {
 
     init {
         lockName.requireNotBlank("lockName")
     }
 
-    override fun equalProperties(other: Any): Boolean =
-        other is LeaderLeaseExtensionContext &&
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is LeaderLeaseExtensionContext &&
                 lockName == other.lockName &&
-                auditLeaderId == other.auditLeaderId
+                auditLeaderId == other.auditLeaderId)
 
-    override fun equals(other: Any?): Boolean = other != null && super.equals(other)
-    override fun hashCode(): Int = hashOf(lockName, auditLeaderId)
+    override fun hashCode(): Int = 31 * lockName.hashCode() + (auditLeaderId?.hashCode() ?: 0)
     override fun toString(): String = "LeaderLeaseExtensionContext(<redacted>)"
 }
 
@@ -64,30 +61,31 @@ class LeaderLeaseExtensionEvent(
     val outcome: ExtendOutcome,
     val elapsedNanos: Long,
     val context: LeaderLeaseExtensionContext?,
-): AbstractValueObject() {
+) {
 
     init {
         elapsedNanos.requireGe(0L, "elapsedNanos")
     }
 
-    override fun equalProperties(other: Any): Boolean =
-        other is LeaderLeaseExtensionEvent &&
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is LeaderLeaseExtensionEvent &&
                 source == other.source &&
                 execution == other.execution &&
                 outcome == other.outcome &&
                 elapsedNanos == other.elapsedNanos &&
-                context == other.context
+                context == other.context)
 
-    override fun equals(other: Any?): Boolean = other != null && super.equals(other)
-    override fun hashCode(): Int = hashOf(source, execution, outcome, elapsedNanos, context)
+    override fun hashCode(): Int {
+        var result = source.hashCode()
+        result = 31 * result + execution.hashCode()
+        result = 31 * result + outcome.hashCode()
+        result = 31 * result + elapsedNanos.hashCode()
+        result = 31 * result + (context?.hashCode() ?: 0)
+        return result
+    }
     override fun toString(): String =
         "LeaderLeaseExtensionEvent(source=$source, execution=$execution, outcome=${outcome::class.simpleName})"
 
-    override fun buildStringHelper(): ToStringBuilder =
-        super.buildStringHelper()
-            .add("source", source)
-            .add("execution", execution)
-            .add("outcome", outcome::class.simpleName)
 }
 
 
@@ -104,7 +102,7 @@ object LeaderLeaseExtensionObservers {
     private const val MAX_IN_FLIGHT_PER_OBSERVER = 256
     private const val WARNING_INTERVAL_NANOS = 1_000_000_000L
 
-    private val wildcardRegistrations = ConcurrentLinkedQueue<Registration>()
+    private val wildcardRegistrations = CopyOnWriteArrayList<Registration>()
     private val scopedRegistrations =
         ConcurrentHashMap<LeaderLeaseExtensionObservationScope, ConcurrentLinkedQueue<Registration>>()
     private val globalInFlight = Semaphore(MAX_IN_FLIGHT)

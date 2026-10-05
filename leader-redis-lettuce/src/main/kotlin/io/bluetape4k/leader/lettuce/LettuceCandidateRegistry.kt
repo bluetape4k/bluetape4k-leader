@@ -3,7 +3,6 @@ package io.bluetape4k.leader.lettuce
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.validateLockName
-import io.bluetape4k.logging.KLogging
 import io.lettuce.core.RedisCommandExecutionException
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
@@ -52,7 +51,7 @@ internal class LettuceCandidateRegistry private constructor(
         keyPrefix,
     )
 
-    companion object: KLogging() {
+    companion object {
         internal const val DEFAULT_KEY_PREFIX = "leader:strategy:candidates"
         internal const val GROUP_KEY_PREFIX = "leader:strategy:group-candidates:lettuce:v1"
     }

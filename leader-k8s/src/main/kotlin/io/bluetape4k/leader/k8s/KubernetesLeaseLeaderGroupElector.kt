@@ -15,6 +15,8 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.leader.k8s.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
+import io.bluetape4k.leader.k8s.runIfLeaderGroup as currentRunIfLeaderGroup
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseGroupAcquisitionDeadline
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
@@ -365,3 +367,22 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         val acquiredAtNanos: Long,
     )
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runIfLeaderGroup")
+inline fun <T> KubernetesClient.legacyRunIfLeaderGroup(
+    lockName: String,
+    options: KubernetesLeaseGroupOptions = KubernetesLeaseGroupOptions.Default,
+    crossinline action: () -> T,
+): T? = this.currentRunIfLeaderGroup(lockName, options, action)
+
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("runAsyncIfLeaderGroup")
+fun <T> KubernetesClient.legacyRunAsyncIfLeaderGroup(
+    lockName: String,
+    options: KubernetesLeaseGroupOptions = KubernetesLeaseGroupOptions.Default,
+    executor: Executor = io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor,
+    action: () -> CompletableFuture<T>,
+): CompletableFuture<T?> = this.currentRunAsyncIfLeaderGroup(lockName, options, executor, action)

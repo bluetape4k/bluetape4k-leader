@@ -2,6 +2,7 @@ package io.bluetape4k.leader.exposed.jdbc.lock
 
 import io.bluetape4k.leader.exposed.ExposedLeaderSchema
 import io.bluetape4k.leader.exposed.internal.redactDatabaseUrlForLog
+import io.bluetape4k.leader.exposed.jdbc.internal.validateExposedLockName as validateInternalExposedLockName
 import io.bluetape4k.leader.identity.LeaderInternalApi
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -73,4 +74,13 @@ internal object ExposedJdbcSchemaInitializer: KLogging() {
     internal fun resetFor(db: Database) {
         initializedDbs.remove(db.url)
     }
+}
+
+/**
+ * 1.0.0에서 노출된 JVM facade를 유지하는 호환용 lock name 검증 함수입니다.
+ */
+@Deprecated("use String.validateExposedLockName() instead")
+@Suppress("DEPRECATION")
+fun validateExposedLockName(lockName: String) {
+    validateInternalExposedLockName(lockName)
 }

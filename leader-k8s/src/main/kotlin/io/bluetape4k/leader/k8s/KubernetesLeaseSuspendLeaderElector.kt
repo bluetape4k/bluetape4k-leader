@@ -11,6 +11,7 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
+import io.bluetape4k.leader.k8s.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -152,3 +153,12 @@ class KubernetesLeaseSuspendLeaderElector @JvmOverloads constructor(
         )
     }
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeader")
+suspend fun <T> KubernetesClient.legacySuspendRunIfLeader(
+    lockName: String,
+    options: KubernetesLeaseOptions = KubernetesLeaseOptions.Default,
+    action: suspend () -> T,
+): T? = this.currentSuspendRunIfLeader(lockName, options, action)

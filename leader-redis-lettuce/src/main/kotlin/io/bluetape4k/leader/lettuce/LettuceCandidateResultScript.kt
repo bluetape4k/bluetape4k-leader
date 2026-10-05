@@ -11,6 +11,10 @@ import io.bluetape4k.leader.strategy.CandidateResult
  */
 internal object LettuceCandidateResultScript {
 
+    const val ABSENT = 0L
+    const val UPDATED = 1L
+    const val MALFORMED = -1L
+
     val UPDATE = RedisScript(
         """
         local current = redis.call('GET', KEYS[1])

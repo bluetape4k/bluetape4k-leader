@@ -15,6 +15,7 @@ import io.mockk.verify
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
+import java.lang.reflect.Modifier
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
@@ -25,6 +26,16 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class MongoLockAsyncCancellationTest {
+
+    @Test
+    fun `legacy lock-name JVM facade remains available`() {
+        val method = Class.forName(
+            "io.bluetape4k.leader.mongodb.lock.MongoLockKt"
+        ).getDeclaredMethod("validateMongoLockName", String::class.java)
+
+        method.returnType shouldBeEqualTo Void.TYPE
+        (Modifier.isPublic(method.modifiers) && Modifier.isStatic(method.modifiers)) shouldBeEqualTo true
+    }
 
     @Test
     fun `취소된 async acquisition이 늦게 획득한 lock을 반납한다`() {

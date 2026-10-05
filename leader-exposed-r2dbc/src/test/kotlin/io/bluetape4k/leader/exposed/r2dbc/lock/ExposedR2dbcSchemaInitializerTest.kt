@@ -5,6 +5,7 @@ import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.coroutines.support.log
@@ -22,10 +23,21 @@ import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.slf4j.LoggerFactory
+import java.lang.reflect.Modifier
 
 class ExposedR2dbcSchemaInitializerTest: AbstractExposedR2dbcLeaderTest() {
 
     companion object: KLoggingChannel()
+
+    @Test
+    fun `legacy lock-name JVM facade remains available`() {
+        val method = Class.forName(
+            "io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializerKt"
+        ).getDeclaredMethod("validateExposedR2dbcLockName", String::class.java)
+
+        method.returnType shouldBeEqualTo Void.TYPE
+        (Modifier.isPublic(method.modifiers) && Modifier.isStatic(method.modifiers)) shouldBeEqualTo true
+    }
 
     // ─── DB 연동 테스트 ───────────────────────────────────────────────────────
 

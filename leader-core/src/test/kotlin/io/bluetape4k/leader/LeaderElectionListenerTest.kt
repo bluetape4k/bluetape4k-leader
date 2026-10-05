@@ -30,12 +30,53 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionListenerTest {
+
+    @Test
+    fun `동시에 등록해도 동일 listener는 한 번만 호출한다`() {
+        val support = LeaderElectionListenerSupport()
+        val callbackCount = AtomicInteger()
+        val listener = object: LeaderElectionListener {
+            override fun onElected(lockName: String) {
+                callbackCount.incrementAndGet()
+            }
+        }
+        val workers = 16
+        val ready = CountDownLatch(workers)
+        val start = CountDownLatch(1)
+        val handles = ConcurrentLinkedQueue<AutoCloseable>()
+        val threads = List(workers) {
+            thread(start = false) {
+                ready.countDown()
+                start.await()
+                handles.add(support.addListener(listener))
+            }
+        }
+
+        try {
+            threads.forEach(Thread::start)
+            check(ready.await(5, TimeUnit.SECONDS))
+            start.countDown()
+            threads.forEach { worker ->
+                worker.join(5_000)
+                check(!worker.isAlive)
+            }
+
+            support.notifyElected("concurrent-listener")
+            callbackCount.get() shouldBeEqualTo 1
+        } finally {
+            start.countDown()
+            threads.forEach { it.join(5_000) }
+            handles.forEach(AutoCloseable::close)
+        }
+    }
 
     @Test
     fun `LocalLeaderElector - 선출과 반납 callback 을 순서대로 발행한다`() {

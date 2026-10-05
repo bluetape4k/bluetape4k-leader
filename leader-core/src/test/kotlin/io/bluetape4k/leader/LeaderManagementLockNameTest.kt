@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
+import java.lang.reflect.Modifier
 
 class LeaderManagementLockNameTest {
 
@@ -46,6 +47,20 @@ class LeaderManagementLockNameTest {
             assertFailsWith<IllegalArgumentException> {
                 lockName.requireManagementActionLockName()
             }
+        }
+    }
+
+    @Test
+    fun `기존 JVM facade 메서드 이름을 유지한다`() {
+        val facade = Class.forName("io.bluetape4k.leader.LeaderManagementLockNameKt")
+
+        facade.getDeclaredMethod("isManagementActionLockName", String::class.java).apply {
+            Modifier.isStatic(modifiers).shouldBeTrue()
+            returnType shouldBeEqualTo Boolean::class.javaPrimitiveType
+        }
+        facade.getDeclaredMethod("requireManagementActionLockName", String::class.java).apply {
+            Modifier.isStatic(modifiers).shouldBeTrue()
+            returnType shouldBeEqualTo String::class.java
         }
     }
 }
