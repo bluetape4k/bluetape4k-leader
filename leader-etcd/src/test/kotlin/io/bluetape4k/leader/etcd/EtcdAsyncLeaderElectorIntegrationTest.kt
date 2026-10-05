@@ -28,7 +28,7 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
         newClient().use { client ->
             val executor = Executors.newSingleThreadExecutor()
             val actionStarted = CountDownLatch(1)
-            val actionFuture = CompletableFuture<String>()
+            val actionFuture = CancellationRecordingFuture<String>()
             val elector = EtcdLeaderElector(
                 client,
                 EtcdLeaderElectionOptions(
@@ -51,6 +51,7 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 actionStarted.await(10.seconds).shouldBeTrue()
                 result.cancel(true).shouldBeTrue()
                 result.isCancelled.shouldBeTrue()
+                actionFuture.cancelled.await(2.seconds).shouldBeTrue()
                 actionFuture.isCancelled.shouldBeTrue()
 
                 elector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
@@ -66,7 +67,7 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
         newClient().use { client ->
             val executor = Executors.newSingleThreadExecutor()
             val actionStarted = CountDownLatch(1)
-            val actionFuture = CompletableFuture<String>()
+            val actionFuture = CancellationRecordingFuture<String>()
             val elector = EtcdLeaderGroupElector(
                 client,
                 EtcdLeaderGroupElectionOptions(
@@ -89,6 +90,7 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 actionStarted.await(10.seconds).shouldBeTrue()
                 result.cancel(true).shouldBeTrue()
                 result.isCancelled.shouldBeTrue()
+                actionFuture.cancelled.await(2.seconds).shouldBeTrue()
                 actionFuture.isCancelled.shouldBeTrue()
 
                 elector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
@@ -249,5 +251,14 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 executor.shutdownNow()
             }
         }
+    }
+
+    private class CancellationRecordingFuture<T>: CompletableFuture<T>() {
+        val cancelled = CountDownLatch(1)
+
+        override fun cancel(mayInterruptIfRunning: Boolean): Boolean =
+            super.cancel(mayInterruptIfRunning).also { cancelled ->
+                if (cancelled) this.cancelled.countDown()
+            }
     }
 }

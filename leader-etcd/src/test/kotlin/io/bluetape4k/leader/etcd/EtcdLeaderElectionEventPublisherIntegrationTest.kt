@@ -42,6 +42,8 @@ class EtcdLeaderElectionEventPublisherIntegrationTest: AbstractEtcdLeaderTest() 
             val elected = CountDownLatch(1)
 
             publisher.use {
+                withTimeout(10.seconds) { publisher.awaitWatchReady() }
+
                 val events = async(start = CoroutineStart.UNDISPATCHED) {
                     publisher.events
                         .onEach { event ->
@@ -80,6 +82,8 @@ class EtcdLeaderElectionEventPublisherIntegrationTest: AbstractEtcdLeaderTest() 
             val elected = CountDownLatch(1)
 
             publisher.use {
+                withTimeout(10.seconds) { publisher.awaitWatchReady() }
+
                 val events = async(start = CoroutineStart.UNDISPATCHED) {
                     publisher.events
                         .onEach { event ->
@@ -120,6 +124,8 @@ class EtcdLeaderElectionEventPublisherIntegrationTest: AbstractEtcdLeaderTest() 
 
             try {
                 publisher.use {
+                    withTimeout(10.seconds) { publisher.awaitWatchReady() }
+
                     val events = async(start = CoroutineStart.UNDISPATCHED) {
                         publisher.events
                             .onEach { event ->
@@ -190,6 +196,8 @@ class EtcdLeaderElectionEventPublisherIntegrationTest: AbstractEtcdLeaderTest() 
             val elected = CountDownLatch(1)
 
             restartedPublisher.use {
+                withTimeout(10.seconds) { restartedPublisher.awaitWatchReady() }
+
                 val events = async(start = CoroutineStart.UNDISPATCHED) {
                     restartedPublisher.events
                         .onEach { event ->

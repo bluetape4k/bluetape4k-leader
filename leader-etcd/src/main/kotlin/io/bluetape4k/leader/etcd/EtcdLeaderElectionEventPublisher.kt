@@ -22,6 +22,7 @@ import io.etcd.jetcd.options.WatchOption
 import io.etcd.jetcd.watch.WatchEvent
 import io.etcd.jetcd.watch.WatchResponse
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -68,6 +69,7 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
     private val closed = AtomicBoolean(false)
     private val failureCount = AtomicInteger(0)
     private val watcherRef = AtomicReference<Watch.Watcher?>(null)
+    private val watchReady = CompletableDeferred<Unit>()
     private val activeOwnerKeys = ConcurrentHashMap<String, String>()
     private val eventSubject = MutableSharedFlow<LeaderElectionEvent>(
         extraBufferCapacity = eventBufferCapacity.coerceAtLeast(1),
@@ -75,6 +77,10 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
     )
 
     override val events: Flow<LeaderElectionEvent> = eventSubject.asSharedFlow()
+
+    internal suspend fun awaitWatchReady() {
+        watchReady.await()
+    }
 
     init {
         startWatch()
@@ -88,6 +94,7 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
             runCatching { watcher.close() }
                 .onFailure { e -> log.debug(e) { "etcd watch close skipped." } }
         }
+        watchReady.completeExceptionally(CancellationException("etcd event publisher closed before watch became ready"))
         if (ownsScope) {
             scope.cancel()
         }
@@ -100,6 +107,7 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
 
         val option = WatchOption.builder()
             .isPrefix(true)
+            .withCreateNotify(true)
             .withRequireLeader(true)
             .build()
         val watcher = watchClient.watch(
@@ -129,13 +137,21 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
                 log.debug(e) { "etcd watch close skipped after concurrent publisher close." }
             }
         }
-        scope.launch {
-            seedCurrentOwners()
-        }.log("Watch Job")
     }
 
     private fun onResponse(response: WatchResponse) {
+        if (closed.get()) {
+            return
+        }
         failureCount.set(0)
+        if (response.isCreatedNotify) {
+            scope.launch {
+                seedCurrentOwners()
+                watchReady.complete(Unit)
+            }.log("Watch Seed Job")
+            return
+        }
+
         val events = response.events
             .mapNotNull { event ->
                 resourceFromKey(event.keyValue.key)?.let { resource -> resource to event }
