@@ -11,7 +11,7 @@ import io.lettuce.core.RedisConnectionException
  *
  * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
-internal object LettuceBackendErrorClassifier : BackendErrorClassifier {
+internal object LettuceBackendErrorClassifier: BackendErrorClassifier {
 
     override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {
         is RedisCommandTimeoutException -> BackendErrorKind.TRANSIENT

@@ -1,28 +1,32 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.concurrent.awaitTermination
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.ExtendOutcome.BackendError
 import io.bluetape4k.leader.ExtendOutcome.Extended
 import io.bluetape4k.leader.ExtendOutcome.NotHeld
 import io.bluetape4k.leader.ExtendOutcome.WrongThread
 import io.bluetape4k.leader.internal.BackendErrorClassifier
 import io.bluetape4k.leader.internal.BackendErrorKind
-import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.CoreBackendErrorClassifier
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
-import kotlinx.coroutines.future.await
+import io.bluetape4k.support.requirePositiveNumber
+import io.bluetape4k.utils.Runtimex
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import java.time.Instant
-import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
@@ -31,7 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import io.bluetape4k.support.requirePositiveNumber
+import kotlin.time.Duration.Companion.seconds
 
 private fun publishLeaderLeaseWatchdogEvent(
     observing: Boolean,
@@ -59,14 +63,14 @@ private fun publishLeaderLeaseWatchdogEvent(
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 @Suppress("TooManyFunctions")
-object LeaderLeaseAutoExtender : KLogging() {
+object LeaderLeaseAutoExtender: KLogging() {
 
     private val threadSeq = AtomicInteger()
 
     /**
      * `DEFAULT_WATCHDOG_THREADS` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
      */
-    internal val DEFAULT_WATCHDOG_THREADS: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
+    internal val DEFAULT_WATCHDOG_THREADS: Int = Runtimex.availableProcessors.coerceAtLeast(2)
 
     @Volatile
     private var configuredThreadCount: Int = DEFAULT_WATCHDOG_THREADS
@@ -117,7 +121,7 @@ object LeaderLeaseAutoExtender : KLogging() {
     fun shutdown() {
         val current = scheduler
         current.shutdown()
-        if (!current.awaitTermination(5, TimeUnit.SECONDS)) {
+        if (!current.awaitTermination(5.seconds)) {
             current.shutdownNow()
         }
     }
@@ -256,7 +260,11 @@ object LeaderLeaseAutoExtender : KLogging() {
                     Thread.ofVirtual()
                         .name("leader-lease-extend-${threadSeq.incrementAndGet()}")
                         .start {
-                            try { doTick() } finally { extendInFlight.set(false) }
+                            try {
+                                doTick()
+                            } finally {
+                                extendInFlight.set(false)
+                            }
                         }
                 }
             }
@@ -302,8 +310,8 @@ object LeaderLeaseAutoExtender : KLogging() {
      * @return watchdog drain이 끝난 뒤 완료되는 future입니다.
      */
     fun closeAsync(watchdog: AutoCloseable): CompletableFuture<Unit> {
-        if (watchdog === NoopCloseable) return CompletableFuture.completedFuture(Unit)
-        return CompletableFuture.supplyAsync({ watchdog.close() }, cleanupExecutor)
+        if (watchdog === NoopCloseable) return completableFutureOf(Unit)
+        return futureOf(cleanupExecutor) { watchdog.close() }
     }
 
     /**
@@ -473,7 +481,7 @@ object LeaderLeaseAutoExtender : KLogging() {
         return if (third > MIN_RENEWAL_PERIOD) third else MIN_RENEWAL_PERIOD
     }
 
-    private object NoopCloseable : AutoCloseable {
+    private object NoopCloseable: AutoCloseable {
         override fun close() = Unit
     }
 
@@ -516,7 +524,8 @@ object LeaderLeaseAutoExtender : KLogging() {
             return
         }
         when (outcome) {
-            is Extended -> { /* 성공적으로 연장했으므로 계속 진행합니다. */ }
+            is Extended -> { /* 성공적으로 연장했으므로 계속 진행합니다. */
+            }
             is ExtendOutcome.Rejected -> {
                 // Bounded watchdog admission is a transient lane decision. Keep the
                 // watchdog alive so the next scheduled tick can retry ownership work.

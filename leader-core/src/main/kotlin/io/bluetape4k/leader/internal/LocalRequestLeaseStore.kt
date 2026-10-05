@@ -2,12 +2,16 @@ package io.bluetape4k.leader.internal
 
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaseOwnershipStatus
-import io.bluetape4k.leader.LeaderLeaseAutoExtender
-import io.bluetape4k.leader.parkRemainingMinLeaseTime
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseHandle
+import io.bluetape4k.leader.parkRemainingMinLeaseTime
+import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.requireGt
+import kotlinx.atomicfu.locks.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -16,10 +20,10 @@ import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
-import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
-import io.bluetape4k.support.requireGt
 
 /**
  * thread ownership에 의존하지 않는 local request lease 저장소입니다.
@@ -28,6 +32,10 @@ import io.bluetape4k.support.requireGt
  * thread가 달라도 generation을 비교해 release할 수 있도록 합니다.
  */
 internal class LocalRequestLeaseStore {
+
+    companion object: KLogging() {
+        private val GENERATION = AtomicLong()
+    }
 
     private val monitors = ConcurrentHashMap<String, Monitor>()
     private val records = ConcurrentHashMap<String, Record>()
@@ -83,24 +91,20 @@ internal class LocalRequestLeaseStore {
 
     fun release(record: Record): Boolean {
         val monitor = monitors.computeIfAbsent(record.slot.lockName) { Monitor() }
-        monitor.lock.lock()
-        try {
+        monitor.lock.withLock {
             val removed = records.remove(record.slot.lockName, record)
             if (removed) {
                 record.released.set(true)
                 monitor.changed.signalAll()
             }
             return removed
-        } finally {
-            monitor.lock.unlock()
         }
     }
 
     fun extend(record: Record, duration: Duration): ExtendOutcome {
         duration.requireGt(Duration.ZERO, "lockAtMostFor")
         val monitor = monitors.computeIfAbsent(record.slot.lockName) { Monitor() }
-        monitor.lock.lock()
-        try {
+        monitor.lock.withLock {
             val current = records[record.slot.lockName]
             if (current !== record || record.released.get() || record.isExpired()) {
                 if (current === record) {
@@ -113,22 +117,17 @@ internal class LocalRequestLeaseStore {
             record.expiresAtNanos = System.nanoTime() + duration.inWholeNanoseconds
             record.expiresAt = Instant.now().plusMillis(duration.inWholeMilliseconds)
             return ExtendOutcome.Extended(record.expiresAt)
-        } finally {
-            monitor.lock.unlock()
         }
     }
 
     fun ownershipStatus(record: Record): LeaseOwnershipStatus {
         val monitor = monitors.computeIfAbsent(record.slot.lockName) { Monitor() }
-        monitor.lock.lock()
-        try {
+        monitor.lock.withLock {
             val current = records[record.slot.lockName]
             if (current !== record || record.released.get() || record.isExpired()) {
                 return LeaseOwnershipStatus.NOT_HELD
             }
             return LeaseOwnershipStatus.HELD
-        } finally {
-            monitor.lock.unlock()
         }
     }
 
@@ -145,16 +144,14 @@ internal class LocalRequestLeaseStore {
         val acquiredAtNanos: Long = System.nanoTime()
         val generation: Long = GENERATION.incrementAndGet()
         val released = AtomicBoolean(false)
+
         @Volatile
         var expiresAtNanos: Long = acquiredAtNanos + leaseTime.inWholeNanoseconds
+
         @Volatile
         var expiresAt: Instant = acquiredAt.plusMillis(leaseTime.inWholeMilliseconds)
 
         fun isExpired(): Boolean = System.nanoTime() >= expiresAtNanos
-    }
-
-    companion object {
-        private val GENERATION = java.util.concurrent.atomic.AtomicLong()
     }
 }
 
@@ -172,9 +169,12 @@ internal class LocalRequestLeaseHandle(
     private val store: LocalRequestLeaseStore,
     private val record: LocalRequestLeaseStore.Record,
     private val options: LeaderElectionOptions,
-) : LeaderLeaseHandle {
+): LeaderLeaseHandle {
+
+    companion object: KLogging()
 
     private val closed = AtomicBoolean(false)
+
     @Volatile
     private var watchdog: AutoCloseable? = null
 
@@ -183,7 +183,7 @@ internal class LocalRequestLeaseHandle(
     override val acquiredAt: Instant get() = record.acquiredAt
 
     init {
-        val delegate = object : ExtendDelegate {
+        val delegate = object: ExtendDelegate {
             override val lastExtendDeadline = java.util.concurrent.atomic.AtomicReference(Instant.EPOCH)
             override fun extend(lockAtMostFor: Duration): ExtendOutcome = store.extend(record, lockAtMostFor)
             override fun isHeld(): Boolean = store.ownershipStatus(record) == LeaseOwnershipStatus.HELD
@@ -207,7 +207,6 @@ internal class LocalRequestLeaseHandle(
         parkRemainingMinLeaseTime(record.acquiredAtNanos, options.minLeaseTime)
         store.release(record)
     }
-
 }
 
 /** suspend local request handle with the same record-identity fencing. */
@@ -215,9 +214,12 @@ internal class LocalSuspendRequestLeaseHandle(
     private val store: LocalRequestLeaseStore,
     private val record: LocalRequestLeaseStore.Record,
     private val options: LeaderElectionOptions,
-) : SuspendLeaderLeaseHandle {
+): SuspendLeaderLeaseHandle {
+
+    companion object: KLogging()
 
     private val closed = AtomicBoolean(false)
+
     @Volatile
     private var watchdog: AutoCloseable? = null
 
@@ -226,8 +228,8 @@ internal class LocalSuspendRequestLeaseHandle(
     override val acquiredAt: Instant get() = record.acquiredAt
 
     init {
-        val delegate = object : ExtendDelegate {
-            override val lastExtendDeadline = java.util.concurrent.atomic.AtomicReference(Instant.EPOCH)
+        val delegate = object: ExtendDelegate {
+            override val lastExtendDeadline = AtomicReference(Instant.EPOCH)
             override fun extend(lockAtMostFor: Duration): ExtendOutcome = store.extend(record, lockAtMostFor)
             override fun isHeld(): Boolean = store.ownershipStatus(record) == LeaseOwnershipStatus.HELD
         }
@@ -247,7 +249,7 @@ internal class LocalSuspendRequestLeaseHandle(
         if (closed.compareAndSet(false, true)) {
             watchdog?.close()
             watchdog = null
-            val remaining = io.bluetape4k.leader.remainingMinLeaseTime(record.acquiredAtNanos, options.minLeaseTime)
+            val remaining = remainingMinLeaseTime(record.acquiredAtNanos, options.minLeaseTime)
             if (remaining > Duration.ZERO) delay(remaining)
             store.release(record)
         }

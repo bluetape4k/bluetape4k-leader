@@ -3,8 +3,12 @@ package io.bluetape4k.leader.zookeeper
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperOwnedInterProcessMutex
+import io.bluetape4k.logging.KLogging
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkConstructor
@@ -15,12 +19,13 @@ import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2
 import org.apache.curator.framework.recipes.locks.Lease
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executor
-import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 class ZooKeeperAsyncCleanupFailureTest {
+
+    companion object: KLogging()
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
@@ -29,6 +34,7 @@ class ZooKeeperAsyncCleanupFailureTest {
         val lease = mockk<Lease>()
         val cleanupFailure = IllegalStateException("cleanup failed")
         mockkConstructor(ZooKeeperOwnedInterProcessMutex::class, InterProcessSemaphoreV2::class)
+
         try {
             every { anyConstructed<ZooKeeperOwnedInterProcessMutex>().acquire(any(), any()) } returns true
             every { anyConstructed<ZooKeeperOwnedInterProcessMutex>().currentThreadLockPath() } returns "/leader/owned"
@@ -37,11 +43,12 @@ class ZooKeeperAsyncCleanupFailureTest {
             every { lease.nodeName } returns "lease-0"
             every { lease.close() } throws cleanupFailure
             val executor = Executor { it.run() }
+
             listOf(false, true).forEach { failAction ->
                 val actionFailure = IllegalArgumentException("action failed")
                 val action = {
-                    if (failAction) CompletableFuture.failedFuture<String>(actionFailure)
-                    else CompletableFuture.completedFuture("done")
+                    if (failAction) failedCompletableFutureOf<String>(actionFailure)
+                    else completableFutureOf("done")
                 }
                 val result = if (group) {
                     ZooKeeperLeaderGroupElector(curator, LeaderGroupElectionOptions(maxLeaders = 1))
@@ -50,10 +57,10 @@ class ZooKeeperAsyncCleanupFailureTest {
                     ZooKeeperLeaderElector(curator).runAsyncIfLeader("job", executor, action)
                 }
                 if (failAction) {
-                    val failure = assertFailsWith<ExecutionException> { result.get(3, TimeUnit.SECONDS) }
+                    val failure = assertFailsWith<ExecutionException> { result.get(3.seconds) }
                     (failure.cause === actionFailure).shouldBeTrue()
                 } else {
-                    result.get(3, TimeUnit.SECONDS) shouldBeEqualTo "done"
+                    result.get(3.seconds) shouldBeEqualTo "done"
                 }
             }
             if (group) verify(exactly = 2) { lease.close() }

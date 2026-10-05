@@ -13,6 +13,7 @@
 ## 마이그레이션 패턴
 
 **이전**(원시 스레드 풀):
+
 ```kotlin
 val startLatch = CountDownLatch(2)
 val holdLatch = CountDownLatch(1)
@@ -26,14 +27,15 @@ repeat(2) {
         }
     }
 }
-startLatch.await(2, TimeUnit.SECONDS)
+startLatch.await(2.seconds)
 // check state ...
 holdLatch.countDown()
 executor.shutdown()
-executor.awaitTermination(3, TimeUnit.SECONDS)
+executor.awaitTermination(3.seconds)
 ```
 
 **이후**(코루틴 + AtomicInteger 폴링):
+
 ```kotlin
 val acquiredCount = AtomicInteger(0)
 val holdLatch = CountDownLatch(1)  // required: action lambda is blocking, not suspend
@@ -65,4 +67,4 @@ coroutineScope {
 - `MultithreadingTester` / `SuspendedJobTester`: 스트레스/실행 및 전체 동시성 테스트에 사용
 - `coroutineScope + async(Dispatchers.IO)` + `AtomicInteger` 폴링: 차단 선출기를 사용하여 "보류 중 검증" 정확성 테스트에 사용
 - 차단 작업 람다 내부의 `CountDownLatch.await()`는 허용되며 예상됩니다.
-- 테스트 중 `Executors.newFixedThreadPool`: 항상 코루틴(구조적) 또는 `MultithreadingTester`로 교체
+- 테스트 중 `Executors.newFixedThreadPool`: 항상 코루틴 (구조적) 또는 `MultithreadingTester`로 교체

@@ -15,13 +15,13 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.local.AbstractLocalLeaderGroupElector
 import io.bluetape4k.leader.local.LocalLeaderStateRegistry
 import io.bluetape4k.leader.remainingMinLeaseTime
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
-import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import kotlinx.coroutines.NonCancellable
@@ -43,12 +43,12 @@ import kotlin.coroutines.cancellation.CancellationException
  */
 class LocalSuspendLeaderGroupElector private constructor(
     private val options: LeaderGroupElectionOptions,
-) : SuspendLeaderGroupElector,
-    LeaderElectionListenerRegistry,
-    LeaderElectionEventPublisher,
-    LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
+): SuspendLeaderGroupElector,
+   LeaderElectionListenerRegistry,
+   LeaderElectionEventPublisher,
+   LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
 
-    companion object: KLogging() {
+    companion object: KLoggingChannel() {
         /**
          * `invoke` 호출은 leader election 계약의 일부 동작을 수행합니다.
          *
@@ -215,7 +215,7 @@ class LocalSuspendLeaderGroupElector private constructor(
             groupParams = LockIdentity.GroupParams(maxLeaders),
         )
         val lastExtendDeadlineRef = AtomicReference(Instant.EPOCH)
-        val delegate = object : ExtendDelegate {
+        val delegate = object: ExtendDelegate {
             private val _lastExtendDeadline = lastExtendDeadlineRef
             override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
             override fun extend(lockAtMostFor: kotlin.time.Duration): ExtendOutcome {
@@ -226,6 +226,7 @@ class LocalSuspendLeaderGroupElector private constructor(
                     ExtendOutcome.NotHeld
                 }
             }
+
             override fun isHeld(): Boolean = states.isSlotHeld(lockName, slot)
         }
 
@@ -240,6 +241,7 @@ class LocalSuspendLeaderGroupElector private constructor(
         val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate)
         listeners.notifyElected(lockName, lease)
         eventSubject.emit(LeaderElectionEvent.Elected.fromLease(lockName, lease))
+
         return try {
             withContext(LockHandleElement(handle)) {
                 action()

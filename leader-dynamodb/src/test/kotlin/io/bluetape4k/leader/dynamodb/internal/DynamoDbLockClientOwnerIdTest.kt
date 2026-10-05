@@ -3,14 +3,18 @@ package io.bluetape4k.leader.dynamodb.internal
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.idgenerators.uuid.Uuid
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import io.mockk.verify
-import java.util.UUID
 import org.junit.jupiter.api.Test
+import java.util.*
 
 class DynamoDbLockClientOwnerIdTest {
+
+    companion object: KLogging()
 
     @Test
     fun `new owner id delegates to bluetape4k UUID v4 generator`() {
@@ -44,6 +48,7 @@ class DynamoDbLockClientOwnerIdTest {
         ownerIds shouldHaveSize sampleSize
         ownerIds.toSet() shouldHaveSize sampleSize
         ownerIds.forEach { ownerId ->
+            log.debug { "ownerId: $ownerId" }
             val parsed = UUID.fromString(ownerId)
             ownerId shouldBeEqualTo parsed.toString()
             parsed.version() shouldBeEqualTo 4

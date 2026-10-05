@@ -1,7 +1,10 @@
 package io.bluetape4k.leader.examples.prometheus
 
-import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.nio.file.Files
@@ -15,11 +18,13 @@ class PrometheusAssetsTest {
         Files.exists(prometheusRulesPath).shouldBeTrue()
 
         val prometheusConfig = prometheusConfigPath.readText()
-        prometheusConfig.contains("rule_files:").shouldBeTrue()
-        prometheusConfig.contains("/etc/prometheus/rules/leader-alerts.yml").shouldBeTrue()
+        log.debug { "prometheus config: $prometheusConfig" }
+        prometheusConfig shouldContain "rule_files:"
+        prometheusConfig shouldContain "/etc/prometheus/rules/leader-alerts.yml"
 
         val compose = composePath.readText()
-        compose.contains("./provisioning/prometheus/rules:/etc/prometheus/rules:ro").shouldBeTrue()
+        log.debug { "compose: $compose" }
+        compose shouldContain "./provisioning/prometheus/rules:/etc/prometheus/rules:ro"
     }
 
     @Test
@@ -27,32 +32,31 @@ class PrometheusAssetsTest {
         val rules = prometheusRulesPath.readText()
 
         expectedAlerts.forEach { alert ->
-            rules.contains("alert: $alert").shouldBeTrue()
+            rules shouldContain "alert: $alert"
         }
 
-        rules.contains("""leader_aop_lock_not_acquired_total{reason="BACKEND_ERROR"}""").shouldBeTrue()
-        rules.contains("leader_aop_task_failed_total").shouldBeTrue()
-        rules.contains("""leader_history_sink_failures_total{sink!="NoopLeaderHistorySink"}""").shouldBeTrue()
-        rules.contains("""leader_history_acquire_missing_total{sink!="NoopLeaderHistorySink"}""").shouldBeTrue()
-        rules.contains("""leader_aop_active{lock_name="dashboard-job"} > 1""").shouldBeTrue()
-        rules.contains("leader_aop_execution_duration_seconds_sum").shouldBeTrue()
-        rules.contains("leader_backend_connectivity_total").shouldBeTrue()
-        rules.contains("""leader_backend_connectivity_total{status="DOWN",reason="DISCONNECTED"}""").shouldBeTrue()
-        rules.contains(
-            """leader_backend_connectivity_total{status="UNKNOWN",reason=~"CLIENT_STATE_UNCONFIRMED|PROVIDER_UNSUPPORTED"}""",
-        ).shouldBeTrue()
-        rules.contains(
-            """leader_backend_connectivity_total{status="UNKNOWN",reason="PROVIDER_EXCEPTION"}""",
-        ).shouldBeTrue()
-        rules.contains("notification: no-page").shouldBeTrue()
-        rules.contains("for: 5m").shouldBeTrue()
-        rules.contains("for: 10m").shouldBeTrue()
-        rules.contains("""absent(up{job="bluetape4k-leader"}) or up{job="bluetape4k-leader"} == 0""")
-            .shouldBeTrue()
-        rules.contains(
-            "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/" +
-                "examples/prometheus-dashboard/README.md#alert-runbooks",
-        ).shouldBeTrue()
+        rules shouldContain """leader_aop_lock_not_acquired_total{reason="BACKEND_ERROR"}"""
+        rules shouldContain "leader_aop_task_failed_total"
+        rules shouldContain """leader_history_sink_failures_total{sink!="NoopLeaderHistorySink"}"""
+        rules shouldContain """leader_history_acquire_missing_total{sink!="NoopLeaderHistorySink"}"""
+        rules shouldContain """leader_aop_active{lock_name="dashboard-job"} > 1"""
+        rules shouldContain "leader_aop_execution_duration_seconds_sum"
+        rules shouldContain "leader_backend_connectivity_total"
+        rules shouldContain """leader_backend_connectivity_total{status="DOWN",reason="DISCONNECTED"}"""
+        rules shouldContain
+                """leader_backend_connectivity_total{status="UNKNOWN",reason=~"CLIENT_STATE_UNCONFIRMED|PROVIDER_UNSUPPORTED"}"""
+
+        rules shouldContain
+                """leader_backend_connectivity_total{status="UNKNOWN",reason="PROVIDER_EXCEPTION"}"""
+
+        rules shouldContain "notification: no-page"
+        rules shouldContain "for: 5m"
+        rules shouldContain "for: 10m"
+        rules shouldContain """absent(up{job="bluetape4k-leader"}) or up{job="bluetape4k-leader"} == 0"""
+
+        rules shouldContain
+                "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/" +
+                "examples/prometheus-dashboard/README.md#alert-runbooks"
     }
 
     @Test
@@ -66,25 +70,25 @@ class PrometheusAssetsTest {
             "History Sink Signals",
             "Lease Risk",
         ).forEach { panelTitle ->
-            dashboard.contains(""""title": "$panelTitle"""").shouldBeTrue()
+            dashboard shouldContain """"title": "$panelTitle""""
         }
 
-        dashboard.contains("clamp_min").shouldBeTrue()
-        dashboard.contains("""leader_aop_lock_not_acquired_total{reason=\"BACKEND_ERROR\"}""").shouldBeTrue()
-        dashboard.contains("max by (lock_name) (leader_aop_active)").shouldBeTrue()
+        dashboard shouldContain "clamp_min"
+        dashboard shouldContain """leader_aop_lock_not_acquired_total{reason=\"BACKEND_ERROR\"}"""
+        dashboard shouldContain "max by (lock_name) (leader_aop_active)"
     }
 
     @Test
     fun `application config redacts lock name metric tags by default`() {
         val config = applicationConfigPath.readText()
 
-        config.contains("mode: REDACT").shouldBeTrue()
-        config.contains("redacted-value: redacted-lock").shouldBeTrue()
-        config.contains("mode: RAW").shouldBeFalse()
-        config.contains("backend-probe:").shouldBeTrue()
-        config.contains("DEMO_BACKEND_PROBE_FIXED_DELAY_MS").shouldBeTrue()
-        config.contains("DEMO_BACKEND_PROBE_INITIAL_DELAY_MS").shouldBeTrue()
-        config.contains("DEMO_BACKEND_PROBE_TIMEOUT_MS").shouldBeTrue()
+        config shouldContain "mode: REDACT"
+        config shouldContain "redacted-value: redacted-lock"
+        config shouldNotContain "mode: RAW"
+        config shouldContain "backend-probe:"
+        config shouldContain "DEMO_BACKEND_PROBE_FIXED_DELAY_MS"
+        config shouldContain "DEMO_BACKEND_PROBE_INITIAL_DELAY_MS"
+        config shouldContain "DEMO_BACKEND_PROBE_TIMEOUT_MS"
     }
 
     @Test
@@ -94,28 +98,28 @@ class PrometheusAssetsTest {
 
         Files.exists(alertRunbookDiagramSvgPath).shouldBeTrue()
         Files.exists(alertRunbookDiagramPath).shouldBeTrue()
-        alertRunbookDiagramSvgPath.readText().contains("Prometheus Alert And Runbook Flow").shouldBeTrue()
-        alertRunbookDiagramSvgPath.readText().contains("data-connector=\"observe-only-note\"").shouldBeTrue()
+        alertRunbookDiagramSvgPath.readText() shouldContain "Prometheus Alert And Runbook Flow"
+        alertRunbookDiagramSvgPath.readText() shouldContain "data-connector=\"observe-only-note\""
 
         listOf(english, korean).forEach { readme ->
-            readme.contains("examples-prometheus-dashboard-alert-runbook-01.png").shouldBeTrue()
-            readme.contains("leader-alerts.yml").shouldBeTrue()
-            readme.contains("LeaderElectionBackendErrors").shouldBeTrue()
-            readme.contains("LeaderBackendConnectivityDown").shouldBeTrue()
-            readme.contains("LeaderBackendConnectivityUnknown").shouldBeTrue()
-            readme.contains("LeaderBackendConnectivityProbeExceptions").shouldBeTrue()
-            readme.contains("leader_backend_connectivity_total").shouldBeTrue()
-            readme.contains("PrometheusBackendConnectivityProbe").shouldBeTrue()
-            readme.contains("DEMO_BACKEND_PROBE_TIMEOUT_MS").shouldBeTrue()
-            readme.contains("PROVIDER_EXCEPTION").shouldBeTrue()
-            readme.contains("LeaderHistorySinkFailures").shouldBeTrue()
-            readme.contains("max by (lock_name) (leader_aop_active)").shouldBeTrue()
+            readme shouldContain "examples-prometheus-dashboard-alert-runbook-01.png"
+            readme shouldContain "leader-alerts.yml"
+            readme shouldContain "LeaderElectionBackendErrors"
+            readme shouldContain "LeaderBackendConnectivityDown"
+            readme shouldContain "LeaderBackendConnectivityUnknown"
+            readme shouldContain "LeaderBackendConnectivityProbeExceptions"
+            readme shouldContain "leader_backend_connectivity_total"
+            readme shouldContain "PrometheusBackendConnectivityProbe"
+            readme shouldContain "DEMO_BACKEND_PROBE_TIMEOUT_MS"
+            readme shouldContain "PROVIDER_EXCEPTION"
+            readme shouldContain "LeaderHistorySinkFailures"
+            readme shouldContain "max by (lock_name) (leader_aop_active)"
         }
     }
 
     private fun Path.readText(): String = Files.readString(this)
 
-    companion object {
+    companion object: KLogging() {
         private val projectRoot = findProjectRoot(Path.of("").toAbsolutePath().normalize())
         private val exampleRoot = projectRoot.resolve("examples/prometheus-dashboard")
         private val docsImageRoot = projectRoot.resolve("docs/images/readme-diagrams")

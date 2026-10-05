@@ -2,6 +2,7 @@ package io.bluetape4k.leader.contract
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -13,6 +14,8 @@ import org.junit.jupiter.params.provider.ValueSource
  * 허용 문자, 첫 문자, 최대 길이 계약을 반복 검증할 수 있습니다.
  */
 abstract class AbstractLockNameConformanceTest {
+
+    companion object: KLogging()
 
     /** 실제 core 또는 backend 진입점의 lock-name 검증을 연결합니다. */
     protected abstract fun validateLockName(lockName: String)

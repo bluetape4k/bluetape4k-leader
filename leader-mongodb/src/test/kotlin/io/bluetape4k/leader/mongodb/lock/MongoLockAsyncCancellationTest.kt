@@ -7,12 +7,15 @@ import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.result.DeleteResult
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.poll
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
+import java.lang.reflect.Modifier
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
@@ -23,6 +26,16 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class MongoLockAsyncCancellationTest {
+
+    @Test
+    fun `legacy lock-name JVM facade remains available`() {
+        val method = Class.forName(
+            "io.bluetape4k.leader.mongodb.lock.MongoLockKt"
+        ).getDeclaredMethod("validateMongoLockName", String::class.java)
+
+        method.returnType shouldBeEqualTo Void.TYPE
+        (Modifier.isPublic(method.modifiers) && Modifier.isStatic(method.modifiers)) shouldBeEqualTo true
+    }
 
     @Test
     fun `취소된 async acquisition이 늦게 획득한 lock을 반납한다`() {
@@ -36,7 +49,7 @@ class MongoLockAsyncCancellationTest {
             collection.findOneAndUpdate(any<Bson>(), any<Bson>(), any<FindOneAndUpdateOptions>())
         } answers {
             acquisitionStarted.countDown()
-            releaseAcquisition.await(2, TimeUnit.SECONDS)
+            releaseAcquisition.await(2.seconds)
             Document("token", lock.token)
         }
         every { collection.deleteOne(any<Bson>()) } answers {
@@ -47,12 +60,12 @@ class MongoLockAsyncCancellationTest {
         val executor = Executors.newSingleThreadExecutor()
         try {
             val result = lock.tryLockAsync(10.seconds, 10.seconds, executor)
-            acquisitionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            acquisitionStarted.await(2.seconds).shouldBeTrue()
 
             result.cancel(false).shouldBeTrue()
             releaseAcquisition.countDown()
 
-            unlockObserved.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            unlockObserved.await(2.seconds).shouldBeTrue()
             verify(exactly = 1) { collection.deleteOne(any<Bson>()) }
         } finally {
             releaseAcquisition.countDown()
@@ -74,19 +87,19 @@ class MongoLockAsyncCancellationTest {
         } answers {
             attempts.incrementAndGet()
             firstAttempt.countDown()
-            releaseFirstAttempt.await(2, TimeUnit.SECONDS)
+            releaseFirstAttempt.await(2.seconds)
             null
         }
 
         val executor = Executor { submittedTasks.add(it) }
         try {
             val result = lock.tryLockAsync(10.seconds, 1.milliseconds, executor)
-            val firstTask = submittedTasks.poll(2, TimeUnit.SECONDS)
+            val firstTask = submittedTasks.poll(2.seconds)
                 ?: error("first acquisition task was not submitted")
             val worker = Thread(firstTask::run, "mongo-acquisition-test")
             worker.start()
 
-            firstAttempt.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            firstAttempt.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             releaseFirstAttempt.countDown()
             worker.join(2_000)

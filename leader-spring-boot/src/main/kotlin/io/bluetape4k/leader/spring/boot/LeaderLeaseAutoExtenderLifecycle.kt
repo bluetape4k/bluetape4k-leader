@@ -1,9 +1,14 @@
 package io.bluetape4k.leader.spring.boot
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.logging.KotlinLogging
+import io.bluetape4k.logging.debug
+import io.bluetape4k.logging.info
 import kotlinx.atomicfu.atomic
 import org.springframework.beans.factory.DisposableBean
 import org.springframework.beans.factory.InitializingBean
+import java.io.Serializable
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -21,10 +26,23 @@ import kotlin.concurrent.withLock
 class LeaderLeaseAutoExtenderLifecycle(
     private val watchdogThreads: Int? = null,
     private val watchdogAsyncExtend: Boolean? = null,
-) : InitializingBean, DisposableBean {
+): InitializingBean, DisposableBean {
+
+    companion object {
+        private val log = KotlinLogging.logger {}
+
+        internal val activeContextCount = atomic(0)
+        internal var activeConfiguration: Configuration? = null
+
+        // Guards the register-then-restart / unregister-then-shutdown sequences so that
+        // a concurrent destroy() cannot slip in between a decrement reaching zero and the
+        // actual shutdown() call while another afterPropertiesSet() has already incremented
+        // the count back above zero. ReentrantLock avoids virtual-thread pinning.
+        private val lifecycleLock = ReentrantLock()
+    }
 
     /** Preserves the `(Integer, boolean)` constructor published in 0.4.0. */
-    constructor(watchdogThreads: Int?, watchdogAsyncExtend: Boolean) : this(
+    constructor(watchdogThreads: Int?, watchdogAsyncExtend: Boolean): this(
         watchdogThreads = watchdogThreads,
         watchdogAsyncExtend = watchdogAsyncExtend as Boolean?,
     )
@@ -36,27 +54,16 @@ class LeaderLeaseAutoExtenderLifecycle(
         watchdogAsyncExtend: Boolean,
         mask: Int,
         marker: kotlin.jvm.internal.DefaultConstructorMarker?,
-    ) : this(
+    ): this(
         watchdogThreads = if (mask and 0x001 != 0) null else watchdogThreads,
         watchdogAsyncExtend = (if (mask and 0x002 != 0) false else watchdogAsyncExtend) as Boolean?,
     )
 
     private val registered = atomic(false)
 
-    companion object {
-        internal val activeContextCount = atomic(0)
-        internal var activeConfiguration: Configuration? = null
-
-        // Guards the register-then-restart / unregister-then-shutdown sequences so that
-        // a concurrent destroy() cannot slip in between a decrement reaching zero and the
-        // actual shutdown() call while another afterPropertiesSet() has already incremented
-        // the count back above zero. ReentrantLock avoids virtual-thread pinning.
-        private val lifecycleLock = ReentrantLock()
-    }
-
     override fun afterPropertiesSet() {
         lifecycleLock.withLock {
-            if (registered.compareAndSet(false, true)) {
+            if (registered.compareAndSet(expect = false, update = true)) {
                 try {
                     val requested = requestedConfiguration()
                     val owned = activeConfiguration
@@ -71,7 +78,9 @@ class LeaderLeaseAutoExtenderLifecycle(
                         )
                         activeConfiguration = requested
                     }
-                    activeContextCount.incrementAndGet()
+                    activeContextCount.incrementAndGet().apply {
+                        log.debug { "activeContextCount=${this}" }
+                    }
                 } catch (e: IllegalArgumentException) {
                     registered.value = false
                     throw e
@@ -80,6 +89,7 @@ class LeaderLeaseAutoExtenderLifecycle(
                     throw e
                 }
             }
+            log.info { "LeaderLeaseAutoExtender initialized" }
             LeaderLeaseAutoExtender.restart()
         }
     }
@@ -90,6 +100,7 @@ class LeaderLeaseAutoExtenderLifecycle(
                 if (activeContextCount.decrementAndGet() == 0) {
                     activeConfiguration = null
                     LeaderLeaseAutoExtender.shutdown()
+                    log.info { "Destroy LeaderLeaseAutoExtender" }
                 }
             }
         }
@@ -105,8 +116,19 @@ class LeaderLeaseAutoExtenderLifecycle(
             null
         }
 
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("watchdogThreads", watchdogThreads)
+            .add("watchdogAsyncExtend", watchdogAsyncExtend)
+            .toString()
+    }
+
     internal data class Configuration(
         val watchdogThreads: Int,
         val asyncExtend: Boolean,
-    )
+    ): Serializable {
+        companion object {
+            private val serialVersionUID = 1L
+        }
+    }
 }

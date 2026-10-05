@@ -10,16 +10,16 @@
 
 ## 계약별 검토
 
-| 계약 | 판정 | 근거 |
-|---|---|---|
-| 공개 event ABI | PASS | 5-인자 `LeaderLeaseExtensionEvent`와 기존 global facade를 유지하고 새 scope bridge는 `@JvmSynthetic`으로 Java source에서 숨겼다. JavaCompiler negative fixture와 `checkBinaryCompatibility unknown=0`으로 확인했다. |
-| Cross-registry event 격리 | PASS | dispatcher가 wildcard bucket과 전달된 scope identity bucket만 선택한다. Spring manager는 `ObservationRegistry` object identity별 canonical scope를 공유한다. distinct registry 및 same-registry parent/child 테스트가 있다. |
-| Raw exception privacy | PASS | 명시적인 global observer는 기존 process-global 계약대로 수신하고, Spring automatic observer는 source registry scope에만 등록된다. 상대 registry에 callback 자체가 admission되지 않는다. |
-| Lifecycle | PASS | scope close는 active revoke 후 identity bucket 제거와 registration close를 수행한다. 이미 dispatcher에 수락된 callback은 완료할 수 있고 close 뒤 publish는 무시된다. manager release는 lock 안에서 ref-count와 last-close를 선형화한다. |
-| Async propagation | PASS | watchdog는 `start()` 시 scope를 캡처하고 blocking/suspend adapter는 virtual thread/coroutine context에 전달한다. AOP는 sync/suspend/Mono/Flux/Flow와 지원되는 group 경계에 scope를 설치한다. |
-| Direct-call fail-closed | PASS | attribution이 없는 direct elector/extension 호출은 Spring automatic scope를 설치하지 않는다. global observer는 기존처럼 event를 받는다. |
-| Hot path | PASS | matching bucket은 map identity lookup으로 선택하며 no-observer/mismatch는 event/context/timer 생성 전 빠져나간다. 3-fork 비교가 15% 한도를 통과했다. |
-| Shutdown/rollback | PASS | owner clear와 manager last-close가 scope를 revoke한다. 문서에 kill switch, canary, rollback, close 후 late callback 경계를 명시했다. |
+| 계약                      | 판정 | 근거                                                                                                                                                                                                                                    |
+|---------------------------|------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 공개 event ABI            | PASS | 5-인자 `LeaderLeaseExtensionEvent`와 기존 global facade를 유지하고 새 scope bridge는 `@JvmSynthetic`으로 Java source에서 숨겼다. JavaCompiler negative fixture와 `checkBinaryCompatibility unknown=0`으로 확인했다.                     |
+| Cross-registry event 격리 | PASS | dispatcher가 wildcard bucket과 전달된 scope identity bucket만 선택한다. Spring manager는 `ObservationRegistry` object identity별 canonical scope를 공유한다. distinct registry 및 same-registry parent/child 테스트가 있다.             |
+| Raw exception privacy     | PASS | 명시적인 global observer는 기존 process-global 계약대로 수신하고, Spring automatic observer는 source registry scope에만 등록된다. 상대 registry에 callback 자체가 admission되지 않는다.                                                 |
+| Lifecycle                 | PASS | scope close는 active revoke 후 identity bucket 제거와 registration close를 수행한다. 이미 dispatcher에 수락된 callback은 완료할 수 있고 close 뒤 publish는 무시된다. manager release는 lock 안에서 ref-count와 last-close를 선형화한다. |
+| Async propagation         | PASS | watchdog는 `start()` 시 scope를 캡처하고 blocking/suspend adapter는 virtual thread/coroutine context에 전달한다. AOP는 sync/suspend/Mono/Flux/Flow와 지원되는 group 경계에 scope를 설치한다.                                            |
+| Direct-call fail-closed   | PASS | attribution이 없는 direct elector/extension 호출은 Spring automatic scope를 설치하지 않는다. global observer는 기존처럼 event를 받는다.                                                                                                 |
+| Hot path                  | PASS | matching bucket은 map identity lookup으로 선택하며 no-observer/mismatch는 event/context/timer 생성 전 빠져나간다. 3-fork 비교가 15% 한도를 통과했다.                                                                                    |
+| Shutdown/rollback         | PASS | owner clear와 manager last-close가 scope를 revoke한다. 문서에 kill switch, canary, rollback, close 후 late callback 경계를 명시했다.                                                                                                    |
 
 ## 구현 중 발견하고 해소한 항목
 

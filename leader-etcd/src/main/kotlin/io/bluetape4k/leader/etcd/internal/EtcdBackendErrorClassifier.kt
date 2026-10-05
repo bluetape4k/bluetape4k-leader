@@ -21,7 +21,7 @@ internal enum class EtcdBackendErrorKind {
  *
  * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
-internal object EtcdBackendErrorClassifier : BackendErrorClassifier {
+internal object EtcdBackendErrorClassifier: BackendErrorClassifier {
 
     private val expectedCleanupMessages = listOf(
         "etcdserver: requested lease not found",
@@ -52,9 +52,11 @@ internal object EtcdBackendErrorClassifier : BackendErrorClassifier {
         val root = cause.unwrapFutureFailure()
         return when {
             root is NoSuchLeaseException -> true
-            else -> root.messageChain().any { message ->
-                expectedCleanupMessages.any { expected -> message.contains(expected) }
-            }
+            else ->
+                root.messageChain()
+                    .any { message ->
+                        expectedCleanupMessages.any { expected -> message.contains(expected) }
+                    }
         }
     }
 
@@ -71,10 +73,12 @@ internal object EtcdBackendErrorClassifier : BackendErrorClassifier {
         when (status.code) {
             Status.Code.UNAVAILABLE,
             Status.Code.DEADLINE_EXCEEDED,
-            Status.Code.CANCELLED -> EtcdBackendErrorKind.TRANSIENT
+            Status.Code.CANCELLED,
+                -> EtcdBackendErrorKind.TRANSIENT
 
             Status.Code.UNAUTHENTICATED,
-            Status.Code.PERMISSION_DENIED -> EtcdBackendErrorKind.NON_TRANSIENT
+            Status.Code.PERMISSION_DENIED,
+                -> EtcdBackendErrorKind.NON_TRANSIENT
 
             else -> EtcdBackendErrorKind.NON_TRANSIENT
         }

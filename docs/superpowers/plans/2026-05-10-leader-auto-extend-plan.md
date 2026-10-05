@@ -66,13 +66,13 @@
 ## Review notes
 
 - Spec review local perspectives:
-  - developer: option propagation and backend ownership are aligned with current factory model.
-  - security: extension must be token-conditional; no lock revival without ownership.
-  - ops: watchdog failure is logged but cannot cancel running action with current API.
-  - caller: default false preserves existing fixed TTL behavior.
+    - developer: option propagation and backend ownership are aligned with current factory model.
+    - security: extension must be token-conditional; no lock revival without ownership.
+    - ops: watchdog failure is logged but cannot cancel running action with current API.
+    - caller: default false preserves existing fixed TTL behavior.
 - Plan review local perspectives:
-  - implementer: tasks are ordered by shared API first, backend support second.
-  - test engineer: each backend has a focused long-running contention test.
-  - architect: no AOP-only timer; backend lifecycle owns renewal.
-  - delivery: group autoExtend is explicitly excluded.
+    - implementer: tasks are ordered by shared API first, backend support second.
+    - test engineer: each backend has a focused long-running contention test.
+    - architect: no AOP-only timer; backend lifecycle owns renewal.
+    - delivery: group autoExtend is explicitly excluded.
 - Claude advisor: attempted with `claude-opus-4-7` at `.omx/artifacts/claude-leader-auto-extend-spec-plan-20260510-114935.md`; CLI produced no output for ~2 minutes and was terminated. Proceeding with local multi-perspective review to avoid blocking implementation.

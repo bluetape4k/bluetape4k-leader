@@ -12,7 +12,7 @@ import java.io.Serializable
 data class Elimination(
     val candidate: CandidateInfo,
     val reason: String,
-) : Serializable {
+): Serializable {
     companion object {
         private const val serialVersionUID = 1L
     }

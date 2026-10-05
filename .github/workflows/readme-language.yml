@@ -6,14 +6,14 @@ permissions:
 on:
   workflow_dispatch:
   push:
-    branches: [develop, main]
+    branches: [ develop, main ]
     paths:
       - 'README*.md'
       - '**/README*.md'
       - 'scripts/check-readme-language-switches.mjs'
       - '.github/workflows/readme-language.yml'
   pull_request:
-    branches: [develop, main]
+    branches: [ develop, main ]
     paths:
       - 'README*.md'
       - '**/README*.md'

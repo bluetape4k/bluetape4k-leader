@@ -16,8 +16,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.redisson.api.RedissonClient
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * `RedissonStrategicSuspendLeaderElector`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -28,9 +26,9 @@ import kotlin.time.Duration.Companion.seconds
 class RedissonStrategicSuspendLeaderElector(
     redissonClient: RedissonClient,
     override val nodeId: String = Uuid.V7.nextBase62(),
-) : StrategicSuspendLeaderElector {
+): StrategicSuspendLeaderElector {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val registry = RedissonCandidateRegistry(redissonClient)
 
@@ -56,7 +54,7 @@ class RedissonStrategicSuspendLeaderElector(
         options: LeaderElectionOptions,
         action: suspend () -> T,
     ): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val candidates = try {
             listCandidates(lockName)
         } catch (e: CancellationException) {
@@ -70,6 +68,7 @@ class RedissonStrategicSuspendLeaderElector(
 
         val total = result.eliminations.size + 1
         log.info { "[$lockName] 선출: ${winner.nodeId} (전략: ${strategy::class.simpleName}, 후보: ${total}명)" }
+
         if (result.scores.isNotEmpty()) {
             log.debug {
                 val scoreText = result.scores.entries
@@ -78,9 +77,7 @@ class RedissonStrategicSuspendLeaderElector(
                 "[$lockName] 점수: $scoreText"
             }
         }
-        result.eliminations.forEach { e ->
-            log.debug { "[$lockName] 탈락: ${e.candidate.nodeId} — ${e.reason}" }
-        }
+        result.eliminations.forEach { log.debug { "[$lockName] 탈락: ${it.candidate.nodeId} — ${it.reason}" } }
 
         if (winner.nodeId != nodeId) return null
 

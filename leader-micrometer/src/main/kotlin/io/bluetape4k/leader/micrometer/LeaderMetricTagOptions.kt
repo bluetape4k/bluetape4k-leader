@@ -38,7 +38,7 @@ data class LeaderMetricTagRule private constructor(
     val hashLength: Int = DEFAULT_HASH_LENGTH,
     val maxLength: Int = DEFAULT_MAX_LENGTH,
     val redactedValue: String = DEFAULT_REDACTED_VALUE,
-) : Serializable {
+): Serializable {
 
     private val allowedValues = allowList.toSet()
     private val deniedValues = denyList.toSet()
@@ -160,7 +160,7 @@ data class LeaderMetricTagOptions(
     val leaderId: LeaderMetricTagRule = LeaderMetricTagRule(redactedValue = DEFAULT_LEADER_ID_REDACTED_VALUE),
     val backendName: LeaderMetricTagRule = LeaderMetricTagRule.Raw,
     val defaultRule: LeaderMetricTagRule = LeaderMetricTagRule.Redacted,
-) : Serializable {
+): Serializable {
 
     /**
      * `ruleFor` 호출은 Micrometer observability 계약의 일부 동작을 수행합니다.

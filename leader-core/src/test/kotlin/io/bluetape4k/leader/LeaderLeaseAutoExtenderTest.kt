@@ -1,16 +1,22 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldHaveSize
+import io.bluetape4k.assertions.shouldNotBeEqualTo
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome.Extended
 import io.bluetape4k.leader.internal.ExtendDelegate
-import kotlinx.coroutines.delay
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -29,18 +35,21 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderLeaseAutoExtenderTest {
 
+    companion object: KLogging()
+
     @AfterEach
     fun restoreScheduler() {
         // Ensure the shared singleton is always restored after each test that may call shutdown().
         LeaderLeaseAutoExtender.restart()
     }
 
-    private fun countingDelegate(calls: AtomicInteger): ExtendDelegate = object : ExtendDelegate {
+    private fun countingDelegate(calls: AtomicInteger): ExtendDelegate = object: ExtendDelegate {
         override val lastExtendDeadline: AtomicReference<Instant> = AtomicReference(Instant.EPOCH)
         override fun extend(lockAtMostFor: Duration): ExtendOutcome {
             calls.incrementAndGet()
             return Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
         }
+
         override fun isHeld(): Boolean = true
     }
 
@@ -75,22 +84,25 @@ class LeaderLeaseAutoExtenderTest {
         val closeCompleted = CountDownLatch(1)
         val probeRan = CountDownLatch(1)
         val closeThread = AtomicReference<String>()
-        val delegate = object : ExtendDelegate {
+
+        val delegate = object: ExtendDelegate {
             override val lastExtendDeadline: AtomicReference<Instant> = AtomicReference(Instant.EPOCH)
 
             override fun extend(lockAtMostFor: Duration): ExtendOutcome {
                 extensionStarted.countDown()
-                releaseExtension.await(2, TimeUnit.SECONDS)
+                releaseExtension.await(2.seconds)
                 return Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
             }
 
             override fun isHeld(): Boolean = true
         }
         val watchdog = LeaderLeaseAutoExtender.start(true, 75.milliseconds, delegate)
-        val eventLoop = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "issue-936-event-loop") }
+        val eventLoop = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "issue-936-event-loop")
+        }
 
         try {
-            extensionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            extensionStarted.await(2.seconds).shouldBeTrue()
             eventLoop.execute {
                 LeaderLeaseAutoExtender.closeAsync(watchdog).whenComplete { _, _ ->
                     closeThread.set(Thread.currentThread().name)
@@ -99,11 +111,11 @@ class LeaderLeaseAutoExtenderTest {
                 eventLoop.execute { probeRan.countDown() }
             }
 
-            probeRan.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            probeRan.await(1.seconds).shouldBeTrue()
             closeCompleted.await(100, TimeUnit.MILLISECONDS).shouldBeFalse()
             releaseExtension.countDown()
-            closeCompleted.await(2, TimeUnit.SECONDS).shouldBeTrue()
-            (closeThread.get() == "issue-936-event-loop").shouldBeFalse()
+            closeCompleted.await(2.seconds).shouldBeTrue()
+            closeThread.get() shouldNotBeEqualTo "issue-936-event-loop"
         } finally {
             releaseExtension.countDown()
             LeaderLeaseAutoExtender.closeAsync(watchdog).join()
@@ -116,12 +128,13 @@ class LeaderLeaseAutoExtenderTest {
         val extensionStarted = CountDownLatch(1)
         val releaseExtension = CountDownLatch(1)
         val probeRan = CountDownLatch(1)
-        val delegate = object : ExtendDelegate {
+
+        val delegate = object: ExtendDelegate {
             override val lastExtendDeadline: AtomicReference<Instant> = AtomicReference(Instant.EPOCH)
 
             override fun extend(lockAtMostFor: Duration): ExtendOutcome {
                 extensionStarted.countDown()
-                releaseExtension.await(2, TimeUnit.SECONDS)
+                releaseExtension.await(2.seconds)
                 return Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
             }
 
@@ -135,13 +148,13 @@ class LeaderLeaseAutoExtenderTest {
         val scope = CoroutineScope(dispatcher + SupervisorJob())
 
         try {
-            extensionStarted.await(2, TimeUnit.SECONDS).shouldBeTrue()
+            extensionStarted.await(2.seconds).shouldBeTrue()
             val closeJob = scope.launch {
                 LeaderLeaseAutoExtender.closeSuspend(watchdog)
             }
-            scope.launch { probeRan.countDown() }
+            scope.launch { probeRan.countDown() }.log("countDown Job")
 
-            probeRan.await(1, TimeUnit.SECONDS).shouldBeTrue()
+            probeRan.await(1.seconds).shouldBeTrue()
             releaseExtension.countDown()
             closeJob.join()
         } finally {
@@ -158,12 +171,12 @@ class LeaderLeaseAutoExtenderTest {
         val scheduler = scheduler()
         val before = scheduler.queue.size
 
-        val watchdogs = (1..20).map {
+        val watchdogs = List(20) {
             LeaderLeaseAutoExtender.start(true, 30.seconds, countingDelegate(AtomicInteger()))
         }
         watchdogs.forEach { it.close() }
 
-        scheduler.queue.size shouldBeEqualTo before
+        scheduler.queue shouldHaveSize before
     }
 
     @Test
@@ -191,7 +204,7 @@ class LeaderLeaseAutoExtenderTest {
         delay(200.milliseconds)
         watchdog.close()
 
-        (calls.get() > 0).shouldBeTrue()
+        calls.get() shouldBeGreaterThan 0
     }
 
     @Test
@@ -207,7 +220,9 @@ class LeaderLeaseAutoExtenderTest {
         val calls = AtomicInteger(0)
         val watchdog = LeaderLeaseWatchdogAdmission.withProvider(
             admission = { null },
-            block = { LeaderLeaseAutoExtender.start(true, 40.milliseconds, countingDelegate(calls)) },
+            block = {
+                LeaderLeaseAutoExtender.start(true, 40.milliseconds, countingDelegate(calls))
+            },
         )
 
         delay(180.milliseconds)

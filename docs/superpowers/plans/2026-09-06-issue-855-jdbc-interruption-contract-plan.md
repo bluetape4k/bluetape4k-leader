@@ -2,13 +2,9 @@
 
 > **For agentic workers:** `executing-plans`와 `test-driven-development` 절차로 checkbox를 순서대로 실행한다.
 
-**Goal:** H2/PostgreSQL/MySQL의 실행 중 JDBC transaction에서 caller cancellation, worker
-interrupt, `Statement.cancel()`을 구분하고 Leader cleanup/history 계약을 실제 driver로
-검증한다.
+**Goal:** H2/PostgreSQL/MySQL의 실행 중 JDBC transaction에서 caller cancellation, worker interrupt, `Statement.cancel()`을 구분하고 Leader cleanup/history 계약을 실제 driver로 검증한다.
 
-**Architecture:** `leader-exposed-jdbc` test source에 DB별 query/probe/expected outcome을 가진
-private harness를 만들고 네 parameterized test가 raw driver matrix와 Leader lifecycle을
-검증한다. README 두 locale에는 pinned version 관찰값과 지원 경계를 기록한다.
+**Architecture:** `leader-exposed-jdbc` test source에 DB별 query/probe/expected outcome을 가진 private harness를 만들고 네 parameterized test가 raw driver matrix와 Leader lifecycle을 검증한다. README 두 locale에는 pinned version 관찰값과 지원 경계를 기록한다.
 
 ## 파일
 
@@ -61,39 +57,33 @@ private harness를 만들고 네 parameterized test가 raw driver matrix와 Lead
 
 ## TDD evidence 형식
 
-각 RED/GREEN은 command, exit code, JUnit count, 실패 원인을 기록한다. 실패 결과를 environment
-문제로 치부하지 않고 harness race, driver contract drift, production lifecycle regression으로
-분류한다. mutation sensitivity는 active-query probe를 우회한 변형이 execution-before-cancel
-assertion에 잡히는지 확인한다.
+각 RED/GREEN은 command, exit code, JUnit count, 실패 원인을 기록한다. 실패 결과를 environment 문제로 치부하지 않고 harness race, driver contract drift, production lifecycle regression으로 분류한다. mutation sensitivity는 active-query probe를 우회한 변형이 execution-before-cancel assertion에 잡히는지 확인한다.
 
 ## Rollback
 
-모든 변경은 test와 README/docs에 한정된다. driver별 관찰값이 deterministic하게 고정되지
-않으면 해당 expectation을 공통 계약으로 승격하지 않고, raw observation artifact만 남긴 뒤
-지원 경계를 명시한다. production cancellation bridge를 바꾸는 것은 별도 bug issue와
-승인된 계획 없이는 수행하지 않는다.
+모든 변경은 test와 README/docs에 한정된다. driver별 관찰값이 deterministic하게 고정되지 않으면 해당 expectation을 공통 계약으로 승격하지 않고, raw observation artifact만 남긴 뒤 지원 경계를 명시한다. production cancellation bridge를 바꾸는 것은 별도 bug issue와 승인된 계획 없이는 수행하지 않는다.
 
 ## 수용 기준 → Task
 
-| 수용 기준 | Task |
-|---|---|
+| 수용 기준                             | Task |
+|---------------------------------------|------|
 | driver/version, deterministic harness | 1, 4 |
-| caller/worker/statement cancel 구분 | 2 |
-| transaction/lock/history/exactly-once | 3 |
-| exception/cause/flag/future 기록 | 2, 4 |
-| 반복성과 지원 경계 | 2, 5 |
-| module/detekt/ABI | 5 |
+| caller/worker/statement cancel 구분   | 2    |
+| transaction/lock/history/exactly-once | 3    |
+| exception/cause/flag/future 기록      | 2, 4 |
+| 반복성과 지원 경계                    | 2, 5 |
+| module/detekt/ABI                     | 5    |
 
 ## 인라인 6관점 계획 리뷰
 
-| 관점 | 판정 | 근거 |
-|---|---|---|
-| 성능 | P0=0, P1=0 | active probe 직후 cancel하고 단일 heavy Gradle lane만 순차 실행한다. |
-| 안정성 | P0=0, P1=0 | system-view gate, timeout, finally cleanup, 반복 실행을 선행 task에 둔다. |
-| 보안 | P0=0, P1=0 | 새 credential과 external service가 없고 기존 Testcontainers 범위만 사용한다. |
-| 운영 | P0=0, P1=0 | driver version drift와 unsupported semantics를 README 및 rollback에 명시한다. |
-| 개발자/API | P0=0, P1=0 | test-only private harness이고 dependency/public API 변경이 없다. |
-| 사용자/caller | P0=0, P1=0 | 세 interruption 경로를 독립 test와 matrix로 추적한다. |
+| 관점          | 판정       | 근거                                                                          |
+|---------------|------------|-------------------------------------------------------------------------------|
+| 성능          | P0=0, P1=0 | active probe 직후 cancel하고 단일 heavy Gradle lane만 순차 실행한다.          |
+| 안정성        | P0=0, P1=0 | system-view gate, timeout, finally cleanup, 반복 실행을 선행 task에 둔다.     |
+| 보안          | P0=0, P1=0 | 새 credential과 external service가 없고 기존 Testcontainers 범위만 사용한다.  |
+| 운영          | P0=0, P1=0 | driver version drift와 unsupported semantics를 README 및 rollback에 명시한다. |
+| 개발자/API    | P0=0, P1=0 | test-only private harness이고 dependency/public API 변경이 없다.              |
+| 사용자/caller | P0=0, P1=0 | 세 interruption 경로를 독립 test와 matrix로 추적한다.                         |
 
 통합 판정은 `P0=0`, `P1=0`이다. 구현 뒤 exact diff를 다시 검토한다.
 

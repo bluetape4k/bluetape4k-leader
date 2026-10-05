@@ -26,9 +26,9 @@ import java.time.Instant
  */
 class ExposedSuspendLeaderHistorySink(
     private val database: R2dbcDatabase,
-) : SuspendLeaderHistorySink {
+): SuspendLeaderHistorySink {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
         val id = suspendTransaction(database) {
@@ -36,9 +36,9 @@ class ExposedSuspendLeaderHistorySink(
                 it[lockName] = record.lockName
                 it[token] = record.token
                 it[lockedUntil] = record.lockedUntil
-                it[status] = LeaderHistoryStatus.ACQUIRED.name
+                it[status] = LeaderHistoryStatus.ACQUIRED
                 it[startedAt] = record.acquiredAt
-                it[kind] = record.kind.name
+                it[kind] = record.kind
                 it[participantId] = record.nodeId
                 it[slotId] = record.slotId
                 it[slot] = record.slotId?.toIntOrNull()
@@ -90,7 +90,7 @@ class ExposedSuspendLeaderHistorySink(
                 { (LeaderLockHistoryTable.lockName eq key.lockName) and (LeaderLockHistoryTable.token eq key.token) }
             }
             LeaderLockHistoryTable.update(where = where) { row ->
-                row[LeaderLockHistoryTable.status] = status.name
+                row[LeaderLockHistoryTable.status] = status
                 row[LeaderLockHistoryTable.finishedAt] = finishedAt
                 row[LeaderLockHistoryTable.durationMs] = durationMs
                 row[LeaderLockHistoryTable.errorType] = errorType

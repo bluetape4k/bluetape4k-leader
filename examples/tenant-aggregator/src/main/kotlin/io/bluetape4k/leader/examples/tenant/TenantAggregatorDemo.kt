@@ -5,10 +5,6 @@ import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,6 +12,10 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `TenantAggregatorDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -47,7 +47,7 @@ object TenantAggregatorDemo: KLogging() {
         log.info { "$DEMO_INSTANCE_COUNT 인스턴스 × ${DEMO_TENANTS.size} 테넌트, ${DEMO_DURATION_SECONDS}s 동안 polling" }
 
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val aggregators = (1..DEMO_INSTANCE_COUNT).map { idx ->
+        val aggregators = List(DEMO_INSTANCE_COUNT) { idx ->
             val nodeId = "node-$idx"
             TenantAggregator(
                 electorFactory = { _, options ->

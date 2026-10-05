@@ -12,6 +12,7 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import org.aopalliance.intercept.MethodInterceptor
 import org.springframework.aop.support.AopUtils
+import org.springframework.beans.BeansException
 import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.core.MethodIntrospector
@@ -20,7 +21,6 @@ import org.springframework.core.annotation.AnnotatedElementUtils
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.annotation.Schedules
 import java.lang.reflect.Method
-import java.time.Duration
 import kotlin.coroutines.Continuation
 
 /**
@@ -34,7 +34,14 @@ class LeaderScheduledPolicyBeanPostProcessor(
     private val aopProperties: LeaderAopProperties,
     private val beanSelector: LeaderBeanSelector,
     spel: SpelExpressionEvaluator,
-) : BeanPostProcessor, SmartInitializingSingleton, PriorityOrdered {
+): BeanPostProcessor, SmartInitializingSingleton, PriorityOrdered {
+
+    companion object: KLogging() {
+        private const val POLICY_BPP_ORDER_OFFSET = 100
+        private const val MONO_RETURN_TYPE = "reactor.core.publisher.Mono"
+        private const val FLUX_RETURN_TYPE = "reactor.core.publisher.Flux"
+        private const val FLOW_RETURN_TYPE = "kotlinx.coroutines.flow.Flow"
+    }
 
     private val validation = LeaderMethodValidationSupport(spel)
 
@@ -59,7 +66,7 @@ class LeaderScheduledPolicyBeanPostProcessor(
         if (!properties.enabled) return
         check(properties.policies.isNotEmpty()) {
             "Scheduled policy property 'policies' must contain at least one entry when " +
-                "${LeaderScheduledPolicyProperties.PREFIX}.enabled=true"
+                    "${LeaderScheduledPolicyProperties.PREFIX}.enabled=true"
         }
         registry.freeze()
     }
@@ -98,18 +105,11 @@ class LeaderScheduledPolicyBeanPostProcessor(
 
         val waitTime = policy.waitTime ?: aopProperties.defaultWaitTime
         val leaseTime = policy.leaseTime ?: aopProperties.defaultLeaseTime
-        check(!waitTime.isNegative) {
-            "Scheduled policy '$selector' property 'wait-time' must be zero or positive"
-        }
-        check(!leaseTime.isZero && !leaseTime.isNegative) {
-            "Scheduled policy '$selector' property 'lease-time' must be positive"
-        }
-        check(!policy.minLeaseTime.isNegative) {
-            "Scheduled policy '$selector' property 'min-lease-time' must be zero or positive"
-        }
-        check(policy.minLeaseTime <= leaseTime) {
-            "Scheduled policy '$selector' property 'min-lease-time' must not exceed 'lease-time'"
-        }
+
+        check(!waitTime.isNegative) { "Scheduled policy '$selector' property 'wait-time' must be zero or positive" }
+        check(!leaseTime.isZero && !leaseTime.isNegative) { "Scheduled policy '$selector' property 'lease-time' must be positive" }
+        check(!policy.minLeaseTime.isNegative) { "Scheduled policy '$selector' property 'min-lease-time' must be zero or positive" }
+        check(policy.minLeaseTime <= leaseTime) { "Scheduled policy '$selector' property 'min-lease-time' must not exceed 'lease-time'" }
 
         val violations = try {
             validation.validateSingle(
@@ -138,7 +138,7 @@ class LeaderScheduledPolicyBeanPostProcessor(
             if (isSuspendOrReactive(method)) {
                 beanSelector.selectSuspendElectorFactory(policy.bean, method)
             }
-        } catch (error: org.springframework.beans.BeansException) {
+        } catch (error: BeansException) {
             throw IllegalStateException(
                 "Scheduled policy '$selector' property 'bean' could not select a leader factory",
                 error,
@@ -165,22 +165,15 @@ class LeaderScheduledPolicyBeanPostProcessor(
 
     private fun isInfrastructure(targetClass: Class<*>): Boolean =
         MethodInterceptor::class.java.isAssignableFrom(targetClass) ||
-            BeanPostProcessor::class.java.isAssignableFrom(targetClass) ||
-            targetClass.isAnnotationPresent(org.aspectj.lang.annotation.Aspect::class.java) ||
-            targetClass.`package`?.name?.startsWith("org.springframework") == true
+                BeanPostProcessor::class.java.isAssignableFrom(targetClass) ||
+                targetClass.isAnnotationPresent(org.aspectj.lang.annotation.Aspect::class.java) ||
+                targetClass.`package`?.name?.startsWith("org.springframework") == true
 
     private fun isSuspendOrReactive(method: Method): Boolean {
         val returnTypeName = method.returnType.name
         return method.parameterTypes.lastOrNull() == Continuation::class.java ||
-            returnTypeName == MONO_RETURN_TYPE ||
-            returnTypeName == FLUX_RETURN_TYPE ||
-            returnTypeName == FLOW_RETURN_TYPE
-    }
-
-    companion object : KLogging() {
-        private const val POLICY_BPP_ORDER_OFFSET = 100
-        private const val MONO_RETURN_TYPE = "reactor.core.publisher.Mono"
-        private const val FLUX_RETURN_TYPE = "reactor.core.publisher.Flux"
-        private const val FLOW_RETURN_TYPE = "kotlinx.coroutines.flow.Flow"
+                returnTypeName == MONO_RETURN_TYPE ||
+                returnTypeName == FLUX_RETURN_TYPE ||
+                returnTypeName == FLOW_RETURN_TYPE
     }
 }

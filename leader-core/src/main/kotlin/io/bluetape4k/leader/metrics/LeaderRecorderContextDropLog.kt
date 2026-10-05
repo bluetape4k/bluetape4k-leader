@@ -40,12 +40,12 @@ class LeaderRecorderContextDropLog(val cacheSize: Int = 256) {
         if (warnedClasses.add(recorderClass)) {
             log.warn {
                 "[OMC-RECORDER-CTX-DROP] ${recorderClass.qualifiedName} does not override context overloads. " +
-                    "leaderId='${context.leaderId}' dropped. Override the context overloads to capture leader ID metrics."
+                        "leaderId='${context.leaderId}' dropped. Override the context overloads to capture leader ID metrics."
             }
         }
     }
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         @Volatile
         private var globalInstance: LeaderRecorderContextDropLog = LeaderRecorderContextDropLog()
 

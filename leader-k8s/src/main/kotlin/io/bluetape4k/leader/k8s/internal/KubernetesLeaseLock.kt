@@ -16,7 +16,6 @@ import io.fabric8.kubernetes.api.model.coordination.v1.LeaseSpecBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import java.time.Clock
-import java.time.Instant
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.util.concurrent.ThreadLocalRandom
@@ -47,7 +46,7 @@ internal class KubernetesLeaseLock(
     private val retryDelay: Duration,
     private val clock: Clock,
 ) {
-    companion object : KLogging() {
+    companion object: KLogging() {
         private const val CONFLICT = 409
 
         fun newOwnerToken(): String = "b4k-${Base58.randomString(22)}"
@@ -138,10 +137,7 @@ internal class KubernetesLeaseLock(
 
     private fun tryAcquireOnce(leaseTime: Duration): AcquireResult {
         val now = now()
-        val current = lease()
-        if (current == null) {
-            return createLease(now, leaseTime)
-        }
+        val current = lease() ?: return createLease(now, leaseTime)
 
         if (!canAcquire(current)) {
             return AcquireResult.Contended
@@ -190,7 +186,10 @@ internal class KubernetesLeaseLock(
         }
     }
 
-    private fun updateLease(current: Lease, updatedSpec: io.fabric8.kubernetes.api.model.coordination.v1.LeaseSpec): Boolean {
+    private fun updateLease(
+        current: Lease,
+        updatedSpec: io.fabric8.kubernetes.api.model.coordination.v1.LeaseSpec,
+    ): Boolean {
         val updated = LeaseBuilder(current)
             .withSpec(updatedSpec)
             .build()

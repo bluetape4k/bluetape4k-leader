@@ -1,7 +1,6 @@
 # 이슈 #329 리더 이력 기록기 자기 개선 - 2026-05-21
 
-문제 #329는 벤치마크 기반 자체 개선 루프를 사용하여 `LeaderHistoryRecorderSupport` 삭제 핫 경로를 조정했습니다. 승인된 후보는
-벤치마크 하네스와 봉인된 벤치마크 아티팩트를 변경하지 않고 유지하며 이미 안전한 기록 기록에 대해 피할 수 있는 삭제제 할당만 제거합니다.
+문제 #329는 벤치마크 기반 자체 개선 루프를 사용하여 `LeaderHistoryRecorderSupport` 삭제 핫 경로를 조정했습니다. 승인된 후보는 벤치마크 하네스와 봉인된 벤치마크 아티팩트를 변경하지 않고 유지하며 이미 안전한 기록 기록에 대해 피할 수 있는 삭제제 할당만 제거합니다.
 
 이 보고서는 동일 기계 비교 전/후에만 사용하십시오. 이는 릴리스 등급 성능 주장이 아닙니다.
 
@@ -43,12 +42,12 @@
 
 높을수록 좋습니다. 승인된 후보는 반복 1에서 기본 및 보호 측정항목을 통과했습니다.
 
-| Benchmark | Baseline (ops/s) | After (ops/s) | Delta |
-|---|---:|---:|---:|
-| `HistoryRecorder.blockingInMemoryAcquireComplete` | 5,601,881.043 | 20,018,125.709 | +257.35% |
-| `HistoryRecorder.blockingNoopAcquireComplete` | 7,642,848.188 | 62,740,146.724 | +720.90% |
-| `HistoryRecorder.suspendInMemoryAcquireComplete` | 4,843,511.108 | 11,441,889.888 | +136.23% |
-| `HistoryRecorder.suspendNoopAcquireComplete` | 5,257,310.052 | 23,153,305.712 | +340.40% |
+| Benchmark                                         | Baseline (ops/s) |  After (ops/s) |    Delta |
+|---------------------------------------------------|-----------------:|---------------:|---------:|
+| `HistoryRecorder.blockingInMemoryAcquireComplete` |    5,601,881.043 | 20,018,125.709 | +257.35% |
+| `HistoryRecorder.blockingNoopAcquireComplete`     |    7,642,848.188 | 62,740,146.724 | +720.90% |
+| `HistoryRecorder.suspendInMemoryAcquireComplete`  |    4,843,511.108 | 11,441,889.888 | +136.23% |
+| `HistoryRecorder.suspendNoopAcquireComplete`      |    5,257,310.052 | 23,153,305.712 | +340.40% |
 
 ## 결정
 

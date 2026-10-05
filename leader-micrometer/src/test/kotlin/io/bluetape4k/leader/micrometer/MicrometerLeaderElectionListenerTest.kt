@@ -2,7 +2,10 @@ package io.bluetape4k.leader.micrometer
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.local.LocalLeaderElector
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.utils.Runtimex
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -10,6 +13,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MicrometerLeaderElectionListenerTest {
+
+    companion object: KLogging()
 
     @Test
     fun `listener 이벤트를 Micrometer counter 로 기록한다`() {
@@ -19,7 +24,7 @@ class MicrometerLeaderElectionListenerTest {
             addListener(listener)
         }
 
-        election.runIfLeader("metrics-listener-job") { "done" }
+        election.runIfLeader("metrics-listener-job") { "done" } shouldBeEqualTo "done"
 
         eventCount("metrics-listener-job", "elected", registry) shouldBeEqualTo 1.0
         eventCount("metrics-listener-job", "revoked", registry) shouldBeEqualTo 1.0
@@ -39,18 +44,38 @@ class MicrometerLeaderElectionListenerTest {
     }
 
     @Test
-    fun `listener concurrent redacted first use creates one event counter`(): Unit {
+    fun `listener concurrent redacted first use creates one event counter`() {
         val registry = SimpleMeterRegistry()
         val listener = MicrometerLeaderElectionListener(registry)
         val sequence = AtomicInteger()
 
         MultithreadingTester()
-            .workers(8)
-            .rounds(50)
-            .add { listener.onElected("tenant-${sequence.incrementAndGet()}") }
+            .workers(Runtimex.availableProcessors)
+            .rounds(10)
+            .add {
+                listener.onElected("tenant-${sequence.incrementAndGet()}")
+            }
             .run()
 
-        eventCount("redacted-lock", "elected", registry) shouldBeEqualTo 400.0
+        eventCount("redacted-lock", "elected", registry) shouldBeEqualTo sequence.get().toDouble()
+        eventCounters("redacted-lock", "elected", registry) shouldBeEqualTo 1
+    }
+
+
+    @Test
+    fun `listener virtual thread redacted first use creates one event counter`() {
+        val registry = SimpleMeterRegistry()
+        val listener = MicrometerLeaderElectionListener(registry)
+        val sequence = AtomicInteger()
+
+        StructuredTaskScopeTester()
+            .rounds(10 * Runtimex.availableProcessors)
+            .add {
+                listener.onElected("tenant-${sequence.incrementAndGet()}")
+            }
+            .run()
+
+        eventCount("redacted-lock", "elected", registry) shouldBeEqualTo sequence.get().toDouble()
         eventCounters("redacted-lock", "elected", registry) shouldBeEqualTo 1
     }
 

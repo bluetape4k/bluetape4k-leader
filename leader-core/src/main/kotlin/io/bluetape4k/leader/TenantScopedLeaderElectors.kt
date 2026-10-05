@@ -1,10 +1,10 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
-import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.resolveLeaderBackendDiagnosticsProvider
+import io.bluetape4k.support.requireNotNull
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
@@ -97,7 +97,7 @@ fun VirtualThreadLeaderGroupElector.forTenant(namespace: TenantLockNamespace): V
 internal class TenantScopedLeaderElector(
     private val delegate: LeaderElector,
     private val namespace: TenantLockNamespace,
-) : LeaderElector, LeaderLeaseAcquirerSupport, LeaderBackendDiagnosticsAware {
+): LeaderElector, LeaderLeaseAcquirerSupport, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveLeaderBackendDiagnosticsProvider()
@@ -106,14 +106,13 @@ internal class TenantScopedLeaderElector(
         get() = delegate.supportsAuditLeaderState
 
     override val leaseCapabilityAvailable: Boolean
-        get() = (delegate as? LeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
-            ?: delegate is LeaderLeaseAcquirer
+        get() = ((delegate as? LeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable ?: delegate) is LeaderLeaseAcquirer
 
     override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
         val acquirer = (delegate as? LeaderLeaseAcquirer).requireNotNull {
             "The tenant-scoped elector delegate does not expose request-lease capability"
         }
-        object : LeaderLeaseAcquirer {
+        object: LeaderLeaseAcquirer {
             override val configuredOptions: LeaderElectionOptions
                 get() = acquirer.configuredOptions
 
@@ -174,7 +173,7 @@ internal class TenantScopedLeaderElector(
 internal class TenantScopedLeaderGroupElector(
     private val delegate: LeaderGroupElector,
     private val namespace: TenantLockNamespace,
-) : LeaderGroupElector, LeaderBackendDiagnosticsAware {
+): LeaderGroupElector, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveLeaderBackendDiagnosticsProvider()
@@ -236,7 +235,7 @@ internal class TenantScopedLeaderGroupElector(
 internal class TenantScopedVirtualThreadLeaderElector(
     private val delegate: VirtualThreadLeaderElector,
     private val namespace: TenantLockNamespace,
-) : VirtualThreadLeaderElector, LeaderBackendDiagnosticsAware {
+): VirtualThreadLeaderElector, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveLeaderBackendDiagnosticsProvider()
@@ -269,7 +268,7 @@ internal class TenantScopedVirtualThreadLeaderElector(
 internal class TenantScopedVirtualThreadLeaderGroupElector(
     private val delegate: VirtualThreadLeaderGroupElector,
     private val namespace: TenantLockNamespace,
-) : VirtualThreadLeaderGroupElector, LeaderBackendDiagnosticsAware {
+): VirtualThreadLeaderGroupElector, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveLeaderBackendDiagnosticsProvider()

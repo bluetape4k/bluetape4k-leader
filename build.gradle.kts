@@ -3,13 +3,8 @@ import dev.detekt.gradle.DetektCreateBaselineTask
 import dev.detekt.gradle.report.ReportMergeTask
 import nmcp.NmcpAggregationExtension
 import nmcp.NmcpExtension
-import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
-import org.gradle.api.tasks.Exec
-import org.gradle.api.tasks.compile.JavaCompile
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
-import java.io.File
-import java.util.concurrent.TimeUnit
 
 plugins {
     base
@@ -117,7 +112,7 @@ allprojects {
         }
     }
     configurations.all {
-        resolutionStrategy.cacheChangingModulesFor(1, TimeUnit.DAYS)
+        resolutionStrategy.cacheChangingModulesFor(0, TimeUnit.DAYS)
     }
     configurations.matching { it.name.startsWith("dokka") }.configureEach {
         resolutionStrategy.eachDependency {
@@ -191,14 +186,15 @@ subprojects {
                 kotlin.srcDir(rootProject.file("examples/shared/src/main/kotlin"))
             }
         }
-        configurations.matching { it.name == "kotlinCompilerClasspath" || it.name == "kotlinCompilerPluginClasspath" }.configureEach {
-            resolutionStrategy.eachDependency {
-                if (requested.group == "org.jetbrains.kotlin") {
-                    useVersion(bt4kVersion("kotlin"))
-                    because("KGP build-tools requires matching kotlin-compiler version")
+        configurations.matching { it.name == "kotlinCompilerClasspath" || it.name == "kotlinCompilerPluginClasspath" }
+            .configureEach {
+                resolutionStrategy.eachDependency {
+                    if (requested.group == "org.jetbrains.kotlin") {
+                        useVersion(bt4kVersion("kotlin"))
+                        because("KGP build-tools requires matching kotlin-compiler version")
+                    }
                 }
             }
-        }
         kotlin {
             jvmToolchain(25)
             compilerOptions {
@@ -606,7 +602,8 @@ subprojects {
     }
 }
 
-val binaryCompatibilityProjects = subprojects.filterNot { it.isNonPublishedProject() || it.name == "bluetape4k-leader-bom" }
+val binaryCompatibilityProjects =
+    subprojects.filterNot { it.isNonPublishedProject() || it.name == "bluetape4k-leader-bom" }
 tasks.register<Exec>("checkBinaryCompatibility") {
     group = "verification"
     description = "Compare publishable JVM artifacts with the configured published baseline."

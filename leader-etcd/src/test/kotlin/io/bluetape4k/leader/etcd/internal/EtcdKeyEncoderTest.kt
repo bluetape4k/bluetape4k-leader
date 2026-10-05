@@ -3,12 +3,19 @@ package io.bluetape4k.leader.etcd.internal
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.leader.etcd.AbstractEtcdLeaderTest
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.nio.charset.CharacterCodingException
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class EtcdKeyEncoderTest {
+class EtcdKeyEncoderTest: AbstractEtcdLeaderTest() {
+
+    companion object: KLogging() {
+        private const val REPEAT_SIZE = 5
+    }
 
     @Test
     fun `safe ASCII path segment bytes remain unchanged`() {
@@ -20,11 +27,12 @@ class EtcdKeyEncoderTest {
         EtcdKeyEncoder.encodeSegment("group/job:slot") shouldBeEqualTo "group%2Fjob%3Aslot"
     }
 
-    @Test
+    @RepeatedTest(REPEAT_SIZE)
     fun `unicode lock names round trip through UTF-8 percent encoding`() {
-        val value = "배치-작업"
+        val value = defaultFaker.lorem().sentence()
         val encoded = EtcdKeyEncoder.encodeSegment(value)
 
+        log.debug { "value=$value, encoded=$encoded" }
         encoded shouldNotContain "/"
         EtcdKeyEncoder.decodeSegment(encoded) shouldBeEqualTo value
     }

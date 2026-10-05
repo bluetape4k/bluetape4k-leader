@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.examples.zookeeperscheduler
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.infra.ZooKeeperServer
 import org.apache.curator.framework.CuratorFramework
 import org.junit.jupiter.api.AfterAll
@@ -16,28 +17,28 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractZooKeeperSchedulerTest {
 
-    companion object {
-        private val zookeeper: ZooKeeperServer = ZooKeeperServer.Launcher.zookeeper
-        private lateinit var curator: CuratorFramework
+    companion object: KLogging() {
+        private val zookeeper: ZooKeeperServer by lazy { ZooKeeperServer.Launcher.zookeeper }
+    }
 
-        @BeforeAll
-        @JvmStatic
-        fun startZooKeeper() {
-            curator = ZooKeeperServer.Launcher.getCuratorFramework(zookeeper)
-            curator.start()
-            check(curator.blockUntilConnected(10, TimeUnit.SECONDS)) {
-                "Curator did not connect to ZooKeeper within 10 seconds"
-            }
-        }
+    private lateinit var curator: CuratorFramework
 
-        @AfterAll
-        @JvmStatic
-        fun stopZooKeeper() {
-            if (::curator.isInitialized) {
-                curator.close()
-            }
+    @BeforeAll
+    fun startZooKeeper() {
+        curator = ZooKeeperServer.Launcher.getCuratorFramework(zookeeper)
+        curator.start()
+        check(curator.blockUntilConnected(10, TimeUnit.SECONDS)) {
+            "Curator did not connect to ZooKeeper within 10 seconds"
         }
     }
+
+    @AfterAll
+    fun stopZooKeeper() {
+        if (::curator.isInitialized) {
+            curator.close()
+        }
+    }
+
 
     protected fun scheduler(
         nodeId: String,

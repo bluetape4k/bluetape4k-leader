@@ -17,7 +17,7 @@ data class ExposedJdbcLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
     val retryStrategy: RetryStrategy = RetryStrategy.Jitter(),
     val lockOwner: String? = null,
-) : Serializable {
+): Serializable {
 
     init {
         lockOwner?.let {

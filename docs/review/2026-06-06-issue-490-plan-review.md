@@ -16,13 +16,13 @@ P0/P1 차단제가 없습니다.
 
 ## 수표
 
-| Check | Status | Evidence |
-|---|---:|---|
-| Spec-to-plan coverage | PASS | Plan covers generator model, geometry gate, render/evidence, README locale switch, visual QA, validation, review/PR |
-| Workflow order | PASS | Plan preserves spec -> spec review -> plan -> plan review before implementation |
-| Diagram skill compliance | PASS | Plan requires layer containment, title gap, margin balance, endpoint angle, 90-degree bends, and rendered PNG inspection |
-| Scope boundary | PASS | Plan excludes #491 example scenario/flow work and Kotlin source changes |
-| Verification sufficiency | PASS | Plan includes shared evidence check, XML parse, README image-link check, `git diff --check`, contact sheet and individual PNG inspection |
+| Check                    | Status | Evidence                                                                                                                                 |
+|--------------------------|-------:|------------------------------------------------------------------------------------------------------------------------------------------|
+| Spec-to-plan coverage    |   PASS | Plan covers generator model, geometry gate, render/evidence, README locale switch, visual QA, validation, review/PR                      |
+| Workflow order           |   PASS | Plan preserves spec -> spec review -> plan -> plan review before implementation                                                          |
+| Diagram skill compliance |   PASS | Plan requires layer containment, title gap, margin balance, endpoint angle, 90-degree bends, and rendered PNG inspection                 |
+| Scope boundary           |   PASS | Plan excludes #491 example scenario/flow work and Kotlin source changes                                                                  |
+| Verification sufficiency |   PASS | Plan includes shared evidence check, XML parse, README image-link check, `git diff --check`, contact sheet and individual PNG inspection |
 
 ## 메모
 

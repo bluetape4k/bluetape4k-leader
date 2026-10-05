@@ -1,69 +1,108 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>CyclomaticComplexMethod:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$fun start: AutoCloseable</ID>
-    <ID>LongMethod:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$fun start: AutoCloseable</ID>
-    <ID>MagicNumber:IdleTimeScorer.kt:IdleTimeScorer$100.0</ID>
-    <ID>MagicNumber:LeaderHistoryRecorderSupport.kt:0x20</ID>
-    <ID>MagicNumber:LeaderHistoryRecorderSupport.kt:0x2028</ID>
-    <ID>MagicNumber:LeaderHistoryRecorderSupport.kt:0x2029</ID>
-    <ID>MagicNumber:LeaderHistoryRecorderSupport.kt:0x7F</ID>
-    <ID>MagicNumber:LeaderHistoryRecorderSupport.kt:0x9F</ID>
-    <ID>MagicNumber:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$5</ID>
-    <ID>MagicNumber:LeaderSlot.kt:LeaderSlot$0x20</ID>
-    <ID>MagicNumber:LeaderSlot.kt:LeaderSlot$0x7F</ID>
-    <ID>MagicNumber:LockNameValidator.kt:255</ID>
-    <ID>MagicNumber:RecentSuccessScorer.kt:RecentSuccessScorer$100.0</ID>
-    <ID>MagicNumber:SuccessRateScorer.kt:SuccessRateScorer$100.0</ID>
-    <ID>MaxLineLength:AbstractLocalLeaderElector.kt:AbstractLocalLeaderElector$val lease = states.acquireSingle(lockName, auditLeaderId = auditLeaderId, nodeId = nodeId, leaseTime = options.leaseTime)</ID>
-    <ID>MaxLineLength:LeaderAopMetricsRecorder.kt:LeaderAopMetricsRecorder$fun</ID>
-    <ID>MaxLineLength:LeaderElectionInfo.kt:"leaderId and leaderIdSource must both be null or both non-null: leaderId=$leaderId, leaderIdSource=$leaderIdSource"</ID>
-    <ID>MaxLineLength:LeaderElectorBridgeLog.kt:LeaderElectorBridgeLog$"lockName='${slot.lockName.sanitizeForLog()}'. Backend MUST override BOTH slot and result variants "</ID>
-    <ID>MaxLineLength:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$log.warn(ex) { "Suspend watchdog tick rejected — scheduler shut down. delegateId=${delegate.hashCode()}" }</ID>
-    <ID>MaxLineLength:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$log.warn(outcome.cause) { "leader.lease.auto-extend.stopped reason=BACKEND_ERROR kind=$kind cause=${outcome.cause.message}" }</ID>
-    <ID>MaxLineLength:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$log.warn(outcome.cause) { "leader.lease.auto-extend.transient-error — retrying. cause=${outcome.cause.message}" }</ID>
-    <ID>MaxLineLength:LeaderLockHandle.kt:LeaderLockHandle.Companion$)</ID>
-    <ID>MaxLineLength:LeaderLockHandle.kt:LeaderLockHandle.Real$append("LeaderLockHandle.Real(identity=$identity, token=&lt;redacted>, reentryDepth=$reentryDepth, slotId=$slotId")</ID>
-    <ID>MaxLineLength:LeaderRecorderContextDropLog.kt:LeaderRecorderContextDropLog.Companion$log.info { "[LeaderRecorderContextDropLog] global instance swapped. prev.droppedCount=${prev.droppedCount()}" }</ID>
-    <ID>MaxLineLength:LocalLeaderGroupElector.kt:LocalLeaderGroupElector.Companion$operator</ID>
-    <ID>MaxLineLength:LocalSuspendLeaderElector.kt:LocalSuspendLeaderElector$val lease = states.acquireSingle(lockName, auditLeaderId = auditLeaderId, nodeId = nodeId, leaseTime = options.leaseTime)</ID>
-    <ID>MaxLineLength:LockExtender.kt:LockExtender$log.warn { "LockExtender — extend failed: WrongThread (Redisson thread-bound lock called from wrong thread)" }</ID>
-    <ID>MaxLineLength:LockExtender.kt:LockExtender$log.warn { "LockExtender — extend returned NotHeld (token mismatch / takeover / lease expired / scope absent)" }</ID>
-    <ID>MaxLineLength:LockExtender.kt:LockExtender$private suspend</ID>
-    <ID>MaxLineLength:LockNameValidator.kt:"lockName contains invalid characters. Allowed: [a-zA-Z0-9_\\-:], first char must be alphanumeric, got: $lockName"</ID>
-    <ID>MaxLineLength:TenantScopedLeaderElectors.kt:TenantScopedVirtualThreadLeaderGroupElector$*</ID>
-    <ID>MaxLineLength:TenantScopedSuspendLeaderElectors.kt:TenantScopedSuspendLeaderGroupElector$*</ID>
-    <ID>ReturnCount:AbstractLocalLeaderElector.kt:AbstractLocalLeaderElector$protected fun &lt;T> tryWithLeaderLock: T?</ID>
-    <ID>ReturnCount:IdleTimeScorer.kt:IdleTimeScorer$override fun score: Double</ID>
-    <ID>ReturnCount:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$fun start: AutoCloseable</ID>
-    <ID>ReturnCount:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$suspend fun doSuspendTick</ID>
-    <ID>ReturnCount:LocalStrategicLeaderElector.kt:LocalStrategicLeaderElector$override fun &lt;T> runIfLeader: T?</ID>
-    <ID>ReturnCount:LocalStrategicSuspendLeaderElector.kt:LocalStrategicSuspendLeaderElector$override suspend fun &lt;T> runIfLeader: T?</ID>
-    <ID>ReturnCount:RecentSuccessScorer.kt:RecentSuccessScorer$override fun score: Double</ID>
-    <ID>ReturnCount:ScoredElectionStrategy.kt:ScoredElectionStrategy$override fun elect: ElectionResult</ID>
-    <ID>ThrowsCount:LeaderElector.kt:LeaderElector$fun &lt;T> runIfLeaderResult: LeaderRunResult&lt;T></ID>
-    <ID>ThrowsCount:LeaderGroupElector.kt:LeaderGroupElector$fun &lt;T> runIfLeaderResult: LeaderRunResult&lt;T></ID>
-    <ID>ThrowsCount:LocalLeaderElector.kt:LocalLeaderElector$override fun &lt;T> runIfLeaderResult: LeaderRunResult&lt;T></ID>
-    <ID>ThrowsCount:LocalLeaderGroupElector.kt:LocalLeaderGroupElector$override fun &lt;T> runIfLeaderResult: LeaderRunResult&lt;T></ID>
-    <ID>TooGenericExceptionCaught:LeaderElector.kt:LeaderElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LeaderGroupElector.kt:LeaderGroupElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LeaderIdProviders.kt:e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$ex: Exception</ID>
-    <ID>TooGenericExceptionCaught:ListeningLeaderElectors.kt:ListeningLeaderElector$e: Throwable</ID>
-    <ID>TooGenericExceptionCaught:ListeningLeaderElectors.kt:ListeningLeaderGroupElector$e: Throwable</ID>
-    <ID>TooGenericExceptionCaught:LocalLeaderElector.kt:LocalLeaderElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LocalLeaderGroupElector.kt:LocalLeaderGroupElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LocalStrategicLeaderElector.kt:LocalStrategicLeaderElector$e: Throwable</ID>
-    <ID>TooGenericExceptionCaught:LocalStrategicSuspendLeaderElector.kt:LocalStrategicSuspendLeaderElector$e: Throwable</ID>
-    <ID>TooGenericExceptionCaught:LocalStrategicSuspendLeaderElector.kt:e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LocalSuspendLeaderElector.kt:LocalSuspendLeaderElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LocalSuspendLeaderGroupElector.kt:LocalSuspendLeaderGroupElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:SafeLeaderHistoryRecorder.kt:SafeLeaderHistoryRecorder$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:SuspendLeaderElector.kt:SuspendLeaderElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:SuspendLeaderGroupElector.kt:SuspendLeaderGroupElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:SuspendSafeLeaderHistoryRecorder.kt:SuspendSafeLeaderHistoryRecorder$e: Exception</ID>
-    <ID>TooManyFunctions:LeaderAopMetricsRecorder.kt:LeaderAopMetricsRecorder</ID>
-    <ID>TooManyFunctions:LockExtender.kt:LockExtender : KLogging</ID>
-  </CurrentIssues>
+    <ManuallySuppressedIssues/>
+    <CurrentIssues>
+        <ID>CyclomaticComplexMethod:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$fun start: AutoCloseable</ID>
+        <ID>LongMethod:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$fun start: AutoCloseable</ID>
+        <ID>MagicNumber:IdleTimeScorer.kt:IdleTimeScorer$100.0</ID>
+        <ID>MagicNumber:LeaderHistoryRecorderSupport.kt:0x20</ID>
+        <ID>MagicNumber:LeaderHistoryRecorderSupport.kt:0x2028</ID>
+        <ID>MagicNumber:LeaderHistoryRecorderSupport.kt:0x2029</ID>
+        <ID>MagicNumber:LeaderHistoryRecorderSupport.kt:0x7F</ID>
+        <ID>MagicNumber:LeaderHistoryRecorderSupport.kt:0x9F</ID>
+        <ID>MagicNumber:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$5</ID>
+        <ID>MagicNumber:LeaderSlot.kt:LeaderSlot$0x20</ID>
+        <ID>MagicNumber:LeaderSlot.kt:LeaderSlot$0x7F</ID>
+        <ID>MagicNumber:LockNameValidator.kt:255</ID>
+        <ID>MagicNumber:RecentSuccessScorer.kt:RecentSuccessScorer$100.0</ID>
+        <ID>MagicNumber:SuccessRateScorer.kt:SuccessRateScorer$100.0</ID>
+        <ID>MaxLineLength:AbstractLocalLeaderElector.kt:AbstractLocalLeaderElector$val lease =
+            states.acquireSingle(lockName, auditLeaderId = auditLeaderId, nodeId = nodeId, leaseTime =
+            options.leaseTime)
+        </ID>
+        <ID>MaxLineLength:LeaderAopMetricsRecorder.kt:LeaderAopMetricsRecorder$fun</ID>
+        <ID>MaxLineLength:LeaderElectionInfo.kt:"leaderId and leaderIdSource must both be null or both non-null:
+            leaderId=$leaderId, leaderIdSource=$leaderIdSource"
+        </ID>
+        <ID>
+            MaxLineLength:LeaderElectorBridgeLog.kt:LeaderElectorBridgeLog$"lockName='${slot.lockName.sanitizeForLog()}'.
+            Backend MUST override BOTH slot and result variants "
+        </ID>
+        <ID>MaxLineLength:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$log.warn(ex) { "Suspend watchdog tick
+            rejected — scheduler shut down. delegateId=${delegate.hashCode()}" }
+        </ID>
+        <ID>MaxLineLength:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$log.warn(outcome.cause) {
+            "leader.lease.auto-extend.stopped reason=BACKEND_ERROR kind=$kind cause=${outcome.cause.message}" }
+        </ID>
+        <ID>MaxLineLength:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$log.warn(outcome.cause) {
+            "leader.lease.auto-extend.transient-error — retrying. cause=${outcome.cause.message}" }
+        </ID>
+        <ID>MaxLineLength:LeaderLockHandle.kt:LeaderLockHandle.Companion$)</ID>
+        <ID>MaxLineLength:LeaderLockHandle.kt:LeaderLockHandle.Real$append("LeaderLockHandle.Real(identity=$identity,
+            token=&lt;redacted>, reentryDepth=$reentryDepth, slotId=$slotId")
+        </ID>
+        <ID>MaxLineLength:LeaderRecorderContextDropLog.kt:LeaderRecorderContextDropLog.Companion$log.info {
+            "[LeaderRecorderContextDropLog] global instance swapped. prev.droppedCount=${prev.droppedCount()}" }
+        </ID>
+        <ID>MaxLineLength:LocalLeaderGroupElector.kt:LocalLeaderGroupElector.Companion$operator</ID>
+        <ID>MaxLineLength:LocalSuspendLeaderElector.kt:LocalSuspendLeaderElector$val lease =
+            states.acquireSingle(lockName, auditLeaderId = auditLeaderId, nodeId = nodeId, leaseTime =
+            options.leaseTime)
+        </ID>
+        <ID>MaxLineLength:LockExtender.kt:LockExtender$log.warn { "LockExtender — extend failed: WrongThread (Redisson
+            thread-bound lock called from wrong thread)" }
+        </ID>
+        <ID>MaxLineLength:LockExtender.kt:LockExtender$log.warn { "LockExtender — extend returned NotHeld (token
+            mismatch / takeover / lease expired / scope absent)" }
+        </ID>
+        <ID>MaxLineLength:LockExtender.kt:LockExtender$private suspend</ID>
+        <ID>MaxLineLength:LockNameValidator.kt:"lockName contains invalid characters. Allowed: [a-zA-Z0-9_\\-:], first
+            char must be alphanumeric, got: $lockName"
+        </ID>
+        <ID>MaxLineLength:TenantScopedLeaderElectors.kt:TenantScopedVirtualThreadLeaderGroupElector$*</ID>
+        <ID>MaxLineLength:TenantScopedSuspendLeaderElectors.kt:TenantScopedSuspendLeaderGroupElector$*</ID>
+        <ID>ReturnCount:AbstractLocalLeaderElector.kt:AbstractLocalLeaderElector$protected fun &lt;T> tryWithLeaderLock:
+            T?
+        </ID>
+        <ID>ReturnCount:IdleTimeScorer.kt:IdleTimeScorer$override fun score: Double</ID>
+        <ID>ReturnCount:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$fun start: AutoCloseable</ID>
+        <ID>ReturnCount:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$suspend fun doSuspendTick</ID>
+        <ID>ReturnCount:LocalStrategicLeaderElector.kt:LocalStrategicLeaderElector$override fun &lt;T> runIfLeader: T?
+        </ID>
+        <ID>ReturnCount:LocalStrategicSuspendLeaderElector.kt:LocalStrategicSuspendLeaderElector$override suspend fun
+            &lt;T> runIfLeader: T?
+        </ID>
+        <ID>ReturnCount:RecentSuccessScorer.kt:RecentSuccessScorer$override fun score: Double</ID>
+        <ID>ReturnCount:ScoredElectionStrategy.kt:ScoredElectionStrategy$override fun elect: ElectionResult</ID>
+        <ID>ThrowsCount:LeaderElector.kt:LeaderElector$fun &lt;T> runIfLeaderResult: LeaderRunResult&lt;T></ID>
+        <ID>ThrowsCount:LeaderGroupElector.kt:LeaderGroupElector$fun &lt;T> runIfLeaderResult: LeaderRunResult&lt;T>
+        </ID>
+        <ID>ThrowsCount:LocalLeaderElector.kt:LocalLeaderElector$override fun &lt;T> runIfLeaderResult: LeaderRunResult&lt;T></ID>
+        <ID>ThrowsCount:LocalLeaderGroupElector.kt:LocalLeaderGroupElector$override fun &lt;T> runIfLeaderResult:
+            LeaderRunResult&lt;T>
+        </ID>
+        <ID>TooGenericExceptionCaught:LeaderElector.kt:LeaderElector$e: Exception</ID>
+        <ID>TooGenericExceptionCaught:LeaderGroupElector.kt:LeaderGroupElector$e: Exception</ID>
+        <ID>TooGenericExceptionCaught:LeaderIdProviders.kt:e: Exception</ID>
+        <ID>TooGenericExceptionCaught:LeaderLeaseAutoExtender.kt:LeaderLeaseAutoExtender$ex: Exception</ID>
+        <ID>TooGenericExceptionCaught:ListeningLeaderElectors.kt:ListeningLeaderElector$e: Throwable</ID>
+        <ID>TooGenericExceptionCaught:ListeningLeaderElectors.kt:ListeningLeaderGroupElector$e: Throwable</ID>
+        <ID>TooGenericExceptionCaught:LocalLeaderElector.kt:LocalLeaderElector$e: Exception</ID>
+        <ID>TooGenericExceptionCaught:LocalLeaderGroupElector.kt:LocalLeaderGroupElector$e: Exception</ID>
+        <ID>TooGenericExceptionCaught:LocalStrategicLeaderElector.kt:LocalStrategicLeaderElector$e: Throwable</ID>
+        <ID>TooGenericExceptionCaught:LocalStrategicSuspendLeaderElector.kt:LocalStrategicSuspendLeaderElector$e:
+            Throwable
+        </ID>
+        <ID>TooGenericExceptionCaught:LocalStrategicSuspendLeaderElector.kt:e: Exception</ID>
+        <ID>TooGenericExceptionCaught:LocalSuspendLeaderElector.kt:LocalSuspendLeaderElector$e: Exception</ID>
+        <ID>TooGenericExceptionCaught:LocalSuspendLeaderGroupElector.kt:LocalSuspendLeaderGroupElector$e: Exception</ID>
+        <ID>TooGenericExceptionCaught:SafeLeaderHistoryRecorder.kt:SafeLeaderHistoryRecorder$e: Exception</ID>
+        <ID>TooGenericExceptionCaught:SuspendLeaderElector.kt:SuspendLeaderElector$e: Exception</ID>
+        <ID>TooGenericExceptionCaught:SuspendLeaderGroupElector.kt:SuspendLeaderGroupElector$e: Exception</ID>
+        <ID>TooGenericExceptionCaught:SuspendSafeLeaderHistoryRecorder.kt:SuspendSafeLeaderHistoryRecorder$e:
+            Exception
+        </ID>
+        <ID>TooManyFunctions:LeaderAopMetricsRecorder.kt:LeaderAopMetricsRecorder</ID>
+        <ID>TooManyFunctions:LockExtender.kt:LockExtender : KLogging</ID>
+    </CurrentIssues>
 </SmellBaseline>

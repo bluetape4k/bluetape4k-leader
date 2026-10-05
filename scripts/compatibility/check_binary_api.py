@@ -3,9 +3,9 @@
 
 The release gate reports every japicmp incompatibility, then filters only
 compiler-generated classes, exact historical JVM descriptors, JVM class-file
-format changes, and explicitly retired Kotlin-internal facades. A new public
-incompatibility must therefore be classified in the migration notes or the
-command fails.
+format changes, and explicitly retired Kotlin-internal facades or exact
+Kotlin-internal ABI transitions. A new public incompatibility must therefore
+be classified in the migration notes or the command fails.
 """
 
 from __future__ import annotations
@@ -39,9 +39,16 @@ ARTIFACTS = (
     ("leader-zookeeper", ""),
 )
 
-REPORT_START = re.compile(r"^(?:---!|\*\*!|\*\*\*!)")
+REPORT_START = re.compile(
+    r"^(?:---!|\*\*!|\*\*\*!|\*\*\*[ \t]+(?:MODIFIED|REMOVED|ADDED) CLASS:)"
+)
 CLASS_NAME = re.compile(r"(?:PUBLIC|PROTECTED|PACKAGE|PRIVATE).*?\s([\w.$]+)\s(?:\(|\(|$)")
 CLASS_FILE_FORMAT_MARKER = "CLASS FILE FORMAT VERSION:"
+KOTLIN_LAMBDA_CLASS = re.compile(r"^[\w.]+Kt\$[a-z][A-Za-z0-9_]*(?:\$\d+)+$")
+EXPLICITLY_PRESERVED_SERIAL_UIDS = {
+    "io.bluetape4k.leader.mongodb.MongoLeaderElectionOptions": 8621706450900702701,
+    "io.bluetape4k.leader.mongodb.MongoLeaderGroupElectionOptions": -6752496615359943498,
+}
 LEGACY_INTERNAL_JVM_FACADES = frozenset(
     {
         "io.bluetape4k.leader.exposed.jdbc.lock.MonotonicDeadline",
@@ -123,6 +130,49 @@ KNOWN_SYNTHETIC_ACCESSORS: dict[str, frozenset[str]] = {
             + "SYNTHETIC(-) io.bluetape4k.leader.spring.aop.internal.AdviceMetadata "
             + "access$resolveMetadata(io.bluetape4k.leader.spring.aop.LeaderElectionAspect, "
             + "java.lang.reflect.Method, java.lang.Object)",
+            "PUBLIC(-) STATIC(-) SYNTHETIC(-) "
+            + "io.bluetape4k.leader.spring.metrics.LeaseExtensionObservationScopeOwner "
+            + "ajc$inlineAccessFieldGet$io_bluetape4k_leader_spring_aop_LeaderElectionAspect$"
+            + "io_bluetape4k_leader_spring_aop_LeaderElectionAspect$observationScopeOwner("
+            + "io.bluetape4k.leader.spring.aop.LeaderElectionAspect)",
+            "PUBLIC(-) STATIC(-) SYNTHETIC(-) java.lang.Object "
+            + "ajc$inlineAccessMethod$io_bluetape4k_leader_spring_aop_LeaderElectionAspect$"
+            + "io_bluetape4k_leader_spring_aop_LeaderElectionAspect$aroundLeaderInternal("
+            + "io.bluetape4k.leader.spring.aop.LeaderElectionAspect, "
+            + "org.aspectj.lang.ProceedingJoinPoint)",
+        }
+    ),
+    "io.bluetape4k.leader.spring.aop.LeaderGroupElectionAspect": frozenset(
+        {
+            "PUBLIC(-) STATIC(-) SYNTHETIC(-) "
+            + "io.bluetape4k.leader.spring.metrics.LeaseExtensionObservationScopeOwner "
+            + "ajc$inlineAccessFieldGet$io_bluetape4k_leader_spring_aop_LeaderGroupElectionAspect$"
+            + "io_bluetape4k_leader_spring_aop_LeaderGroupElectionAspect$observationScopeOwner("
+            + "io.bluetape4k.leader.spring.aop.LeaderGroupElectionAspect)",
+            "PUBLIC(-) STATIC(-) SYNTHETIC(-) java.lang.Object "
+            + "ajc$inlineAccessMethod$io_bluetape4k_leader_spring_aop_LeaderGroupElectionAspect$"
+            + "io_bluetape4k_leader_spring_aop_LeaderGroupElectionAspect$aroundLeaderInternal("
+            + "io.bluetape4k.leader.spring.aop.LeaderGroupElectionAspect, "
+            + "org.aspectj.lang.ProceedingJoinPoint)",
+        }
+    ),
+    "io.bluetape4k.leader.k8s.KubernetesLeaseLeaderElectorKt": frozenset(
+        {
+            "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) java.lang.Throwable "
+            + "access$unwrapCompletionException(java.lang.Throwable)"
+        }
+    ),
+    "io.bluetape4k.leader.k8s.KubernetesLeaseLeaderGroupElectorKt": frozenset(
+        {
+            "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) java.lang.Throwable "
+            + "access$unwrapCompletionException(java.lang.Throwable)"
+        }
+    ),
+    "io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector": frozenset(
+        {
+            "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) java.time.Duration "
+            + "access$toJavaDuration-LRDsOJo("
+            + "io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector, long)"
         }
     ),
     "io.bluetape4k.leader.spring.route.mvc.LeaderMvcRouteGuardFactory": frozenset(
@@ -163,6 +213,72 @@ KNOWN_REDIS_BRIDGE_METHODS["io.bluetape4k.leader.redisson.RedissonLeaderElector"
         + "org.redisson.api.RLock, long, long)",
     }
 )
+
+# Kotlin `internal` declarations can still be public JVM ABI. These reviewed
+# transitions are keyed by exact owner and every incompatible japicmp line;
+# package names alone must never suppress public changes.
+KNOWN_KOTLIN_INTERNAL_ABI_CHANGES: dict[str, frozenset[str]] = {
+    "io.bluetape4k.leader.internal.CaptureScope": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.internal.LeaseCleanupBoundaryImpl": frozenset(
+        {
+            "---! REMOVED CONSTRUCTOR: PUBLIC(-) LeaseCleanupBoundaryImpl("
+            + "io.bluetape4k.leader.internal.LeaseOperationScheduler, "
+            + "io.bluetape4k.leader.internal.ResidualLeaseRegistry, "
+            + "kotlin.jvm.functions.Function0<? extends io.bluetape4k.leader.LeaseCleanupResult>)",
+            "---! REMOVED CONSTRUCTOR: PUBLIC(-) LeaseCleanupBoundaryImpl("
+            + "io.bluetape4k.leader.internal.LeaseOperationScheduler, "
+            + "io.bluetape4k.leader.internal.ResidualLeaseRegistry, "
+            + "kotlin.jvm.functions.Function1<? super java.lang.Long,? extends "
+            + "io.bluetape4k.leader.LeaseCleanupResult>)",
+        }
+    ),
+    "io.bluetape4k.leader.internal.LocalRequestLeaseStore$Companion": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.internal.LockStateHolder": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.internal.MonotonicDeadline$Companion": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.dynamodb.internal.DynamoDbLockClient": frozenset(
+        {
+            "---! REMOVED CONSTRUCTOR: PUBLIC(-) DynamoDbLockClient("
+            + "java.lang.String, software.amazon.awssdk.services.dynamodb.DynamoDbClient, "
+            + "software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient, "
+            + "kotlin.jvm.functions.Function0<java.lang.Long>)",
+            "---! REMOVED CONSTRUCTOR: PUBLIC(-) SYNTHETIC(-) DynamoDbLockClient("
+            + "java.lang.String, software.amazon.awssdk.services.dynamodb.DynamoDbClient, "
+            + "software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient, "
+            + "kotlin.jvm.functions.Function0, int, "
+            + "kotlin.jvm.internal.DefaultConstructorMarker)",
+        }
+    ),
+    "io.bluetape4k.leader.dynamodb.internal.MonotonicDeadline$Companion": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.etcd.internal.EtcdKeyEncoder": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.etcd.internal.EtcdKeyEncoderKt": frozenset(
+        {
+            "---! REMOVED SUPERCLASS: java.lang.Object",
+            "---! REMOVED METHOD: PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) "
+            + "char[] access$getHEX_DIGITS$p()",
+        }
+    ),
+    "io.bluetape4k.leader.etcd.internal.EtcdLeaderPaths$Companion": frozenset(
+        {"---! REMOVED SUPERCLASS: java.lang.Object"}
+    ),
+    "io.bluetape4k.leader.spring.aop.internal.BodyThrownMarker": frozenset(
+        {
+            "---! REMOVED INTERFACE: java.io.Serializable",
+            "---! REMOVED SUPERCLASS: java.lang.RuntimeException",
+        }
+    ),
+}
 
 VERSION_PATTERN = re.compile(r"^v?(?P<release>\d+(?:\.\d+){1,3})(?:[-+][0-9A-Za-z.-]+)?$")
 
@@ -299,43 +415,64 @@ def is_intentionally_ignored(block: str) -> str | None:
     name = block_class_name(block)
     header = block.splitlines()[0]
     has_class_file_format_change = any(
-        CLASS_FILE_FORMAT_MARKER in line for line in block.splitlines()
+        versions.group(1) != versions.group(2)
+        for line in block.splitlines()
+        if CLASS_FILE_FORMAT_MARKER in line
+        if (versions := re.search(r"CLASS FILE FORMAT VERSION:\s*(\S+)\s*<-\s*(\S+)", line))
     )
     incompatible_members = [
         line.lstrip() for line in block.splitlines()[1:]
         if line.lstrip().startswith(("---!", "***!"))
-        and CLASS_FILE_FORMAT_MARKER not in line
+           and CLASS_FILE_FORMAT_MARKER not in line
     ]
     if "REMOVED CLASS:" in header and name in LEGACY_INTERNAL_JVM_FACADES:
         return "legacy Kotlin-internal JVM facade"
+    if "REMOVED CLASS:" in header and KOTLIN_LAMBDA_CLASS.fullmatch(name):
+        return "compiler-generated Kotlin lambda/state-machine class"
+    if (
+            name in EXPLICITLY_PRESERVED_SERIAL_UIDS
+            and "serialVersionUID removed but not matches new default serialVersionUID" in header
+    ):
+        return f"explicit legacy serialVersionUID retained ({EXPLICITLY_PRESERVED_SERIAL_UIDS[name]})"
     member_descriptors = {
         descriptor
         for line in incompatible_members
         if (descriptor := _member_descriptor(line)) is not None
     }
     if (
-        member_descriptors
-        and len(member_descriptors) == len(incompatible_members)
-        and name in KNOWN_REDIS_BRIDGE_METHODS
-        and member_descriptors <= KNOWN_REDIS_BRIDGE_METHODS[name]
+            member_descriptors
+            and len(member_descriptors) == len(incompatible_members)
+            and name in KNOWN_REDIS_BRIDGE_METHODS
+            and member_descriptors <= KNOWN_REDIS_BRIDGE_METHODS[name]
     ):
         return "known Redis JVM bridge descriptor"
     if (
-        member_descriptors
-        and len(member_descriptors) == len(incompatible_members)
-        and name in KNOWN_SYNTHETIC_ACCESSORS
-        and member_descriptors <= KNOWN_SYNTHETIC_ACCESSORS[name]
+            member_descriptors
+            and len(member_descriptors) == len(incompatible_members)
+            and name in KNOWN_SYNTHETIC_ACCESSORS
+            and member_descriptors <= KNOWN_SYNTHETIC_ACCESSORS[name]
     ):
         return "compiler-generated synthetic accessor"
+    known_internal_changes = KNOWN_KOTLIN_INTERNAL_ABI_CHANGES.get(name)
+    if (
+            known_internal_changes is not None
+            and len(incompatible_members) == len(known_internal_changes)
+            and set(incompatible_members) == known_internal_changes
+    ):
+        return "exact Kotlin-internal ABI transition"
     if not incompatible_members and has_class_file_format_change:
         return "JVM class-file format"
-    if ".internal." in name:
-        return "Kotlin-internal implementation package"
     if "$AjcClosure" in name or "$$inlined$" in name or "$executeActionAsync$" in name:
         return "compiler-generated implementation class"
     if "$" in name and ("Strategic" in name or "mapNotNull" in name):
         return "compiler-generated implementation class"
     return None
+
+
+def is_unclassified_incompatibility(block: str) -> bool:
+    """Keep ordinary incompatible findings and unmarked class-level changes visible."""
+    header = block.splitlines()[0]
+    return "!" in header or re.match(r"^\*{3}[ \t]+MODIFIED CLASS:", header) is not None
 
 
 def main() -> int:
@@ -366,11 +503,11 @@ def main() -> int:
             f"https://repo.maven.apache.org/maven2/{REPOSITORY}/{maven_artifact}/{base_version}/{filename}",
         )
         current = (
-            current_artifact_root
-            / artifact
-            / "build"
-            / "libs"
-            / f"{maven_artifact}-{current_version}{suffix}.jar"
+                current_artifact_root
+                / artifact
+                / "build"
+                / "libs"
+                / f"{maven_artifact}-{current_version}{suffix}.jar"
         )
         if not current.is_file():
             print(f"Missing current artifact: {current}", file=sys.stderr)
@@ -401,7 +538,7 @@ def main() -> int:
             reason = is_intentionally_ignored(block)
             if reason:
                 ignored.append((artifact, reason, block.splitlines()[0]))
-            elif "!" in block.splitlines()[0]:
+            elif is_unclassified_incompatibility(block):
                 unknown.append((artifact, block))
 
     print(f"ABI inventory: artifacts={len(ARTIFACTS)} ignored={len(ignored)} unknown={len(unknown)}")

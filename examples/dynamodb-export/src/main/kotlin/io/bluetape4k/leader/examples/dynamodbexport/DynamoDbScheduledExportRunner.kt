@@ -39,6 +39,7 @@ class DynamoDbScheduledExportRunner(
         val exportId = try {
             elector.runIfLeader(options.lockName) {
                 val summary = exportJob().also { it.requireNotBlank("summary") }
+
                 val record = DynamoDbExportRecord(
                     exportId = "${batchId}-${options.nodeId}-${Base58.randomString(8)}",
                     batchId = batchId,
@@ -55,6 +56,7 @@ class DynamoDbScheduledExportRunner(
         }
 
         val elapsed = (System.nanoTime() - startedAt).nanoseconds
+
         return DynamoDbExportReport(
             nodeId = options.nodeId,
             batchId = batchId,

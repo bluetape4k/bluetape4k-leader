@@ -2,10 +2,13 @@ package io.bluetape4k.leader.spring.route
 
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.net.URI
 
 class LeaderRouteRedirectUriValidatorTest {
+
+    companion object: KLogging()
 
     @Test
     fun `relative path is safe but network path and fragment are rejected`() {
@@ -20,6 +23,7 @@ class LeaderRouteRedirectUriValidatorTest {
             URI("https://leader.example/orders"),
             setOf("leader.example"),
         ).shouldBeTrue()
+
         listOf(
             URI("http://leader.example/orders"),
             URI("https://leader.example:443/orders"),

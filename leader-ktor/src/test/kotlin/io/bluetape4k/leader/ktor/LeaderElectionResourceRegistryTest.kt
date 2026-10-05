@@ -1,10 +1,13 @@
 package io.bluetape4k.leader.ktor
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.get
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
@@ -22,6 +25,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class LeaderElectionResourceRegistryTest {
 
+    companion object: KLoggingChannel()
+
     @Test
     fun `close는 등록 역순으로 각 resource를 한 번만 닫는다`() = runSuspendIO {
         val closed = mutableListOf<String>()
@@ -35,14 +40,14 @@ class LeaderElectionResourceRegistryTest {
 
         closed shouldBeEqualTo listOf("second", "first")
         registry.lastShutdownReport shouldBeEqualTo
-            LeaderElectionShutdownReport(
-                attempted = 2,
-                closed = 2,
-                failures = 0,
-                timedOutJobs = 0,
-                failureKinds = emptyMap(),
-                timeoutKinds = emptyMap(),
-            )
+                LeaderElectionShutdownReport(
+                    attempted = 2,
+                    closed = 2,
+                    failures = 0,
+                    timedOutJobs = 0,
+                    failureKinds = emptyMap(),
+                    timeoutKinds = emptyMap(),
+                )
     }
 
     @Test
@@ -51,7 +56,7 @@ class LeaderElectionResourceRegistryTest {
         val registry = LeaderElectionResourceRegistryImpl(jobJoinTimeout = 50.milliseconds)
         registry.close()
 
-        registry.register(AutoCloseable { closed.incrementAndGet() }).close()
+        registry.register { closed.incrementAndGet() }.close()
 
         closed.get() shouldBeEqualTo 1
     }
@@ -85,9 +90,10 @@ class LeaderElectionResourceRegistryTest {
         val closeCount = AtomicInteger(0)
         val registry = LeaderElectionResourceRegistryImpl(jobJoinTimeout = 50.milliseconds)
         val pool = Executors.newFixedThreadPool(3)
+
         val registerJob = pool.submit {
             gate.await()
-            registry.register(AutoCloseable { closeCount.incrementAndGet() })
+            registry.register { closeCount.incrementAndGet() }
         }
         val closeJob = pool.submit {
             gate.await()
@@ -95,13 +101,16 @@ class LeaderElectionResourceRegistryTest {
         }
         val tokenJob = pool.submit {
             gate.await()
-            registry.register(AutoCloseable { closeCount.incrementAndGet() }).close()
+            registry.register { closeCount.incrementAndGet() }.close()
         }
+
         gate.countDown()
-        registerJob.get()
-        closeJob.get()
-        tokenJob.get()
+
+        registerJob.get(3.seconds)
+        closeJob.get(3.seconds)
+        tokenJob.get(3.seconds)
         pool.shutdownNow()
+
         registry.awaitClosed()
 
         closeCount.get() shouldBeEqualTo 2
@@ -111,7 +120,7 @@ class LeaderElectionResourceRegistryTest {
     fun `resource close 예외는 다음 resource를 막지 않고 kind별로 집계한다`() = runSuspendIO {
         val closed = mutableListOf<String>()
         val registry = LeaderElectionResourceRegistryImpl(jobJoinTimeout = 50.milliseconds)
-        registry.register(AutoCloseable { error("close failure") })
+        registry.register { error("close failure") }
         registry.register(TrackingCloseable("survivor", closed))
 
         registry.close()
@@ -119,21 +128,21 @@ class LeaderElectionResourceRegistryTest {
 
         closed shouldBeEqualTo listOf("survivor")
         report shouldBeEqualTo
-            LeaderElectionShutdownReport(
-                attempted = 2,
-                closed = 1,
-                failures = 1,
-                timedOutJobs = 0,
-                failureKinds = mapOf("resource" to 1),
-                timeoutKinds = emptyMap(),
-            )
+                LeaderElectionShutdownReport(
+                    attempted = 2,
+                    closed = 1,
+                    failures = 1,
+                    timedOutJobs = 0,
+                    failureKinds = mapOf("resource" to 1),
+                    timeoutKinds = emptyMap(),
+                )
     }
 
     @Test
     fun `registration token을 두 번 닫아도 resource는 한 번만 닫힌다`() = runSuspendIO {
         val closeCount = AtomicInteger(0)
         val registry = LeaderElectionResourceRegistryImpl(jobJoinTimeout = 50.milliseconds)
-        val token = registry.register(AutoCloseable { closeCount.incrementAndGet() })
+        val token = registry.register { closeCount.incrementAndGet() }
 
         token.close()
         token.close()
@@ -147,12 +156,10 @@ class LeaderElectionResourceRegistryTest {
     fun `resource close가 registry close에 재진입해도 한 번만 닫힌다`() = runSuspendIO {
         val closeCount = AtomicInteger(0)
         val registry = LeaderElectionResourceRegistryImpl(jobJoinTimeout = 50.milliseconds)
-        registry.register(
-            AutoCloseable {
-                closeCount.incrementAndGet()
-                registry.close()
-            }
-        )
+        registry.register {
+            closeCount.incrementAndGet()
+            registry.close()
+        }
 
         registry.close()
         registry.awaitClosed()
@@ -163,7 +170,7 @@ class LeaderElectionResourceRegistryTest {
     private class TrackingCloseable(
         private val label: String,
         private val closed: MutableList<String>,
-    ) : AutoCloseable {
+    ): AutoCloseable {
         private val once = AtomicBoolean()
 
         override fun close() {
@@ -176,7 +183,8 @@ class LeaderElectionResourceRegistryTest {
         val closeStarted = CompletableDeferred<Unit>()
         val allowCompletion = CompletableDeferred<Unit>()
         val registry = LeaderElectionResourceRegistryImpl(jobJoinTimeout = 1.seconds)
-        val resource = object : AutoCloseable, LeaderElectionCloseAwaiter {
+
+        val resource = object: AutoCloseable, LeaderElectionCloseAwaiter {
             override fun close() {
                 closeStarted.complete(Unit)
             }
@@ -190,27 +198,28 @@ class LeaderElectionResourceRegistryTest {
         registry.close()
         closeStarted.await()
         val report = CompletableDeferred<LeaderElectionShutdownReport>()
-        val waiter = launch { report.complete(registry.awaitClosed()) }
-        withTimeoutOrNull(50.milliseconds) { report.await() } shouldBeEqualTo null
+
+        val waiter = launch { report.complete(registry.awaitClosed()) }.log("waiter")
+        withTimeoutOrNull(50.milliseconds) { report.await() }.shouldBeNull()
 
         allowCompletion.complete(Unit)
         report.await() shouldBeEqualTo
-            LeaderElectionShutdownReport(
-                attempted = 1,
-                closed = 1,
-                failures = 0,
-                timedOutJobs = 0,
-                timedOutResources = 0,
-                failureKinds = emptyMap(),
-                timeoutKinds = emptyMap(),
-            )
+                LeaderElectionShutdownReport(
+                    attempted = 1,
+                    closed = 1,
+                    failures = 0,
+                    timedOutJobs = 0,
+                    timedOutResources = 0,
+                    failureKinds = emptyMap(),
+                    timeoutKinds = emptyMap(),
+                )
         waiter.cancelAndJoin()
     }
 
     @Test
     fun `비동기 resource 완료 대기는 bounded timeout으로 집계된다`() = runSuspendIO {
         val registry = LeaderElectionResourceRegistryImpl(jobJoinTimeout = 25.milliseconds)
-        val resource = object : AutoCloseable, LeaderElectionCloseAwaiter {
+        val resource = object: AutoCloseable, LeaderElectionCloseAwaiter {
             override fun close() = Unit
 
             override suspend fun awaitClosed() {
@@ -221,23 +230,24 @@ class LeaderElectionResourceRegistryTest {
 
         registry.close()
         registry.awaitClosed() shouldBeEqualTo
-            LeaderElectionShutdownReport(
-                attempted = 1,
-                closed = 0,
-                failures = 0,
-                timedOutJobs = 0,
-                timedOutResources = 1,
-                failureKinds = emptyMap(),
-                timeoutKinds = mapOf("resource" to 1),
-            )
+                LeaderElectionShutdownReport(
+                    attempted = 1,
+                    closed = 0,
+                    failures = 0,
+                    timedOutJobs = 0,
+                    timedOutResources = 1,
+                    failureKinds = emptyMap(),
+                    timeoutKinds = mapOf("resource" to 1),
+                )
     }
 
     @Test
     fun `비동기 resource timeout 뒤 등록한 resource는 즉시 닫힌다`() = runSuspendIO {
         val lateCloseCount = AtomicInteger(0)
         val registry = LeaderElectionResourceRegistryImpl(jobJoinTimeout = 25.milliseconds)
+
         registry.register(
-            object : AutoCloseable, LeaderElectionCloseAwaiter {
+            object: AutoCloseable, LeaderElectionCloseAwaiter {
                 override fun close() = Unit
 
                 override suspend fun awaitClosed() {
@@ -248,7 +258,7 @@ class LeaderElectionResourceRegistryTest {
 
         registry.close()
         registry.awaitClosed().timedOutResources shouldBeEqualTo 1
-        registry.register(AutoCloseable { lateCloseCount.incrementAndGet() })
+        registry.register { lateCloseCount.incrementAndGet() }
 
         lateCloseCount.get() shouldBeEqualTo 1
         registry.lastShutdownReport?.attempted shouldBeEqualTo 1

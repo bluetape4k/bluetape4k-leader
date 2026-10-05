@@ -23,7 +23,7 @@ data class ConsulLeaderElectionOptions(
     val keyPrefix: String = ConsulLeaderPaths.DefaultPrefix,
     val sessionNamePrefix: String = DefaultSessionNamePrefix,
     val lockDelay: Duration = Duration.ZERO,
-) : Serializable {
+): Serializable {
 
     init {
         ConsulLeaderPaths.validatePrefix(keyPrefix)
@@ -60,7 +60,7 @@ data class ConsulLeaderGroupElectionOptions(
     val keyPrefix: String = ConsulLeaderPaths.DefaultPrefix,
     val sessionNamePrefix: String = ConsulLeaderElectionOptions.DefaultSessionNamePrefix,
     val lockDelay: Duration = Duration.ZERO,
-) : Serializable {
+): Serializable {
 
     /**
      * `maxLeaders` 값은 Consul backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.

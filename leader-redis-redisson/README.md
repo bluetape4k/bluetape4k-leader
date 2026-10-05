@@ -19,12 +19,7 @@ The coroutine single-leader implementation uses a PID-seeded mini-Snowflake ID g
 ### Async cleanup policy
 
 Single-lock async cleanup uses `isHeldByThreadAsync`, `expireAsync`, and
-`unlockAsync` directly; minimum-lease cleanup after executor rejection also uses
-native expiry. No blocking Redis call is wrapped in the common pool on these paths.
-Cleanup failures reported by the single/group cleanup futures are logged and do
-not replace the original action value, exception, or cancellation. This is
-best-effort cleanup, not a guarantee that release succeeded. A retained minimum
-lease can still cause normal contention until its TTL expires.
+`unlockAsync` directly; minimum-lease cleanup after executor rejection also uses native expiry. No blocking Redis call is wrapped in the common pool on these paths. Cleanup failures reported by the single/group cleanup futures are logged and do not replace the original action value, exception, or cancellation. This is best-effort cleanup, not a guarantee that release succeeded. A retained minimum lease can still cause normal contention until its TTL expires.
 
 ## Architecture
 
@@ -44,14 +39,14 @@ The `RPermitExpirableSemaphore`-backed group elector behaves equivalently to the
 
 ## Implementations
 
-| Class | Interface | Description |
-|-------|-----------|-------------|
-| `RedissonLeaderElector` | `LeaderElector` | Blocking via `RLock.tryLock()` |
-| `RedissonLeaderGroupElector` | `LeaderGroupElector` | Blocking multi-leader via `RPermitExpirableSemaphore` (`lg:{lockName}`) |
-| `RedissonSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine, PID-seeded Snowflake lock ID |
-| `RedissonSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader via `RPermitExpirableSemaphoreAsync` |
-| `RedissonSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `RedissonSuspendLeaderElector` per call |
-| `RedissonSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `RedissonSuspendLeaderGroupElector` per call |
+| Class                                      | Interface                          | Description                                                             |
+|--------------------------------------------|------------------------------------|-------------------------------------------------------------------------|
+| `RedissonLeaderElector`                    | `LeaderElector`                    | Blocking via `RLock.tryLock()`                                          |
+| `RedissonLeaderGroupElector`               | `LeaderGroupElector`               | Blocking multi-leader via `RPermitExpirableSemaphore` (`lg:{lockName}`) |
+| `RedissonSuspendLeaderElector`             | `SuspendLeaderElector`             | Coroutine, PID-seeded Snowflake lock ID                                 |
+| `RedissonSuspendLeaderGroupElector`        | `SuspendLeaderGroupElector`        | Coroutine multi-leader via `RPermitExpirableSemaphoreAsync`             |
+| `RedissonSuspendLeaderElectorFactory`      | `SuspendLeaderElectorFactory`      | Factory: creates `RedissonSuspendLeaderElector` per call                |
+| `RedissonSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `RedissonSuspendLeaderGroupElector` per call           |
 
 ## Coroutine Lock ID Design
 
@@ -74,8 +69,8 @@ timestamp(42 bits) | pid%(2^10)(10 bits) | seq(12 bits)
 - `trySetPermits(maxLeaders)` is invoked idempotently on the first access for each `lockName`. Without this, the semaphore would default to 0 permits and `tryAcquire` would always return `null`.
 - Each `tryAcquire(waitTime, leaseTime, ms)` returns a unique `permitId: String?` (or `null` on contention). The `permitId` is used to release or extend the exact slot — no positional ambiguity even when one elector instance holds multiple slots concurrently.
 - On `runIfLeader` finally:
-  - if `remainingMinLeaseTime > 0` → `updateLeaseTime(permitId, remainingMs, MILLISECONDS)` extends the backend TTL (the async path uses `updateLeaseTimeAsync`).
-  - otherwise → `release(permitId)` returns the slot immediately.
+    - if `remainingMinLeaseTime > 0` → `updateLeaseTime(permitId, remainingMs, MILLISECONDS)` extends the backend TTL (the async path uses `updateLeaseTimeAsync`).
+    - otherwise → `release(permitId)` returns the slot immediately.
 - Crash recovery is automatic: when a holder dies without releasing, Redisson reclaims the permit after `leaseTime` expires.
 - `minLeaseTime` is delegated to the backend TTL (no caller-side park) — `runIfLeader` returns as soon as `action` finishes.
 
@@ -211,9 +206,7 @@ abstract class AbstractRedissonLeaderTest {
 
 ## Audit Identity (`LeaderSlot`)
 
-Pass a `LeaderSlot` instead of a plain `lockName` to propagate a human-readable node identity
-through each election round. The identity is stored in a Redis Hash
-(`lg:{lockName}:audit`) while the slot is held, and removed on release.
+Pass a `LeaderSlot` instead of a plain `lockName` to propagate a human-readable node identity through each election round. The identity is stored in a Redis Hash (`lg:{lockName}:audit`) while the slot is held, and removed on release.
 
 ```kotlin
 val slot = LeaderSlot("batch-job", leaderId = "node-a")
@@ -228,8 +221,7 @@ if (result is LeaderRunResult.Elected) {
 val result2 = suspendElector.runIfLeaderResultSuspend(slot) { doWork() }
 ```
 
-The `leaderId` is stored as `HSET lg:{lockName}:audit <permitId> <leaderId>` on acquire and
-removed with `HDEL` on release. A `null` or absent `leaderId` skips the write entirely.
+The `leaderId` is stored as `HSET lg:{lockName}:audit <permitId> <leaderId>` on acquire and removed with `HDEL` on release. A `null` or absent `leaderId` skips the write entirely.
 
 ## Dependency
 

@@ -1,8 +1,9 @@
 package io.bluetape4k.leader.examples.batch
 
+import io.bluetape4k.concurrent.awaitTermination
+import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
-import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.support.closeSafe
 import io.bluetape4k.testcontainers.storage.RedisServer
 import io.bluetape4k.utils.ShutdownQueue
@@ -10,6 +11,7 @@ import io.lettuce.core.RedisClient
 import io.lettuce.core.codec.StringCodec
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `BatchSchedulerDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -22,7 +24,7 @@ object BatchSchedulerDemo: KLogging() {
     fun main(args: Array<String>) {
         val redis = startExampleContainer { reuse -> RedisServer(reuse = reuse) }
         val client = RedisClient.create(redis.url).also {
-            ShutdownQueue.register { runCatching { it.shutdown() } }
+            ShutdownQueue.register { it.closeSafe() }
         }
 
         val executions = AtomicInteger(0)
@@ -32,7 +34,7 @@ object BatchSchedulerDemo: KLogging() {
             log.info { "=== 야간 정산 배치 데모 시작 ===" }
             log.info { "3개 인스턴스가 동시에 'nightly-settlement' lock 획득 시도" }
 
-            val futures = (1..3).map { idx ->
+            val futures = List(3) { idx ->
                 executor.submit {
                     val connection = client.connect(StringCodec.UTF8)
                     try {
@@ -59,6 +61,10 @@ object BatchSchedulerDemo: KLogging() {
             log.info { "실제 실행된 인스턴스 수: ${executions.get()} (기대값: 1)" }
         } finally {
             executor.shutdown()
+            executor.awaitTermination(5.seconds)
+            client.closeSafe()
+            redis.close()
+            log.info { "작업 정리 완료" }
         }
     }
 }

@@ -11,6 +11,6 @@ fun interface SanitizedRouteLeaseObservationSink {
 }
 
 /** 관찰을 버리는 기본 sink입니다. Micrometer가 없는 환경의 bounded fallback입니다. */
-object NoopRouteLeaseObservationSink : SanitizedRouteLeaseObservationSink {
+object NoopRouteLeaseObservationSink: SanitizedRouteLeaseObservationSink {
     override fun observe(code: LeaseObservationCode) = Unit
 }

@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.spring.observability
 
-import io.bluetape4k.leader.LeaderManagementActionRegistry
 import io.bluetape4k.leader.LeaderManagementAction
 import io.bluetape4k.leader.LeaderManagementActionOutcome
+import io.bluetape4k.leader.LeaderManagementActionRegistry
 import io.bluetape4k.leader.LeaderManagementActionResult
 import io.bluetape4k.leader.LeaderManagementActionSurface
 import io.bluetape4k.leader.LeaderManagementHttpContract
@@ -27,7 +27,7 @@ class LeaderElectionActionWebEndpoint(
     /** lock selector를 검증하고 공통 HTTP status 계약으로 release 결과를 감쌉니다. */
     @WriteOperation
     fun release(@Selector lockName: String): WebEndpointResponse<LeaderManagementActionHttpResponse> {
-        val result = if (isManagementActionLockName(lockName)) {
+        val result = if (lockName.isManagementActionLockName()) {
             registry.release(lockName, LeaderManagementActionSurface.SPRING)
         } else {
             LeaderManagementActionResult(
@@ -52,7 +52,7 @@ data class LeaderManagementActionHttpResponse(
     val action: String,
     val outcome: String,
     val mutationAttempted: Boolean,
-) : Serializable {
+): Serializable {
 
     companion object {
         fun from(result: LeaderManagementActionResult): LeaderManagementActionHttpResponse =

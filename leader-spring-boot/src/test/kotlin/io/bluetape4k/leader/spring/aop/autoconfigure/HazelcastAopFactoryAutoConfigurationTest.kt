@@ -3,13 +3,13 @@ package io.bluetape4k.leader.spring.aop.autoconfigure
 import com.hazelcast.config.Config
 import com.hazelcast.core.Hazelcast
 import com.hazelcast.core.HazelcastInstance
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.hazelcast.HazelcastLeaderElectorFactory
 import io.bluetape4k.leader.hazelcast.HazelcastLeaderGroupElectorFactory
 import io.bluetape4k.leader.spring.LeaderTestApplication
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.assertions.shouldBeInstanceOf
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
@@ -34,10 +34,10 @@ import org.springframework.context.annotation.Bean
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HazelcastAopFactoryAutoConfigurationTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @TestConfiguration
-    open class TestConfig {
+    class TestConfig {
         @Bean(destroyMethod = "shutdown")
         fun hazelcastInstance(): HazelcastInstance {
             val cfg = Config().apply { networkConfig.join.multicastConfig.isEnabled = false }
@@ -50,21 +50,25 @@ class HazelcastAopFactoryAutoConfigurationTest {
 
     @Test
     fun `hazelcastLeaderElectionFactory 빈이 등록된다`() {
-        ctx.getBean("hazelcastLeaderElectionFactory").shouldBeInstanceOf<HazelcastLeaderElectorFactory>()
+        ctx.getBean("hazelcastLeaderElectionFactory")
+            .shouldBeInstanceOf<HazelcastLeaderElectorFactory>()
     }
 
     @Test
     fun `hazelcastLeaderGroupElectionFactory 빈이 등록된다`() {
-        ctx.getBean("hazelcastLeaderGroupElectionFactory").shouldBeInstanceOf<HazelcastLeaderGroupElectorFactory>()
+        ctx.getBean("hazelcastLeaderGroupElectionFactory")
+            .shouldBeInstanceOf<HazelcastLeaderGroupElectorFactory>()
     }
 
     @Test
     fun `hazelcastLeaderElectionFactory 는 LeaderElectorFactory 타입`() {
-        ctx.getBean("hazelcastLeaderElectionFactory").shouldBeInstanceOf<LeaderElectorFactory>()
+        ctx.getBean("hazelcastLeaderElectionFactory")
+            .shouldBeInstanceOf<LeaderElectorFactory>()
     }
 
     @Test
     fun `hazelcastLeaderGroupElectionFactory 는 LeaderGroupElectorFactory 타입`() {
-        ctx.getBean("hazelcastLeaderGroupElectionFactory").shouldBeInstanceOf<LeaderGroupElectorFactory>()
+        ctx.getBean("hazelcastLeaderGroupElectionFactory")
+            .shouldBeInstanceOf<LeaderGroupElectorFactory>()
     }
 }

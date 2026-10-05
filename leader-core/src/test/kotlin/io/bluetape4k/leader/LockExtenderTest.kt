@@ -9,6 +9,7 @@ import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
@@ -22,6 +23,8 @@ import kotlin.time.toJavaDuration
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LockExtenderTest {
+
+    companion object: KLogging()
 
     // --- helpers ---
 
@@ -37,7 +40,7 @@ class LockExtenderTest {
     private class FakeDelegate(
         private val outcome: ExtendOutcome = ExtendOutcome.Extended(Instant.now()),
         private val heldValue: Boolean = true,
-    ) : ExtendDelegate {
+    ): ExtendDelegate {
         private val _deadline = AtomicReference(Instant.EPOCH)
         override val lastExtendDeadline: AtomicReference<Instant> get() = _deadline
 
@@ -54,7 +57,7 @@ class LockExtenderTest {
     private class FakeSuspendDelegate(
         private val outcome: ExtendOutcome = ExtendOutcome.Extended(Instant.now()),
         private val heldValue: Boolean = true,
-    ) : SuspendExtendDelegate {
+    ): SuspendExtendDelegate {
         private val _deadline = AtomicReference(Instant.EPOCH)
         override val lastExtendDeadline: AtomicReference<Instant> get() = _deadline
 
@@ -311,17 +314,18 @@ class LockExtenderTest {
     }
 
     @Test
-    fun `extendActiveLockDetailedSuspend does not update deadline when SuspendExtendDelegate returns NotHeld`() = runTest {
-        val delegate = FakeSuspendDelegate(ExtendOutcome.NotHeld)
-        withContext(LockHandleElement(realHandle(delegate = delegate))) {
-            val outcome = LockExtender.extendActiveLockDetailedSuspend(30.seconds)
-            outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
-        }
+    fun `extendActiveLockDetailedSuspend does not update deadline when SuspendExtendDelegate returns NotHeld`() =
+        runTest {
+            val delegate = FakeSuspendDelegate(ExtendOutcome.NotHeld)
+            withContext(LockHandleElement(realHandle(delegate = delegate))) {
+                val outcome = LockExtender.extendActiveLockDetailedSuspend(30.seconds)
+                outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
+            }
 
-        delegate.lastExtendDeadline.get() shouldBeEqualTo Instant.EPOCH
-        delegate.suspendExtendCalls.get() shouldBeEqualTo 1
-        delegate.syncExtendCalls.get() shouldBeEqualTo 0
-    }
+            delegate.lastExtendDeadline.get() shouldBeEqualTo Instant.EPOCH
+            delegate.suspendExtendCalls.get() shouldBeEqualTo 1
+            delegate.syncExtendCalls.get() shouldBeEqualTo 0
+        }
 
     @Test
     fun `extendActiveLockDetailedSuspend sets lastExtendDeadline to backend observed expireAt`() = runTest {

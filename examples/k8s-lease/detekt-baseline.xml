@@ -1,13 +1,17 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>MagicNumber:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$30</ID>
-    <ID>MagicNumber:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$63</ID>
-    <ID>MaxLineLength:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$.</ID>
-    <ID>MaxLineLength:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$LeaseAttempt(LeaseOutcome.CONFLICT, holderIdentity = lease(leaseName)?.spec?.holderIdentity, leaseName = leaseName)</ID>
-    <ID>ReturnCount:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$fun release: Boolean</ID>
-    <ID>ReturnCount:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$fun tryAcquire: LeaseAttempt</ID>
-    <ID>ReturnCount:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$private fun canAcquire: Boolean</ID>
-  </CurrentIssues>
+    <ManuallySuppressedIssues/>
+    <CurrentIssues>
+        <ID>MagicNumber:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$30</ID>
+        <ID>MagicNumber:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$63</ID>
+        <ID>MaxLineLength:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$.</ID>
+        <ID>
+            MaxLineLength:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$LeaseAttempt(LeaseOutcome.CONFLICT,
+            holderIdentity = lease(leaseName)?.spec?.holderIdentity, leaseName = leaseName)
+        </ID>
+        <ID>ReturnCount:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$fun release: Boolean</ID>
+        <ID>ReturnCount:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$fun tryAcquire: LeaseAttempt</ID>
+        <ID>ReturnCount:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$private fun canAcquire: Boolean
+        </ID>
+    </CurrentIssues>
 </SmellBaseline>

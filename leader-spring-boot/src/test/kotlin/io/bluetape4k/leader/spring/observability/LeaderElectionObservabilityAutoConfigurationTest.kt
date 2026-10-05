@@ -1,16 +1,22 @@
 package io.bluetape4k.leader.spring.observability
 
+import io.bluetape4k.ToStringBuilder
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.javatimes.minutes
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -31,6 +37,8 @@ import java.util.concurrent.Executor
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionObservabilityAutoConfigurationTest {
+
+    companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(
@@ -53,6 +61,7 @@ class LeaderElectionObservabilityAutoConfigurationTest {
             .run { ctx ->
                 val registry = ctx.getBean<LeaderElectionStatusRegistry>()
 
+                log.debug { "registry.snapshot()=${registry.snapshot()}" }
                 registry.snapshot() shouldBeEqualTo listOf("batch-job", "migration-gate")
             }
     }
@@ -64,7 +73,7 @@ class LeaderElectionObservabilityAutoConfigurationTest {
                 "bluetape4k.leader.observability.health.acquisition-failure-window=45s",
             )
             .run { ctx ->
-                ctx.getBean<LeaderAcquisitionFailureWindow>().view().window shouldBeEqualTo java.time.Duration.ofSeconds(45)
+                ctx.getBean<LeaderAcquisitionFailureWindow>().view().window shouldBeEqualTo 45.seconds()
             }
     }
 
@@ -73,7 +82,7 @@ class LeaderElectionObservabilityAutoConfigurationTest {
         runner
             .withPropertyValues("bluetape4k.leader.observability.enabled=false")
             .run { ctx ->
-                ctx.getBeansOfType<LeaderAcquisitionFailureWindow>().isEmpty().shouldBeTrue()
+                ctx.getBeansOfType<LeaderAcquisitionFailureWindow>().shouldBeEmpty()
             }
     }
 
@@ -81,15 +90,14 @@ class LeaderElectionObservabilityAutoConfigurationTest {
     fun `fallback event publisher facade is registered when elector is not publisher aware`() {
         runner.run { ctx ->
             val publisher = ctx.getBean<LeaderElectionEventPublisher>()
-
-            publisher shouldBeInstanceOf LeaderElectionObservedEventPublisher::class
+            publisher.shouldBeInstanceOf<LeaderElectionObservedEventPublisher>()
         }
     }
 
     @Test
     fun `actuator endpoint is disabled by default`() {
         runner.run { ctx ->
-            ctx.getBeansOfType<LeaderElectionStatusEndpoint>().isEmpty().shouldBeTrue()
+            ctx.getBeansOfType<LeaderElectionStatusEndpoint>().shouldBeEmpty()
         }
     }
 
@@ -113,7 +121,7 @@ class LeaderElectionObservabilityAutoConfigurationTest {
             )
             .withPropertyValues("management.endpoint.leaderElection.enabled=true")
             .run { ctx ->
-                ctx.getBeansOfType<LeaderElectionStatusEndpoint>().isEmpty().shouldBeTrue()
+                ctx.getBeansOfType<LeaderElectionStatusEndpoint>().shouldBeEmpty()
             }
     }
 
@@ -128,6 +136,8 @@ class LeaderElectionObservabilityAutoConfigurationTest {
                 val endpoint = ctx.getBean<LeaderElectionStatusEndpoint>()
                 val response = endpoint.leaderElectionStatus()
 
+                log.debug { "response=$response" }
+
                 response.locks.size shouldBeEqualTo 1
                 response.locks[0].name shouldBeEqualTo "batch-job"
                 response.locks[0].status shouldBeEqualTo "Occupied"
@@ -137,7 +147,7 @@ class LeaderElectionObservabilityAutoConfigurationTest {
                 response.stateProviderBean shouldBeEqualTo "testLeaderElector"
                 response.stateSupported.shouldBeTrue()
                 response.acquisitionFailures.count shouldBeEqualTo 0
-                response.acquisitionFailures.window shouldBeEqualTo java.time.Duration.ofMinutes(5)
+                response.acquisitionFailures.window shouldBeEqualTo 5.minutes()
             }
     }
 
@@ -158,6 +168,7 @@ class LeaderElectionObservabilityAutoConfigurationTest {
             .run { ctx ->
                 val response = ctx.getBean<LeaderElectionStatusEndpoint>().leaderElectionStatus()
 
+                log.debug { "response=$response" }
                 response.locks.single().status shouldBeEqualTo "Occupied"
                 response.locks.single().leaderId shouldBeEqualTo "r2dbc-node"
             }
@@ -180,6 +191,7 @@ class LeaderElectionObservabilityAutoConfigurationTest {
             .run { ctx ->
                 val response = ctx.getBean<LeaderElectionStatusEndpoint>().leaderElectionStatus()
 
+                log.debug { "response=$response" }
                 response.backend shouldBeEqualTo "exposed-r2dbc"
                 response.stateProviderBean shouldBeEqualTo "exposedR2dbcSuspendLeaderElector"
                 response.stateSupported.shouldBeFalse()
@@ -205,6 +217,7 @@ class LeaderElectionObservabilityAutoConfigurationTest {
             .run { ctx ->
                 val response = ctx.getBean<LeaderElectionStatusEndpoint>().leaderElectionStatus()
 
+                log.debug { "response=$response" }
                 response.locks.single().leaderId shouldBeEqualTo "backend-b"
             }
     }
@@ -212,7 +225,7 @@ class LeaderElectionObservabilityAutoConfigurationTest {
     @Test
     fun `readiness health indicator is disabled by default`() {
         runner.run { ctx ->
-            ctx.getBeansOfType<HealthIndicator>().isEmpty().shouldBeTrue()
+            ctx.getBeansOfType<HealthIndicator>().shouldBeEmpty()
         }
     }
 
@@ -224,9 +237,9 @@ class LeaderElectionObservabilityAutoConfigurationTest {
                 "bluetape4k.leader.observability.health.lease-warning-threshold=15s",
             )
             .run { ctx ->
-                ctx.getBean("leaderElectionReadiness", HealthIndicator::class.java).shouldNotBeNull()
+                ctx.getBean<HealthIndicator>("leaderElectionReadiness").shouldNotBeNull()
                 ctx.getBean<io.bluetape4k.leader.spring.LeaderProperties>()
-                    .observability.health.leaseWarningThreshold shouldBeEqualTo java.time.Duration.ofSeconds(15)
+                    .observability.health.leaseWarningThreshold shouldBeEqualTo 15.seconds()
             }
     }
 
@@ -240,6 +253,8 @@ class LeaderElectionObservabilityAutoConfigurationTest {
         publisher.onElected("job-a")
         publisher.onSkipped("job-b")
         publisher.onRevoked("job-a")
+
+        events.await().forEach { log.debug { "event=$it" } }
 
         events.await() shouldBeEqualTo listOf(
             LeaderElectionEvent.Elected("job-a"),
@@ -285,7 +300,7 @@ class LeaderElectionObservabilityAutoConfigurationTest {
 
     private class TestLeaderElector(
         private val leaderId: String = "node-1",
-    ) : LeaderElector {
+    ): LeaderElector {
 
         companion object {
             val LeaseUntil: Instant = Instant.parse("2026-05-16T00:00:00Z")
@@ -315,11 +330,17 @@ class LeaderElectionObservabilityAutoConfigurationTest {
             }
 
         override val supportsAuditLeaderState: Boolean = true
+
+        override fun toString(): String {
+            return ToStringBuilder(this)
+                .add("leaderId", leaderId)
+                .toString()
+        }
     }
 
     private class TestSuspendLeaderElector(
         private val leaderId: String,
-    ) : SuspendLeaderElector {
+    ): SuspendLeaderElector {
         override val supportsAuditLeaderState: Boolean = true
 
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = action()
@@ -328,9 +349,16 @@ class LeaderElectionObservabilityAutoConfigurationTest {
             lockName,
             LeaderLease(auditLeaderId = leaderId, leaseUntil = TestLeaderElector.LeaseUntil),
         )
+
+        override fun toString(): String {
+            return ToStringBuilder(this)
+                .add("leaderId", leaderId)
+                .add("supportsAuditLeaderState", supportsAuditLeaderState)
+                .toString()
+        }
     }
 
-    private class UnsupportedSuspendLeaderElector : SuspendLeaderElector {
+    private class UnsupportedSuspendLeaderElector: SuspendLeaderElector {
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = action()
     }
 }

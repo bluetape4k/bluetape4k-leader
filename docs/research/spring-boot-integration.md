@@ -9,12 +9,12 @@
 
 Spring Boot 공식 가이드 기준으로 라이브러리는 **autoconfigure 모듈 + starter 모듈**로 분리한다.
 
-| 모듈 | 역할 | 코드 여부 |
-|------|------|-----------|
-| `leader-spring-boot3` | `@AutoConfiguration`, 조건부 Bean, `@ConfigurationProperties` | 있음 |
-| `leader-spring-boot3-starter` | 의존성 집합 — `leader-spring-boot3` + 선택 백엔드 묶음 | 없음 (pom only) |
-| `leader-spring-boot4` | Boot 4 전용 autoconfigure (구조 변경 대응) | 있음 |
-| `leader-spring-boot4-starter` | Boot 4 의존성 집합 | 없음 (pom only) |
+| 모듈                          | 역할                                                          | 코드 여부       |
+|-------------------------------|---------------------------------------------------------------|-----------------|
+| `leader-spring-boot3`         | `@AutoConfiguration`, 조건부 Bean, `@ConfigurationProperties` | 있음            |
+| `leader-spring-boot3-starter` | 의존성 집합 — `leader-spring-boot3` + 선택 백엔드 묶음        | 없음 (pom only) |
+| `leader-spring-boot4`         | Boot 4 전용 autoconfigure (구조 변경 대응)                    | 있음            |
+| `leader-spring-boot4-starter` | Boot 4 의존성 집합                                            | 없음 (pom only) |
 
 Boot 3/4 간 **공통 로직은 `leader-spring-boot-common` 내부 모듈**로 추출해 양쪽에서 재사용한다.
 
@@ -54,12 +54,13 @@ implementation("io.github.bluetape4k.leader:leader-redis-lettuce")
 
 Boot 3과 Boot 4의 가장 큰 구조적 차이.
 
-| | Boot 3 | Boot 4 |
-|---|---|---|
-| 패키지 | `org.springframework.boot.autoconfigure.*` | `org.springframework.boot.*.autoconfigure` |
-| 아티팩트 | `spring-boot-autoconfigure` 단일 jar | 기능별 별도 artifact로 분산 |
+|          | Boot 3                                     | Boot 4                                     |
+|----------|--------------------------------------------|--------------------------------------------|
+| 패키지   | `org.springframework.boot.autoconfigure.*` | `org.springframework.boot.*.autoconfigure` |
+| 아티팩트 | `spring-boot-autoconfigure` 단일 jar       | 기능별 별도 artifact로 분산                |
 
 Boot 4 패키지 예시:
+
 ```
 org.springframework.boot.jackson.autoconfigure
 org.springframework.boot.session.autoconfigure
@@ -93,14 +94,14 @@ spring.aop.proxy-target-class=false  # JDK 프록시로 변경 가능 (Boot 3/4 
 
 **`@Leader` AOP 어노테이션 구현 시 영향**:
 
-| | Boot 3 | Boot 4 |
-|---|---|---|
-| Aspect 구현 방식 | `spring-aop` (CGLib) 기반 | `spring-aspects` (AspectJ) 기반 권장 |
-| `@Aspect` 어노테이션 | `spring-aop`에 포함 | AspectJ 런타임 필요 |
-| 의존성 | `spring-aop` | `spring-aspects` + AspectJ weaver |
-| 구현 복잡도 | 낮음 | 높음 |
+|                      | Boot 3                    | Boot 4                               |
+|----------------------|---------------------------|--------------------------------------|
+| Aspect 구현 방식     | `spring-aop` (CGLib) 기반 | `spring-aspects` (AspectJ) 기반 권장 |
+| `@Aspect` 어노테이션 | `spring-aop`에 포함       | AspectJ 런타임 필요                  |
+| 의존성               | `spring-aop`              | `spring-aspects` + AspectJ weaver    |
+| 구현 복잡도          | 낮음                      | 높음                                 |
 
-→ `@Leader` AOP는 **Boot별 분기 구현 필요**. 공통 모듈(`leader-spring-boot-common`)에서 추상화.
+→ `@Leader` AOP는 **Boot별 분기 구현 필요**. 공통 모듈 (`leader-spring-boot-common`)에서 추상화.
 
 ---
 
@@ -215,6 +216,7 @@ data class LeaderGroupProperties(
 #### @Scheduled 통합
 
 **방안 A — AOP `@Leader` 어노테이션** (후순위, Boot 3/4 구현 분기 필요):
+
 ```kotlin
 @Scheduled(cron = "0 0 2 * * *")
 @Leader("daily-settlement")          // AOP intercept → runIfLeader 래핑
@@ -222,6 +224,7 @@ suspend fun dailySettlement() { ... }
 ```
 
 **방안 B — 직접 `runIfLeader` 호출** (초기 구현 권장):
+
 ```kotlin
 @Scheduled(fixedDelay = 60_000)
 suspend fun run() {
@@ -294,30 +297,30 @@ leader-spring-boot4-starter → leader-spring-boot4
 
 ## 7. 구현 우선순위 / 선행 조건
 
-| 순서 | 항목 | Boot | 비고 |
-|------|------|------|------|
-| 1 | `leader-spring-boot-common` 모듈 생성 | 공통 | properties data class + abstract support |
-| 2 | `LeaderElectionAutoConfiguration` (Redisson/Lettuce) | 3 | `@ConditionalOnClass(name=...)` 패턴 |
-| 3 | `AutoConfiguration.imports` 등록 | 3 | |
-| 4 | `leader-spring-boot3-starter` 빌드 설정 | 3 | 코드 없음 |
-| 5 | Boot 4 autoconfigure artifact 명 확인 | 4 | GA 출시 후 재확인 |
-| 6 | `leader-spring-boot4` — Boot 4 패키지 기준 재작성 | 4 | artifact 분산 대응 |
-| 7 | `leader-spring-boot4-starter` 빌드 설정 | 4 | 코드 없음 |
-| 8 | starter 기본 백엔드 포함 여부 최종 결정 | 공통 | ShedLock 패턴 = 미포함 권장 |
-| 9 | (선택) `@Leader` AOP — Boot 3: spring-aop, Boot 4: spring-aspects | 분기 | 후순위 |
-| 10 | (선택) Actuator `/actuator/leader` | 3/4 | `leader-micrometer` 연계 |
+| 순서 | 항목                                                              | Boot | 비고                                     |
+|------|-------------------------------------------------------------------|------|------------------------------------------|
+| 1    | `leader-spring-boot-common` 모듈 생성                             | 공통 | properties data class + abstract support |
+| 2    | `LeaderElectionAutoConfiguration` (Redisson/Lettuce)              | 3    | `@ConditionalOnClass(name=...)` 패턴     |
+| 3    | `AutoConfiguration.imports` 등록                                  | 3    |                                          |
+| 4    | `leader-spring-boot3-starter` 빌드 설정                           | 3    | 코드 없음                                |
+| 5    | Boot 4 autoconfigure artifact 명 확인                             | 4    | GA 출시 후 재확인                        |
+| 6    | `leader-spring-boot4` — Boot 4 패키지 기준 재작성                 | 4    | artifact 분산 대응                       |
+| 7    | `leader-spring-boot4-starter` 빌드 설정                           | 4    | 코드 없음                                |
+| 8    | starter 기본 백엔드 포함 여부 최종 결정                           | 공통 | ShedLock 패턴 = 미포함 권장              |
+| 9    | (선택) `@Leader` AOP — Boot 3: spring-aop, Boot 4: spring-aspects | 분기 | 후순위                                   |
+| 10   | (선택) Actuator `/actuator/leader`                                | 3/4  | `leader-micrometer` 연계                 |
 
 ---
 
 ## 8. 참고 — ShedLock 비교
 
-| | ShedLock | bluetape4k-leader |
-|---|---|---|
-| Spring Boot 통합 | `shedlock-spring` (autoconfigure) | `leader-spring-boot3` + `leader-spring-boot4` |
-| Starter | `shedlock-spring-starter` (백엔드별) | `leader-spring-boot3-starter` (백엔드 미포함) |
-| 어노테이션 | `@SchedulerLock` | `@Leader` (후순위) |
-| Coroutines | 부분 지원 | 코어 인터페이스 (`SuspendLeaderElection`) |
-| Boot 4 대응 | 미확인 | `leader-spring-boot4` + autoconfigure 분산 대응 |
+|                  | ShedLock                             | bluetape4k-leader                               |
+|------------------|--------------------------------------|-------------------------------------------------|
+| Spring Boot 통합 | `shedlock-spring` (autoconfigure)    | `leader-spring-boot3` + `leader-spring-boot4`   |
+| Starter          | `shedlock-spring-starter` (백엔드별) | `leader-spring-boot3-starter` (백엔드 미포함)   |
+| 어노테이션       | `@SchedulerLock`                     | `@Leader` (후순위)                              |
+| Coroutines       | 부분 지원                            | 코어 인터페이스 (`SuspendLeaderElection`)       |
+| Boot 4 대응      | 미확인                               | `leader-spring-boot4` + autoconfigure 분산 대응 |
 
 ---
 

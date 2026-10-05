@@ -5,7 +5,10 @@ configurations {
 dependencies {
     api(project(":bluetape4k-leader-core"))
 
-    implementation(libs.kotlinx.coroutines.jdk8)
+    // Coroutines
+    implementation(bt4k.bluetape4k.coroutines)
+    implementation(libs.kotlinx.coroutines.core)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     testImplementation(testFixtures(project(":bluetape4k-leader-core")))
     testImplementation(bt4k.bluetape4k.junit5)

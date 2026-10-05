@@ -11,7 +11,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
@@ -22,9 +21,9 @@ import kotlin.time.Duration
  */
 internal class HazelcastSlotExtendDelegate(
     private val slotLock: HazelcastLock,
-) : ExtendDelegate {
+): ExtendDelegate {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
@@ -37,17 +36,18 @@ internal class HazelcastSlotExtendDelegate(
             ExtendOutcome.BackendError(e)
         }
 
-    override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
-        coroutineContext.ensureActive()
-        try {
-            slotLock.extendDetailed(lockAtMostFor)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.warn(e) { "Hazelcast group extendSuspend failed. slotKey=${slotLock.lockKey}" }
-            ExtendOutcome.BackendError(e)
+    override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
+        withContext(Dispatchers.IO) {
+            coroutineContext.ensureActive()
+            try {
+                slotLock.extendDetailed(lockAtMostFor)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.warn(e) { "Hazelcast group extendSuspend failed. slotKey=${slotLock.lockKey}" }
+                ExtendOutcome.BackendError(e)
+            }
         }
-    }
 
     override fun isHeld(): Boolean =
         try {

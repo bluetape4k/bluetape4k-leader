@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.properties
 
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LeaderElectionOptions
 import java.time.Duration
 import kotlin.time.toKotlinDuration
@@ -17,8 +18,8 @@ data class LeaderElectionProperties(
     val group: LeaderGroupProperties = LeaderGroupProperties(),
 ) {
     companion object {
-        val DefaultWaitTime: Duration = Duration.ofSeconds(5)
-        val DefaultLeaseTime: Duration = Duration.ofSeconds(60)
+        val DefaultWaitTime: Duration = 5.seconds()
+        val DefaultLeaseTime: Duration = 60.seconds()
     }
 
     fun toOptions(): LeaderElectionOptions =

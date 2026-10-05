@@ -8,7 +8,7 @@
 - 클로드 6계층 고문: 승인합니다.
 - 게이트: P0=0, P1=0.
 - 클로드 유물:
-  - `.omx/artifacts/claude-code-review-consul-suspend-final4-20260523000353.md`
+    - `.omx/artifacts/claude-code-review-consul-suspend-final4-20260523000353.md`
 
 ## 계층 1 - 보안
 
@@ -64,9 +64,9 @@
 
 - `git diff --check`
 - `./gradlew :bluetape4k-leader-consul:test --no-daemon --console=plain --rerun-tasks`
-  - 통과: 42개 테스트.
+    - 통과: 42개 테스트.
 - `./gradlew :bluetape4k-leader-consul:check --no-daemon --console=plain --rerun-tasks`
-  - 통과: 42개 테스트 및 적용 범위 검증.
+    - 통과: 42개 테스트 및 적용 범위 검증.
 - Claude Code Advisor 아티팩트 `.omx/artifacts/claude-code-review-consul-suspend-final4-20260523000353.md`가 `Gate: PASS; P0=0; P1=0`를 보고했습니다.
 
 ## 후속 후보자

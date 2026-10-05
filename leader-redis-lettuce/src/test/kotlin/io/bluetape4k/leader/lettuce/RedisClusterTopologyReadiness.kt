@@ -3,7 +3,6 @@ package io.bluetape4k.leader.lettuce
 import io.bluetape4k.assertions.shouldContain
 import io.lettuce.core.cluster.models.partitions.RedisClusterNode
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 

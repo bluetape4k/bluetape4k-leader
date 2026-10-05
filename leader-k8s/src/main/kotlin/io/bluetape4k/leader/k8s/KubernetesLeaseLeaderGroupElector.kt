@@ -1,7 +1,10 @@
 package io.bluetape4k.leader.k8s
 
-import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.AopScopeAccess
+import io.bluetape4k.leader.AsyncLifecycle
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLease
@@ -12,10 +15,13 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.leader.k8s.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
+import io.bluetape4k.leader.k8s.runIfLeaderGroup as currentRunIfLeaderGroup
+import io.bluetape4k.leader.k8s.internal.KubernetesLeaseGroupAcquisitionDeadline
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
-import io.bluetape4k.leader.k8s.internal.KubernetesLeaseGroupAcquisitionDeadline
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseNames
+import io.bluetape4k.leader.unwrapCompletionException
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -44,17 +50,11 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
     private val client: KubernetesClient,
     val options: KubernetesLeaseGroupOptions = KubernetesLeaseGroupOptions.Default,
     private val clock: Clock = Clock.systemUTC(),
-) : LeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics {
+): LeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         internal const val K8S_GROUP_FACTORY_BEAN_NAME = "kubernetes-lease-leader-group-elector"
-    }
-
-    private enum class AsyncLifecycle {
-        WAITING,
-        STARTED,
-        CLEANUP,
     }
 
     override val maxLeaders: Int = options.maxLeaders
@@ -176,25 +176,24 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
             when {
                 lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
                 lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else -> CompletableFuture.completedFuture(Unit)
+                else -> completableFutureOf(Unit)
             }
         }
-        val acquisitionFuture = CompletableFuture.supplyAsync({
+        val acquisitionFuture = futureOf(executor) {
             var acquired: AcquiredSlot? = null
             try {
                 acquire(lockName, auditLeaderId).also { acquired = it }
             } finally {
                 cleanupBarrier.completeAcquisition(acquired)
             }
-        }, executor)
+        }
+
         val pipelineFuture: CompletableFuture<T?> = try {
             acquisitionFuture.thenComposeAsync({ acquired ->
                 if (acquired == null) {
-                    CompletableFuture.completedFuture(null)
+                    completableFutureOf(null)
                 } else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
-                    CompletableFuture.failedFuture(
-                        CancellationException("leader result future was cancelled before action"),
-                    )
+                    failedCompletableFutureOf(CancellationException("leader result future was cancelled before action"))
                 } else {
                     try {
                         runAcquiredAsync(lockName, acquired, auditLeaderId, cancellationRelay, action)
@@ -206,11 +205,12 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
                 }
             }, executor)
         } catch (error: Throwable) {
-            CompletableFuture.failedFuture(error)
+            failedCompletableFutureOf(error)
         }
+
         return LeaderFutureBridge.flatMap(pipelineFuture, cancellationRelay) { value, failure ->
             if (failure == null) {
-                CompletableFuture.completedFuture(value)
+                completableFutureOf(value)
             } else {
                 releaseIfUnclaimed().handle { _, cleanupFailure ->
                     val cause = checkNotNull(failure.unwrapCompletionException())
@@ -368,30 +368,21 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
     )
 }
 
-private fun Throwable?.unwrapCompletionException(): Throwable? =
-    if (this is CompletionException && cause != null) cause else this
-
-/**
- * `선언` 호출은 Kubernetes Lease backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
-inline fun <T> KubernetesClient.runIfLeaderGroup(
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runIfLeaderGroup")
+inline fun <T> KubernetesClient.legacyRunIfLeaderGroup(
     lockName: String,
     options: KubernetesLeaseGroupOptions = KubernetesLeaseGroupOptions.Default,
     crossinline action: () -> T,
-): T? =
-    KubernetesLeaseLeaderGroupElector(this, options).runIfLeader(lockName) { action() }
+): T? = this.currentRunIfLeaderGroup(lockName, options, action)
 
-/**
- * `선언` 호출은 Kubernetes Lease backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
-fun <T> KubernetesClient.runAsyncIfLeaderGroup(
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("runAsyncIfLeaderGroup")
+fun <T> KubernetesClient.legacyRunAsyncIfLeaderGroup(
     lockName: String,
     options: KubernetesLeaseGroupOptions = KubernetesLeaseGroupOptions.Default,
-    executor: Executor = VirtualThreadExecutor,
+    executor: Executor = io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor,
     action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> =
-    KubernetesLeaseLeaderGroupElector(this, options).runAsyncIfLeader(lockName, executor, action)
+): CompletableFuture<T?> = this.currentRunAsyncIfLeaderGroup(lockName, options, executor, action)

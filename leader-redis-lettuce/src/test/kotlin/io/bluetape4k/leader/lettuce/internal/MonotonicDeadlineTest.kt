@@ -2,17 +2,22 @@ package io.bluetape4k.leader.lettuce.internal
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.leader.contract.AbstractMonotonicDeadlineMathContractTest
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 class MonotonicDeadlineTest: AbstractMonotonicDeadlineMathContractTest() {
 
+    companion object: KLogging()
+
     override fun createDeadline(waitTime: Duration, ticker: () -> Long): DeadlineProbe {
         val deadline = MonotonicDeadline.fromNow(waitTime, ticker)
         return object: DeadlineProbe {
             override fun remainingNanos(): Long = deadline.remainingNanos()
-            override fun remainingMillisForDelay(maxDelayMillis: Long): Long = deadline.remainingMillisForDelay(maxDelayMillis)
+            override fun remainingMillisForDelay(maxDelayMillis: Long): Long =
+                deadline.remainingMillisForDelay(maxDelayMillis)
+
             override fun hasTimeRemaining(): Boolean = deadline.hasTimeRemaining()
         }
     }

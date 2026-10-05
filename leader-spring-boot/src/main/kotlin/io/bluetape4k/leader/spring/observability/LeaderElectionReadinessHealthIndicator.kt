@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.spring.observability
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.LeaderElectionState
+import io.bluetape4k.support.requireGe
 import org.springframework.boot.health.contributor.AbstractHealthIndicator
 import org.springframework.boot.health.contributor.Health
 import org.springframework.boot.health.contributor.Status
@@ -25,14 +27,14 @@ class LeaderElectionReadinessHealthIndicator private constructor(
     private val acquisitionFailureWindow: LeaderAcquisitionFailureWindow?,
     @Suppress("UNUSED_PARAMETER")
     constructorMarker: Any?,
-) : AbstractHealthIndicator("Leader election readiness check failed") {
+): AbstractHealthIndicator("Leader election readiness check failed") {
 
     constructor(
         leaderElector: LeaderElectionState,
         registry: LeaderElectionStatusRegistry,
         leaseWarningThreshold: Duration,
         clock: Clock = Clock.systemUTC(),
-    ) : this(leaderElector, registry, leaseWarningThreshold, clock, null, null)
+    ): this(leaderElector, registry, leaseWarningThreshold, clock, null, null)
 
     internal constructor(
         leaderElector: LeaderElectionState,
@@ -40,7 +42,7 @@ class LeaderElectionReadinessHealthIndicator private constructor(
         leaseWarningThreshold: Duration,
         clock: Clock,
         acquisitionFailureWindow: LeaderAcquisitionFailureWindow,
-    ) : this(leaderElector, registry, leaseWarningThreshold, clock, acquisitionFailureWindow, Unit)
+    ): this(leaderElector, registry, leaseWarningThreshold, clock, acquisitionFailureWindow, Unit)
 
     private val stateProvider: LeaderElectionState = leaderElector
     private val selectedBackend: String =
@@ -49,7 +51,7 @@ class LeaderElectionReadinessHealthIndicator private constructor(
         (stateProvider as? SelectedStateProvider)?.beanName.orEmpty()
 
     init {
-        require(!leaseWarningThreshold.isNegative) {
+        leaseWarningThreshold.requireGe(Duration.ZERO) {
             "leaseWarningThreshold must not be negative: $leaseWarningThreshold"
         }
     }
@@ -202,9 +204,17 @@ private class SelectedStateProvider(
     val backendName: String,
     val beanName: String,
     private val delegate: LeaderElectionState,
-) : LeaderElectionState {
+): LeaderElectionState {
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
 
     override fun state(lockName: String) = delegate.state(lockName)
+
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("backendName", backendName)
+            .add("beanName", beanName)
+            .add("supportsAuditLeaderState", delegate.supportsAuditLeaderState)
+            .toString()
+    }
 }

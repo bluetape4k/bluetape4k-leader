@@ -12,12 +12,12 @@ echo "Root: ${WORKTREE_ROOT}"
 echo ""
 
 run_grep() {
-    local label="$1"
-    local pattern="$2"
-    local include="${3:-*.kt}"
-    echo "--- ${label} ---"
-    rg --no-heading -n "${pattern}" --glob "${include}" "${WORKTREE_ROOT}/leader-"*"/src" 2>/dev/null || echo "(no matches)"
-    echo ""
+  local label="$1"
+  local pattern="$2"
+  local include="${3:-*.kt}"
+  echo "--- ${label} ---"
+  rg --no-heading -n "${pattern}" --glob "${include}" "${WORKTREE_ROOT}/leader-"*"/src" 2>/dev/null || echo "(no matches)"
+  echo ""
 }
 
 # 1. LeaderLease.leaderId constructor references (positional or named)

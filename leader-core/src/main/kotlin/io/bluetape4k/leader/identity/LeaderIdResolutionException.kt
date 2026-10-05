@@ -10,4 +10,4 @@ package io.bluetape4k.leader.identity
 class LeaderIdResolutionException(
     message: String,
     cause: Throwable? = null,
-) : RuntimeException(message, cause)
+): RuntimeException(message, cause)

@@ -1,7 +1,10 @@
 package io.bluetape4k.leader.spring.aop
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.leader.LeaderElectionException
-import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.annotation.LeaderElection
@@ -11,14 +14,11 @@ import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.assertFailsWith
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.runTest
 import org.aspectj.lang.ProceedingJoinPoint
@@ -30,7 +30,6 @@ import reactor.core.publisher.Mono
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
  * [LeaderElectionAspect] — suspend / Mono 분기 커버리지 테스트.
@@ -45,10 +44,11 @@ import kotlin.coroutines.resumeWithException
  * ## Mono 분기 테스트 방법
  * `aspect.aroundLeader(pjp)` 가 반환하는 `Mono<*>` 를 `.block()` 으로 구독.
  */
+@Suppress("ReactiveStreamsUnusedPublisher")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionAspectSuspendMonoTest {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         private const val SAMPLE_RESULT = "suspend-ok"
     }
 
@@ -61,7 +61,7 @@ class LeaderElectionAspectSuspendMonoTest {
         suspend fun runSuspendInvalidName(): String?
     }
 
-    private class SuspendServiceImpl : SuspendService {
+    private class SuspendServiceImpl: SuspendService {
         @LeaderElection(name = "suspend-job")
         override suspend fun runSuspend(): String? = SAMPLE_RESULT
 
@@ -83,7 +83,7 @@ class LeaderElectionAspectSuspendMonoTest {
         fun runMonoInvalidName(): Mono<String>
     }
 
-    private class MonoServiceImpl : MonoService {
+    private class MonoServiceImpl: MonoService {
         @LeaderElection(name = "mono-job")
         override fun runMono(): Mono<String> = Mono.just(SAMPLE_RESULT)
 
@@ -97,17 +97,17 @@ class LeaderElectionAspectSuspendMonoTest {
     // ── Fake 구현체 ─────────────────────────────────────────────────────────
 
     /** 항상 선출 성공 — body 직접 실행 */
-    private class ElectedSuspendElector : SuspendLeaderElector {
+    private class ElectedSuspendElector: SuspendLeaderElector {
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = action()
     }
 
     /** 항상 미선출 — null 반환 */
-    private class SkippedSuspendElector : SuspendLeaderElector {
+    private class SkippedSuspendElector: SuspendLeaderElector {
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = null
     }
 
     /** 백엔드 오류 throw */
-    private class BackendErrorSuspendElector(private val error: Exception) : SuspendLeaderElector {
+    private class BackendErrorSuspendElector(private val error: Exception): SuspendLeaderElector {
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = throw error
     }
 
@@ -124,13 +124,16 @@ class LeaderElectionAspectSuspendMonoTest {
     @BeforeEach
     fun setUp() {
         clearMocks(factoryMock, beanSelector, signature, pjp)
-        every { beanSelector.selectElectionFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected("testFactory", factoryMock)
+        every {
+            beanSelector.selectElectionFactory(any(), any())
+        } returns LeaderBeanSelector.Selected("testFactory", factoryMock)
     }
 
     private fun newAspect(suspendFactory: SuspendLeaderElectorFactory): LeaderElectionAspect {
-        every { beanSelector.selectSuspendElectorFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected("testSuspendFactory", suspendFactory)
+        every {
+            beanSelector.selectSuspendElectorFactory(any(), any())
+        } returns LeaderBeanSelector.Selected("testSuspendFactory", suspendFactory)
+
         return LeaderElectionAspect(
             beanSelector = beanSelector,
             props = LeaderAopProperties(),
@@ -161,15 +164,14 @@ class LeaderElectionAspectSuspendMonoTest {
      * `suspendCancellableCoroutine` 으로 runTest 컨텍스트의 진짜 Continuation 을 획득하여
      * `pjp.args.last()` 로 주입 후 `aspect.aroundLeader(pjp)` 를 실행.
      */
-    private suspend fun runSuspendAspect(aspect: LeaderElectionAspect): Any? =
-        suspendCancellableCoroutine { cont ->
-            every { pjp.args } returns arrayOf<Any?>(cont)
-            val r = aspect.aroundLeader(pjp)
-            @Suppress("SuspiciousEqualsCombination")
-            if (r !== COROUTINE_SUSPENDED) {
-                cont.resume(r)
-            }
+    private suspend fun runSuspendAspect(aspect: LeaderElectionAspect): Any? = suspendCancellableCoroutine { cont ->
+        every { pjp.args } returns arrayOf<Any?>(cont)
+        val r = aspect.aroundLeader(pjp)
+
+        if (r !== COROUTINE_SUSPENDED) {
+            cont.resume(r)
         }
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Suspend 분기 테스트
@@ -183,6 +185,7 @@ class LeaderElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeSuspendFactory(ElectedSuspendElector()))
         val result = runSuspendAspect(aspect)
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
     }
 
@@ -204,7 +207,9 @@ class LeaderElectionAspectSuspendMonoTest {
 
         val aspect = newAspect(fakeSuspendFactory(ElectedSuspendElector()))
 
-        val ex = assertFailsWith<RuntimeException> { runSuspendAspect(aspect) }
+        val ex = assertFailsWith<RuntimeException> {
+            runSuspendAspect(aspect)
+        }
         ex shouldBeEqualTo bodyEx
     }
 
@@ -215,7 +220,9 @@ class LeaderElectionAspectSuspendMonoTest {
 
         val aspect = newAspect(fakeSuspendFactory(BackendErrorSuspendElector(backendEx)))
 
-        val ex = assertFailsWith<LeaderElectionException> { runSuspendAspect(aspect) }
+        val ex = assertFailsWith<LeaderElectionException> {
+            runSuspendAspect(aspect)
+        }
         ex.cause shouldBeEqualTo backendEx
     }
 
@@ -238,6 +245,7 @@ class LeaderElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeSuspendFactory(SkippedSuspendElector()))
         val result = runSuspendAspect(aspect)
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
     }
 
@@ -250,6 +258,7 @@ class LeaderElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeSuspendFactory(BackendErrorSuspendElector(backendEx)))
         val result = runSuspendAspect(aspect)
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
     }
 
@@ -259,7 +268,9 @@ class LeaderElectionAspectSuspendMonoTest {
         every { pjp.proceed(any<Array<Any?>>()) } returns SAMPLE_RESULT
         val aspect = newAspect(fakeSuspendFactory(ElectedSuspendElector()))
 
-        assertFailsWith<IllegalArgumentException> { runSuspendAspect(aspect) }
+        assertFailsWith<IllegalArgumentException> {
+            runSuspendAspect(aspect)
+        }
         verify(exactly = 0) { pjp.proceed(any<Array<Any?>>()) }
     }
 
@@ -275,6 +286,7 @@ class LeaderElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeSuspendFactory(ElectedSuspendElector()))
         val result = (aspect.aroundLeader(pjp) as Mono<*>).block()
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
     }
 
@@ -297,7 +309,9 @@ class LeaderElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeSuspendFactory(ElectedSuspendElector()))
         val mono = aspect.aroundLeader(pjp) as Mono<*>
 
-        val thrown = assertFailsWith<RuntimeException> { mono.block() }
+        val thrown = assertFailsWith<RuntimeException> {
+            mono.block()
+        }
         thrown shouldBeEqualTo bodyEx
     }
 
@@ -309,17 +323,21 @@ class LeaderElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeSuspendFactory(BackendErrorSuspendElector(backendEx)))
         val mono = aspect.aroundLeader(pjp) as Mono<*>
 
-        val ex = assertFailsWith<LeaderElectionException> { mono.block() }
+        val ex = assertFailsWith<LeaderElectionException> {
+            mono.block()
+        }
         ex.cause shouldBeEqualTo backendEx
     }
 
     @Test
     fun `mono 백엔드 throw + SKIP - null 반환`() {
-        val skipTarget = object : MonoService {
+        val skipTarget = object: MonoService {
             @LeaderElection(name = "mono-skip-job", failureMode = LeaderAspectFailureMode.SKIP)
             override fun runMono(): Mono<String> = Mono.just(SAMPLE_RESULT)
+
             @LeaderElection(name = "mono-fail-open-job2", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
             override fun runMonoFailOpen(): Mono<String> = Mono.just(SAMPLE_RESULT)
+
             @LeaderElection(name = "mono-invalid-name-job")
             override fun runMonoInvalidName(): Mono<String> = Mono.just(SAMPLE_RESULT)
         }
@@ -344,6 +362,7 @@ class LeaderElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeSuspendFactory(SkippedSuspendElector()))
         val result = (aspect.aroundLeader(pjp) as Mono<*>).block()
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
     }
 
@@ -356,6 +375,7 @@ class LeaderElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeSuspendFactory(BackendErrorSuspendElector(backendEx)))
         val result = (aspect.aroundLeader(pjp) as Mono<*>).block()
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
     }
 

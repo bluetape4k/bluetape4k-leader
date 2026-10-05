@@ -16,13 +16,13 @@ P0/P1 차단제가 없습니다.
 
 ## 수표
 
-| Check | Status | Evidence |
-|---|---:|---|
-| Issue scope alignment | PASS | Spec maps #490 to root/module architecture diagrams and excludes #491 examples scenario/flow work |
-| Diagram skill coverage | PASS | Spec requires layer containment, balanced margins, title gap, endpoint angle, 90-degree bends, route-interior checks, font roles, PNG/SVG/evidence pairs |
-| Workflow gate coverage | PASS | Spec requires spec/plan/implementation reviews with `P0 = 0`, `P1 = 0` |
-| README locale policy | PASS | Spec limits `English | 한국어` normalization to touched README pairs |
-| Baseline evidence | PASS | Spec records #489 merge baseline and shared gate `diagrams=65 failures=0` |
+| Check                  | Status | Evidence                                                                                                                                                 |
+|------------------------|-------:|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Issue scope alignment  |   PASS | Spec maps #490 to root/module architecture diagrams and excludes #491 examples scenario/flow work                                                        |
+| Diagram skill coverage |   PASS | Spec requires layer containment, balanced margins, title gap, endpoint angle, 90-degree bends, route-interior checks, font roles, PNG/SVG/evidence pairs |
+| Workflow gate coverage |   PASS | Spec requires spec/plan/implementation reviews with `P0 = 0`, `P1 = 0`                                                                                   |
+| README locale policy   |   PASS | Spec limits `English                                                                                                                                     | 한국어` normalization to touched README pairs |
+| Baseline evidence      |   PASS | Spec records #489 merge baseline and shared gate `diagrams=65 failures=0`                                                                                |
 
 ## 메모
 

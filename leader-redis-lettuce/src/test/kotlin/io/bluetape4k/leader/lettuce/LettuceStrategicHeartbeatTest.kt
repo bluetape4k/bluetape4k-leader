@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.assertions.shouldBeAfter
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeEmpty
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldNotBeNull
@@ -12,12 +12,16 @@ import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredGroupElectionStrategy
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class LettuceStrategicHeartbeatTest : AbstractLettuceLeaderTest() {
+class LettuceStrategicHeartbeatTest: AbstractLettuceLeaderTest() {
+
+    companion object: KLogging()
 
     private val registeredAt = Instant.parse("2026-01-01T00:00:00Z")
     private val lastStartTime = Instant.parse("2026-01-01T00:00:30Z")
@@ -67,6 +71,8 @@ class LettuceStrategicHeartbeatTest : AbstractLettuceLeaderTest() {
         elector.updateResult(lockName, "node-2", CandidateResult.FAILURE)
 
         val candidates = elector.listCandidates(lockName)
+        candidates.forEach { log.debug { "candidate=$it" } }
+
         assertHeartbeatResult(candidates.first { it.nodeId == "node-1" }, 5L, 1L, "fresh-1")
         assertHeartbeatResult(candidates.first { it.nodeId == "node-2" }, 2L, 4L, "fresh-2")
         ScoredElectionStrategy(SuccessRateScorer).elect(candidates).winner?.nodeId shouldBeEqualTo "node-1"
@@ -87,6 +93,8 @@ class LettuceStrategicHeartbeatTest : AbstractLettuceLeaderTest() {
         elector.updateResult(lockName, "node-2", CandidateResult.FAILURE)
 
         val candidates = elector.listCandidates(lockName)
+        candidates.forEach { log.debug { "candidate=$it" } }
+
         assertHeartbeatResult(candidates.first { it.nodeId == "node-1" }, 5L, 1L, "fresh-1")
         assertHeartbeatResult(candidates.first { it.nodeId == "node-2" }, 2L, 4L, "fresh-2")
         ScoredGroupElectionStrategy(SuccessRateScorer)
@@ -111,6 +119,8 @@ class LettuceStrategicHeartbeatTest : AbstractLettuceLeaderTest() {
         elector.updateResult(lockName, "node-2", CandidateResult.FAILURE)
 
         val candidates = elector.listCandidates(lockName)
+        candidates.forEach { log.debug { "candidate=$it" } }
+
         assertHeartbeatResult(candidates.first { it.nodeId == "node-1" }, 5L, 1L, "fresh-1")
         assertHeartbeatResult(candidates.first { it.nodeId == "node-2" }, 2L, 4L, "fresh-2")
         ScoredElectionStrategy(SuccessRateScorer).elect(candidates).winner?.nodeId shouldBeEqualTo "node-1"
@@ -131,6 +141,8 @@ class LettuceStrategicHeartbeatTest : AbstractLettuceLeaderTest() {
         elector.updateResult(lockName, "node-2", CandidateResult.FAILURE)
 
         val candidates = elector.listCandidates(lockName)
+        candidates.forEach { log.debug { "candidate=$it" } }
+
         assertHeartbeatResult(candidates.first { it.nodeId == "node-1" }, 5L, 1L, "fresh-1")
         assertHeartbeatResult(candidates.first { it.nodeId == "node-2" }, 2L, 4L, "fresh-2")
         ScoredGroupElectionStrategy(SuccessRateScorer)

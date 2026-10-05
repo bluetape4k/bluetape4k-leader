@@ -10,7 +10,7 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
 
 /** Exposed R2DBC backend의 정적 capability와 안전한 connectivity 계약입니다. */
-object ExposedR2dbcLeaderBackendDiagnostics : LeaderBackendDiagnosticsProvider {
+object ExposedR2dbcLeaderBackendDiagnostics: LeaderBackendDiagnosticsProvider {
 
     private val SupportedModes = LeaderBackendModeSupport(
         single = LeaderBackendSupport.SUPPORTED,

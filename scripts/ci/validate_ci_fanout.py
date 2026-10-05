@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 DEFAULT_WORKFLOW = Path(".github/workflows/ci.yml")
 TEST_JOB_PREFIX = "test-"
 MANUAL_CONTRACT_JOB_ID = "manual-contract"
@@ -99,7 +98,7 @@ def section_paths(workflow: str, section: str) -> set[str]:
         return set()
     indent = len(lines[start]) - len(lines[start].lstrip())
     paths: set[str] = set()
-    for line in lines[start + 1 :]:
+    for line in lines[start + 1:]:
         stripped = line.strip()
         current_indent = len(line) - len(line.lstrip())
         if stripped and current_indent <= indent:

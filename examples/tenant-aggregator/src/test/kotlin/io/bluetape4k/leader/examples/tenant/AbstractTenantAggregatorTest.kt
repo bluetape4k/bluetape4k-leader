@@ -8,14 +8,15 @@ import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderElectionOptions
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.testcontainers.database.MySQL8Server
 import io.bluetape4k.testcontainers.database.PostgreSQLServer
-import kotlin.time.Duration.Companion.seconds
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.deleteAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `AbstractTenantAggregatorTest`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -25,10 +26,14 @@ import java.util.concurrent.ConcurrentHashMap
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractTenantAggregatorTest {
 
-    companion object: KLogging() {
+    companion object: KLoggingChannel() {
 
         private val postgreSQLServer: PostgreSQLServer by lazy {
             PostgreSQLServer.Launcher.postgres
+        }
+
+        private val mySQL8Server: MySQL8Server by lazy {
+            MySQL8Server.Launcher.mysql
         }
 
         private val dbCache = ConcurrentHashMap<TestTenantDB, R2dbcDatabase>()
@@ -41,12 +46,13 @@ abstract class AbstractTenantAggregatorTest {
         @JvmStatic
         fun enableDialects(): List<TestTenantDB> {
             val filter = System.getenv("LEADER_TEST_DB")?.uppercase()
-                ?: return listOf(TestTenantDB.H2, TestTenantDB.POSTGRESQL)
+                ?: return listOf(TestTenantDB.H2, TestTenantDB.POSTGRESQL, TestTenantDB.MYSQL_V8)
+
             return when (filter) {
                 "H2" -> listOf(TestTenantDB.H2)
                 "POSTGRESQL", "POSTGRES" -> listOf(TestTenantDB.POSTGRESQL)
-                "MYSQL_V8", "MYSQL" -> listOf(TestTenantDB.H2)  // 본 모듈은 MySQL 미지원 — H2 로 대체
-                else -> listOf(TestTenantDB.H2, TestTenantDB.POSTGRESQL)
+                "MYSQL_V8", "MYSQL" -> listOf(TestTenantDB.MYSQL_V8)
+                else -> listOf(TestTenantDB.H2, TestTenantDB.POSTGRESQL, TestTenantDB.MYSQL_V8)
             }
         }
 
@@ -54,13 +60,18 @@ abstract class AbstractTenantAggregatorTest {
             TestTenantDB.H2 -> "r2dbc:h2:mem:///tenant_${Base58.randomString(6)};MODE=MySQL;DB_CLOSE_DELAY=-1"
             TestTenantDB.POSTGRESQL -> {
                 val c = postgreSQLServer
-                "r2dbc:postgresql://${c.host}:${c.getMappedPort(5432)}/${c.databaseName}"
+                "r2dbc:postgresql://${c.host}:${c.port}/${c.databaseName}"
+            }
+            TestTenantDB.MYSQL_V8 -> {
+                val c = mySQL8Server
+                "r2dbc:mysql://${c.host}:${c.port}/${c.databaseName}"
             }
         }
 
         fun r2dbcCredentials(testDB: TestTenantDB): Pair<String?, String?> = when (testDB) {
             TestTenantDB.H2 -> "" to ""
             TestTenantDB.POSTGRESQL -> postgreSQLServer.username to postgreSQLServer.password
+            TestTenantDB.MYSQL_V8 -> mySQL8Server.username to mySQL8Server.password
         }
     }
 
@@ -69,16 +80,18 @@ abstract class AbstractTenantAggregatorTest {
      *
      * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
-    protected fun connectDb(testDB: TestTenantDB): R2dbcDatabase = when (testDB) {
-        TestTenantDB.H2 -> {
-            val url = r2dbcUrl(testDB)
-            val (user, password) = r2dbcCredentials(testDB)
-            R2dbcDatabase.connect(url, user = user ?: "", password = password ?: "")
-        }
-        TestTenantDB.POSTGRESQL -> dbCache.getOrPut(testDB) {
-            val url = r2dbcUrl(testDB)
-            val (user, password) = r2dbcCredentials(testDB)
-            R2dbcDatabase.connect(url, user = user ?: "", password = password ?: "")
+    protected fun connectDb(testDB: TestTenantDB): R2dbcDatabase {
+        val url = r2dbcUrl(testDB)
+        val (user, password) = r2dbcCredentials(testDB)
+
+        return when (testDB) {
+            TestTenantDB.H2 -> R2dbcDatabase.connect(url, user = user ?: "", password = password ?: "")
+            TestTenantDB.POSTGRESQL -> dbCache.getOrPut(testDB) {
+                R2dbcDatabase.connect(url, user = user ?: "", password = password ?: "")
+            }
+            TestTenantDB.MYSQL_V8 -> dbCache.getOrPut(testDB) {
+                R2dbcDatabase.connect(url, user = user ?: "", password = password ?: "")
+            }
         }
     }
 
@@ -117,4 +130,5 @@ abstract class AbstractTenantAggregatorTest {
 enum class TestTenantDB {
     H2,
     POSTGRESQL,
+    MYSQL_V8,
 }

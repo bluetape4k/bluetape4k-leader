@@ -5,7 +5,7 @@ import io.bluetape4k.leader.internal.BackendErrorKind
 import software.amazon.awssdk.core.exception.SdkClientException
 import software.amazon.awssdk.services.dynamodb.model.DynamoDbException
 
-internal object DynamoDbBackendErrorClassifier : BackendErrorClassifier {
+internal object DynamoDbBackendErrorClassifier: BackendErrorClassifier {
 
     private val transientErrorCodes = setOf(
         "InternalServerError",

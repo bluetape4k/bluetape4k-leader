@@ -13,9 +13,8 @@
 
 ![bluetape4k 리더 선출 작업대 일러스트](./docs/assets/leader-election-workbench.png)
 
-Kotlin/JVM 기반 **분산 리더 선출(Distributed Leader Election)** 독립 라이브러리입니다.  
-블로킹, 비동기, 코루틴, 가상 스레드 API를 지원하며 Redis, Exposed, MongoDB, DynamoDB, etcd, Consul, Kubernetes, Hazelcast, ZooKeeper 백엔드를 제공합니다.
-Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
+Kotlin/JVM 기반 **분산 리더 선출 (Distributed Leader Election)** 독립 라이브러리입니다.<br>
+블로킹, 비동기, 코루틴, 가상 스레드 API를 지원하며 Redis, Exposed, MongoDB, DynamoDB, etcd, Consul, Kubernetes, Hazelcast, ZooKeeper 백엔드를 제공합니다. Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 
 ---
 
@@ -23,13 +22,14 @@ Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 
 - **Null 반환 API** — 리더로 선출되지 않으면 `null`을 반환합니다 (경쟁 상황에서 예외를 던지지 않음)
 - **다양한 실행 모델** — 블로킹, `CompletableFuture`, 가상 스레드, 코루틴 지원
-- **복수 리더(그룹) 지원** — `LeaderGroupElector`으로 분산 세마포어 기반 N개 동시 리더 허용
-- **전략적 선출(Strategic Election)** — 플러그형 후보 레지스트리 + 선출 전략(FIFO, Scored, Weighted); 분산 락 불필요
+- **복수 리더 (그룹) 지원** — `LeaderGroupElector`으로 분산 세마포어 기반 N개 동시 리더 허용
+- **전략적 선출 (Strategic Election)** — 플러그형 후보 레지스트리 + 선출 전략 (FIFO, Scored, Weighted); 분산 락 불필요
 - **전략적 그룹 선출** — `GroupElectionStrategy`가 후보 기준 목록에서 결정론적인 top-N을 선택하는 블로킹·코루틴 API
 - **자립형 Redis 테스트 인프라** — Testcontainers 직접 사용, 외부 테스트 유틸 의존 없음
 - **ShedLock 호환 skip 동작** — 락 획득 실패 시 작업을 조용히 건너뜀
 
 <!-- README_VISUAL_OVERVIEW:START -->
+
 ## Overview Diagram
 
 ![Bluetape4k Leader overview diagram](docs/images/readme-diagrams/root-readme-overview-01.png)
@@ -47,28 +47,23 @@ Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 
 `1.0.0`이 최신 안정 릴리스이며 `develop`은 `1.1.0-SNAPSHOT` 빌드가 속한 `1.1.0+` 개발선을 추적합니다.
 [`WIP.md`](./WIP.md)에서 기준일의 프로젝트 상태와 release 경계를 확인하고,
-[`CHANGELOG.md`](./CHANGELOG.md)에서 배포 내역과 다음 변경을 확인하세요. 버전
-매뉴얼은 exact `1.0.0` release commit에 고정되어 있습니다.
+[`CHANGELOG.md`](./CHANGELOG.md)에서 배포 내역과 다음 변경을 확인하세요. 버전 매뉴얼은 exact `1.0.0` release commit에 고정되어 있습니다.
 
 ## 벤치마크
 
-non-published [`benchmark`](./benchmark) 모듈은 leader election backend를
-같은 기준으로 비교하는 `kotlinx-benchmark` suite를 제공합니다. JVM runner는
-JMH이며, 결과는 같은 장비에서 전/후 비교를 하기 위한 기준선입니다. 릴리스급
-성능 보증으로 해석하면 안 됩니다.
+non-published [`benchmark`](./benchmark) 모듈은 leader election backend를 같은 기준으로 비교하는 `kotlinx-benchmark` suite를 제공합니다. JVM runner는 JMH이며, 결과는 같은 장비에서 전/후 비교를 하기 위한 기준선입니다. 릴리스급 성능 보증으로 해석하면 안 됩니다.
 
 ![Leader benchmark distributed throughput](docs/images/readme-charts/leader-benchmark-distributed-throughput-chart-01.png)
 
-| 비교 | 핵심 신호 |
-|---|---|
-| Blocking 분산 환경 backend | 2026-05-29 실행에서는 Hazelcast, Lettuce, Redisson이 상위권에서 비슷합니다. |
-| Suspend 분산 환경 backend | Lettuce, Redisson, Hazelcast가 선두 그룹이고, RDB 행은 이 단일 컨테이너 실행에서 훨씬 느렸습니다. |
-| Local 및 H2 행 | in-process 또는 local SQL/R2DBC overhead를 측정하므로 분산 backend 비용 차트를 왜곡하지 않도록 분산 환경 차트에서 제외했습니다. |
+| 비교                       | 핵심 신호                                                                                                                       |
+|----------------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| Blocking 분산 환경 backend | 2026-05-29 실행에서는 Hazelcast, Lettuce, Redisson이 상위권에서 비슷합니다.                                                     |
+| Suspend 분산 환경 backend  | Lettuce, Redisson, Hazelcast가 선두 그룹이고, RDB 행은 이 단일 컨테이너 실행에서 훨씬 느렸습니다.                               |
+| Local 및 H2 행             | in-process 또는 local SQL/R2DBC overhead를 측정하므로 분산 backend 비용 차트를 왜곡하지 않도록 분산 환경 차트에서 제외했습니다. |
 
 전체 표, latency chart, 실행 명령, 주의사항은
 [`benchmark` README](./benchmark/README.ko.md)와
-[`2026-05-29 원본 benchmark JSON`](./docs/benchmarks/2026-05-29-issue-405-rdb-backend-throughput.json)에
-있습니다.
+[`2026-05-29 원본 benchmark JSON`](./docs/benchmarks/2026-05-29-issue-405-rdb-backend-throughput.json)에 있습니다.
 
 ## 아키텍처
 
@@ -76,31 +71,32 @@ JMH이며, 결과는 같은 장비에서 전/후 비교를 하기 위한 기준�
 
 ## 모듈 목록
 
-| 모듈 | 상태 | 설명 |
-|------|------|------|
-| `leader-core` | 안정 | 인터페이스 + 로컬 인메모리 구현체 |
-| `leader-redis-lettuce` | 안정 | Lettuce 기반 Redis 백엔드 |
-| `leader-redis-redisson` | 안정 | Redisson 기반 Redis 백엔드 |
-| `leader-hazelcast` | 안정 | Hazelcast 백엔드 (IMap 기반, CP Subsystem 불필요) |
-| `leader-exposed-core` | 안정 | Exposed 공통 스키마 (JDBC/R2DBC 드라이버 미포함) |
-| `leader-exposed-jdbc` | 안정 | Exposed JDBC 백엔드 (H2, PostgreSQL, MySQL) |
-| `leader-exposed-r2dbc` | 안정 | Exposed R2DBC 백엔드 (코루틴 네이티브, H2/PostgreSQL/MySQL) |
-| `leader-mongodb` | 안정 | MongoDB 백엔드 (`findOneAndUpdate` + TTL 인덱스) |
-| `leader-dynamodb` | 프리뷰 | AWS DynamoDB 백엔드 (conditional write + logical TTL) |
-| `leader-etcd` | 프리뷰 | etcd v3 백엔드 (jetcd Lock service + lease, 단일/그룹 리더) |
-| `leader-consul` | 프리뷰 | Consul Session + KV 백엔드 (단일/group 리더, Spring Boot auto-config) |
-| `leader-k8s` | 프리뷰 | Kubernetes Lease 백엔드 (`coordination.k8s.io/v1`) |
-| `leader-micrometer` | 안정 | Micrometer 메트릭 연동 (`MicrometerLeaderAopMetricsRecorder`) |
-| `leader-spring-boot` | 안정 | Spring Boot 4 자동 구성 + AOP (AspectJ CTW, Freefair 포스트 컴파일 위빙) |
-| `leader-zookeeper` | 안정 | ZooKeeper/Curator 백엔드 (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
-| `leader-ktor` | 안정 | Ktor 3.x 통합 — `LeaderElectionPlugin` + `leaderScheduled()` |
+| 모듈                    | 상태   | 설명                                                                       |
+|-------------------------|--------|----------------------------------------------------------------------------|
+| `leader-core`           | 안정   | 인터페이스 + 로컬 인메모리 구현체                                          |
+| `leader-redis-lettuce`  | 안정   | Lettuce 기반 Redis 백엔드                                                  |
+| `leader-redis-redisson` | 안정   | Redisson 기반 Redis 백엔드                                                 |
+| `leader-hazelcast`      | 안정   | Hazelcast 백엔드 (IMap 기반, CP Subsystem 불필요)                          |
+| `leader-exposed-core`   | 안정   | Exposed 공통 스키마 (JDBC/R2DBC 드라이버 미포함)                           |
+| `leader-exposed-jdbc`   | 안정   | Exposed JDBC 백엔드 (H2, PostgreSQL, MySQL)                                |
+| `leader-exposed-r2dbc`  | 안정   | Exposed R2DBC 백엔드 (코루틴 네이티브, H2/PostgreSQL/MySQL)                |
+| `leader-mongodb`        | 안정   | MongoDB 백엔드 (`findOneAndUpdate` + TTL 인덱스)                           |
+| `leader-dynamodb`       | 프리뷰 | AWS DynamoDB 백엔드 (conditional write + logical TTL)                      |
+| `leader-etcd`           | 프리뷰 | etcd v3 백엔드 (jetcd Lock service + lease, 단일/그룹 리더)                |
+| `leader-consul`         | 프리뷰 | Consul Session + KV 백엔드 (단일/group 리더, Spring Boot auto-config)      |
+| `leader-k8s`            | 프리뷰 | Kubernetes Lease 백엔드 (`coordination.k8s.io/v1`)                         |
+| `leader-micrometer`     | 안정   | Micrometer 메트릭 연동 (`MicrometerLeaderAopMetricsRecorder`)              |
+| `leader-spring-boot`    | 안정   | Spring Boot 4 자동 구성 + AOP (AspectJ CTW, Freefair 포스트 컴파일 위빙)   |
+| `leader-zookeeper`      | 안정   | ZooKeeper/Curator 백엔드 (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
+| `leader-ktor`           | 안정   | Ktor 3.x 통합 — `LeaderElectionPlugin` + `leaderScheduled()`               |
 
 ## 백엔드 capability matrix
 
 `N`은 백엔드 네이티브 실행 경로입니다. `B`는 블로킹 작업을 `Executor`, `Dispatchers.IO`, 가상 스레드 wrapper로 실행하는 bridge이며, 백엔드 I/O의 non-blocking 동작을 보장하지 않습니다. `—`는 해당 실행 API를 제공하지 않는다는 뜻입니다. `S`와 `G`는 각각 단일 리더와 그룹 리더 지원을 나타냅니다.
 
 | 백엔드 | 모듈 | S-Block | S-Async | S-Suspend | S-Virtual | G-Block | G-Async | G-Suspend | G-Virtual | `autoExtend` | State | Audit ID |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+|--------|------|--------:|--------:|----------:|----------:|--------:|--------:|----------:|----------:|-------------:|------:|---------:|
+
 <!-- LEADER_CAPABILITY_MATRIX:START -->
 | Local | `bluetape4k-leader-core` | N | B | N | B | N | B | N | B | S | S/G | S |
 | Lettuce | `bluetape4k-leader-redis-lettuce` | N | N | N | — | N | N | N | — | S | G | — |
@@ -118,11 +114,12 @@ JMH이며, 결과는 같은 장비에서 전/후 비교를 하기 위한 기준�
 
 이 matrix는 현재 source tree를 기준으로 검증합니다. 버전별 매뉴얼은 해당 release commit에 고정되어 있으므로 안정판 동작은 매뉴얼을, 개발 중인 capability 선택은 이 matrix를 기준으로 확인하세요.
 
-`State`는 core의 빈 단일 state 기본값 대신 단일(`S`) 또는 그룹(`G`) 상태 기준 정보를 실제로 제공하는 백엔드를 표시합니다. `Audit ID`는 단일 리더 state가 호출자 관점의 `LeaderSlot.leaderId`를 보존한다는 뜻입니다 (`supportsAuditLeaderState = true`).
+`State`는 core의 빈 단일 state 기본값 대신 단일 (`S`) 또는 그룹 (`G`) 상태 기준 정보를 실제로 제공하는 백엔드를 표시합니다. `Audit ID`는 단일 리더 state가 호출자 관점의 `LeaderSlot.leaderId`를 보존한다는 뜻입니다 (`supportsAuditLeaderState = true`).
 
 `autoExtend`는 단일 리더에서만 opt-in으로 동작합니다. Local, Redis, Exposed, MongoDB, Hazelcast, etcd, Consul, DynamoDB, Kubernetes는 공통 extender 계약으로 각 백엔드의 TTL, lease, session을 갱신합니다. Redisson은 항상 명시적인 `leaseTime`으로 락을 획득하고, 활성화된 경우 공통 extender로 연장합니다. ZooKeeper 락은 TTL이 없는 session 기반이므로 `autoExtend = true`를 경고와 함께 무시합니다. 그룹 옵션은 `autoExtend`를 제공하지 않으므로 그룹 slot이 lease보다 오래 유지되어야 한다면 `LockExtender`를 명시적으로 사용하세요.
 
 <!-- LEADER_BACKEND_DIAGNOSTICS:START -->
+
 ### Runtime backend diagnostics
 
 내장 elector는 `LeaderBackendDiagnosticsProvider`로 불변 capability descriptor를 제공합니다. 정적 diagnostics 조회는 backend I/O를 실행하지 않으며 connectivity를 `NOT_CHECKED`로 반환합니다. 실제 connectivity 검사는 별도의 opt-in 연산입니다. `UNKNOWN`은 제한 시간 안에 연결 상태를 확정하지 못했다는 뜻이며 backend가 정상이라는 의미가 아닙니다.
@@ -135,25 +132,20 @@ Diagnostics 응답에는 backend 종류, capability 제한, connectivity 상태,
 
 Connectivity 결과에는 제한된 `LeaderBackendConnectivityReason` 값도 포함됩니다.
 
-| 상태 | Reason | 의미 |
-|---|---|---|
-| `UP` | `CONNECTED` | 기존 client가 probe 시점에 backend 연결 가능 상태를 확인했습니다. |
-| `DOWN` | `DISCONNECTED` | 기존 client가 backend를 사용할 수 없는 상태를 확인했습니다. |
-| `UNKNOWN` | `CLIENT_STATE_UNCONFIRMED` | bounded read-only 검사만으로 연결을 증명하지 못했습니다. |
-| `UNKNOWN` | `PROVIDER_UNSUPPORTED` | provider가 지원하는 active probe를 제공하지 않습니다. |
-| `UNKNOWN` | `PROVIDER_EXCEPTION` | 일반 provider 예외를 원문 없이 정규화했습니다. |
-| `NOT_CHECKED` | `NOT_CHECKED` | active probe를 요청하지 않았으며 health 신호가 아닙니다. |
+| 상태          | Reason                     | 의미                                                              |
+|---------------|----------------------------|-------------------------------------------------------------------|
+| `UP`          | `CONNECTED`                | 기존 client가 probe 시점에 backend 연결 가능 상태를 확인했습니다. |
+| `DOWN`        | `DISCONNECTED`             | 기존 client가 backend를 사용할 수 없는 상태를 확인했습니다.       |
+| `UNKNOWN`     | `CLIENT_STATE_UNCONFIRMED` | bounded read-only 검사만으로 연결을 증명하지 못했습니다.          |
+| `UNKNOWN`     | `PROVIDER_UNSUPPORTED`     | provider가 지원하는 active probe를 제공하지 않습니다.             |
+| `UNKNOWN`     | `PROVIDER_EXCEPTION`       | 일반 provider 예외를 원문 없이 정규화했습니다.                    |
+| `NOT_CHECKED` | `NOT_CHECKED`              | active probe를 요청하지 않았으며 health 신호가 아닙니다.          |
 
 `leader-micrometer`의 instrumented elector가 active
 `checkConnectivity` 또는 `diagnostics(probe = true)`를 실행하면
-`leader.backend.connectivity` counter가 호출마다 한 번 증가합니다. 태그는
-정제된 `backend.name`, `status`, `reason`뿐이며 passive diagnostics는 series를
-만들지 않습니다. 예외 원문, endpoint, credential, lock name은 export하지
-않습니다. `UNKNOWN`은 dashboard와 warning 신호로만 사용하고 자동으로 `DOWN`이나
-page로 승격하지 마세요.
+`leader.backend.connectivity` counter가 호출마다 한 번 증가합니다. 태그는 정제된 `backend.name`, `status`, `reason`뿐이며 passive diagnostics는 series를 만들지 않습니다. 예외 원문, endpoint, credential, lock name은 export하지 않습니다. `UNKNOWN`은 dashboard와 warning 신호로만 사용하고 자동으로 `DOWN`이나 page로 승격하지 마세요.
 
-운영 decision table과 timeout/bypass 런북은 [backend connectivity 관측성
-가이드](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.0/guides/backend-connectivity-observability/)에서 확인하세요.
+운영 decision table과 timeout/bypass 런북은 [backend connectivity 관측성 가이드](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.0/guides/backend-connectivity-observability/)에서 확인하세요.
 <!-- LEADER_BACKEND_DIAGNOSTICS:END -->
 
 `@LeaderGroupElection`은 scalar, suspend, `Mono` 결과를 지원하지만 slot별 stream lease extension이 정의되지 않아 `Flux`와 Kotlin `Flow`를 거부합니다. 길거나 무한에 가까운 단일 리더 stream에는 `@LeaderElection(autoExtend = true)`를 사용하세요.
@@ -164,32 +156,29 @@ page로 승격하지 마세요.
 
 `examples/` 디렉토리의 실행 가능한 예제 모듈은 모든 지원 백엔드의 운영 시나리오를 보여줍니다. 예제 모듈은 publishing 대상이 아닙니다 (`path.startsWith(":examples:")` 가 publish/sign/NMCP 에서 제외됨). 자체 서비스에 복사하여 사용하세요.
 
-| 예제 | 백엔드 | 시나리오 |
-|------|--------|---------|
-| [`examples/batch-scheduler`](./examples/batch-scheduler) | Lettuce Redis | 주기 batch 작업 (예: 야간 정산) — N 인스턴스 단일 실행 보장 |
-| [`examples/migration-gate`](./examples/migration-gate) | Exposed JDBC (PostgreSQL/H2) | 부팅 시 schema migration 게이트 — 정확히 1 인스턴스만 실행 |
-| [`examples/webhook-poller`](./examples/webhook-poller) | MongoDB | 외부 webhook 폴링 — 리더만 폴링 + dispatch |
-| [`examples/cache-warmer`](./examples/cache-warmer) | Hazelcast | 파티션별 독립 leader-election — 파티션당 정확히 1 인스턴스 워밍 |
-| [`examples/tenant-aggregator`](./examples/tenant-aggregator) | Exposed R2DBC | 코루틴 네이티브 멀티 테넌트 집계 — 테넌트별 독립 리더 |
-| [`examples/ktor-app`](./examples/ktor-app) | Ktor 3.x + Lettuce Redis | `LeaderElectionPlugin` + `Application.leaderScheduled()` 사용 Ktor 앱 |
-| [`examples/prometheus-dashboard`](./examples/prometheus-dashboard) | Spring Boot + Lettuce Redis | leader AOP 메트릭·backend connectivity·scrape readiness를 확인하는 Prometheus/Grafana dashboard |
-| [`examples/etcd-reconciler`](./examples/etcd-reconciler) | etcd v3 | 한 control-plane 노드만 desired state를 적용하는 reconciler |
-| [`examples/consul-maintenance`](./examples/consul-maintenance) | Consul | 한 service instance만 maintenance/drain 작업을 수행하는 workflow |
-| [`examples/dynamodb-export`](./examples/dynamodb-export) | DynamoDB Local / AWS DynamoDB | scheduled export 또는 billing job에서 리더만 export record를 기록 |
-| [`examples/zookeeper-scheduler`](./examples/zookeeper-scheduler) | ZooKeeper / Curator | legacy scheduled job에서 한 node만 실행하고 경쟁 node는 skip |
-| [`examples/k8s-lease`](./examples/k8s-lease) | Kubernetes Lease | K3s 대상 저수준 Lease 획득/해제/재획득 workflow |
-| [`examples/k8s-operator`](./examples/k8s-operator) | Kubernetes Lease + Spring Boot | 3-replica operator 중 한 pod만 reconcile loop 실행 |
-| [`examples/rate-limiter`](./examples/rate-limiter) | Lettuce Redis + Bucket4j | leader가 외부 API probe를 dispatch하고 shared rate limit 적용 |
-| [`examples/strategic-election`](./examples/strategic-election) | Local strategic election | health, capacity, success-rate, idle-time 가중 점수로 maintenance node 선택 |
-| [`examples/virtual-thread-runner`](./examples/virtual-thread-runner) | Local virtual-thread election | Java virtual thread 기반 고동시성 leader-only maintenance runner |
-| [`examples/redisson-watchdog`](./examples/redisson-watchdog) | Redisson Redis | bluetape4k lease auto-extension으로 보호되는 장시간 leader-only job |
+| 예제                                                                 | 백엔드                         | 시나리오                                                                                        |
+|----------------------------------------------------------------------|--------------------------------|-------------------------------------------------------------------------------------------------|
+| [`examples/batch-scheduler`](./examples/batch-scheduler)             | Lettuce Redis                  | 주기 batch 작업 (예: 야간 정산) — N 인스턴스 단일 실행 보장                                     |
+| [`examples/migration-gate`](./examples/migration-gate)               | Exposed JDBC (PostgreSQL/H2)   | 부팅 시 schema migration 게이트 — 정확히 1 인스턴스만 실행                                      |
+| [`examples/webhook-poller`](./examples/webhook-poller)               | MongoDB                        | 외부 webhook 폴링 — 리더만 폴링 + dispatch                                                      |
+| [`examples/cache-warmer`](./examples/cache-warmer)                   | Hazelcast                      | 파티션별 독립 leader-election — 파티션당 정확히 1 인스턴스 워밍                                 |
+| [`examples/tenant-aggregator`](./examples/tenant-aggregator)         | Exposed R2DBC                  | 코루틴 네이티브 멀티 테넌트 집계 — 테넌트별 독립 리더                                           |
+| [`examples/ktor-app`](./examples/ktor-app)                           | Ktor 3.x + Lettuce Redis       | `LeaderElectionPlugin` + `Application.leaderScheduled()` 사용 Ktor 앱                           |
+| [`examples/prometheus-dashboard`](./examples/prometheus-dashboard)   | Spring Boot + Lettuce Redis    | leader AOP 메트릭·backend connectivity·scrape readiness를 확인하는 Prometheus/Grafana dashboard |
+| [`examples/etcd-reconciler`](./examples/etcd-reconciler)             | etcd v3                        | 한 control-plane 노드만 desired state를 적용하는 reconciler                                     |
+| [`examples/consul-maintenance`](./examples/consul-maintenance)       | Consul                         | 한 service instance만 maintenance/drain 작업을 수행하는 workflow                                |
+| [`examples/dynamodb-export`](./examples/dynamodb-export)             | DynamoDB Local / AWS DynamoDB  | scheduled export 또는 billing job에서 리더만 export record를 기록                               |
+| [`examples/zookeeper-scheduler`](./examples/zookeeper-scheduler)     | ZooKeeper / Curator            | legacy scheduled job에서 한 node만 실행하고 경쟁 node는 skip                                    |
+| [`examples/k8s-lease`](./examples/k8s-lease)                         | Kubernetes Lease               | K3s 대상 저수준 Lease 획득/해제/재획득 workflow                                                 |
+| [`examples/k8s-operator`](./examples/k8s-operator)                   | Kubernetes Lease + Spring Boot | 3-replica operator 중 한 pod만 reconcile loop 실행                                              |
+| [`examples/rate-limiter`](./examples/rate-limiter)                   | Lettuce Redis + Bucket4j       | leader가 외부 API probe를 dispatch하고 shared rate limit 적용                                   |
+| [`examples/strategic-election`](./examples/strategic-election)       | Local strategic election       | health, capacity, success-rate, idle-time 가중 점수로 maintenance node 선택                     |
+| [`examples/virtual-thread-runner`](./examples/virtual-thread-runner) | Local virtual-thread election  | Java virtual thread 기반 고동시성 leader-only maintenance runner                                |
+| [`examples/redisson-watchdog`](./examples/redisson-watchdog)         | Redisson Redis                 | bluetape4k lease auto-extension으로 보호되는 장시간 leader-only job                             |
 
 `./gradlew :examples:<name>:run` 으로 실행 (Testcontainers 기반 데모는 Docker 필요).
 
-Testcontainers 기반 예제는 기본적으로 재사용하지 않는 컨테이너를 생성합니다. 개발자 로컬 환경에서만
-명시적으로 재사용하려면 `~/.testcontainers.properties`에 `testcontainers.reuse.enable=true`를 설정하세요.
-예제는 값과 무관하게 `CI` 또는 `GITHUB_ACTIONS` 환경 변수가 존재하면 이 설정을 무시합니다. 모듈 테스트는 테스트 JVM마다
-재사용하지 않는 런처 컨테이너 하나를 사용합니다. 재사용 예제 컨테이너는 개발자가 소유하며 종료 시 제거 대상으로 등록하지 않습니다.
+Testcontainers 기반 예제는 기본적으로 재사용하지 않는 컨테이너를 생성합니다. 개발자 로컬 환경에서만 명시적으로 재사용하려면 `~/.testcontainers.properties`에 `testcontainers.reuse.enable=true`를 설정하세요. 예제는 값과 무관하게 `CI` 또는 `GITHUB_ACTIONS` 환경 변수가 존재하면 이 설정을 무시합니다. 모듈 테스트는 테스트 JVM마다 재사용하지 않는 런처 컨테이너 하나를 사용합니다. 재사용 예제 컨테이너는 개발자가 소유하며 종료 시 제거 대상으로 등록하지 않습니다.
 
 ## 빠른 시작
 
@@ -252,13 +241,10 @@ val result = groupElection.runIfLeader("parallel-batch") {
 ```
 
 `useDbTime`은 Exposed JDBC/R2DBC 그룹 옵션입니다. 각 소유권 transaction 안에서
-`SELECT CURRENT_TIMESTAMP`를 한 번 실행해 만료 경계를 DB server time으로
-판정하므로 JVM clock skew가 lease 경계를 바꾸지 않습니다. 기본값은 `false`이며,
-DB time을 사용할 수 없으면 그룹 상태를 보수적으로 보고하고
+`SELECT CURRENT_TIMESTAMP`를 한 번 실행해 만료 경계를 DB server time으로 판정하므로 JVM clock skew가 lease 경계를 바꾸지 않습니다. 기본값은 `false`이며, DB time을 사용할 수 없으면 그룹 상태를 보수적으로 보고하고
 `runIfLeader`는 소유권을 주장하지 않고 건너뜁니다.
 
-이 옵션은 `1.0.0`에 포함되었습니다. 버전 매뉴얼은 해당 release provenance에
-고정되어 있습니다.
+이 옵션은 `1.0.0`에 포함되었습니다. 버전 매뉴얼은 해당 release provenance에 고정되어 있습니다.
 
 ### Exposed R2DBC 그룹 (coroutine-native, 1.0.0+)
 
@@ -436,24 +422,24 @@ GET /management/leaderElection
 
 ### 핵심 인터페이스
 
-| 인터페이스 | 반환 타입 | 설명 |
-|-----------|----------|------|
-| `LeaderElector` | `T?` | 블로킹 단일 리더 |
-| `AsyncLeaderElector` | `CompletableFuture<T?>` | 비동기 단일 리더 |
-| `VirtualThreadLeaderElector` | `T?` | 가상 스레드 단일 리더 |
-| `SuspendLeaderElector` | `T?` | 코루틴 suspend 단일 리더 |
-| `LeaderGroupElector` | `T?` | 블로킹 복수 리더 (세마포어) |
-| `SuspendLeaderGroupElector` | `T?` | 코루틴 복수 리더 (세마포어) |
-| `StrategicLeaderElector` | `T?` | 블로킹 전략적 선출 (후보 레지스트리) |
-| `StrategicSuspendLeaderElector` | `T?` | 코루틴 전략적 선출 (후보 레지스트리) |
-| `StrategicLeaderGroupElector` | `T?` | 블로킹 전략적 그룹 선출 (자문형 top-N 후보 기준 목록) |
-| `StrategicSuspendLeaderGroupElector` | `T?` | 코루틴 전략적 그룹 선출 (자문형 top-N 후보 기준 목록) |
+| 인터페이스                           | 반환 타입               | 설명                                                  |
+|--------------------------------------|-------------------------|-------------------------------------------------------|
+| `LeaderElector`                      | `T?`                    | 블로킹 단일 리더                                      |
+| `AsyncLeaderElector`                 | `CompletableFuture<T?>` | 비동기 단일 리더                                      |
+| `VirtualThreadLeaderElector`         | `T?`                    | 가상 스레드 단일 리더                                 |
+| `SuspendLeaderElector`               | `T?`                    | 코루틴 suspend 단일 리더                              |
+| `LeaderGroupElector`                 | `T?`                    | 블로킹 복수 리더 (세마포어)                           |
+| `SuspendLeaderGroupElector`          | `T?`                    | 코루틴 복수 리더 (세마포어)                           |
+| `StrategicLeaderElector`             | `T?`                    | 블로킹 전략적 선출 (후보 레지스트리)                  |
+| `StrategicSuspendLeaderElector`      | `T?`                    | 코루틴 전략적 선출 (후보 레지스트리)                  |
+| `StrategicLeaderGroupElector`        | `T?`                    | 블로킹 전략적 그룹 선출 (자문형 top-N 후보 기준 목록) |
+| `StrategicSuspendLeaderGroupElector` | `T?`                    | 코루틴 전략적 그룹 선출 (자문형 top-N 후보 기준 목록) |
 
 `runIfLeader(lockName, action)` — 선출 성공 시 `action()` 결과, 실패 시 `null` 반환.
 
 ### 선출/미선출 구분: `LeaderRunResult`
 
-`runIfLeader()`는 (a) 락 미획득과 (b) `action()`이 정상적으로 `null`을 반환하는 두 경우 모두 `null`을 돌려줍니다. 두 경우를 명확히 구분해야 할 때(예: metrics 기록, 조건부 후처리) `runIfLeaderResult`를 사용하세요(`LeaderElector` 및 `LeaderGroupElector` 모두 동일 메서드명으로 제공).
+`runIfLeader()`는 (a) 락 미획득과 (b) `action()`이 정상적으로 `null`을 반환하는 두 경우 모두 `null`을 돌려줍니다. 두 경우를 명확히 구분해야 할 때 (예: metrics 기록, 조건부 후처리) `runIfLeaderResult`를 사용하세요 (`LeaderElector` 및 `LeaderGroupElector` 모두 동일 메서드명으로 제공).
 
 ```kotlin
 when (val r = election.runIfLeaderResult("daily-job") { compute() }) {
@@ -469,7 +455,7 @@ when (val r = election.runIfLeaderResult("daily-job") { compute() }) {
 - `Skipped`: 락/슬롯을 획득하지 못했고 `action`은 실행되지 않음.
 - `ActionFailed(cause)`: 락/슬롯을 획득하고 `action`이 시작됐지만 작업 실행 중 실패함.
 
-동기 elector는 `runIfLeaderResult`, 코루틴 elector는 `runIfLeaderResultSuspend`, `CompletableFuture`/가상 스레드 elector는 `runAsyncIfLeaderResult`를 제공합니다. `CancellationException`은 `ActionFailed`로 감싸지 않습니다. 동기/코루틴 API는 재전파하고, async/가상 스레드 API는 예외 완료됩니다(`join()`에서는 cancellation을 감싼 `CompletionException`을 기대하세요. `isCancelled()` 보장은 아닙니다). 동기 API는 `InterruptedException`도 interrupt flag를 복원한 뒤 재전파합니다.
+동기 elector는 `runIfLeaderResult`, 코루틴 elector는 `runIfLeaderResultSuspend`, `CompletableFuture`/가상 스레드 elector는 `runAsyncIfLeaderResult`를 제공합니다. `CancellationException`은 `ActionFailed`로 감싸지 않습니다. 동기/코루틴 API는 재전파하고, async/가상 스레드 API는 예외 완료됩니다 (`join()`에서는 cancellation을 감싼 `CompletionException`을 기대하세요. `isCancelled()` 보장은 아닙니다). 동기 API는 `InterruptedException`도 interrupt flag를 복원한 뒤 재전파합니다.
 
 async 선출이 반환한 `CompletableFuture`를 취소하면 acquisition과 실행 중인 action에 취소를 전달하고 lease 또는 slot 정리를 시작합니다. 취소는 협력적으로 동작하며 정리는 비동기로 끝날 수 있습니다. `mayInterruptIfRunning=true`도 사용자 코드의 강제 중단을 보장하지 않습니다.
 
@@ -492,7 +478,8 @@ LeaderGroupElectionOptions(
 
 ## 전략적 선출 (Strategic Election)
 
-전략적 선출은 분산 락 획득 경쟁을 **후보 레지스트리 + 플러그형 전략**으로 대체합니다. 각 노드는 스스로를 후보로 등록하고, `runIfLeader` 호출마다 전체 후보를 로드하여 전략이 결정론적으로 승자를 선출합니다. 락을 보유하지 않으며, 승자 노드만 action을 실행합니다.
+전략적 선출은 분산 락 획득 경쟁을 **후보 레지스트리 + 플러그형
+전략**으로 대체합니다. 각 노드는 스스로를 후보로 등록하고, `runIfLeader` 호출마다 전체 후보를 로드하여 전략이 결정론적으로 승자를 선출합니다. 락을 보유하지 않으며, 승자 노드만 action을 실행합니다.
 
 ### CandidateInfo
 
@@ -509,20 +496,20 @@ CandidateInfo(
 
 ### 내장 전략
 
-| 전략 | 설명 |
-|------|------|
-| `FifoElectionStrategy` | `registeredAt` 가장 이른 노드 승리; 동률은 `nodeId` 사전순 |
-| `RandomElectionStrategy` | 매 라운드 무작위 선출 |
-| `ScoredElectionStrategy(scorer)` | 최고 점수 후보 승리 |
+| 전략                             | 설명                                                       |
+|----------------------------------|------------------------------------------------------------|
+| `FifoElectionStrategy`           | `registeredAt` 가장 이른 노드 승리; 동률은 `nodeId` 사전순 |
+| `RandomElectionStrategy`         | 매 라운드 무작위 선출                                      |
+| `ScoredElectionStrategy(scorer)` | 최고 점수 후보 승리                                        |
 
 ### 내장 스코어러
 
-| 스코어러 | 설명 |
-|---------|------|
-| `SuccessRateScorer` | `successCount / (successCount + failureCount)` |
-| `IdleTimeScorer` | 유휴 시간이 길수록 높은 점수 (부하 분산) |
-| `RecentSuccessScorer` | 최신 성공에 가중치를 둔 성공률 |
-| `WeightedScorer(vararg pairs)` | 여러 스코어러의 선형 결합 |
+| 스코어러                       | 설명                                           |
+|--------------------------------|------------------------------------------------|
+| `SuccessRateScorer`            | `successCount / (successCount + failureCount)` |
+| `IdleTimeScorer`               | 유휴 시간이 길수록 높은 점수 (부하 분산)       |
+| `RecentSuccessScorer`          | 최신 성공에 가중치를 둔 성공률                 |
+| `WeightedScorer(vararg pairs)` | 여러 스코어러의 선형 결합                      |
 
 ### 예제 — FIFO (Lettuce)
 
@@ -579,30 +566,25 @@ val result = election.runIfLeader(
 ) { processShard() }
 ```
 
-`registerCandidate`는 `CandidateInfo` 전체를 교체하므로 `updateResult` 뒤에 오래된
-후보 정보로 heartbeat를 보내는 용도로 사용하면 결과 카운터와 실행 시각이 되돌아갈 수
-있습니다. 기존 후보의 heartbeat에는 `refreshCandidate`를 사용하세요. 이 메서드는
-`registeredAt`, `lastStartTime`, `lastCompletionTime`, `successCount`, `failureCount`를
-보존하고 `metadata`와 요청한 TTL만 갱신합니다. Redis 구현은 이 병합을 원자적으로
-처리하며, 이미 만료되었거나 없는 Redis 후보를 refresh하면 새 후보를 만들지 않습니다.
-최초 등록에는 `registerCandidate`를 사용하세요. `updateResult`는 현재 TTL을 보존하고,
+`registerCandidate`는 `CandidateInfo` 전체를 교체하므로 `updateResult` 뒤에 오래된 후보 정보로 heartbeat를 보내는 용도로 사용하면 결과 카운터와 실행 시각이 되돌아갈 수 있습니다. 기존 후보의 heartbeat에는 `refreshCandidate`를 사용하세요. 이 메서드는
+`registeredAt`, `lastStartTime`, `lastCompletionTime`, `successCount`, `failureCount`를 보존하고 `metadata`와 요청한 TTL만 갱신합니다. Redis 구현은 이 병합을 원자적으로 처리하며, 이미 만료되었거나 없는 Redis 후보를 refresh하면 새 후보를 만들지 않습니다. 최초 등록에는 `registerCandidate`를 사용하세요. `updateResult`는 현재 TTL을 보존하고,
 `refreshCandidate(..., Duration.ZERO)`는 후보를 영구 저장으로 전환합니다.
 
 `maxLeaders`는 해당 호출이 읽은 후보 기준 목록에 대한 자문형 top-N 한도이며, 전역 분산 동시 실행 상한이 아닙니다. 노드마다 서로 다른 후보 기준 목록을 볼 수 있으므로 합집합은 N을 초과할 수 있습니다. 전역 슬롯 상한이 필요하면 `LeaderGroupElector`를 사용하세요. Redis 전략적 그룹 레지스트리는 전략적 단일 리더와 분리하고, 저장 schema 충돌을 막기 위해 Lettuce는 `leader:strategy:group-candidates:lettuce:v1`, Redisson은 `leader:strategy:group-candidates:redisson:v1` namespace를 사용합니다. 0이 아닌 후보 TTL은 만료 전에 재등록 또는 heartbeat가 필요하고, `Duration.ZERO`는 영구 등록입니다. Local 구현은 프로세스 메모리 수명 동안 후보를 유지하며 TTL을 무시합니다. Lettuce는 후보별 TTL과 index set을 분리하므로, 같은 lockName의 유한 TTL 후보가 만료되어도 영구 후보가 가려지지 않습니다. Custom strategy는 같은 후보 기준 목록의 모든 후보를 winner/elimination으로 중복 없이 완전히 분할해 반환해야 하며, 위반 시 elector가 `IllegalArgumentException`을 즉시 던집니다.
 
 ### 전략적 선출 vs 락 기반 선출
 
-| 항목 | 락 기반 | 전략적 |
-|------|---------|--------|
-| 승자 선정 | 락 획득 선착순 | 결정론적 전략 |
-| 후보 이력 | 없음 | `successCount`, `failureCount`, `idleDuration` |
-| 후보별 TTL | 없음 (락 레벨) | 있음 (노드별 만료) |
-| 커스텀 스코어러 | 없음 | 가능 (`CandidateScorer`) |
-| 네트워크 RTT | 1회 (tryLock) | 2회 (list + elect) |
+| 항목            | 락 기반        | 전략적                                         |
+|-----------------|----------------|------------------------------------------------|
+| 승자 선정       | 락 획득 선착순 | 결정론적 전략                                  |
+| 후보 이력       | 없음           | `successCount`, `failureCount`, `idleDuration` |
+| 후보별 TTL      | 없음 (락 레벨) | 있음 (노드별 만료)                             |
+| 커스텀 스코어러 | 없음           | 가능 (`CandidateScorer`)                       |
+| 네트워크 RTT    | 1회 (tryLock)  | 2회 (list + elect)                             |
 
 ## Spring Boot AOP
 
-`leader-spring-boot`는 AspectJ CTW(Freefair post-compile weaving) 기반의 `@LeaderElection` / `@LeaderGroupElection` 어노테이션을 제공합니다.
+`leader-spring-boot`는 AspectJ CTW (Freefair post-compile weaving) 기반의 `@LeaderElection` / `@LeaderGroupElection` 어노테이션을 제공합니다.
 
 ```kotlin
 @Service
@@ -635,13 +617,13 @@ Stream 반환 규칙:
 
 락을 **획득하지 못했을 때** (경쟁 또는 백엔드 오류) 동작을 제어합니다:
 
-| 값 | 동작 |
-|----|------|
+| 값                 | 동작                                                   |
+|--------------------|--------------------------------------------------------|
 | `RETHROW` (기본값) | 백엔드 오류를 `LeaderElectionException`으로 감싸 throw |
-| `SKIP` | `null` 반환 — 본문 미실행 |
-| `FAIL_OPEN_RUN` | 락 없이 본문을 실행하여 결과 반환 |
+| `SKIP`             | `null` 반환 — 본문 미실행                              |
+| `FAIL_OPEN_RUN`    | 락 없이 본문을 실행하여 결과 반환                      |
 
-`FAIL_OPEN_RUN`은 스킵보다 실행이 안전한 경우(예: 멱등성이 보장된 태스크)에 적합합니다. 메트릭에 `SkipReason.FAIL_OPEN_FORCED`가 기록되어 락 없이 실행된 횟수를 대시보드에서 별도 추적할 수 있습니다.
+`FAIL_OPEN_RUN`은 스킵보다 실행이 안전한 경우 (예: 멱등성이 보장된 태스크)에 적합합니다. 메트릭에 `SkipReason.FAIL_OPEN_FORCED`가 기록되어 락 없이 실행된 횟수를 대시보드에서 별도 추적할 수 있습니다.
 
 ### 전역 기본값 (properties)
 
@@ -696,17 +678,13 @@ GET /actuator/leaderElection
 
 `LeaderElectionEventPublisher`가 framework-neutral observability 표면입니다. Kotlin 사용자는 hot `events`
 `Flow`를 collect할 수 있고, framework adapter와 Java 사용자는 `onEvent`, `onElected`, `onRevoked`,
-`onSkipped` callback consumer를 등록한 뒤 shutdown 시 반환 handle을 닫을 수 있습니다. Spring Boot
-Actuator, Ktor management route, Micrometer, logging, tracing, custom dashboard는 framework별 event
-contract를 새로 만들지 말고 이 core event stream을 adapter로 사용해야 합니다.
+`onSkipped` callback consumer를 등록한 뒤 shutdown 시 반환 handle을 닫을 수 있습니다. Spring Boot Actuator, Ktor management route, Micrometer, logging, tracing, custom dashboard는 framework별 event contract를 새로 만들지 말고 이 core event stream을 adapter로 사용해야 합니다.
 
 ### Lease-extension 관찰
 
-이 API는 `1.0.0`에 포함되었습니다. 전체 계약과 adapter 안내는 release에 고정된
-매뉴얼을 사용하세요.
+이 API는 `1.0.0`에 포함되었습니다. 전체 계약과 adapter 안내는 release에 고정된 매뉴얼을 사용하세요.
 
-`LockExtender`와 `LeaderLeaseAutoExtender`는 같은 framework-neutral terminal event 계약을 발생시킵니다. lease
-extension 진단이 필요할 때만 observer를 등록하세요.
+`LockExtender`와 `LeaderLeaseAutoExtender`는 같은 framework-neutral terminal event 계약을 발생시킵니다. lease extension 진단이 필요할 때만 observer를 등록하세요.
 
 ```kotlin
 val registration = LeaderLeaseExtensionObservers.addObserver { event ->
@@ -727,33 +705,16 @@ try {
 ```
 
 `#529`는 acquire/execution observation을 담당하고, 이 `#559` hook은 terminal lease-extension 시도를 담당합니다.
-`event.source`는 `USER` 호출과 `WATCHDOG` 호출을 구분하고, `event.execution`은 `BLOCKING`과 `SUSPEND`를
-구분합니다. `event.outcome`은 기존 `ExtendOutcome`(`Extended`, `Rejected`, `NotHeld`, `WrongThread`,
-`BackendError`)를 그대로 담고 `elapsedNanos`는 caller 측 delegate 호출 시간입니다. `Rejected`는 watchdog
-reservation 실패, user bounded operation queue 포화, 또는 명령이 완료되기 전에 user 작업이 timeout된 경우일 수
-있으며, timeout된 명령은 이후 실행될 수 있습니다. 따라서 backend 작업이 전혀 없었다는 뜻은 아닙니다. Observer registry는 process-local이며
-bounded non-blocking in-flight admission으로 dispatch합니다. observer가 포화되면 permit이나 callback을 기다리지
-않고 `LeaderLeaseExtensionObservers.droppedCount()`를 증가시킵니다. 이 registry의 registration 수와 callback
-fan-out에는 고정 상한이 없으므로 애플리케이션 등록 수를 작게 유지하고 callback을 짧게 작성하세요. `droppedCount()`는
-`ExtendOutcome.Rejected`와 별도로 observer delivery admission에서 거부된 누적 횟수입니다. `close()`는
-해당 registration만 제거하며 이미 admission된 callback은 계속 실행될 수 있고 callback 순서는 보장하지 않습니다.
+`event.source`는 `USER` 호출과 `WATCHDOG` 호출을 구분하고, `event.execution`은 `BLOCKING`과 `SUSPEND`를 구분합니다. `event.outcome`은 기존 `ExtendOutcome`(`Extended`, `Rejected`, `NotHeld`, `WrongThread`,
+`BackendError`)를 그대로 담고 `elapsedNanos`는 caller 측 delegate 호출 시간입니다. `Rejected`는 watchdog reservation 실패, user bounded operation queue 포화, 또는 명령이 완료되기 전에 user 작업이 timeout된 경우일 수 있으며, timeout된 명령은 이후 실행될 수 있습니다. 따라서 backend 작업이 전혀 없었다는 뜻은 아닙니다. Observer registry는 process-local이며 bounded non-blocking in-flight admission으로 dispatch합니다. observer가 포화되면 permit이나 callback을 기다리지 않고 `LeaderLeaseExtensionObservers.droppedCount()`를 증가시킵니다. 이 registry의 registration 수와 callback fan-out에는 고정 상한이 없으므로 애플리케이션 등록 수를 작게 유지하고 callback을 짧게 작성하세요. `droppedCount()`는
+`ExtendOutcome.Rejected`와 별도로 observer delivery admission에서 거부된 누적 횟수입니다. `close()`는 해당 registration만 제거하며 이미 admission된 callback은 계속 실행될 수 있고 callback 순서는 보장하지 않습니다.
 
-`addObserver`는 process 전체 event를 받는 wildcard API로 유지됩니다. Spring 자동 Micrometer adapter는 더 좁은
-경계를 사용합니다. 각 `ObservationRegistry` identity가 불투명 실행 scope를 소유하므로 서로 다른 registry를 쓰는
-두 application context는 자기 AOP 경계의 `USER`/`WATCHDOG` event만 받습니다. 같은 registry를 의도적으로 공유하는
-parent/child context는 하나의 telemetry domain을 공유합니다. `@LeaderElection`/`@LeaderGroupElection` 밖의 직접
-elector 호출과 aspect가 소유한 coroutine bridge 밖의 Reactor callback은 Spring 자동 telemetry에서 fail-closed로
-제외되지만 명시적인 global observer에는 계속 전달됩니다. 같은 Micrometer observer를 global과 automatic 양쪽에
-등록하면 observation이 중복되므로 한 방식만 사용하세요.
+`addObserver`는 process 전체 event를 받는 wildcard API로 유지됩니다. Spring 자동 Micrometer adapter는 더 좁은 경계를 사용합니다. 각 `ObservationRegistry` identity가 불투명 실행 scope를 소유하므로 서로 다른 registry를 쓰는 두 application context는 자기 AOP 경계의 `USER`/`WATCHDOG` event만 받습니다. 같은 registry를 의도적으로 공유하는 parent/child context는 하나의 telemetry domain을 공유합니다. `@LeaderElection`/`@LeaderGroupElection` 밖의 직접 elector 호출과 aspect가 소유한 coroutine bridge 밖의 Reactor callback은 Spring 자동 telemetry에서 fail-closed로 제외되지만 명시적인 global observer에는 계속 전달됩니다. 같은 Micrometer observer를 global과 automatic 양쪽에 등록하면 observation이 중복되므로 한 방식만 사용하세요.
 
 위 snippet은 하나의 명시적 `USER` 시도 뒤에 registration을 닫습니다. `WATCHDOG` tick을 관찰하려면
-`autoExtend = true`인 단일 리더 action 또는 component 전체 수명 동안 registration을 유지하고 종료 시 닫으세요.
-Group election은 active slot body 안의 명시적 `LockExtender` 호출은 지원하지만 group auto-extension이 꺼져
-있으므로 `WATCHDOG` event를 만들지 않습니다.
+`autoExtend = true`인 단일 리더 action 또는 component 전체 수명 동안 registration을 유지하고 종료 시 닫으세요. Group election은 active slot body 안의 명시적 `LockExtender` 호출은 지원하지만 group auto-extension이 꺼져 있으므로 `WATCHDOG` event를 만들지 않습니다.
 
-Callback 예외는 extension 결과를 바꾸지 않습니다. extension 경로의 `CancellationException`과 `Error`는 outcome으로
-평탄화하거나 event로 publish하지 않습니다. `BackendError.cause`는 원본 backend `Exception`으로 남으며 core는
-이를 redaction하지 않습니다. Custom observer는 로그나 export 전에 cause를 별도로 sanitise해야 합니다.
+Callback 예외는 extension 결과를 바꾸지 않습니다. extension 경로의 `CancellationException`과 `Error`는 outcome으로 평탄화하거나 event로 publish하지 않습니다. `BackendError.cause`는 원본 backend `Exception`으로 남으며 core는 이를 redaction하지 않습니다. Custom observer는 로그나 export 전에 cause를 별도로 sanitise해야 합니다.
 `LeaderLeaseExtensionContext.toString()`은 redaction하므로 애플리케이션도 raw `lockName`이나
 `auditLeaderId`를 로그에 남기지 않아야 합니다. Fail-open `NotHeld` event에는 `context`의 lock name이 남고
 `auditLeaderId = null`입니다. Scope 밖이나 named mismatch event의 `context`는 `null`입니다. 전체 계약과 Micrometer/Spring adapter는
@@ -762,8 +723,7 @@ Callback 예외는 extension 결과를 바꾸지 않습니다. extension 경로�
 ### HTTP/webhook sink로 audit export
 
 정제한 history 또는 lifecycle event를 전달할 때는 core의
-`HttpLeaderAuditExporter`와 애플리케이션이 소유한 `LeaderAuditPayloadEncoder`를
-조합합니다.
+`HttpLeaderAuditExporter`와 애플리케이션이 소유한 `LeaderAuditPayloadEncoder`를 조합합니다.
 
 ```kotlin
 val endpoint = LeaderAuditTrustedHttpsEndpoint.trusted(
@@ -787,32 +747,22 @@ val exporter = MicrometerLeaderAuditExporter(
 )
 ```
 
-adapter는 `POST`, bounded retry, `BodyHandlers.discarding()`을 사용합니다. 허용하는
-header는 `Content-Type`과 `Authorization`뿐이며 redirect는 끕니다.
-`LeaderAuditTrustedHttpsEndpoint`는 HTTPS 문법을 확인하고 endpoint allow-list와
-DNS/SSRF 정책을 호출자가 소유한다는 책임 경계를 남깁니다. `submit`의
-`ACCEPTED`는 admission만 뜻하므로 수신 서버는 idempotency를 제공해야 합니다.
-JSONL과 OpenTelemetry transport는 애플리케이션이 선택하는 별도 범위입니다.
+adapter는 `POST`, bounded retry, `BodyHandlers.discarding()`을 사용합니다. 허용하는 header는 `Content-Type`과 `Authorization`뿐이며 redirect는 끕니다.
+`LeaderAuditTrustedHttpsEndpoint`는 HTTPS 문법을 확인하고 endpoint allow-list와 DNS/SSRF 정책을 호출자가 소유한다는 책임 경계를 남깁니다. `submit`의
+`ACCEPTED`는 admission만 뜻하므로 수신 서버는 idempotency를 제공해야 합니다. JSONL과 OpenTelemetry transport는 애플리케이션이 선택하는 별도 범위입니다.
 
 `bluetape4k.leader.observability.lock-names`는 첫 runtime event가 관측되기 전에 JVM-local status registry를 seed합니다. Listener-aware elector는 lifecycle event를 관측하면서 이름을 추가할 수도 있습니다. fallback `LeaderElectionEventPublisher`는 publisher 전용이며 `LeaderElector` candidate가 되지 않으므로 기존 elector injection은 안정적으로 유지됩니다.
 
-Spring diagnostics, readiness, Actuator endpoint는 blocking과 suspend `LeaderElectionState` bean을
-모두 대상으로 선택합니다. 따라서 non-local suspend backend가 있으면 blocking local fallback보다 우선합니다.
-non-local backend가 둘 이상이면 운영 상태에 사용할 bean을
-`bluetape4k.leader.observability.state-provider-bean`으로 지정하세요. 선택한 provider가 audit state를
-지원하지 않으면 endpoint는 `stateSupported=false`와 lock 상태 `Unsupported`를 반환하고, opt-in
-readiness는 잘못된 `UP` 대신 `UNKNOWN`을 반환합니다.
+Spring diagnostics, readiness, Actuator endpoint는 blocking과 suspend `LeaderElectionState` bean을 모두 대상으로 선택합니다. 따라서 non-local suspend backend가 있으면 blocking local fallback보다 우선합니다. non-local backend가 둘 이상이면 운영 상태에 사용할 bean을
+`bluetape4k.leader.observability.state-provider-bean`으로 지정하세요. 선택한 provider가 audit state를 지원하지 않으면 endpoint는 `stateSupported=false`와 lock 상태 `Unsupported`를 반환하고, opt-in readiness는 잘못된 `UP` 대신 `UNKNOWN`을 반환합니다.
 
-`LeaderLeaseAutoExtender`는 JVM-global로 유지됩니다. 동시에 살아 있는 Spring context는 default 또는
-같은 명시적 `watchdog-threads` / `watchdog-async-extend` 값을 공유할 수 있지만, 서로 다른 명시 설정은
-활성 scheduler 구성을 덮어쓰기 전에 거부됩니다. 마지막 등록 context가 닫힌 뒤에만 scheduler가 종료됩니다.
+`LeaderLeaseAutoExtender`는 JVM-global로 유지됩니다. 동시에 살아 있는 Spring context는 default 또는 같은 명시적 `watchdog-threads` / `watchdog-async-extend` 값을 공유할 수 있지만, 서로 다른 명시 설정은 활성 scheduler 구성을 덮어쓰기 전에 거부됩니다. 마지막 등록 context가 닫힌 뒤에만 scheduler가 종료됩니다.
 
 ---
 
 ## Management 엔드포인트
 
-Spring Boot 애플리케이션은 Actuator를 통해 best-effort 리더 상태 엔드포인트를 노출할 수 있습니다.
-리더 관측용 bean과 엔드포인트를 명시적으로 활성화하세요:
+Spring Boot 애플리케이션은 Actuator를 통해 best-effort 리더 상태 엔드포인트를 노출할 수 있습니다. 리더 관측용 bean과 엔드포인트를 명시적으로 활성화하세요:
 
 ```yaml
 bluetape4k:
@@ -835,11 +785,8 @@ management:
 
 HTTP 경로는 `GET /actuator/leaderElection`입니다. Lock 이름은 JVM-local
 `LeaderElectionStatusRegistry`에서 가져옵니다. 정적 이름은
-`bluetape4k.leader.observability.lock-names`로 설정하거나, Spring AOP 관측 이벤트가 실행 시점에
-leader-election 메서드 이름을 등록하게 둘 수 있습니다. 이 엔드포인트는 백엔드 lock을 열거하지 않습니다.
-응답은 선택된 backend와 provider bean을 함께 표시합니다. multi-backend 애플리케이션에서는
-`bluetape4k.leader.observability.state-provider-bean`을 설정해야 하며, 그렇지 않으면 임의 backend를
-선택하지 않고 endpoint/readiness 시작이 실패합니다.
+`bluetape4k.leader.observability.lock-names`로 설정하거나, Spring AOP 관측 이벤트가 실행 시점에 leader-election 메서드 이름을 등록하게 둘 수 있습니다. 이 엔드포인트는 백엔드 lock을 열거하지 않습니다. 응답은 선택된 backend와 provider bean을 함께 표시합니다. multi-backend 애플리케이션에서는
+`bluetape4k.leader.observability.state-provider-bean`을 설정해야 하며, 그렇지 않으면 임의 backend를 선택하지 않고 endpoint/readiness 시작이 실패합니다.
 
 Ktor 애플리케이션은 `leaderElectionManagementRoute()`로 같은 상태 응답을 노출할 수 있습니다:
 
@@ -853,15 +800,13 @@ install(LeaderElectionPlugin) {
 leaderElectionManagementRoute()
 ```
 
-Ktor route의 기본 경로는 `GET /management/leaderElection`이며 애플리케이션의 main routing pipeline에
-설치됩니다. 신뢰된 management boundary 밖으로 노출하기 전에 인증, network policy, 또는 별도 internal
-port로 보호하세요.
+Ktor route의 기본 경로는 `GET /management/leaderElection`이며 애플리케이션의 main routing pipeline에 설치됩니다. 신뢰된 management boundary 밖으로 노출하기 전에 인증, network policy, 또는 별도 internal port로 보호하세요.
 
 ---
 
 ## Micrometer 메트릭
 
-Spring Boot AOP(`@LeaderElection`)를 사용할 때 `leader-micrometer`를 추가하면 Prometheus/Datadog 메트릭이 자동으로 노출됩니다.
+Spring Boot AOP (`@LeaderElection`)를 사용할 때 `leader-micrometer`를 추가하면 Prometheus/Datadog 메트릭이 자동으로 노출됩니다.
 
 ### 의존성 추가
 
@@ -884,23 +829,24 @@ Metric tag 값은 export 전에 sanitizer를 거칩니다. 기본값은 동적 `
 
 ### 메터 카탈로그
 
-| 메터 이름 | 타입 | 설명 |
-|-----------|------|------|
-| `leader.aop.attempts` | Counter | `lock.name`별 락 획득 시도 횟수 |
-| `leader.aop.acquired` | Counter | 리더 선출 성공 횟수 |
-| `leader.aop.acquire.duration` | Timer | 락 획득 시도부터 성공까지 걸린 시간 |
-| `leader.aop.lock.not.acquired` | Counter | 실행 건너뜀 횟수; `reason` 태그로 사유 구분 (`CONTENTION` / `BACKEND_ERROR`) |
-| `leader.aop.execution.duration` | Timer | 리더 작업 실행 시간 |
-| `leader.aop.task.failed` | Counter | 작업 본문 예외 발생 횟수; `exception` 태그로 예외 클래스명 구분 |
-| `leader.aop.active` | Gauge | 현재 실행 중인 리더 작업 수 (JVM 로컬) |
-| `shedlock.leader.acquired` | Counter | 데코레이터 기반 리더 작업 성공 횟수 |
-| `shedlock.leader.not_acquired` | Counter | 데코레이터 기반 실행 건너뜀 횟수 |
-| `shedlock.leader.duration` | Timer | 데코레이터 기반 리더 작업 실행 시간 |
-| `shedlock.leader.active` | Gauge | 데코레이터 기반 현재 실행 중인 리더 작업 수 (JVM 로컬) |
+| 메터 이름                       | 타입    | 설명                                                                         |
+|---------------------------------|---------|------------------------------------------------------------------------------|
+| `leader.aop.attempts`           | Counter | `lock.name`별 락 획득 시도 횟수                                              |
+| `leader.aop.acquired`           | Counter | 리더 선출 성공 횟수                                                          |
+| `leader.aop.acquire.duration`   | Timer   | 락 획득 시도부터 성공까지 걸린 시간                                          |
+| `leader.aop.lock.not.acquired`  | Counter | 실행 건너뜀 횟수; `reason` 태그로 사유 구분 (`CONTENTION` / `BACKEND_ERROR`) |
+| `leader.aop.execution.duration` | Timer   | 리더 작업 실행 시간                                                          |
+| `leader.aop.task.failed`        | Counter | 작업 본문 예외 발생 횟수; `exception` 태그로 예외 클래스명 구분              |
+| `leader.aop.active`             | Gauge   | 현재 실행 중인 리더 작업 수 (JVM 로컬)                                       |
+| `shedlock.leader.acquired`      | Counter | 데코레이터 기반 리더 작업 성공 횟수                                          |
+| `shedlock.leader.not_acquired`  | Counter | 데코레이터 기반 실행 건너뜀 횟수                                             |
+| `shedlock.leader.duration`      | Timer   | 데코레이터 기반 리더 작업 실행 시간                                          |
+| `shedlock.leader.active`        | Gauge   | 데코레이터 기반 현재 실행 중인 리더 작업 수 (JVM 로컬)                       |
 
 모든 메터는 cardinality 제어를 거친 `lock.name` 태그를 공유합니다. Micrometer의 `NamingConvention`이 백엔드별로 이름을 변환합니다 (Prometheus: `leader_aop_attempts_total` 등).
 
-> **멀티 인스턴스 주의:** `leader.aop.active`는 JVM 로컬 값입니다. Prometheus에서 클러스터 전체 리더 수를 보려면 `sum` 대신 `max by (lock_name) (leader_aop_active)`를 사용하세요.
+> **멀티 인스턴스
+주의:** `leader.aop.active`는 JVM 로컬 값입니다. Prometheus에서 클러스터 전체 리더 수를 보려면 `sum` 대신 `max by (lock_name) (leader_aop_active)`를 사용하세요.
 
 ### 데코레이터 메트릭
 
@@ -966,22 +912,22 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 
 ## ShedLock과의 비교
 
-| 기능 | bluetape4k-leader | ShedLock |
-|------|-------------------|----------|
-| 경쟁 시 skip 동작 | `null` 반환 | 어노테이션 기반 skip |
-| 코루틴 지원 | 네이티브 지원 | 미지원 |
-| 가상 스레드 지원 | 지원 | 미지원 |
-| 복수 리더 그룹 | `LeaderGroupElector` | 미지원 |
-| Redis (Lettuce) | 지원 | 지원 |
-| Redis (Redisson) | 지원 | 지원 |
-| Spring 연동 | 지원 (Boot 4 + AspectJ CTW) | 지원 (핵심 기능) |
-| JDBC/SQL | 지원 (Exposed JDBC) | 지원 |
-| MongoDB | 지원 | 지원 |
-| etcd | 지원 | 미지원 |
-| Consul | 프리뷰 단일/group blocking/async/coroutine + Spring Boot | 미지원 |
-| DynamoDB | 프리뷰 단일/group blocking/async/coroutine + 가상 스레드 + Spring Boot | 미지원 |
-| Hazelcast | 지원 | 지원 |
-| ZooKeeper | 지원 | 미지원 |
+| 기능              | bluetape4k-leader                                                      | ShedLock             |
+|-------------------|------------------------------------------------------------------------|----------------------|
+| 경쟁 시 skip 동작 | `null` 반환                                                            | 어노테이션 기반 skip |
+| 코루틴 지원       | 네이티브 지원                                                          | 미지원               |
+| 가상 스레드 지원  | 지원                                                                   | 미지원               |
+| 복수 리더 그룹    | `LeaderGroupElector`                                                   | 미지원               |
+| Redis (Lettuce)   | 지원                                                                   | 지원                 |
+| Redis (Redisson)  | 지원                                                                   | 지원                 |
+| Spring 연동       | 지원 (Boot 4 + AspectJ CTW)                                            | 지원 (핵심 기능)     |
+| JDBC/SQL          | 지원 (Exposed JDBC)                                                    | 지원                 |
+| MongoDB           | 지원                                                                   | 지원                 |
+| etcd              | 지원                                                                   | 미지원               |
+| Consul            | 프리뷰 단일/group blocking/async/coroutine + Spring Boot               | 미지원               |
+| DynamoDB          | 프리뷰 단일/group blocking/async/coroutine + 가상 스레드 + Spring Boot | 미지원               |
+| Hazelcast         | 지원                                                                   | 지원                 |
+| ZooKeeper         | 지원                                                                   | 미지원               |
 
 ## 요구사항
 
@@ -990,17 +936,14 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 
 ## 게시 metadata 검증
 
-Release, 개발 버전, publishable module upload task는 Maven publication을
-업로드하기 전에 이 gate를 실행합니다. 단독으로 실행하려면 다음 명령을
-사용합니다.
+Release, 개발 버전, publishable module upload task는 Maven publication을 업로드하기 전에 이 gate를 실행합니다. 단독으로 실행하려면 다음 명령을 사용합니다.
 
 ```bash
 ./gradlew verifyPublishedPomLicenses
 ```
 
 이 gate는 게시 대상 POM 17개를 다시 생성한 뒤 MIT license name, URL,
-`repo` distribution을 검증합니다. publication 전에 남아 있는 Apache license
-metadata도 거부하며, 두 README locale의 MIT badge link와 `[LICENSE](LICENSE)`
+`repo` distribution을 검증합니다. publication 전에 남아 있는 Apache license metadata도 거부하며, 두 README locale의 MIT badge link와 `[LICENSE](LICENSE)`
 참조도 유지되어야 통과합니다.
 
 ## 라이선스

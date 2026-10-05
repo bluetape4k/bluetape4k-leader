@@ -3,17 +3,17 @@ package io.bluetape4k.leader.history
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CancellationException
 import org.junit.jupiter.api.Test
 import java.time.Instant
-import io.bluetape4k.assertions.shouldBeTrue
 
 class SafeLeaderHistoryRecorderTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val now = Instant.parse("2026-05-14T10:00:00Z")
     private val future = now.plusSeconds(60)
@@ -32,10 +32,16 @@ class SafeLeaderHistoryRecorderTest {
 
     @Test
     fun `recordAcquired returns key from sink on success`() {
-        val sink = object : LeaderHistorySink {
+        val sink = object: LeaderHistorySink {
             override fun recordAcquired(record: LeaderLockHistoryRecord) = key
             override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
-            override fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, errorType: String?, errorMessage: String?) = Unit
+            override fun recordFailed(
+                key: LeaderHistoryKey,
+                finishedAt: Instant,
+                durationMs: Long,
+                errorType: String?,
+                errorMessage: String?,
+            ) = Unit
         }
         val recorder = SafeLeaderHistoryRecorder(sink)
         val result = recorder.recordAcquired(record())
@@ -58,11 +64,18 @@ class SafeLeaderHistoryRecorderTest {
 
     @Test
     fun `recordAcquired returns null and swallows when sink throws Exception`() {
-        val sink = object : LeaderHistorySink {
+        val sink = object: LeaderHistorySink {
             override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? =
                 throw RuntimeException("storage down")
+
             override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
-            override fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, errorType: String?, errorMessage: String?) = Unit
+            override fun recordFailed(
+                key: LeaderHistoryKey,
+                finishedAt: Instant,
+                durationMs: Long,
+                errorType: String?,
+                errorMessage: String?,
+            ) = Unit
         }
         val recorder = SafeLeaderHistoryRecorder(sink)
         val result = recorder.recordAcquired(record())
@@ -71,11 +84,18 @@ class SafeLeaderHistoryRecorderTest {
 
     @Test
     fun `recordCompleted swallows Exception from sink`() {
-        val sink = object : LeaderHistorySink {
+        val sink = object: LeaderHistorySink {
             override fun recordAcquired(record: LeaderLockHistoryRecord) = null
             override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) =
                 throw RuntimeException("write failed")
-            override fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, errorType: String?, errorMessage: String?) = Unit
+
+            override fun recordFailed(
+                key: LeaderHistoryKey,
+                finishedAt: Instant,
+                durationMs: Long,
+                errorType: String?,
+                errorMessage: String?,
+            ) = Unit
         }
         val recorder = SafeLeaderHistoryRecorder(sink)
         recorder.recordCompleted(key, now, 100L) // must not throw
@@ -83,10 +103,16 @@ class SafeLeaderHistoryRecorderTest {
 
     @Test
     fun `recordFailed swallows Exception from sink`() {
-        val sink = object : LeaderHistorySink {
+        val sink = object: LeaderHistorySink {
             override fun recordAcquired(record: LeaderLockHistoryRecord) = null
             override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
-            override fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, errorType: String?, errorMessage: String?) =
+            override fun recordFailed(
+                key: LeaderHistoryKey,
+                finishedAt: Instant,
+                durationMs: Long,
+                errorType: String?,
+                errorMessage: String?,
+            ) =
                 throw RuntimeException("write failed")
         }
         val recorder = SafeLeaderHistoryRecorder(sink)
@@ -97,11 +123,18 @@ class SafeLeaderHistoryRecorderTest {
 
     @Test
     fun `recordAcquired rethrows CancellationException from sink`() {
-        val sink = object : LeaderHistorySink {
+        val sink = object: LeaderHistorySink {
             override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? =
                 throw CancellationException("cancelled")
+
             override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
-            override fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, errorType: String?, errorMessage: String?) = Unit
+            override fun recordFailed(
+                key: LeaderHistoryKey,
+                finishedAt: Instant,
+                durationMs: Long,
+                errorType: String?,
+                errorMessage: String?,
+            ) = Unit
         }
         val recorder = SafeLeaderHistoryRecorder(sink)
         assertFailsWith<CancellationException> {
@@ -115,10 +148,16 @@ class SafeLeaderHistoryRecorderTest {
     fun `recordFailed extracts errorType and truncates errorMessage`() {
         var capturedType: String? = null
         var capturedMsg: String? = null
-        val sink = object : LeaderHistorySink {
+        val sink = object: LeaderHistorySink {
             override fun recordAcquired(record: LeaderLockHistoryRecord) = null
             override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
-            override fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, errorType: String?, errorMessage: String?) {
+            override fun recordFailed(
+                key: LeaderHistoryKey,
+                finishedAt: Instant,
+                durationMs: Long,
+                errorType: String?,
+                errorMessage: String?,
+            ) {
                 capturedType = errorType
                 capturedMsg = errorMessage
             }
@@ -135,10 +174,16 @@ class SafeLeaderHistoryRecorderTest {
     @Test
     fun `recordFailed handles null error gracefully`() {
         var capturedType: String? = "sentinel"
-        val sink = object : LeaderHistorySink {
+        val sink = object: LeaderHistorySink {
             override fun recordAcquired(record: LeaderLockHistoryRecord) = null
             override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
-            override fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, errorType: String?, errorMessage: String?) {
+            override fun recordFailed(
+                key: LeaderHistoryKey,
+                finishedAt: Instant,
+                durationMs: Long,
+                errorType: String?,
+                errorMessage: String?,
+            ) {
                 capturedType = errorType
             }
         }

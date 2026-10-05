@@ -347,7 +347,7 @@ jobs:
     name: Test / leader-exposed-core (H2)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, snapshot-warmup]
+    needs: [ build, snapshot-warmup ]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6.0.1
@@ -391,7 +391,7 @@ jobs:
 
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, snapshot-warmup]
+    needs: [ build, snapshot-warmup ]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6.0.1
@@ -437,7 +437,7 @@ jobs:
 
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, snapshot-warmup]
+    needs: [ build, snapshot-warmup ]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6.0.1
@@ -481,7 +481,7 @@ jobs:
     name: Test / leader-exposed-jdbc (H2)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, snapshot-warmup]
+    needs: [ build, snapshot-warmup ]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6.0.1
@@ -532,7 +532,7 @@ jobs:
 
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, snapshot-warmup]
+    needs: [ build, snapshot-warmup ]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6.0.1
@@ -585,7 +585,7 @@ jobs:
 
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, snapshot-warmup]
+    needs: [ build, snapshot-warmup ]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6.0.1
@@ -636,7 +636,7 @@ jobs:
     name: Test / leader-exposed-r2dbc (H2)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, snapshot-warmup]
+    needs: [ build, snapshot-warmup ]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6.0.1
@@ -686,7 +686,7 @@ jobs:
     if: ${{ (github.event_name == 'schedule' && github.event.schedule == '19 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, snapshot-warmup]
+    needs: [ build, snapshot-warmup ]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6.0.1
@@ -738,7 +738,7 @@ jobs:
     if: ${{ (github.event_name == 'schedule' && github.event.schedule == '19 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, snapshot-warmup]
+    needs: [ build, snapshot-warmup ]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6.0.1
@@ -1190,7 +1190,7 @@ jobs:
 
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, snapshot-warmup]
+    needs: [ build, snapshot-warmup ]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6.0.1

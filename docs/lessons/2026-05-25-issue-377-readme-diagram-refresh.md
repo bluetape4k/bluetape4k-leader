@@ -28,8 +28,8 @@ Milestone 0.2.2에는 현재 `bluetape4k-leader` 모듈 레이아웃에서 새�
 - `sips -g pixelWidth -g pixelHeight docs/images/readme-diagrams/root-readme-overview-01.png`
 - `root-readme-overview-01.png` 육안 검사: 잘린 라벨이나 오래된 `+ more` 자리 표시자가 없습니다.
 - 작업 트리 감사 아티팩트:
-  - `.omx/artifacts/issue-377-audit-readme-diagrams-worktree.log`
-  - `.omx/artifacts/issue-377-audit-readme-diagram-quality-worktree.log`
+    - `.omx/artifacts/issue-377-audit-readme-diagrams-worktree.log`
+    - `.omx/artifacts/issue-377-audit-readme-diagram-quality-worktree.log`
 
 글로벌 감사 스크립트는 클래스 다이어그램 `interface` 레이블 및 기존 K8s/Spring 텍스트 문제와 같이 관련되지 않은 루트가 아닌 다이어그램의 기존 결과와 함께 계속 종료됩니다. 변경된 루트 개요 자산에는 해당 작업 트리 아티팩트에 감사 결과가 없습니다.
 

@@ -6,8 +6,11 @@ import io.bluetape4k.leader.contract.AbstractLockNameConformanceTest
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
+import io.bluetape4k.logging.KLogging
+import io.mockk.clearMocks
 import io.mockk.mockk
 import io.mockk.verify
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.redisson.api.RedissonClient
 
@@ -26,7 +29,7 @@ private val invalidLockNames = listOf(
 )
 
 /** Redisson blocking strategic electors가 실제 key 생성 전에 이름을 검증하는지 확인합니다. */
-class RedissonBlockingLockNameConformanceTest : AbstractLockNameConformanceTest() {
+class RedissonBlockingLockNameConformanceTest: AbstractLockNameConformanceTest() {
 
     private val single = RedissonStrategicLeaderElector(
         AbstractRedissonLeaderTest.redissonClient,
@@ -81,7 +84,7 @@ class RedissonBlockingLockNameConformanceTest : AbstractLockNameConformanceTest(
 }
 
 /** Redisson suspend strategic electors가 실제 key 생성 전에 이름을 검증하는지 확인합니다. */
-class RedissonSuspendLockNameConformanceTest : AbstractLockNameConformanceTest() {
+class RedissonSuspendLockNameConformanceTest: AbstractLockNameConformanceTest() {
 
     private val single = RedissonStrategicSuspendLeaderElector(
         AbstractRedissonLeaderTest.redissonClient,
@@ -137,9 +140,17 @@ class RedissonSuspendLockNameConformanceTest : AbstractLockNameConformanceTest()
 
 class RedissonLockNameValidationOrderingTest {
 
+    companion object: KLogging()
+
+    private val client = mockk<RedissonClient>(relaxed = true)
+
+    @BeforeEach
+    fun beforeEach() {
+        clearMocks(client)
+    }
+
     @Test
     fun `blocking strategic invalid lockName은 Redisson map cache 전에 거부된다`() {
-        val client = mockk<RedissonClient>(relaxed = true)
         val single = RedissonStrategicLeaderElector(client)
         val group = RedissonStrategicLeaderGroupElector(client)
 
@@ -155,7 +166,6 @@ class RedissonLockNameValidationOrderingTest {
 
     @Test
     fun `suspend strategic invalid lockName은 Redisson map cache 전에 거부된다`() = runSuspendIO {
-        val client = mockk<RedissonClient>(relaxed = true)
         val single = RedissonStrategicSuspendLeaderElector(client)
         val group = RedissonStrategicSuspendLeaderGroupElector(client)
 

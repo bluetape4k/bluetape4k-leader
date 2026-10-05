@@ -8,12 +8,8 @@
 
 ## 목표와 중단 조건
 
-`LeaderGroupElectionOptions.useDbTime`를 추가하고 Exposed JDBC/R2DBC 그룹 lock의 acquire,
-active count, `isHeld`, min-lease release, extend가 단일 current-time primitive를 사용하도록
-수정한다. `useDbTime=false`의 기존 동작과 기준 artifact의 실제 JVM constructor/copy descriptor를 보존하고,
-`true`에서는 고정 SQL `SELECT CURRENT_TIMESTAMP`를 사용한다. H2/PostgreSQL/MySQL clock-skew
-경합과 blocking/async/suspend 경로를 회귀 테스트로 증명하며 EN/KO 문서에 실제 wrapper 구성
-경로를 제공한다.
+`LeaderGroupElectionOptions.useDbTime`를 추가하고 Exposed JDBC/R2DBC 그룹 lock의 acquire, active count, `isHeld`, min-lease release, extend가 단일 current-time primitive를 사용하도록 수정한다. `useDbTime=false`의 기존 동작과 기준 artifact의 실제 JVM constructor/copy descriptor를 보존하고,
+`true`에서는 고정 SQL `SELECT CURRENT_TIMESTAMP`를 사용한다. H2/PostgreSQL/MySQL clock-skew 경합과 blocking/async/suspend 경로를 회귀 테스트로 증명하며 EN/KO 문서에 실제 wrapper 구성 경로를 제공한다.
 
 다음 중 하나라도 해소되지 않으면 구현을 완료로 보고하지 않는다.
 
@@ -173,16 +169,12 @@ ruby scripts/manual/export_manifest.rb --check
 git diff --check
 ```
 
-provider가 환경상 비활성인 경우 실제 출력, 원인, 대체 검증을 `build/issue-667-evidence/<provider>-<module>.json`에 기록하고 PASS가 아닌 `PENDING`으로 남긴다. 각 JSON에는 command, selector, test names, pool/readiness, duration, exit status, JUnit XML 경로, disabled reason, SHA-256 manifest를 포함한다. 세 Issue #667 DoD checkbox(ABI/ownership correctness, JDBC/R2DBC parity, manual/provenance)를 artifact field로 매핑한다. 기존 release pin이 새 API를 포함하지 않는 provenance gap은 `PENDING`으로 남기고 release 작업으로 넘긴다.
+provider가 환경상 비활성인 경우 실제 출력, 원인, 대체 검증을 `build/issue-667-evidence/<provider>-<module>.json`에 기록하고 PASS가 아닌 `PENDING`으로 남긴다. 각 JSON에는 command, selector, test names, pool/readiness, duration, exit status, JUnit XML 경로, disabled reason, SHA-256 manifest를 포함한다. 세 Issue #667 DoD checkbox (ABI/ownership correctness, JDBC/R2DBC parity, manual/provenance)를 artifact field로 매핑한다. 기존 release pin이 새 API를 포함하지 않는 provenance gap은 `PENDING`으로 남기고 release 작업으로 넘긴다.
 
 ### 롤아웃과 롤백
 
-기본값 `useDbTime=false`로 배포하고, 동일 authoritative DB를 공유하는 caller만 provider matrix와
-admission-unavailable 회귀가 PASS된 뒤 단계적으로 `true`를 활성화한다. DB-time 오류가
-`activeCount == maxLeaders`, `availableSlots == 0`, try-lock `null`로 관측되거나 query budget가
-초과되면 해당 caller의 flag를 즉시 `false`로 되돌리고 이전 artifact로 rollback한다. 이 변경은
-schema migration을 만들지 않으므로 schema rollback은 필요하지 않다. rollback과 재검증은
-동일한 evidence artifact에 기록한다.
+기본값 `useDbTime=false`로 배포하고, 동일 authoritative DB를 공유하는 caller만 provider matrix와 admission-unavailable 회귀가 PASS된 뒤 단계적으로 `true`를 활성화한다. DB-time 오류가
+`activeCount == maxLeaders`, `availableSlots == 0`, try-lock `null`로 관측되거나 query budget가 초과되면 해당 caller의 flag를 즉시 `false`로 되돌리고 이전 artifact로 rollback한다. 이 변경은 schema migration을 만들지 않으므로 schema rollback은 필요하지 않다. rollback과 재검증은 동일한 evidence artifact에 기록한다.
 
 ## 계획 검토 및 실행 게이트
 

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.aop.autoconfigure
 
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
@@ -14,7 +15,6 @@ import io.bluetape4k.testcontainers.storage.RedisServer
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.codec.StringCodec
-import io.bluetape4k.assertions.shouldBeInstanceOf
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
@@ -31,19 +31,22 @@ import org.springframework.context.annotation.Bean
  * `@ConditionalOnBean(StatefulRedisConnection::class)` 조건이 충족되어 4종 factory 빈이 등록된다.
  */
 @SpringBootTest(
-    classes = [LeaderTestApplication::class, LettuceAopFactoryAutoConfigurationTest.TestConfig::class],
+    classes = [
+        LeaderTestApplication::class,
+        LettuceAopFactoryAutoConfigurationTest.TestConfig::class
+    ],
     webEnvironment = SpringBootTest.WebEnvironment.NONE
 )
 @ImportAutoConfiguration(LeaderAopFactoryAutoConfiguration::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LettuceAopFactoryAutoConfigurationTest {
 
-    companion object : KLogging() {
-        val redis = RedisServer.Launcher.redis
+    companion object: KLogging() {
+        val redis by lazy { RedisServer.Launcher.redis }
     }
 
     @TestConfiguration
-    open class TestConfig {
+    class TestConfig {
         @Bean(destroyMethod = "shutdown")
         fun redisClient(): RedisClient = RedisClient.create(redis.url)
 
@@ -57,41 +60,49 @@ class LettuceAopFactoryAutoConfigurationTest {
 
     @Test
     fun `lettuceLeaderElectionFactory 빈이 등록된다`() {
-        ctx.getBean("lettuceLeaderElectionFactory").shouldBeInstanceOf<LettuceLeaderElectorFactory>()
+        ctx.getBean("lettuceLeaderElectionFactory")
+            .shouldBeInstanceOf<LettuceLeaderElectorFactory>()
     }
 
     @Test
     fun `lettuceLeaderGroupElectionFactory 빈이 등록된다`() {
-        ctx.getBean("lettuceLeaderGroupElectionFactory").shouldBeInstanceOf<LettuceLeaderGroupElectorFactory>()
+        ctx.getBean("lettuceLeaderGroupElectionFactory")
+            .shouldBeInstanceOf<LettuceLeaderGroupElectorFactory>()
     }
 
     @Test
     fun `lettuceSuspendLeaderElectorFactory 빈이 등록된다`() {
-        ctx.getBean("lettuceSuspendLeaderElectorFactory").shouldBeInstanceOf<LettuceSuspendLeaderElectorFactory>()
+        ctx.getBean("lettuceSuspendLeaderElectorFactory")
+            .shouldBeInstanceOf<LettuceSuspendLeaderElectorFactory>()
     }
 
     @Test
     fun `lettuceSuspendLeaderGroupElectorFactory 빈이 등록된다`() {
-        ctx.getBean("lettuceSuspendLeaderGroupElectorFactory").shouldBeInstanceOf<LettuceSuspendLeaderGroupElectorFactory>()
+        ctx.getBean("lettuceSuspendLeaderGroupElectorFactory")
+            .shouldBeInstanceOf<LettuceSuspendLeaderGroupElectorFactory>()
     }
 
     @Test
     fun `lettuceLeaderElectionFactory 는 LeaderElectorFactory 타입`() {
-        ctx.getBean("lettuceLeaderElectionFactory").shouldBeInstanceOf<LeaderElectorFactory>()
+        ctx.getBean("lettuceLeaderElectionFactory")
+            .shouldBeInstanceOf<LeaderElectorFactory>()
     }
 
     @Test
     fun `lettuceLeaderGroupElectionFactory 는 LeaderGroupElectorFactory 타입`() {
-        ctx.getBean("lettuceLeaderGroupElectionFactory").shouldBeInstanceOf<LeaderGroupElectorFactory>()
+        ctx.getBean("lettuceLeaderGroupElectionFactory")
+            .shouldBeInstanceOf<LeaderGroupElectorFactory>()
     }
 
     @Test
     fun `lettuceSuspendLeaderElectorFactory 는 SuspendLeaderElectorFactory 타입`() {
-        ctx.getBean("lettuceSuspendLeaderElectorFactory").shouldBeInstanceOf<SuspendLeaderElectorFactory>()
+        ctx.getBean("lettuceSuspendLeaderElectorFactory")
+            .shouldBeInstanceOf<SuspendLeaderElectorFactory>()
     }
 
     @Test
     fun `lettuceSuspendLeaderGroupElectorFactory 는 SuspendLeaderGroupElectorFactory 타입`() {
-        ctx.getBean("lettuceSuspendLeaderGroupElectorFactory").shouldBeInstanceOf<SuspendLeaderGroupElectorFactory>()
+        ctx.getBean("lettuceSuspendLeaderGroupElectorFactory")
+            .shouldBeInstanceOf<SuspendLeaderGroupElectorFactory>()
     }
 }

@@ -23,7 +23,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 class DynamoDbLeaderElectorFactory(
     private val client: DynamoDbClient,
     private val baseOptions: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
-) : LeaderElectorFactory {
+): LeaderElectorFactory {
     override fun create(options: LeaderElectionOptions): LeaderElector =
         DynamoDbLeaderElector(client, baseOptions.copy(leaderOptions = options))
 }
@@ -38,7 +38,7 @@ class DynamoDbLeaderElectorFactory(
 class DynamoDbLeaderGroupElectorFactory(
     private val client: DynamoDbClient,
     private val baseOptions: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
-) : LeaderGroupElectorFactory {
+): LeaderGroupElectorFactory {
     override fun create(options: LeaderGroupElectionOptions): LeaderGroupElector =
         DynamoDbLeaderGroupElector(client, baseOptions.copy(leaderGroupOptions = options))
 }
@@ -53,7 +53,7 @@ class DynamoDbLeaderGroupElectorFactory(
 class DynamoDbSuspendLeaderElectorFactory(
     private val client: DynamoDbAsyncClient,
     private val baseOptions: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
-) : SuspendLeaderElectorFactory {
+): SuspendLeaderElectorFactory {
     override suspend fun create(options: LeaderElectionOptions): SuspendLeaderElector =
         DynamoDbSuspendLeaderElector(client, baseOptions.copy(leaderOptions = options))
 }
@@ -68,7 +68,7 @@ class DynamoDbSuspendLeaderElectorFactory(
 class DynamoDbSuspendLeaderGroupElectorFactory(
     private val client: DynamoDbAsyncClient,
     private val baseOptions: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
-) : SuspendLeaderGroupElectorFactory {
+): SuspendLeaderGroupElectorFactory {
     override suspend fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
         DynamoDbSuspendLeaderGroupElector(client, baseOptions.copy(leaderGroupOptions = options))
 }

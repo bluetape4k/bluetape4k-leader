@@ -5,10 +5,10 @@
 - 문제: #518 - Consul 확장이 KV 소유권을 검증하지 않고 세션을 갱신합니다.
 - 모듈: `leader-consul`
 - 파일:
-  - `ConsulLockExtendDelegate.kt`
-  - `ConsulSuspendLockExtendDelegate.kt`
-  - `ConsulLeaderElectorDelegationTest.kt`
-  - `ConsulSuspendLeaderElectorDelegationTest.kt`
+    - `ConsulLockExtendDelegate.kt`
+    - `ConsulSuspendLockExtendDelegate.kt`
+    - `ConsulLeaderElectorDelegationTest.kt`
+    - `ConsulSuspendLeaderElectorDelegationTest.kt`
 
 ## 검토 결과
 

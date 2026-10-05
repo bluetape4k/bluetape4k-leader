@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.consul.internal
 
 import io.bluetape4k.leader.validateLockName
+import io.bluetape4k.support.requireNotBlank
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -36,11 +37,11 @@ internal class ConsulLeaseHandle(
     val isReleased: Boolean get() = released.get()
 
     init {
-        validateLockName(lockName)
-        require(key.isNotBlank()) { "key must not be blank." }
-        require(ownerToken.isNotBlank()) { "ownerToken must not be blank." }
-        require(auditLeaderId.isNotBlank()) { "auditLeaderId must not be blank." }
-        require(nodeId.isNotBlank()) { "nodeId must not be blank." }
+        lockName.validateLockName()
+        key.requireNotBlank("key")
+        ownerToken.requireNotBlank("ownerToken")
+        auditLeaderId.requireNotBlank("auditLeaderId")
+        nodeId.requireNotBlank("nodeId")
         require(slotId == null || slotId.isNotBlank()) { "slotId must be null or not blank." }
         require(!leaseUntil.isBefore(electedAt)) {
             "leaseUntil must not be before electedAt. electedAt=$electedAt, leaseUntil=$leaseUntil"

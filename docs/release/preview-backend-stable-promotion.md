@@ -2,34 +2,33 @@
 
 이 체크리스트는 `README.md` / `README.ko.md`의 미리보기 백엔드 행을 `Stable`로 변경하기 전에 필요한 증거를 정의합니다.
 
-`docs/release/preview-backend-nightly-gate.md`를 보완합니다. 녹색 전체 야간 실행은 릴리스 증거가 필요하지만 백엔드를
-안정 버전으로 승격시키는 것만으로는 충분하지 않습니다.
+`docs/release/preview-backend-nightly-gate.md`를 보완합니다. 녹색 전체 야간 실행은 릴리스 증거가 필요하지만 백엔드를 안정 버전으로 승격시키는 것만으로는 충분하지 않습니다.
 
 ## 범위
 
 현재 미리보기 백엔드:
 
-| Backend | Module | Storage model |
-|---|---|---|
-| Consul | `leader-consul` | Consul Session + KV acquire/release |
-| DynamoDB | `leader-dynamodb` | Conditional writes + logical TTL |
-| etcd | `leader-etcd` | etcd v3 Lock service + leases |
-| Kubernetes Lease | `leader-k8s` | `coordination.k8s.io/v1` Lease |
+| Backend          | Module            | Storage model                       |
+|------------------|-------------------|-------------------------------------|
+| Consul           | `leader-consul`   | Consul Session + KV acquire/release |
+| DynamoDB         | `leader-dynamodb` | Conditional writes + logical TTL    |
+| etcd             | `leader-etcd`     | etcd v3 Lock service + leases       |
+| Kubernetes Lease | `leader-k8s`      | `coordination.k8s.io/v1` Lease      |
 
 승격은 백엔드별로 이루어집니다. 아래의 각 행이 독립적으로 충족되지 않는 한 모든 미리보기 백엔드를 함께 승격하지 마세요.
 
 ## 공유 승격 기준
 
-| Area | Required evidence | Blocks promotion when |
-|---|---|---|
-| Runtime contracts | Single-leader and group-leader behavior is covered by focused tests, including contention, reacquire, release, timeout, and cleanup paths. | Any split-brain, stale-owner, lost-release, or cleanup timeout remains unresolved. |
-| API stability | Public options, endpoint/configuration types, auto-configuration properties, and KDoc have no planned breaking rename for the next minor line. | A backend still exposes third-party implementation details that should be hidden behind bluetape4k-owned DTOs or properties. |
-| Cancellation and lifecycle | Blocking, async, suspend, and virtual-thread paths supported by the backend have equivalent timeout/cancellation semantics. | A supported execution model leaks resources, hides cancellation, or depends on caller-side sleep/reaper behavior. |
-| CI and Nightly | PR CI module test passes, and the latest full `Nightly` preview backend release summary reports `success` for the backend. | The backend is skipped in full Nightly, has only a fast smoke result, or has a recent unresolved flake/failure. |
-| Documentation | README locale set, KDoc, configuration docs, release notes, and known limitations all match the implemented contract. | README says Stable while docs still mention preview-only caveats or missing setup requirements. |
-| Examples | At least one runnable adoption example exists when the backend has non-trivial setup or operational semantics. | Users must infer required infrastructure, credentials, TTL, or lease behavior only from tests. |
-| Benchmark or operational evidence | Existing benchmark rows or operational notes explain relative cost, noise, and unsupported comparisons. | Performance docs invite unsupported comparisons or omit known noisy rows. |
-| Release governance | The promotion PR links all evidence and closes or creates follow-up issues for remaining non-blocking work. | Promotion depends on chat-only evidence, stale local runs, or hidden follow-up work. |
+| Area                              | Required evidence                                                                                                                              | Blocks promotion when                                                                                                        |
+|-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| Runtime contracts                 | Single-leader and group-leader behavior is covered by focused tests, including contention, reacquire, release, timeout, and cleanup paths.     | Any split-brain, stale-owner, lost-release, or cleanup timeout remains unresolved.                                           |
+| API stability                     | Public options, endpoint/configuration types, auto-configuration properties, and KDoc have no planned breaking rename for the next minor line. | A backend still exposes third-party implementation details that should be hidden behind bluetape4k-owned DTOs or properties. |
+| Cancellation and lifecycle        | Blocking, async, suspend, and virtual-thread paths supported by the backend have equivalent timeout/cancellation semantics.                    | A supported execution model leaks resources, hides cancellation, or depends on caller-side sleep/reaper behavior.            |
+| CI and Nightly                    | PR CI module test passes, and the latest full `Nightly` preview backend release summary reports `success` for the backend.                     | The backend is skipped in full Nightly, has only a fast smoke result, or has a recent unresolved flake/failure.              |
+| Documentation                     | README locale set, KDoc, configuration docs, release notes, and known limitations all match the implemented contract.                          | README says Stable while docs still mention preview-only caveats or missing setup requirements.                              |
+| Examples                          | At least one runnable adoption example exists when the backend has non-trivial setup or operational semantics.                                 | Users must infer required infrastructure, credentials, TTL, or lease behavior only from tests.                               |
+| Benchmark or operational evidence | Existing benchmark rows or operational notes explain relative cost, noise, and unsupported comparisons.                                        | Performance docs invite unsupported comparisons or omit known noisy rows.                                                    |
+| Release governance                | The promotion PR links all evidence and closes or creates follow-up issues for remaining non-blocking work.                                    | Promotion depends on chat-only evidence, stale local runs, or hidden follow-up work.                                         |
 
 ## 백엔드 체크리스트
 

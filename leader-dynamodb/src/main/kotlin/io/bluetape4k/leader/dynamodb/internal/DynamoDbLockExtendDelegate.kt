@@ -23,9 +23,9 @@ internal class DynamoDbLockExtendDelegate(
     private val client: DynamoDbLockClient,
     private val lock: DynamoDbLockClient.AcquiredLock,
     private val ttlPadding: Duration,
-) : ExtendDelegate {
+): ExtendDelegate {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
@@ -59,9 +59,9 @@ internal class DynamoDbSuspendLockExtendDelegate(
     private val client: DynamoDbLockClient,
     private val lock: DynamoDbLockClient.AcquiredLock,
     private val ttlPadding: Duration,
-) : SuspendExtendDelegate {
+): SuspendExtendDelegate {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline

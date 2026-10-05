@@ -13,13 +13,14 @@ PR #232 (#223), PR #233 (#173)로 두 가지 작업을 병렬로 진행했다.
 
 ### 1. 코드 리뷰 없이 PR 먼저 생성 — 절차 위반
 
-PR을 생성한 직후 사용자가 "Codex 리뷰 요청했나?"라고 지적. CLAUDE.md의 `Before Creating A PR (MANDATORY)` 체크리스트와 메모리 `feedback_pr_code_review.md` 모두 **PR 생성 전 코드 리뷰 필수**를 명시한다. 구현 완료 → 리뷰 → fix → PR 순서를 반드시 지켜야 한다.
+PR을 생성한 직후 사용자가 "Codex 리뷰 요청했나?"라고 지적. CLAUDE.md의 `Before Creating A PR (MANDATORY)` 체크리스트와 메모리 `feedback_pr_code_review.md` 모두
+**PR 생성 전 코드 리뷰 필수**를 명시한다. 구현 완료 → 리뷰 → fix → PR 순서를 반드시 지켜야 한다.
 
 ### 2. CRITICAL: `scheduleWithFixedDelay` 에서의 REE 전파
 
 초기 구현은 tick 람다 내부에서만 `RejectedExecutionException`을 잡았다. 리뷰에서 발견된 CRITICAL 문제: 코드 경로에 `scheduler.scheduleWithFixedDelay()` 호출 자체가 REE를 던질 수 있고, 이는 `runIfLeader` 밖으로 전파되어 "절대 throw 하지 않음" 계약을 깨뜨린다.
 
-**해결책**: `AtomicReference<ScheduledFuture<*>?>`를 사용해 `lateinit var`를 제거하고, `scheduleWithFixedDelay` 호출 전체를 try/catch(REE)로 감싸 `NoopCloseable` 반환.
+**해결책**: `AtomicReference<ScheduledFuture<*>?>`를 사용해 `lateinit var`를 제거하고, `scheduleWithFixedDelay` 호출 전체를 try/catch (REE)로 감싸 `NoopCloseable` 반환.
 
 ```kotlin
 val futureRef = AtomicReference<ScheduledFuture<*>?>(null)
@@ -33,7 +34,7 @@ futureRef.set(future)
 
 ### 3. HIGH: `DisposableBean`만으로는 JVM-scoped object 복구 불충분
 
-`LeaderLeaseAutoExtender`는 Kotlin `object` — JVM classloader 범위. Spring context가 닫히면 `destroy()` → `shutdown()`으로 scheduler가 SHUTDOWN 상태가 된다. 같은 JVM에서 다음 컨텍스트가 시작될 때(`@DirtiesContext` 테스트, 순차적 컨텍스트 재시작) lifecycle bean은 재생성되지만 `restart()`를 호출하지 않으면 scheduler가 영구적으로 SHUTDOWN 상태로 남는다.
+`LeaderLeaseAutoExtender`는 Kotlin `object` — JVM classloader 범위. Spring context가 닫히면 `destroy()` → `shutdown()`으로 scheduler가 SHUTDOWN 상태가 된다. 같은 JVM에서 다음 컨텍스트가 시작될 때 (`@DirtiesContext` 테스트, 순차적 컨텍스트 재시작) lifecycle bean은 재생성되지만 `restart()`를 호출하지 않으면 scheduler가 영구적으로 SHUTDOWN 상태로 남는다.
 
 **해결책**: `InitializingBean` 대칭 구현.
 
@@ -47,13 +48,14 @@ class LeaderLeaseAutoExtenderLifecycle : InitializingBean, DisposableBean {
 ### 4. `AtomicReference` 패턴 — tick 내부 future 자기 취소
 
 `lateinit var future`는 tick 람다가 future를 자기 참조로 취소하는 데 사용했다. 이 패턴은 `scheduleWithFixedDelay`를 try/catch로 감싸면 컴파일러가 "미초기화 사용" 오류를 낼 수 있다. `AtomicReference`로 교체하면:
+
 - try/catch 래핑 가능
 - tick 내부에서 `futureRef.get()?.cancel(false)` null-safe 접근
-- `futureRef.set(future)` 는 첫 tick 이전(초기 지연 cadence ≥ 25ms)에 반드시 완료
+- `futureRef.set(future)` 는 첫 tick 이전 (초기 지연 cadence ≥ 25ms)에 반드시 완료
 
 ### 5. 7-Tier 리뷰에서 발견된 MEDIUM: 핵심 fix 미테스트
 
-CRITICAL fix(REE 보호)가 실제로 동작함을 증명하는 테스트가 없었다. 7-Tier 리뷰에서 지적 후 추가:
+CRITICAL fix (REE 보호)가 실제로 동작함을 증명하는 테스트가 없었다. 7-Tier 리뷰에서 지적 후 추가:
 
 ```kotlin
 @Test

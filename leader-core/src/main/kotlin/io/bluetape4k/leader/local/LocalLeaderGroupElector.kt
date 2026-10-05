@@ -1,12 +1,13 @@
 package io.bluetape4k.leader.local
 
-import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
-import io.bluetape4k.leader.LeaderGroupElector
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
@@ -62,12 +63,15 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
+        log.debug { "runAsyncIfLeader... lockName: $lockName" }
+
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
-            CompletableFuture.supplyAsync(
-                { tryWithPermit(lockName) { cancellationRelay.invoke(action).join() } },
-                executor,
-            ),
+            futureOf(executor) {
+                tryWithPermit(lockName) {
+                    cancellationRelay.invoke(action).join()
+                }
+            },
             cancellationRelay,
         )
     }
@@ -97,6 +101,8 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
      * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
+        log.debug { "runAsyncIfLeaderResult... slot=$slot" }
+
         var elected = false
         val value = try {
             tryWithPermit(

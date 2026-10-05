@@ -8,11 +8,15 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonSuspendLockExtendDelegate
+import io.bluetape4k.leader.redisson.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -28,22 +32,7 @@ import org.redisson.api.RedissonClient
 import org.redisson.client.RedisException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
-
-/**
- * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend inline fun <T> RedissonClient.suspendRunIfLeader(
-    jobName: String,
-    options: LeaderElectionOptions = LeaderElectionOptions.Default,
-    crossinline action: suspend () -> T,
-): T? {
-    validateLockName(jobName)
-
-    val leaderElection = RedissonSuspendLeaderElector(this, options)
-    return leaderElection.runIfLeader(jobName) { action() }
-}
+import kotlin.time.toJavaDuration
 
 
 /**
@@ -57,11 +46,11 @@ class RedissonSuspendLeaderElector private constructor(
     private val redissonClient: RedissonClient,
     private val options: LeaderElectionOptions,
 ): SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient),
-    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient),
+   SuspendLeaderLeaseAcquirerSupport {
 
-    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options)
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        SuspendLeaderElectorLeaseAdapter({ this }, options)
     }
 
     companion object: KLoggingChannel() {
@@ -121,12 +110,12 @@ class RedissonSuspendLeaderElector private constructor(
     }
 
     private suspend fun <T> runImpl(lockName: String, auditLeaderId: String?, action: suspend () -> T): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
 
         val lock: RLock = redissonClient.getLock(lockName)
 
         try {
-            log.debug { "Leader 승격을 요청합니다 ..." }
+            log.debug { "Leader 승격을 요청합니다 ... lockName=$lockName" }
 
             val lockId = nextLockId()
 
@@ -199,7 +188,13 @@ class RedissonSuspendLeaderElector private constructor(
             lock.unlockAsync(lockId).await()
         }
     }
-
-    private fun kotlin.time.Duration.toJavaDuration(): java.time.Duration =
-        java.time.Duration.ofNanos(inWholeNanoseconds)
 }
+
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeader")
+suspend inline fun <T> RedissonClient.legacySuspendRunIfLeader(
+    jobName: String,
+    options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    crossinline action: suspend () -> T,
+): T? = this.currentSuspendRunIfLeader(jobName, options, action)

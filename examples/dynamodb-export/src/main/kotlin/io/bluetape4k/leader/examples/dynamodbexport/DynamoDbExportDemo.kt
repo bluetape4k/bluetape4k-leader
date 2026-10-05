@@ -1,52 +1,58 @@
 package io.bluetape4k.leader.examples.dynamodbexport
 
+import io.bluetape4k.aws.dynamodb.dynamoDbAsyncClient
+import io.bluetape4k.aws.dynamodb.dynamoDbClient
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElectionOptions
 import io.bluetape4k.leader.dynamodb.DynamoDbSuspendLeaderElector
 import io.bluetape4k.leader.examples.support.startExampleContainer
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.info
+import io.bluetape4k.support.closeSafe
 import io.bluetape4k.testcontainers.aws.DynamoDbLocalServer
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `DynamoDbExportDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
  * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
-object DynamoDbExportDemo: KLogging() {
+object DynamoDbExportDemo: KLoggingChannel() {
 
     @JvmStatic
-    fun main(args: Array<String>) = runBlocking {
+    fun main(args: Array<String>) = runBlocking(Dispatchers.IO) {
         val container = startExampleContainer { reuse -> DynamoDbLocalServer(reuse = reuse) }
         val credentials = StaticCredentialsProvider.create(
             AwsBasicCredentials.create(container.awsAccessKey, container.awsSecretKey),
         )
         val region = Region.of(container.regionName)
-        val syncClient = DynamoDbClient.builder()
-            .endpointOverride(container.awsEndpoint)
-            .credentialsProvider(credentials)
-            .region(region)
-            .build()
-        val asyncClient = DynamoDbAsyncClient.builder()
-            .endpointOverride(container.awsEndpoint)
-            .credentialsProvider(credentials)
-            .region(region)
-            .build()
+
+        val syncClient = dynamoDbClient {
+            endpointOverride(container.awsEndpoint)
+            credentialsProvider(credentials)
+            region(region)
+        }
+
+        val asyncClient = dynamoDbAsyncClient {
+            endpointOverride(container.awsEndpoint)
+            credentialsProvider(credentials)
+            region(region)
+        }
 
         try {
             val suffix = Base58.randomString(8)
             val lockTableName = "leader_export_locks_$suffix"
             val exportTableName = "leader_exports_$suffix"
+
             DynamoDbExportTable.createLockTable(syncClient, lockTableName)
             DynamoDbExportTable.createExportTable(syncClient, exportTableName)
             val exportTable = DynamoDbExportTable(syncClient, exportTableName)
@@ -85,8 +91,9 @@ object DynamoDbExportDemo: KLogging() {
             log.info { "records=${exportTable.records()}" }
             log.info { "=== DynamoDB scheduled export demo complete ===" }
         } finally {
-            asyncClient.close()
-            syncClient.close()
+            asyncClient.closeSafe()
+            syncClient.closeSafe()
+            container.closeSafe()
         }
     }
 

@@ -4,26 +4,37 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
-import io.bluetape4k.exposed.tests.TestDB
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotContain
-import io.bluetape4k.leader.exposed.testing.databaseUrlRedactionContractTests
+import io.bluetape4k.exposed.tests.TestDB
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
+import io.bluetape4k.leader.exposed.testing.databaseUrlRedactionContractTests
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
-import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.slf4j.LoggerFactory
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
+import java.lang.reflect.Modifier
 import java.util.concurrent.atomic.AtomicInteger
 
-class ExposedJdbcSchemaInitializerTest : AbstractExposedJdbcLeaderTest() {
+class ExposedJdbcSchemaInitializerTest: AbstractExposedJdbcLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging()
+
+    @org.junit.jupiter.api.Test
+    fun `legacy lock-name JVM facade remains available`() {
+        val method = Class.forName(
+            "io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializerKt"
+        ).getDeclaredMethod("validateExposedLockName", String::class.java)
+
+        method.returnType shouldBeEqualTo Void.TYPE
+        (Modifier.isPublic(method.modifiers) && Modifier.isStatic(method.modifiers)) shouldBeEqualTo true
+    }
 
     @TestFactory
     fun `database URL redaction contract`() =
@@ -61,31 +72,45 @@ class ExposedJdbcSchemaInitializerTest : AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         ExposedJdbcSchemaInitializer.resetFor(db)
 
-        val threadCount = 16
-        val readyLatch = CountDownLatch(threadCount)
-        val startLatch = CountDownLatch(1)
+        val threadCount = Runtimex.availableProcessors
         val errorCount = AtomicInteger(0)
-        val executor = Executors.newFixedThreadPool(threadCount)
 
-        try {
-            repeat(threadCount) {
-                executor.submit {
-                    readyLatch.countDown()
-                    startLatch.await()
-                    try {
-                        ExposedJdbcSchemaInitializer.ensureSchema(db)
-                    } catch (e: Throwable) {
-                        log.warn(e) { "ensureSchema 예외 발생" }
-                        errorCount.incrementAndGet()
-                    }
+        MultithreadingTester()
+            .workers(threadCount)
+            .rounds(2)
+            .add {
+                try {
+                    ExposedJdbcSchemaInitializer.ensureSchema(db)
+                } catch (e: Throwable) {
+                    log.warn(e) { "ensureSchema 예외 발생" }
+                    errorCount.incrementAndGet()
                 }
             }
-            readyLatch.await(5, TimeUnit.SECONDS)
-            startLatch.countDown()
-        } finally {
-            executor.shutdown()
-            executor.awaitTermination(10, TimeUnit.SECONDS)
-        }
+            .run()
+
+        errorCount.get() shouldBeEqualTo 0
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `ensureSchema - 다중 Virtual Threads 동시 호출에도 예외 없이 1회만 초기화된다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        ExposedJdbcSchemaInitializer.resetFor(db)
+
+        val threadCount = Runtimex.availableProcessors
+        val errorCount = AtomicInteger(0)
+
+        StructuredTaskScopeTester()
+            .rounds(2 * threadCount)
+            .add {
+                try {
+                    ExposedJdbcSchemaInitializer.ensureSchema(db)
+                } catch (e: Throwable) {
+                    log.warn(e) { "ensureSchema 예외 발생" }
+                    errorCount.incrementAndGet()
+                }
+            }
+            .run()
 
         errorCount.get() shouldBeEqualTo 0
     }

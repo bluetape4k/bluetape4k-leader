@@ -1,15 +1,15 @@
 package io.bluetape4k.leader.annotation
 
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContainAll
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderAspectFailureModeTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @Test
     fun `enum 항목 4개 존재 확인`() {

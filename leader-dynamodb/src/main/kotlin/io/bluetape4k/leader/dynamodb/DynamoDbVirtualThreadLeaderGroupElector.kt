@@ -2,6 +2,7 @@ package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.concurrent.virtualthread.virtualFuture
+import io.bluetape4k.leader.dynamodb.runVirtualIfLeaderGroup as currentRunVirtualIfLeaderGroup
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
@@ -18,8 +19,8 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
  */
 class DynamoDbVirtualThreadLeaderGroupElector(
     private val delegate: DynamoDbLeaderGroupElector,
-) : VirtualThreadLeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
+): VirtualThreadLeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
 
     override val maxLeaders: Int get() = delegate.maxLeaders
 
@@ -33,32 +34,25 @@ class DynamoDbVirtualThreadLeaderGroupElector(
         delegate.state(lockName)
 
     override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
-        virtualFuture {
-            delegate.runIfLeader(lockName, action)
-        }
+        virtualFuture { delegate.runIfLeader(lockName, action) }
 
     override fun <T> runAsyncIfLeader(slot: LeaderSlot, action: () -> T): VirtualFuture<T?> =
-        virtualFuture {
-            delegate.runIfLeader(slot, action)
-        }
+        virtualFuture { delegate.runIfLeader(slot, action) }
 
     override fun <T> runAsyncIfLeaderResult(
         slot: LeaderSlot,
         action: () -> T,
     ): VirtualFuture<LeaderRunResult<T>> =
-        LeaderFutureBridge.propagateCancellation(virtualFuture {
-            delegate.runIfLeaderResult(slot, action)
-        })
+        LeaderFutureBridge.propagateCancellation(
+            virtualFuture { delegate.runIfLeaderResult(slot, action) }
+        )
 }
 
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
-fun <T> DynamoDbClient.runVirtualIfLeaderGroup(
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runVirtualIfLeaderGroup")
+fun <T> DynamoDbClient.legacyRunVirtualIfLeaderGroup(
     lockName: String,
     options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
     action: () -> T,
-): VirtualFuture<T?> =
-    DynamoDbVirtualThreadLeaderGroupElector(DynamoDbLeaderGroupElector(this, options)).runAsyncIfLeader(lockName, action)
+): VirtualFuture<T?> = this.currentRunVirtualIfLeaderGroup(lockName, options, action)

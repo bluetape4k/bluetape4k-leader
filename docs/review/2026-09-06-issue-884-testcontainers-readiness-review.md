@@ -77,11 +77,11 @@
 
 ## 리뷰 중 발견 및 조치
 
-| 심각도 | 발견 | 조치 | 상태 |
-|---|---|---|---|
-| P2 | collector 자체 실패 시 원 wait cause 보존이 직접 테스트되지 않음 | 원 cause identity와 `UNKNOWN` diagnostic을 검증하는 unit test 추가 | 해결 |
-| P2 | detail 한 줄·256자 제한이 직접 테스트되지 않음 | newline normalization과 256자 상한 test 추가 | 해결 |
-| P2 | classifier/collector/wrapper까지 test-fixtures 공개 API로 노출 | backend가 쓰는 endpoint/factory만 공개하고 나머지를 `internal`로 축소 | 해결 |
+| 심각도 | 발견                                                             | 조치                                                                  | 상태 |
+|--------|------------------------------------------------------------------|-----------------------------------------------------------------------|------|
+| P2     | collector 자체 실패 시 원 wait cause 보존이 직접 테스트되지 않음 | 원 cause identity와 `UNKNOWN` diagnostic을 검증하는 unit test 추가    | 해결 |
+| P2     | detail 한 줄·256자 제한이 직접 테스트되지 않음                   | newline normalization과 256자 상한 test 추가                          | 해결 |
+| P2     | classifier/collector/wrapper까지 test-fixtures 공개 API로 노출   | backend가 쓰는 endpoint/factory만 공개하고 나머지를 `internal`로 축소 | 해결 |
 
 ## 최종 검증 증거
 

@@ -8,8 +8,8 @@
 - Claude 최종 조언자: COMMENT로 승인하세요.
 - 게이트: P0=0, P1=0.
 - 클로드 유물:
-  - `.omx/artifacts/ask-claude-code-review-consul-runtime-20260522232205.md`
-  - `.omx/artifacts/ask-claude-code-review-consul-runtime-final-20260522232633.md`
+    - `.omx/artifacts/ask-claude-code-review-consul-runtime-20260522232205.md`
+    - `.omx/artifacts/ask-claude-code-review-consul-runtime-final-20260522232633.md`
 
 ## 계층 1 - 보안
 
@@ -23,7 +23,7 @@
 - PASS: 작업 실패 시 세션이 해제/파기되고 재획득이 허용됩니다.
 - 통과: `waitTime`가 Consul 갱신 지연을 초과하면 대기 후보자가 자신의 세션을 갱신합니다. 이는 인수 중에 `invalid session`를 방지합니다.
 - PASS: 중단된 `minLeaseTime` 절전 모드는 인터럽트 플래그를 복원하지만 여전히 Consul `release`/`destroy`를 실행합니다.
-- WATCH: `.get(10, TimeUnit.SECONDS)` 호출 차단은 `ConsulEndpoint.requestTimeout`에서 파생되지 않습니다. 안정적인 프로모션 전 후속 조치로 추적하세요.
+- WATCH: `.get(10.seconds)` 호출 차단은 `ConsulEndpoint.requestTimeout`에서 파생되지 않습니다. 안정적인 프로모션 전 후속 조치로 추적하세요.
 
 ## 계층 3 - 구조적 영향
 
@@ -53,9 +53,9 @@
 
 - `git diff --check`
 - `./gradlew :bluetape4k-leader-consul:test --no-daemon --console=plain`
-  - 통과: 25개 테스트.
+    - 통과: 25개 테스트.
 - `./gradlew :bluetape4k-leader-consul:check --no-daemon --console=plain`
-  - 통과.
+    - 통과.
 
 ## 후속 후보자
 

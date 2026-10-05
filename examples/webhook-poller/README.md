@@ -6,10 +6,8 @@ Distributed webhook event poller using MongoDB leader election. Demonstrates saf
 
 ## Scenario
 
-Several poller instances run the same polling loop, but only the elected leader
-claims MongoDB events. The leader atomically claims each event with
-`findOneAndUpdate`, runs the handler, marks success as `DONE`, and requeues or
-marks `FAILED` when the handler throws.
+Several poller instances run the same polling loop, but only the elected leader claims MongoDB events. The leader atomically claims each event with
+`findOneAndUpdate`, runs the handler, marks success as `DONE`, and requeues or marks `FAILED` when the handler throws.
 
 ## Example Scenario
 
@@ -60,10 +58,7 @@ val job = poller.start(applicationScope)
 poller.stopGracefully(timeout = 30.seconds)
 ```
 
-`stopGracefully` requests cancellation and waits up to the timeout. A timeout is logged as a warning;
-it does not mean cleanup has finished. After timeout or caller cancellation, restarting the same instance
-is rejected until the previous job completes. Check `isCompleted` or call `join()` on the Job returned by `start`.
-A non-positive timeout still requests cancellation. This local worker lifecycle rule does not guarantee distributed lease release.
+`stopGracefully` requests cancellation and waits up to the timeout. A timeout is logged as a warning; it does not mean cleanup has finished. After timeout or caller cancellation, restarting the same instance is rejected until the previous job completes. Check `isCompleted` or call `join()` on the Job returned by `start`. A non-positive timeout still requests cancellation. This local worker lifecycle rule does not guarantee distributed lease release.
 
 ## Demo
 
@@ -75,35 +70,34 @@ Inserts 10 fake events into a fresh collection, then runs 3 pollers concurrently
 
 ### Event ID format
 
-The demo uses `evt-<sequence>-<UUID v4>` event IDs. The sequence keeps the sample
-output readable, while `Uuid.V4.nextUUID()` supplies a fresh correlation and
-deduplication suffix on every run. The demo clears its collections before
-inserting events, and fresh suffixes keep reruns compatible with the unique
+The demo uses `evt-<sequence>-<UUID v4>` event IDs. The sequence keeps the sample output readable, while `Uuid.V4.nextUUID()` supplies a fresh correlation and deduplication suffix on every run. The demo clears its collections before inserting events, and fresh suffixes keep reruns compatible with the unique
 `eventId` index without changing the MongoDB document field.
 
 ## Configuration Options
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `nodeId` | required | Pod identifier — written to `claimedBy` for tracing |
-| `lockName` | required | Distributed leader-lock key — recommend per-collection |
-| `pollInterval` | `1.seconds` | Sleep between batch cycles when leader |
-| `batchSize` | `10` | Max events claimed per cycle |
-| `maxAttempts` | `5` | Retry cap — on exceeding, event → `FAILED` |
+| Parameter       | Default      | Description                                                |
+|-----------------|--------------|------------------------------------------------------------|
+| `nodeId`        | required     | Pod identifier — written to `claimedBy` for tracing        |
+| `lockName`      | required     | Distributed leader-lock key — recommend per-collection     |
+| `pollInterval`  | `1.seconds`  | Sleep between batch cycles when leader                     |
+| `batchSize`     | `10`         | Max events claimed per cycle                               |
+| `maxAttempts`   | `5`          | Retry cap — on exceeding, event → `FAILED`                 |
 | `claimDuration` | `30.seconds` | Lease for an in-flight claim — must exceed handler runtime |
 
 ## Failure Semantics
 
 - Handler throws → `attempts` already incremented at claim time → status transitions:
-  - `attempts >= maxAttempts` → `FAILED`, `lastError` recorded (no further claims)
-  - else → `PENDING`, `claimedBy=null`, `claimExpiresAt=null` (re-claimable next batch)
+    - `attempts >= maxAttempts` → `FAILED`, `lastError` recorded (no further claims)
+    - else → `PENDING`, `claimedBy=null`, `claimExpiresAt=null` (re-claimable next batch)
 - Leader pod dies mid-handle → `claimExpiresAt` passes → next leader reclaims (at-least-once)
 - `lockName` collisions across environments cause silent skip — namespace appropriately
 
 ## Migration Tips
 
-- **From cron-based pollers**: replace `@Scheduled` + `synchronized` with `WebhookPoller.start(scope)`. The poller already serializes via leader election.
-- **From SQS/Kafka**: model the `eventId` as the dedup key. Use a unique index on `eventId` (auto-created by `WebhookPoller`).
+- **From cron-based
+  pollers**: replace `@Scheduled` + `synchronized` with `WebhookPoller.start(scope)`. The poller already serializes via leader election.
+- **From
+  SQS/Kafka**: model the `eventId` as the dedup key. Use a unique index on `eventId` (auto-created by `WebhookPoller`).
 - **DLQ replacement**: query `status = "FAILED"` + `lastError` for postmortem. Reset to `PENDING` to retry manually.
 
 ## Dependency

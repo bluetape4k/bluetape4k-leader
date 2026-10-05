@@ -15,9 +15,9 @@ Issue #304, #305 및 #306은 동일한 Exposed JDBC 잠금/선출기 표면을 �
 ## 검증
 
 - `./gradlew :bluetape4k-leader-exposed-jdbc:test --tests 'io.bluetape4k.leader.exposed.jdbc.lock.MonotonicDeadlineTest' --no-build-cache --stacktrace`
-  - 4 합격
+    - 4 합격
 - `./gradlew :bluetape4k-leader-exposed-jdbc:test --no-build-cache --stacktrace`
-  - 231 통과
+    - 231 통과
 
 ## 향후 지침
 

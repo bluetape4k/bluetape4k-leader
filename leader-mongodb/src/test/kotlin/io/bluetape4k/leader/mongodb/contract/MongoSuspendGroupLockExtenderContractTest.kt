@@ -16,9 +16,9 @@ import org.junit.jupiter.api.TestInstance
  * `maxLeaders = 2` 로 기본 설정.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class MongoSuspendGroupLockExtenderContractTest : AbstractSuspendGroupLockExtenderContractTest() {
+class MongoSuspendGroupLockExtenderContractTest: AbstractSuspendGroupLockExtenderContractTest() {
 
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
         val mongo = AbstractMongoLeaderTest.mongoServer
     }
 

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>MagicNumber:PrometheusDashboardApp.kt:LeaderScheduledJob$100</ID>
-  </CurrentIssues>
+    <ManuallySuppressedIssues/>
+    <CurrentIssues>
+        <ID>MagicNumber:PrometheusDashboardApp.kt:LeaderScheduledJob$100</ID>
+    </CurrentIssues>
 </SmellBaseline>

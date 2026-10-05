@@ -16,22 +16,22 @@ P0 0건, P1 0건, P2 1건, P3 0건. 최종 verdict는 `WATCH`이며 PR 생성은
 
 ## 7-tier 관점
 
-| 관점 | 검토 근거 | 결과 |
-|---|---|---|
-| 정확성·계약 | `MicrometerObservationLeaderLeaseExtensionObserver`의 네 outcome mapping, NOOP fast path, `source/execution/outcome/result` bounded tags, Spring NOOP/normal/Boot post-processor 경계 테스트 | PASS |
+| 관점            | 검토 근거                                                                                                                                                                                                                                | 결과 |
+|-----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|
+| 정확성·계약     | `MicrometerObservationLeaderLeaseExtensionObserver`의 네 outcome mapping, NOOP fast path, `source/execution/outcome/result` bounded tags, Spring NOOP/normal/Boot post-processor 경계 테스트                                             | PASS |
 | 동시성·수명주기 | `IdentityHashMap` + 단일 `ReentrantLock`, idempotent handle, parent/child ref-count, primary registry, 32회 acquire-close 교차의 callback exactly-once/최종 close 이후 no-callback, 병렬 acquire/last-close 및 executor termination 검증 | PASS |
-| API·ABI | exact 2-argument source constructor, synthetic default constructor 분리, public tag constant 부재를 reflection/`javap`로 확인 | PASS |
-| 성능·안정성 | registry NOOP 조기 반환, context 초기화 시점의 등록, callback 경로에 observer 중복 없음, Micrometer 82/82·Spring 457/457 PASS | PASS |
-| 보안·개인정보 | lock name/leader ID 기본 비노출, opt-in high-cardinality redaction, exception detail opt-in, raw value low-cardinality tag 금지 | PASS |
-| 운영·통합 | `@Primary` 선택, parent registry provider, tracing/observability property, Boot ObservationRegistryPostProcessor, AOT 6/6, module `check` | PASS |
-| 유지보수·문서 | Kotlin 금지 패턴(`!!`, `runCatching`, monitor), spec/plan lifecycle amendment, lesson, Lore commit, `git diff --check` | PASS |
+| API·ABI         | exact 2-argument source constructor, synthetic default constructor 분리, public tag constant 부재를 reflection/`javap`로 확인                                                                                                            | PASS |
+| 성능·안정성     | registry NOOP 조기 반환, context 초기화 시점의 등록, callback 경로에 observer 중복 없음, Micrometer 82/82·Spring 457/457 PASS                                                                                                            | PASS |
+| 보안·개인정보   | lock name/leader ID 기본 비노출, opt-in high-cardinality redaction, exception detail opt-in, raw value low-cardinality tag 금지                                                                                                          | PASS |
+| 운영·통합       | `@Primary` 선택, parent registry provider, tracing/observability property, Boot ObservationRegistryPostProcessor, AOT 6/6, module `check`                                                                                                | PASS |
+| 유지보수·문서   | Kotlin 금지 패턴(`!!`, `runCatching`, monitor), spec/plan lifecycle amendment, lesson, Lore commit, `git diff --check`                                                                                                                   | PASS |
 
 ## 독립 리뷰 lane
 
 - implementation/API lane: `a1fdf4ba` exact head에서 P0/P1 없음 확인. 후속 `913b72d5`는 테스트/spec/lesson만 변경하며 inline delta review에서 production ABI·동시성·예외 경계를 변경하지 않음을 확인했다. 이전 compile/synchronized 및 lifecycle contract 지적은 amendment와 구현 보강으로 해소했다.
 - architecture/stability lane: `a1fdf4ba`에서 조기 registry 생성 P1은 해소됐다. 후속 `913b72d5`의 acquire-close callback exactly-once 및 stale acceptance 보정은 inline으로 exact diff를 확인했다. P0/P1 없음, P2는 accepted callback/weak-reference 증거 공백으로 한정했다.
 - Kotlin/ABI lane: `ReentrantLock`, SmartInitializingSingleton descriptor, exact constructor/private tag surface 및 anti-pattern scan을 확인했다.
-- 추가 7-tier 관점(성능, 보안, 운영, 사용자 영향): 본 리뷰에서 변경 파일과 fresh Gradle 결과를 기준으로 inline 확인했다. 후속 commit은 테스트 assertion과 문서 계약만 변경해 runtime surface·성능·보안·운영 ownership 결과를 바꾸지 않는다.
+- 추가 7-tier 관점 (성능, 보안, 운영, 사용자 영향): 본 리뷰에서 변경 파일과 fresh Gradle 결과를 기준으로 inline 확인했다. 후속 commit은 테스트 assertion과 문서 계약만 변경해 runtime surface·성능·보안·운영 ownership 결과를 바꾸지 않는다.
 - human review: N/A (1인 개발자 지시)
 - LSP diagnostics: N/A (실행 파일 미제공, compile/test/detekt로 대체)
 

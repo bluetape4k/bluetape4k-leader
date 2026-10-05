@@ -1,6 +1,8 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.requireNotNull
+import io.bluetape4k.support.requireNull
 import java.io.Serializable
 
 /**
@@ -15,7 +17,7 @@ data class LeaderState(
     val lockName: String,
     val status: LeaderStatus,
     val leader: LeaderLease? = null,
-) : Serializable {
+): Serializable {
 
     companion object {
         private const val serialVersionUID = 1L
@@ -45,8 +47,8 @@ data class LeaderState(
     init {
         lockName.requireNotBlank("lockName")
         when (status) {
-            LeaderStatus.Empty -> require(leader == null) { "leader must be null when status is Empty" }
-            LeaderStatus.Occupied -> require(leader != null) { "leader must not be null when status is Occupied" }
+            LeaderStatus.Empty -> leader.requireNull { "leader must be null when status is Empty" }
+            LeaderStatus.Occupied -> leader.requireNotNull { "leader must not be null when status is Occupied" }
         }
     }
 

@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.exposed.jdbc
 
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
@@ -8,9 +10,10 @@ import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcBackendErrorClassifier
 import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcLockExtendDelegate
+import io.bluetape4k.leader.exposed.jdbc.internal.unwrapCompletionCause
+import io.bluetape4k.leader.exposed.jdbc.internal.validateExposedLockName
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcLock
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
-import io.bluetape4k.leader.exposed.jdbc.lock.validateExposedLockName
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
@@ -22,7 +25,6 @@ import kotlinx.coroutines.CancellationException
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -42,14 +44,14 @@ class ExposedJdbcLeaderElector private constructor(
     val options: ExposedJdbcLeaderElectionOptions,
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
 ): LeaderElector,
-    LeaderBackendDiagnosticsProvider by ExposedJdbcLeaderBackendDiagnostics,
-    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by ExposedJdbcLeaderBackendDiagnostics,
+   io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
 
     override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
         io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
-    companion object : KLogging() {
+    companion object: KLogging() {
 
         internal const val EXPOSED_JDBC_FACTORY_BEAN_NAME = "exposed-jdbc-leader-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedJdbcBackendErrorClassifier)
@@ -77,7 +79,7 @@ class ExposedJdbcLeaderElector private constructor(
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
-        validateExposedLockName(lockName)
+        lockName.validateExposedLockName()
 
         val lock = ExposedJdbcLock(
             db = db,
@@ -171,7 +173,7 @@ class ExposedJdbcLeaderElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        validateExposedLockName(lockName)
+        lockName.validateExposedLockName()
 
         val lock = ExposedJdbcLock(
             db = db,
@@ -212,7 +214,7 @@ class ExposedJdbcLeaderElector private constructor(
             acquisitionFuture.thenComposeAsync({ acquired ->
                 if (!acquired) {
                     log.debug { "리더 승격 실패 (비동기). lockName=$lockName" }
-                    CompletableFuture.completedFuture(null)
+                    completableFutureOf(null)
                 } else {
                     lifecycleStarted.set(true)
                     val startedAt = Instant.now()
@@ -222,7 +224,7 @@ class ExposedJdbcLeaderElector private constructor(
                     var effectiveKey: LeaderHistoryKey? = null
                     val finishAction: (Throwable?) -> CompletableFuture<Throwable?> = { throwable ->
                         if (!terminal.compareAndSet(false, true)) {
-                            CompletableFuture.completedFuture(null)
+                            completableFutureOf(null)
                         } else {
                             LeaderLeaseAutoExtender.closeAsync(watchdog).handle { _, closeFailure ->
                                 var cleanupFailure = closeFailure?.unwrapCompletionCause()?.also { e ->
@@ -267,7 +269,7 @@ class ExposedJdbcLeaderElector private constructor(
                             "runAsyncIfLeader result was cancelled",
                         )
                         return@thenComposeAsync finishAction(cancellation).thenCompose {
-                            CompletableFuture.failedFuture(cancellation)
+                            failedCompletableFutureOf(cancellation)
                         }
                     }
 
@@ -297,7 +299,7 @@ class ExposedJdbcLeaderElector private constructor(
                         effectiveKey = key ?: fallbackKey
                     } catch (e: Throwable) {
                         return@thenComposeAsync finishAction(e).thenCompose {
-                            CompletableFuture.failedFuture(e)
+                            failedCompletableFutureOf(e)
                         }
                     }
 
@@ -306,14 +308,14 @@ class ExposedJdbcLeaderElector private constructor(
                             "runAsyncIfLeader result was cancelled before action",
                         )
                         return@thenComposeAsync finishAction(cancellation).thenCompose {
-                            CompletableFuture.failedFuture(cancellation)
+                            failedCompletableFutureOf(cancellation)
                         }
                     }
 
                     val actionFuture = runCatching { action() }
                         .getOrElse { e ->
                             return@thenComposeAsync finishAction(e).thenCompose {
-                                CompletableFuture.failedFuture(e)
+                                failedCompletableFutureOf(e)
                             }
                         }
 
@@ -322,11 +324,11 @@ class ExposedJdbcLeaderElector private constructor(
                     }.thenCompose { (value, throwable, cleanup) ->
                         cleanup.thenCompose { cleanupFailure ->
                             if (throwable != null) {
-                                CompletableFuture.failedFuture<T?>(throwable)
+                                failedCompletableFutureOf<T?>(throwable)
                             } else if (cleanupFailure != null) {
-                                CompletableFuture.failedFuture(cleanupFailure)
+                                failedCompletableFutureOf(cleanupFailure)
                             } else {
-                                CompletableFuture.completedFuture(value)
+                                completableFutureOf(value)
                             }
                         }
                     }
@@ -339,7 +341,7 @@ class ExposedJdbcLeaderElector private constructor(
             acquisitionFuture.whenComplete { acquired, _ ->
                 if (acquired == true) releaseIfUnclaimed()
             }
-            CompletableFuture.failedFuture(e)
+            failedCompletableFutureOf(e)
         }
 
         resultFuture.whenComplete { _, _ ->
@@ -356,6 +358,3 @@ class ExposedJdbcLeaderElector private constructor(
         return resultFuture
     }
 }
-
-private fun Throwable.unwrapCompletionCause(): Throwable =
-    if (this is CompletionException && cause != null) cause!! else this

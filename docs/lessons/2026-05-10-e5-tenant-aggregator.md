@@ -1,7 +1,6 @@
 # Lessons — E5 examples/tenant-aggregator
 
-날짜: 2026-05-10
-범위: Issue #158 — examples/tenant-aggregator (Exposed R2DBC + multi-tenant leader election)
+날짜: 2026-05-10 범위: Issue #158 — examples/tenant-aggregator (Exposed R2DBC + multi-tenant leader election)
 
 ## 컨텍스트
 
@@ -16,7 +15,8 @@ E5는 Epic #36 examples 시리즈의 다섯 번째 모듈로, **멀티테넌트 
 
 ## L1 — 테넌트별 독립 lockName + LeaderGroup 미사용 (E4 와 동일)
 
-`SuspendLeaderGroupElector` 는 단일 lockName 의 maxLeaders 슬롯을 공유한다. "tenant T 가 슬롯 k 에 배정되도록" 호출자가 강제할 수 없으므로, 테넌트 ↔ 슬롯 매핑이 불확정이고 결국 **둘 다 슬롯을 받지 못해 테넌트 T 가 영영 polling 안 되는** 시나리오가 가능하다.
+`SuspendLeaderGroupElector` 는 단일 lockName 의 maxLeaders 슬롯을 공유한다. "tenant T 가 슬롯 k 에 배정되도록" 호출자가 강제할 수 없으므로, 테넌트 ↔ 슬롯 매핑이 불확정이고 결국
+**둘 다 슬롯을 받지 못해 테넌트 T 가 영영 polling 안 되는** 시나리오가 가능하다.
 
 해결: 테넌트마다 별도 lockName (`"${lockNamePrefix}-${tenantId}"`)으로 단일 leader-election 을 N 번 수행한다. "tenant T 에 대해서는 정확히 1 인스턴스" 계약을 직접 표현 가능. E4 cache-warmer 와 동일한 결론이며, 본 모듈은 long-running coroutine 으로 확장한 형태.
 
@@ -31,6 +31,7 @@ E5는 Epic #36 examples 시리즈의 다섯 번째 모듈로, **멀티테넌트 
 `aggregateFunction` 에서 발생한 예외가 polling 루프 자체를 종료시키면, 일시적 실패가 영구 정지로 이어진다 (poison loop). 해결: `runAggregate(tenantId)` 헬퍼에서 예외를 catch 하고 log warn 후 swallow — 단 `CancellationException` 은 즉시 re-throw 하여 cancellation 무결성 유지.
 
 `runIfLeader` 자체 (백엔드 장애로 인한 R2DBC 예외 등) 도 동일 정책: log warn 후 다음 사이클 재시도. 결국 두 단계 격리:
+
 1. `runAggregate` — 사용자 함수 예외
 2. tenantLoop 의 catch — 락 인프라 예외
 
@@ -75,12 +76,13 @@ E4 cache-warmer 작업에서 settings.gradle.kts / ci.yml / nightly.yml 등록�
 
 ## 검증 결과
 
-| Dialect | Pass | 소요 시간 |
-|---------|------|----------|
-| H2 | 10/10 | 5.4s |
-| PostgreSQL | 10/10 | 7.9s |
+| Dialect    | Pass  | 소요 시간 |
+|------------|-------|-----------|
+| H2         | 10/10 | 5.4s      |
+| PostgreSQL | 10/10 | 7.9s      |
 
 테스트 커버:
+
 1. 단일 인스턴스 — 모든 테넌트 polling 시작
 2. 3 인스턴스 동시 — 테넌트당 정확히 1 인스턴스 (concurrent runners == 0 violations)
 3. aggregate 예외 — 다음 사이클 계속 (poison 방지)

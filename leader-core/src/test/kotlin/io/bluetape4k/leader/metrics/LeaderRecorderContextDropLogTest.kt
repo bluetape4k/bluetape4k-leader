@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.metrics
 
+import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeInstanceOf
 import io.bluetape4k.leader.identity.LeaderIdSource
 import io.bluetape4k.logging.KLogging
@@ -54,7 +54,8 @@ class LeaderRecorderContextDropLogTest {
     @Test
     fun `Empty sentinel is Unknown - no drop counted`() {
         val ctx = LeaderAopMetricsContext.Empty
-        (ctx is LeaderAopMetricsContext.Unknown).shouldBeTrue()
+        ctx.shouldBeInstanceOf<LeaderAopMetricsContext.Unknown>()
+
         dropLog.warnOnDrop(FakeRecorder::class, ctx)
         dropLog.droppedCount() shouldBeEqualTo 0L
     }
@@ -70,7 +71,7 @@ class LeaderRecorderContextDropLogTest {
     fun `global holder - setGlobal replaces instance`() {
         val fresh = LeaderRecorderContextDropLog()
         LeaderRecorderContextDropLog.setGlobal(fresh)
-        (LeaderRecorderContextDropLog.global() === fresh).shouldBeTrue()
+        LeaderRecorderContextDropLog.global() shouldBe fresh
     }
 
     @Test
@@ -85,15 +86,15 @@ class LeaderRecorderContextDropLogTest {
 
     @Test
     fun `Unknown is a data object singleton`() {
-        (LeaderAopMetricsContext.Unknown === LeaderAopMetricsContext.Unknown).shouldBeTrue()
+        LeaderAopMetricsContext.Unknown shouldBe LeaderAopMetricsContext.Unknown
     }
 
     @Test
     fun `Identified is not Unknown`() {
         val ctx = LeaderAopMetricsContext.Identified("x", LeaderIdSource.LITERAL)
 
-        ctx shouldNotBeInstanceOf LeaderAopMetricsContext.Unknown::class
-        ctx shouldBeInstanceOf LeaderAopMetricsContext.Identified::class
+        ctx.shouldNotBeInstanceOf<LeaderAopMetricsContext.Unknown>()
+        ctx.shouldBeInstanceOf<LeaderAopMetricsContext.Identified>()
     }
 
     private class FakeRecorder

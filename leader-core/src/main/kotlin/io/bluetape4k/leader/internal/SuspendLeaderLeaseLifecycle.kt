@@ -7,11 +7,12 @@ import io.bluetape4k.leader.LeaderLeaseDefaults
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseHandle
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.support.requireGt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import io.bluetape4k.support.requireGt
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
@@ -23,7 +24,7 @@ internal class SuspendLeaderLeaseLifecycle(
     private val monotonicNanos: () -> Long = System::nanoTime,
 ) {
 
-    private companion object {
+    private companion object: KLoggingChannel() {
         const val NANOS_PER_MILLISECOND = 1_000_000L
     }
 
@@ -39,8 +40,12 @@ internal class SuspendLeaderLeaseLifecycle(
         private val options: LeaderElectionOptions,
         private val callbacks: SuspendLeaseBackendCallbacks,
         private val monotonicNanos: () -> Long,
-    ) : SuspendLeaderLeaseHandle {
-        private enum class State { LIVE, CLOSING, CLOSED }
+    ): SuspendLeaderLeaseHandle {
+        private enum class State {
+            LIVE,
+            CLOSING,
+            CLOSED
+        }
 
         private val state = AtomicReference(State.LIVE)
         private val status = AtomicReference(LeaseOwnershipStatus.HELD)
@@ -51,7 +56,7 @@ internal class SuspendLeaderLeaseLifecycle(
         override val acquiredAt: Instant get() = backend.acquiredAt
 
         init {
-            val delegate = object : SuspendExtendDelegate {
+            val delegate = object: SuspendExtendDelegate {
                 override val lastExtendDeadline = AtomicReference(Instant.EPOCH)
                 override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = extend(lockAtMostFor)
                 override suspend fun isHeldSuspend(): Boolean = isStillHeld()
@@ -100,9 +105,9 @@ internal class SuspendLeaderLeaseLifecycle(
                 }
                 LeaderLeaseAutoExtender.closeSuspend(watchdog)
                 val remaining = (
-                    options.minLeaseTime.inWholeNanoseconds -
-                        (monotonicNanos() - backend.acquiredAtNanos)
-                    )
+                        options.minLeaseTime.inWholeNanoseconds -
+                                (monotonicNanos() - backend.acquiredAtNanos)
+                        )
                     .coerceAtLeast(0L)
                 if (remaining > 0L) delay(remaining / NANOS_PER_MILLISECOND)
                 val releaseOutcome = try {

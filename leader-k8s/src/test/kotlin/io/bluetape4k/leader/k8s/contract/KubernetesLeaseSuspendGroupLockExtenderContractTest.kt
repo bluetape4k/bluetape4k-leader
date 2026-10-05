@@ -5,6 +5,8 @@ import io.bluetape4k.leader.contract.AbstractSuspendGroupLockExtenderContractTes
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.k8s.KubernetesLeaseGroupOptions
 import io.bluetape4k.leader.k8s.KubernetesLeaseSuspendLeaderGroupElector
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.closeSafe
 import io.fabric8.kubernetes.client.KubernetesClient
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Tag
@@ -15,7 +17,10 @@ import org.junit.jupiter.api.TestInstance
  */
 @Tag("k8s")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class KubernetesLeaseSuspendGroupLockExtenderContractTest : AbstractSuspendGroupLockExtenderContractTest() {
+class KubernetesLeaseSuspendGroupLockExtenderContractTest: AbstractSuspendGroupLockExtenderContractTest() {
+
+    companion object: KLogging()
+
     private val client: KubernetesClient = KubernetesContractSupport.newClient()
 
     override val elector: SuspendLeaderGroupElector =
@@ -29,6 +34,6 @@ class KubernetesLeaseSuspendGroupLockExtenderContractTest : AbstractSuspendGroup
 
     @AfterAll
     fun closeClient() {
-        client.close()
+        client.closeSafe()
     }
 }

@@ -12,9 +12,9 @@ import org.junit.jupiter.api.TestInstance
  * [AbstractSuspendGroupLockExtenderContractTest] 의 Lettuce backend 구현 — T7 PR 2 (Issue #79).
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LettuceSuspendGroupLockExtenderContractTest : AbstractSuspendGroupLockExtenderContractTest() {
+class LettuceSuspendGroupLockExtenderContractTest: AbstractSuspendGroupLockExtenderContractTest() {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         val redis = AbstractLettuceLeaderTest.redis
     }
 

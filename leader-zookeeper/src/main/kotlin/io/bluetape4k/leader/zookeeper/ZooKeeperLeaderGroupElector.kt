@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.zookeeper
 
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -11,6 +12,8 @@ import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.leader.zookeeper.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
+import io.bluetape4k.leader.zookeeper.runIfLeaderGroup as currentRunIfLeaderGroup
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperSlotExtendDelegate
 import io.bluetape4k.logging.KLogging
@@ -19,7 +22,6 @@ import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requirePositiveNumber
 import org.apache.curator.framework.CuratorFramework
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2
-import org.apache.curator.framework.recipes.locks.Lease
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
@@ -36,7 +38,7 @@ class ZooKeeperLeaderGroupElector private constructor(
     private val basePath: String,
     options: LeaderGroupElectionOptions,
 ): LeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client) {
+   LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client) {
 
     companion object: KLogging() {
         const val DEFAULT_BASE_PATH = "/leader-group-election"
@@ -68,8 +70,7 @@ class ZooKeeperLeaderGroupElector private constructor(
         }
     }
 
-    override fun availableSlots(lockName: String): Int =
-        maxLeaders - activeCount(lockName)
+    override fun availableSlots(lockName: String): Int = maxLeaders - activeCount(lockName)
 
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
@@ -81,6 +82,7 @@ class ZooKeeperLeaderGroupElector private constructor(
         val semaphore = InterProcessSemaphoreV2(client, path, maxLeaders)
 
         log.debug { "ZooKeeper group lease 획득을 요청합니다. path=$path, maxLeaders=$maxLeaders" }
+
         val lease = try {
             semaphore.acquire(waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         } catch (e: InterruptedException) {
@@ -155,14 +157,11 @@ class ZooKeeperLeaderGroupElector private constructor(
     ): CompletableFuture<T?> {
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         return LeaderFutureBridge.propagateCancellation(
-            CompletableFuture.supplyAsync(
-                {
-                    runIfLeader(lockName) {
-                        cancellationRelay.invoke { submitZooKeeperAction(lockName, executor, action) }.join()
-                    }
-                },
-                VirtualThreadExecutor,
-            ),
+            futureOf(VirtualThreadExecutor) {
+                runIfLeader(lockName) {
+                    cancellationRelay.invoke { submitZooKeeperAction(lockName, executor, action) }.join()
+                }
+            },
             cancellationRelay,
         )
     }
@@ -171,54 +170,42 @@ class ZooKeeperLeaderGroupElector private constructor(
         InterProcessSemaphoreV2(client, ZooKeeperPaths.electionPath(basePath, lockName), maxLeaders)
 }
 
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-inline fun <T> CuratorFramework.runIfLeaderGroup(
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runIfLeaderGroup")
+inline fun <T> CuratorFramework.legacyRunIfLeaderGroupByPath(
     path: ZooKeeperElectionPath,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     crossinline action: () -> T,
-): T? =
-    ZooKeeperLeaderGroupElector(this, options, path.basePath).runIfLeader(path.lockName) { action() }
+): T? = this.currentRunIfLeaderGroup(path, options, action)
 
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-inline fun <T> CuratorFramework.runIfLeaderGroup(
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("runIfLeaderGroup")
+inline fun <T> CuratorFramework.legacyRunIfLeaderGroupByName(
     lockName: String,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     basePath: String = ZooKeeperLeaderGroupElector.DEFAULT_BASE_PATH,
     crossinline action: () -> T,
-): T? =
-    runIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), options, action)
+): T? = this.currentRunIfLeaderGroup(lockName, options, basePath, action)
 
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-fun <T> CuratorFramework.runAsyncIfLeaderGroup(
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("runAsyncIfLeaderGroup")
+fun <T> CuratorFramework.legacyRunAsyncIfLeaderGroupByPath(
     path: ZooKeeperElectionPath,
     executor: Executor = VirtualThreadExecutor,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> =
-    ZooKeeperLeaderGroupElector(this, options, path.basePath).runAsyncIfLeader(path.lockName, executor, action)
+): CompletableFuture<T?> = this.currentRunAsyncIfLeaderGroup(path, executor, options, action)
 
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-fun <T> CuratorFramework.runAsyncIfLeaderGroup(
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("runAsyncIfLeaderGroup")
+fun <T> CuratorFramework.legacyRunAsyncIfLeaderGroupByName(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     basePath: String = ZooKeeperLeaderGroupElector.DEFAULT_BASE_PATH,
     action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> =
-    runAsyncIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), executor, options, action)
+): CompletableFuture<T?> = this.currentRunAsyncIfLeaderGroup(lockName, executor, options, basePath, action)

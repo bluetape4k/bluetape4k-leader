@@ -21,12 +21,13 @@ abstract class AbstractMigrationGateTest {
         @JvmStatic
         fun enableDialects(): List<TestDB> {
             val filter = System.getenv("LEADER_TEST_DB")?.uppercase()
-                ?: return listOf(TestDB.H2, TestDB.POSTGRESQL)
+                ?: return listOf(TestDB.H2, TestDB.POSTGRESQL, TestDB.MYSQL_V8)
 
             return when (filter) {
                 "H2" -> listOf(TestDB.H2)
                 "POSTGRESQL", "POSTGRES" -> listOf(TestDB.POSTGRESQL)
-                else -> listOf(TestDB.H2, TestDB.POSTGRESQL)
+                "MYSQL" -> listOf(TestDB.MYSQL_V8)
+                else -> listOf(TestDB.H2, TestDB.POSTGRESQL, TestDB.MYSQL_V8)
             }
         }
     }
@@ -37,7 +38,7 @@ abstract class AbstractMigrationGateTest {
      * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
      */
     object MigrationMarkerTable: Table("migration_marker_example") {
-        val migrationId = varchar("migration_id", 100)
+        val migrationId = varchar("migration_id", 255)
         override val primaryKey = PrimaryKey(migrationId)
     }
 

@@ -1,20 +1,21 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
-import io.bluetape4k.leader.remainingMinLeaseTime
-import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.jdbc.internal.MonotonicDeadline
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -22,15 +23,13 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
-import java.time.Instant
 import java.sql.Timestamp
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
+import kotlin.time.Duration
 
 /**
  * `ExposedJdbcLock`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -54,7 +53,7 @@ internal class ExposedJdbcLock internal constructor(
     /**
      * `token` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
-    val token: String = Base58.randomString(8)
+    val token: String = Base58.randomString(16)
 
     /**
      * `tryLock` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
@@ -93,7 +92,7 @@ internal class ExposedJdbcLock internal constructor(
             }
 
             if (acquired) {
-                log.debug { "락 획득 성공: lockName=$lockName, token=${token.take(8)}" }
+                log.debug { "락 획득 성공: lockName=$lockName, token=$token" }
                 return true
             }
 
@@ -226,9 +225,9 @@ internal class ExposedJdbcLock internal constructor(
                 }
             }
             if (matched == 0) {
-                log.warn { "락 해제 실패 — 토큰 불일치 또는 이미 만료됨: lockName=$lockName, token=${token.take(8)}" }
+                log.warn { "락 해제 실패 — 토큰 불일치 또는 이미 만료됨: lockName=$lockName, token=$token" }
             } else {
-                log.debug { "락 해제 성공: lockName=$lockName, token=${token.take(8)}" }
+                log.debug { "락 해제 성공: lockName=$lockName, token=$token" }
             }
         } catch (e: CancellationException) {
             throw e
@@ -252,8 +251,8 @@ internal class ExposedJdbcLock internal constructor(
             val updated = LeaderLockTable.update(
                 where = {
                     (LeaderLockTable.lockName eq lockNameVal) and
-                        (LeaderLockTable.token eq tokenVal) and
-                        (LeaderLockTable.lockedUntil greater now)  // R6: expired row revival 차단
+                            (LeaderLockTable.token eq tokenVal) and
+                            (LeaderLockTable.lockedUntil greater now)  // R6: expired row revival 차단
                 }
             ) {
                 it[LeaderLockTable.lockedUntil] = newLockedUntil
@@ -267,11 +266,18 @@ internal class ExposedJdbcLock internal constructor(
         }
     }
 
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("lockName", lockName)
+            .add("lockOwner", lockOwner)
+            .add("useDbTime", useDbTime)
+            .add("retryStrategy", retryStrategy)
+            .toString()
+    }
 }
 
-// Keep the 0.4.x file-facade ABI while the shared current-time implementation lives in
-// ExposedJdbcCurrentTime.kt. These private declarations intentionally retain compiler-generated
-// accessors used by already-compiled callers.
+// Keep the 1.0.0 private file-facade helpers while current-time behavior lives in
+// ExposedJdbcCurrentTime.kt. These declarations add no public API.
 @Suppress("unused")
 private fun JdbcTransaction.currentTime(): Instant = dbCurrentTimestamp()
 

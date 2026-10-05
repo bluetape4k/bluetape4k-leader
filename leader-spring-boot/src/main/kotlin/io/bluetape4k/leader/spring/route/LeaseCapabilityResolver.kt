@@ -4,10 +4,12 @@ import io.bluetape4k.leader.LeaderLeaseAcquirer
 import io.bluetape4k.leader.LeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
+import io.bluetape4k.logging.KLogging
 import org.springframework.beans.factory.BeanNotOfRequiredTypeException
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException
+import org.springframework.beans.factory.getBean
 
 /**
  * LEASE selector의 bean 선택과 capability preflight를 한 곳에서 수행합니다.
@@ -18,12 +20,13 @@ import org.springframework.beans.factory.NoUniqueBeanDefinitionException
 internal class LeaseCapabilityResolver(
     private val beanFactory: ListableBeanFactory,
 ) {
+    companion object: KLogging()
 
     @Suppress("ReturnCount", "ThrowsCount")
     fun select(electorBean: String): LeaderLeaseAcquirer {
         val acquirer = if (electorBean.isNotBlank()) {
             try {
-                beanFactory.getBean(electorBean, LeaderLeaseAcquirer::class.java)
+                beanFactory.getBean<LeaderLeaseAcquirer>(electorBean)
             } catch (_: BeanNotOfRequiredTypeException) {
                 throw unsupported("Bean '$electorBean' does not expose LeaderLeaseAcquirer")
             } catch (_: NoSuchBeanDefinitionException) {
@@ -34,7 +37,7 @@ internal class LeaseCapabilityResolver(
             }
         } else {
             try {
-                beanFactory.getBean(LeaderLeaseAcquirer::class.java)
+                beanFactory.getBean<LeaderLeaseAcquirer>()
             } catch (e: NoUniqueBeanDefinitionException) {
                 val names = e.beanNamesFound.orEmpty().sorted()
                 throw LeaderRouteGuardConfigurationException(
@@ -52,7 +55,7 @@ internal class LeaseCapabilityResolver(
     fun selectSuspend(electorBean: String): SuspendLeaderLeaseAcquirer? {
         val acquirer = if (electorBean.isNotBlank()) {
             try {
-                beanFactory.getBean(electorBean, SuspendLeaderLeaseAcquirer::class.java)
+                beanFactory.getBean<SuspendLeaderLeaseAcquirer>(electorBean)
             } catch (_: BeanNotOfRequiredTypeException) {
                 return null
             } catch (_: NoSuchBeanDefinitionException) {

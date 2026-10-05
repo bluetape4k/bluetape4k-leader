@@ -5,8 +5,8 @@
 - 분기: `feature/issue-537-spring-route-guards`
 - 베이스: `ad024ca9`의 `develop`
 - 승인된 아티팩트:
-  - `docs/superpowers/specs/2026-07-15-issue-537-spring-route-guards-design.md`
-  - `docs/superpowers/plans/2026-07-15-issue-537-spring-route-guards-plan.md`
+    - `docs/superpowers/specs/2026-07-15-issue-537-spring-route-guards-design.md`
+    - `docs/superpowers/plans/2026-07-15-issue-537-spring-route-guards-plan.md`
 - 기본 모듈: `leader-spring-boot`
 - 계약 변경 지원: 핵심 감사 상태 기능과 로컬, Consul, DynamoDB, Kubernetes Lease, 수신기, 테넌트 범위 및 Micrometer 지원
 - 명시적 제외: #606의 리디렉션/ID 메타데이터 및 #607의 요청 경로 리스 획득
@@ -15,30 +15,30 @@
 
 ## 성능 및 안정성 검사
 
-| Priority | Surface | Lens | Finding | Resolution / evidence |
-|---|---|---|---|---|
-| P2 | `StateLeaderRouteAuthority` | performance | `STATE` adds one backend state lookup per guarded request. | Exactly one read is enforced by interaction tests; no cache, retry, acquisition, extension, release, or background worker was added. README guidance requires route-scoped use and records the best-effort cost. |
-| P2 | WebFlux adapter | performance/stability | A synchronous authority could block an event-loop thread. | Evaluation is deferred until subscription and offloaded to `boundedElastic`; tests prove handler subscription occurs only after `Allowed`. |
-| P1, repaired | state capability decorators | correctness/stability | A listener wrapper could advertise audit-state capability while interface bridge defaults discarded `LeaderSlot.leaderId`. | Slot-aware sync, async, suspend, and result overloads now delegate the full slot. Local async and decorated regression tests read the exact audit identity back from state. |
-| P1, repaired | MVC/WebFlux adapters | cancellation | Normalizing every throwable would convert cancellation/interruption into a rejection. | Cancellation is rethrown, interruption restores the thread flag, and only ordinary failures become `Unavailable`; pre-evaluation, during-evaluation, and post-subscription tests pass. |
+| Priority     | Surface                     | Lens                  | Finding                                                                                                                    | Resolution / evidence                                                                                                                                                                                            |
+|--------------|-----------------------------|-----------------------|----------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| P2           | `StateLeaderRouteAuthority` | performance           | `STATE` adds one backend state lookup per guarded request.                                                                 | Exactly one read is enforced by interaction tests; no cache, retry, acquisition, extension, release, or background worker was added. README guidance requires route-scoped use and records the best-effort cost. |
+| P2           | WebFlux adapter             | performance/stability | A synchronous authority could block an event-loop thread.                                                                  | Evaluation is deferred until subscription and offloaded to `boundedElastic`; tests prove handler subscription occurs only after `Allowed`.                                                                       |
+| P1, repaired | state capability decorators | correctness/stability | A listener wrapper could advertise audit-state capability while interface bridge defaults discarded `LeaderSlot.leaderId`. | Slot-aware sync, async, suspend, and result overloads now delegate the full slot. Local async and decorated regression tests read the exact audit identity back from state.                                      |
+| P1, repaired | MVC/WebFlux adapters        | cancellation          | Normalizing every throwable would convert cancellation/interruption into a rejection.                                      | Cancellation is rethrown, interruption restores the thread flag, and only ordinary failures become `Unavailable`; pre-evaluation, during-evaluation, and post-subscription tests pass.                           |
 
 새로운 재시도 루프, 공유 캐시, 무제한 버퍼, 리스 변형, 감시 또는 요청 소유 리소스가 추가되지 않았습니다. 최종 성능/안정성 결과: P0=0, P1=0.
 
 ## 사양 및 계획 검증
 
-| Requirement | Implementation and proof | Status |
-|---|---|---|
-| Disabled default | Conditional auto-configuration and disabled-context tests | PASS |
-| Strict `STATE` / `CUSTOM` separation | Explicit mode selector and mixed/missing/ambiguous startup matrix | PASS |
-| Audit-state capability | Conservative Core default, capable backend declarations, preserving decorators, startup and constructor invariants | PASS |
-| Passive default authority | One `state(lockName)` read, exact audit ID comparison, strict mock verification | PASS |
-| MVC semantics | Route-scoped interceptor, one handler invocation only for `Allowed`, empty bounded status response | PASS |
-| WebFlux semantics | Deferred/offloaded filter, no rejected handler subscription, cancellation preservation | PASS |
-| Java interoperability | Java authority returning `null` is normalized to `Unavailable` and rejected | PASS |
-| Configuration selection | Explicit, unique, and primary elector/authority selection tests prove which candidate is used | PASS |
-| Documentation parity | English/Korean README sections cover identical modes, errors, statuses, capability limits, process-incarnation identity, and caveats | PASS |
-| Diagram | Existing Spring architecture SVG and 2x PNG show exclusive authority inputs and shared route adapters | PASS |
-| Scope discipline | Redirect and request-path acquisition remain in #606/#607; no module, BOM, publishing, or workflow change | PASS |
+| Requirement                          | Implementation and proof                                                                                                             | Status |
+|--------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|--------|
+| Disabled default                     | Conditional auto-configuration and disabled-context tests                                                                            | PASS   |
+| Strict `STATE` / `CUSTOM` separation | Explicit mode selector and mixed/missing/ambiguous startup matrix                                                                    | PASS   |
+| Audit-state capability               | Conservative Core default, capable backend declarations, preserving decorators, startup and constructor invariants                   | PASS   |
+| Passive default authority            | One `state(lockName)` read, exact audit ID comparison, strict mock verification                                                      | PASS   |
+| MVC semantics                        | Route-scoped interceptor, one handler invocation only for `Allowed`, empty bounded status response                                   | PASS   |
+| WebFlux semantics                    | Deferred/offloaded filter, no rejected handler subscription, cancellation preservation                                               | PASS   |
+| Java interoperability                | Java authority returning `null` is normalized to `Unavailable` and rejected                                                          | PASS   |
+| Configuration selection              | Explicit, unique, and primary elector/authority selection tests prove which candidate is used                                        | PASS   |
+| Documentation parity                 | English/Korean README sections cover identical modes, errors, statuses, capability limits, process-incarnation identity, and caveats | PASS   |
+| Diagram                              | Existing Spring architecture SVG and 2x PNG show exclusive authority inputs and shared route adapters                                | PASS   |
+| Scope discipline                     | Redirect and request-path acquisition remain in #606/#607; no module, BOM, publishing, or workflow change                            | PASS   |
 
 ## 독립적 리뷰 융합
 
@@ -48,52 +48,52 @@
 
 최종 독립 결과:
 
-| Lane | Verdict | P0 | P1 | P2 |
-|---|---|---:|---:|---:|
-| Code review | APPROVE | 0 | 0 | 0 |
-| Architecture review | CLEAR | 0 | 0 | 0 |
+| Lane                | Verdict | P0 | P1 | P2 |
+|---------------------|---------|---:|---:|---:|
+| Code review         | APPROVE |  0 |  0 |  0 |
+| Architecture review | CLEAR   |  0 |  0 |  0 |
 
 두 최종 패스는 모두 읽기 전용이었습니다. 슬롯 ID, 비동기 결과 분류, 알림 카디널리티, 취소 동작, 생성자 적용 및 공개 API 호환성을 독립적으로 검증했습니다.
 
 ## 6개 렌즈 최종 검토
 
-| Lens | P0 | P1 | P2 | Integrated result |
-|---|---:|---:|---:|---|
-| Performance | 0 | 0 | 0 | One uncached state read is explicit and tested; WebFlux offloads synchronous evaluation. |
-| Stability | 0 | 0 | 0 | Invalid configurations fail at startup; cancellation/interruption and listener identity are preserved. |
-| Security | 0 | 0 | 0 | Rejections expose no leader ID, location, exception, or body; occupancy alone never authorizes. |
-| Operator/Ops | 0 | 0 | 0 | Stable error codes, safe status set, supported backend list, and rollback-by-disable are documented. |
-| Developer/API | 0 | 0 | 0 | APIs are additive; STATE is the default, CUSTOM is an explicit SPI, and mixing is an error. |
-| User/caller | 0 | 0 | 0 | MVC/WebFlux usage, route scope, process-incarnation identity, and non-atomic caveats are aligned in both locales. |
+| Lens          | P0 | P1 | P2 | Integrated result                                                                                                 |
+|---------------|---:|---:|---:|-------------------------------------------------------------------------------------------------------------------|
+| Performance   |  0 |  0 |  0 | One uncached state read is explicit and tested; WebFlux offloads synchronous evaluation.                          |
+| Stability     |  0 |  0 |  0 | Invalid configurations fail at startup; cancellation/interruption and listener identity are preserved.            |
+| Security      |  0 |  0 |  0 | Rejections expose no leader ID, location, exception, or body; occupancy alone never authorizes.                   |
+| Operator/Ops  |  0 |  0 |  0 | Stable error codes, safe status set, supported backend list, and rollback-by-disable are documented.              |
+| Developer/API |  0 |  0 |  0 | APIs are additive; STATE is the default, CUSTOM is an explicit SPI, and mixing is an error.                       |
+| User/caller   |  0 |  0 |  0 | MVC/WebFlux usage, route scope, process-incarnation identity, and non-atomic caveats are aligned in both locales. |
 
 ## 다이어그램 증거 원장
 
-| Check | Result |
-|---|---|
-| SVG XML validation | PASS |
-| Connector audit | PASS: markers=4, connectors=5, cards=17, intrusions=0, crossings=0 |
-| Geometry audit | PASS: `geometry_failures=0` |
-| Endpoint audit | PASS: 1 file |
-| Mixed-corner audit | PASS: failures=0; this SVG uses no path-level `Q` bends |
-| Raster pair | PASS: SVG 1320x1360, PNG 2640x2720, 2x, sRGB |
+| Check                   | Result                                                                                                                        |
+|-------------------------|-------------------------------------------------------------------------------------------------------------------------------|
+| SVG XML validation      | PASS                                                                                                                          |
+| Connector audit         | PASS: markers=4, connectors=5, cards=17, intrusions=0, crossings=0                                                            |
+| Geometry audit          | PASS: `geometry_failures=0`                                                                                                   |
+| Endpoint audit          | PASS: 1 file                                                                                                                  |
+| Mixed-corner audit      | PASS: failures=0; this SVG uses no path-level `Q` bends                                                                       |
+| Raster pair             | PASS: SVG 1320x1360, PNG 2640x2720, 2x, sRGB                                                                                  |
 | Full-size visual review | PASS: text fits, all arrowheads/connectors are visible, and the authority band remains distinct from the woven execution path |
 
 ## 새로운 검증
 
-| Command / gate | Result |
-|---|---|
-| Core full test | PASS, 713 tests |
-| Consul full test | PASS, 64 tests |
-| DynamoDB full test | PASS, 30 tests |
-| Kubernetes unit test | PASS, 13 tests |
-| Kubernetes K3s integration test | PASS, 21 tests |
-| Micrometer full test | PASS, 76 tests |
-| Spring Boot full test | PASS, 422 tests |
-| Spring Boot AOT test | PASS, 6 tests |
-| Spring Boot module build | PASS |
-| Root Detekt command | PASS command; root task reports `NO-SOURCE` and is not claimed as Kotlin source coverage |
-| Diagram audits and full-size review | PASS |
-| `git diff --check` | PASS |
+| Command / gate                      | Result                                                                                   |
+|-------------------------------------|------------------------------------------------------------------------------------------|
+| Core full test                      | PASS, 713 tests                                                                          |
+| Consul full test                    | PASS, 64 tests                                                                           |
+| DynamoDB full test                  | PASS, 30 tests                                                                           |
+| Kubernetes unit test                | PASS, 13 tests                                                                           |
+| Kubernetes K3s integration test     | PASS, 21 tests                                                                           |
+| Micrometer full test                | PASS, 76 tests                                                                           |
+| Spring Boot full test               | PASS, 422 tests                                                                          |
+| Spring Boot AOT test                | PASS, 6 tests                                                                            |
+| Spring Boot module build            | PASS                                                                                     |
+| Root Detekt command                 | PASS command; root task reports `NO-SOURCE` and is not claimed as Kotlin source coverage |
+| Diagram audits and full-size review | PASS                                                                                     |
+| `git diff --check`                  | PASS                                                                                     |
 
 하나의 이전 Core 실행과 하나의 이전 Spring 실행이 모든 테스트 사례를 완료했지만 Gradle는 `in-progress-results-generic.bin`를 잃었습니다. 두 실행 모두 검증 증거로 인정되지 않았습니다. 종료 코드 0이 관찰된 격리된 재실행은 위에 나열된 결과입니다.
 

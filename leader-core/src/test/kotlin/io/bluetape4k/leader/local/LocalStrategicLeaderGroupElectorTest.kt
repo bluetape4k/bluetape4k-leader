@@ -1,8 +1,9 @@
 package io.bluetape4k.leader.local
 
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.fail
 import io.bluetape4k.assertions.shouldBeEmpty
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
@@ -11,6 +12,8 @@ import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.GroupElectionStrategy
 import io.bluetape4k.leader.strategy.StrategicGroupElectionResult
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.utils.Runtimex
 import kotlinx.coroutines.CancellationException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -18,6 +21,8 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
 class LocalStrategicLeaderGroupElectorTest {
+
+    companion object: KLogging()
 
     private val lockName = "strategic-group-" + Base58.randomString(8)
     private lateinit var node1: LocalStrategicLeaderGroupElector
@@ -60,8 +65,9 @@ class LocalStrategicLeaderGroupElectorTest {
     @Test
     fun `선택되지 않은 node는 successCount를 갱신하지 않는다`() {
         registerAll()
+
         node3.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 2) {
-            error("실행되면 안 됨")
+            fail("실행되면 안 됨")
         }.shouldBeNull()
 
         node3.listCandidates(lockName)
@@ -124,7 +130,7 @@ class LocalStrategicLeaderGroupElectorTest {
 
     @Test
     fun `refreshCandidate와 updateResult 동시 호출에서도 결과 카운터를 잃지 않는다`() {
-        val workers = 8
+        val workers = 2 * Runtimex.availableProcessors
         val rounds = 100
         node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
 
@@ -148,7 +154,12 @@ class LocalStrategicLeaderGroupElectorTest {
             .workers(2)
             .rounds(100)
             .addAll(
-                { node1.refreshCandidate(lockName, CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok"))) },
+                {
+                    node1.refreshCandidate(
+                        lockName,
+                        CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok"))
+                    )
+                },
                 { node1.unregisterCandidate(lockName, node1.nodeId) },
             )
             .run()
@@ -183,7 +194,9 @@ class LocalStrategicLeaderGroupElectorTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            node1.runIfLeader(lockName, invalidStrategy) { error("실행되면 안 됨") }
+            node1.runIfLeader(lockName, invalidStrategy) {
+                fail("실행되면 안 됨")
+            }
         }
     }
 }

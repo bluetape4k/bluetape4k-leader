@@ -8,17 +8,18 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.hazelcast.internal.HazelcastBackendErrorClassifier
 import io.bluetape4k.leader.hazelcast.internal.HazelcastSuspendSlotExtendDelegate
 import io.bluetape4k.leader.hazelcast.lock.HazelcastSuspendLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.leader.hazelcast.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
-import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -35,8 +36,8 @@ import kotlinx.coroutines.withContext
 class HazelcastSuspendLeaderGroupElector private constructor(
     private val hazelcast: HazelcastInstance,
     options: LeaderGroupElectionOptions,
-) : SuspendLeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by HazelcastLeaderBackendDiagnostics(hazelcast) {
+): SuspendLeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by HazelcastLeaderBackendDiagnostics(hazelcast) {
 
     companion object: KLoggingChannel() {
         internal const val HAZELCAST_SUSPEND_GROUP_FACTORY_BEAN_NAME = "hazelcast-suspend-leader-group-elector"
@@ -70,7 +71,7 @@ class HazelcastSuspendLeaderGroupElector private constructor(
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
-        lockName.requireNotBlank("lockName")
+        lockName.validateLockName()
 
         val slotWaitTime = waitTime / maxLeaders
         log.debug { "리더 그룹 슬롯 획득을 요청합니다 (suspend). lockName=$lockName, maxLeaders=$maxLeaders" }
@@ -121,6 +122,7 @@ class HazelcastSuspendLeaderGroupElector private constructor(
             slotId = slot.toString(),
             extendDelegate = delegate,
         )
+
         // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
         val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
 
@@ -145,16 +147,11 @@ class HazelcastSuspendLeaderGroupElector private constructor(
     }
 }
 
-/**
- * `선언` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend inline fun <T> HazelcastInstance.suspendRunIfLeaderGroup(
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeaderGroup")
+suspend inline fun <T> HazelcastInstance.legacySuspendRunIfLeaderGroup(
     lockName: String,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     crossinline action: suspend () -> T,
-): T? {
-    lockName.requireNotBlank("lockName")
-    return HazelcastSuspendLeaderGroupElector(this, options).runIfLeader(lockName) { action() }
-}
+): T? = this.currentSuspendRunIfLeaderGroup(lockName, options, action)

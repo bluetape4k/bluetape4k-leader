@@ -23,7 +23,7 @@ class StatsAggregator {
      *
      * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
-    suspend fun aggregate() {
+    fun aggregate() {
         val now = Instant.now()
         val current = runCount.incrementAndGet()
         lastRunAt.set(now)

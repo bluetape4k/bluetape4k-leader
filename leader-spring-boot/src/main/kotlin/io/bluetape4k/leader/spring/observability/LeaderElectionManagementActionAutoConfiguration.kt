@@ -103,7 +103,7 @@ class LeaderElectionManagementActionAutoConfiguration {
 /** core observer의 `CORE` surface를 Spring adapter 경계로 정규화합니다. */
 private class SpringSurfaceObserver(
     private val delegate: LeaderManagementActionObserver,
-) : LeaderManagementActionObserver {
+): LeaderManagementActionObserver {
 
     override fun onResult(observation: LeaderManagementActionObservation) {
         delegate.onResult(observation.withSpringSurface())

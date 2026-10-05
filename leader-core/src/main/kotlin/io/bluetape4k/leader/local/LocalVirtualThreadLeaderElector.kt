@@ -7,10 +7,11 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.VirtualThreadLeaderElector
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletionException
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.locks.ReentrantLock
 
 /**
  * `LocalVirtualThreadLeaderElector` 선언은 leader election 계약에서 사용되는 class입니다.
@@ -21,6 +22,8 @@ import java.util.concurrent.locks.ReentrantLock
 class LocalVirtualThreadLeaderElector(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
 ): AbstractLocalLeaderElector(options), VirtualThreadLeaderElector {
+
+    companion object: KLogging()
 
     /**
      * `runAsyncIfLeader`는 leadership을 획득한 경우에만 async action을 실행하고, 획득하지 못하면 null 결과를 완료합니다.
@@ -66,6 +69,8 @@ class LocalVirtualThreadLeaderElector(
         slot: LeaderSlot,
         action: () -> T,
     ): VirtualFuture<LeaderRunResult<T>> {
+        log.debug { "runAsyncIfLeaderResult... slot=$slot" }
+
         val elected = AtomicBoolean(false)
         val source: VirtualFuture<T?> = virtualFuture {
             tryWithLeaderLock(
@@ -82,7 +87,10 @@ class LocalVirtualThreadLeaderElector(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId) as LeaderRunResult<T>
+                elected.get() -> LeaderRunResult.Elected(
+                    value,
+                    leaderId = slot.leaderId
+                ) as LeaderRunResult<T>
                 else -> LeaderRunResult.Skipped as LeaderRunResult<T>
             }
         }

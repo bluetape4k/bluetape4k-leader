@@ -8,12 +8,13 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.k8s.internal.KubernetesLeaseGroupAcquisitionDeadline
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
-import io.bluetape4k.leader.k8s.internal.KubernetesLeaseGroupAcquisitionDeadline
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseNames
+import io.bluetape4k.leader.k8s.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -43,10 +44,10 @@ class KubernetesLeaseSuspendLeaderGroupElector @JvmOverloads constructor(
     private val client: KubernetesClient,
     val options: KubernetesLeaseGroupOptions = KubernetesLeaseGroupOptions.Default,
     private val clock: Clock = Clock.systemUTC(),
-) : SuspendLeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics {
+): SuspendLeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics {
 
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
         internal const val K8S_SUSPEND_GROUP_FACTORY_BEAN_NAME = "kubernetes-lease-suspend-leader-group-elector"
     }
 
@@ -222,14 +223,11 @@ class KubernetesLeaseSuspendLeaderGroupElector @JvmOverloads constructor(
     )
 }
 
-/**
- * `선언` 호출은 Kubernetes Lease backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
-suspend fun <T> KubernetesClient.suspendRunIfLeaderGroup(
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeaderGroup")
+suspend fun <T> KubernetesClient.legacySuspendRunIfLeaderGroup(
     lockName: String,
     options: KubernetesLeaseGroupOptions = KubernetesLeaseGroupOptions.Default,
     action: suspend () -> T,
-): T? =
-    KubernetesLeaseSuspendLeaderGroupElector(this, options).runIfLeader(lockName) { action() }
+): T? = this.currentSuspendRunIfLeaderGroup(lockName, options, action)

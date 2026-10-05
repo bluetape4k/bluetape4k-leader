@@ -18,7 +18,7 @@ data class ConsulEndpoint(
     val datacenter: String? = null,
     val aclToken: String? = null,
     val requestTimeout: Duration = DefaultRequestTimeout,
-) : Serializable {
+): Serializable {
 
     constructor(
         baseUrl: String,
@@ -64,11 +64,11 @@ data class ConsulEndpoint(
 
     override fun toString(): String =
         "ConsulEndpoint(" +
-            "baseUrl=$normalizedBaseUrl, " +
-            "datacenter=$datacenter, " +
-            "aclToken=${aclToken?.let { "***" }}, " +
-            "requestTimeout=$requestTimeout" +
-            ")"
+                "baseUrl=$normalizedBaseUrl, " +
+                "datacenter=$datacenter, " +
+                "aclToken=${aclToken?.let { "***" }}, " +
+                "requestTimeout=$requestTimeout" +
+                ")"
 
     companion object {
         val DefaultRequestTimeout: Duration = 5.seconds

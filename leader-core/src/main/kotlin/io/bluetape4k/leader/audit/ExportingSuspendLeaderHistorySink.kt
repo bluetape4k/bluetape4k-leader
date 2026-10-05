@@ -2,11 +2,11 @@
 
 package io.bluetape4k.leader.audit
 
+import io.bluetape4k.leader.audit.internal.LeaderAuditPendingContextStore
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendLeaderHistorySink
-import io.bluetape4k.leader.audit.internal.LeaderAuditPendingContextStore
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
@@ -23,10 +23,16 @@ class ExportingSuspendLeaderHistorySink private constructor(
     private val exporter: LeaderAuditExporter,
     private val sanitizer: LeaderAuditValueSanitizer,
     private val contexts: LeaderAuditPendingContextStore,
-) : SuspendLeaderHistorySink {
+): SuspendLeaderHistorySink {
+
+    private companion object: KLogging() {
+        const val TOKEN_PLACEHOLDER: String = "audit-context"
+        const val CONTEXT_ATTRIBUTE: String = "audit_context"
+        const val CONTEXT_MISSING: String = "missing"
+    }
 
     /** 기본 redaction 정책을 사용하는 wrapper입니다. */
-    constructor(delegate: SuspendLeaderHistorySink, exporter: LeaderAuditExporter) : this(
+    constructor(delegate: SuspendLeaderHistorySink, exporter: LeaderAuditExporter): this(
         delegate,
         exporter,
         LeaderAuditValueSanitizer.Default,
@@ -38,7 +44,7 @@ class ExportingSuspendLeaderHistorySink private constructor(
         delegate: SuspendLeaderHistorySink,
         exporter: LeaderAuditExporter,
         sanitizer: LeaderAuditValueSanitizer,
-    ) : this(delegate, exporter, sanitizer, LeaderAuditPendingContextStore())
+    ): this(delegate, exporter, sanitizer, LeaderAuditPendingContextStore())
 
     override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
         currentCoroutineContext().ensureActive()
@@ -159,11 +165,5 @@ class ExportingSuspendLeaderHistorySink private constructor(
         } catch (e: Exception) {
             log.warn(e) { "Audit export submission failed and was ignored" }
         }
-    }
-
-    private companion object : KLogging() {
-        const val TOKEN_PLACEHOLDER: String = "audit-context"
-        const val CONTEXT_ATTRIBUTE: String = "audit_context"
-        const val CONTEXT_MISSING: String = "missing"
     }
 }

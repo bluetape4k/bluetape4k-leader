@@ -1,14 +1,13 @@
 package io.bluetape4k.leader.spring.aop.spel
 
-import io.bluetape4k.logging.KLogging
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldContain
-import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldNotBeEqualTo
+import io.bluetape4k.logging.KLogging
+import org.junit.jupiter.api.Test
 import org.springframework.expression.spel.SpelEvaluationException
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.shouldNotBeNull
 
 /**
  * [SpelExpressionEvaluator] (T5.1 + T5.9a):
@@ -47,19 +46,34 @@ class SpelExpressionEvaluatorTest {
     @Test
     fun `literal fast-path - 정적 이름은 SpEL 우회`() {
         val sut = newEvaluator()
-        sut.evaluate("daily-job", method("process"), arrayOf("EU"), SampleService()) shouldBeEqualTo "daily-job"
+        sut.evaluate(
+            "daily-job",
+            method("process"),
+            arrayOf("EU"),
+            SampleService()
+        ) shouldBeEqualTo "daily-job"
     }
 
     @Test
     fun `plain SpEL - argName 변수 평가`() {
         val sut = newEvaluator()
-        sut.evaluate("#region", method("process"), arrayOf("EU"), SampleService()) shouldBeEqualTo "EU"
+        sut.evaluate(
+            "#region",
+            method("process"),
+            arrayOf("EU"),
+            SampleService()
+        ) shouldBeEqualTo "EU"
     }
 
     @Test
     fun `plain SpEL - 리터럴 prefix 따옴표 + argName 결합`() {
         val sut = newEvaluator()
-        sut.evaluate("'process-' + #region", method("process"), arrayOf("EU"), SampleService()) shouldBeEqualTo "process-EU"
+        sut.evaluate(
+            "'process-' + #region",
+            method("process"),
+            arrayOf("EU"),
+            SampleService()
+        ) shouldBeEqualTo "process-EU"
     }
 
     @Test
@@ -67,41 +81,74 @@ class SpelExpressionEvaluatorTest {
         val sut = newEvaluator()
         val user = User(SAMPLE_TENANT)
         val rebuildMethod = SampleService::class.java.getDeclaredMethod("rebuild", User::class.java)
-        sut.evaluate("#user.tenantId", rebuildMethod, arrayOf<Any?>(user), SampleService()) shouldBeEqualTo SAMPLE_TENANT
+
+        sut.evaluate(
+            "#user.tenantId",
+            rebuildMethod,
+            arrayOf(user),
+            SampleService()
+        ) shouldBeEqualTo SAMPLE_TENANT
     }
 
     @Test
     fun `plain SpEL - aN 인덱스 폴백`() {
         val sut = newEvaluator()
-        sut.evaluate("#a0", method("process"), arrayOf("EU"), SampleService()) shouldBeEqualTo "EU"
+        sut.evaluate(
+            "#a0",
+            method("process"),
+            arrayOf("EU"),
+            SampleService()
+        ) shouldBeEqualTo "EU"
     }
 
     @Test
     fun `plain SpEL - pN 인덱스 폴백`() {
         val sut = newEvaluator()
-        sut.evaluate("#p0", method("process"), arrayOf("EU"), SampleService()) shouldBeEqualTo "EU"
+        sut.evaluate(
+            "#p0",
+            method("process"),
+            arrayOf("EU"),
+            SampleService()
+        ) shouldBeEqualTo "EU"
     }
 
     @Test
     fun `보안 - T(System) 타입 참조 차단`() {
         val sut = newEvaluator()
+
         assertFailsWith<SpelEvaluationException> {
-            sut.evaluate("T(java.lang.System).getProperty('user.home')", method("process"), arrayOf("X"), SampleService())
+            sut.evaluate(
+                "T(java.lang.System).getProperty('user.home')",
+                method("process"),
+                arrayOf("X"),
+                SampleService()
+            )
         }
     }
 
     @Test
     fun `보안 default - 메서드 호출 차단 (R-32)`() {
         val sut = newEvaluator(allowMethodInvocation = false)
+
         assertFailsWith<SpelEvaluationException> {
-            sut.evaluate("#region.toUpperCase()", method("process"), arrayOf("eu"), SampleService())
+            sut.evaluate(
+                "#region.toUpperCase()",
+                method("process"),
+                arrayOf("eu"),
+                SampleService()
+            )
         }
     }
 
     @Test
     fun `보안 opt-in - allowMethodInvocation true 시 메서드 호출 허용`() {
         val sut = newEvaluator(allowMethodInvocation = true)
-        sut.evaluate("#region.toUpperCase()", method("process"), arrayOf("eu"), SampleService()) shouldBeEqualTo "EU"
+        sut.evaluate(
+            "#region.toUpperCase()",
+            method("process"),
+            arrayOf("eu"),
+            SampleService()
+        ) shouldBeEqualTo "EU"
     }
 
     @Test
@@ -110,8 +157,8 @@ class SpelExpressionEvaluatorTest {
         val ex = assertFailsWith<IllegalStateException> {
             sut.preParse("'process-#region", method("process"))
         }
-        ex.message.shouldNotBeNull() shouldContain "SampleService"
-        ex.message.shouldNotBeNull() shouldContain "process"
+        ex.message shouldContain "SampleService"
+        ex.message shouldContain "process"
     }
 
     @Test
@@ -126,7 +173,8 @@ class SpelExpressionEvaluatorTest {
         val sut = newEvaluator()
         sut.preParse("#region", method("process"))
         sut.preParse("'x-' + #region", method("process"))
-        check(sut.cacheSize() >= 2L) { "cacheSize should be >= 2, got ${sut.cacheSize()}" }
+
+        sut.cacheSize() shouldBeGreaterOrEqualTo 2L
     }
 
     // ── #97: 누락 경로 테스트 ──
@@ -136,30 +184,41 @@ class SpelExpressionEvaluatorTest {
         val sut = newEvaluator()
         // #a0 = null → getValue(String::class.java) = null → error() 분기
         val ex = assertFailsWith<IllegalStateException> {
-            sut.evaluate("#a0", method("process"), arrayOf<Any?>(null), SampleService())
+            sut.evaluate(
+                "#a0",
+                method("process"),
+                arrayOf(null),
+                SampleService()
+            )
         }
-        ex.message.shouldNotBeNull() shouldContain "SampleService"
-        ex.message.shouldNotBeNull() shouldContain "process"
+        ex.message shouldContain "SampleService"
+        ex.message shouldContain "process"
     }
 
     @Test
     fun `placeholder - 해석 후 literal 경로 진입`() {
-        // "\${app.lock.name}" → "daily-job" → literal fast-path (SpEL 우회)
+        // $$"${app.lock.name}" → "daily-job" → literal fast-path (SpEL 우회)
         val sut = SpelExpressionEvaluator(
-            embeddedValueResolver = { expr -> if (expr == "\${app.lock.name}") "daily-job" else expr }
+            embeddedValueResolver = { expr -> if (expr == $$"${app.lock.name}") "daily-job" else expr }
         )
-        sut.evaluate("\${app.lock.name}", method("process"), arrayOf("X"), SampleService()) shouldBeEqualTo "daily-job"
+        sut.evaluate(
+            $$"${app.lock.name}",
+            method("process"),
+            arrayOf("X"),
+            SampleService()
+        ) shouldBeEqualTo "daily-job"
+
         sut.cacheSize() shouldBeEqualTo 0L  // literal 이므로 cache 미적재
     }
 
     @Test
     fun `placeholder - 해석 후 SpEL 경로 진입`() {
-        // "\${lock.prefix} + #region" → "'batch-' + #region" → SpEL → "batch-EU"
+        // $$"${lock.prefix} + #region" → "'batch-' + #region" → SpEL → "batch-EU"
         val sut = SpelExpressionEvaluator(
-            embeddedValueResolver = { expr -> expr.replace("\${lock.prefix}", "'batch-'") }
+            embeddedValueResolver = { expr -> expr.replace($$"${lock.prefix}", "'batch-'") }
         )
         sut.evaluate(
-            "\${lock.prefix} + #region",
+            $$"${lock.prefix} + #region",
             method("process"),
             arrayOf("EU"),
             SampleService(),
@@ -171,20 +230,32 @@ class SpelExpressionEvaluatorTest {
     @Test
     fun `template - prefix-#{#region}-suffix 혼합 표현식 평가`() {
         val sut = newEvaluator()
-        sut.evaluate("prefix-#{#region}-suffix", method("process"), arrayOf("EU"), SampleService()) shouldBeEqualTo "prefix-EU-suffix"
+        sut.evaluate(
+            "prefix-#{#region}-suffix",
+            method("process"),
+            arrayOf("EU"),
+            SampleService()
+        ) shouldBeEqualTo "prefix-EU-suffix"
     }
 
     @Test
     fun `template - 리터럴만 있는 템플릿 표현식`() {
         val sut = newEvaluator()
-        sut.evaluate("static-#{#region}", method("process"), arrayOf("KR"), SampleService()) shouldBeEqualTo "static-KR"
+        sut.evaluate(
+            "static-#{#region}",
+            method("process"),
+            arrayOf("KR"),
+            SampleService()
+        ) shouldBeEqualTo "static-KR"
     }
 
     @Test
     fun `template - 복수 SpEL 구간 평가`() {
         val sut = newEvaluator()
         // "#{#a0}-job-#{#a1}" 이 가능한지 테스트 — 메서드에 파라미터 2개 필요
-        val twoParamMethod = TwoParamService::class.java.getDeclaredMethod("process", String::class.java, String::class.java)
+        val twoParamMethod = TwoParamService::class.java
+            .getDeclaredMethod("process", String::class.java, String::class.java)
+
         sut.evaluate(
             "#{#env}-lock-#{#zone}",
             twoParamMethod,
@@ -206,14 +277,19 @@ class SpelExpressionEvaluatorTest {
         val ex = assertFailsWith<IllegalStateException> {
             sut.preParse("prefix-#{'unclosed}", method("process"))
         }
-        ex.message.shouldNotBeNull() shouldContain "SpEL template"
+        ex.message shouldContain "SpEL template"
     }
 
     @Test
     fun `template - plain SpEL 과 자동 구분 — 해시만 있고 중괄호 없으면 plain 모드`() {
         val sut = newEvaluator()
         // #region 은 plain SpEL, "#{" 없으므로 template 모드 아님
-        sut.evaluate("#region", method("process"), arrayOf("EU"), SampleService()) shouldBeEqualTo "EU"
+        sut.evaluate(
+            "#region",
+            method("process"),
+            arrayOf("EU"),
+            SampleService()
+        ) shouldBeEqualTo "EU"
     }
 
     private class TwoParamService {
@@ -227,24 +303,31 @@ class SpelExpressionEvaluatorTest {
         val m = method("process")
         val args = arrayOf<Any?>("EU")
         val target = SampleService()
+
         val ctx1 = SpelExpressionEvaluator.RootCtx(m, args, target)
         val ctx2 = SpelExpressionEvaluator.RootCtx(m, args.copyOf(), target)
-        (ctx1 == ctx2).shouldBeTrue()
+        ctx1 shouldBeEqualTo ctx2
 
     }
 
     @Test
     fun `RootCtx equals - 자기 자신은 equal`() {
-        val ctx = SpelExpressionEvaluator.RootCtx(method("process"), arrayOf("EU"), SampleService())
-        (ctx == ctx).shouldBeTrue()
-
+        val ctx = SpelExpressionEvaluator.RootCtx(
+            method("process"),
+            arrayOf("EU"),
+            SampleService()
+        )
+        ctx shouldBeEqualTo ctx
     }
 
     @Test
     fun `RootCtx equals - 다른 타입이면 not equal`() {
-        val ctx = SpelExpressionEvaluator.RootCtx(method("process"), arrayOf("EU"), SampleService())
-        (ctx.equals("other")).shouldBeFalse()
-
+        val ctx = SpelExpressionEvaluator.RootCtx(
+            method("process"),
+            arrayOf("EU"),
+            SampleService()
+        )
+        ctx shouldNotBeEqualTo "other"
     }
 
     @Test
@@ -253,8 +336,7 @@ class SpelExpressionEvaluatorTest {
         val target = SampleService()
         val ctx1 = SpelExpressionEvaluator.RootCtx(m, arrayOf("EU"), target)
         val ctx2 = SpelExpressionEvaluator.RootCtx(m, arrayOf("KR"), target)
-        (ctx1 == ctx2).shouldBeFalse()
-
+        ctx1 shouldNotBeEqualTo ctx2
     }
 
     @Test
@@ -264,12 +346,18 @@ class SpelExpressionEvaluatorTest {
         val target = SampleService()
         val ctx1 = SpelExpressionEvaluator.RootCtx(m, args, target)
         val ctx2 = SpelExpressionEvaluator.RootCtx(m, args.copyOf(), target)
+
+        ctx1 shouldBeEqualTo ctx2
         ctx1.hashCode() shouldBeEqualTo ctx2.hashCode()
     }
 
     @Test
     fun `RootCtx methodName - method 이름 반환`() {
-        val ctx = SpelExpressionEvaluator.RootCtx(method("process"), arrayOf("EU"), SampleService())
+        val ctx = SpelExpressionEvaluator.RootCtx(
+            method("process"),
+            arrayOf("EU"),
+            SampleService()
+        )
         ctx.methodName shouldBeEqualTo "process"
     }
 }

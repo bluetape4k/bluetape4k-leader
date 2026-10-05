@@ -4,12 +4,14 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.springframework.scheduling.annotation.Scheduled
-import java.lang.reflect.Method
 import java.time.Duration
 
 class LeaderScheduledPolicyRegistryTest {
+
+    companion object: KLogging()
 
     @Test
     fun `exact selector registration and target identity lookup`() {
@@ -116,7 +118,7 @@ class LeaderScheduledPolicyRegistryTest {
             failureMode = LeaderAspectFailureMode.SKIP,
         )
 
-    private class ScheduledFixture : ScheduledContract {
+    private class ScheduledFixture: ScheduledContract {
         @Scheduled(fixedDelay = Long.MAX_VALUE)
         override fun reconcile() = Unit
 

@@ -26,24 +26,24 @@
 
 ### 독립 검토
 
-- 초기 spec review: `ACCEPT`, P0 0건/P1 0건. 지적된 P2 4건(공통 검증 경계, 옵션 KDoc/README, 테스트·ABI 명령, `snapshot` 용어)을 모두 반영했다.
-- 독립 architecture review: 최초 P1 3건(옵션 의미, Redis namespace, validator 중복)을 수선한 뒤 `APPROVE`, P0/P1 0건.
+- 초기 spec review: `ACCEPT`, P0 0건/P1 0건. 지적된 P2 4건 (공통 검증 경계, 옵션 KDoc/README, 테스트·ABI 명령, `snapshot` 용어)을 모두 반영했다.
+- 독립 architecture review: 최초 P1 3건 (옵션 의미, Redis namespace, validator 중복)을 수선한 뒤 `APPROVE`, P0/P1 0건.
 - 독립 code review: `ACCEPT/APPROVE`, P0/P1 0건. advisory top-N, custom result validation, cancellation 재전파, mixed TTL, ABI/namespace 경계를 확인했다.
 
 ## 검증 증거
 
-| 검증 | 결과 |
-| --- | --- |
-| Core strategic/local 회귀 | 49 passing, `BUILD SUCCESSFUL` |
-| Lettuce strategic single/group blocking/coroutine | 51 passing, `BUILD SUCCESSFUL` |
-| Redisson strategic single/group blocking/coroutine | 41 passing, `BUILD SUCCESSFUL` |
-| 기존 Local group 회귀 | 23 passing, `BUILD SUCCESSFUL` |
-| `detekt --no-configuration-cache --max-workers=1` | `BUILD SUCCESSFUL` |
-| core/Lettuce/Redisson module build (`-x test`) | `BUILD SUCCESSFUL` |
+| 검증                                                                               | 결과                                                               |
+|------------------------------------------------------------------------------------|--------------------------------------------------------------------|
+| Core strategic/local 회귀                                                          | 49 passing, `BUILD SUCCESSFUL`                                     |
+| Lettuce strategic single/group blocking/coroutine                                  | 51 passing, `BUILD SUCCESSFUL`                                     |
+| Redisson strategic single/group blocking/coroutine                                 | 41 passing, `BUILD SUCCESSFUL`                                     |
+| 기존 Local group 회귀                                                              | 23 passing, `BUILD SUCCESSFUL`                                     |
+| `detekt --no-configuration-cache --max-workers=1`                                  | `BUILD SUCCESSFUL`                                                 |
+| core/Lettuce/Redisson module build (`-x test`)                                     | `BUILD SUCCESSFUL`                                                 |
 | `checkBinaryCompatibility` (`ABI_BASE_VERSION=0.5.0`, `ABI_CURRENT_VERSION=1.0.0`) | `unknown=0`, unclassified incompatibility 없음, `BUILD SUCCESSFUL` |
-| `git diff --check` | 통과 |
-| `audit-korean-terms.mjs README.ko.md` | findings=0 |
-| Colima/Testcontainers preflight | Colima healthy, Docker context/info 정상 |
+| `git diff --check`                                                                 | 통과                                                               |
+| `audit-korean-terms.mjs README.ko.md`                                              | findings=0                                                         |
+| Colima/Testcontainers preflight                                                    | Colima healthy, Docker context/info 정상                           |
 
 Redis 검증은 macOS Colima의 `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`와 현재 Docker socket을 사용했다. LSP diagnostics 도구는 제공되지 않아 Gradle compile/build, detekt, ABI 검증으로 대체했다.
 

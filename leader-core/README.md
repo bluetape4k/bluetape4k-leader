@@ -26,8 +26,7 @@ Core interfaces and local in-process implementations for `bluetape4k-leader`.
 
 ### `runIfLeaderResult*`: explicit execution outcome
 
-Use result APIs when `null` is a valid action value or when callers need to distinguish contention from
-action failure:
+Use result APIs when `null` is a valid action value or when callers need to distinguish contention from action failure:
 
 ```kotlin
 when (val result = election.runIfLeaderResult("daily-job") { computeOrNull() }) {
@@ -43,14 +42,11 @@ when (val result = election.runIfLeaderResult("daily-job") { computeOrNull() }) 
 - `Skipped`: lock or slot was not acquired, so the action was not executed.
 - `ActionFailed(cause)`: lock or slot was acquired and the action started, but it failed.
 
-Result APIs never convert `CancellationException` into `ActionFailed`. Blocking and coroutine APIs rethrow it;
-async and virtual-thread APIs complete exceptionally instead (for `join()`, expect `CompletionException`
+Result APIs never convert `CancellationException` into `ActionFailed`. Blocking and coroutine APIs rethrow it; async and virtual-thread APIs complete exceptionally instead (for `join()`, expect `CompletionException`
 wrapping the cancellation; `isCancelled()` is not guaranteed). Blocking APIs also rethrow
 `InterruptedException` after restoring the interrupt flag.
 
-Cancelling the `CompletableFuture` returned by an async election propagates the cancellation request to acquisition
-and any in-flight action, then starts lease or slot cleanup. Cancellation is cooperative and cleanup may finish
-asynchronously; `mayInterruptIfRunning=true` does not guarantee that user code is forcibly interrupted.
+Cancelling the `CompletableFuture` returned by an async election propagates the cancellation request to acquisition and any in-flight action, then starts lease or slot cleanup. Cancellation is cooperative and cleanup may finish asynchronously; `mayInterruptIfRunning=true` does not guarantee that user code is forcibly interrupted.
 
 ### Election lifecycle listeners
 
@@ -63,11 +59,9 @@ asynchronously; `mayInterruptIfRunning=true` does not guarantee that user code i
 
 `LeaderElectionEventPublisher.events` exposes the same lifecycle as a hot `Flow<LeaderElectionEvent>`.
 `LeaderElectionEvent.Elected` carries the same optional `LeaderLease` state. `leader.leaseUntil` and
-`leaseExpiry` are `null` when a backend cannot report a precise expiry; treat them as observability metadata,
-not as an ownership decision.
+`leaseExpiry` are `null` when a backend cannot report a precise expiry; treat them as observability metadata, not as an ownership decision.
 
-For framework integrations and Java-friendly adapters, register callbacks directly on the publisher. The caller
-owns the `CoroutineScope`; closing the returned handle cancels only that callback collection.
+For framework integrations and Java-friendly adapters, register callbacks directly on the publisher. The caller owns the `CoroutineScope`; closing the returned handle cancels only that callback collection.
 
 ```kotlin
 val election = LocalLeaderElector()
@@ -97,16 +91,9 @@ handle.close()
 
 ### Audit export and HTTP/webhook delivery
 
-`LeaderAuditExporter` sends already-sanitized history or lifecycle events through a
-bounded, asynchronous pipeline. `submit` only reports admission: `ACCEPTED` does not
-mean that the receiver has accepted the request. Close the exporter before shutting
-down the executor or scheduler supplied in `LeaderAuditExportOptions`.
+`LeaderAuditExporter` sends already-sanitized history or lifecycle events through a bounded, asynchronous pipeline. `submit` only reports admission: `ACCEPTED` does not mean that the receiver has accepted the request. Close the exporter before shutting down the executor or scheduler supplied in `LeaderAuditExportOptions`.
 
-The JDK adapter keeps serialization in the application and accepts only an explicitly
-trusted HTTPS endpoint. Redirects are disabled, response bodies are discarded, and the
-only request headers allowed by the adapter are `Content-Type` and `Authorization`.
-The endpoint wrapper is a syntax and responsibility boundary; DNS, SSRF, private-network,
-and DNS-rebinding policy remains with the caller or its egress proxy.
+The JDK adapter keeps serialization in the application and accepts only an explicitly trusted HTTPS endpoint. Redirects are disabled, response bodies are discarded, and the only request headers allowed by the adapter are `Content-Type` and `Authorization`. The endpoint wrapper is a syntax and responsibility boundary; DNS, SSRF, private-network, and DNS-rebinding policy remains with the caller or its egress proxy.
 
 ```kotlin
 val scheduler = Executors.newSingleThreadScheduledExecutor()
@@ -149,10 +136,7 @@ try {
 }
 ```
 
-Use a real serializer in the injected `LeaderAuditPayloadEncoder` when the receiver
-expects JSON. JSONL files and OpenTelemetry exporters are separate transports and are
-not added by `leader-core`. A receiver should also provide idempotency for retries and
-should treat delivery attempts as at-least-once.
+Use a real serializer in the injected `LeaderAuditPayloadEncoder` when the receiver expects JSON. JSONL files and OpenTelemetry exporters are separate transports and are not added by `leader-core`. A receiver should also provide idempotency for retries and should treat delivery attempts as at-least-once.
 
 ### Options
 
@@ -173,8 +157,7 @@ LeaderGroupElectionOptions(
 )
 ```
 
-`useDbTime` is consumed by the Exposed JDBC/R2DBC group electors. Other
-backends keep their existing clock behavior.
+`useDbTime` is consumed by the Exposed JDBC/R2DBC group electors. Other backends keep their existing clock behavior.
 
 `minLeaseTime` is the lockAtLeastFor equivalent. Local electors keep the lock or slot until the minimum hold time has elapsed. Supported distributed backends delegate the remaining minimum lease to their storage TTL on release.
 
@@ -194,22 +177,23 @@ backends keep their existing clock behavior.
 
 All local implementations use JVM primitives (`ReentrantLock`, `Semaphore`) — no external dependencies.
 
-| Class | Interface | Description |
-|-------|-----------|-------------|
-| `LocalLeaderElector` | `LeaderElector` | Blocking, `ReentrantLock`-based |
-| `LocalAsyncLeaderElector` | `AsyncLeaderElector` | `CompletableFuture` on thread pool |
-| `LocalVirtualThreadLeaderElector` | `VirtualThreadLeaderElector` | Virtual thread per election |
-| `LocalSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine with `Mutex` |
-| `LocalLeaderGroupElector` | `LeaderGroupElector` | `Semaphore`-based multi-leader |
-| `LocalSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine `Semaphore` |
-| `LocalStrategicLeaderElector` | `StrategicLeaderElector` | Strategy-based blocking election |
-| `LocalStrategicSuspendLeaderElector` | `StrategicSuspendLeaderElector` | Strategy-based coroutine election |
+| Class                                | Interface                       | Description                        |
+|--------------------------------------|---------------------------------|------------------------------------|
+| `LocalLeaderElector`                 | `LeaderElector`                 | Blocking, `ReentrantLock`-based    |
+| `LocalAsyncLeaderElector`            | `AsyncLeaderElector`            | `CompletableFuture` on thread pool |
+| `LocalVirtualThreadLeaderElector`    | `VirtualThreadLeaderElector`    | Virtual thread per election        |
+| `LocalSuspendLeaderElector`          | `SuspendLeaderElector`          | Coroutine with `Mutex`             |
+| `LocalLeaderGroupElector`            | `LeaderGroupElector`            | `Semaphore`-based multi-leader     |
+| `LocalSuspendLeaderGroupElector`     | `SuspendLeaderGroupElector`     | Coroutine `Semaphore`              |
+| `LocalStrategicLeaderElector`        | `StrategicLeaderElector`        | Strategy-based blocking election   |
+| `LocalStrategicSuspendLeaderElector` | `StrategicSuspendLeaderElector` | Strategy-based coroutine election  |
 
 ## Strategic Election
 
 ### Overview
 
-Strategic election separates the **nomination phase** (candidate registration) from the **decision phase** (strategy application), enabling flexible leader selection policies.
+Strategic election separates the **nomination phase** (candidate registration) from the **decision
+phase** (strategy application), enabling flexible leader selection policies.
 
 ```
 registerCandidate() → elect(strategy) → 1 winner, rest skipped
@@ -217,20 +201,20 @@ registerCandidate() → elect(strategy) → 1 winner, rest skipped
 
 ### Built-in Strategies
 
-| Strategy | Description |
-|----------|-------------|
-| `FifoElectionStrategy` | Earliest registered candidate wins |
-| `RandomElectionStrategy(seed)` | Deterministic random selection (seed required for distributed use) |
-| `ScoredElectionStrategy(scorer)` | Highest-scoring candidate wins |
+| Strategy                         | Description                                                        |
+|----------------------------------|--------------------------------------------------------------------|
+| `FifoElectionStrategy`           | Earliest registered candidate wins                                 |
+| `RandomElectionStrategy(seed)`   | Deterministic random selection (seed required for distributed use) |
+| `ScoredElectionStrategy(scorer)` | Highest-scoring candidate wins                                     |
 
 ### Built-in Scorers (0–100 normalized)
 
-| Scorer | Description |
-|--------|-------------|
-| `IdleTimeScorer` | Node idle longest since last completion |
-| `SuccessRateScorer` | Highest success-rate node |
-| `RecentSuccessScorer` | Most recently succeeded node |
-| `WeightedScorer` | Weighted sum of multiple scorers |
+| Scorer                | Description                             |
+|-----------------------|-----------------------------------------|
+| `IdleTimeScorer`      | Node idle longest since last completion |
+| `SuccessRateScorer`   | Highest success-rate node               |
+| `RecentSuccessScorer` | Most recently succeeded node            |
+| `WeightedScorer`      | Weighted sum of multiple scorers        |
 
 ### Key Interfaces
 
@@ -247,9 +231,7 @@ interface StrategicLeaderElector {
 ### Custom backend conformance
 
 Custom backend tests can inherit `AbstractStrategicBackendConformanceTest` from the
-`leader-core` test fixtures. The fixture runs the same candidate lifecycle, expiry,
-concurrency, winner, skip, and cleanup assertions against blocking/suspend and
-single/group adapters:
+`leader-core` test fixtures. The fixture runs the same candidate lifecycle, expiry, concurrency, winner, skip, and cleanup assertions against blocking/suspend and single/group adapters:
 
 ```kotlin
 dependencies {
@@ -263,23 +245,18 @@ class AcmeStrategicBackendConformanceTest : AbstractStrategicBackendConformanceT
 
 The provider supplies `blocking(kind, nodeId)` and `suspending(kind, nodeId)` adapters for
 `StrategicBackendKind.SINGLE` and `StrategicBackendKind.GROUP`. Its
-`awaitCandidateExpiration` test control must report expiry only after the candidate is absent
-from backend reads and must not delete the candidate through a management API. The provider
-also owns test namespaces, credentials, clients, and `close()` cleanup. See
+`awaitCandidateExpiration` test control must report expiry only after the candidate is absent from backend reads and must not delete the candidate through a management API. The provider also owns test namespaces, credentials, clients, and `close()` cleanup. See
 [`CustomStrategicBackendConformanceTest`](./src/test/kotlin/io/bluetape4k/leader/contract/CustomStrategicBackendConformanceTest.kt)
 for a dependency-free custom adapter.
 
-| Execution surface | Minimum custom-backend contract | Reusable proof |
-|---|---|---|
-| Strategic blocking single/group | winner result, loser `null`, atomic candidate mutation, expiry, idempotent unregister | `AbstractStrategicBackendConformanceTest` |
-| Strategic suspend single/group | blocking contract plus cancellation propagation and non-blocking adapter boundary | `AbstractStrategicBackendConformanceTest` |
-| Lock-based async | completed result/`null`, cancellation relay, exactly-once lease cleanup | `AsyncLeaderElector` contract fixtures and backend async tests |
-| Lock-based virtual thread | result/`null`, interruption/cancellation propagation, exactly-once lease cleanup | backend virtual-thread contract tests |
+| Execution surface               | Minimum custom-backend contract                                                       | Reusable proof                                                 |
+|---------------------------------|---------------------------------------------------------------------------------------|----------------------------------------------------------------|
+| Strategic blocking single/group | winner result, loser `null`, atomic candidate mutation, expiry, idempotent unregister | `AbstractStrategicBackendConformanceTest`                      |
+| Strategic suspend single/group  | blocking contract plus cancellation propagation and non-blocking adapter boundary     | `AbstractStrategicBackendConformanceTest`                      |
+| Lock-based async                | completed result/`null`, cancellation relay, exactly-once lease cleanup               | `AsyncLeaderElector` contract fixtures and backend async tests |
+| Lock-based virtual thread       | result/`null`, interruption/cancellation propagation, exactly-once lease cleanup      | backend virtual-thread contract tests                          |
 
-There is no strategic async or strategic virtual-thread public interface. Those rows describe
-the separate lock-based execution models, not additional candidate-registry capabilities.
-Passing this fixture proves the named storage semantics only; it does not certify throughput,
-provisioning, retry policy, or failure recovery for a custom backend.
+There is no strategic async or strategic virtual-thread public interface. Those rows describe the separate lock-based execution models, not additional candidate-registry capabilities. Passing this fixture proves the named storage semantics only; it does not certify throughput, provisioning, retry policy, or failure recovery for a custom backend.
 
 ## Usage Examples
 
@@ -361,14 +338,10 @@ State inspection is best-effort reference data for diagnostics and metrics. It i
 
 ## Management Actions (Issue #532, unreleased)
 
-`LeaderManagementActionRegistry` is an explicit, process-local operator surface for
-releasing a registered single-leader lease. It performs an ownership pre-check, one
-conditional release, and a post-check. The result is a sanitized
-`LeaderManagementActionResult`; backend tokens, credentials, lock identities, and
-exception text are never part of the result or observation.
+`LeaderManagementActionRegistry` is an explicit, process-local operator surface for releasing a registered single-leader lease. It performs an ownership pre-check, one conditional release, and a post-check. The result is a sanitized
+`LeaderManagementActionResult`; backend tokens, credentials, lock identities, and exception text are never part of the result or observation.
 
-Register the exact `LeaderLeaseHandle` returned by a lease-acquirer and close only the
-registration token when that handle is no longer eligible for management actions:
+Register the exact `LeaderLeaseHandle` returned by a lease-acquirer and close only the registration token when that handle is no longer eligible for management actions:
 
 ```kotlin
 val registry = LeaderManagementActionRegistry()
@@ -384,58 +357,43 @@ try {
 }
 ```
 
-Registration is identity-based and bounded. Re-registering the same handle adds a
-reference; another handle for the same lock returns `AMBIGUOUS`. `close()` never
-performs backend I/O. `closeAndDrain()` rejects new actions and waits only for
-already-admitted workers; it does not release arbitrary application leases.
+Registration is identity-based and bounded. Re-registering the same handle adds a reference; another handle for the same lock returns `AMBIGUOUS`. `close()` never performs backend I/O. `closeAndDrain()` rejects new actions and waits only for already-admitted workers; it does not release arbitrary application leases.
 
-The action registry is not connected to `runIfLeader`, group/semaphore election,
-strategic election, `LeaderRouteLeaseRuntime`, or scheduled jobs. Register a handle
-only at the application-owned lease boundary. A timeout before release reports
-`ACTION_TIMED_OUT` with `mutationAttempted=false`; a timeout after release has begun
-reports the same outcome with `mutationAttempted=true` and must not be automatically
-retried. `RELEASE_UNCONFIRMED` and `RELEASE_FAILED` are not success signals.
+The action registry is not connected to `runIfLeader`, group/semaphore election, strategic election, `LeaderRouteLeaseRuntime`, or scheduled jobs. Register a handle only at the application-owned lease boundary. A timeout before release reports
+`ACTION_TIMED_OUT` with `mutationAttempted=false`; a timeout after release has begun reports the same outcome with `mutationAttempted=true` and must not be automatically retried. `RELEASE_UNCONFIRMED` and `RELEASE_FAILED` are not success signals.
 
 The HTTP adapters in the Spring and Ktor modules share this mapping:
 
-| Outcome | HTTP | Retry |
-|---|---:|---|
-| `RELEASED` | 200 | No |
-| `INVALID_LOCK_NAME` | 400 | No |
-| `NOT_REGISTERED` | 404 | No |
-| `AMBIGUOUS`, `NOT_HELD`, `ACTION_IN_PROGRESS` | 409 | No |
-| `ACTION_ADMISSION_REJECTED` | 429 | No |
-| ownership/release/registry failures | 503 | No |
-| `ACTION_TIMED_OUT` | 504 | No |
+| Outcome                                       | HTTP | Retry |
+|-----------------------------------------------|-----:|-------|
+| `RELEASED`                                    |  200 | No    |
+| `INVALID_LOCK_NAME`                           |  400 | No    |
+| `NOT_REGISTERED`                              |  404 | No    |
+| `AMBIGUOUS`, `NOT_HELD`, `ACTION_IN_PROGRESS` |  409 | No    |
+| `ACTION_ADMISSION_REJECTED`                   |  429 | No    |
+| ownership/release/registry failures           |  503 | No    |
+| `ACTION_TIMED_OUT`                            |  504 | No    |
 
 ### Framework-neutral backend probe
 
 `LeaderBackendDiagnosticsProbe.check(timeout, clock, probe)` is the shared synchronous boundary for built-in backend connectivity checks. It accepts only a positive, finite provider-native timeout, reads the supplied clock once before the callback, and never creates I/O, locks, clients, retries, threads, executors, or wall-clock deadlines. Ordinary callback `Exception` values become `UNKNOWN`; `CancellationException`, `InterruptedException` (with the interrupt flag restored), and fatal `Error` values retain identity and propagate. Returning `NOT_CHECKED` from the callback is invalid. Existing custom `checkConnectivity` or `diagnostics` overrides remain source-compatible and bypass this normalization by design.
 
-The `LeaderBackendConnectivityReason` field explains the bounded cause without
-storing exception text, credentials, endpoints, or lock names:
+The `LeaderBackendConnectivityReason` field explains the bounded cause without storing exception text, credentials, endpoints, or lock names:
 
-| Status | Reason | Interpretation |
-|---|---|---|
-| `UP` | `CONNECTED` | The client confirmed connectivity at the time of the probe. |
-| `DOWN` | `DISCONNECTED` | The client confirmed that the backend is unavailable. |
-| `UNKNOWN` | `CLIENT_STATE_UNCONFIRMED` | A bounded check could not confirm the client state. |
-| `UNKNOWN` | `PROVIDER_UNSUPPORTED` | The provider intentionally has no active probe. |
-| `UNKNOWN` | `PROVIDER_EXCEPTION` | An ordinary callback exception was normalized. |
-| `NOT_CHECKED` | `NOT_CHECKED` | No probe ran; this is not proof of health or ownership. |
+| Status        | Reason                     | Interpretation                                              |
+|---------------|----------------------------|-------------------------------------------------------------|
+| `UP`          | `CONNECTED`                | The client confirmed connectivity at the time of the probe. |
+| `DOWN`        | `DISCONNECTED`             | The client confirmed that the backend is unavailable.       |
+| `UNKNOWN`     | `CLIENT_STATE_UNCONFIRMED` | A bounded check could not confirm the client state.         |
+| `UNKNOWN`     | `PROVIDER_UNSUPPORTED`     | The provider intentionally has no active probe.             |
+| `UNKNOWN`     | `PROVIDER_EXCEPTION`       | An ordinary callback exception was normalized.              |
+| `NOT_CHECKED` | `NOT_CHECKED`              | No probe ran; this is not proof of health or ownership.     |
 
-The default provider uses `PROVIDER_UNSUPPORTED` when it cannot offer an active
-probe. Helper-backed providers use `CLIENT_STATE_UNCONFIRMED` when they read
-client state without proving backend connectivity. The reason is descriptive
-metadata: acquiring a lease through `runIfLeader` remains the ownership
-decision, and readiness policy remains application-owned.
+The default provider uses `PROVIDER_UNSUPPORTED` when it cannot offer an active probe. Helper-backed providers use `CLIENT_STATE_UNCONFIRMED` when they read client state without proving backend connectivity. The reason is descriptive metadata: acquiring a lease through `runIfLeader` remains the ownership decision, and readiness policy remains application-owned.
 
 ## Tenant Namespacing
 
-Use `TenantLockNamespace` and `forTenant()` when the same logical job must run
-independently per tenant without changing backend configuration. The wrapper
-derives the backend lock name as `prefix:tenantId:lockName`; the default prefix
-is `tenant`.
+Use `TenantLockNamespace` and `forTenant()` when the same logical job must run independently per tenant without changing backend configuration. The wrapper derives the backend lock name as `prefix:tenantId:lockName`; the default prefix is `tenant`.
 
 ```kotlin
 import io.bluetape4k.leader.TenantLockNamespace
@@ -458,16 +416,11 @@ tenantGroup.runIfLeader("aggregation") {
 // backend lockName: app:tenant-a:aggregation
 ```
 
-`forTenant()` is available for blocking, coroutine, group, and virtual-thread
-electors. The namespace separator `:` is reserved, so `TenantLockNamespace`
-rejects `:` in the prefix, tenant id, and tenant-local lock name. Rename
-caller-facing lock names such as `batch:daily` before wrapping an elector with
-tenant scope.
+`forTenant()` is available for blocking, coroutine, group, and virtual-thread electors. The namespace separator `:` is reserved, so `TenantLockNamespace`
+rejects `:` in the prefix, tenant id, and tenant-local lock name. Rename caller-facing lock names such as `batch:daily` before wrapping an elector with tenant scope.
 
-The final generated backend lock name is still validated with the shared
-255-character lock-name limit. The tenant-local lock-name budget is therefore
-`255 - prefix.length - tenantId.length - 2` because the generated name includes
-two separators.
+The final generated backend lock name is still validated with the shared 255-character lock-name limit. The tenant-local lock-name budget is therefore
+`255 - prefix.length - tenantId.length - 2` because the generated name includes two separators.
 
 ## Lock Assert & Extend
 
@@ -510,8 +463,8 @@ fun runJob() {
 
 // Detailed sealed result
 when (val outcome = LockExtender.extendActiveLockDetailed(60.seconds)) {
-    is ExtendOutcome.Extended    -> log.info { "expires at ${outcome.observedExpireAt}" }
-    is ExtendOutcome.NotHeld     -> rollback()
+    is ExtendOutcome.Extended -> log.info { "expires at ${outcome.observedExpireAt}" }
+    is ExtendOutcome.NotHeld -> rollback()
     is ExtendOutcome.WrongThread -> log.warn { "Redisson thread-bound violation" }
     is ExtendOutcome.BackendError -> retry(outcome.cause)
 }
@@ -534,8 +487,7 @@ suspend fun runSuspend() {
 > README target released `0.4.0`, and the pinned `0.5.0` manual does not include this hook. Keep this integration on a
 > matching develop/snapshot build until the promotion gate in the draft is complete.
 
-`LeaderLeaseExtensionObservers` is the framework-neutral hook for observing terminal lease-extension attempts. It
-receives events from both explicit `LockExtender` calls and `LeaderLeaseAutoExtender` watchdog ticks:
+`LeaderLeaseExtensionObservers` is the framework-neutral hook for observing terminal lease-extension attempts. It receives events from both explicit `LockExtender` calls and `LeaderLeaseAutoExtender` watchdog ticks:
 
 ```kotlin
 val registration = LeaderLeaseExtensionObservers.addObserver { event ->
@@ -562,35 +514,21 @@ try {
 ```
 
 `LeaderLeaseExtensionEvent.source` is `USER` for `LockExtender` and `WATCHDOG` for automatic renewal. The
-`execution` value is `BLOCKING` or `SUSPEND`. The `outcome` is the existing `ExtendOutcome`: `Extended` carries the
-observed expiry, `Rejected` means that a watchdog reservation failed, a user bounded operation queue was full, or a
-queued user operation timed out before its command completed; that command may still run later. It is a skip signal,
-not proof that no backend work will occur. `NotHeld` covers an absent or expired ownership (including fail-open),
+`execution` value is `BLOCKING` or `SUSPEND`. The `outcome` is the existing `ExtendOutcome`: `Extended` carries the observed expiry, `Rejected` means that a watchdog reservation failed, a user bounded operation queue was full, or a queued user operation timed out before its command completed; that command may still run later. It is a skip signal, not proof that no backend work will occur. `NotHeld` covers an absent or expired ownership (including fail-open),
 `WrongThread` reports a thread-bound backend violation, and `BackendError` contains the backend exception.
-`elapsedNanos` measures the caller-side delegate call; it is zero only when that call returned without running a
-delegate, such as an outside-scope lookup or an immediate queue admission rejection.
+`elapsedNanos` measures the caller-side delegate call; it is zero only when that call returned without running a delegate, such as an outside-scope lookup or an immediate queue admission rejection.
 
-The registry is process-local. Delivery uses bounded non-blocking in-flight admission (1024 permits globally and 256
-per registration); saturation increments `LeaderLeaseExtensionObservers.droppedCount()` rather than waiting for a
-permit or callback. Registration count and callback fan-out are not bounded by this registry, so keep application
-registrations small and callbacks short. `droppedCount()` is separate from `ExtendOutcome.Rejected`: it counts only
-observer-delivery admissions rejected by the registry.
-`close()` is idempotent and removes only its registration. A callback already admitted may finish after `close()`, and
-delivery order or drain completion is not guaranteed. A callback `Exception` is isolated; extension
-`CancellationException` and `Error` are not converted into an `ExtendOutcome` or
-published as events.
-`BackendError.cause` remains the original backend `Exception`; core does not redact it, so custom observers must
-sanitise the cause before logging or exporting.
+The registry is process-local. Delivery uses bounded non-blocking in-flight admission (1024 permits globally and 256 per registration); saturation increments `LeaderLeaseExtensionObservers.droppedCount()` rather than waiting for a permit or callback. Registration count and callback fan-out are not bounded by this registry, so keep application registrations small and callbacks short. `droppedCount()` is separate from `ExtendOutcome.Rejected`: it counts only observer-delivery admissions rejected by the registry.
+`close()` is idempotent and removes only its registration. A callback already admitted may finish after `close()`, and delivery order or drain completion is not guaranteed. A callback `Exception` is isolated; extension
+`CancellationException` and `Error` are not converted into an `ExtendOutcome` or published as events.
+`BackendError.cause` remains the original backend `Exception`; core does not redact it, so custom observers must sanitise the cause before logging or exporting.
 
-The optional `LeaderLeaseExtensionContext` is supplied for matching user-owned active scopes and is absent for watchdog
-events and scope-free or mismatched named calls. A fail-open `NotHeld` event still carries its lock name in `context`
-with `auditLeaderId = null`.
-Its `toString()` is redacted, but applications should still avoid logging raw `lockName` or `auditLeaderId`. See the
+The optional `LeaderLeaseExtensionContext` is supplied for matching user-owned active scopes and is absent for watchdog events and scope-free or mismatched named calls. A fail-open `NotHeld` event still carries its lock name in `context`
+with `auditLeaderId = null`. Its `toString()` is redacted, but applications should still avoid logging raw `lockName` or `auditLeaderId`. See the
 [unreleased lease-extension observation draft](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.en.md)
 for adapter and lifecycle guidance.
 
-The snippet closes after one explicit `USER` attempt. Keep the handle for the full single-leader action or component
-lifetime with `autoExtend = true` when `WATCHDOG` ticks are needed; group election slots accept explicit
+The snippet closes after one explicit `USER` attempt. Keep the handle for the full single-leader action or component lifetime with `autoExtend = true` when `WATCHDOG` ticks are needed; group election slots accept explicit
 `LockExtender` calls but disable group auto-extension and therefore do not emit `WATCHDOG` events.
 
 ### ⚠️ Reactor non-suspend operator limitation (R5)
@@ -616,8 +554,7 @@ mono.flatMap { value ->
 
 ## Leader Identity
 
-Every elected leader carries a string identity (`leaderId`) that is stamped on the lock record and
-propagated to audit events, Redis payloads, and monitoring dashboards.
+Every elected leader carries a string identity (`leaderId`) that is stamped on the lock record and propagated to audit events, Redis payloads, and monitoring dashboards.
 
 ### `LeaderIdProvider`
 
@@ -628,6 +565,7 @@ fun interface LeaderIdProvider {
 ```
 
 **Contract**:
+
 - Must never throw.
 - Must never block.
 - Must be thread-safe.
@@ -635,11 +573,11 @@ fun interface LeaderIdProvider {
 
 ### Built-in providers
 
-| Provider | Description | Default |
-|----------|-------------|---------|
-| `RandomLeaderIdProvider(length)` | Base58 random string (~70 bits of entropy at length 12) | `length = 12` |
-| `HostnamePidLeaderIdProvider(suffixLength)` | `hostname:PID:base58suffix` — human-readable, PII-risk in multi-tenant SaaS | `suffixLength = 8` |
-| `CompositeLeaderIdProvider(prefix, separator, delegate)` | Prepends a fixed prefix to another provider's output; useful for tenant tagging | |
+| Provider                                                 | Description                                                                     | Default            |
+|----------------------------------------------------------|---------------------------------------------------------------------------------|--------------------|
+| `RandomLeaderIdProvider(length)`                         | Base58 random string (~70 bits of entropy at length 12)                         | `length = 12`      |
+| `HostnamePidLeaderIdProvider(suffixLength)`              | `hostname:PID:base58suffix` — human-readable, PII-risk in multi-tenant SaaS     | `suffixLength = 8` |
+| `CompositeLeaderIdProvider(prefix, separator, delegate)` | Prepends a fixed prefix to another provider's output; useful for tenant tagging |                    |
 
 > **PII warning**: `HostnamePidLeaderIdProvider` includes the hostname, which may identify internal
 > infrastructure in multi-tenant environments. Use `RandomLeaderIdProvider` when anonymity is required.
@@ -648,12 +586,12 @@ fun interface LeaderIdProvider {
 
 `LeaderIdSource` is a bounded enum recorded as a Micrometer tag:
 
-| Value | Meaning |
-|-------|---------|
-| `LITERAL` | Static string from the `@LeaderElection(leaderId = "...")` annotation field |
-| `SPEL` | Resolved from a SpEL expression in the annotation |
-| `PROPERTY` | Resolved from a Spring `${...}` placeholder |
-| `AUTO` | Generated by the configured `LeaderIdProvider` bean |
+| Value      | Meaning                                                                     |
+|------------|-----------------------------------------------------------------------------|
+| `LITERAL`  | Static string from the `@LeaderElection(leaderId = "...")` annotation field |
+| `SPEL`     | Resolved from a SpEL expression in the annotation                           |
+| `PROPERTY` | Resolved from a Spring `${...}` placeholder                                 |
+| `AUTO`     | Generated by the configured `LeaderIdProvider` bean                         |
 
 ### `LeaderSlot` — audit identity carrier
 
@@ -665,6 +603,7 @@ val result = leaderElector.runIfLeader(slot) { doWork() }
 ```
 
 The `leaderId` is:
+
 - Stamped on the backend lock record (Redis key / DB row) for crash-recovery attribution.
 - Propagated to `LeaderElectionEvent.Elected.leaderId`.
 - Available via `LeaderRunResult.Elected.leaderId` when using `runIfLeaderResult`.
@@ -695,16 +634,15 @@ val result = elector.runIfLeader(slot) { doWork() }
 
 ### Audit identity in Redis group backends
 
-When using the Lettuce or Redisson **group** backends, the `leaderId` is persisted alongside the
-slot token for crash-recovery attribution:
+When using the Lettuce or Redisson
+**group** backends, the `leaderId` is persisted alongside the slot token for crash-recovery attribution:
 
-| Backend | Storage | Key |
-|---------|---------|-----|
-| `leader-redis-lettuce` (group) | `lg:{lockName}:meta` Hash | `auditLeaderId` field per slot token |
-| `leader-redis-redisson` (group) | `lg:{lockName}:audit` RMap | slot token → leaderId |
+| Backend                         | Storage                    | Key                                  |
+|---------------------------------|----------------------------|--------------------------------------|
+| `leader-redis-lettuce` (group)  | `lg:{lockName}:meta` Hash  | `auditLeaderId` field per slot token |
+| `leader-redis-redisson` (group) | `lg:{lockName}:audit` RMap | slot token → leaderId                |
 
-On crash, TTL expiry reclaims both the slot token and the identity record. No external reaper is
-required.
+On crash, TTL expiry reclaims both the slot token and the identity record. No external reaper is required.
 
 > **Single-leader backends** (`LettuceLeaderElector`, `RedissonLeaderElector`) store the
 > `auditLeaderId` in-memory on the `LeaderLockHandle`; it is not persisted to Redis.

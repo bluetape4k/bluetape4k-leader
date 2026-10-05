@@ -15,12 +15,12 @@ import kotlinx.coroutines.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 
-class CustomStrategicBackendConformanceTest : AbstractStrategicBackendConformanceTest() {
+class CustomStrategicBackendConformanceTest: AbstractStrategicBackendConformanceTest() {
 
     override fun createProvider(): StrategicBackendConformanceProvider = CustomStrategicBackendProvider()
 }
 
-private class CustomStrategicBackendProvider : StrategicBackendConformanceProvider {
+private class CustomStrategicBackendProvider: StrategicBackendConformanceProvider {
     private val stores = StrategicBackendKind.entries.associateWith { CustomCandidateStore() }
 
     override fun blocking(kind: StrategicBackendKind, nodeId: String): BlockingStrategicBackend =
@@ -59,7 +59,7 @@ private class CustomStrategicBackendProvider : StrategicBackendConformanceProvid
 private class CustomBlockingSingleBackend(
     override val nodeId: String,
     private val store: CustomCandidateStore,
-) : StrategicLeaderElector, BlockingStrategicBackend {
+): StrategicLeaderElector, BlockingStrategicBackend {
 
     override fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
         store.register(lockName, info, ttl)
@@ -101,7 +101,7 @@ private class CustomBlockingSingleBackend(
 private class CustomBlockingGroupBackend(
     override val nodeId: String,
     private val store: CustomCandidateStore,
-) : StrategicLeaderGroupElector, BlockingStrategicBackend {
+): StrategicLeaderGroupElector, BlockingStrategicBackend {
 
     override fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
         store.register(lockName, info, ttl)
@@ -143,7 +143,7 @@ private class CustomBlockingGroupBackend(
 private class CustomSuspendSingleBackend(
     override val nodeId: String,
     private val store: CustomCandidateStore,
-) : StrategicSuspendLeaderElector, SuspendStrategicBackend {
+): StrategicSuspendLeaderElector, SuspendStrategicBackend {
 
     override suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
         store.register(lockName, info, ttl)
@@ -182,7 +182,7 @@ private class CustomSuspendSingleBackend(
 private class CustomSuspendGroupBackend(
     override val nodeId: String,
     private val store: CustomCandidateStore,
-) : StrategicSuspendLeaderGroupElector, SuspendStrategicBackend {
+): StrategicSuspendLeaderGroupElector, SuspendStrategicBackend {
 
     override suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
         store.register(lockName, info, ttl)

@@ -2,9 +2,9 @@ name: Publish Snapshot
 
 on:
   workflow_run:
-    workflows: ["Nightly"]
-    types: [completed]
-    branches: [develop]
+    workflows: [ "Nightly" ]
+    types: [ completed ]
+    branches: [ develop ]
   workflow_dispatch:
 
 permissions:

@@ -106,7 +106,12 @@ interface LeaderAopMetricsRecorder {
      * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
      * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
-    fun onLockAcquired(name: String, options: LeaderElectionOptions, acquireElapsed: Duration, context: LeaderAopMetricsContext) {
+    fun onLockAcquired(
+        name: String,
+        options: LeaderElectionOptions,
+        acquireElapsed: Duration,
+        context: LeaderAopMetricsContext,
+    ) {
         LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onLockAcquired(name, options, acquireElapsed)
     }
@@ -121,7 +126,12 @@ interface LeaderAopMetricsRecorder {
      * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
      * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
-    fun onLockNotAcquired(name: String, options: LeaderElectionOptions, reason: SkipReason, context: LeaderAopMetricsContext) {
+    fun onLockNotAcquired(
+        name: String,
+        options: LeaderElectionOptions,
+        reason: SkipReason,
+        context: LeaderAopMetricsContext,
+    ) {
         LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onLockNotAcquired(name, options, reason)
     }
@@ -173,5 +183,5 @@ interface LeaderAopMetricsRecorder {
      *
      * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
      */
-    object NoOp : LeaderAopMetricsRecorder
+    object NoOp: LeaderAopMetricsRecorder
 }

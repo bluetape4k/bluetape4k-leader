@@ -1,6 +1,5 @@
 package io.bluetape4k.leader.lettuce
 
-import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.validateLockName
@@ -9,7 +8,7 @@ import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 import kotlin.time.Duration
 
 /**
@@ -30,14 +29,14 @@ internal class LettuceCandidateRegistry private constructor(
     internal constructor(
         connection: StatefulRedisConnection<String, String>,
         keyPrefix: String = DEFAULT_KEY_PREFIX,
-    ) : this(
+    ): this(
         LettuceBlockingCandidateCommands(connection.sync()),
         StandaloneBlockingCandidateValueReader(connection.sync()),
         keyPrefix,
     )
 
     /** 기존 one-argument internal 호출 surface를 보존합니다. */
-    internal constructor(connection: StatefulRedisConnection<String, String>) : this(
+    internal constructor(connection: StatefulRedisConnection<String, String>): this(
         connection,
         DEFAULT_KEY_PREFIX,
     )
@@ -46,7 +45,7 @@ internal class LettuceCandidateRegistry private constructor(
     internal constructor(
         connection: StatefulRedisClusterConnection<String, String>,
         keyPrefix: String = DEFAULT_KEY_PREFIX,
-    ) : this(
+    ): this(
         LettuceBlockingCandidateCommands(connection.sync()),
         ClusterBlockingCandidateValueReader(connection.sync()),
         keyPrefix,
@@ -82,13 +81,13 @@ internal class LettuceCandidateRegistry private constructor(
         LettuceCandidateKeyCodec.legacyCandidateKey(keyPrefix, lockName, nodeId)
 
     fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val ttlMillis = candidateTtlMillis(ttl)
         repeat(MAX_REGISTER_FENCE_ATTEMPTS) {
             val observedTombstone = commands.get(tombstoneKey(lockName, info.nodeId))
             if (observedTombstone != null) cleanupLegacyGeneration(lockName, info.nodeId)
             val reply = runWriteScript(
-                operation = LettuceCandidateWriteScript.REGISTER,
+                operation = REGISTER,
                 keys = arrayOf(
                     candidateKey(lockName, info.nodeId),
                     indexKey(lockName),
@@ -103,16 +102,16 @@ internal class LettuceCandidateRegistry private constructor(
                 ),
             )
             when (reply.firstOrNull()?.toString()?.toLongOrNull()) {
-                LettuceCandidateWriteScript.REGISTERED -> return
-                LettuceCandidateWriteScript.TOMBSTONED -> Unit
-                else -> requireStatus(reply, LettuceCandidateWriteScript.REGISTERED)
+                REGISTERED -> return
+                TOMBSTONED -> Unit
+                else -> requireStatus(reply, REGISTERED)
             }
         }
         error("Candidate registration fence changed too many times")
     }
 
     fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val ttlMillis = candidateTtlMillis(ttl)
         if (commands.get(tombstoneKey(lockName, info.nodeId)) != null) return
         ensureCurrentCandidate(lockName, info.nodeId)
@@ -131,9 +130,9 @@ internal class LettuceCandidateRegistry private constructor(
     }
 
     fun unregisterCandidate(lockName: String, nodeId: String) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val reply = runWriteScript(
-            operation = LettuceCandidateWriteScript.UNREGISTER,
+            operation = UNREGISTER,
             keys = arrayOf(
                 candidateKey(lockName, nodeId),
                 indexKey(lockName),
@@ -142,14 +141,14 @@ internal class LettuceCandidateRegistry private constructor(
             ),
             args = arrayOf(nodeId, UUID.randomUUID().toString()),
         )
-        requireStatus(reply, LettuceCandidateWriteScript.UNREGISTERED)
+        requireStatus(reply, UNREGISTERED)
 
         cleanupLegacyGeneration(lockName, nodeId)
     }
 
     @Suppress("CyclomaticComplexMethod")
     fun listCandidates(lockName: String): List<CandidateInfo> {
-        validateLockName(lockName)
+        lockName.validateLockName()
         val currentIndex = indexKey(lockName)
         val currentNodeIds = commands.smembers(currentIndex).toList()
         val candidates = linkedMapOf<String, CandidateInfo>()
@@ -208,7 +207,7 @@ internal class LettuceCandidateRegistry private constructor(
     }
 
     fun updateResult(lockName: String, nodeId: String, result: CandidateResult) {
-        validateLockName(lockName)
+        lockName.validateLockName()
         if (commands.get(tombstoneKey(lockName, nodeId)) != null) return
         ensureCurrentCandidate(lockName, nodeId)
         val reply = commands.runScript<List<Any>>(
@@ -326,7 +325,7 @@ internal class LettuceCandidateRegistry private constructor(
             } else {
                 val token = UUID.randomUUID().toString()
                 val reply = runWriteScript(
-                    operation = LettuceCandidateWriteScript.MIGRATE,
+                    operation = MIGRATE,
                     keys = arrayOf(
                         candidateKey(lockName, nodeId),
                         indexKey(lockName),
@@ -336,12 +335,12 @@ internal class LettuceCandidateRegistry private constructor(
                     args = arrayOf(sourceRaw, observedTtl.toString(), nodeId, token),
                 )
                 when (reply.firstOrNull()?.toString()?.toLongOrNull()) {
-                    LettuceCandidateWriteScript.MIGRATED -> {
+                    MIGRATED -> {
                         cleanupExpiredMigration(lockName, nodeId, source.key, sourceRaw, observedTtl, token)
                         commands.get(candidateKey(lockName, nodeId)) != null
                     }
-                    LettuceCandidateWriteScript.EXISTING_REPAIRED -> true
-                    LettuceCandidateWriteScript.MALFORMED -> {
+                    EXISTING_REPAIRED -> true
+                    MALFORMED -> {
                         LettuceCandidateInfoCodec.decode(reply.getOrNull(1)?.toString().orEmpty())
                         false
                     }
@@ -362,12 +361,12 @@ internal class LettuceCandidateRegistry private constructor(
         val sourceAfter = commands.get(sourceKey)
         val sourceTtlAfter = commands.pttl(sourceKey)
         val expired = sourceAfter == null ||
-            sourceTtlAfter == REDIS_KEY_ABSENT_TTL ||
-            (observedTtl > 0L && sourceTtlAfter == 0L)
+                sourceTtlAfter == REDIS_KEY_ABSENT_TTL ||
+                (observedTtl > 0L && sourceTtlAfter == 0L)
         if (!expired) return
 
         runWriteScript(
-            operation = LettuceCandidateWriteScript.REMOVE_IF_VALUE,
+            operation = REMOVE_IF_VALUE,
             keys = arrayOf(
                 candidateKey(lockName, nodeId),
                 indexKey(lockName),
@@ -402,10 +401,10 @@ internal class LettuceCandidateRegistry private constructor(
         val observedRaw = readLegacyCandidateRaw(candidateKey, nodeId)
         val removed = observedRaw?.let { raw ->
             runWriteScript(
-                operation = LettuceCandidateWriteScript.REMOVE_LEGACY_IF_VALUE,
+                operation = REMOVE_LEGACY_IF_VALUE,
                 keys = arrayOf(candidateKey),
                 args = arrayOf(raw),
-            ).firstOrNull()?.toString()?.toLongOrNull() == LettuceCandidateWriteScript.REMOVED
+            ).firstOrNull()?.toString()?.toLongOrNull() == REMOVED
         } ?: false
         if (observedRaw == null || removed) {
             removeLegacyIndexMembers(indexKey, listOf(nodeId))
@@ -448,6 +447,3 @@ internal class LettuceCandidateRegistry private constructor(
         val indexKey: String,
     )
 }
-
-private const val REDIS_KEY_ABSENT_TTL = -2L
-private const val MAX_REGISTER_FENCE_ATTEMPTS = 3

@@ -1,5 +1,11 @@
 package io.bluetape4k.leader.spring.aop
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectorFactory
@@ -12,16 +18,11 @@ import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.shouldNotBeNull
-import io.bluetape4k.assertions.assertFailsWith
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
@@ -44,10 +45,11 @@ import kotlin.coroutines.resume
  * CTW 는 main sourceSet 에만 적용되므로, [LeaderGroupElectionAspect.aroundLeader] 를 직접 호출하여 검증.
  * suspend 분기는 `suspendCancellableCoroutine` 으로 runTest 컨텍스트의 Continuation 을 획득하여 주입.
  */
+@Suppress("ReactiveStreamsUnusedPublisher")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderGroupElectionAspectSuspendMonoTest {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         private const val SAMPLE_RESULT = "group-suspend-ok"
     }
 
@@ -61,11 +63,15 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         suspend fun runSuspendDbTime(): String?
     }
 
-    private class SuspendGroupServiceImpl : SuspendGroupService {
+    private class SuspendGroupServiceImpl: SuspendGroupService {
         @LeaderGroupElection(name = "g-suspend-job", maxLeaders = 3)
         override suspend fun runSuspend(): String? = SAMPLE_RESULT
 
-        @LeaderGroupElection(name = "g-suspend-fail-open", maxLeaders = 3, failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
+        @LeaderGroupElection(
+            name = "g-suspend-fail-open",
+            maxLeaders = 3,
+            failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN
+        )
         override suspend fun runSuspendFailOpen(): String? = SAMPLE_RESULT
 
         @LeaderGroupElection(name = "g-suspend-skip", maxLeaders = 3, failureMode = LeaderAspectFailureMode.SKIP)
@@ -87,11 +93,15 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         fun runMonoDbTime(): Mono<String>
     }
 
-    private class MonoGroupServiceImpl : MonoGroupService {
+    private class MonoGroupServiceImpl: MonoGroupService {
         @LeaderGroupElection(name = "g-mono-job", maxLeaders = 3)
         override fun runMono(): Mono<String> = Mono.just(SAMPLE_RESULT)
 
-        @LeaderGroupElection(name = "g-mono-fail-open", maxLeaders = 3, failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
+        @LeaderGroupElection(
+            name = "g-mono-fail-open",
+            maxLeaders = 3,
+            failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN
+        )
         override fun runMonoFailOpen(): Mono<String> = Mono.just(SAMPLE_RESULT)
 
         @LeaderGroupElection(name = "ns.subns.group-mono", maxLeaders = 3)
@@ -106,7 +116,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         fun runFlow(): Flow<String>
     }
 
-    private class StreamGroupServiceImpl : StreamGroupService {
+    private class StreamGroupServiceImpl: StreamGroupService {
         @LeaderGroupElection(name = "g-flux-job", maxLeaders = 3)
         override fun runFlux(): Flux<String> = Flux.just(SAMPLE_RESULT)
 
@@ -116,7 +126,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
     // ── Fake 구현체 ─────────────────────────────────────────────────────────
 
-    private abstract class BaseFakeGroupElector : SuspendLeaderGroupElector {
+    private abstract class BaseFakeGroupElector: SuspendLeaderGroupElector {
         override val maxLeaders: Int get() = 3
         override fun activeCount(lockName: String): Int = 0
         override fun availableSlots(lockName: String): Int = maxLeaders
@@ -124,15 +134,15 @@ class LeaderGroupElectionAspectSuspendMonoTest {
             LeaderGroupState(lockName = lockName, maxLeaders = maxLeaders, activeCount = 0)
     }
 
-    private class ElectedGroupElector : BaseFakeGroupElector() {
+    private class ElectedGroupElector: BaseFakeGroupElector() {
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = action()
     }
 
-    private class SkippedGroupElector : BaseFakeGroupElector() {
+    private class SkippedGroupElector: BaseFakeGroupElector() {
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = null
     }
 
-    private class BackendErrorGroupElector(private val error: Exception) : BaseFakeGroupElector() {
+    private class BackendErrorGroupElector(private val error: Exception): BaseFakeGroupElector() {
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = throw error
     }
 
@@ -141,7 +151,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
     private class CapturingGroupFactory(
         private val elector: SuspendLeaderGroupElector,
-    ) : SuspendLeaderGroupElectorFactory {
+    ): SuspendLeaderGroupElectorFactory {
         var options: LeaderGroupElectionOptions? = null
 
         override suspend fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector {
@@ -160,13 +170,16 @@ class LeaderGroupElectionAspectSuspendMonoTest {
     @BeforeEach
     fun setUp() {
         clearMocks(factoryMock, beanSelector, signature, pjp)
-        every { beanSelector.selectGroupElectionFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected("testGroupFactory", factoryMock)
+        every {
+            beanSelector.selectGroupElectionFactory(any(), any())
+        } returns LeaderBeanSelector.Selected("testGroupFactory", factoryMock)
     }
 
     private fun newAspect(suspendGroupFactory: SuspendLeaderGroupElectorFactory): LeaderGroupElectionAspect {
-        every { beanSelector.selectSuspendGroupElectorFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected("testSuspendGroupFactory", suspendGroupFactory)
+        every {
+            beanSelector.selectSuspendGroupElectorFactory(any(), any())
+        } returns LeaderBeanSelector.Selected("testSuspendGroupFactory", suspendGroupFactory)
+
         return LeaderGroupElectionAspect(
             beanSelector = beanSelector,
             props = LeaderAopProperties(),
@@ -178,6 +191,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
     private fun configureSuspendPjp(methodName: String, target: Any) {
         val method = SuspendGroupService::class.java.getDeclaredMethod(methodName, Continuation::class.java)
+
         every { signature.method } returns method
         every { pjp.signature } returns signature
         every { pjp.target } returns target
@@ -185,6 +199,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
     private fun configureMonoJoinPoint(methodName: String, target: Any) {
         val method = MonoGroupService::class.java.getDeclaredMethod(methodName)
+
         every { signature.method } returns method
         every { pjp.signature } returns signature
         every { pjp.target } returns target
@@ -193,6 +208,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
     private fun configureStreamJoinPoint(methodName: String, target: Any) {
         val method = StreamGroupService::class.java.getDeclaredMethod(methodName)
+
         every { signature.method } returns method
         every { pjp.signature } returns signature
         every { pjp.target } returns target
@@ -203,7 +219,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         suspendCancellableCoroutine { cont ->
             every { pjp.args } returns arrayOf<Any?>(cont)
             val r = aspect.aroundLeader(pjp)
-            @Suppress("SuspiciousEqualsCombination")
+
             if (r !== COROUTINE_SUSPENDED) {
                 cont.resume(r)
             }
@@ -221,6 +237,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeGroupFactory(ElectedGroupElector()))
         val result = runSuspendAspect(aspect)
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
     }
 
@@ -242,6 +259,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
         val result = runSuspendAspect(newAspect(factory))
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
         factory.options.shouldNotBeNull().useDbTime.shouldBeTrue()
     }
@@ -254,7 +272,9 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
         val aspect = newAspect(fakeGroupFactory(ElectedGroupElector()))
 
-        val ex = assertFailsWith<RuntimeException> { runSuspendAspect(aspect) }
+        val ex = assertFailsWith<RuntimeException> {
+            runSuspendAspect(aspect)
+        }
         ex shouldBeEqualTo bodyEx
     }
 
@@ -265,7 +285,9 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
         val aspect = newAspect(fakeGroupFactory(BackendErrorGroupElector(backendEx)))
 
-        val ex = assertFailsWith<LeaderGroupElectionException> { runSuspendAspect(aspect) }
+        val ex = assertFailsWith<LeaderGroupElectionException> {
+            runSuspendAspect(aspect)
+        }
         ex.cause shouldBeEqualTo backendEx
     }
 
@@ -288,6 +310,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeGroupFactory(SkippedGroupElector()))
         val result = runSuspendAspect(aspect)
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
     }
 
@@ -300,6 +323,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeGroupFactory(BackendErrorGroupElector(backendEx)))
         val result = runSuspendAspect(aspect)
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
     }
 
@@ -309,7 +333,9 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         every { pjp.proceed(any<Array<Any?>>()) } returns SAMPLE_RESULT
         val aspect = newAspect(fakeGroupFactory(ElectedGroupElector()))
 
-        assertFailsWith<IllegalArgumentException> { runSuspendAspect(aspect) }
+        assertFailsWith<IllegalArgumentException> {
+            runSuspendAspect(aspect)
+        }
         verify(exactly = 0) { pjp.proceed(any<Array<Any?>>()) }
     }
 
@@ -325,6 +351,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeGroupFactory(ElectedGroupElector()))
         val result = (aspect.aroundLeader(pjp) as Mono<*>).block()
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
     }
 
@@ -346,6 +373,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
         val result = (newAspect(factory).aroundLeader(pjp) as Mono<*>).block()
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
         factory.options.shouldNotBeNull().useDbTime.shouldBeTrue()
     }
@@ -359,7 +387,9 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeGroupFactory(ElectedGroupElector()))
         val mono = aspect.aroundLeader(pjp) as Mono<*>
 
-        val thrown = assertFailsWith<RuntimeException> { mono.block() }
+        val thrown = assertFailsWith<RuntimeException> {
+            mono.block()
+        }
         thrown shouldBeEqualTo bodyEx
     }
 
@@ -371,7 +401,9 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeGroupFactory(BackendErrorGroupElector(backendEx)))
         val mono = aspect.aroundLeader(pjp) as Mono<*>
 
-        val ex = assertFailsWith<LeaderGroupElectionException> { mono.block() }
+        val ex = assertFailsWith<LeaderGroupElectionException> {
+            mono.block()
+        }
         ex.cause shouldBeEqualTo backendEx
     }
 
@@ -383,6 +415,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeGroupFactory(SkippedGroupElector()))
         val result = (aspect.aroundLeader(pjp) as Mono<*>).block()
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
     }
 
@@ -428,7 +461,9 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeGroupFactory(ElectedGroupElector()))
         val flux = aspect.aroundLeader(pjp) as Flux<*>
 
-        assertFailsWith<LeaderGroupElectionException> { flux.collectList().block() }
+        assertFailsWith<LeaderGroupElectionException> {
+            flux.collectList().block()
+        }
         verify(exactly = 0) { pjp.proceed() }
     }
 
@@ -439,7 +474,9 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val aspect = newAspect(fakeGroupFactory(ElectedGroupElector()))
         val flow = aspect.aroundLeader(pjp) as Flow<*>
 
-        assertFailsWith<LeaderGroupElectionException> { flow.toList() }
+        assertFailsWith<LeaderGroupElectionException> {
+            flow.toList()
+        }
         verify(exactly = 0) { pjp.proceed() }
     }
 }

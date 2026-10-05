@@ -1,10 +1,16 @@
 package io.bluetape4k.leader.consul
 
+import io.bluetape4k.ToStringBuilder
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionException
@@ -15,12 +21,14 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.leader.consul.internal.ConsulKvEntry
-import io.bluetape4k.leader.consul.internal.ConsulLockClient
 import io.bluetape4k.leader.consul.internal.ConsulLeaseHandle
+import io.bluetape4k.leader.consul.internal.ConsulLockClient
 import io.bluetape4k.leader.consul.internal.ConsulOwnerPayload
 import io.bluetape4k.leader.consul.internal.ConsulSessionId
 import io.bluetape4k.leader.consul.internal.ConsulSessionRenewal
 import io.bluetape4k.leader.consul.internal.ConsulSuspendLockExtendDelegate
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
@@ -36,6 +44,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class ConsulSuspendLeaderElectorDelegationTest {
 
+    companion object: KLoggingChannel()
+
     @Test
     fun `runIfLeaderResultSuspend returns ActionFailed for elected action failure`() = runSuspendIO {
         val client = FakeConsulLockClient()
@@ -46,10 +56,12 @@ class ConsulSuspendLeaderElectorDelegationTest {
             throw failure
         }
 
-        (result is LeaderRunResult.ActionFailed) shouldBeEqualTo true
-        val cause = (result as LeaderRunResult.ActionFailed).cause
-        (cause is LeaderElectionException) shouldBeEqualTo true
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        val cause = result.cause
+        cause.shouldBeInstanceOf<LeaderElectionException>()
         cause.message shouldBeEqualTo failure.message
+
+        log.debug { "client=$client" }
         client.releaseCalls shouldBeEqualTo 1
         client.destroyCalls shouldBeEqualTo 1
     }
@@ -65,11 +77,12 @@ class ConsulSuspendLeaderElectorDelegationTest {
                 started.complete(Unit)
                 awaitCancellation()
             }
-        }
+        }.log("Cancel Job")
 
         started.await()
         job.cancelAndJoin()
 
+        log.debug { "client=$client" }
         client.releaseCalls shouldBeEqualTo 1
         client.destroyCalls shouldBeEqualTo 1
     }
@@ -89,7 +102,9 @@ class ConsulSuspendLeaderElectorDelegationTest {
             LockExtender.extendActiveLockSuspend(20.seconds)
         }
 
-        extended shouldBeEqualTo true
+        extended.shouldBeTrue()
+
+        log.debug { "client=$client" }
         client.renewCalls shouldBeEqualTo 1
         client.releaseCalls shouldBeEqualTo 1
         client.destroyCalls shouldBeEqualTo 1
@@ -123,6 +138,8 @@ class ConsulSuspendLeaderElectorDelegationTest {
         state.leader?.nodeId shouldBeEqualTo "node-a"
         state.leader?.electedAt shouldBeEqualTo now
         state.leader?.leaseUntil shouldBeEqualTo now.plusSeconds(10)
+
+        log.debug { "client=$client" }
     }
 
     @Test
@@ -138,7 +155,9 @@ class ConsulSuspendLeaderElectorDelegationTest {
         )
         val elector = ConsulSuspendLeaderElector.create(client)
 
-        elector.state("lock-a").isEmpty shouldBeEqualTo true
+        elector.state("lock-a").isEmpty.shouldBeTrue()
+
+        log.debug { "client=$client" }
     }
 
     @Test
@@ -150,8 +169,9 @@ class ConsulSuspendLeaderElectorDelegationTest {
         )
         val elector = ConsulSuspendLeaderElector.create(client)
 
-        elector.state("lock-a").isEmpty shouldBeEqualTo true
+        elector.state("lock-a").isEmpty.shouldBeTrue()
 
+        log.debug { "client=$client" }
         future.requestedTimeoutNanos shouldBeEqualTo 123.milliseconds.inWholeNanoseconds
     }
 
@@ -171,6 +191,7 @@ class ConsulSuspendLeaderElectorDelegationTest {
 
         elector.state("lock-a").activeCount shouldBeEqualTo 0
 
+        log.debug { "client=$client" }
         future.requestedTimeoutNanos shouldBeEqualTo 77.milliseconds.inWholeNanoseconds
     }
 
@@ -190,6 +211,7 @@ class ConsulSuspendLeaderElectorDelegationTest {
 
         elector.runIfLeader("lock-a") { "should-not-run" }.shouldBeNull()
 
+        log.debug { "client=$client" }
         client.acquireCalls shouldBeLessOrEqualTo (CONSUL_GROUP_SLOT_PROBE_LIMIT * 8)
         client.destroyCalls shouldBeEqualTo 1
     }
@@ -203,7 +225,9 @@ class ConsulSuspendLeaderElectorDelegationTest {
             LockExtender.extendActiveLockDetailedSuspend(20.seconds)
         }
 
-        (outcome is ExtendOutcome.BackendError) shouldBeEqualTo true
+        outcome.shouldBeInstanceOf<ExtendOutcome.BackendError>()
+
+        log.debug { "client=$client" }
         client.releaseCalls shouldBeEqualTo 1
         client.destroyCalls shouldBeEqualTo 1
     }
@@ -234,6 +258,7 @@ class ConsulSuspendLeaderElectorDelegationTest {
 
         delegate.extendSuspend(20.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
 
+        log.debug { "client=$client" }
         client.readCalls shouldBeEqualTo 1
         delegate.lastExtendDeadline.get() shouldBeEqualTo Instant.EPOCH
     }
@@ -250,6 +275,7 @@ class ConsulSuspendLeaderElectorDelegationTest {
 
         elector.runIfLeader("lock-a") { "should-not-run" }.shouldBeNull()
 
+        log.debug { "client=$client" }
         client.acquireCalls shouldBeGreaterOrEqualTo 1
         client.releaseCalls shouldBeEqualTo 0
         client.destroyCalls shouldBeEqualTo 1
@@ -269,6 +295,7 @@ class ConsulSuspendLeaderElectorDelegationTest {
             elector.runIfLeader("lock-a") { "should-not-run" }
         }
 
+        log.debug { "client=$client" }
         client.renewCalls shouldBeEqualTo 1
         client.releaseCalls shouldBeEqualTo 0
         client.destroyCalls shouldBeEqualTo 1
@@ -289,10 +316,11 @@ class ConsulSuspendLeaderElectorDelegationTest {
         )
 
         elector.runIfLeader("lock-a") {
-            delay(3500)
+            delay(3500.milliseconds)
             "ok"
         } shouldBeEqualTo "ok"
 
+        log.debug { "client=$client" }
         client.renewCalls shouldBeGreaterOrEqualTo 1
         client.releaseCalls shouldBeEqualTo 1
         client.destroyCalls shouldBeEqualTo 1
@@ -304,7 +332,7 @@ class ConsulSuspendLeaderElectorDelegationTest {
         private val entry: ConsulKvEntry? = null,
         override val requestTimeout: Duration = 5.seconds,
         private val readFuture: CompletableFuture<ConsulKvEntry?>? = null,
-    ) : ConsulLockClient {
+    ): ConsulLockClient {
 
         private var currentEntry: ConsulKvEntry? = entry
 
@@ -333,7 +361,7 @@ class ConsulSuspendLeaderElectorDelegationTest {
             lockDelay: Duration,
         ): CompletableFuture<ConsulSessionId> {
             createdSessions++
-            return CompletableFuture.completedFuture(ConsulSessionId("session-$createdSessions"))
+            return completableFutureOf(ConsulSessionId("session-$createdSessions"))
         }
 
         override fun acquire(
@@ -351,36 +379,48 @@ class ConsulSuspendLeaderElectorDelegationTest {
                     modifyIndex = 1L,
                 )
             }
-            return CompletableFuture.completedFuture(acquireResult)
+            return completableFutureOf(acquireResult)
         }
 
         override fun release(key: String, sessionId: ConsulSessionId): CompletableFuture<Boolean> {
             releaseCalls++
-            return CompletableFuture.completedFuture(true)
+            return completableFutureOf(true)
         }
 
         override fun destroySession(sessionId: ConsulSessionId): CompletableFuture<Unit> {
             destroyCalls++
-            return CompletableFuture.completedFuture(Unit)
+            return completableFutureOf(Unit)
         }
 
         override fun renewSession(sessionId: ConsulSessionId): CompletableFuture<ConsulSessionRenewal> {
             renewCalls++
             if (renewFails) {
-                return CompletableFuture.failedFuture(IllegalStateException("renew failed"))
+                return failedCompletableFutureOf(IllegalStateException("renew failed"))
             }
-            return CompletableFuture.completedFuture(ConsulSessionRenewal(sessionId, Instant.now()))
+            return completableFutureOf(ConsulSessionRenewal(sessionId, Instant.now()))
         }
 
         override fun read(key: String): CompletableFuture<ConsulKvEntry?> {
             readCalls++
-            return readFuture ?: CompletableFuture.completedFuture(currentEntry)
+            return readFuture ?: completableFutureOf(currentEntry)
+        }
+
+        override fun toString(): String {
+            return ToStringBuilder(this)
+                .add("acquireResult", acquireResult)
+                .add("createdSessions", createdSessions)
+                .add("destroyResult", destroyCalls)
+                .add("readCalls", readCalls)
+                .add("releaseCalls", releaseCalls)
+                .add("renewFails", renewFails)
+                .add("entry", entry)
+                .toString()
         }
     }
 
     private class RecordingFuture<T>(
         private val value: T,
-    ) : CompletableFuture<T>() {
+    ): CompletableFuture<T>() {
         var requestedTimeoutNanos: Long? = null
             private set
 

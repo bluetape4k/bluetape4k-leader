@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
-import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
 import kotlinx.coroutines.flow.firstOrNull
+import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
 import java.sql.Timestamp
 import java.time.Clock
 import java.time.Instant

@@ -17,13 +17,18 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.kotlinx.coroutines.reactor)
 
+    testImplementation(bt4k.bluetape4k.io)
+    testImplementation(bt4k.fory.kotlin)
+
     // testFixtures: backend module 들이 contract test 를 상속할 수 있도록 노출
     testFixturesApi(bt4k.bluetape4k.junit5)
     testFixturesApi(libs.kotlin.test)
     testFixturesApi(libs.kotlin.test.junit5)
     testFixturesApi(libs.junit.jupiter)
+    testFixturesApi(libs.testcontainers)
+
+    testFixturesApi(bt4k.bluetape4k.coroutines)
     testFixturesApi(libs.kotlinx.coroutines.core)
     testFixturesApi(libs.kotlinx.coroutines.test)
-    testFixturesApi(libs.testcontainers)
 
 }

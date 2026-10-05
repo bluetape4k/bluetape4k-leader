@@ -1,23 +1,36 @@
 package io.bluetape4k.leader.audit
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderHistorySink
-import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.LeaderHistoryStatus
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.leader.history.SuspendLeaderHistorySink
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 
 class ExportingLeaderHistorySinkTest {
+
+    private companion object: KLogging() {
+        val ACQUIRED_AT: Instant = Instant.parse("2026-08-19T00:00:00Z")
+        val LOCKED_UNTIL: Instant = Instant.parse("2026-08-19T00:01:00Z")
+        val FINISHED_AT: Instant = Instant.parse("2026-08-19T00:00:42Z")
+    }
 
     @Test
     fun `delegate result is preserved and history lifecycle is exported`() {
@@ -32,9 +45,13 @@ class ExportingLeaderHistorySinkTest {
         delegate.acquired shouldBeEqualTo 1
         delegate.completed shouldBeEqualTo 1
         exporter.events.size shouldBeEqualTo 2
-        (exporter.events[0] as LeaderAuditExportEvent.History).status shouldBeEqualTo LeaderHistoryStatus.ACQUIRED
-        (exporter.events[1] as LeaderAuditExportEvent.History).status shouldBeEqualTo LeaderHistoryStatus.COMPLETED
-        exporter.events.joinToString().contains("secret").not().shouldBeTrue()
+
+        exporter.events[0].shouldBeInstanceOf<LeaderAuditExportEvent.History>()
+            .status shouldBeEqualTo LeaderHistoryStatus.ACQUIRED
+        exporter.events[1].shouldBeInstanceOf<LeaderAuditExportEvent.History>()
+            .status shouldBeEqualTo LeaderHistoryStatus.COMPLETED
+
+        exporter.events.joinToString() shouldNotContain "secret"
     }
 
     @Test
@@ -57,7 +74,7 @@ class ExportingLeaderHistorySinkTest {
         }
 
         sink.recordFailed(key, FINISHED_AT, 43, "failed", "fallback")
-        (exporter.events.last() as LeaderAuditExportEvent.History)
+        exporter.events.last().shouldBeInstanceOf<LeaderAuditExportEvent.History>()
             .attributes["audit_context"] shouldBeEqualTo "missing"
     }
 
@@ -81,7 +98,7 @@ class ExportingLeaderHistorySinkTest {
         }
 
         sink.recordCompleted(key, FINISHED_AT, 43)
-        (exporter.events.last() as LeaderAuditExportEvent.History)
+        exporter.events.last().shouldBeInstanceOf<LeaderAuditExportEvent.History>()
             .attributes["audit_context"] shouldBeEqualTo "missing"
     }
 
@@ -105,7 +122,7 @@ class ExportingLeaderHistorySinkTest {
         )
 
         exporter.events.size shouldBeEqualTo 2
-        (exporter.events.last() as LeaderAuditExportEvent.History)
+        exporter.events.last().shouldBeInstanceOf<LeaderAuditExportEvent.History>()
             .attributes["audit_context"] shouldBeEqualTo "missing"
     }
 
@@ -127,9 +144,9 @@ class ExportingLeaderHistorySinkTest {
         sink.recordAcquired(record(metadata = metadata)) shouldBeEqualTo key
         sink.recordCompleted(key, FINISHED_AT, 42)
 
-        val acquired = exporter.events[0] as LeaderAuditExportEvent.History
-        val completed = exporter.events[1] as LeaderAuditExportEvent.History
-        (completed.attributes.size > acquired.attributes.size).shouldBeTrue()
+        val acquired = exporter.events[0].shouldBeInstanceOf<LeaderAuditExportEvent.History>()
+        val completed = exporter.events[1].shouldBeInstanceOf<LeaderAuditExportEvent.History>()
+        completed.attributes.size shouldBeGreaterThan acquired.attributes.size
         completed.attributes["entry-0"]?.length shouldBeEqualTo LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH
     }
 
@@ -137,11 +154,12 @@ class ExportingLeaderHistorySinkTest {
     fun `suspend delegate cancellation is rethrown before export`() = runTest {
         val exporter = RecordingExporter()
         val sink = ExportingSuspendLeaderHistorySink(
-            delegate = object : io.bluetape4k.leader.history.SuspendLeaderHistorySink {
-                override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? =
+            delegate = object: SuspendLeaderHistorySink {
+                override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey =
                     throw CancellationException("cancelled")
 
-                override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
+                override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) =
+                    Unit
 
                 override suspend fun recordFailed(
                     key: LeaderHistoryKey,
@@ -155,23 +173,24 @@ class ExportingLeaderHistorySinkTest {
         )
 
         assertFailsWith<CancellationException> {
-            withContext(Job()) {
+            withContext(Dispatchers.Default) {
                 sink.recordAcquired(record())
             }
         }
-        exporter.events.size shouldBeEqualTo 0
+        exporter.events.shouldBeEmpty()
     }
 
     @Test
     fun `suspend delegate cancellation after null result is rethrown`() = runTest {
         val sink = ExportingSuspendLeaderHistorySink(
-            delegate = object : io.bluetape4k.leader.history.SuspendLeaderHistorySink {
+            delegate = object: SuspendLeaderHistorySink {
                 override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
                     currentCoroutineContext()[Job]?.cancel()
                     return null
                 }
 
-                override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
+                override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) =
+                    Unit
 
                 override suspend fun recordFailed(
                     key: LeaderHistoryKey,
@@ -185,7 +204,7 @@ class ExportingLeaderHistorySinkTest {
         )
 
         assertFailsWith<CancellationException> {
-            withContext(Job()) {
+            withContext(Dispatchers.Default) {
                 sink.recordAcquired(record())
             }
         }
@@ -198,8 +217,8 @@ class ExportingLeaderHistorySinkTest {
         var cancelCompleted = true
         var cancelFailed = true
         val sink = ExportingSuspendLeaderHistorySink(
-            delegate = object : io.bluetape4k.leader.history.SuspendLeaderHistorySink {
-                override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? = key
+            delegate = object: SuspendLeaderHistorySink {
+                override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey = key
 
                 override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
                     if (cancelCompleted) {
@@ -227,33 +246,35 @@ class ExportingLeaderHistorySinkTest {
 
         sink.recordAcquired(record()) shouldBeEqualTo key
         assertFailsWith<CancellationException> {
-            withContext(Job()) {
+            withContext(Dispatchers.Default) {
                 sink.recordCompleted(key, FINISHED_AT, 42)
             }
         }
         sink.recordCompleted(key, FINISHED_AT, 43)
-        (exporter.events.last() as LeaderAuditExportEvent.History)
+        exporter.events.last().shouldBeInstanceOf<LeaderAuditExportEvent.History>()
             .attributes["audit_context"] shouldBeEqualTo "missing"
 
         sink.recordAcquired(record()) shouldBeEqualTo key
+
         assertFailsWith<CancellationException> {
-            withContext(Job()) {
+            withContext(Dispatchers.Default) {
                 sink.recordFailed(key, FINISHED_AT, 44, "failed", "cancelled")
             }
         }
 
         sink.recordCompleted(key, FINISHED_AT, 45)
-        (exporter.events.last() as LeaderAuditExportEvent.History)
+        exporter.events.last().shouldBeInstanceOf<LeaderAuditExportEvent.History>()
             .attributes["audit_context"] shouldBeEqualTo "missing"
     }
 
     @Test
     fun `suspend deleteOlderThan rechecks cancellation after delegate`() = runTest {
         val sink = ExportingSuspendLeaderHistorySink(
-            delegate = object : io.bluetape4k.leader.history.SuspendLeaderHistorySink {
+            delegate = object: io.bluetape4k.leader.history.SuspendLeaderHistorySink {
                 override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? = null
 
-                override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
+                override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) =
+                    Unit
 
                 override suspend fun recordFailed(
                     key: LeaderHistoryKey,
@@ -272,7 +293,7 @@ class ExportingLeaderHistorySinkTest {
         )
 
         assertFailsWith<CancellationException> {
-            withContext(Job()) {
+            withContext(Dispatchers.IO) {
                 sink.deleteOlderThan(FINISHED_AT, 1)
             }
         }
@@ -280,15 +301,13 @@ class ExportingLeaderHistorySinkTest {
 
     private class RecordingSink(
         private val key: LeaderHistoryKey,
-        completedFailure: Throwable? = null,
-        failedFailure: Throwable? = null,
-    ) : LeaderHistorySink {
+        private var completedFailure: Throwable? = null,
+        private var failedFailure: Throwable? = null,
+    ): LeaderHistorySink {
         var acquired = 0
         var completed = 0
-        private var completedFailure: Throwable? = completedFailure
-        private var failedFailure: Throwable? = failedFailure
 
-        override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
+        override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey {
             acquired++
             return key
         }
@@ -317,12 +336,13 @@ class ExportingLeaderHistorySinkTest {
 
     private class RecordingExporter(
         private val result: LeaderAuditSubmitResult = LeaderAuditSubmitResult.ACCEPTED,
-    ) : LeaderAuditExporter {
-        val events = mutableListOf<LeaderAuditExportEvent>()
+    ): LeaderAuditExporter {
+        private val _events = ConcurrentLinkedQueue<LeaderAuditExportEvent>()
+        val events get() = _events.toList()
         private val closed = AtomicInteger()
 
         override fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult {
-            events += event
+            _events += event
             return result
         }
 
@@ -363,10 +383,4 @@ class ExportingLeaderHistorySinkTest {
         status = LeaderHistoryStatus.ACQUIRED,
         metadata = metadata,
     )
-
-    private companion object {
-        val ACQUIRED_AT: Instant = Instant.parse("2026-08-19T00:00:00Z")
-        val LOCKED_UNTIL: Instant = Instant.parse("2026-08-19T00:01:00Z")
-        val FINISHED_AT: Instant = Instant.parse("2026-08-19T00:00:42Z")
-    }
 }

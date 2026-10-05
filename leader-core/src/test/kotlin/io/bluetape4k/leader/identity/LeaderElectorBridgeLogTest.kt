@@ -1,17 +1,17 @@
 package io.bluetape4k.leader.identity
 
+import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import io.bluetape4k.assertions.shouldBeTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectorBridgeLogTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private lateinit var bridgeLog: LeaderElectorBridgeLog
 
@@ -71,7 +71,7 @@ class LeaderElectorBridgeLogTest {
     fun `global - setGlobal replaces instance`() {
         val fresh = LeaderElectorBridgeLog()
         LeaderElectorBridgeLog.setGlobal(fresh)
-        (LeaderElectorBridgeLog.global() === fresh).shouldBeTrue()
+        LeaderElectorBridgeLog.global() shouldBe fresh
 
     }
 
@@ -88,8 +88,10 @@ class LeaderElectorBridgeLogTest {
         val tiny = LeaderElectorBridgeLog(cacheSize = 1)
         // first pair — warns once, enters LRU
         tiny.warnOnBridgeUse(FakeElector::class, slot(leaderId = "node-a"))
+
         // second pair — evicts first, warns, enters LRU
         tiny.warnOnBridgeUse(FakeElector::class, slot(leaderId = "node-b"))
+
         // first pair re-inserted (it was evicted) — warns again
         tiny.warnOnBridgeUse(FakeElector::class, slot(leaderId = "node-a"))
 

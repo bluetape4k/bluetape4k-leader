@@ -3,6 +3,7 @@ package io.bluetape4k.leader.contract
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
@@ -156,7 +157,7 @@ abstract class AbstractMonotonicDeadlineContractTest {
         override fun instant(): Instant = wallInstant
     }
 
-    companion object {
+    companion object: KLogging() {
         @JvmStatic
         fun waitOutcomeCases(): Stream<WaitOutcomeCase> = LockTarget.entries
             .flatMap { target ->

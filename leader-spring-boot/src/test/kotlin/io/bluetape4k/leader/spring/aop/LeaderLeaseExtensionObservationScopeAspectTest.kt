@@ -20,6 +20,7 @@ import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.bluetape4k.leader.spring.metrics.LeaseExtensionObservationScopeOwner
+import io.bluetape4k.logging.KLogging
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -30,8 +31,10 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.runTest
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.reflect.MethodSignature
+import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -39,10 +42,13 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.resume
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.toJavaDuration
 
+@Suppress("ReactiveStreamsUnusedPublisher")
 class LeaderLeaseExtensionObservationScopeAspectTest {
+
+    companion object: KLogging()
 
     private interface SingleService {
         @LeaderElection(name = "scope-sync")
@@ -155,17 +161,23 @@ class LeaderLeaseExtensionObservationScopeAspectTest {
     private fun newSingleAspect(owner: LeaseExtensionObservationScopeOwner): LeaderElectionAspect {
         val election = mockk<LeaderElector>()
         val action = slot<() -> Any?>()
-        every { election.runIfLeaderResult<Any?>(any<String>(), capture(action)) } answers {
+        every {
+            election.runIfLeaderResult<Any?>(any<String>(), capture(action))
+        } answers {
             LeaderRunResult.Elected(action.captured.invoke())
         }
-        val suspendElection = object : SuspendLeaderElector {
+
+        val suspendElection = object: SuspendLeaderElector {
             override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = action()
         }
         val selector = mockk<LeaderBeanSelector>()
-        every { selector.selectElectionFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected("singleFactory", LeaderElectorFactory { election })
-        every { selector.selectSuspendElectorFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected("singleSuspendFactory", SuspendLeaderElectorFactory { suspendElection })
+        every {
+            selector.selectElectionFactory(any(), any())
+        } returns LeaderBeanSelector.Selected("singleFactory", LeaderElectorFactory { election })
+        every {
+            selector.selectSuspendElectorFactory(any(), any())
+        } returns LeaderBeanSelector.Selected("singleSuspendFactory", SuspendLeaderElectorFactory { suspendElection })
+
         return LeaderElectionAspect(
             beanSelector = selector,
             props = LeaderAopProperties(),
@@ -178,10 +190,12 @@ class LeaderLeaseExtensionObservationScopeAspectTest {
     private fun newGroupAspect(owner: LeaseExtensionObservationScopeOwner): LeaderGroupElectionAspect {
         val election = mockk<LeaderGroupElector>()
         val action = slot<() -> Any?>()
-        every { election.runIfLeaderResult<Any?>(any<String>(), capture(action)) } answers {
+        every {
+            election.runIfLeaderResult(any<String>(), capture(action))
+        } answers {
             LeaderRunResult.Elected(action.captured.invoke())
         }
-        val suspendElection = object : SuspendLeaderGroupElector {
+        val suspendElection = object: SuspendLeaderGroupElector {
             override val maxLeaders: Int = 2
 
             override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = action()
@@ -194,10 +208,15 @@ class LeaderLeaseExtensionObservationScopeAspectTest {
                 LeaderGroupState(lockName, maxLeaders, activeCount = 0)
         }
         val selector = mockk<LeaderBeanSelector>()
-        every { selector.selectGroupElectionFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected("groupFactory", LeaderGroupElectorFactory { election })
-        every { selector.selectSuspendGroupElectorFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected("groupSuspendFactory", SuspendLeaderGroupElectorFactory { suspendElection })
+        every {
+            selector.selectGroupElectionFactory(any(), any())
+        } returns LeaderBeanSelector.Selected("groupFactory", LeaderGroupElectorFactory { election })
+        every {
+            selector.selectSuspendGroupElectorFactory(any(), any())
+        } returns LeaderBeanSelector.Selected(
+            "groupSuspendFactory",
+            SuspendLeaderGroupElectorFactory { suspendElection })
+
         return LeaderGroupElectionAspect(
             beanSelector = selector,
             props = LeaderAopProperties(),
@@ -222,12 +241,14 @@ class LeaderLeaseExtensionObservationScopeAspectTest {
         }
         val signature = mockk<MethodSignature>()
         val pjp = mockk<ProceedingJoinPoint>()
+
         every { signature.method } returns method
         every { pjp.signature } returns signature
         every { pjp.target } returns mockk(relaxed = true)
         every { pjp.args } returns emptyArray()
         every { pjp.proceed() } answers { proceed() }
         every { pjp.proceed(any<Array<Any?>>()) } answers { proceed() }
+
         return pjp
     }
 
@@ -253,7 +274,7 @@ class LeaderLeaseExtensionObservationScopeAspectTest {
         expectedSecond: Int,
         expectedGlobal: Int,
     ) {
-        await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+        await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
             first.get() shouldBeEqualTo expectedFirst
             second.get() shouldBeEqualTo expectedSecond
             global.get() shouldBeEqualTo expectedGlobal
@@ -267,6 +288,7 @@ class LeaderLeaseExtensionObservationScopeAspectTest {
         val second = scopeFixture()
         val global = AtomicInteger()
         val globalHandle = LeaderLeaseExtensionObservers.addObserver { global.incrementAndGet() }
+
         try {
             LockExtender.extendActiveLockDetailed(1.seconds)
             awaitCounts(first.count, second.count, global, 0, 0, 1)
@@ -290,7 +312,7 @@ class LeaderLeaseExtensionObservationScopeAspectTest {
         val count: AtomicInteger,
         val scope: LeaderLeaseExtensionObservationScope,
         val owner: LeaseExtensionObservationScopeOwner,
-    ) : AutoCloseable {
+    ): AutoCloseable {
         override fun close() {
             owner.clear(scope)
             scope.close()

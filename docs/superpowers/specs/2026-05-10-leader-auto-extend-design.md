@@ -34,7 +34,7 @@ Primary references:
 - Group/semaphore backend autoExtend 구현.
 - Fencing token 도입.
 - AOP-only timer 구현.
-- 모든 backend(Exposed/Hazelcast/ZooKeeper)의 완전한 autoExtend 구현. 단, common option 추가로 compile 영향이 있으면 수정한다.
+- 모든 backend (Exposed/Hazelcast/ZooKeeper)의 완전한 autoExtend 구현. 단, common option 추가로 compile 영향이 있으면 수정한다.
 
 ## 설계
 
@@ -66,11 +66,11 @@ Watchdog은 leaseTime의 약 1/3 주기로 실행하며, `extend()`가 false를 
 ## 접근 비교
 
 1. AOP timer only
-   - Rejected: issue #73의 split-brain 원인은 backend TTL이고, AOP는 lock token을 알 수 없다. owner-conditional 연장을 보장할 수 없다.
+    - Rejected: issue #73의 split-brain 원인은 backend TTL이고, AOP는 lock token을 알 수 없다. owner-conditional 연장을 보장할 수 없다.
 2. Common lock interface에 `extend()` 추가
-   - Rejected for v1: 모든 backend lock abstraction을 한 번에 바꾸면 Exposed/Hazelcast/group까지 scope가 넓어진다.
+    - Rejected for v1: 모든 backend lock abstraction을 한 번에 바꾸면 Exposed/Hazelcast/group까지 scope가 넓어진다.
 3. Backend-local extension plus small common scheduler
-   - Accepted: lifecycle ownership을 elector/lock에 두면서 issue가 요구한 4 backend slice를 작게 구현한다.
+    - Accepted: lifecycle ownership을 elector/lock에 두면서 issue가 요구한 4 backend slice를 작게 구현한다.
 
 ## 위험과 완화
 

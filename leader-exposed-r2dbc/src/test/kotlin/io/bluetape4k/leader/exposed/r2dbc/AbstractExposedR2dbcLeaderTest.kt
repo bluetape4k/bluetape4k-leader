@@ -51,29 +51,29 @@ abstract class AbstractExposedR2dbcLeaderTest {
             val filter = System.getenv("LEADER_TEST_DB")?.trim()?.uppercase()
                 ?: return listOf(TestR2dbcDB.H2, TestR2dbcDB.POSTGRESQL, TestR2dbcDB.MYSQL_V8)
             return when (filter) {
-                "H2"                -> listOf(TestR2dbcDB.H2)
+                "H2" -> listOf(TestR2dbcDB.H2)
                 "POSTGRESQL", "POSTGRES" -> listOf(TestR2dbcDB.POSTGRESQL)
                 "MYSQL_V8", "MYSQL" -> listOf(TestR2dbcDB.MYSQL_V8)
-                else                -> error("지원하지 않는 LEADER_TEST_DB 값: $filter")
+                else -> error("지원하지 않는 LEADER_TEST_DB 값: $filter")
             }
         }
 
         fun r2dbcUrl(testDB: TestR2dbcDB): String = when (testDB) {
-            TestR2dbcDB.H2         -> "r2dbc:h2:mem:///leader_test;MODE=MySQL;DB_CLOSE_DELAY=-1"
+            TestR2dbcDB.H2 -> "r2dbc:h2:mem:///leader_test;MODE=MySQL;DB_CLOSE_DELAY=-1"
             TestR2dbcDB.POSTGRESQL -> {
                 val c = postgreSQLServer
                 "r2dbc:postgresql://${c.host}:${c.getMappedPort(5432)}/${c.databaseName}"
             }
-            TestR2dbcDB.MYSQL_V8   -> {
+            TestR2dbcDB.MYSQL_V8 -> {
                 val c = mysql8Server
                 "r2dbc:mysql://${c.host}:${c.getMappedPort(3306)}/${c.databaseName}"
             }
         }
 
         fun r2dbcCredentials(testDB: TestR2dbcDB): Pair<String?, String?> = when (testDB) {
-            TestR2dbcDB.H2         -> "" to ""
+            TestR2dbcDB.H2 -> "" to ""
             TestR2dbcDB.POSTGRESQL -> postgreSQLServer.username to postgreSQLServer.password
-            TestR2dbcDB.MYSQL_V8   -> mysql8Server.username to mysql8Server.password
+            TestR2dbcDB.MYSQL_V8 -> mysql8Server.username to mysql8Server.password
         }
     }
 

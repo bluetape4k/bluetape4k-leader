@@ -1,14 +1,15 @@
 package io.bluetape4k.leader.internal
 
 import io.bluetape4k.leader.LeaderLockHandle
-import io.bluetape4k.leader.coroutines.LockHandleElement
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 
 /**
  * `CaptureScope` 선언은 leader election 계약에서 사용되는 object입니다.
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-internal object CaptureScope {
+internal object CaptureScope: KLogging() {
 
     /**
      * `runWithCapture` 호출은 leader election 계약의 일부 동작을 수행합니다.
@@ -19,6 +20,8 @@ internal object CaptureScope {
      * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     inline fun <T> runWithCapture(handle: LeaderLockHandle.Real, action: () -> T): T {
+        log.debug { "runWithCapture. handle=$handle" }
+
         LeaderLockHandleCapture.set(handle)
         try {
             return action()

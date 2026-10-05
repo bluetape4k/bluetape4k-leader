@@ -6,10 +6,10 @@ import io.bluetape4k.leader.StrategicLeaderElector
 import io.bluetape4k.leader.lettuce.LettuceStrategicLeaderElector
 import io.bluetape4k.leader.redisson.RedissonStrategicLeaderElector
 import io.bluetape4k.leader.strategy.CandidateInfo
-import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
 import io.bluetape4k.leader.strategy.scorers.IdleTimeScorer
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.scorers.WeightedScorer
+import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import io.bluetape4k.testcontainers.storage.RedisServer

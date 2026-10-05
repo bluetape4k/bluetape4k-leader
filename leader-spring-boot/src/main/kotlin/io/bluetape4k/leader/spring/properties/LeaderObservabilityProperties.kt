@@ -23,9 +23,9 @@ data class LeaderObservabilityProperties(
     val health: LeaderObservabilityHealthProperties = LeaderObservabilityHealthProperties(),
     val stateProviderBean: String = "",
     val backendHealth: LeaderBackendHealthProperties = LeaderBackendHealthProperties(),
-) : Serializable {
+): Serializable {
     /** 0.4.0 공개 API의 두 인자 생성자 바이너리 호환성을 유지합니다. */
-    constructor(enabled: Boolean, lockNames: Set<String>) : this(
+    constructor(enabled: Boolean, lockNames: Set<String>): this(
         enabled = enabled,
         lockNames = lockNames,
         tracing = LeaderTracingProperties(),
@@ -41,7 +41,7 @@ data class LeaderObservabilityProperties(
         tracing: LeaderTracingProperties,
         health: LeaderObservabilityHealthProperties,
         stateProviderBean: String,
-    ) : this(
+    ): this(
         enabled = enabled,
         lockNames = lockNames,
         tracing = tracing,
@@ -57,7 +57,7 @@ data class LeaderObservabilityProperties(
         lockNames: Set<String>,
         mask: Int,
         marker: kotlin.jvm.internal.DefaultConstructorMarker?,
-    ) : this(
+    ): this(
         enabled = if (mask and 0x001 != 0) true else enabled,
         lockNames = if (mask and 0x002 != 0) emptySet() else lockNames,
         tracing = LeaderTracingProperties(),
@@ -76,7 +76,7 @@ data class LeaderObservabilityProperties(
         stateProviderBean: String,
         mask: Int,
         marker: kotlin.jvm.internal.DefaultConstructorMarker?,
-    ) : this(
+    ): this(
         enabled = if (mask and 0x001 != 0) true else enabled,
         lockNames = if (mask and 0x002 != 0) emptySet() else lockNames,
         tracing = if (mask and 0x004 != 0) LeaderTracingProperties() else tracing,
@@ -153,7 +153,7 @@ data class LeaderObservabilityProperties(
      * `backendHealth` 추가 전 직렬화 스트림을 읽을 때 Java serialization이 Kotlin 기본값을
      * 호출하지 않는 경계를 복구합니다.
      */
-    @Suppress("SENSELESS_COMPARISON", "UNNECESSARY_SAFE_CALL")
+    @Suppress("SENSELESS_COMPARISON", "UNNECESSARY_SAFE_CALL", "USELESS_ELVIS")
     private fun readResolve(): Any =
         if (backendHealth == null) {
             LeaderObservabilityProperties(
@@ -178,7 +178,7 @@ data class LeaderObservabilityProperties(
 data class LeaderBackendHealthProperties(
     val enabled: Boolean = false,
     val timeout: Duration = DefaultTimeout,
-) : Serializable {
+): Serializable {
 
     init {
         val kotlinTimeout = timeout.toKotlinDuration()
@@ -206,7 +206,7 @@ data class LeaderObservabilityHealthProperties(
     val enabled: Boolean = false,
     val leaseWarningThreshold: Duration = Duration.ofSeconds(10),
     val acquisitionFailureWindow: Duration = Duration.ofMinutes(DefaultAcquisitionFailureWindowMinutes),
-) : Serializable {
+): Serializable {
     /** `0.5.0`에서 Kotlin 기본 인자 호출자가 사용한 synthetic constructor를 보존합니다. */
     @Deprecated("0.5.0 JVM ABI 호환성 생성자", level = DeprecationLevel.HIDDEN)
     @Suppress("UNUSED_PARAMETER")
@@ -215,7 +215,7 @@ data class LeaderObservabilityHealthProperties(
         leaseWarningThreshold: Duration?,
         mask: Int,
         marker: DefaultConstructorMarker?,
-    ) : this(
+    ): this(
         enabled = if (mask and 0x001 != 0) false else enabled,
         leaseWarningThreshold = if (mask and 0x002 != 0) {
             Duration.ofSeconds(10)
@@ -229,7 +229,7 @@ data class LeaderObservabilityHealthProperties(
     constructor(
         enabled: Boolean,
         leaseWarningThreshold: Duration,
-    ) : this(
+    ): this(
         enabled = enabled,
         leaseWarningThreshold = leaseWarningThreshold,
         acquisitionFailureWindow = Duration.ofMinutes(DefaultAcquisitionFailureWindowMinutes),
@@ -310,7 +310,7 @@ data class LeaderTracingProperties(
     val includeLockName: Boolean = false,
     val includeLeaderId: Boolean = false,
     val includeExceptionDetails: Boolean = false,
-) : Serializable {
+): Serializable {
     companion object {
         private const val serialVersionUID = 1L
     }

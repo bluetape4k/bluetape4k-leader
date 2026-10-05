@@ -8,6 +8,8 @@ import io.bluetape4k.leader.LeaderLeaseExtensionContext
 import io.bluetape4k.leader.LeaderLeaseExtensionEvent
 import io.bluetape4k.leader.LeaderLeaseExtensionExecution
 import io.bluetape4k.leader.LeaderLeaseExtensionSource
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationHandler
 import io.micrometer.observation.ObservationRegistry
@@ -19,6 +21,16 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MicrometerObservationLeaderLeaseExtensionObserverTest {
+
+    private companion object: KLogging() {
+        fun snapshot(context: Observation.Context): ObservationSnapshot =
+            ObservationSnapshot(
+                name = context.name.orEmpty(),
+                low = context.lowCardinalityKeyValues.associate { it.key to it.value },
+                high = context.highCardinalityKeyValues.associate { it.key to it.value },
+                error = context.error,
+            )
+    }
 
     private lateinit var registry: ObservationRegistry
     private lateinit var handler: CollectingObservationHandler
@@ -57,11 +69,16 @@ class MicrometerObservationLeaderLeaseExtensionObserverTest {
         handler.stopped.map { it.name }.distinct() shouldBeEqualTo listOf("bluetape4k.leader.lease.extension")
         handler.stopped.map { it.low["source"] } shouldBeEqualTo listOf("watchdog", "watchdog", "watchdog", "watchdog")
         handler.stopped.map { it.low["execution"] } shouldBeEqualTo listOf("suspend", "suspend", "suspend", "suspend")
-        handler.stopped.map { it.low["outcome"] } shouldBeEqualTo
-            listOf("extended", "not_held", "wrong_thread", "backend_error")
-        handler.stopped.map { it.low["result"] } shouldBeEqualTo
-            listOf("success", "skipped", "error", "error")
+        handler.stopped.map { it.low["outcome"] } shouldBeEqualTo listOf(
+            "extended",
+            "not_held",
+            "wrong_thread",
+            "backend_error"
+        )
+        handler.stopped.map { it.low["result"] } shouldBeEqualTo listOf("success", "skipped", "error", "error")
+
         handler.stopped.forEach { snapshot ->
+            log.debug { "stopped=$snapshot" }
             snapshot.low.keys shouldBeEqualTo setOf("source", "execution", "outcome", "result")
             snapshot.low.keys.none { it.contains("elapsed", ignoreCase = true) }.shouldBeTrue()
             snapshot.high.keys.none { it.contains("elapsed", ignoreCase = true) }.shouldBeTrue()
@@ -84,6 +101,7 @@ class MicrometerObservationLeaderLeaseExtensionObserverTest {
         defaultSnapshot.high.keys.none { it == "lock.name" || it == TAG_LEADER_ID }.shouldBeTrue()
 
         handler.clear()
+
         observer = MicrometerObservationLeaderLeaseExtensionObserver(
             registry = registry,
             options = LeaderObservationOptions(
@@ -103,6 +121,8 @@ class MicrometerObservationLeaderLeaseExtensionObserverTest {
         )
 
         val optedInSnapshot = handler.singleStopped()
+
+        log.debug { "optedInSnapshot=$optedInSnapshot" }
         optedInSnapshot.high["lock.name"] shouldBeEqualTo "redacted-lock"
         optedInSnapshot.high[TAG_LEADER_ID] shouldBeEqualTo "redacted-leader"
     }
@@ -172,7 +192,7 @@ class MicrometerObservationLeaderLeaseExtensionObserverTest {
         }.shouldBeTrue()
     }
 
-    private class CollectingObservationHandler : ObservationHandler<Observation.Context> {
+    private class CollectingObservationHandler: ObservationHandler<Observation.Context> {
         val stopped = CopyOnWriteArrayList<ObservationSnapshot>()
         val errors = CopyOnWriteArrayList<ObservationSnapshot>()
 
@@ -203,14 +223,4 @@ class MicrometerObservationLeaderLeaseExtensionObserverTest {
         val high: Map<String, String>,
         val error: Throwable?,
     )
-
-    private companion object {
-        fun snapshot(context: Observation.Context): ObservationSnapshot =
-            ObservationSnapshot(
-                name = context.name.orEmpty(),
-                low = context.lowCardinalityKeyValues.associate { it.key to it.value },
-                high = context.highCardinalityKeyValues.associate { it.key to it.value },
-                error = context.error,
-            )
-    }
 }

@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.redisson.contract
 
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.AopScopeAccess
@@ -54,8 +54,9 @@ class RedissonExtendDelegateReferenceTest: AbstractRedissonLeaderTest() {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
+
         // capture 는 finally 에서 clear 되어야 함 (single elector 는 capture 미사용이지만 idempotent 검증)
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test
@@ -87,8 +88,9 @@ class RedissonExtendDelegateReferenceTest: AbstractRedissonLeaderTest() {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
+
         // group elector 는 setCapture 를 호출했으므로 finally 에서 clearCapture() 가 호출되었어야 함
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test
@@ -115,6 +117,7 @@ class RedissonExtendDelegateReferenceTest: AbstractRedissonLeaderTest() {
         val lockName = randomLockName()
 
         val outcomes = mutableListOf<ExtendOutcome>()
+
         elector.runIfLeader(lockName) {
             outcomes += LockExtender.extendActiveLockDetailed(30.seconds)
             outcomes += LockExtender.extendActiveLockDetailed(45.seconds)
@@ -136,6 +139,7 @@ class RedissonExtendDelegateReferenceTest: AbstractRedissonLeaderTest() {
 
         var preExtend: ExtendOutcome? = null
         var postExtend: ExtendOutcome? = null
+
         elector.runIfLeader(lockName) {
             // user explicit extend — delegate.lastExtendDeadline 갱신
             preExtend = LockExtender.extendActiveLockDetailed(120.seconds)

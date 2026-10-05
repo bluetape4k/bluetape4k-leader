@@ -2,10 +2,11 @@ package io.bluetape4k.leader.examples.prometheus
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
@@ -14,6 +15,9 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import io.bluetape4k.leader.micrometer.InstrumentedLeaderElector
 import io.bluetape4k.leader.micrometer.LeaderMetricTagOptions
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import io.bluetape4k.support.requireNotNull
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import org.junit.jupiter.api.Test
@@ -26,6 +30,10 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PrometheusBackendConnectivityProbeTest {
+
+    private companion object: KLogging() {
+        const val BACKEND_CONNECTIVITY_METER = "leader.backend.connectivity"
+    }
 
     @Test
     fun `probe records UP, DOWN, and UNKNOWN connectivity states`() {
@@ -104,19 +112,22 @@ class PrometheusBackendConnectivityProbeTest {
             registry,
         )
 
-        provider.diagnostics(probe = false)
+        val diagnostics = provider.diagnostics(probe = false)
+        log.debug { "diagnostics: $diagnostics" }
 
-        registry.scrape().contains("leader_backend_connectivity_total").shouldBeFalse()
+        log.debug { "registry scrape()=${registry.scrape()}" }
+        registry.scrape() shouldNotContain "leader_backend_connectivity_total"
     }
 
     private fun instrumentedProvider(
         provider: LeaderBackendDiagnosticsProvider,
         registry: PrometheusMeterRegistry,
     ): LeaderBackendDiagnosticsProvider {
-        val delegate = object :
+        val delegate = object:
             LeaderElector by StubLeaderElector,
             LeaderBackendDiagnosticsProvider by provider {}
-        return requireNotNull(InstrumentedLeaderElector(delegate, registry).backendDiagnosticsProvider)
+        return InstrumentedLeaderElector(delegate, registry)
+            .backendDiagnosticsProvider.requireNotNull("backendDiagnosticsProvider")
     }
 
     private fun PrometheusMeterRegistry.connectivityCount(
@@ -140,6 +151,7 @@ class PrometheusBackendConnectivityProbeTest {
             "status=\"" + status.name + "\"",
             "reason=\"" + reason.name + "\"",
         ).joinToString(separator = "") { "(?=[^}]*${Regex.escape(it)})" }
+
         return Regex("""leader_backend_connectivity_total\{${labels}[^}]*}\s+[0-9.Ee+-]+""")
             .containsMatchIn(this)
     }
@@ -147,7 +159,7 @@ class PrometheusBackendConnectivityProbeTest {
     private class FixedDiagnosticsProvider(
         private val connectivity: LeaderBackendConnectivity? = null,
         private val failure: RuntimeException? = null,
-    ) : LeaderBackendDiagnosticsProvider {
+    ): LeaderBackendDiagnosticsProvider {
 
         var observedTimeout: Duration? = null
         var probeCount: Int = 0
@@ -159,21 +171,17 @@ class PrometheusBackendConnectivityProbeTest {
             observedTimeout = timeout
             probeCount++
             failure?.let { throw it }
-            return requireNotNull(connectivity)
+            return connectivity.requireNotNull("connectivity")
         }
     }
 
-    private object StubLeaderElector : LeaderElector {
+    private object StubLeaderElector: LeaderElector {
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? = null
 
         override fun <T> runAsyncIfLeader(
             lockName: String,
             executor: Executor,
             action: () -> CompletableFuture<T>,
-        ): CompletableFuture<T?> = CompletableFuture.completedFuture(null)
-    }
-
-    private companion object {
-        const val BACKEND_CONNECTIVITY_METER = "leader.backend.connectivity"
+        ): CompletableFuture<T?> = completableFutureOf(null)
     }
 }

@@ -6,22 +6,22 @@ import io.bluetape4k.leader.ktor.stream.LeaderEventStreamHub
 import io.bluetape4k.leader.ktor.stream.LeaderEventStreamPayload
 import io.bluetape4k.leader.ktor.stream.LeaderStreamItem
 import io.bluetape4k.leader.ktor.stream.installLeaderEventStreamPreflight
+import io.bluetape4k.support.requireNotNull
 import io.ktor.server.application.MissingApplicationPluginException
 import io.ktor.server.routing.Route
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.webSocket
 import io.ktor.util.AttributeKey
 import io.ktor.websocket.Frame
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** Optional Ktor WebSocket transport adapter loaded by the dependency-light bootstrap. */
-public object LeaderEventWebSocketAdapter {
+object LeaderEventWebSocketAdapter {
 
     private val connectionKey = AttributeKey<LeaderEventStreamHub.LeaderEventStreamConnection>(
         "io.bluetape4k.leader.ktor.stream.websocket.Connection",
@@ -86,8 +86,8 @@ private fun LeaderStreamItem.toWebSocketPayload(config: LeaderEventStreamConfig)
         is LeaderStreamItem.Control -> when (control) {
             LeaderStreamItem.Kind.HEARTBEAT -> LeaderEventStreamPayload.heartbeat()
             LeaderStreamItem.Kind.REPLAY_GAP -> LeaderEventStreamPayload.replayGap(
-                requireNotNull(from),
-                requireNotNull(to),
+                from.requireNotNull("from"),
+                to.requireNotNull("to"),
             )
             LeaderStreamItem.Kind.EVENT -> error("EVENT cannot be a control item")
         }

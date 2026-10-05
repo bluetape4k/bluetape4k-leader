@@ -19,20 +19,20 @@ BOM은 Gradle `java-platform` 으로 `<dependencyManagement>` constraint 만 게
 
 ## 관리 모듈
 
-| 모듈 | 설명 |
-|------|------|
-| `bluetape4k-leader-core` | 리더 선출 코어 API (blocking / async / coroutine / virtual-thread) |
-| `bluetape4k-leader-redis-lettuce` | Redis 백엔드 (Lettuce 사용) |
-| `bluetape4k-leader-redis-redisson` | Redis 백엔드 (Redisson 사용) |
-| `bluetape4k-leader-exposed-core` | Exposed (RDB) 백엔드 코어 |
-| `bluetape4k-leader-exposed-jdbc` | Exposed JDBC 백엔드 |
-| `bluetape4k-leader-exposed-r2dbc` | Exposed R2DBC 백엔드 |
-| `bluetape4k-leader-mongodb` | MongoDB 백엔드 |
-| `bluetape4k-leader-hazelcast` | Hazelcast 백엔드 |
-| `bluetape4k-leader-zookeeper` | Apache ZooKeeper 백엔드 |
-| `bluetape4k-leader-spring-boot` | Spring Boot auto-configuration + AOP (`@LeaderElection`) |
-| `bluetape4k-leader-micrometer` | Micrometer 메트릭 instrumentation |
-| `bluetape4k-leader-ktor` | Ktor 3.x 통합 — `LeaderElectionPlugin` + `leaderScheduled()` |
+| 모듈                               | 설명                                                               |
+|------------------------------------|--------------------------------------------------------------------|
+| `bluetape4k-leader-core`           | 리더 선출 코어 API (blocking / async / coroutine / virtual-thread) |
+| `bluetape4k-leader-redis-lettuce`  | Redis 백엔드 (Lettuce 사용)                                        |
+| `bluetape4k-leader-redis-redisson` | Redis 백엔드 (Redisson 사용)                                       |
+| `bluetape4k-leader-exposed-core`   | Exposed (RDB) 백엔드 코어                                          |
+| `bluetape4k-leader-exposed-jdbc`   | Exposed JDBC 백엔드                                                |
+| `bluetape4k-leader-exposed-r2dbc`  | Exposed R2DBC 백엔드                                               |
+| `bluetape4k-leader-mongodb`        | MongoDB 백엔드                                                     |
+| `bluetape4k-leader-hazelcast`      | Hazelcast 백엔드                                                   |
+| `bluetape4k-leader-zookeeper`      | Apache ZooKeeper 백엔드                                            |
+| `bluetape4k-leader-spring-boot`    | Spring Boot auto-configuration + AOP (`@LeaderElection`)           |
+| `bluetape4k-leader-micrometer`     | Micrometer 메트릭 instrumentation                                  |
+| `bluetape4k-leader-ktor`           | Ktor 3.x 통합 — `LeaderElectionPlugin` + `leaderScheduled()`       |
 
 ## 사용 예제
 

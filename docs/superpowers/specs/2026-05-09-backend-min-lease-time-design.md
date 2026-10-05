@@ -43,7 +43,7 @@ MongoDB, Hazelcast, Exposed JDBC, Exposed R2DBC, Lettuce single lock은 기존 l
 `minLeaseTime`은 `waitTime`, `leaseTime`과 같은 duration parser 계열을 사용하되 zero duration을 허용한다.
 
 - 빈 문자열은 zero duration을 의미한다.
-- ISO-8601(`PT10S`)과 simple value(`10s`, `500ms`)를 허용한다.
+- ISO-8601 (`PT10S`)과 simple value (`10s`, `500ms`)를 허용한다.
 - 잘못된 값이거나 `leaseTime`보다 큰 값은 metadata resolution 시점에 실패한다.
 
 Aspect는 sleep하지 않는다. Aspect는 선택된 factory option으로 `minLeaseTime`만 전달한다.

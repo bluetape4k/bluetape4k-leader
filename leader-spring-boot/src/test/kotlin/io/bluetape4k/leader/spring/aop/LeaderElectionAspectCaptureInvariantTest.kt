@@ -14,6 +14,8 @@ import io.bluetape4k.leader.spring.aop.internal.CaptureInvariantException
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -38,7 +40,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionAspectCaptureInvariantTest {
 
-    companion object {
+    companion object: KLogging() {
         private const val SAMPLE_RESULT = "ok"
     }
 
@@ -73,6 +75,8 @@ class LeaderElectionAspectCaptureInvariantTest {
         try {
             val first = AopScopeAccess.pollCapture()
             val second = AopScopeAccess.pollCapture()
+
+            log.debug { "first=$first, second=$second" }
             first shouldBeSameInstanceAs syntheticReal
             second.shouldBeNull()
         } finally {
@@ -112,8 +116,10 @@ class LeaderElectionAspectCaptureInvariantTest {
 
     private fun newAspect(): LeaderElectionAspect {
         every { factoryMock.create(any()) } returns election
-        every { beanSelector.selectElectionFactory(any(), any()) } returns
-                LeaderBeanSelector.Selected("testFactory", factoryMock)
+        every {
+            beanSelector.selectElectionFactory(any(), any())
+        } returns LeaderBeanSelector.Selected("testFactory", factoryMock)
+
         return LeaderElectionAspect(
             beanSelector = beanSelector,
             props = LeaderAopProperties(),
@@ -130,7 +136,9 @@ class LeaderElectionAspectCaptureInvariantTest {
         configureJoinPoint(method, target)
 
         // Mock returns Elected by invoking action (single elector — does NOT call CaptureScope)
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } answers {
+        every {
+            election.runIfLeaderResult(any<String>(), any<() -> Any?>())
+        } answers {
             @Suppress("UNCHECKED_CAST")
             LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
         }
@@ -138,12 +146,16 @@ class LeaderElectionAspectCaptureInvariantTest {
         val aspect = newAspect()
         // Must NOT throw CaptureInvariantException — single elector never sets capture
         val result = aspect.aroundLeader(pjp)
+
+        log.debug { "result=$result" }
         result shouldBeEqualTo SAMPLE_RESULT
     }
 
     @Test
     fun `createSyntheticReal - lockName 과 factoryBeanName 이 LockIdentity 에 정확히 반영`() {
         val handle = AopScopeAccess.createSyntheticReal("my-lock", "myFactory", token = "tok123")
+
+        log.debug { "handle=$handle" }
         handle.lockName shouldBeEqualTo "my-lock"
         handle.identity.factoryBeanName shouldBeEqualTo "myFactory"
         handle.token shouldBeEqualTo "tok123"

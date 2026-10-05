@@ -8,19 +8,19 @@ import io.bluetape4k.leader.ktor.stream.LeaderEventStreamPayload
 import io.bluetape4k.leader.ktor.stream.LeaderStreamItem
 import io.bluetape4k.leader.ktor.stream.installLeaderEventStreamPreflight
 import io.ktor.server.application.MissingApplicationPluginException
+import io.ktor.server.routing.Route
 import io.ktor.server.sse.SSE
 import io.ktor.server.sse.sse
 import io.ktor.sse.ServerSentEvent
-import io.ktor.server.routing.Route
 import io.ktor.util.AttributeKey
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.NonCancellable
 
 /** Optional Ktor SSE transport adapter loaded by the dependency-light bootstrap. */
-public object LeaderEventSseAdapter {
+object LeaderEventSseAdapter {
 
     private val connectionKey = AttributeKey<LeaderEventStreamHub.LeaderEventStreamConnection>(
         "io.bluetape4k.leader.ktor.stream.sse.Connection",

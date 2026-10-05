@@ -1,12 +1,16 @@
 package io.bluetape4k.leader.lettuce
 
-import io.bluetape4k.leader.strategy.CandidateInfo
-import io.bluetape4k.assertions.shouldBeEqualTo
-import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.leader.strategy.CandidateInfo
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import org.junit.jupiter.api.Test
 import java.time.Instant
 
 class LettuceCandidateInfoCodecTest: AbstractLettuceLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `roundtrip - 기본 필드 보존`() {
@@ -23,6 +27,7 @@ class LettuceCandidateInfoCodecTest: AbstractLettuceLeaderTest() {
         val encoded = LettuceCandidateInfoCodec.encode(original)
         val decoded = LettuceCandidateInfoCodec.decode(encoded)
 
+        log.debug { "decoded=$decoded" }
         decoded shouldBeEqualTo original
     }
 
@@ -31,6 +36,8 @@ class LettuceCandidateInfoCodecTest: AbstractLettuceLeaderTest() {
         val original = CandidateInfo(nodeId = "n1", registeredAt = Instant.now())
         val encoded = LettuceCandidateInfoCodec.encode(original)
         val decoded = LettuceCandidateInfoCodec.decode(encoded)
+
+        log.debug { "decoded=$decoded" }
         decoded.lastStartTime shouldBeEqualTo null
         decoded.lastCompletionTime shouldBeEqualTo null
         decoded.metadata shouldBeEqualTo emptyMap()
@@ -53,6 +60,7 @@ class LettuceCandidateInfoCodecTest: AbstractLettuceLeaderTest() {
         val encoded = LettuceCandidateInfoCodec.encode(original)
         val decoded = LettuceCandidateInfoCodec.decode(encoded)
 
+        log.debug { "decoded=$decoded" }
         decoded.metadata["literal-7C"] shouldBeEqualTo "%7C"
         decoded.metadata["literal-2C"] shouldBeEqualTo "%2C"
         decoded.metadata["literal-25"] shouldBeEqualTo "%25"
@@ -76,6 +84,7 @@ class LettuceCandidateInfoCodecTest: AbstractLettuceLeaderTest() {
         val encoded = LettuceCandidateInfoCodec.encode(original)
         val decoded = LettuceCandidateInfoCodec.decode(encoded)
 
+        log.debug { "decoded=$decoded" }
         decoded.metadata shouldBeEqualTo original.metadata
     }
 
@@ -87,6 +96,8 @@ class LettuceCandidateInfoCodecTest: AbstractLettuceLeaderTest() {
         )
         val encoded = LettuceCandidateInfoCodec.encode(original)
         val decoded = LettuceCandidateInfoCodec.decode(encoded)
+
+        log.debug { "decoded=$decoded" }
         decoded.nodeId shouldBeEqualTo "weird|node,id=1%v"
     }
 

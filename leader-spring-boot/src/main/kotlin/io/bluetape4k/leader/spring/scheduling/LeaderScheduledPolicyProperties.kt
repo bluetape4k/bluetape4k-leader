@@ -15,7 +15,13 @@ import java.time.Duration
 data class LeaderScheduledPolicyProperties(
     val enabled: Boolean = false,
     val policies: List<Policy> = emptyList(),
-) : Serializable {
+): Serializable {
+
+    companion object {
+        private const val serialVersionUID = 1L
+
+        const val PREFIX: String = "bluetape4k.leader.scheduling"
+    }
 
     /** 하나의 `beanName#methodName` scheduled method에 적용할 leader policy입니다. */
     data class Policy(
@@ -28,15 +34,9 @@ data class LeaderScheduledPolicyProperties(
         val autoExtend: Boolean = false,
         val streamBounded: Boolean = false,
         val failureMode: LeaderAspectFailureMode = LeaderAspectFailureMode.INHERIT,
-    ) : Serializable {
+    ): Serializable {
         companion object {
             private const val serialVersionUID = 1L
         }
-    }
-
-    companion object {
-        private const val serialVersionUID = 1L
-
-        const val PREFIX: String = "bluetape4k.leader.scheduling"
     }
 }

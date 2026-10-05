@@ -8,11 +8,14 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.spring.aop.util.findMergedAnnotationOrNull
 import io.bluetape4k.leader.spring.metrics.LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME
 import io.bluetape4k.leader.spring.metrics.LeaseExtensionObservationScopeOwner
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.HierarchicalBeanFactory
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException
+import java.io.Serializable
 import java.lang.reflect.Method
 
 /**
@@ -24,6 +27,8 @@ import java.lang.reflect.Method
 class LeaderBeanSelector(
     private val beanFactory: BeanFactory,
 ) {
+
+    companion object: KLogging()
 
     internal fun observationScopeOwner(): LeaseExtensionObservationScopeOwner? =
         (beanFactory as? HierarchicalBeanFactory)
@@ -48,7 +53,10 @@ class LeaderBeanSelector(
      *
      * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
-    fun selectGroupElectionFactory(explicitBeanName: String, method: Method? = null): Selected<LeaderGroupElectorFactory> =
+    fun selectGroupElectionFactory(
+        explicitBeanName: String,
+        method: Method? = null,
+    ): Selected<LeaderGroupElectorFactory> =
         select(explicitBeanName, method, LeaderGroupElectorFactory::class.java)
 
     /**
@@ -56,7 +64,10 @@ class LeaderBeanSelector(
      *
      * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
-    fun selectSuspendElectorFactory(explicitBeanName: String, method: Method? = null): Selected<SuspendLeaderElectorFactory> =
+    fun selectSuspendElectorFactory(
+        explicitBeanName: String,
+        method: Method? = null,
+    ): Selected<SuspendLeaderElectorFactory> =
         select(explicitBeanName, method, SuspendLeaderElectorFactory::class.java)
 
     /**
@@ -64,10 +75,13 @@ class LeaderBeanSelector(
      *
      * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
-    fun selectSuspendGroupElectorFactory(explicitBeanName: String, method: Method? = null): Selected<SuspendLeaderGroupElectorFactory> =
+    fun selectSuspendGroupElectorFactory(
+        explicitBeanName: String,
+        method: Method? = null,
+    ): Selected<SuspendLeaderGroupElectorFactory> =
         select(explicitBeanName, method, SuspendLeaderGroupElectorFactory::class.java)
 
-    private fun <T : Any> select(explicitBeanName: String, method: Method?, type: Class<T>): Selected<T> {
+    private fun <T: Any> select(explicitBeanName: String, method: Method?, type: Class<T>): Selected<T> {
         // Step 1: 어노테이션 bean 필드 명시
         if (explicitBeanName.isNotBlank()) {
             return Selected(explicitBeanName, beanFactory.getBean(explicitBeanName, type))
@@ -85,6 +99,7 @@ class LeaderBeanSelector(
             ?: return Selected("", beanFactory.getBean(type))
 
         val beans: Map<String, T> = listable.getBeansOfType(type)
+
         return when (beans.size) {
             0 -> throw NoSuchBeanDefinitionException(type)
             1 -> {
@@ -102,6 +117,8 @@ class LeaderBeanSelector(
                     throw NoUniqueBeanDefinitionException(type, beans.keys)
                 }
             }
+        }.apply {
+            log.debug { "select $this, explicitBeanName=$explicitBeanName, method=$method, type=$type" }
         }
     }
 
@@ -136,5 +153,9 @@ class LeaderBeanSelector(
      * @property beanName Spring Boot integration 계약에서 `beanName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      * @property bean Spring Boot integration 계약에서 `bean` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      */
-    data class Selected<T>(val beanName: String, val bean: T)
+    data class Selected<T>(val beanName: String, val bean: T): Serializable {
+        companion object {
+            private const val serialVersionUID = 1L
+        }
+    }
 }

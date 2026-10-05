@@ -4,11 +4,14 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.logging.KLogging
 import io.mockk.Runs
+import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.testcontainers.containers.ContainerLaunchException
 import org.testcontainers.containers.wait.strategy.WaitStrategy
@@ -16,6 +19,19 @@ import org.testcontainers.containers.wait.strategy.WaitStrategyTarget
 import java.time.Duration
 
 class ReadinessBoundaryWaitStrategyTest {
+
+    private companion object: KLogging() {
+        val TOXIPROXY = ReadinessEndpoint("toxiproxy", containerPort = 8474, path = "/version")
+    }
+
+    private val delegate = mockk<WaitStrategy>()
+    private val collector = mockk<ReadinessBoundaryDiagnosticCollector>()
+    private val target = mockk<WaitStrategyTarget>()
+
+    @BeforeEach
+    fun beforeEach() {
+        clearAllMocks()
+    }
 
     @Test
     fun `internal endpoint만 성공하면 host forwarding 실패로 분류한다`() {
@@ -63,9 +79,6 @@ class ReadinessBoundaryWaitStrategyTest {
 
     @Test
     fun `delegate가 성공하면 diagnostic collector를 호출하지 않는다`() {
-        val delegate = mockk<WaitStrategy>()
-        val collector = mockk<ReadinessBoundaryDiagnosticCollector>()
-        val target = mockk<WaitStrategyTarget>()
         every { delegate.waitUntilReady(target) } just Runs
         val strategy = ReadinessBoundaryWaitStrategy(delegate, TOXIPROXY, collector)
 
@@ -76,9 +89,6 @@ class ReadinessBoundaryWaitStrategyTest {
 
     @Test
     fun `delegate 실패는 진단과 원래 cause를 함께 보존한다`() {
-        val delegate = mockk<WaitStrategy>()
-        val collector = mockk<ReadinessBoundaryDiagnosticCollector>()
-        val target = mockk<WaitStrategyTarget>()
         val failure = IllegalStateException("host-wait-timeout")
         val diagnostic = diagnostic(
             internal = ReadinessProbeObservation.success("HTTP 200 {version:2.9.0}"),
@@ -94,17 +104,14 @@ class ReadinessBoundaryWaitStrategyTest {
         }
 
         thrown.cause shouldBeSameInstanceAs failure
-        thrown.message.orEmpty() shouldContain "boundary=HOST_FORWARDING"
-        thrown.message.orEmpty() shouldContain "internal=SUCCESS"
-        thrown.message.orEmpty() shouldContain "host=FAILURE"
-        thrown.message.orEmpty() shouldContain "mapping=SUCCESS"
+        thrown.message shouldContain "boundary=HOST_FORWARDING"
+        thrown.message shouldContain "internal=SUCCESS"
+        thrown.message shouldContain "host=FAILURE"
+        thrown.message shouldContain "mapping=SUCCESS"
     }
 
     @Test
     fun `collector 실패도 원래 wait failure를 덮지 않는다`() {
-        val delegate = mockk<WaitStrategy>()
-        val collector = mockk<ReadinessBoundaryDiagnosticCollector>()
-        val target = mockk<WaitStrategyTarget>()
         val failure = IllegalStateException("host-wait-timeout")
         every { delegate.waitUntilReady(target) } throws failure
         every { collector.collect(target, TOXIPROXY) } throws IllegalStateException("docker-inspect-unavailable")
@@ -115,9 +122,9 @@ class ReadinessBoundaryWaitStrategyTest {
         }
 
         thrown.cause shouldBeSameInstanceAs failure
-        thrown.message.orEmpty() shouldContain "boundary=UNKNOWN"
-        thrown.message.orEmpty() shouldContain "internal=UNAVAILABLE"
-        thrown.message.orEmpty() shouldContain "docker-inspect-unavailable"
+        thrown.message shouldContain "boundary=UNKNOWN"
+        thrown.message shouldContain "internal=UNAVAILABLE"
+        thrown.message shouldContain "docker-inspect-unavailable"
     }
 
     @Test
@@ -128,8 +135,6 @@ class ReadinessBoundaryWaitStrategyTest {
 
     @Test
     fun `startup timeout은 delegate에 그대로 전달한다`() {
-        val delegate = mockk<WaitStrategy>()
-        val collector = mockk<ReadinessBoundaryDiagnosticCollector>()
         val timeout = Duration.ofSeconds(60)
         every { delegate.withStartupTimeout(timeout) } returns delegate
         val strategy = ReadinessBoundaryWaitStrategy(delegate, TOXIPROXY, collector)
@@ -152,7 +157,4 @@ class ReadinessBoundaryWaitStrategyTest {
             containerState = "running",
         )
 
-    private companion object {
-        val TOXIPROXY = ReadinessEndpoint("toxiproxy", containerPort = 8474, path = "/version")
-    }
 }

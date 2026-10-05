@@ -1,12 +1,14 @@
 # Issue #602 최근 획득 실패 health window 구현 계획
 
-> **Agent 작업 지침:** 각 작업을 순서대로 구현할 때 `test-driven-development`와 `bluetape-kotlin-patterns`를 사용합니다. 진행 상태는 체크박스(`- [ ]`)로 추적합니다.
+> **Agent 작업
+지침:** 각 작업을 순서대로 구현할 때 `test-driven-development`와 `bluetape-kotlin-patterns`를 사용합니다. 진행 상태는 체크박스 (`- [ ]`)로 추적합니다.
 
 **목표:** 기존 Spring Boot AOP recorder 계약으로 관찰한 `BACKEND_ERROR` 획득 실패를 bounded time window로 집계하고, 같은 상태 복사본을 readiness health detail과 `leaderElection` Actuator 응답에 노출한다.
 
 **아키텍처:** `leader-spring-boot`에 core API를 변경하지 않는 Spring 전용 recorder를 추가한다. recorder는 timestamp만 고정 용량으로 보관하고, readiness indicator와 Actuator endpoint는 동일한 immutable `LeaderAcquisitionFailureView`를 읽는다. 기존 election decision, normal contention semantics, readiness `Status`, Micrometer 이름·tag·counter semantics는 유지한다.
 
-**기술 스택:** Kotlin 2.3, Java 25, Spring Boot 4.1 Actuator, Spring `ApplicationContextRunner`, JUnit 5, MockK, bluetape4k assertions, Gradle, Java `Clock`/`Duration`, `javap` ABI 확인, Markdown/Korean terminology audit.
+**기술
+스택:** Kotlin 2.3, Java 25, Spring Boot 4.1 Actuator, Spring `ApplicationContextRunner`, JUnit 5, MockK, bluetape4k assertions, Gradle, Java `Clock`/`Duration`, `javap` ABI 확인, Markdown/Korean terminology audit.
 
 ---
 
@@ -459,7 +461,7 @@
       health.details["lastAcquisitionFailureAt"] shouldBeEqualTo now
       health.details["acquisitionFailureWindow"] shouldBeEqualTo "PT5M"
       health.details["acquisitionFailureWindowCapacity"] shouldBeEqualTo 4
-      health.details["acquisitionFailureWindowOverflowed"] shouldBeEqualTo false
+      health.details["acquisitionFailureWindowOverflowed"].shouldBeFalse()
       health.details.toString().contains("redis-prod-01").shouldBeFalse()
   }
 
@@ -707,12 +709,12 @@
 
   두 locale 모두 다음 내용을 포함한다.
 
-  1. `bluetape4k.leader.observability.health.acquisition-failure-window`의 기본값 `5m`, positive finite 제약, fixed capacity `1024`를 YAML로 보여 준다.
-  2. 집계 대상이 AOP `BACKEND_ERROR`이고 normal `CONTENTION`과 `FAIL_OPEN_FORCED`는 제외된다고 설명한다.
-  3. `recentAcquisitionFailures`는 현재 window에 남은 retained count이며 capacity 초과 시 `acquisitionFailureWindowOverflowed=true`와 함께 전체 실패의 lower bound일 수 있음을 설명한다.
-  4. `lastAcquisitionFailureAt`가 window 밖으로 만료되면 `null`이 되고, detail/response가 lock name·exception message를 보관하지 않는다고 설명한다.
-  5. 최근 획득 실패만으로 readiness `UP`, `OUT_OF_SERVICE`, `DOWN`, `UNKNOWN` status를 바꾸지 않으며, 이 surface는 best-effort 관찰 정보라는 운영 경계를 설명한다.
-  6. Actuator endpoint 보호와 dynamic lock name을 bounded registry로 운영해야 한다는 보안·cardinality 주의를 유지한다.
+    1. `bluetape4k.leader.observability.health.acquisition-failure-window`의 기본값 `5m`, positive finite 제약, fixed capacity `1024`를 YAML로 보여 준다.
+    2. 집계 대상이 AOP `BACKEND_ERROR`이고 normal `CONTENTION`과 `FAIL_OPEN_FORCED`는 제외된다고 설명한다.
+    3. `recentAcquisitionFailures`는 현재 window에 남은 retained count이며 capacity 초과 시 `acquisitionFailureWindowOverflowed=true`와 함께 전체 실패의 lower bound일 수 있음을 설명한다.
+    4. `lastAcquisitionFailureAt`가 window 밖으로 만료되면 `null`이 되고, detail/response가 lock name·exception message를 보관하지 않는다고 설명한다.
+    5. 최근 획득 실패만으로 readiness `UP`, `OUT_OF_SERVICE`, `DOWN`, `UNKNOWN` status를 바꾸지 않으며, 이 surface는 best-effort 관찰 정보라는 운영 경계를 설명한다.
+    6. Actuator endpoint 보호와 dynamic lock name을 bounded registry로 운영해야 한다는 보안·cardinality 주의를 유지한다.
 
   English 문서는 English technical prose, Korean 문서는 자연스러운 한국어 기술 문체로 작성한다. 설정 키, JSON key, enum, URL, class/method 이름은 번역하지 않는다. README에서 이미 다룬 backend diagnostics 문단을 복제하지 말고 readiness/leader election failure window에 필요한 최소 설명만 추가한다.
 
@@ -806,7 +808,7 @@
   `docs/review/2026-08-23-issue-602-health-window-review.md`에 command, commit SHA, 결과, repair를 기록한다. 다음 여섯 관점을 각각 `PASS` 또는 구체적인 finding으로 채운다.
 
   | 관점 | 확인할 내용 |
-  |---|---|
+      |---|---|
   | API/호환성 | property/endpoint/response constructor, `copy`, `javap`, JSON field 이름 |
   | 동시성/정확성 | synchronized prune/copy, boundary inclusion, backward clock, concurrent callback |
   | 성능/메모리 | O(capacity), no lock-name/exception storage, no background thread, AOP decision unchanged |
@@ -850,7 +852,7 @@
   다음 표를 review/PR body에 같은 값으로 기록한다.
 
   | DoD | 필요한 증거 |
-  |---|---|
+      |---|---|
   | `S-01` 분류 | window test에서 `BACKEND_ERROR=1`, `CONTENTION=0`, `FAIL_OPEN_FORCED=0` |
   | `S-02` 경계 | fixed/mutable `Clock`로 `failureAt == now-window` 포함, 이전 값 prune |
   | `S-03` bound | capacity eviction/overflow/reset와 view에 이름·예외 없음 |

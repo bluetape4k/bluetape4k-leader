@@ -1,21 +1,24 @@
 package io.bluetape4k.leader.spring.metrics
 
+import io.bluetape4k.assertions.shouldBeEmpty
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaderElectionOptions
-import io.bluetape4k.leader.micrometer.LeaderMetricTagSanitizer
-import io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder
 import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
 import io.bluetape4k.leader.metrics.SkipReason
+import io.bluetape4k.leader.micrometer.LeaderMetricTagSanitizer
+import io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
 import io.bluetape4k.logging.KLogging
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.springframework.beans.factory.getBean
 import org.springframework.beans.factory.getBeansOfType
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.FilteredClassLoader
@@ -35,7 +38,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderMicrometerAutoConfigurationTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(
@@ -51,14 +54,14 @@ class LeaderMicrometerAutoConfigurationTest {
         runner
             .withUserConfiguration(MeterRegistryConfig::class.java)
             .run { ctx ->
-                ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java).shouldNotBeNull()
+                ctx.getBean<MicrometerLeaderAopMetricsRecorder>().shouldNotBeNull()
             }
     }
 
     @Test
     fun `MeterRegistry 빈 없을 때 recorder 빈 미등록`() {
         runner.run { ctx ->
-            ctx.getBeansOfType<LeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
+            ctx.getBeansOfType<LeaderAopMetricsRecorder>().shouldBeEmpty()
         }
     }
 
@@ -68,7 +71,7 @@ class LeaderMicrometerAutoConfigurationTest {
             .withUserConfiguration(MeterRegistryConfig::class.java)
             .withPropertyValues("bluetape4k.leader.aop.metrics.enabled=false")
             .run { ctx ->
-                ctx.getBeansOfType<LeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
+                ctx.getBeansOfType<LeaderAopMetricsRecorder>().shouldBeEmpty()
             }
     }
 
@@ -78,7 +81,7 @@ class LeaderMicrometerAutoConfigurationTest {
             .withUserConfiguration(MeterRegistryConfig::class.java, CustomRecorderConfig::class.java)
             .run { ctx ->
                 ctx.getBeansOfType<MicrometerLeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
-                ctx.getBean(LeaderAopMetricsRecorder::class.java) shouldBeInstanceOf LeaderAopMetricsRecorder.NoOp::class
+                ctx.getBean<LeaderAopMetricsRecorder>().shouldBeInstanceOf<LeaderAopMetricsRecorder.NoOp>()
             }
     }
 
@@ -88,8 +91,8 @@ class LeaderMicrometerAutoConfigurationTest {
             .withUserConfiguration(MeterRegistryConfig::class.java)
             .withPropertyValues("bluetape4k.leader.aop.metrics.tags.lock-name.mode=RAW")
             .run { ctx ->
-                val recorder = ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java)
-                val registry = ctx.getBean(SimpleMeterRegistry::class.java)
+                val recorder = ctx.getBean<MicrometerLeaderAopMetricsRecorder>()
+                val registry = ctx.getBean<SimpleMeterRegistry>()
                 val options = LeaderElectionOptions.Default
 
                 recorder.onLockAttempt("test-lock", options)
@@ -99,16 +102,23 @@ class LeaderMicrometerAutoConfigurationTest {
 
                 registry.get("leader.aop.attempts")
                     .tag("lock.name", "test-lock")
-                    .counter().count() shouldBeGreaterOrEqualTo 1.0
+                    .counter()
+                    .count() shouldBeGreaterOrEqualTo 1.0
+
                 registry.get("leader.aop.acquired")
                     .tag("lock.name", "test-lock")
-                    .counter().count() shouldBeGreaterOrEqualTo 1.0
+                    .counter()
+                    .count() shouldBeGreaterOrEqualTo 1.0
+
                 registry.get("leader.aop.execution.duration")
                     .tag("lock.name", "test-lock")
-                    .timer().count() shouldBeGreaterOrEqualTo 1L
+                    .timer()
+                    .count() shouldBeGreaterOrEqualTo 1L
+
                 registry.find("leader.aop.active")
                     .tag("lock.name", "test-lock")
-                    .gauge()?.value() shouldBeEqualTo 0.0
+                    .gauge()
+                    ?.value() shouldBeEqualTo 0.0
             }
     }
 
@@ -118,15 +128,16 @@ class LeaderMicrometerAutoConfigurationTest {
             .withUserConfiguration(MeterRegistryConfig::class.java)
             .withPropertyValues("bluetape4k.leader.aop.metrics.tags.lock-name.mode=RAW")
             .run { ctx ->
-                val recorder = ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java)
-                val registry = ctx.getBean(SimpleMeterRegistry::class.java)
+                val recorder = ctx.getBean<MicrometerLeaderAopMetricsRecorder>()
+                val registry = ctx.getBean<SimpleMeterRegistry>()
 
                 recorder.onLockNotAcquired("test-lock", LeaderElectionOptions.Default, SkipReason.BACKEND_ERROR)
 
                 registry.get("leader.aop.lock.not.acquired")
                     .tag("lock.name", "test-lock")
                     .tag("reason", "BACKEND_ERROR")
-                    .counter().count() shouldBeEqualTo 1.0
+                    .counter()
+                    .count() shouldBeEqualTo 1.0
             }
     }
 
@@ -135,15 +146,16 @@ class LeaderMicrometerAutoConfigurationTest {
         runner
             .withUserConfiguration(MeterRegistryConfig::class.java)
             .run { ctx ->
-                val recorder = ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java)
-                val registry = ctx.getBean(SimpleMeterRegistry::class.java)
+                val recorder = ctx.getBean<MicrometerLeaderAopMetricsRecorder>()
+                val registry = ctx.getBean<SimpleMeterRegistry>()
 
                 recorder.onLockAttempt("tenant-a", LeaderElectionOptions.Default)
                 recorder.onLockAttempt("tenant-b", LeaderElectionOptions.Default)
 
                 registry.get("leader.aop.attempts")
                     .tag("lock.name", "redacted-lock")
-                    .counter().count() shouldBeEqualTo 2.0
+                    .counter()
+                    .count() shouldBeEqualTo 2.0
             }
     }
 
@@ -153,14 +165,15 @@ class LeaderMicrometerAutoConfigurationTest {
             .withUserConfiguration(MeterRegistryConfig::class.java, CustomSanitizerConfig::class.java)
             .withPropertyValues("bluetape4k.leader.aop.metrics.tags.lock-name.mode=RAW")
             .run { ctx ->
-                val recorder = ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java)
-                val registry = ctx.getBean(SimpleMeterRegistry::class.java)
+                val recorder = ctx.getBean<MicrometerLeaderAopMetricsRecorder>()
+                val registry = ctx.getBean<SimpleMeterRegistry>()
 
                 recorder.onLockAttempt("tenant-a", LeaderElectionOptions.Default)
 
                 registry.get("leader.aop.attempts")
                     .tag("lock.name", "custom-tag")
-                    .counter().count() shouldBeEqualTo 1.0
+                    .counter()
+                    .count() shouldBeEqualTo 1.0
             }
     }
 
@@ -169,8 +182,8 @@ class LeaderMicrometerAutoConfigurationTest {
         runner
             .withClassLoader(FilteredClassLoader("io.bluetape4k.leader.micrometer"))
             .run { ctx ->
-                ctx.startupFailure shouldBeEqualTo null
-                ctx.getBeansOfType<LeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
+                ctx.startupFailure.shouldBeNull()
+                ctx.getBeansOfType<LeaderAopMetricsRecorder>().shouldBeEmpty()
             }
     }
 

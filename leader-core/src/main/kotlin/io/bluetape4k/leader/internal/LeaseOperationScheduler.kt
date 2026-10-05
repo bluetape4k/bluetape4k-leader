@@ -1,15 +1,15 @@
 package io.bluetape4k.leader.internal
 
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Callable
 import java.util.concurrent.Future
 import java.util.concurrent.FutureTask
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import io.bluetape4k.support.requirePositiveNumber
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -18,9 +18,9 @@ class LeaseOperationScheduler(
     maxInFlight: Int,
     queueCapacity: Int,
     threadNamePrefix: String = "bluetape4k-leader-lease",
-) : AutoCloseable {
+): AutoCloseable {
 
-    private companion object {
+    private companion object: KLogging() {
         const val IDLE_POLL_MILLIS = 1L
         const val SHUTDOWN_TIMEOUT_SECONDS = 5L
     }
@@ -33,8 +33,10 @@ class LeaseOperationScheduler(
         maxInFlight,
         0L,
         TimeUnit.MILLISECONDS,
-        ArrayBlockingQueue(queueCapacity.requirePositiveNumber("queueCapacity")),
-        ThreadFactory { task ->
+        ArrayBlockingQueue(
+            queueCapacity.requirePositiveNumber("queueCapacity")
+        ),
+        { task ->
             Thread(task, "$threadNamePrefix-${sequence.incrementAndGet()}").apply { isDaemon = true }
         },
         ThreadPoolExecutor.AbortPolicy(),
@@ -49,7 +51,7 @@ class LeaseOperationScheduler(
         if (executor.isShutdown) return null
         outstanding.incrementAndGet()
         val started = java.util.concurrent.atomic.AtomicBoolean(false)
-        val tracked = object : FutureTask<T>(Callable {
+        val tracked = object: FutureTask<T>(Callable {
             started.set(true)
             running.incrementAndGet()
             try {

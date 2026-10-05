@@ -2,16 +2,20 @@ package io.bluetape4k.leader.consul.contract
 
 import io.bluetape4k.leader.AsyncLeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectionOptions
-import io.bluetape4k.leader.consul.ConsulLeaderGroupElector
 import io.bluetape4k.leader.consul.ConsulLeaderGroupElectionOptions
+import io.bluetape4k.leader.consul.ConsulLeaderGroupElector
 import io.bluetape4k.leader.contract.AbstractAsyncLeaderGroupElectorLeaderIdContractTest
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.TestInstance
 
 /**
  * Consul async group leader-id contract implementation.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ConsulAsyncLeaderGroupElectorLeaderIdContractTest : AbstractAsyncLeaderGroupElectorLeaderIdContractTest() {
+class ConsulAsyncLeaderGroupElectorLeaderIdContractTest: AbstractAsyncLeaderGroupElectorLeaderIdContractTest() {
+
+    companion object: KLogging()
+
     override fun createElector(options: LeaderGroupElectionOptions): AsyncLeaderGroupElector =
         ConsulLeaderGroupElector(
             ConsulContractSupport.endpoint(),

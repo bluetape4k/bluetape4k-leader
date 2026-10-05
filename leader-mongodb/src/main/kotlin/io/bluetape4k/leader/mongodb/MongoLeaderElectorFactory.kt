@@ -1,9 +1,9 @@
 package io.bluetape4k.leader.mongodb
 
 import com.mongodb.client.MongoCollection
+import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectorFactory
-import io.bluetape4k.leader.LeaderElectionOptions
 import org.bson.Document
 
 /**
@@ -16,7 +16,7 @@ import org.bson.Document
 class MongoLeaderElectorFactory(
     private val collection: MongoCollection<Document>,
     private val baseOptions: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,
-) : LeaderElectorFactory {
+): LeaderElectorFactory {
 
     override fun create(options: LeaderElectionOptions): LeaderElector =
         MongoLeaderElector(collection, baseOptions.copy(leaderOptions = options))

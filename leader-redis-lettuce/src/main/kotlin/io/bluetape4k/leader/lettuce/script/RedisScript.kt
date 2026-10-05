@@ -1,15 +1,17 @@
 package io.bluetape4k.leader.lettuce.script
 
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.support.toUtf8Bytes
 import io.lettuce.core.RedisNoScriptException
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.async.RedisAsyncCommands
+import io.lettuce.core.api.async.RedisScriptingAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
+import io.lettuce.core.api.sync.RedisScriptingCommands
 import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands
 import io.lettuce.core.cluster.api.sync.RedisClusterCommands
-import io.lettuce.core.api.async.RedisScriptingAsyncCommands
-import io.lettuce.core.api.sync.RedisScriptingCommands
 import kotlinx.coroutines.future.await
 import java.security.MessageDigest
 import java.util.concurrent.CompletableFuture
@@ -29,14 +31,15 @@ class RedisScript(val source: String) {
 
     companion object: KLogging() {
         private fun sha1Hex(text: String): String {
-            val digest = MessageDigest.getInstance("SHA-1").digest(text.toByteArray(Charsets.UTF_8))
-            val sb = StringBuilder(digest.size * 2)
-            for (b in digest) {
-                val v = b.toInt() and 0xff
-                sb.append(Character.forDigit(v ushr 4, 16))
-                sb.append(Character.forDigit(v and 0x0f, 16))
+            val digest = MessageDigest.getInstance("SHA-1").digest(text.toUtf8Bytes())
+
+            return buildString(digest.size * 2) {
+                for (b in digest) {
+                    val v = b.toInt() and 0xff
+                    append(Character.forDigit(v ushr 4, 16))
+                    append(Character.forDigit(v and 0x0f, 16))
+                }
             }
-            return sb.toString()
         }
     }
 }
@@ -47,7 +50,7 @@ class RedisScript(val source: String) {
  * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 @Suppress("TooManyFunctions")
-object RedisScriptRunner : KLogging() {
+object RedisScriptRunner: KLogging() {
 
     /**
      * `선언` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
@@ -140,7 +143,7 @@ object RedisScriptRunner : KLogging() {
                 log.debug { "NOSCRIPT(async) → 원문 전송 fallback (sha1=${script.sha1})" }
                 commands.eval<T>(script.source, outputType, keys, *args).toCompletableFuture()
             } else {
-                CompletableFuture.failedFuture(cause)
+                failedCompletableFutureOf(cause)
             }
         }
     }

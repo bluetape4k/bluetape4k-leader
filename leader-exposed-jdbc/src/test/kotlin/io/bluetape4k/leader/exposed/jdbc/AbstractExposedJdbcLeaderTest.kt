@@ -33,10 +33,10 @@ abstract class AbstractExposedJdbcLeaderTest {
                 ?: return listOf(TestDB.H2, TestDB.POSTGRESQL, TestDB.MYSQL_V8)
 
             return when (filter) {
-                "H2"                -> listOf(TestDB.H2)
+                "H2" -> listOf(TestDB.H2)
                 "POSTGRESQL", "POSTGRES" -> listOf(TestDB.POSTGRESQL)
                 "MYSQL_V8", "MYSQL" -> listOf(TestDB.MYSQL_V8)
-                else                -> error("지원하지 않는 LEADER_TEST_DB 값: $filter")
+                else -> error("지원하지 않는 LEADER_TEST_DB 값: $filter")
             }
         }
     }
@@ -57,5 +57,5 @@ abstract class AbstractExposedJdbcLeaderTest {
         }
     }
 
-    protected fun randomName(): String = "test-${Base58.randomString(8)}"
+    protected fun randomName(): String = "test-${Base58.randomString(12)}"
 }

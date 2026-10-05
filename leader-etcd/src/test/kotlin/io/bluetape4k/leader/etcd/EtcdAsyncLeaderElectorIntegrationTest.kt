@@ -1,27 +1,34 @@
 package io.bluetape4k.leader.etcd
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LockExtender
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
 
+    companion object: KLogging()
+
     @Test
     fun `single cancellation reaches action and same lock can be reacquired`() {
         newClient().use { client ->
             val executor = Executors.newSingleThreadExecutor()
             val actionStarted = CountDownLatch(1)
-            val actionFuture = CompletableFuture<String>()
+            val actionFuture = CancellationRecordingFuture<String>()
             val elector = EtcdLeaderElector(
                 client,
                 EtcdLeaderElectionOptions(
@@ -41,10 +48,12 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                     actionFuture
                 }
 
-                actionStarted.await(10, TimeUnit.SECONDS).shouldBeTrue()
+                actionStarted.await(10.seconds).shouldBeTrue()
                 result.cancel(true).shouldBeTrue()
                 result.isCancelled.shouldBeTrue()
+                actionFuture.cancelled.await(2.seconds).shouldBeTrue()
                 actionFuture.isCancelled.shouldBeTrue()
+
                 elector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
             } finally {
                 actionFuture.cancel(true)
@@ -58,7 +67,7 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
         newClient().use { client ->
             val executor = Executors.newSingleThreadExecutor()
             val actionStarted = CountDownLatch(1)
-            val actionFuture = CompletableFuture<String>()
+            val actionFuture = CancellationRecordingFuture<String>()
             val elector = EtcdLeaderGroupElector(
                 client,
                 EtcdLeaderGroupElectionOptions(
@@ -78,10 +87,12 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                     actionFuture
                 }
 
-                actionStarted.await(10, TimeUnit.SECONDS).shouldBeTrue()
+                actionStarted.await(10.seconds).shouldBeTrue()
                 result.cancel(true).shouldBeTrue()
                 result.isCancelled.shouldBeTrue()
+                actionFuture.cancelled.await(2.seconds).shouldBeTrue()
                 actionFuture.isCancelled.shouldBeTrue()
+
                 elector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
             } finally {
                 actionFuture.cancel(true)
@@ -119,16 +130,17 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                     holderStarted.countDown()
                     holderAction
                 }
-                holderStarted.await(10, TimeUnit.SECONDS).shouldBeTrue()
+                holderStarted.await(10.seconds).shouldBeTrue()
 
                 contender.runAsyncIfLeader(lockName, executor) {
                     contenderInvoked.set(true)
-                    CompletableFuture.completedFuture("should-not-run")
-                }.get(10, TimeUnit.SECONDS) shouldBeEqualTo null
-                contenderInvoked.get() shouldBeEqualTo false
+                    completableFutureOf("should-not-run")
+                }.get(10.seconds).shouldBeNull()
+
+                contenderInvoked.get().shouldBeFalse()
 
                 holderAction.complete("holder")
-                holderResult.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+                holderResult.get(10.seconds) shouldBeEqualTo "holder"
             } finally {
                 holderAction.cancel(true)
                 executor.shutdownNow()
@@ -141,6 +153,7 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
         newClient().use { client ->
             val executor = Executors.newFixedThreadPool(2)
             val keyPrefix = "/bluetape4k/leader/test/${randomName()}"
+
             val holder = EtcdLeaderGroupElector(
                 client,
                 EtcdLeaderGroupElectionOptions(
@@ -163,6 +176,7 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                     keyPrefix = keyPrefix,
                 ),
             )
+
             val lockName = randomName()
             val holderStarted = CountDownLatch(1)
             val holderAction = CompletableFuture<String>()
@@ -173,16 +187,17 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                     holderStarted.countDown()
                     holderAction
                 }
-                holderStarted.await(10, TimeUnit.SECONDS).shouldBeTrue()
+                holderStarted.await(10.seconds).shouldBeTrue()
 
                 contender.runAsyncIfLeader(lockName, executor) {
                     contenderInvoked.set(true)
-                    CompletableFuture.completedFuture("should-not-run")
-                }.get(10, TimeUnit.SECONDS) shouldBeEqualTo null
-                contenderInvoked.get() shouldBeEqualTo false
+                    completableFutureOf("should-not-run")
+                }.get(10.seconds).shouldBeNull()
+
+                contenderInvoked.get().shouldBeFalse()
 
                 holderAction.complete("holder")
-                holderResult.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+                holderResult.get(10.seconds) shouldBeEqualTo "holder"
             } finally {
                 holderAction.cancel(true)
                 executor.shutdownNow()
@@ -204,8 +219,8 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
 
             try {
                 elector.runAsyncIfLeader(randomName(), executor) {
-                    CompletableFuture.completedFuture(LockExtender.extendActiveLock(10.seconds))
-                }.get(10, TimeUnit.SECONDS) shouldBeEqualTo true
+                    completableFutureOf(LockExtender.extendActiveLock(10.seconds))
+                }.get(10.seconds).shouldBeTrue()
             } finally {
                 executor.shutdownNow()
             }
@@ -230,11 +245,20 @@ class EtcdAsyncLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
 
             try {
                 elector.runAsyncIfLeader(randomName(), executor) {
-                    CompletableFuture.completedFuture(LockExtender.extendActiveLock(10.seconds))
-                }.get(10, TimeUnit.SECONDS) shouldBeEqualTo true
+                    completableFutureOf(LockExtender.extendActiveLock(10.seconds))
+                }.get(10.seconds).shouldBeTrue()
             } finally {
                 executor.shutdownNow()
             }
         }
+    }
+
+    private class CancellationRecordingFuture<T>: CompletableFuture<T>() {
+        val cancelled = CountDownLatch(1)
+
+        override fun cancel(mayInterruptIfRunning: Boolean): Boolean =
+            super.cancel(mayInterruptIfRunning).also { cancelled ->
+                if (cancelled) this.cancelled.countDown()
+            }
     }
 }

@@ -7,8 +7,8 @@ import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.local.LocalLeaderElector
-import io.mockk.confirmVerified
 import io.mockk.clearMocks
+import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -25,8 +25,9 @@ class StateLeaderRouteAuthorityTest {
     private val authority = StateLeaderRouteAuthority(elector)
 
     @BeforeEach
-    fun resetMock() {
+    fun beforeEach() {
         clearMocks(elector)
+        every { elector.supportsAuditLeaderState } returns true
     }
 
     @Test
@@ -73,7 +74,9 @@ class StateLeaderRouteAuthorityTest {
     fun `cancellation is preserved`() {
         every { elector.state(slot.lockName) } throws CancellationException("cancelled")
 
-        assertFailsWith<CancellationException> { authority.evaluate(slot) }
+        assertFailsWith<CancellationException> {
+            authority.evaluate(slot)
+        }
 
         verify(exactly = 1) { elector.state(slot.lockName) }
         confirmVerified(elector)

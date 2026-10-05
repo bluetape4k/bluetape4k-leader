@@ -6,9 +6,7 @@
 
 ## 시나리오
 
-여러 control-plane node가 같은 reconcile trigger를 받습니다. 각 node는 같은 etcd-backed lock을 획득하려고 하지만,
-선출된 node만 desired resource list를 적용합니다. 다른 node는 해당 cycle을 skip하고, lease가 release되면 leadership이
-다른 node로 이동할 수 있습니다.
+여러 control-plane node가 같은 reconcile trigger를 받습니다. 각 node는 같은 etcd-backed lock을 획득하려고 하지만, 선출된 node만 desired resource list를 적용합니다. 다른 node는 해당 cycle을 skip하고, lease가 release되면 leadership이 다른 node로 이동할 수 있습니다.
 
 ## 예제 시나리오
 
@@ -62,5 +60,4 @@ val report = reconciler.reconcile {
 }
 ```
 
-운영 애플리케이션은 etcd endpoint, credential, timeout, network policy로 jetcd `Client`를 생성해야 합니다.
-etcd lifecycle은 호출자가 소유합니다.
+운영 애플리케이션은 etcd endpoint, credential, timeout, network policy로 jetcd `Client`를 생성해야 합니다. etcd lifecycle은 호출자가 소유합니다.

@@ -1,21 +1,22 @@
 package io.bluetape4k.leader.annotation
 
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.reflect.full.findAnnotation
-import io.bluetape4k.assertions.shouldNotBeNull
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderGroupElectionAnnotationTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @LeaderGroupElection(name = "group-lock")
-    fun annotatedMethod() {}
+    fun annotatedMethod() {
+    }
 
     @LeaderGroupElection(
         name = "custom-group",
@@ -27,7 +28,8 @@ class LeaderGroupElectionAnnotationTest {
         failureMode = LeaderAspectFailureMode.RETHROW,
         useDbTime = true,
     )
-    fun fullyAnnotatedMethod() {}
+    fun fullyAnnotatedMethod() {
+    }
 
     @Test
     fun `기본 속성값 확인`() {

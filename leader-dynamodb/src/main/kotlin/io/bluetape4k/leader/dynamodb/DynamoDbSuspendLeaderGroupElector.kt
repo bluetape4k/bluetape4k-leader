@@ -7,8 +7,8 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbKeys
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbLockClient
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbSuspendLockExtendDelegate
@@ -33,10 +33,10 @@ import kotlin.time.Duration
 class DynamoDbSuspendLeaderGroupElector(
     private val dynamoDb: DynamoDbAsyncClient,
     val options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
-) : SuspendLeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
+): SuspendLeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     override val maxLeaders: Int get() = options.maxLeaders
 
@@ -138,14 +138,14 @@ class DynamoDbSuspendLeaderGroupElector(
                 throw e
             } finally {
                 withContext(NonCancellable) {
-                    runCatching { LeaderLeaseAutoExtender.closeSuspend(watchdog) }
-                        .onFailure { e ->
-                            log.warn(e) {
-                                "DynamoDB suspend group watchdog close failed. lockName=$lockName, slot=$slot"
-                            }
-                        }
+                    runCatching {
+                        LeaderLeaseAutoExtender.closeSuspend(watchdog)
+                    }.onFailure { e ->
+                        log.warn(e) { "DynamoDB suspend group watchdog close failed. lockName=$lockName, slot=$slot" }
+                    }
                     try {
-                        lockClient.releaseAsync(lock, options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
+                        lockClient
+                            .releaseAsync(lock, options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
                             .awaitWithoutCancellingFuture { }
                     } catch (e: CancellationException) {
                         throw e

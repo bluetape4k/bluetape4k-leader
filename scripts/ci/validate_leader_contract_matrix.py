@@ -10,7 +10,6 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-
 ROOT = Path(__file__).resolve().parents[2]
 MATRIX_PATH = ROOT / "scripts/ci/leader-contract-capabilities.json"
 WORKFLOW_PATH = ROOT / ".github/workflows/ci.yml"
@@ -281,9 +280,9 @@ def _readme_diagnostics_block(readme: str, label: str) -> tuple[str | None, list
 
 
 def _validate_runtime_diagnostics_source(
-    source: object,
-    prefix: str,
-    root: Path,
+        source: object,
+        prefix: str,
+        root: Path,
 ) -> list[str]:
     errors: list[str] = []
     if not isinstance(source, dict) or set(source) != {"path", "backend_id"}:
@@ -314,11 +313,11 @@ def _validate_runtime_diagnostics_source(
 
 
 def validate_readme_capabilities(
-    matrix: dict[str, Any],
-    root: Path,
-    readme: str,
-    readme_ko: str,
-    expected_backends: set[str] = EXPECTED_README_BACKENDS,
+        matrix: dict[str, Any],
+        root: Path,
+        readme: str,
+        readme_ko: str,
+        expected_backends: set[str] = EXPECTED_README_BACKENDS,
 ) -> list[str]:
     """Validate capability rows, Kotlin source anchors, and EN/KO README parity."""
 
@@ -359,14 +358,14 @@ def validate_readme_capabilities(
             errors.append(f"{prefix} module must be a publishable leader module")
 
         for field in (
-            "single_blocking",
-            "single_async",
-            "single_suspend",
-            "single_virtual",
-            "group_blocking",
-            "group_async",
-            "group_suspend",
-            "group_virtual",
+                "single_blocking",
+                "single_async",
+                "single_suspend",
+                "single_virtual",
+                "group_blocking",
+                "group_async",
+                "group_suspend",
+                "group_virtual",
         ):
             if row[field] not in execution_codes:
                 errors.append(f"{prefix}.{field} has invalid execution code: {row[field]}")
@@ -402,9 +401,9 @@ def validate_readme_capabilities(
                 errors.append(f"{source_prefix} file does not exist: {path}")
                 continue
             if (
-                not isinstance(tokens, list)
-                or not tokens
-                or not all(isinstance(token, str) and token for token in tokens)
+                    not isinstance(tokens, list)
+                    or not tokens
+                    or not all(isinstance(token, str) and token for token in tokens)
             ):
                 errors.append(f"{source_prefix} tokens must be non-empty strings")
                 continue
@@ -610,20 +609,20 @@ def run_self_test() -> int:
         )
         capability_matrix = {"readme_capabilities": {"rows": [capability_row]}}
         if validate_readme_capabilities(
-            capability_matrix,
-            root,
-            capability_readme,
-            capability_readme,
-            expected_backends={"Local"},
+                capability_matrix,
+                root,
+                capability_readme,
+                capability_readme,
+                expected_backends={"Local"},
         ):
             print("self-test rejected valid README capability rows", file=sys.stderr)
             return 1
         if not validate_readme_capabilities(
-            capability_matrix,
-            root,
-            capability_readme,
-            capability_readme.replace("| S/G | S |", "| G | — |"),
-            expected_backends={"Local"},
+                capability_matrix,
+                root,
+                capability_readme,
+                capability_readme.replace("| S/G | S |", "| G | — |"),
+                expected_backends={"Local"},
         ):
             print("self-test did not catch README capability drift", file=sys.stderr)
             return 1

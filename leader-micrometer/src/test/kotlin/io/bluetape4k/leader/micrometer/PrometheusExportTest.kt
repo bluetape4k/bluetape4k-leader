@@ -2,14 +2,15 @@ package io.bluetape4k.leader.micrometer
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
-import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.metrics.SkipReason
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.infra.PrometheusServer
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.io.TempDir
@@ -34,6 +35,12 @@ import kotlin.time.toJavaDuration
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PrometheusExportTest {
+
+    private companion object: KLogging() {
+        const val METRICS_TARGET_ALIAS = "leader-metrics-target"
+        const val METRICS_TARGET_PORT = 8000
+        const val REDACTED_LOCK_NAME = "redacted-lock"
+    }
 
     @Test
     fun `Prometheus registry scrape exports AOP and direct elector metrics`() {
@@ -65,6 +72,7 @@ class PrometheusExportTest {
 
         val scrapeFile = writeScrapeFile(tempDir, registry.scrape())
         val prometheusConfig = writePrometheusConfig(tempDir)
+
         Network.newNetwork().use { network ->
             MetricsTargetContainer().apply {
                 withNetwork(network)
@@ -184,7 +192,7 @@ class PrometheusExportTest {
 
     private class StubLeaderElector(
         private val elected: Boolean,
-    ) : LeaderElector {
+    ): LeaderElector {
 
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
             if (elected) action() else null
@@ -194,10 +202,10 @@ class PrometheusExportTest {
             executor: Executor,
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> =
-            CompletableFuture.completedFuture(if (elected) action().join() else null)
+            completableFutureOf(if (elected) action().join() else null)
     }
 
-    private class MetricsTargetContainer :
+    private class MetricsTargetContainer:
         GenericContainer<MetricsTargetContainer>(DockerImageName.parse("python:3.13-alpine")) {
 
         init {
@@ -229,11 +237,5 @@ class PrometheusExportTest {
             )
             waitingFor(Wait.forHttp("/metrics").forPort(METRICS_TARGET_PORT))
         }
-    }
-
-    private companion object {
-        const val METRICS_TARGET_ALIAS = "leader-metrics-target"
-        const val METRICS_TARGET_PORT = 8000
-        const val REDACTED_LOCK_NAME = "redacted-lock"
     }
 }

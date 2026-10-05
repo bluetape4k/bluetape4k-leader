@@ -1,20 +1,25 @@
 package io.bluetape4k.leader.micrometer.audit
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.audit.LeaderAuditExportEvent
 import io.bluetape4k.leader.audit.LeaderAuditExportObserver
 import io.bluetape4k.leader.audit.LeaderAuditExportSnapshot
 import io.bluetape4k.leader.audit.LeaderAuditExporter
 import io.bluetape4k.leader.audit.LeaderAuditSubmitResult
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
-import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.micrometer.MicrometerNames
-import io.bluetape4k.leader.micrometer.audit.MicrometerLeaderAuditExporterJavaContractTest
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.micrometer.core.instrument.FunctionCounter
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.Meter
@@ -22,18 +27,20 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Test
 import java.lang.ref.WeakReference
+import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
-import java.util.ArrayDeque
-import java.util.IdentityHashMap
+import java.util.*
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.ToDoubleFunction
+import kotlin.concurrent.thread
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class MicrometerLeaderAuditExporterTest {
 
@@ -67,7 +74,15 @@ class MicrometerLeaderAuditExporterTest {
             meter.id.tags.filter { it.key == MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME }
                 .map { it.value }
         }.toSet()
-        outcomeValues shouldBeEqualTo setOf("accepted", "queue_full", "closed", "retry", "failure", "cancelled", "rejected")
+        outcomeValues shouldBeEqualTo setOf(
+            "accepted",
+            "queue_full",
+            "closed",
+            "retry",
+            "failure",
+            "cancelled",
+            "rejected"
+        )
         auditMeters.flatMap { it.id.tags }.none { tag ->
             tag.key == "source" || tag.key == "transport" || tag.key == "lock.name" || tag.key == "endpoint"
         }.shouldBeTrue()
@@ -76,14 +91,17 @@ class MicrometerLeaderAuditExporterTest {
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .functionCounter()
             ?.count() shouldBeEqualTo 2.0
+
         registry.find(MicrometerNames.AUDIT_EXPORT_DROPPED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "queue_full")
             .functionCounter()
             ?.count() shouldBeEqualTo 3.0
+
         registry.find(MicrometerNames.AUDIT_EXPORT_DROPPED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "closed")
             .functionCounter()
             ?.count() shouldBeEqualTo 4.0
+
         registry.find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_CLOSED)
             .gauge()
             ?.value() shouldBeEqualTo 1.0
@@ -100,9 +118,10 @@ class MicrometerLeaderAuditExporterTest {
 
         exporter.snapshot() shouldBeEqualTo delegate.snapshot()
         exporter.submit(event) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
-        exporter.observe(LeaderAuditExportObserver { })
+        exporter.observe { }
         exporter.close()
         exporter.close()
+
         delegate.closeCount shouldBeEqualTo 1
         exporter.submit(event) shouldBeEqualTo LeaderAuditSubmitResult.DROPPED_CLOSED
     }
@@ -125,12 +144,15 @@ class MicrometerLeaderAuditExporterTest {
         val registration = privateField(exporter, "registration").get(exporter)
         val delegateReference = privateField(registration, "delegateReference").get(registration) as AtomicReference<*>
 
-        (delegateReference.get() === delegate).shouldBeTrue()
+        delegateReference.get() shouldBe delegate
 
         exporter.close()
 
-        (delegateReference.get() == null).shouldBeTrue()
+        delegateReference.get().shouldBeNull()
+
         containsStrongReference(exporter, delegate).shouldBeFalse()
+
+        log.debug { "exporter.snapshot()=${exporter.snapshot()}" }
         exporter.snapshot().apply {
             queued shouldBeEqualTo 0
             inFlight shouldBeEqualTo 0
@@ -152,7 +174,8 @@ class MicrometerLeaderAuditExporterTest {
         exporter = MicrometerLeaderAuditExporter(delegate, registry)
         val failure = AtomicReference<Throwable?>(null)
         val finished = CountDownLatch(1)
-        val submitThread = Thread {
+
+        thread(isDaemon = true) {
             try {
                 exporter.submit(event())
             } catch (thrown: Throwable) {
@@ -160,13 +183,10 @@ class MicrometerLeaderAuditExporterTest {
             } finally {
                 finished.countDown()
             }
-        }.apply {
-            isDaemon = true
         }
 
-        submitThread.start()
+        finished.await(1.seconds).shouldBeTrue()
 
-        finished.await(1, TimeUnit.SECONDS).shouldBeTrue()
         val thrown = failure.get().shouldNotBeNull()
         thrown.shouldBeInstanceOf<IllegalStateException>()
         thrown.message shouldBeEqualTo "close() cannot be called reentrantly from a delegate lifecycle callback"
@@ -188,7 +208,8 @@ class MicrometerLeaderAuditExporterTest {
         exporter = MicrometerLeaderAuditExporter(delegate, registry)
         val failure = AtomicReference<Throwable?>(null)
         val finished = CountDownLatch(1)
-        val closeThread = Thread {
+
+        thread(isDaemon = true) {
             try {
                 exporter.close()
             } catch (thrown: Throwable) {
@@ -196,13 +217,9 @@ class MicrometerLeaderAuditExporterTest {
             } finally {
                 finished.countDown()
             }
-        }.apply {
-            isDaemon = true
         }
 
-        closeThread.start()
-
-        finished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        finished.await(1.seconds).shouldBeTrue()
         val thrown = failure.get().shouldNotBeNull()
         thrown.shouldBeInstanceOf<IllegalStateException>()
         thrown.message shouldBeEqualTo "snapshot() cannot be called reentrantly from a delegate close callback"
@@ -218,10 +235,14 @@ class MicrometerLeaderAuditExporterTest {
         delegate.scriptSnapshots({ closeEntry }, { throw finalSnapshotFailure })
         val exporter = MicrometerLeaderAuditExporter(delegate, registry)
 
-        val closeFailure = assertFailsWith<IllegalStateException> { exporter.close() }
-
+        val closeFailure = assertFailsWith<IllegalStateException> {
+            exporter.close()
+        }
         closeFailure shouldBeEqualTo finalSnapshotFailure
-        val snapshotFailure = assertFailsWith<IllegalStateException> { exporter.snapshot() }
+
+        val snapshotFailure = assertFailsWith<IllegalStateException> {
+            exporter.snapshot()
+        }
         snapshotFailure.message shouldBeEqualTo "closed delegate snapshot is unavailable"
         snapshotFailure.cause shouldBeEqualTo closeFailure
     }
@@ -241,7 +262,10 @@ class MicrometerLeaderAuditExporterTest {
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .functionCounter()
             ?.count() shouldBeEqualTo 100.0
-        val snapshotFailure = assertFailsWith<IllegalStateException> { exporter.snapshot() }
+
+        val snapshotFailure = assertFailsWith<IllegalStateException> {
+            exporter.snapshot()
+        }
         snapshotFailure.message shouldBeEqualTo "closed delegate snapshot is unavailable"
     }
 
@@ -253,36 +277,39 @@ class MicrometerLeaderAuditExporterTest {
         val exporter = MicrometerLeaderAuditExporter(delegate, registry)
         val snapshotEntered = CountDownLatch(1)
         val snapshotRelease = CountDownLatch(1)
+
         delegate.scriptSnapshots(
             { openSnapshot },
             { snapshot(accepted = 7, diagnosticsClosed = true, closed = true) },
         )
         delegate.blockNextSnapshot(snapshotEntered, snapshotRelease)
+
         val snapshotFinished = CountDownLatch(1)
         val closeFinished = CountDownLatch(1)
-        val snapshotThread = Thread {
+        val snapshotThread = thread(start = false) {
             exporter.snapshot()
             snapshotFinished.countDown()
         }
-        val closeThread = Thread {
+        val closeThread = thread(start = false) {
             exporter.close()
             closeFinished.countDown()
         }
 
         snapshotThread.start()
-        snapshotEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        snapshotEntered.await(1.seconds).shouldBeTrue()
         closeThread.start()
         try {
-            closeFinished.await(200, TimeUnit.MILLISECONDS).shouldBeFalse()
+            closeFinished.await(200.milliseconds).shouldBeFalse()
             delegate.closeCount shouldBeEqualTo 0
         } finally {
             snapshotRelease.countDown()
         }
 
-        snapshotFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
-        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        snapshotFinished.await(1.seconds).shouldBeTrue()
+        closeFinished.await(1.seconds).shouldBeTrue()
         snapshotThread.join(1_000)
         closeThread.join(1_000)
+
         exporter.snapshot().closed.shouldBeTrue()
     }
 
@@ -293,29 +320,33 @@ class MicrometerLeaderAuditExporterTest {
         val exporter = MicrometerLeaderAuditExporter(delegate, registry)
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
+
         delegate.blockSubmissions(entered, release)
         val submitFinished = CountDownLatch(1)
         val closeFinished = CountDownLatch(1)
 
-        val submitThread = Thread {
+        val submitThread = thread(start = false) {
             exporter.submit(event())
             submitFinished.countDown()
         }
-        val closeThread = Thread {
+        val closeThread = thread(start = false) {
             exporter.close()
             closeFinished.countDown()
         }
+
         submitThread.start()
-        entered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        entered.await(1.seconds).shouldBeTrue()
         closeThread.start()
         delegate.closeCount shouldBeEqualTo 0
 
         release.countDown()
-        submitFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
-        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        submitFinished.await(1.seconds).shouldBeTrue()
+        closeFinished.await(1.seconds).shouldBeTrue()
+
         submitThread.join(1_000)
         closeThread.join(1_000)
         delegate.closeCount shouldBeEqualTo 1
+
         exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.DROPPED_CLOSED
     }
 
@@ -329,17 +360,16 @@ class MicrometerLeaderAuditExporterTest {
         delegate.blockClose(closeEntered, closeRelease)
         val closeFinished = CountDownLatch(1)
 
-        val closeThread = Thread {
+        val closeThread = thread {
             exporter.close()
             closeFinished.countDown()
         }
-        closeThread.start()
-        closeEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeEntered.await(1.seconds).shouldBeTrue()
 
         exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.DROPPED_CLOSED
 
         closeRelease.countDown()
-        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeFinished.await(1.seconds).shouldBeTrue()
         closeThread.join(1_000)
     }
 
@@ -406,6 +436,7 @@ class MicrometerLeaderAuditExporterTest {
 
         registry.remove(foreign)
         val retryDelegate = SnapshotExporter(snapshot())
+
         assertFailsWith<IllegalStateException> {
             MicrometerLeaderAuditExporter(retryDelegate, registry)
         }
@@ -430,15 +461,15 @@ class MicrometerLeaderAuditExporterTest {
         val closeRelease = CountDownLatch(1)
         delegate.blockClose(closeEntered, closeRelease)
         val failure = AtomicReference<Throwable?>(null)
-        val construction = Thread {
+
+        val construction = thread {
             try {
                 MicrometerLeaderAuditExporter(delegate, failingRegistry)
             } catch (caught: Throwable) {
                 failure.set(caught)
             }
         }
-        construction.start()
-        closeEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeEntered.await(1.seconds).shouldBeTrue()
 
         assertFailsWith<IllegalStateException> {
             MicrometerLeaderAuditExporter(delegate, secondRegistry)
@@ -459,19 +490,24 @@ class MicrometerLeaderAuditExporterTest {
             MicrometerLeaderAuditExporter(failedDelegate, registry)
         }
         failedDelegate.closeCount shouldBeEqualTo 1
-        val acceptedMeterBefore = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+
+        val acceptedMeterBefore = registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .meter()
             .shouldNotBeNull()
 
         registry.allowRegistration()
+
         val recovered = MicrometerLeaderAuditExporter(SnapshotExporter(snapshot()), registry)
-        val acceptedMeterAfter = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+        val acceptedMeterAfter = registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .meter()
             .shouldNotBeNull()
 
         registry.meters.count { it.id.name.startsWith("leader.audit.export.") } shouldBeEqualTo 13
+
         acceptedMeterAfter shouldBeEqualTo acceptedMeterBefore
         registry.duplicateRegistrationIds shouldBeEqualTo 0
         registry.removeCalls shouldBeEqualTo 0
@@ -490,10 +526,11 @@ class MicrometerLeaderAuditExporterTest {
         val manager = managers.getValue(key)
         val registryReference = privateField(manager, "registryReference").get(manager) as WeakReference<*>
 
-        (registryReference.get() === registry).shouldBeTrue()
+        registryReference.get() shouldBe registry
         manager.javaClass.declaredFields.none { field ->
             MeterRegistry::class.java.isAssignableFrom(field.type)
         }.shouldBeTrue()
+
         privateField(manager, "registryReference").type shouldBeEqualTo WeakReference::class.java
         containsStrongReference(manager, registry).shouldBeFalse()
 
@@ -517,6 +554,7 @@ class MicrometerLeaderAuditExporterTest {
         val delegateCloseFailure = IllegalStateException("delegate close failure")
         val finalSnapshotFailure = IllegalStateException("final snapshot failure")
         val delegate = SnapshotExporter(snapshot())
+
         delegate.scriptSnapshots(
             { throw closeEntryFailure },
             { throw finalSnapshotFailure },
@@ -524,35 +562,48 @@ class MicrometerLeaderAuditExporterTest {
         delegate.failCloseWith(delegateCloseFailure)
         val exporter = MicrometerLeaderAuditExporter(delegate, registry)
 
-        val thrown = assertFailsWith<IllegalStateException> { exporter.close() }
+        val thrown = assertFailsWith<IllegalStateException> {
+            exporter.close()
+        }
 
         thrown shouldBeEqualTo delegateCloseFailure
         thrown.suppressed.toList() shouldBeEqualTo listOf(finalSnapshotFailure, closeEntryFailure)
         delegate.closeCount shouldBeEqualTo 1
-        registry.find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_CLOSED)
+
+        registry
+            .find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_CLOSED)
             .gauge()
             ?.value() shouldBeEqualTo 1.0
 
-        val repeated = assertFailsWith<IllegalStateException> { exporter.close() }
+        val repeated = assertFailsWith<IllegalStateException> {
+            exporter.close()
+        }
         repeated shouldBeEqualTo thrown
         delegate.closeCount shouldBeEqualTo 1
-        val snapshotFailure = assertFailsWith<IllegalStateException> { exporter.snapshot() }
+
+        val snapshotFailure = assertFailsWith<IllegalStateException> {
+            exporter.snapshot()
+        }
         snapshotFailure.message shouldBeEqualTo "closed delegate snapshot is unavailable"
         snapshotFailure.cause shouldBeEqualTo thrown
 
         val replacementDelegate = SnapshotExporter(snapshot(accepted = 3))
         val replacement = MicrometerLeaderAuditExporter(replacementDelegate, registry)
-        registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+
+        registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .functionCounter()
             ?.count() shouldBeEqualTo 3.0
+
         replacement.close()
     }
 
     @Test
     fun `close failure matrix preserves primary suppressed order and detached replacement`() {
-        for (mask in 0 until 8) {
+        repeat(8) { mask ->
             val registry = SimpleMeterRegistry()
+
             val closeEntryFailure = if (mask and 1 != 0) {
                 IllegalStateException("close-entry-$mask")
             } else {
@@ -568,12 +619,14 @@ class MicrometerLeaderAuditExporterTest {
             } else {
                 null
             }
+
             val delegate = SnapshotExporter(snapshot())
             delegate.scriptSnapshots(
                 closeEntryFailure?.let { failure -> { throw failure } } ?: { snapshot(accepted = 1) },
                 finalSnapshotFailure?.let { failure -> { throw failure } } ?: { snapshot(accepted = 2) },
             )
             delegate.failCloseWith(delegateCloseFailure)
+
             val exporter = MicrometerLeaderAuditExporter(delegate, registry)
 
             val expectedPrimary = delegateCloseFailure ?: finalSnapshotFailure ?: closeEntryFailure
@@ -582,6 +635,7 @@ class MicrometerLeaderAuditExporterTest {
                 finalSnapshotFailure != null -> listOfNotNull(closeEntryFailure)
                 else -> emptyList()
             }
+
             if (expectedPrimary == null) {
                 exporter.close()
             } else {
@@ -590,7 +644,9 @@ class MicrometerLeaderAuditExporterTest {
                 thrown.suppressed.toList() shouldBeEqualTo expectedSuppressed
             }
             delegate.closeCount shouldBeEqualTo 1
-            registry.find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_CLOSED)
+
+            registry
+                .find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_CLOSED)
                 .gauge()
                 ?.value() shouldBeEqualTo 1.0
 
@@ -604,14 +660,14 @@ class MicrometerLeaderAuditExporterTest {
         val source = Files.readString(
             Path.of(
                 "src/main/kotlin/" +
-                    "io/bluetape4k/leader/micrometer/audit/MicrometerLeaderAuditExporter.kt",
+                        "io/bluetape4k/leader/micrometer/audit/MicrometerLeaderAuditExporter.kt",
             ),
         )
         val comparison = source
             .substringAfter("private fun MicrometerLeaderAuditExporter.CumulativeValues.isNotLessThan")
             .substringBefore("\n\nprivate fun LeaderAuditExportSnapshot.asDetached")
 
-        comparison.contains("listOf(").shouldBeFalse()
+        comparison shouldNotContain "listOf("
     }
 
     @Test
@@ -619,19 +675,28 @@ class MicrometerLeaderAuditExporterTest {
         val registry = SimpleMeterRegistry()
         val oldDelegate = SnapshotExporter(snapshot(accepted = 100))
         val old = MicrometerLeaderAuditExporter(oldDelegate, registry)
-        val meterBefore = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+
+        val meterBefore = registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .meter()
-        meterBefore?.let { meter -> (meter as FunctionCounter).count() shouldBeEqualTo 100.0 }
+        meterBefore?.let { meter ->
+            meter.shouldBeInstanceOf<FunctionCounter>()
+            meter.count() shouldBeEqualTo 100.0
+        }
 
         old.close()
+
         val replacementDelegate = SnapshotExporter(snapshot(accepted = 3))
         val replacement = MicrometerLeaderAuditExporter(replacementDelegate, registry)
-        val meterAfter = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+        val meterAfter = registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .meter()
+
         meterAfter shouldBeEqualTo meterBefore
-        (meterAfter as FunctionCounter).count() shouldBeEqualTo 103.0
+        meterAfter.shouldBeInstanceOf<FunctionCounter>()
+        meterAfter.count() shouldBeEqualTo 103.0
         replacement.close()
     }
 
@@ -640,7 +705,9 @@ class MicrometerLeaderAuditExporterTest {
         val registry = SimpleMeterRegistry()
         val oldDelegate = SnapshotExporter(snapshot(accepted = 100))
         val old = MicrometerLeaderAuditExporter(oldDelegate, registry)
-        val accepted = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+
+        val accepted = registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .functionCounter()
             .shouldNotBeNull()
@@ -651,11 +718,13 @@ class MicrometerLeaderAuditExporterTest {
 
         val replacementDelegate = SnapshotExporter(snapshot(accepted = 1))
         val replacement = MicrometerLeaderAuditExporter(replacementDelegate, registry)
-        registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+        registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .functionCounter()
             .shouldNotBeNull()
             .count() shouldBeEqualTo 101.0
+
         replacement.close()
     }
 
@@ -664,7 +733,9 @@ class MicrometerLeaderAuditExporterTest {
         val registry = SimpleMeterRegistry()
         val delegate = SnapshotExporter(snapshot(accepted = 100))
         val exporter = MicrometerLeaderAuditExporter(delegate, registry)
-        val accepted = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+
+        val accepted = registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .functionCounter()
             .shouldNotBeNull()
@@ -675,16 +746,17 @@ class MicrometerLeaderAuditExporterTest {
         val closeRelease = CountDownLatch(1)
         delegate.blockClose(closeEntered, closeRelease)
         val closeFinished = CountDownLatch(1)
-        Thread {
+
+        thread {
             exporter.close()
             closeFinished.countDown()
-        }.start()
-        closeEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        }
 
+        closeEntered.await(1.seconds).shouldBeTrue()
         accepted.count() shouldBeEqualTo 100.0
 
         closeRelease.countDown()
-        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeFinished.await(1.seconds).shouldBeTrue()
     }
 
     @Test
@@ -706,27 +778,49 @@ class MicrometerLeaderAuditExporterTest {
         )
         val exporter = MicrometerLeaderAuditExporter(delegate, registry)
 
-        registry.find(MicrometerNames.AUDIT_EXPORT_RETRIES)
+        registry
+            .find(MicrometerNames.AUDIT_EXPORT_RETRIES)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "retry")
             .meter().shouldNotBeNull().let { it is FunctionCounter }.shouldBeTrue()
-        registry.find(MicrometerNames.AUDIT_EXPORT_FAILURES)
+
+        registry
+            .find(MicrometerNames.AUDIT_EXPORT_FAILURES)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "failure")
             .meter().shouldNotBeNull().let { it is FunctionCounter }.shouldBeTrue()
-        registry.find(MicrometerNames.AUDIT_EXPORT_QUEUE_DEPTH).meter()
-            .shouldNotBeNull().let { it is Gauge }.shouldBeTrue()
-        registry.find(MicrometerNames.AUDIT_EXPORT_IN_FLIGHT).meter()
-            .shouldNotBeNull().let { it is Gauge }.shouldBeTrue()
-        registry.find(MicrometerNames.AUDIT_EXPORT_OBSERVER_DROPPED).meter()
-            .shouldNotBeNull().let { it is FunctionCounter }.shouldBeTrue()
-        registry.find(MicrometerNames.AUDIT_EXPORT_OBSERVER_REGISTRATION_DROPPED).meter()
-            .shouldNotBeNull().let { it is FunctionCounter }.shouldBeTrue()
-        registry.find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_FAILURES).meter()
-            .shouldNotBeNull().let { it is FunctionCounter }.shouldBeTrue()
-        registry.get(MicrometerNames.AUDIT_EXPORT_QUEUE_DEPTH).gauge().value() shouldBeEqualTo 2.0
-        registry.get(MicrometerNames.AUDIT_EXPORT_IN_FLIGHT).gauge().value() shouldBeEqualTo 3.0
-        val rejectionCounter = registry.get(MicrometerNames.AUDIT_EXPORT_REJECTIONS)
+
+        registry
+            .find(MicrometerNames.AUDIT_EXPORT_QUEUE_DEPTH)
+            .meter().shouldNotBeNull().let { it is Gauge }.shouldBeTrue()
+
+        registry
+            .find(MicrometerNames.AUDIT_EXPORT_IN_FLIGHT)
+            .meter().shouldNotBeNull().let { it is Gauge }.shouldBeTrue()
+
+        registry
+            .find(MicrometerNames.AUDIT_EXPORT_OBSERVER_DROPPED)
+            .meter().shouldNotBeNull().let { it is FunctionCounter }.shouldBeTrue()
+
+        registry
+            .find(MicrometerNames.AUDIT_EXPORT_OBSERVER_REGISTRATION_DROPPED)
+            .meter().shouldNotBeNull().let { it is FunctionCounter }.shouldBeTrue()
+
+        registry
+            .find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_FAILURES)
+            .meter().shouldNotBeNull().let { it is FunctionCounter }.shouldBeTrue()
+
+        registry
+            .get(MicrometerNames.AUDIT_EXPORT_QUEUE_DEPTH)
+            .gauge().value() shouldBeEqualTo 2.0
+
+        registry
+            .get(MicrometerNames.AUDIT_EXPORT_IN_FLIGHT)
+            .gauge().value() shouldBeEqualTo 3.0
+
+        val rejectionCounter = registry
+            .get(MicrometerNames.AUDIT_EXPORT_REJECTIONS)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "rejected")
             .functionCounter()
+
         rejectionCounter.count() shouldBeEqualTo 17.0
         exporter.close()
     }
@@ -736,10 +830,14 @@ class MicrometerLeaderAuditExporterTest {
         val registry = SimpleMeterRegistry()
         val delegate = SnapshotExporter(snapshot(accepted = 7, queued = 2, inFlight = 1))
         val exporter = MicrometerLeaderAuditExporter(delegate, registry)
-        val accepted = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+
+        val accepted = registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .functionCounter()
-        val diagnosticsClosed = registry.find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_CLOSED)
+
+        val diagnosticsClosed = registry
+            .find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_CLOSED)
             .gauge()
 
         accepted?.count() shouldBeEqualTo 7.0
@@ -747,7 +845,9 @@ class MicrometerLeaderAuditExporterTest {
 
         delegate.failSnapshotsWith(IllegalStateException("transient snapshot failure"))
 
-        repeat(2) { accepted?.count() shouldBeEqualTo 7.0 }
+        repeat(2) {
+            accepted?.count() shouldBeEqualTo 7.0
+        }
         diagnosticsClosed?.value() shouldBeEqualTo 0.0
         registry.get(MicrometerNames.AUDIT_EXPORT_QUEUE_DEPTH).gauge().value() shouldBeEqualTo 2.0
         registry.get(MicrometerNames.AUDIT_EXPORT_IN_FLIGHT).gauge().value() shouldBeEqualTo 1.0
@@ -761,11 +861,15 @@ class MicrometerLeaderAuditExporterTest {
         val registry = SimpleMeterRegistry()
         val delegate = SnapshotExporter(snapshot(accepted = 7))
         val exporter = MicrometerLeaderAuditExporter(delegate, registry)
-        val owned = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+
+        val owned = registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .meter()
             .shouldNotBeNull()
-        (owned as FunctionCounter).count() shouldBeEqualTo 7.0
+            .shouldBeInstanceOf<FunctionCounter>()
+
+        owned.count() shouldBeEqualTo 7.0
 
         registry.remove(owned)
         registry.counter(
@@ -783,12 +887,16 @@ class MicrometerLeaderAuditExporterTest {
         val registry = SimpleMeterRegistry()
         val delegate = SnapshotExporter(snapshot(accepted = 100))
         val exporter = MicrometerLeaderAuditExporter(delegate, registry)
-        val owned = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+
+        val owned = registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .meter()
             .shouldNotBeNull()
+            .shouldBeInstanceOf<FunctionCounter>()
 
-        (owned as FunctionCounter).count() shouldBeEqualTo 100.0
+        owned.count() shouldBeEqualTo 100.0
+
         registry.remove(owned)
         registry.counter(
             MicrometerNames.AUDIT_EXPORT_ACCEPTED,
@@ -807,22 +915,27 @@ class MicrometerLeaderAuditExporterTest {
         val registry = SimpleMeterRegistry()
         val delegate = SnapshotExporter(snapshot(accepted = 100))
         val exporter = MicrometerLeaderAuditExporter(delegate, registry)
-        val owned = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+
+        val owned = registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .meter()
             .shouldNotBeNull()
+            .shouldBeInstanceOf<FunctionCounter>()
 
-        (owned as FunctionCounter).count() shouldBeEqualTo 100.0
+        owned.count() shouldBeEqualTo 100.0
+
         val closeEntered = CountDownLatch(1)
         val closeRelease = CountDownLatch(1)
         delegate.setSnapshot(snapshot(accepted = 110))
         delegate.blockClose(closeEntered, closeRelease)
         val closeFinished = CountDownLatch(1)
-        Thread {
+
+        thread {
             exporter.close()
             closeFinished.countDown()
-        }.start()
-        closeEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        }
+        closeEntered.await(1.seconds).shouldBeTrue()
 
         registry.remove(owned)
         registry.counter(
@@ -834,7 +947,7 @@ class MicrometerLeaderAuditExporterTest {
 
         delegate.setSnapshot(snapshot(accepted = 200))
         closeRelease.countDown()
-        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeFinished.await(1.seconds).shouldBeTrue()
         owned.count() shouldBeEqualTo 110.0
     }
 
@@ -843,11 +956,15 @@ class MicrometerLeaderAuditExporterTest {
         val registry = SimpleMeterRegistry()
         val delegate = SnapshotExporter(snapshot(accepted = 100))
         val exporter = MicrometerLeaderAuditExporter(delegate, registry)
-        val owned = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+
+        val owned = registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .meter()
             .shouldNotBeNull()
-        (owned as FunctionCounter).count() shouldBeEqualTo 100.0
+            .shouldBeInstanceOf<FunctionCounter>()
+
+        owned.count() shouldBeEqualTo 100.0
 
         exporter.close()
         registry.remove(owned)
@@ -865,13 +982,18 @@ class MicrometerLeaderAuditExporterTest {
         val registry = SimpleMeterRegistry()
         val delegate = SnapshotExporter(snapshot(accepted = 7))
         val exporter = MicrometerLeaderAuditExporter(delegate, registry)
-        val accepted = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+
+        val accepted = registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .functionCounter()
             .shouldNotBeNull()
 
         delegate.failSnapshotsWith(AssertionError("secret-token"))
-        assertFailsWith<AssertionError> { accepted.count() }
+
+        assertFailsWith<AssertionError> {
+            accepted.count()
+        }
 
         delegate.failSnapshotsWith(null)
         exporter.close()
@@ -882,13 +1004,18 @@ class MicrometerLeaderAuditExporterTest {
         val registry = SimpleMeterRegistry()
         val delegate = SnapshotExporter(snapshot(accepted = 7))
         val exporter = MicrometerLeaderAuditExporter(delegate, registry)
-        val accepted = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+
+        val accepted = registry
+            .find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
             .functionCounter()
             .shouldNotBeNull()
 
         delegate.failSnapshotsWith(CancellationException("cancelled"))
-        assertFailsWith<CancellationException> { accepted.count() }
+
+        assertFailsWith<CancellationException> {
+            accepted.count()
+        }
 
         delegate.failSnapshotsWith(null)
         exporter.close()
@@ -962,7 +1089,7 @@ class MicrometerLeaderAuditExporterTest {
 
     private class SnapshotExporter(
         initialSnapshot: LeaderAuditExportSnapshot,
-    ) : LeaderAuditExporter {
+    ): LeaderAuditExporter {
         private val current = AtomicReference(initialSnapshot)
         private val snapshotFailure = AtomicReference<Throwable?>(null)
         private val nextSnapshot = AtomicReference<(() -> LeaderAuditExportSnapshot)?>(null)
@@ -983,7 +1110,7 @@ class MicrometerLeaderAuditExporterTest {
                 LeaderAuditSubmitResult.DROPPED_CLOSED
             } else {
                 submitEntered?.countDown()
-                submitRelease?.await(5, TimeUnit.SECONDS)
+                submitRelease?.await(5.seconds)
                 submitAction.get()?.invoke()
                 LeaderAuditSubmitResult.ACCEPTED
             }
@@ -1015,7 +1142,7 @@ class MicrometerLeaderAuditExporterTest {
         fun blockNextSnapshot(entered: CountDownLatch, release: CountDownLatch) {
             nextSnapshot.set {
                 entered.countDown()
-                release.await(5, TimeUnit.SECONDS)
+                release.await(5.seconds)
                 current.get()
             }
         }
@@ -1040,7 +1167,7 @@ class MicrometerLeaderAuditExporterTest {
 
         override fun close() {
             closeEntered?.countDown()
-            closeRelease?.await(5, TimeUnit.SECONDS)
+            closeRelease?.await(5.seconds)
             closeCount++
             closed = true
             closeAction.get()?.invoke()
@@ -1050,7 +1177,7 @@ class MicrometerLeaderAuditExporterTest {
 
     private class FailingMeterRegistry(
         private val failOnSuccessfulAttempt: Int,
-    ) : SimpleMeterRegistry() {
+    ): SimpleMeterRegistry() {
         private var failRegistration = true
         private val successfulIds = mutableSetOf<Meter.Id>()
         var duplicateRegistrationIds: Int = 0
@@ -1058,7 +1185,7 @@ class MicrometerLeaderAuditExporterTest {
         var removeCalls: Int = 0
             private set
 
-        override fun <T : Any> newFunctionCounter(
+        override fun <T: Any> newFunctionCounter(
             id: Meter.Id,
             obj: T,
             countFunction: ToDoubleFunction<T>,
@@ -1070,7 +1197,7 @@ class MicrometerLeaderAuditExporterTest {
             return super.newFunctionCounter(id, obj, countFunction)
         }
 
-        override fun <T : Any> newGauge(
+        override fun <T: Any> newGauge(
             id: Meter.Id,
             obj: T?,
             valueFunction: ToDoubleFunction<T>,
@@ -1089,7 +1216,7 @@ class MicrometerLeaderAuditExporterTest {
         }
     }
 
-    private companion object {
+    private companion object: KLogging() {
         fun registryManagerStore(): Any {
             val storeClass = Class.forName(
                 "${MicrometerLeaderAuditExporter::class.java.name}\$RegistryManagerStore",
@@ -1097,9 +1224,10 @@ class MicrometerLeaderAuditExporterTest {
             return storeClass.getDeclaredField("INSTANCE").apply { isAccessible = true }.get(null)
         }
 
-        fun privateField(target: Any, name: String) = target.javaClass.getDeclaredField(name).apply {
-            isAccessible = true
-        }
+        fun privateField(target: Any, name: String): Field =
+            target.javaClass.getDeclaredField(name).apply {
+                isAccessible = true
+            }
 
         @Suppress("CyclomaticComplexMethod", "NestedBlockDepth")
         fun containsStrongReference(
@@ -1117,7 +1245,7 @@ class MicrometerLeaderAuditExporterTest {
             when (root) {
                 is Map<*, *> -> return root.entries.any { entry ->
                     containsStrongReference(entry.key, target, visited) ||
-                        containsStrongReference(entry.value, target, visited)
+                            containsStrongReference(entry.value, target, visited)
                 }
                 is Iterable<*> -> return root.any { containsStrongReference(it, target, visited) }
                 is Array<*> -> return root.any { containsStrongReference(it, target, visited) }

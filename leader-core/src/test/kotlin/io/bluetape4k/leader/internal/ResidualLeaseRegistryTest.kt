@@ -6,10 +6,13 @@ import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaseCleanupResult
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds
 
 class ResidualLeaseRegistryTest {
+
+    companion object: KLogging()
 
     @Test
     fun `reserved residual can be transferred and reconciled exactly once`() {

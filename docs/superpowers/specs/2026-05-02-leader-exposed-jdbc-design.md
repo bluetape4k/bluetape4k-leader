@@ -15,20 +15,19 @@
 ### 1.1 목적
 
 `leader-exposed-jdbc`는 JetBrains Exposed JDBC를 이용한 RDBMS 기반 분산 리더 선출 구현체를 제공합니다.
-`leader-exposed-core`에 정의된 테이블 스키마(`LeaderLockTable`, `LeaderGroupLockTable`, `LeaderLockHistoryTable`)를
-활용하여, `leader-mongodb`와 동일한 인터페이스 계약을 JDBC 트랜잭션 기반으로 충족합니다.
+`leader-exposed-core`에 정의된 테이블 스키마 (`LeaderLockTable`, `LeaderGroupLockTable`, `LeaderLockHistoryTable`)를 활용하여, `leader-mongodb`와 동일한 인터페이스 계약을 JDBC 트랜잭션 기반으로 충족합니다.
 
 ### 1.2 구현 대상 인터페이스
 
-| 구현 클래스 | 인터페이스 | 설명 |
-|---|---|---|
-| `ExposedJdbcLeaderElection` | `LeaderElection` + `AsyncLeaderElection` | 단일 리더 선출 (동기 + CF 비동기) |
-| `ExposedJdbcLeaderGroupElection` | `LeaderGroupElection` + `AsyncLeaderGroupElection` | 복수 리더 그룹 선출 |
-| `ExposedJdbcVirtualThreadLeaderElection` | `VirtualThreadLeaderElection` | VirtualThread 기반 비동기 선출 |
+| 구현 클래스                              | 인터페이스                                         | 설명                              |
+|------------------------------------------|----------------------------------------------------|-----------------------------------|
+| `ExposedJdbcLeaderElection`              | `LeaderElection` + `AsyncLeaderElection`           | 단일 리더 선출 (동기 + CF 비동기) |
+| `ExposedJdbcLeaderGroupElection`         | `LeaderGroupElection` + `AsyncLeaderGroupElection` | 복수 리더 그룹 선출               |
+| `ExposedJdbcVirtualThreadLeaderElection` | `VirtualThreadLeaderElection`                      | VirtualThread 기반 비동기 선출    |
 
 ### 1.3 비목표 (Non-goals)
 
-- `SuspendLeaderElection` / `SuspendLeaderGroupElection` — R2DBC 모듈(`leader-exposed-r2dbc`)에서 구현
+- `SuspendLeaderElection` / `SuspendLeaderGroupElection` — R2DBC 모듈 (`leader-exposed-r2dbc`)에서 구현
 - 자동 lease renewal — action 실행 중 lease 자동 갱신 없음. `leaseTime`은 action 최대 실행 시간보다 충분히 크게 설정해야 함 (권장: p99 실행시간 x 2 이상)
 - 분산 트랜잭션 (XA) — 단일 DB 인스턴스 내 트랜잭션만 사용
 - Spring `@Transactional` 통합 — 독립 `transaction {}` 블록 사용
@@ -75,8 +74,7 @@ dependencies {
 
 ### 2.3 누락 의존성 (추가 필요)
 
-현재 `build.gradle.kts`에 **H2**와 **MySQL** 테스트 의존성이 누락되어 있습니다.
-3-DB 파라미터화 테스트를 위해 다음 의존성을 추가해야 합니다:
+현재 `build.gradle.kts`에 **H2**와 **MySQL** 테스트 의존성이 누락되어 있습니다. 3-DB 파라미터화 테스트를 위해 다음 의존성을 추가해야 합니다:
 
 ```kotlin
 // H2 (in-memory, 빠른 단위 테스트)
@@ -98,10 +96,10 @@ testImplementation(libs.bluetape4k.exposed.jdbc.tests)
 ```
 
 **근거**: `leader-exposed-core/build.gradle.kts`가 H2 + MySQL + `bluetape4k.exposed.jdbc.tests`를 포함하고 있으며,
-`AbstractExposedTableTest`의 `enableDialects()`가 H2, POSTGRESQL, MYSQL_V8을 반환합니다.
-동일한 3-DB 테스트 매트릭스를 사용해야 합니다.
+`AbstractExposedTableTest`의 `enableDialects()`가 H2, POSTGRESQL, MYSQL_V8을 반환합니다. 동일한 3-DB 테스트 매트릭스를 사용해야 합니다.
 
-> **[Codex M6]** `virtualFuture`/`VirtualFuture`는 `bluetape4k.core` → `leader-core` 전이 의존성으로 제공. `bluetape4k.exposed.jdbc` 별도 추가 불필요.
+>
+**[Codex M6]** `virtualFuture`/`VirtualFuture`는 `bluetape4k.core` → `leader-core` 전이 의존성으로 제공. `bluetape4k.exposed.jdbc` 별도 추가 불필요.
 
 ---
 
@@ -111,23 +109,24 @@ testImplementation(libs.bluetape4k.exposed.jdbc.tests)
 
 **결정: Option B — `UPDATE WHERE expired` + `INSERT fallback` (2-step 패턴)**
 
-> **[C1 수정]** 초안의 Option C(upsert WHERE)는 MySQL/H2에서 `UnsupportedOperationException`을 던집니다.
+> **[C1 수정]** 초안의 Option C (upsert WHERE)는 MySQL/H2에서 `UnsupportedOperationException`을 던집니다.
 > Exposed 1.2.0에서 `upsert()` `WHERE` 절은 PostgreSQL만 지원합니다 (MySQL: `throwUnsupportedException`, H2: `throwUnsupportedException`).
 > 3-DB 호환성을 보장하기 위해 Option B로 변경합니다.
 
 #### 접근법 비교
 
-| | Option A: `SELECT FOR UPDATE SKIP LOCKED` | **Option B: `UPDATE WHERE expired` + `INSERT fallback`** | Option C: `upsert() WHERE` DSL |
-|---|---|---|---|
-| 호환성 | PostgreSQL 전용 (H2 미지원) | **H2/PG/MySQL 모두 동작** | PostgreSQL만 WHERE 지원; MySQL/H2는 런타임 예외 |
-| 락 경합 성능 | SKIP LOCKED로 대기 없이 pass | UPDATE 실패 시 INSERT 재시도 | — |
-| 구현 복잡도 | DB별 분기 필요 | **단일 패턴 (2 SQL)** | 단순하나 DB 제약으로 3-DB에서 동작 불가 |
-| 안전 속성 | 유효한 락 건드리지 않음 | **UPDATE WHERE 조건으로 유효한 락 보존** | upsert WITHOUT WHERE는 유효한 락도 덮어씀 |
-| 적합성 | 고경합 환경에 최적 | **분산 리더 선출 + 3-DB 호환 + KISS** | 3-DB 요구사항 불충족 |
+|              | Option A: `SELECT FOR UPDATE SKIP LOCKED` | **Option B: `UPDATE WHERE expired` + `INSERT fallback`** | Option C: `upsert() WHERE` DSL                  |
+|--------------|-------------------------------------------|----------------------------------------------------------|-------------------------------------------------|
+| 호환성       | PostgreSQL 전용 (H2 미지원)               | **H2/PG/MySQL 모두 동작**                                | PostgreSQL만 WHERE 지원; MySQL/H2는 런타임 예외 |
+| 락 경합 성능 | SKIP LOCKED로 대기 없이 pass              | UPDATE 실패 시 INSERT 재시도                             | —                                               |
+| 구현 복잡도  | DB별 분기 필요                            | **단일 패턴 (2 SQL)**                                    | 단순하나 DB 제약으로 3-DB에서 동작 불가         |
+| 안전 속성    | 유효한 락 건드리지 않음                   | **UPDATE WHERE 조건으로 유효한 락 보존**                 | upsert WITHOUT WHERE는 유효한 락도 덮어씀       |
+| 적합성       | 고경합 환경에 최적                        | **분산 리더 선출 + 3-DB 호환 + KISS**                    | 3-DB 요구사항 불충족                            |
 
 **최종 결정: Option B — `UPDATE WHERE expired` + `INSERT fallback`**
 
 단일 트랜잭션 내에서:
+
 1. `UPDATE WHERE (lockName = ? AND lockedUntil < now)` — 만료된 락을 내 token으로 갱신
 2. UPDATE affected rows = 0이면 `INSERT` — 신규 락 삽입 (PK 충돌 = 다른 인스턴스가 보유 중)
 3. `SELECT WHERE lockName = ?` — token 검증으로 최종 획득 여부 확인
@@ -194,7 +193,9 @@ testImplementation(libs.bluetape4k.exposed.jdbc.tests)
 ```
 
 **핵심 포인트**:
-- **token 1개 원칙**: 인스턴스 생성 시 1회 발급. `tryLock` 성공 후 `unlock`/`isHeldByCurrentInstance`/`history`가 동일 token 사용 (MongoDB 패턴 동일)
+
+- **token 1개
+  원칙**: 인스턴스 생성 시 1회 발급. `tryLock` 성공 후 `unlock`/`isHeldByCurrentInstance`/`history`가 동일 token 사용 (MongoDB 패턴 동일)
 - UPDATE + INSERT + SELECT가 **단일 `transaction {}` 블록** 내에서 실행됨 (원자성 보장)
 - `Thread.sleep(retryStrategy.delayMs(...))`는 **트랜잭션 블록 바깥**에서 실행 → connection 반납 후 sleep (HikariCP 풀 고갈 방지)
 - `UPDATE WHERE lockedUntil < now`로 유효한 락은 절대 덮어쓰지 않음 (안전 속성 보장)
@@ -213,8 +214,7 @@ transaction {
 }
 ```
 
-token 기반 `deleteWhere`로 zombie unlock을 방지합니다.
-lease 만료 후 다른 인스턴스가 재획득한 경우, 원 소유자의 unlock은 새 소유자의 락을 건드리지 않습니다.
+token 기반 `deleteWhere`로 zombie unlock을 방지합니다. lease 만료 후 다른 인스턴스가 재획득한 경우, 원 소유자의 unlock은 새 소유자의 락을 건드리지 않습니다.
 
 ### 3.2 그룹 락 슬롯 순회 전략
 
@@ -240,11 +240,11 @@ return null  // 모든 슬롯 획득 실패
 
 **접근법 비교**:
 
-| | Option A: 순차 순회 (slot 0, 1, 2, ...) | Option B: 랜덤 시작 순회 (MongoDB 패턴) |
-|---|---|---|
-| 핫스팟 | slot 0에 경합 집중 | 분산 |
-| 구현 복잡도 | 최소 | `Random.nextInt` 한 줄 추가 |
-| 공정성 | 낮음 (항상 slot 0 먼저) | 높음 |
+|             | Option A: 순차 순회 (slot 0, 1, 2, ...) | Option B: 랜덤 시작 순회 (MongoDB 패턴) |
+|-------------|-----------------------------------------|-----------------------------------------|
+| 핫스팟      | slot 0에 경합 집중                      | 분산                                    |
+| 구현 복잡도 | 최소                                    | `Random.nextInt` 한 줄 추가             |
+| 공정성      | 낮음 (항상 slot 0 먼저)                 | 높음                                    |
 
 **결정: Option B (랜덤 시작 순회)** — MongoDB 검증 패턴이며, 핫스팟 방지 효과가 비용 대비 우수.
 
@@ -303,18 +303,18 @@ LeaderGroupLockTable.deleteWhere {
 
 #### 접근법 비교
 
-| | Option A: 항상 기록 | Option B: 선택적 (기본 비활성) | Option C: 이력 미지원 |
-|---|---|---|---|
-| 성능 오버헤드 | INSERT 1회/선출 | 0 (비활성 시) | 0 |
-| 관찰성 | 최고 | 필요 시 활성화 | 없음 |
-| 테이블 크기 | 빠르게 증가 | 활성화한 경우에만 | N/A |
+|               | Option A: 항상 기록 | Option B: 선택적 (기본 비활성) | Option C: 이력 미지원 |
+|---------------|---------------------|--------------------------------|-----------------------|
+| 성능 오버헤드 | INSERT 1회/선출     | 0 (비활성 시)                  | 0                     |
+| 관찰성        | 최고                | 필요 시 활성화                 | 없음                  |
+| 테이블 크기   | 빠르게 증가         | 활성화한 경우에만              | N/A                   |
 
-**결정: Option B** — `LeaderLockHistoryTable`이 `leader-exposed-core`에 이미 존재하므로 구조적 지원은 갖추었으나,
-기본 비활성화하여 성능 오버헤드를 방지합니다.
+**결정: Option B** — `LeaderLockHistoryTable`이 `leader-exposed-core`에 이미 존재하므로 구조적 지원은 갖추었으나, 기본 비활성화하여 성능 오버헤드를 방지합니다.
 
 #### 이력 기록 흐름
 
-> **[Codex H3 수정]** `historyId`를 transaction 바깥으로 반환. action은 `try/catch/finally` 계약으로 명시. audit 실패 정책: **best-effort** (audit 저장 실패가 리더 실행을 실패시키지 않음).
+> **[Codex H3 수정]** `historyId`를 transaction 바깥으로 반환. action은 `try/catch/finally` 계약으로 명시. audit 실패 정책:
+> **best-effort** (audit 저장 실패가 리더 실행을 실패시키지 않음).
 
 ```kotlin
 // recordHistory = true일 때만 실행
@@ -368,6 +368,7 @@ val result = try {
 ```
 
 **audit 실패 정책: best-effort**
+
 - ACQUIRED/COMPLETED/FAILED 이력 INSERT/UPDATE 실패는 warn 로그만 남기고 무시
 - `runIfLeader` never-throws 계약을 audit 실패로 깨지 않음
 - `actionFailed` 플래그로 `finally` 블록에서 action 예외 여부 판별
@@ -378,7 +379,8 @@ val result = try {
 
 #### RetryStrategy 설계
 
-> **[Codex M5 수정]** `nextDelayMs` → `delayMs`. `sleep`은 전략에서 제거, 호출부에서 `Thread.sleep(retryStrategy.delayMs(...))` 사용. Jitter 프로퍼티와 메서드 파라미터 중복 제거.
+>
+**[Codex M5 수정]** `nextDelayMs` → `delayMs`. `sleep`은 전략에서 제거, 호출부에서 `Thread.sleep(retryStrategy.delayMs(...))` 사용. Jitter 프로퍼티와 메서드 파라미터 중복 제거.
 
 ```kotlin
 sealed class RetryStrategy {
@@ -409,6 +411,7 @@ sealed class RetryStrategy {
 ```
 
 **사용 패턴** (호출부):
+
 ```kotlin
 // tryLock 내부 retry 루프
 Thread.sleep(retryStrategy.delayMs(attempt++, remaining))
@@ -416,15 +419,16 @@ Thread.sleep(retryStrategy.delayMs(attempt++, remaining))
 
 #### 전략별 비교
 
-| 전략 | 적합한 상황 | 기본값 |
-|------|-----------|--------|
-| `Jitter` | 다수 인스턴스 경합 — thundering herd 방지 | ✅ (기본값) |
-| `Exponential` | 경합이 드물고 빠른 초기 재시도 + 점진적 백오프 필요 | - |
-| `Fixed` | 단순 환경, 예측 가능한 재시도 간격 필요 | - |
+| 전략          | 적합한 상황                                         | 기본값      |
+|---------------|-----------------------------------------------------|-------------|
+| `Jitter`      | 다수 인스턴스 경합 — thundering herd 방지           | ✅ (기본값) |
+| `Exponential` | 경합이 드물고 빠른 초기 재시도 + 점진적 백오프 필요 | -           |
+| `Fixed`       | 단순 환경, 예측 가능한 재시도 간격 필요             | -           |
 
 #### 옵션 통합
 
 `RetryStrategy`는 `ExposedJdbcLeaderElectionOptions`에 포함:
+
 ```kotlin
 data class ExposedJdbcLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -448,6 +452,7 @@ data class ExposedJdbcLeaderElectionOptions(
 구체적인 구현은 **Section 4.5** 참조. Section 4.5가 권위 있는 유일한 구현 소스입니다.
 
 `bluetape4k-exposed-jdbc`의 `virtualFuture { }` 유틸리티:
+
 - `io.github.bluetape4k.exposed:bluetape4k-exposed-jdbc` 제공
 - JDBC 블로킹 I/O를 VirtualThread에서 실행 → carrier thread 반납 → 플랫폼 스레드 풀 효율 증가
 - `VirtualFuture<T?>` 반환으로 `VirtualThreadLeaderElection` 인터페이스 계약 충족
@@ -492,6 +497,7 @@ class ExposedJdbcLock(
 ```
 
 **핵심 설계**:
+
 - `token` 기반 fencing: 생성 시 UUID 발급, unlock 시 `WHERE token = ?` 조건
 - `Database` 의존: Exposed `transaction(db) {}` 블록 내에서 SQL 실행
 - 재시도 루프: `tryLock` 내부에서 deadline까지 UPDATE → INSERT → `Thread.sleep(retryStrategy.delayMs(attempt, remaining))` 반복 (sleep은 트랜잭션 바깥)
@@ -517,7 +523,7 @@ class ExposedJdbcGroupLock(
 
 ### 4.3 ExposedJdbcLeaderElection
 
-> **[Codex H2 수정]** 생성자를 `private`으로 강제. 모든 진입점(확장 함수 포함)이 반드시 `invoke` 팩토리를 통과하여 `ensureSchema` 보장.
+> **[Codex H2 수정]** 생성자를 `private`으로 강제. 모든 진입점 (확장 함수 포함)이 반드시 `invoke` 팩토리를 통과하여 `ensureSchema` 보장.
 
 ```kotlin
 class ExposedJdbcLeaderElection private constructor(  // private — 직접 생성 금지
@@ -541,8 +547,9 @@ class ExposedJdbcLeaderElection private constructor(  // private — 직접 생�
 ```
 
 **패턴**: MongoDB `MongoLeaderElection`과 1:1 대응.
+
 - 생성자 `private` → 외부에서 직접 생성 불가. 반드시 `ExposedJdbcLeaderElection(db, options)` (invoke) 경유
-- 확장 함수(`Database.runIfLeader`)도 `ExposedJdbcLeaderElection(this, options)` → 내부적으로 `invoke` 호출 (스키마 초기화 보장)
+- 확장 함수 (`Database.runIfLeader`)도 `ExposedJdbcLeaderElection(this, options)` → 내부적으로 `invoke` 호출 (스키마 초기화 보장)
 - `runIfLeader`: lockName 검증 → `ExposedJdbcLock.tryLock` → action 실행 → `finally { lock.unlock() }`
 - `runAsyncIfLeader`: `CompletableFuture.supplyAsync` + `thenComposeAsync` 체인 (MongoDB 패턴 동일)
 
@@ -579,6 +586,7 @@ class ExposedJdbcLeaderGroupElection private constructor(  // private — 직접
 ```
 
 **`activeCount` 구현**:
+
 ```kotlin
 transaction(db) {
     LeaderGroupLockTable.selectAll()
@@ -672,8 +680,7 @@ data class ExposedJdbcLeaderGroupElectionOptions(
 ```
 
 **`lockOwner`**: 선택적 인스턴스 식별자 (hostname, pod name 등).
-`LeaderLockTable.lockOwner` 컬럼에 저장 (VARCHAR 255). 디버깅/관찰성 용도. `null`이면 미설정.
-255자 초과 시 생성자에서 `IllegalArgumentException` — never-throws 계약은 `runIfLeader` 실행 중 발생하는 예외에만 적용됩니다 (Section 7).
+`LeaderLockTable.lockOwner` 컬럼에 저장 (VARCHAR 255). 디버깅/관찰성 용도. `null`이면 미설정. 255자 초과 시 생성자에서 `IllegalArgumentException` — never-throws 계약은 `runIfLeader` 실행 중 발생하는 예외에만 적용됩니다 (Section 7).
 
 ---
 
@@ -701,29 +708,29 @@ fun ensureSchema(db: Database) {
 
 ## 7. 인터페이스 계약 (runIfLeader never-throws)
 
-> **[Codex M4 수정]** lock 계층(Boolean)과 election 계층(T?) 반환값 분리.
+> **[Codex M4 수정]** lock 계층 (Boolean)과 election 계층 (T?) 반환값 분리.
 
 ### Lock 계층 (`ExposedJdbcLock.tryLock(): Boolean`)
 
-| 결과 상황 | 반환값 |
-|---|---|
-| 락 획득 성공 | `true` |
-| 락 획득 실패 (`waitTime` 초과) | `false` |
-| PK 충돌 (재시도 후 타임아웃) | `false` |
-| DB 연결 오류 등 SQL 예외 | `false` + warn 로그 (재시도 없음) |
+| 결과 상황                      | 반환값                            |
+|--------------------------------|-----------------------------------|
+| 락 획득 성공                   | `true`                            |
+| 락 획득 실패 (`waitTime` 초과) | `false`                           |
+| PK 충돌 (재시도 후 타임아웃)   | `false`                           |
+| DB 연결 오류 등 SQL 예외       | `false` + warn 로그 (재시도 없음) |
 
 ### Election 계층 (`ExposedJdbcLeaderElection.runIfLeader(): T?`)
 
-| 결과 상황 | 반환값 / 동작 |
-|---|---|
-| `tryLock() == true` → action 정상 종료 | `action()` 의 반환값 (`T`) |
-| `tryLock() == false` (락 미획득) | `null` |
-| `action()` 내부에서 throw | 예외 전파, `finally { lock.unlock() }` |
-| `lockName.isBlank()` | `IllegalArgumentException` (validate 단계에서 즉시) |
-| `lockName` 규칙 위반 | `IllegalArgumentException` (공통 `validateLockName()`) |
+| 결과 상황                              | 반환값 / 동작                                          |
+|----------------------------------------|--------------------------------------------------------|
+| `tryLock() == true` → action 정상 종료 | `action()` 의 반환값 (`T`)                             |
+| `tryLock() == false` (락 미획득)       | `null`                                                 |
+| `action()` 내부에서 throw              | 예외 전파, `finally { lock.unlock() }`                 |
+| `lockName.isBlank()`                   | `IllegalArgumentException` (validate 단계에서 즉시)    |
+| `lockName` 규칙 위반                   | `IllegalArgumentException` (공통 `validateLockName()`) |
 
-**MongoDB와의 차이**: MongoDB는 `MongoCommandException`/`MongoWriteException` 등 세분화된 예외 분기가 필요하지만,
-JDBC/Exposed는 `ExposedSQLException` 한 가지로 통합됩니다. PK 충돌 여부는 vendor-specific error code로 판별합니다.
+**MongoDB와의
+차이**: MongoDB는 `MongoCommandException`/`MongoWriteException` 등 세분화된 예외 분기가 필요하지만, JDBC/Exposed는 `ExposedSQLException` 한 가지로 통합됩니다. PK 충돌 여부는 vendor-specific error code로 판별합니다.
 
 ---
 
@@ -734,6 +741,7 @@ JDBC/Exposed는 `ExposedSQLException` 한 가지로 통합됩니다. PK 충돌 �
 **위험**: 분산 환경에서 DB 서버와 애플리케이션 서버의 시계가 다를 경우, `lockedUntil < NOW()` 비교가 부정확해질 수 있음.
 
 **완화**:
+
 - `NOW()`는 DB 서버 시간 사용 (Exposed `CurrentTimestamp` 또는 `Instant.now()` 바인딩)
 - 이 구현에서는 **Kotlin `Instant.now()`를 파라미터로 바인딩**하여 애플리케이션 서버 기준으로 일관성 유지
 - NTP 동기화 권장 문서화
@@ -744,6 +752,7 @@ JDBC/Exposed는 `ExposedSQLException` 한 가지로 통합됩니다. PK 충돌 �
 **위험**: `INSERT` 시 PK 충돌 예외의 SQL error code가 H2/PG/MySQL마다 다름.
 
 **완화**:
+
 - H2: `23505` (UNIQUE_CONSTRAINT_VIOLATION)
 - PostgreSQL: `23505` (unique_violation)
 - MySQL: `1062` (ER_DUP_ENTRY)
@@ -757,6 +766,7 @@ JDBC/Exposed는 `ExposedSQLException` 한 가지로 통합됩니다. PK 충돌 �
 **위험**: `READ COMMITTED` 격리에서 UPDATE + INSERT + SELECT 사이에 다른 트랜잭션이 동일 row를 변경할 수 있음.
 
 **완화**:
+
 - Exposed `transaction(db) {}` 기본 격리 수준: **`Connection.TRANSACTION_READ_COMMITTED`**
 - `tryLock`의 UPDATE + INSERT + SELECT (token 검증)는 **반드시 단일 `transaction {}` 블록** 내에서 실행 (구현 의무)
 - `UPDATE ... WHERE lockedUntil < now` 자체가 PostgreSQL/MySQL에서 row-level lock 획득 → phantom read 위험 최소화
@@ -771,6 +781,7 @@ JDBC/Exposed는 `ExposedSQLException` 한 가지로 통합됩니다. PK 충돌 �
 **위험**: 많은 인스턴스가 동시에 리더 선출을 시도할 때 connection pool이 소진될 수 있음.
 
 **완화**:
+
 - `transaction {}` 블록이 닫히면 connection이 즉시 HikariCP 풀로 반납됨
 - `Thread.sleep(retryStrategy.delayMs(attempt, remaining))` 호출은 **반드시 `transaction {}` 블록 바깥**에서 실행 (Section 3.1 시퀀스 참조)
 - sleep 중에는 connection을 점유하지 않으므로 pool 고갈 위험 제거
@@ -782,6 +793,7 @@ JDBC/Exposed는 `ExposedSQLException` 한 가지로 통합됩니다. PK 충돌 �
 **위험**: H2는 일부 SQL 구문/동작이 PostgreSQL/MySQL과 다를 수 있음.
 
 **완화**:
+
 - Exposed DSL만 사용하여 DB-agnostic SQL 생성 (raw SQL 금지)
 - `UPDATE + INSERT` 2-step 패턴은 H2 `MODE=MYSQL` 또는 `MODE=POSTGRESQL` 없이도 표준 SQL로 동작
 - 3-DB 파라미터화 테스트로 모든 DB에서 동작 검증
@@ -793,14 +805,15 @@ JDBC/Exposed는 `ExposedSQLException` 한 가지로 통합됩니다. PK 충돌 �
 **위험**: H2 `DATETIME`과 PostgreSQL `TIMESTAMPTZ`의 타임존 처리 방식 차이로 인한 `lockedUntil < now` 비교 오류.
 
 **처리 방식**:
+
 - `LeaderLockTable.lockedAt` / `lockedUntil`: Exposed `java-time` 확장 기반 `timestamp("...")` 컬럼 (UTC 저장)
 - `Instant.now()` 파라미터 바인딩 → **애플리케이션 서버 기준 UTC**로 일관성 유지
 - PostgreSQL: `TIMESTAMPTZ` — UTC 명시적 저장
-- MySQL: `DATETIME` — JVM UTC 타임존(`TimeZone.setDefault(TimeZone.getTimeZone("UTC"))`) 설정 권장
+- MySQL: `DATETIME` — JVM UTC 타임존 (`TimeZone.setDefault(TimeZone.getTimeZone("UTC"))`) 설정 권장
 - H2 테스트 시: `DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_UPPER=false` + JVM UTC 설정
 
-**구현 의무**: 애플리케이션 서버의 JVM 타임존을 UTC로 고정하거나, JDBC URL에 `serverTimezone=UTC`를 명시합니다.
-테스트 기반 클래스(`AbstractExposedJdbcLeaderTest`)에서 UTC 설정을 강제합니다.
+**구현
+의무**: 애플리케이션 서버의 JVM 타임존을 UTC로 고정하거나, JDBC URL에 `serverTimezone=UTC`를 명시합니다. 테스트 기반 클래스 (`AbstractExposedJdbcLeaderTest`)에서 UTC 설정을 강제합니다.
 
 ---
 
@@ -865,45 +878,45 @@ abstract class AbstractExposedJdbcLeaderTest {
 
 #### ExposedJdbcLockTest
 
-| 테스트 | 설명 |
-|---|---|
-| `tryLock - 새 lockName으로 락 획득이 성공한다` | 레코드 없는 상태에서 INSERT 성공 |
+| 테스트                                                  | 설명                                   |
+|---------------------------------------------------------|----------------------------------------|
+| `tryLock - 새 lockName으로 락 획득이 성공한다`          | 레코드 없는 상태에서 INSERT 성공       |
 | `tryLock - 동일 lockName 중복 획득 시 대기 후 실패한다` | 이미 유효한 락 → waitTime 초과 → false |
-| `tryLock - 만료된 락을 재획득할 수 있다` | UPDATE WHERE expired 성공 |
-| `unlock - 토큰 일치 시 레코드가 삭제된다` | deleteWhere token=? → 1 row |
-| `unlock - 토큰 불일치 시 경고 로그만 남긴다` | deleteWhere → 0 rows, 예외 없음 |
-| `isHeldByCurrentInstance - 보유 중이면 true` | SELECT WHERE token=? → 존재 |
-| `isHeldByCurrentInstance - 만료 후 takeover되면 false` | 다른 토큰으로 변경 → false |
+| `tryLock - 만료된 락을 재획득할 수 있다`                | UPDATE WHERE expired 성공              |
+| `unlock - 토큰 일치 시 레코드가 삭제된다`               | deleteWhere token=? → 1 row            |
+| `unlock - 토큰 불일치 시 경고 로그만 남긴다`            | deleteWhere → 0 rows, 예외 없음        |
+| `isHeldByCurrentInstance - 보유 중이면 true`            | SELECT WHERE token=? → 존재            |
+| `isHeldByCurrentInstance - 만료 후 takeover되면 false`  | 다른 토큰으로 변경 → false             |
 
 #### ExposedJdbcLeaderElectionTest
 
-| 테스트 | 설명 |
-|---|---|
-| `runIfLeader - 리더로 선출되어 action을 실행하고 결과를 반환한다` | 기본 성공 경로 |
+| 테스트                                                                          | 설명                 |
+|---------------------------------------------------------------------------------|----------------------|
+| `runIfLeader - 리더로 선출되어 action을 실행하고 결과를 반환한다`               | 기본 성공 경로       |
 | `runIfLeader - 동일 lockName에 여러 스레드 동시 접근 시 최소 1개 이상 성공한다` | MultithreadingTester |
-| `runIfLeader - blank lockName은 IllegalArgumentException을 발생시킨다` | 입력 검증 |
-| `runIfLeader - action 예외 발생 시 예외가 전파되고 락 레코드가 삭제된다` | finally unlock |
-| `runIfLeader - 락 보유 중 짧은 waitTime으로 호출하면 null을 반환한다` | contention → null |
-| `runIfLeader - leaseTime 만료 후 takeover가 성공한다` | stale lock 재획득 |
-| `runAsyncIfLeader - 비동기 action 실행 후 결과를 반환한다` | CF 경로 |
-| `runAsyncIfLeader - action 실패 후에도 락이 해제된다` | 오류 복구 |
+| `runIfLeader - blank lockName은 IllegalArgumentException을 발생시킨다`          | 입력 검증            |
+| `runIfLeader - action 예외 발생 시 예외가 전파되고 락 레코드가 삭제된다`        | finally unlock       |
+| `runIfLeader - 락 보유 중 짧은 waitTime으로 호출하면 null을 반환한다`           | contention → null    |
+| `runIfLeader - leaseTime 만료 후 takeover가 성공한다`                           | stale lock 재획득    |
+| `runAsyncIfLeader - 비동기 action 실행 후 결과를 반환한다`                      | CF 경로              |
+| `runAsyncIfLeader - action 실패 후에도 락이 해제된다`                           | 오류 복구            |
 
 #### ExposedJdbcLeaderGroupElectionTest
 
-| 테스트 | 설명 |
-|---|---|
-| `runIfLeader - 그룹 슬롯을 획득하여 action을 실행한다` | 기본 성공 |
-| `runIfLeader - maxLeaders개까지 동시 실행을 허용한다` | 병렬 실행 제한 검증 |
-| `activeCount - 활성 슬롯 수를 정확히 반환한다` | 상태 조회 |
-| `availableSlots - 가용 슬롯 수를 정확히 반환한다` | maxLeaders - activeCount |
-| `runIfLeader - 모든 슬롯이 점유된 상태에서 null을 반환한다` | 슬롯 소진 |
+| 테스트                                                      | 설명                     |
+|-------------------------------------------------------------|--------------------------|
+| `runIfLeader - 그룹 슬롯을 획득하여 action을 실행한다`      | 기본 성공                |
+| `runIfLeader - maxLeaders개까지 동시 실행을 허용한다`       | 병렬 실행 제한 검증      |
+| `activeCount - 활성 슬롯 수를 정확히 반환한다`              | 상태 조회                |
+| `availableSlots - 가용 슬롯 수를 정확히 반환한다`           | maxLeaders - activeCount |
+| `runIfLeader - 모든 슬롯이 점유된 상태에서 null을 반환한다` | 슬롯 소진                |
 
 #### ExposedJdbcVirtualThreadLeaderElectionTest
 
-| 테스트 | 설명 |
-|---|---|
-| `runAsyncIfLeader - VirtualFuture로 결과를 반환한다` | await() 성공 |
-| `runAsyncIfLeader - action 예외 시 VirtualFuture.await에서 전파된다` | 예외 경로 |
+| 테스트                                                               | 설명         |
+|----------------------------------------------------------------------|--------------|
+| `runAsyncIfLeader - VirtualFuture로 결과를 반환한다`                 | await() 성공 |
+| `runAsyncIfLeader - action 예외 시 VirtualFuture.await에서 전파된다` | 예외 경로    |
 
 ### 10.3 ContractTest 재사용
 
@@ -914,16 +927,16 @@ abstract class AbstractExposedJdbcLeaderTest {
 
 ## 11. 기술 제약
 
-| 제약 | 설명 |
-|---|---|
-| Kotlin 2.3+, JVM 21 | `VirtualFuture`, `virtualFuture` 사용 |
-| Exposed 1.2.0 | `org.jetbrains.exposed.v1.*` 패키지, `upsert()` DSL 가용 |
-| HikariCP | Connection pool 필수 (Exposed JDBC 표준) |
-| JDBC 블로킹 I/O | 코루틴 환경에서는 `withContext(Dispatchers.IO)` 필요 (이 모듈에서는 미사용, R2DBC가 담당) |
-| 3-DB 호환 | H2 (in-memory), PostgreSQL (Testcontainers), MySQL 8 (Testcontainers) |
-| `leader-exposed-core` 수정 금지 | 이미 구현 완료된 스키마 모듈에 파일 추가/수정 불가 |
-| `!!` 금지, `@Synchronized` 금지 | bluetape4k Kotlin 코딩 규칙 |
-| atomicfu 제약 | 클래스 프로퍼티 레벨만 허용, 메서드 로컬 변수 금지 |
+| 제약                            | 설명                                                                                      |
+|---------------------------------|-------------------------------------------------------------------------------------------|
+| Kotlin 2.3+, JVM 21             | `VirtualFuture`, `virtualFuture` 사용                                                     |
+| Exposed 1.2.0                   | `org.jetbrains.exposed.v1.*` 패키지, `upsert()` DSL 가용                                  |
+| HikariCP                        | Connection pool 필수 (Exposed JDBC 표준)                                                  |
+| JDBC 블로킹 I/O                 | 코루틴 환경에서는 `withContext(Dispatchers.IO)` 필요 (이 모듈에서는 미사용, R2DBC가 담당) |
+| 3-DB 호환                       | H2 (in-memory), PostgreSQL (Testcontainers), MySQL 8 (Testcontainers)                     |
+| `leader-exposed-core` 수정 금지 | 이미 구현 완료된 스키마 모듈에 파일 추가/수정 불가                                        |
+| `!!` 금지, `@Synchronized` 금지 | bluetape4k Kotlin 코딩 규칙                                                               |
+| atomicfu 제약                   | 클래스 프로퍼티 레벨만 허용, 메서드 로컬 변수 금지                                        |
 
 ---
 
@@ -958,9 +971,7 @@ fun <T> Database.runIfLeaderGroup(
 
 ## 13. lockName 검증
 
-공통 `validateLockName()` 함수를 사용합니다 (2-tier 설계).
-Exposed JDBC 백엔드에서는 MongoDB의 `:slot:` 금지 규칙이 불필요하므로
-공통 검증만 적용합니다.
+공통 `validateLockName()` 함수를 사용합니다 (2-tier 설계). Exposed JDBC 백엔드에서는 MongoDB의 `:slot:` 금지 규칙이 불필요하므로 공통 검증만 적용합니다.
 
 ```kotlin
 internal fun validateExposedLockName(lockName: String) {
@@ -1042,22 +1053,22 @@ Phase 4: 확장 + 문서
 
 ## Appendix A: MongoDB 패턴 대응표
 
-| MongoDB | Exposed JDBC |
-|---|---|
-| `MongoCollection<Document>` | `Database` (Exposed) |
-| `MongoLock` | `ExposedJdbcLock` |
-| `MongoLock.LOCK_COLLECTION_NAME` | `LeaderLockTable` (leader-exposed-core) |
-| `MongoLock.GROUP_LOCK_COLLECTION_NAME` | `LeaderGroupLockTable` (leader-exposed-core) |
-| `MongoLeaderElection` | `ExposedJdbcLeaderElection` |
-| `MongoLeaderGroupElection` | `ExposedJdbcLeaderGroupElection` |
-| `MongoLeaderElectionOptions` | `ExposedJdbcLeaderElectionOptions` |
-| `MongoLeaderGroupElectionOptions` | `ExposedJdbcLeaderGroupElectionOptions` |
-| `MongoSuspendLeaderElection` | (R2DBC 모듈에서 구현) |
-| `findOneAndUpdate(upsert=true)` | `UPDATE WHERE expired` + `INSERT` |
-| `deleteOne(token=?)` | `deleteWhere { token eq ? }` |
-| `ensureIndexes(collection)` | `ensureSchema(db)` via `SchemaUtils.createMissingTablesAndColumns` |
-| `retryDelay` + AWS full jitter | `RetryStrategy.Jitter(baseDelayMs = 50L)` (기본값) |
-| `token` (UUID fencing) | 동일 |
+| MongoDB                                | Exposed JDBC                                                       |
+|----------------------------------------|--------------------------------------------------------------------|
+| `MongoCollection<Document>`            | `Database` (Exposed)                                               |
+| `MongoLock`                            | `ExposedJdbcLock`                                                  |
+| `MongoLock.LOCK_COLLECTION_NAME`       | `LeaderLockTable` (leader-exposed-core)                            |
+| `MongoLock.GROUP_LOCK_COLLECTION_NAME` | `LeaderGroupLockTable` (leader-exposed-core)                       |
+| `MongoLeaderElection`                  | `ExposedJdbcLeaderElection`                                        |
+| `MongoLeaderGroupElection`             | `ExposedJdbcLeaderGroupElection`                                   |
+| `MongoLeaderElectionOptions`           | `ExposedJdbcLeaderElectionOptions`                                 |
+| `MongoLeaderGroupElectionOptions`      | `ExposedJdbcLeaderGroupElectionOptions`                            |
+| `MongoSuspendLeaderElection`           | (R2DBC 모듈에서 구현)                                              |
+| `findOneAndUpdate(upsert=true)`        | `UPDATE WHERE expired` + `INSERT`                                  |
+| `deleteOne(token=?)`                   | `deleteWhere { token eq ? }`                                       |
+| `ensureIndexes(collection)`            | `ensureSchema(db)` via `SchemaUtils.createMissingTablesAndColumns` |
+| `retryDelay` + AWS full jitter         | `RetryStrategy.Jitter(baseDelayMs = 50L)` (기본값)                 |
+| `token` (UUID fencing)                 | 동일                                                               |
 
 ## Appendix B: SQL 예시 (Exposed DSL → 생성 SQL)
 
@@ -1079,6 +1090,7 @@ LeaderLockTable.update(
 ```
 
 생성 SQL (PostgreSQL):
+
 ```sql
 UPDATE bluetape4k_leader_locks
 SET token = ?, lock_owner = ?, locked_at = ?, locked_until = ?

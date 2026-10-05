@@ -16,7 +16,7 @@ internal class FakeSuspendLeaderElector(
     private val stateValue: LeaderState = LeaderState.empty("job"),
     private val stateReads: AtomicInteger? = null,
     override val supportsAuditLeaderState: Boolean = true,
-) : SuspendLeaderElector {
+): SuspendLeaderElector {
     override fun state(lockName: String): LeaderState {
         stateReads?.incrementAndGet()
         return stateValue.copy(lockName = lockName)
@@ -27,7 +27,7 @@ internal class FakeSuspendLeaderElector(
 
 internal class AutoCloseableFakeSuspendLeaderElector(
     private val delegate: FakeSuspendLeaderElector = FakeSuspendLeaderElector(),
-) : SuspendLeaderElector, AutoCloseable {
+): SuspendLeaderElector, AutoCloseable {
     val closeCount = AtomicInteger()
 
     override val supportsAuditLeaderState: Boolean
@@ -47,7 +47,7 @@ internal class TrackingLeaseHandle(
     override val lockName: String = "job",
     private val released: AtomicInteger = AtomicInteger(),
     private val releaseAction: suspend () -> Unit = {},
-) : SuspendLeaderLeaseHandle {
+): SuspendLeaderLeaseHandle {
     override val auditLeaderId: String = "test-node"
     override val acquiredAt: Instant = Instant.now()
     val releaseCount: Int get() = released.get()
@@ -66,7 +66,7 @@ internal class TrackingLeaseHandle(
 
 internal class CountingLeaseAcquirer(
     private val handle: SuspendLeaderLeaseHandle?,
-) : SuspendLeaderLeaseAcquirer {
+): SuspendLeaderLeaseAcquirer {
     override val configuredOptions: LeaderElectionOptions = LeaderElectionOptions()
     val acquireCount = AtomicInteger()
 

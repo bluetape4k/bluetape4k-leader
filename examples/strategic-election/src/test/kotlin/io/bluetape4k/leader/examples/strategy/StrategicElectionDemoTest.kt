@@ -3,15 +3,20 @@ package io.bluetape4k.leader.examples.strategy
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.strategy.CandidateInfo
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.time.Instant
 
 class StrategicElectionDemoTest {
 
+    companion object: KLogging()
+
     @Test
     fun `weighted strategy selects the best maintenance node`() {
         val report = StrategicElectionDemo.runScenario()
 
+        log.debug { "report=$report" }
         report.selectedNodeId shouldBeEqualTo "node-b"
         report.selectedCount shouldBeEqualTo 1
         report.skippedCount shouldBeEqualTo 2
@@ -22,6 +27,7 @@ class StrategicElectionDemoTest {
     fun `all non-winner nodes return skipped reports`() {
         val report = StrategicElectionDemo.runScenario()
 
+        log.debug { "report=$report" }
         report.nodeReports
             .filterNot { it.nodeId == report.selectedNodeId }
             .map { it.status }
@@ -54,6 +60,7 @@ class StrategicElectionDemoTest {
             ),
         )
 
+        log.debug { "report=$report" }
         report.selectedNodeId shouldBeEqualTo "healthy"
         report.selectedCount shouldBeEqualTo 1
         report.skippedCount shouldBeEqualTo 1
@@ -62,7 +69,6 @@ class StrategicElectionDemoTest {
     @Test
     fun `custom scorer falls back to zero for missing metadata`() {
         val candidate = CandidateInfo("node-without-metadata")
-
         ServiceReadinessScorer.score(candidate, listOf(candidate)) shouldBeEqualTo 0.0
     }
 }

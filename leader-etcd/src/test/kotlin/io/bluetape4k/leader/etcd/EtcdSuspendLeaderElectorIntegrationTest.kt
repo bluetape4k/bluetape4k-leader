@@ -2,16 +2,19 @@ package io.bluetape4k.leader.etcd
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInRange
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
@@ -22,6 +25,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class EtcdSuspendLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `runIfLeader acquires releases and allows sequential reacquire`() = runSuspendIO {
@@ -90,7 +95,7 @@ class EtcdSuspendLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
             val elector = EtcdSuspendLeaderElector(client, options)
             val lockName = randomName()
 
-            assertFailsWith<kotlinx.coroutines.TimeoutCancellationException> {
+            assertFailsWith<TimeoutCancellationException> {
                 withTimeout(100.milliseconds) {
                     elector.runIfLeader(lockName) {
                         delay(10.seconds)
@@ -115,7 +120,7 @@ class EtcdSuspendLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 LockExtender.extendActiveLockSuspend(10.seconds)
             }
 
-            extended shouldBeEqualTo true
+            extended.shouldBeTrue()
         }
     }
 
@@ -128,19 +133,17 @@ class EtcdSuspendLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
             )
             val elector = EtcdSuspendLeaderElector(client, options)
 
-            val outcome = checkNotNull(elector.runIfLeader(randomName()) {
+            val outcome = elector.runIfLeader(randomName()) {
                 val beforeExtend = Instant.now()
                 val result = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
                 beforeExtend to result
-            })
+            }.shouldNotBeNull()
 
             val result = outcome.second
             result.shouldBeInstanceOf<ExtendOutcome.Extended>()
 
-            val observedMillis = Duration.between(outcome.first, (result as ExtendOutcome.Extended).observedExpireAt)
-                .toMillis()
-            observedMillis shouldBeGreaterOrEqualTo 0L
-            observedMillis shouldBeLessOrEqualTo 6_000L
+            val observedMillis = Duration.between(outcome.first, result.observedExpireAt).toMillis()
+            observedMillis.shouldBeInRange(0L..6_0000L)
         }
     }
 }

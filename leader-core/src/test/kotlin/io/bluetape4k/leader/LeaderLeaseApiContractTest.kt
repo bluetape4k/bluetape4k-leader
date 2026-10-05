@@ -6,20 +6,26 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseHandle
-import kotlin.coroutines.Continuation
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.time.Instant
+import kotlin.coroutines.Continuation
 
 class LeaderLeaseApiContractTest {
+
+    companion object: KLogging()
 
     @Test
     fun `blocking acquirer and handle expose the additive contract`() {
         val acquirer = LeaderLeaseAcquirer::class.java
         acquirer.getMethod("getConfiguredOptions").returnType shouldBeEqualTo LeaderElectionOptions::class.java
         acquirer.getMethod("tryAcquire", String::class.java).returnType shouldBeEqualTo LeaderLeaseHandle::class.java
-        acquirer.getMethod("tryAcquire", LeaderSlot::class.java).returnType shouldBeEqualTo LeaderLeaseHandle::class.java
+        acquirer.getMethod(
+            "tryAcquire",
+            LeaderSlot::class.java
+        ).returnType shouldBeEqualTo LeaderLeaseHandle::class.java
 
         val handle = LeaderLeaseHandle::class.java
         handle.getMethod("getLockName").returnType shouldBeEqualTo String::class.java
@@ -31,7 +37,11 @@ class LeaderLeaseApiContractTest {
         handle.getMethod("close").returnType shouldBeEqualTo Void.TYPE
         AutoCloseable::class.java.isAssignableFrom(handle).shouldBeTrue()
 
-        val extend = handle.declaredMethods.single { it.name.startsWith("extend-") && it.parameterTypes.contentEquals(arrayOf(Long::class.javaPrimitiveType)) }
+        val extend = handle.declaredMethods.single {
+            it.name.startsWith("extend-") && it.parameterTypes.contentEquals(
+                arrayOf(Long::class.javaPrimitiveType)
+            )
+        }
         extend.returnType shouldBeEqualTo ExtendOutcome::class.java
         Modifier.isPublic(extend.modifiers).shouldBeTrue()
     }
@@ -65,8 +75,8 @@ class LeaderLeaseApiContractTest {
     private fun Class<*>.findContinuationMethod(name: String, vararg leading: Class<*>): Method =
         declaredMethods.single {
             it.name == name &&
-                it.parameterTypes.size == leading.size + 1 &&
-                it.parameterTypes.take(leading.size).toTypedArray().contentEquals(leading) &&
-                Continuation::class.java.isAssignableFrom(it.parameterTypes.last())
+                    it.parameterTypes.size == leading.size + 1 &&
+                    it.parameterTypes.take(leading.size).toTypedArray().contentEquals(leading) &&
+                    Continuation::class.java.isAssignableFrom(it.parameterTypes.last())
         }
 }

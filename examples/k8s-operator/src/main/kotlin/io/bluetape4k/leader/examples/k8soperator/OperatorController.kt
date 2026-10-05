@@ -11,7 +11,6 @@ import java.io.Serializable
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicLong
 
-@Component
 /**
  * `OperatorController`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
  *
@@ -21,18 +20,23 @@ import java.util.concurrent.atomic.AtomicLong
  * @property lockName example workflow 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  * @property podName example workflow 계약에서 `podName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
+@Component
 class OperatorController(
     private val leaderElector: LeaderElector,
     private val workload: DemoCustomResourceWorkload,
-    @Value("\${demo.operator.lock-name:cronjob-reconciler}") private val lockName: String,
-    @Value("\${demo.operator.pod-name:\${HOSTNAME:local-operator}}") private val podName: String,
+    @Value($$"${demo.operator.lock-name:cronjob-reconciler}") private val lockName: String,
+    @Value($$"${demo.operator.pod-name:${HOSTNAME:local-operator}}") private val podName: String,
 ) {
+
+    companion object: KLogging()
 
     private val ticks = AtomicLong()
 
+    fun tickCount(): Long = ticks.get()
+
     @Scheduled(
-        fixedDelayString = "\${demo.operator.fixed-delay-ms:5000}",
-        initialDelayString = "\${demo.operator.initial-delay-ms:1000}",
+        fixedDelayString = $$"${demo.operator.fixed-delay-ms:5000}",
+        initialDelayString = $$"${demo.operator.initial-delay-ms:1000}",
     )
     fun reconcileTick() {
         val sequence = ticks.incrementAndGet()
@@ -53,19 +57,17 @@ class OperatorController(
             log.info { "operator reconciled. lockName=$lockName podName=$podName sequence=$sequence" }
         }
     }
-
-    fun tickCount(): Long = ticks.get()
-
-    companion object : KLogging()
 }
 
-@Component
 /**
  * `DemoCustomResourceWorkload`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
  *
  * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
  */
+@Component
 class DemoCustomResourceWorkload {
+
+    companion object: KLogging()
 
     private val reconciliations = AtomicLong()
 
@@ -73,7 +75,7 @@ class DemoCustomResourceWorkload {
         val revision = reconciliations.incrementAndGet()
         log.info {
             "mock custom resource reconciled. lockName=${request.lockName} podName=${request.podName} " +
-                "sequence=${request.sequence} revision=$revision"
+                    "sequence=${request.sequence} revision=$revision"
         }
         return OperatorReconcileResult(
             lockName = request.lockName,
@@ -85,8 +87,6 @@ class DemoCustomResourceWorkload {
     }
 
     fun reconciliationCount(): Long = reconciliations.get()
-
-    companion object : KLogging()
 }
 
 /**
@@ -103,7 +103,7 @@ data class OperatorReconcileRequest(
     val podName: String,
     val sequence: Long,
     val requestedAt: Instant,
-) : Serializable {
+): Serializable {
     companion object {
         private const val serialVersionUID = 1L
     }
@@ -125,7 +125,7 @@ data class OperatorReconcileResult(
     val sequence: Long,
     val revision: Long,
     val reconciledAt: Instant,
-) : Serializable {
+): Serializable {
     companion object {
         private const val serialVersionUID = 1L
     }

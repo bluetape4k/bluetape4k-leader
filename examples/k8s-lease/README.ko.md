@@ -2,14 +2,11 @@
 
 [English](README.md) | 한국어
 
-이 예제는 `K3sServer.Launcher.k3s`로 실제 K3s API 서버를 시작한 뒤
-Kubernetes `coordination.k8s.io/v1` Lease API로 리더 선출 흐름을 검증합니다.
+이 예제는 `K3sServer.Launcher.k3s`로 실제 K3s API 서버를 시작한 뒤 Kubernetes `coordination.k8s.io/v1` Lease API로 리더 선출 흐름을 검증합니다.
 
 ## 시나리오
 
-두 holder identity가 같은 Kubernetes Lease를 두고 경쟁합니다. 첫 holder는 Lease를
-생성하거나 갱신하고, Lease가 아직 유효할 때 경쟁 holder는 `CONFLICT`를 받습니다.
-현재 holder가 Lease를 해제하면 이후 다른 holder가 같은 Lease를 획득할 수 있습니다.
+두 holder identity가 같은 Kubernetes Lease를 두고 경쟁합니다. 첫 holder는 Lease를 생성하거나 갱신하고, Lease가 아직 유효할 때 경쟁 holder는 `CONFLICT`를 받습니다. 현재 holder가 Lease를 해제하면 이후 다른 holder가 같은 Lease를 획득할 수 있습니다.
 
 ## 예제 시나리오
 
@@ -36,21 +33,15 @@ Kubernetes `coordination.k8s.io/v1` Lease API로 리더 선출 흐름을 검증�
 
 ## 실행
 
-`leaseDuration`은 양수이며 `Int.MAX_VALUE`초 이하인 `java.time.Duration`을 받습니다.
-소수 초는 올림하므로 1ns와 500ms는 1초, 1초+1ns는 2초가 됩니다.
-0·음수·상한 초과는 client 호출 전에 실패합니다.
-create·update 및 기간 필드가 없는 기존 Lease의 fallback에 같은 변환값을 사용합니다.
-일반 `test`는 mock 요청을, 별도 `k8sTest`는 실제 subsecond create/update 요청을 검증합니다.
+`leaseDuration`은 양수이며 `Int.MAX_VALUE`초 이하인 `java.time.Duration`을 받습니다. 소수 초는 올림하므로 1ns와 500ms는 1초, 1초+1ns는 2초가 됩니다. 0·음수·상한 초과는 client 호출 전에 실패합니다. create·update 및 기간 필드가 없는 기존 Lease의 fallback에 같은 변환값을 사용합니다. 일반 `test`는 mock 요청을, 별도 `k8sTest`는 실제 subsecond create/update 요청을 검증합니다.
 
-K3s는 Docker privileged mode가 필요합니다. 테스트는 `k8s` 태그가 붙어 있고
-일반 `test` 태스크에서는 제외됩니다.
+K3s는 Docker privileged mode가 필요합니다. 테스트는 `k8s` 태그가 붙어 있고 일반 `test` 태스크에서는 제외됩니다.
 
 ```bash
 ./gradlew :examples:k8s-lease:k8sTest
 ```
 
-privileged container를 지원하는 로컬 Docker daemon 또는 CI runner에서만
-실행하세요.
+privileged container를 지원하는 로컬 Docker daemon 또는 CI runner에서만 실행하세요.
 
 ## 설계
 
@@ -64,5 +55,4 @@ k3s.kubernetesClient().use { client ->
 }
 ```
 
-이 모듈은 예제 수준의 Lease 흐름이며, publishable `leader-k8s` backend를
-추가하지 않습니다.
+이 모듈은 예제 수준의 Lease 흐름이며, publishable `leader-k8s` backend를 추가하지 않습니다.

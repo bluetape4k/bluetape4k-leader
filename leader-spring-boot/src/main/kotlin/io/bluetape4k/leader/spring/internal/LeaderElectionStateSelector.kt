@@ -4,7 +4,11 @@ import io.bluetape4k.leader.LeaderElectionState
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderElector
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
+import org.springframework.beans.factory.getBeanNamesForType
+import java.io.Serializable
 
 /**
  * Spring 운영 표면에서 조회할 [LeaderElectionState] bean을 선택합니다.
@@ -16,9 +20,17 @@ internal class LeaderElectionStateSelector(
     private val beanFactory: ConfigurableListableBeanFactory,
     private val stateProviderBean: String = "",
 ) {
+    private companion object: KLogging() {
+        const val LOCAL_LEADER_ELECTOR = "localLeaderElector"
+        const val LOCAL_SUSPEND_LEADER_ELECTOR = "localSuspendLeaderElector"
+        val CAMEL_BOUNDARY = Regex("(?<=[a-z0-9])(?=[A-Z])")
+    }
 
     fun candidates(): List<Candidate> {
-        val all = beanFactory.getBeanNamesForType(LeaderElectionState::class.java, true, false)
+        val all = beanFactory.getBeanNamesForType<LeaderElectionState>(
+            includeNonSingletons = true,
+            allowEagerInit = false
+        )
             .sorted()
             .map { beanName ->
                 val beanType = beanFactory.getType(beanName, false)
@@ -32,7 +44,9 @@ internal class LeaderElectionStateSelector(
                 )
             }
         val nonLocal = all.filterNot(Candidate::local)
-        return nonLocal.ifEmpty { all }
+        return nonLocal.ifEmpty { all }.apply {
+            log.debug { "candidate=$this" }
+        }
     }
 
     fun selectedOrNull(): Selected? =
@@ -93,17 +107,19 @@ internal class LeaderElectionStateSelector(
         val backendName: String,
         val local: Boolean,
         val blocking: Boolean,
-    )
+    ): Serializable {
+        companion object {
+            private const val serialVersionUID = 1L
+        }
+    }
 
     internal data class Selected(
         val beanName: String,
         val backendName: String,
         val state: LeaderElectionState,
-    )
-
-    private companion object {
-        const val LOCAL_LEADER_ELECTOR = "localLeaderElector"
-        const val LOCAL_SUSPEND_LEADER_ELECTOR = "localSuspendLeaderElector"
-        val CAMEL_BOUNDARY = Regex("(?<=[a-z0-9])(?=[A-Z])")
+    ): Serializable {
+        companion object {
+            private const val serialVersionUID = 1L
+        }
     }
 }

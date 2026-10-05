@@ -1,6 +1,8 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import java.util.concurrent.CancellationException
 
 /**
@@ -9,6 +11,8 @@ import java.util.concurrent.CancellationException
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface LeaderElector: AsyncLeaderElector {
+
+    companion object: KLogging()
 
     /**
      * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
@@ -58,6 +62,7 @@ interface LeaderElector: AsyncLeaderElector {
      * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? {
+        log.debug { "runIfLeader. slot=$slot" }
         LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
         return runIfLeader(slot.lockName, action)
     }
@@ -71,8 +76,10 @@ interface LeaderElector: AsyncLeaderElector {
      * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
+        log.debug { "runIfLeaderResult. slot=$slot" }
         LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         var elected = false
+
         val value = try {
             runIfLeader(slot.lockName) {
                 elected = true
@@ -91,5 +98,4 @@ interface LeaderElector: AsyncLeaderElector {
         }
         return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
     }
-
 }

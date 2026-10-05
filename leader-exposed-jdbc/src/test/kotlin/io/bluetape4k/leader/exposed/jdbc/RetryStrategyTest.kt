@@ -1,17 +1,23 @@
 package io.bluetape4k.leader.exposed.jdbc
 
-import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeInRange
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import io.bluetape4k.assertions.assertFailsWith
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RetryStrategyTest {
 
+    companion object: KLogging()
+
     @Test
     fun `Jitter - remaining이 1일 때 반환값은 1이다`() {
         val strategy = RetryStrategy.Jitter(baseDelayMs = 50L)
+        log.debug { "strategy=$strategy" }
+
         val delay = strategy.delayMs(attempt = 0, remaining = 1L)
         delay shouldBeInRange 1L..1L
     }
@@ -25,6 +31,8 @@ class RetryStrategyTest {
     @Test
     fun `Jitter - baseDelayMs 2 이상은 정상 생성된다`() {
         val strategy = RetryStrategy.Jitter(baseDelayMs = 2L)
+        log.debug { "strategy=$strategy" }
+
         val delay = strategy.delayMs(attempt = 0, remaining = 100L)
         delay shouldBeInRange 1L..100L
     }
@@ -74,8 +82,9 @@ class RetryStrategyTest {
             RetryStrategy.Fixed(fixedMs = 50L),
         )
         val remaining = 100L
-        for (strategy in strategies) {
-            for (attempt in 0..20) {
+
+        strategies.forEach { strategy ->
+            repeat(20) { attempt ->
                 val delay = strategy.delayMs(attempt = attempt, remaining = remaining)
                 delay shouldBeInRange 1L..remaining
             }

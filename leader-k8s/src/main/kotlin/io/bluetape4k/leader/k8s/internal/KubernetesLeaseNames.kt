@@ -1,9 +1,10 @@
 package io.bluetape4k.leader.k8s.internal
 
-import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requireInRange
+import io.bluetape4k.support.requireNotBlank
 
 internal object KubernetesLeaseNames {
+
     private val Dns1123Label = Regex("[a-z0-9]([-a-z0-9]*[a-z0-9])?")
 
     fun validateNamespace(namespace: String) {

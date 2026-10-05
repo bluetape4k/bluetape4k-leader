@@ -3,6 +3,7 @@ package io.bluetape4k.leader.spring.metrics
 import io.micrometer.observation.ObservationRegistry
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
+import org.springframework.beans.factory.getBeanNamesForType
 import org.springframework.context.annotation.ConditionContext
 import org.springframework.context.annotation.ConfigurationCondition
 import org.springframework.core.type.AnnotatedTypeMetadata
@@ -13,7 +14,7 @@ import org.springframework.core.type.AnnotatedTypeMetadata
  * 실제 [ObservationRegistry.isNoop] 판정은 registry가 모든 [org.springframework.beans.factory.config.BeanPostProcessor]
  * 를 통과한 뒤 [ObservationRegistryLeaseExtensionCoordinator]가 수행합니다.
  */
-internal class ObservationRegistryNotNoopCondition : ConfigurationCondition {
+internal class ObservationRegistryNotNoopCondition: ConfigurationCondition {
 
     override fun getConfigurationPhase(): ConfigurationCondition.ConfigurationPhase =
         ConfigurationCondition.ConfigurationPhase.REGISTER_BEAN
@@ -27,12 +28,16 @@ internal class ObservationRegistryNotNoopCondition : ConfigurationCondition {
     }
 
     private fun hasObservationRegistryDefinition(beanFactory: ConfigurableListableBeanFactory): Boolean {
-        if (beanFactory.getBeanNamesForType(ObservationRegistry::class.java, false, false).isNotEmpty()) return true
+        if (beanFactory
+                .getBeanNamesForType<ObservationRegistry>(includeNonSingletons = false, allowEagerInit = false)
+                .isNotEmpty()) {
+            return true
+        }
 
         return when (val parent = beanFactory.parentBeanFactory) {
             is ConfigurableListableBeanFactory -> hasObservationRegistryDefinition(parent)
             is ListableBeanFactory -> parent
-                .getBeanNamesForType(ObservationRegistry::class.java, false, false)
+                .getBeanNamesForType<ObservationRegistry>(includeNonSingletons = false, allowEagerInit = false)
                 .isNotEmpty()
             else -> false
         }

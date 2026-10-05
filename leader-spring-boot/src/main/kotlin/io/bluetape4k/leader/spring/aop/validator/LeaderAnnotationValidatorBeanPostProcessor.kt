@@ -24,17 +24,20 @@ import java.time.Duration
 class LeaderAnnotationValidatorBeanPostProcessor(
     private val strict: Boolean,
     private val spel: SpelExpressionEvaluator,
-) : BeanPostProcessor {
+): BeanPostProcessor {
+
+    companion object: KLogging()
 
     private val validation = LeaderMethodValidationSupport(spel)
 
     override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
         // [Step 3-P-Rel] reflection 자체 throw (ClassNotFound, NPE 등) 는 격리 — validation 결과는 그대로 전파
-        val collected = runCatching { collectAnnotatedMethods(bean) }
-            .getOrElse {
-                log.warn(it) { "BPP self-throw collecting annotated methods on bean '$beanName' — validation skipped" }
-                return bean
-            } ?: return bean
+        val collected = runCatching {
+            collectAnnotatedMethods(bean)
+        }.getOrElse {
+            log.warn(it) { "BPP self-throw collecting annotated methods on bean '$beanName' — validation skipped" }
+            return bean
+        } ?: return bean
 
         val (targetClass, annotated) = collected
         for (method in annotated) {
@@ -45,7 +48,7 @@ class LeaderAnnotationValidatorBeanPostProcessor(
         if (annotated.size >= 2) {
             log.warn {
                 "leader.aop.self-inv-risk bean='$beanName' class=${targetClass.name} methods=${annotated.map { it.name }} " +
-                    "(2+ annotated methods — proxy bypass via self-invocation possible)"
+                        "(2+ annotated methods — proxy bypass via self-invocation possible)"
             }
         }
         return bean
@@ -59,9 +62,10 @@ class LeaderAnnotationValidatorBeanPostProcessor(
         if (targetClass.isAnnotationPresent(org.aspectj.lang.annotation.Aspect::class.java)) return null
         if (targetClass.`package`?.name?.startsWith("org.springframework") == true) return null
 
-        val annotated = targetClass.declaredMethods.filter { method ->
-            method.hasMergedAnnotation<LeaderElection>() || method.hasMergedAnnotation<LeaderGroupElection>()
-        }
+        val annotated = targetClass.declaredMethods
+            .filter { method ->
+                method.hasMergedAnnotation<LeaderElection>() || method.hasMergedAnnotation<LeaderGroupElection>()
+            }
         if (annotated.isEmpty()) return null
         return targetClass to annotated
     }
@@ -105,7 +109,7 @@ class LeaderAnnotationValidatorBeanPostProcessor(
         if (violations.isEmpty()) return
 
         val msg = "leader.aop.footgun bean='$beanName' method=${targetClass.name}#${method.name} " +
-            "violations=${violations.joinToString("; ")}"
+                "violations=${violations.joinToString("; ")}"
 
         if (strict) {
             error(msg)
@@ -113,6 +117,4 @@ class LeaderAnnotationValidatorBeanPostProcessor(
             log.warn { msg }
         }
     }
-
-    companion object: KLogging()
 }

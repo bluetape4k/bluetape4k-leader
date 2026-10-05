@@ -64,7 +64,7 @@ val aotTest = tasks.register<Test>("aotTest") {
     useJUnitPlatform()
     testClassesDirs = sourceSets.test.get().output.classesDirs
     classpath = sourceSets["aotTest"].output.classesDirs +
-                sourceSets.test.get().runtimeClasspath
+            sourceSets.test.get().runtimeClasspath
     jvmArgs("-Dspring.aot.enabled=true")
     filter { includeTestsMatching("io.bluetape4k.leader.spring.aot.*") }
     shouldRunAfter(tasks.test)
@@ -125,32 +125,38 @@ dependencies {
     compileOnly("org.springframework:spring-webflux")
     compileOnly("jakarta.servlet:jakarta.servlet-api")
 
-    compileOnly(libs.kotlinx.coroutines.reactor)
-
     // Caffeine — LeaderBeanSelector factory cache
     implementation(bt4k.caffeine)
 
-    // Logging
-    implementation(bt4k.bluetape4k.logging)
-
-    testImplementation(bt4k.bluetape4k.junit5)
+    // Coroutines
+    compileOnly(bt4k.bluetape4k.coroutines)
+    compileOnly(libs.kotlinx.coroutines.core)
+    compileOnly(libs.kotlinx.coroutines.reactor)
     testImplementation(libs.kotlinx.coroutines.test)
+
     testImplementation(libs.spring.boot.test)
     testImplementation(libs.spring.boot.test.autoconfigure)
     testImplementation("org.springframework.boot:spring-boot-micrometer-observation")
     testImplementation(libs.spring.test)
-    testImplementation("org.springframework:spring-webmvc")
-    testImplementation("org.springframework:spring-webflux")
-    testImplementation("jakarta.servlet:jakarta.servlet-api")
     testImplementation(bt4k.springmockk)
-    testImplementation(bt4k.bluetape4k.virtualthread.jdk25)
-    testImplementation(project(":bluetape4k-leader-consul"))
-    testImplementation(project(":bluetape4k-leader-dynamodb"))
+
+    // Bluetape4k Testing & Testcontainers
+    testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(bt4k.bluetape4k.testcontainers)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.mongodb)
     testImplementation(libs.testcontainers.toxiproxy)
+    testImplementation(bt4k.bluetape4k.virtualthread.jdk25)
+
+    // Serializers & Compressors
+    testImplementation(bt4k.bluetape4k.io)
+    testImplementation(bt4k.fory.kotlin)
+    testImplementation(bt4k.at.yawk.lz4.java)
+
+    // Jackson 3
+    testImplementation(bt4k.bluetape4k.jackson3)
+
     testImplementation(bt4k.r2dbc.h2)
 
     // Required by Spring Boot's AssertableApplicationContext test API supertype.

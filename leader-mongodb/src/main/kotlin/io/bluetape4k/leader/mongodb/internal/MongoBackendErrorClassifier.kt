@@ -16,7 +16,7 @@ import io.bluetape4k.leader.internal.BackendErrorKind
  *
  * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
-internal object MongoBackendErrorClassifier : BackendErrorClassifier {
+internal object MongoBackendErrorClassifier: BackendErrorClassifier {
 
     private const val AUTH_FAILED = 13
     private const val AUTHENTICATION_FAILED = 18

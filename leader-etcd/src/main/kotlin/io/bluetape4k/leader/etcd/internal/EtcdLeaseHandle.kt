@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.etcd.internal
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.validateLockName
+import io.bluetape4k.support.requirePositiveNumber
 import io.etcd.jetcd.ByteSequence
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -23,19 +25,6 @@ internal class EtcdLeaseHandle(
     val acquiredAtNanos: Long = System.nanoTime(),
     val slotId: String? = null,
 ) {
-    private val released = AtomicBoolean(false)
-
-    val token: String = ownershipToken(ownershipKey)
-    val isReleased: Boolean get() = released.get()
-
-    init {
-        require(leaseId > 0L) { "leaseId must be positive. leaseId=$leaseId" }
-        validateLockName(lockName)
-        require(!ownershipKey.isEmpty) { "ownershipKey must not be empty." }
-    }
-
-    fun markReleased(): Boolean = released.compareAndSet(false, true)
-
     companion object {
         fun ownershipToken(ownershipKey: ByteSequence): String {
             val bytes = ownershipKey.bytes
@@ -50,4 +39,26 @@ internal class EtcdLeaseHandle(
             return result.toString()
         }
     }
+
+    private val released = AtomicBoolean(false)
+
+    val token: String = ownershipToken(ownershipKey)
+    val isReleased: Boolean get() = released.get()
+
+    init {
+        leaseId.requirePositiveNumber("leaseId")
+        lockName.validateLockName()
+        require(!ownershipKey.isEmpty) { "ownershipKey must not be empty." }
+    }
+
+    fun markReleased(): Boolean = released.compareAndSet(false, true)
+
+    override fun toString(): String =
+        ToStringBuilder(this)
+            .add("leaseId", leaseId)
+            .add("lockName", lockName)
+            .add("ownershipKey", ownershipKey)
+            .add("acquiredAtNanos", acquiredAtNanos)
+            .add("slotId", slotId)
+            .toString()
 }

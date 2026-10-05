@@ -4,21 +4,27 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.etcd.internal.EtcdLockClient
+import io.bluetape4k.leader.etcd.support.toByteSequence
+import io.bluetape4k.logging.KLogging
 import io.etcd.jetcd.ByteSequence
 import io.etcd.jetcd.lease.LeaseKeepAliveResponse
 import org.junit.jupiter.api.Test
 import java.nio.charset.StandardCharsets
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class EtcdLeaderCleanupTimeoutTest {
+
+    companion object: KLogging()
 
     @Test
     fun `single leader cleanup uses wait time budget`() {
@@ -142,7 +148,7 @@ class EtcdLeaderCleanupTimeoutTest {
     private class FakeEtcdLockClient(
         private val interruptLock: Boolean = false,
         private val cancelLock: Boolean = false,
-    ) : EtcdLockClient {
+    ): EtcdLockClient {
         val unlockFuture = RecordingFuture(Unit)
         val revokeFuture = RecordingFuture(Unit)
         var revokeCalls: Int = 0
@@ -151,19 +157,19 @@ class EtcdLeaderCleanupTimeoutTest {
         private val ownershipKey = ByteSequence.from("/locks/owner-a", StandardCharsets.UTF_8)
 
         override fun singleLockKey(lockName: String): ByteSequence =
-            ByteSequence.from("/bluetape4k/leader/single/$lockName", StandardCharsets.UTF_8)
+            "/bluetape4k/leader/single/$lockName".toByteSequence()
 
         override fun groupSlotLockKey(lockName: String, zeroBasedSlot: Int): ByteSequence =
-            ByteSequence.from("/bluetape4k/leader/group/$lockName/slot-$zeroBasedSlot", StandardCharsets.UTF_8)
+            "/bluetape4k/leader/group/$lockName/slot-$zeroBasedSlot".toByteSequence()
 
         override fun grantLease(ttlSeconds: Long): CompletableFuture<Long> =
-            CompletableFuture.completedFuture(11L)
+            completableFutureOf(11L)
 
         override fun lock(lockKey: ByteSequence, leaseId: Long): CompletableFuture<ByteSequence> =
             when {
                 interruptLock -> InterruptingFuture()
                 cancelLock -> CompletableFuture<ByteSequence>().also { it.cancel(false) }
-                else -> CompletableFuture.completedFuture(ownershipKey)
+                else -> completableFutureOf(ownershipKey)
             }
 
         override fun unlock(ownershipKey: ByteSequence): CompletableFuture<Unit> =
@@ -175,15 +181,15 @@ class EtcdLeaderCleanupTimeoutTest {
         }
 
         override fun keepAliveOnce(leaseId: Long): CompletableFuture<LeaseKeepAliveResponse> =
-            CompletableFuture.failedFuture(UnsupportedOperationException("keepAliveOnce is not used"))
+            failedCompletableFutureOf(UnsupportedOperationException("keepAliveOnce is not used"))
 
         override fun ownershipKeys(lockKey: ByteSequence): CompletableFuture<List<ByteSequence>> =
-            CompletableFuture.completedFuture(emptyList())
+            completableFutureOf(emptyList())
     }
 
     private class RecordingFuture<T>(
         private val value: T,
-    ) : CompletableFuture<T>() {
+    ): CompletableFuture<T>() {
         var requestedTimeoutNanos: Long? = null
             private set
 
@@ -193,7 +199,7 @@ class EtcdLeaderCleanupTimeoutTest {
         }
     }
 
-    private class InterruptingFuture<T> : CompletableFuture<T>() {
+    private class InterruptingFuture<T>: CompletableFuture<T>() {
         override fun get(timeout: Long, unit: TimeUnit): T =
             throw InterruptedException("interrupted acquisition")
     }

@@ -1,9 +1,10 @@
 package io.bluetape4k.leader.spring.aop.util
 
-import io.bluetape4k.logging.KLogging
-import io.bluetape4k.assertions.shouldBeEqualTo
-import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.assertNotFails
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.logging.KLogging
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
@@ -47,30 +48,41 @@ class LockNameValidatorTest {
         ],
     )
     fun `validate - 화이트리스트 외 문자는 거부`(name: String) {
-        assertFailsWith<IllegalArgumentException> { validator.validate(name) }
+        assertFailsWith<IllegalArgumentException> {
+            validator.validate(name)
+        }
     }
 
     @Test
     fun `validate - blank 거부`() {
-        assertFailsWith<IllegalArgumentException> { validator.validate("") }
-        assertFailsWith<IllegalArgumentException> { validator.validate("   ") }
+        assertFailsWith<IllegalArgumentException> {
+            validator.validate("")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            validator.validate("   ")
+        }
     }
 
     @Test
     fun `validate - max length 256 초과 시 거부`() {
         val tooLong = "a".repeat(257)
-        assertFailsWith<IllegalArgumentException> { validator.validate(tooLong) }
+        assertFailsWith<IllegalArgumentException> {
+            validator.validate(tooLong)
+        }
     }
 
     @Test
     fun `validate - 256자 정확히는 통과`() {
         val exactly256 = "a".repeat(256)
-        validator.validate(exactly256)
+        assertNotFails {
+            validator.validate(exactly256)
+        }
     }
 
     @Test
     fun `validateEffectiveName - core 정책과 prefix 결과를 함께 검증`() {
         prefixedValidator.validateEffectiveName("daily-job") shouldBeEqualTo "myapp:daily-job"
+
         assertFailsWith<IllegalArgumentException> {
             validator.validateEffectiveName("ns.subns.lock")
         }
@@ -87,6 +99,7 @@ class LockNameValidatorTest {
         val bounded = LockNameValidator(maxLength = 64)
 
         bounded.validateEffectiveName("a".repeat(64)) shouldBeEqualTo "a".repeat(64)
+
         assertFailsWith<IllegalArgumentException> {
             bounded.validateEffectiveName("a".repeat(65))
         }
@@ -108,7 +121,11 @@ class LockNameValidatorTest {
 
     @Test
     fun `init - maxLength 0 또는 음수 거부`() {
-        assertFailsWith<IllegalArgumentException> { LockNameValidator(maxLength = 0) }
-        assertFailsWith<IllegalArgumentException> { LockNameValidator(maxLength = -1) }
+        assertFailsWith<IllegalArgumentException> {
+            LockNameValidator(maxLength = 0)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            LockNameValidator(maxLength = -1)
+        }
     }
 }

@@ -1,12 +1,14 @@
 # Issue #854 Redis Cluster 공식 지원 구현 계획
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic
+workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** `leader-redis-lettuce`의 네 가지 strategic elector가 standalone Redis와 Redis Cluster를 동일한 후보·TTL·결과 계약으로 지원하도록 하고, hash-slot-safe key layout, v2/colon legacy migration, 실제 Cluster/Testcontainers 검증, ABI/API 및 양국어 문서를 완성한다.
 
 **Architecture:** 후보 key는 v3에서 lockName을 공통 hash tag로 감싸 index와 candidate multi-key 연산을 한 slot에 고정한다. blocking/suspend registry는 호출자가 소유한 standalone/Cluster connection을 각각의 Lettuce capability adapter로 감싸고, v3 후보만 batch read와 same-slot Lua를 사용한다. v2와 colon legacy source는 단일 key GET/PTTL로 읽어 CROSSSLOT을 피하고, v3 destination의 `SET NX`·index repair·lifecycle fence·migration token을 same-slot Lua로 원자화한다. unregister는 persistent tombstone으로 source resurrection을 차단하고, cleanup은 raw value와 unique token을 함께 비교한다. 네 public elector에는 기존 standalone JVM descriptor를 보존하는 명시적 Cluster secondary constructor를 추가한다.
 
-**Tech Stack:** Kotlin/JVM, Lettuce `7.6.0.RELEASE` (현재 catalog resolved version), Redis Cluster, JUnit 5, bluetape assertions, kotlinx-coroutines, Testcontainers `RedisClusterServer.Launcher.redisCluster`, Gradle `clusterTest`, Kover, detekt, binary API checker.
+**Tech
+Stack:** Kotlin/JVM, Lettuce `7.6.0.RELEASE` (현재 catalog resolved version), Redis Cluster, JUnit 5, bluetape assertions, kotlinx-coroutines, Testcontainers `RedisClusterServer.Launcher.redisCluster`, Gradle `clusterTest`, Kover, detekt, binary API checker.
 
 ---
 
@@ -34,49 +36,49 @@
 
 ## 1. 파일 소유와 변경 지도
 
-| 경로 | 작업 | 책임 |
-|---|---|---|
-| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateKeyCodec.kt` | 수정 | v3 hash-tag key와 v2/legacy source codec |
-| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/script/RedisScript.kt` | 수정 | sync/async scripting capability 공통 overload와 `NOSCRIPT` 계약 |
-| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateWriteScript.kt` | 신규 | register 및 same-slot migration write Lua |
-| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateRefreshScript.kt` | 수정 | v3 same-slot refresh 결과와 TTL 상태 |
-| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateIndexCleanupScript.kt` | 수정 | v3 candidate 존재 확인 후 stale index 정리 |
-| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateCommands.kt` | 신규 | blocking direct/script capability와 standalone/Cluster value reader |
-| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateRegistry.kt` | 수정 | blocking capability adapter, v3 read/migration/precedence |
-| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceSuspendCandidateCommands.kt` | 신규 | suspend direct/script capability와 standalone/Cluster coroutine value reader |
-| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceSuspendCandidateRegistry.kt` | 수정 | suspend capability adapter와 blocking parity |
-| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceStrategicLeaderElector.kt` | 수정 | standalone descriptor 보존 및 Cluster constructor |
-| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceStrategicLeaderGroupElector.kt` | 수정 | group standalone descriptor 보존 및 Cluster constructor |
-| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceStrategicSuspendLeaderElector.kt` | 수정 | suspend standalone descriptor 보존 및 Cluster constructor |
-| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceStrategicSuspendLeaderGroupElector.kt` | 수정 | suspend group standalone descriptor 보존 및 Cluster constructor |
-| `leader-redis-lettuce/src/test/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateKeyCodecTest.kt` | 신규 | v3/v2 key, UTF-8 length, slot 불변식, brace validation |
-| `leader-redis-lettuce/src/test/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateKeyIsolationTest.kt` | 수정 | v2/legacy migration과 v3 precedence 회귀 |
-| `leader-redis-lettuce/src/test/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateWriteScriptTest.kt` | 신규 | write Lua 반환 상태와 TTL 경계 |
-| `leader-redis-lettuce/src/test/kotlin/io/bluetape4k/leader/lettuce/LettuceStrategicRedisClusterTest.kt` | 신규 | 기존 Launcher 기반 Cluster fixture, 네 elector lifecycle, MGET/Lua/CROSSSLOT/migration matrix |
-| `leader-redis-lettuce/build.gradle.kts` | 수정 | `clusterTest` tagged Test task |
-| `.github/workflows/nightly-tests.yml` | 수정 | Cluster 전용 Nightly job, artifact, aggregator needs |
-| `leader-redis-lettuce/README.md` | 수정 | English Cluster constructor/운영 경계 |
-| `leader-redis-lettuce/README.ko.md` | 수정 | Korean Cluster constructor/운영 경계 |
-| `docs/review/2026-09-04-issue-854-redis-cluster-review.md` | 신규 | 7-Tier pre-PR review와 P0/P1 수렴 |
-| `docs/lessons/2026-09-04-issue-854-redis-cluster.md` | 신규 | 재사용 가능한 key/migration/fixture lesson |
-| `.flow-inputs/issue-854-workflow/2026-09-04-checklist.md` | 갱신 | 각 gate의 fresh command/count/evidence |
+| 경로                                                                                                             | 작업 | 책임                                                                                          |
+|------------------------------------------------------------------------------------------------------------------|------|-----------------------------------------------------------------------------------------------|
+| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateKeyCodec.kt`                  | 수정 | v3 hash-tag key와 v2/legacy source codec                                                      |
+| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/script/RedisScript.kt`                        | 수정 | sync/async scripting capability 공통 overload와 `NOSCRIPT` 계약                               |
+| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateWriteScript.kt`               | 신규 | register 및 same-slot migration write Lua                                                     |
+| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateRefreshScript.kt`             | 수정 | v3 same-slot refresh 결과와 TTL 상태                                                          |
+| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateIndexCleanupScript.kt`        | 수정 | v3 candidate 존재 확인 후 stale index 정리                                                    |
+| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateCommands.kt`                  | 신규 | blocking direct/script capability와 standalone/Cluster value reader                           |
+| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateRegistry.kt`                  | 수정 | blocking capability adapter, v3 read/migration/precedence                                     |
+| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceSuspendCandidateCommands.kt`           | 신규 | suspend direct/script capability와 standalone/Cluster coroutine value reader                  |
+| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceSuspendCandidateRegistry.kt`           | 수정 | suspend capability adapter와 blocking parity                                                  |
+| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceStrategicLeaderElector.kt`             | 수정 | standalone descriptor 보존 및 Cluster constructor                                             |
+| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceStrategicLeaderGroupElector.kt`        | 수정 | group standalone descriptor 보존 및 Cluster constructor                                       |
+| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceStrategicSuspendLeaderElector.kt`      | 수정 | suspend standalone descriptor 보존 및 Cluster constructor                                     |
+| `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceStrategicSuspendLeaderGroupElector.kt` | 수정 | suspend group standalone descriptor 보존 및 Cluster constructor                               |
+| `leader-redis-lettuce/src/test/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateKeyCodecTest.kt`              | 신규 | v3/v2 key, UTF-8 length, slot 불변식, brace validation                                        |
+| `leader-redis-lettuce/src/test/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateKeyIsolationTest.kt`          | 수정 | v2/legacy migration과 v3 precedence 회귀                                                      |
+| `leader-redis-lettuce/src/test/kotlin/io/bluetape4k/leader/lettuce/LettuceCandidateWriteScriptTest.kt`           | 신규 | write Lua 반환 상태와 TTL 경계                                                                |
+| `leader-redis-lettuce/src/test/kotlin/io/bluetape4k/leader/lettuce/LettuceStrategicRedisClusterTest.kt`          | 신규 | 기존 Launcher 기반 Cluster fixture, 네 elector lifecycle, MGET/Lua/CROSSSLOT/migration matrix |
+| `leader-redis-lettuce/build.gradle.kts`                                                                          | 수정 | `clusterTest` tagged Test task                                                                |
+| `.github/workflows/nightly-tests.yml`                                                                            | 수정 | Cluster 전용 Nightly job, artifact, aggregator needs                                          |
+| `leader-redis-lettuce/README.md`                                                                                 | 수정 | English Cluster constructor/운영 경계                                                         |
+| `leader-redis-lettuce/README.ko.md`                                                                              | 수정 | Korean Cluster constructor/운영 경계                                                          |
+| `docs/review/2026-09-04-issue-854-redis-cluster-review.md`                                                       | 신규 | 7-Tier pre-PR review와 P0/P1 수렴                                                             |
+| `docs/lessons/2026-09-04-issue-854-redis-cluster.md`                                                             | 신규 | 재사용 가능한 key/migration/fixture lesson                                                    |
+| `.flow-inputs/issue-854-workflow/2026-09-04-checklist.md`                                                        | 갱신 | 각 gate의 fresh command/count/evidence                                                        |
 
 소유권은 main lane에 고정한다. 독립 subagent는 계획·최종 diff의 read-only 검토만 수행하며 위 파일을 수정하지 않는다.
 
 ## 2. Acceptance traceability
 
-| 승인된 acceptance | 구현 작업 | 검증 증거 |
-|---|---|---|
-| 네 strategic elector가 standalone/Cluster를 지원하고 기존 descriptor가 유지됨 | Task 5 | `javap`, binary API checker, Kotlin/Java consumer compile, Cluster matrix |
-| v3 index/candidate가 동일 slot이고 v2/colon key collision이 없음 | Task 1, 3 | codec unit, `SlotHash`, 실제 Cluster multi-key/MGET, `CROSSSLOT` 부재 |
-| v3 register/refresh/result/index cleanup이 same-slot 원자 경계를 지킴 | Task 2, 3 | Lua unit/Cluster 실행, concurrent reader, stale-cleanup |
-| v2와 colon source가 v3보다 낮은 precedence로 migration됨 | Task 3, 4 | source precedence, concurrent migration race, destination repair, old source 보존 |
+| 승인된 acceptance                                                                       | 구현 작업    | 검증 증거                                                                                     |
+|-----------------------------------------------------------------------------------------|--------------|-----------------------------------------------------------------------------------------------|
+| 네 strategic elector가 standalone/Cluster를 지원하고 기존 descriptor가 유지됨           | Task 5       | `javap`, binary API checker, Kotlin/Java consumer compile, Cluster matrix                     |
+| v3 index/candidate가 동일 slot이고 v2/colon key collision이 없음                        | Task 1, 3    | codec unit, `SlotHash`, 실제 Cluster multi-key/MGET, `CROSSSLOT` 부재                         |
+| v3 register/refresh/result/index cleanup이 same-slot 원자 경계를 지킴                   | Task 2, 3    | Lua unit/Cluster 실행, concurrent reader, stale-cleanup                                       |
+| v2와 colon source가 v3보다 낮은 precedence로 migration됨                                | Task 3, 4    | source precedence, concurrent migration race, destination repair, old source 보존             |
 | unregister가 source migration으로 되살아나지 않고 cleanup이 다른 writer를 삭제하지 않음 | Task 2, 3, 6 | persistent tombstone barrier, migration token+raw compare, deterministic race/ownership tests |
-| TTL 0/positive/expired 경계와 결과 통계 보존 | Task 2–4 | PTTL/SET NX tests, heartbeat tests, post-copy expiry race |
-| blocking/suspend가 command/cancellation 의미를 보존함 | Task 3, 4 | 네 elector lifecycle 및 cancellation tests |
-| 실제 Cluster fixture가 Nightly/manual 전용으로 실행됨 | Task 6, 7 | `clusterTest`, fixture image/ref/digest, cluster_state/endpoints/logs artifact |
-| 문서·호환성·운영 rollout 경계가 코드와 일치함 | Task 7, 8 | README locale diff, review artifact, `git diff --check` |
-| P0/P1이 0이고 release/PR 경계가 분리됨 | Task 8 | 7-Tier review, checklist counts, no push/PR evidence |
+| TTL 0/positive/expired 경계와 결과 통계 보존                                            | Task 2–4     | PTTL/SET NX tests, heartbeat tests, post-copy expiry race                                     |
+| blocking/suspend가 command/cancellation 의미를 보존함                                   | Task 3, 4    | 네 elector lifecycle 및 cancellation tests                                                    |
+| 실제 Cluster fixture가 Nightly/manual 전용으로 실행됨                                   | Task 6, 7    | `clusterTest`, fixture image/ref/digest, cluster_state/endpoints/logs artifact                |
+| 문서·호환성·운영 rollout 경계가 코드와 일치함                                           | Task 7, 8    | README locale diff, review artifact, `git diff --check`                                       |
+| P0/P1이 0이고 release/PR 경계가 분리됨                                                  | Task 8       | 7-Tier review, checklist counts, no push/PR evidence                                          |
 
 ## 3. Task 1 — key codec와 slot 불변식 (RED → GREEN)
 
@@ -287,8 +289,7 @@
    }
    ```
 
-   `MIGRATE`는 candidate/index/tombstone/token 순서로, `REMOVE_IF_VALUE`는 candidate/index/token 순서로 key를 전달한다. 성공적인 `SET NX` 때만 `ARGV[4]` unique token을 persistent하게 기록하고, destination이 이미 있으면 token을 탈취하지 않고 index를 `SADD`/`PERSIST`로 repair한 뒤 `EXISTING_REPAIRED`를 반환한다. `UNREGISTER`는 tombstone을 먼저 persistent하게 세워 migration을 차단한 뒤 candidate/token/index를 정리한다. `ttl == 0`은 migration에서는 source 부재/만료로 취급하며, register의 `ttl == 0`만 persistent다. negative TTL은 호출자 validation과 기존 예외 계약을 유지한다.
-   Migration source key는 Lua `KEYS`에 넣지 않는다. source GET/PTTL은 single-key command로 수행하고, 복사 대상 v3 key만 same-slot Lua에 넣는다. source read 직후 unregister가 실행되는 barrier race에서는 Redis script 원자 순서에 따라 tombstone이 migration을 거부하거나 unregister가 destination을 제거한다. raw value만 비교해 삭제하지 않고 token과 함께 비교해 동일 payload를 다시 쓴 writer를 보호한다.
+   `MIGRATE`는 candidate/index/tombstone/token 순서로, `REMOVE_IF_VALUE`는 candidate/index/token 순서로 key를 전달한다. 성공적인 `SET NX` 때만 `ARGV[4]` unique token을 persistent하게 기록하고, destination이 이미 있으면 token을 탈취하지 않고 index를 `SADD`/`PERSIST`로 repair한 뒤 `EXISTING_REPAIRED`를 반환한다. `UNREGISTER`는 tombstone을 먼저 persistent하게 세워 migration을 차단한 뒤 candidate/token/index를 정리한다. `ttl == 0`은 migration에서는 source 부재/만료로 취급하며, register의 `ttl == 0`만 persistent다. negative TTL은 호출자 validation과 기존 예외 계약을 유지한다. Migration source key는 Lua `KEYS`에 넣지 않는다. source GET/PTTL은 single-key command로 수행하고, 복사 대상 v3 key만 same-slot Lua에 넣는다. source read 직후 unregister가 실행되는 barrier race에서는 Redis script 원자 순서에 따라 tombstone이 migration을 거부하거나 unregister가 destination을 제거한다. raw value만 비교해 삭제하지 않고 token과 함께 비교해 동일 payload를 다시 쓴 writer를 보호한다.
 4. `[ ]` GREEN 구현: refresh/result/cleanup script 호출은 v3 key만 받도록 정리한다. refresh는 candidate/index/token, result는 candidate/token을 same-slot `KEYS`로 받아 regular writer가 migration token을 해제한다. malformed payload는 기존 `LettuceCandidateInfoCodec` 예외를 그대로 다시 던지고, absent candidate를 새로 생성하지 않는다. register는 tombstone/token을 먼저 지우고, migration은 tombstone 존재 시 `ABSENT`, 성공 시 unique token, 기존 destination 시 `EXISTING_REPAIRED`를 반환하며, unregister는 persistent tombstone을 세운다.
 5. `[ ]` GREEN 검증: write script unit/fixture test에서 persistent, positive PTTL, `-1`, `-2`, non-positive 경계, tombstone refusal, unregister ordering, token+raw compare cleanup 및 same-payload writer 보호를 확인한다. `git diff --check`를 실행하고 script return status와 exception cause를 checklist에 기록한다.
 
@@ -373,18 +374,18 @@
    실제 Lettuce 타입이 제공하는 공통 parent가 다르면 adapter 내부에서만 concrete type을 조정한다. public constructor와 script runner overload는 변경하지 않는다. standalone과 Cluster `MGET`은 v3 candidate keys만 호출하며, Cluster key는 모두 동일 lockName tag를 가진다. v2/colon source는 단건 `GET`/`PTTL`로만 읽는다. 기존 internal one-argument registry 호출자는 compatibility bridge를 통해 같은 command/read capability를 유지한다.
 
 4. `[ ]` GREEN 구현 세부:
-   - `registerCandidate`: v3 candidate/index를 `REGISTER` Lua로 기록한다. index TTL은 항상 `PERSIST`한다.
-   - `listCandidates`: v3 index `SMEMBERS` → `CandidateValueReader.read` → decode/expected nodeId 확인 → stale/mismatch cleanup 순서로 실행한다. v3가 없거나 node가 빠졌을 때 v2 index/candidate를 single-key로 읽고, 마지막으로 colon index/candidate를 읽는다. node별 tombstone이 있으면 해당 source candidate를 숨기고 migration하지 않는다.
-   - source precedence는 `v3 > v2 > colon legacy`이며 malformed payload는 다음 source로 조용히 fall through하지 않는다. mismatch는 기존 stale-index 정리 계약을 따른다.
-   - migration은 source candidate의 `GET` 및 `PTTL`을 각각 single-key로 관찰한 뒤 destination candidate/index/tombstone/token만 `MIGRATE` Lua에 전달한다. tombstone이 생기면 `ABSENT`, `ttl == -1`은 `SET NX`, positive는 관찰 PTTL 이하의 `SET NX PX`, `-2`/`<=0`은 skip한다. 성공한 호출만 unique token을 저장한다.
-   - copy 후 source를 다시 `GET`/`PTTL`하여 만료가 확인되고 destination write가 이 호출에서 성공한 경우에만 destination raw value와 migration token이 모두 일치할 때 same-slot `REMOVE_IF_VALUE`로 best-effort cleanup을 수행한다. 다른 writer가 같은 payload를 다시 썼거나 token을 지웠다면 삭제하지 않는다. source key는 절대 삭제하지 않으며 bounded stale window를 문서화한다.
-   - `refreshCandidate`와 `updateResult`는 v3 destination이 없을 때 node tombstone을 확인한 뒤 v2 → colon 순서로 migration을 시도하고 v3 same-slot script를 호출한다. v3 destination을 갱신할 때는 migration token을 함께 지워 stale cleanup ownership을 해제한다. `unregisterCandidate`는 v3 `UNREGISTER` Lua로 tombstone 설정·v3 candidate/token/index 정리를 원자화한 후 v2/colon source와 각 index member를 single-key로 정리한다.
-   - deterministic barrier test는 source GET/PTTL 이후 `unregisterCandidate`를 실행하고 migration을 재개한다. 결과는 tombstone 유지, v3 destination/index 부재, source 비노출이며, 이후 `registerCandidate`가 tombstone을 지우고 새 generation을 시작하는 것도 확인한다.
+    - `registerCandidate`: v3 candidate/index를 `REGISTER` Lua로 기록한다. index TTL은 항상 `PERSIST`한다.
+    - `listCandidates`: v3 index `SMEMBERS` → `CandidateValueReader.read` → decode/expected nodeId 확인 → stale/mismatch cleanup 순서로 실행한다. v3가 없거나 node가 빠졌을 때 v2 index/candidate를 single-key로 읽고, 마지막으로 colon index/candidate를 읽는다. node별 tombstone이 있으면 해당 source candidate를 숨기고 migration하지 않는다.
+    - source precedence는 `v3 > v2 > colon legacy`이며 malformed payload는 다음 source로 조용히 fall through하지 않는다. mismatch는 기존 stale-index 정리 계약을 따른다.
+    - migration은 source candidate의 `GET` 및 `PTTL`을 각각 single-key로 관찰한 뒤 destination candidate/index/tombstone/token만 `MIGRATE` Lua에 전달한다. tombstone이 생기면 `ABSENT`, `ttl == -1`은 `SET NX`, positive는 관찰 PTTL 이하의 `SET NX PX`, `-2`/`<=0`은 skip한다. 성공한 호출만 unique token을 저장한다.
+    - copy 후 source를 다시 `GET`/`PTTL`하여 만료가 확인되고 destination write가 이 호출에서 성공한 경우에만 destination raw value와 migration token이 모두 일치할 때 same-slot `REMOVE_IF_VALUE`로 best-effort cleanup을 수행한다. 다른 writer가 같은 payload를 다시 썼거나 token을 지웠다면 삭제하지 않는다. source key는 절대 삭제하지 않으며 bounded stale window를 문서화한다.
+    - `refreshCandidate`와 `updateResult`는 v3 destination이 없을 때 node tombstone을 확인한 뒤 v2 → colon 순서로 migration을 시도하고 v3 same-slot script를 호출한다. v3 destination을 갱신할 때는 migration token을 함께 지워 stale cleanup ownership을 해제한다. `unregisterCandidate`는 v3 `UNREGISTER` Lua로 tombstone 설정·v3 candidate/token/index 정리를 원자화한 후 v2/colon source와 각 index member를 single-key로 정리한다.
+    - deterministic barrier test는 source GET/PTTL 이후 `unregisterCandidate`를 실행하고 migration을 재개한다. 결과는 tombstone 유지, v3 destination/index 부재, source 비노출이며, 이후 `registerCandidate`가 tombstone을 지우고 새 generation을 시작하는 것도 확인한다.
 
 5. `[ ]` GREEN 검증:
-   - `./gradlew :bluetape4k-leader-redis-lettuce:test --tests '*LettuceCandidateKeyIsolationTest*' --tests '*LettuceStrategicHeartbeatTest*' --no-daemon --no-configuration-cache --no-build-cache --console=plain`이 pass한다.
-   - 테스트에서 v3/v2/colon collision, v2 TTL 보존, concurrent `SET NX` winner 하나, stale index cleanup, result counter 보존을 확인한다.
-   - source와 destination이 같은 raw payload인 상태에서 새 register/refresh가 token을 교체한 뒤 이전 cleanup을 호출해도 destination/index가 보존되는지 확인한다. migration Lua의 `KEYS`에 source key가 없고 실제 Cluster에서 `CROSSSLOT`이 발생하지 않는지도 검증한다.
+    - `./gradlew :bluetape4k-leader-redis-lettuce:test --tests '*LettuceCandidateKeyIsolationTest*' --tests '*LettuceStrategicHeartbeatTest*' --no-daemon --no-configuration-cache --no-build-cache --console=plain`이 pass한다.
+    - 테스트에서 v3/v2/colon collision, v2 TTL 보존, concurrent `SET NX` winner 하나, stale index cleanup, result counter 보존을 확인한다.
+    - source와 destination이 같은 raw payload인 상태에서 새 register/refresh가 token을 교체한 뒤 이전 cleanup을 호출해도 destination/index가 보존되는지 확인한다. migration Lua의 `KEYS`에 source key가 없고 실제 Cluster에서 `CROSSSLOT`이 발생하지 않는지도 검증한다.
 
 ## 6. Task 4 — suspend registry parity와 cancellation
 
@@ -453,11 +454,11 @@
 
    Group/suspend/suspend-group도 registry 종류와 interface만 바꾼 동일한 descriptor 집합을 갖는다. standalone secondary constructor의 `@JvmOverloads`와 Kotlin default synthetic bridge를 의도적으로 유지하고, Cluster overload는 명시적 새 descriptor로 추가한다. `javap -p -s` 결과는 기준과 after를 diff하며, compatibility checker가 synthetic descriptor를 생략해도 precompiled Kotlin consumer compile을 별도 필수 증거로 삼는다. `RedisScriptRunner`의 기존 overload도 standalone/Cluster capability 각각에 대해 descriptor와 consumer compile을 별도로 확인한다.
 3. `[ ]` GREEN 검증:
-   - `./gradlew :bluetape4k-leader-redis-lettuce:compileKotlin :bluetape4k-leader-redis-lettuce:compileTestKotlin --no-daemon --no-configuration-cache --no-build-cache --console=plain`
-   - `./gradlew checkBinaryCompatibility --no-daemon --no-configuration-cache --no-build-cache --console=plain`
-   - `python3 scripts/compatibility/check_binary_api.py`
-   - 기준/after artifact에 `javap -p -s`를 실행해 네 elector와 `RedisScriptRunner`의 old/new descriptor를 비교한다.
-   - precompiled Kotlin fixture가 standalone one-/two-arg 및 Cluster one-/two-arg constructor를 compile하고, Java fixture가 명시적 public descriptor를 compile한다.
+    - `./gradlew :bluetape4k-leader-redis-lettuce:compileKotlin :bluetape4k-leader-redis-lettuce:compileTestKotlin --no-daemon --no-configuration-cache --no-build-cache --console=plain`
+    - `./gradlew checkBinaryCompatibility --no-daemon --no-configuration-cache --no-build-cache --console=plain`
+    - `python3 scripts/compatibility/check_binary_api.py`
+    - 기준/after artifact에 `javap -p -s`를 실행해 네 elector와 `RedisScriptRunner`의 old/new descriptor를 비교한다.
+    - precompiled Kotlin fixture가 standalone one-/two-arg 및 Cluster one-/two-arg constructor를 compile하고, Java fixture가 명시적 public descriptor를 compile한다.
 4. `[ ]` ABI 결과를 이전 develop baseline과 비교한다. 삭제/변경 descriptor가 있거나 Kotlin fixture가 synthetic bridge를 호출하지 못하면 Task 5를 멈추고 compatibility repair 후 같은 명령을 다시 실행한다.
 
 ## 8. Task 6 — 실제 Redis Cluster fixture와 전용 `clusterTest`
@@ -490,15 +491,15 @@
 
    fixture image/ref/digest, cluster state, node endpoints, topology refresh, container logs/events는 startup 후 provenance 파일과 CI failure hook에서 수집한다. 현재 테스트는 `LettuceStrategicRedisClusterTest` 내부 helper로 기존 Launcher를 감싸며, task/CI가 provenance·JUnit XML·failure diagnostics를 검증한다. 테스트 시작 시 실제 image reference와 digest를 read-back하고 `CLUSTER INFO`의 `cluster_state:ok`, `CLUSTER NODES` endpoint를 기록한다. registry/elector는 connection을 닫지 않고, helper의 `use` 정리만 사용한다.
 3. `[x]` 테스트 matrix를 다음 순서로 구현한다.
-   - blocking single elector: `DEFAULT_KEY_PREFIX`, register/list/refresh/result/unregister.
-   - blocking group elector: `GROUP_KEY_PREFIX`, top-N list와 same-slot index/candidate.
-   - suspend single/group: 동일 동작 및 cancellation.
-   - standalone과 실제 Cluster `MGET`은 v3 candidate만 대상으로 실행하고, v2/colon source는 per-key `GET`/`PTTL`만 실행한다.
-   - refresh/register/migration/stale-cleanup Lua를 실제 Cluster에서 실행하고 `CROSSSLOT` 문자열이 없어야 한다.
-   - write-script unit test에서 concurrent migration의 하나의 destination winner, index repair, source expiry race, malformed payload 경계를 고정하고, `NOSCRIPT` fallback은 기존 runner contract로 검증한다.
-   - `LettuceCandidateWriteScriptTest`의 barrier test에서 source GET/PTTL 뒤 unregister가 migration을 거부하고, 이후 register가 tombstone을 지우는지 확인한다.
-   - migration token과 raw value가 모두 일치할 때만 cleanup되고, 동일 payload를 다시 쓴 writer의 destination은 보존되는지 확인한다.
-   - 실제 Cluster matrix는 `LettuceStrategicRedisClusterTest`의 17개 독립 test method로 추적하고, 필수 이름은 `src/test/resources/redis-cluster-test-matrix.txt` manifest에 고정한다. JUnit XML에서 `tests >= 17`, manifest 이름 누락 없음, `skipped == 0`, `failures == 0`, `errors == 0`을 확인하고, no-test/축소된 scope는 `failOnNoDiscoveredTests`와 별도 XML guard로 실패시킨다.
+    - blocking single elector: `DEFAULT_KEY_PREFIX`, register/list/refresh/result/unregister.
+    - blocking group elector: `GROUP_KEY_PREFIX`, top-N list와 same-slot index/candidate.
+    - suspend single/group: 동일 동작 및 cancellation.
+    - standalone과 실제 Cluster `MGET`은 v3 candidate만 대상으로 실행하고, v2/colon source는 per-key `GET`/`PTTL`만 실행한다.
+    - refresh/register/migration/stale-cleanup Lua를 실제 Cluster에서 실행하고 `CROSSSLOT` 문자열이 없어야 한다.
+    - write-script unit test에서 concurrent migration의 하나의 destination winner, index repair, source expiry race, malformed payload 경계를 고정하고, `NOSCRIPT` fallback은 기존 runner contract로 검증한다.
+    - `LettuceCandidateWriteScriptTest`의 barrier test에서 source GET/PTTL 뒤 unregister가 migration을 거부하고, 이후 register가 tombstone을 지우는지 확인한다.
+    - migration token과 raw value가 모두 일치할 때만 cleanup되고, 동일 payload를 다시 쓴 writer의 destination은 보존되는지 확인한다.
+    - 실제 Cluster matrix는 `LettuceStrategicRedisClusterTest`의 17개 독립 test method로 추적하고, 필수 이름은 `src/test/resources/redis-cluster-test-matrix.txt` manifest에 고정한다. JUnit XML에서 `tests >= 17`, manifest 이름 누락 없음, `skipped == 0`, `failures == 0`, `errors == 0`을 확인하고, no-test/축소된 scope는 `failOnNoDiscoveredTests`와 별도 XML guard로 실패시킨다.
 4. `[x]` Gradle task를 다음처럼 등록한다.
 
    ```kotlin
@@ -531,20 +532,20 @@
    ```
 
 5. `[ ]` RED/GREEN 검증 순서:
-   - `./gradlew :bluetape4k-leader-redis-lettuce:test --no-daemon --no-configuration-cache --no-build-cache --console=plain`은 Cluster tag를 실행하지 않고 기존 standalone suite만 pass한다.
-   - `./gradlew :bluetape4k-leader-redis-lettuce:clusterTest --no-daemon --no-configuration-cache --no-build-cache --console=plain`은 실제 container를 시작해 manifest의 모든 tagged test를 pass한다. JUnit XML은 `tests >= 17`, manifest 누락 0, `skipped = 0`, `failures = 0`, `errors = 0`이어야 하며 성공 provenance에 image digest, `cluster_state=ok`, 6개 endpoint가 있어야 한다.
-   - failure/startup failure 시 image/ref/digest, `cluster_state:ok`, endpoints, `docker inspect`, logs, events를 `build/redis-cluster-diagnostics/`와 CI artifact에 남기고 환경 skip을 pass로 보고하지 않는다. report/artifact가 없으면 별도 guard가 실패한다.
+    - `./gradlew :bluetape4k-leader-redis-lettuce:test --no-daemon --no-configuration-cache --no-build-cache --console=plain`은 Cluster tag를 실행하지 않고 기존 standalone suite만 pass한다.
+    - `./gradlew :bluetape4k-leader-redis-lettuce:clusterTest --no-daemon --no-configuration-cache --no-build-cache --console=plain`은 실제 container를 시작해 manifest의 모든 tagged test를 pass한다. JUnit XML은 `tests >= 17`, manifest 누락 0, `skipped = 0`, `failures = 0`, `errors = 0`이어야 하며 성공 provenance에 image digest, `cluster_state=ok`, 6개 endpoint가 있어야 한다.
+    - failure/startup failure 시 image/ref/digest, `cluster_state:ok`, endpoints, `docker inspect`, logs, events를 `build/redis-cluster-diagnostics/`와 CI artifact에 남기고 환경 skip을 pass로 보고하지 않는다. report/artifact가 없으면 별도 guard가 실패한다.
 
 ## 9. Task 7 — README locale과 Nightly/manual CI gate
 
 **Files:** `leader-redis-lettuce/README.md`, `leader-redis-lettuce/README.ko.md`, `.github/workflows/nightly-tests.yml`.
 
 1. `[ ]` README 두 locale에 다음 사실을 동일 의미로 추가한다. English 문서는 기존 locale 계약을 유지하고 Korean 문서는 native technical prose로 작성한다.
-   - standalone/Cluster constructor의 네 클래스 예제와 caller-owned connection.
-   - v3 hash tag와 동일 slot, v2/colon migration precedence, mixed-version cutover.
-   - v3 write 이후 old binary rollback 금지와 forward-fix 경계.
-   - 현재 catalog가 resolve하는 Lettuce `7.6.0.RELEASE`에서 검증한 지원 범위, MOVED/ASK topology 및 failover 경계. 7.7 upgrade는 이 이슈 범위가 아니다.
-   - `clusterTest`는 regular PR test가 아닌 Nightly/manual verification 전용이며 benchmark가 아님.
+    - standalone/Cluster constructor의 네 클래스 예제와 caller-owned connection.
+    - v3 hash tag와 동일 slot, v2/colon migration precedence, mixed-version cutover.
+    - v3 write 이후 old binary rollback 금지와 forward-fix 경계.
+    - 현재 catalog가 resolve하는 Lettuce `7.6.0.RELEASE`에서 검증한 지원 범위, MOVED/ASK topology 및 failover 경계. 7.7 upgrade는 이 이슈 범위가 아니다.
+    - `clusterTest`는 regular PR test가 아닌 Nightly/manual verification 전용이며 benchmark가 아님.
 2. `[ ]` Nightly에 기존 `test-redis-lettuce`와 별도로 `test-redis-lettuce-cluster` job을 추가한다. schedule/manual full 조건, `needs: build`, `clusterTest`, `TESTCONTAINERS_RYUK_DISABLED`, `DOCKER_HOST`, test-result/diagnostic artifact를 명시한다. `coverage-report` 및 `nightly-status`의 needs에 새 job을 추가하고, full Nightly 조건에서는 cluster job 결과가 `success`가 아니면 aggregator가 실패하도록 한다. non-full/manual scope에서 의도된 `skipped`는 별도 N/A로 요약한다. `nightly-status`에는 `if: always()`와 full-scope guard를 적용해 headline green이나 unrelated job success만으로 Cluster coverage를 통과시키지 않는다.
 
    ```yaml
@@ -673,7 +674,7 @@
 1. `[x]` 7-Tier review를 수행한다. 각 finding에 file/line, severity, reproduction, disposition를 기록하고 P0/P1은 0이 될 때까지 수리한다. `$bluetape-kotlin-patterns`의 null-safety/immutability/structured cancellation/assertion/resource ownership 규칙을 Kotlin tier의 근거로 인용한다.
 
    | Tier | 검토 범위 | 필수 증거 |
-   |---|---|---|
+         |---|---|---|
    | 1. Intent/Contract | Issue #854 범위, contention/null/error, non-goals | issue/spec/acceptance traceability |
    | 2. Architecture/API | capability adapter, four elector constructors, ABI bridge | source/consumer compile, `javap`, binary checker |
    | 3. Data/Redis | v3 hash tag, tombstone/token, Lua `KEYS`, `CROSSSLOT` | codec/slot tests, actual Cluster script output |
@@ -711,17 +712,17 @@
 
 초기 read-only plan review 세 lane의 판정은 `REQUEST CHANGES`였다. 다음 보정을 반영하고 fresh 사용자 승인 뒤 구현·로컬 검증을 완료했다. 호스팅 Nightly와 PR은 별도 외부 게이트이므로 여기서는 실행하지 않았다.
 
-| finding | revised 대응 | 상태 |
-|---|---|---|
-| catalog/API version mismatch | 현재 immutable catalog의 Lettuce `7.6.0.RELEASE`로 고정, 7.7 upgrade 제거, `dependencyInsight` 증거 추가 | 검증 완료 |
-| standalone Kotlin ABI bridge | `@JvmOverloads` secondary constructor, baseline/after `javap`, precompiled Kotlin consumer, `RedisScriptRunner` 별도 descriptor 검사 | 검증 완료 |
-| unregister→migration resurrection | same-slot persistent tombstone/fence, source 숨김, deterministic barrier test | 검증 완료 |
-| same-payload destructive cleanup | migration unique token + raw value compare, candidate/index/token만 cleanup, source key는 script에서 제외 | 검증 완료 |
-| clusterTest/CI false green | `testClassesDirs`/`classpath`/`dependsOn`/`failOnNoDiscoveredTests`, regular tag exclusion, JUnit XML count/skip guard, full-scope Nightly aggregator와 diagnostics artifact | 로컬 검증 완료; hosted Nightly PENDING |
-| stale legacy index / source precedence | v2·colon key를 모두 preflight하고 stale member가 속한 index만 제거하며, 하위 우선순위 malformed source도 표면화 | 검증 완료; blocking/suspend isolation 회귀 |
-| Cluster matrix scope | public blocking/suspend single/group lifecycle·migration·TTL·cancellation을 17개 독립 test와 checked-in manifest로 고정하고 Gradle/CI가 필수 이름을 exact 검증 | 로컬 검증 완료; hosted Nightly PENDING |
-| mutable fixture image tag | image tag와 실제 image digest, helper, `cluster_state`, 6개 endpoint, Docker host provenance를 성공 artifact에 기록하고 tag pinning은 upstream fixture 후속 범위로 명시 | provenance 로컬 검증 완료; immutable pull P2 후속 |
-| rollback claim overreach | 별도 recovery tool/parity 변환을 비범위로 명시하고 v3 write 뒤 stop·보존·forward fix만 허용 | 검증 완료 |
+| finding                                | revised 대응                                                                                                                                                                 | 상태                                              |
+|----------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------|
+| catalog/API version mismatch           | 현재 immutable catalog의 Lettuce `7.6.0.RELEASE`로 고정, 7.7 upgrade 제거, `dependencyInsight` 증거 추가                                                                     | 검증 완료                                         |
+| standalone Kotlin ABI bridge           | `@JvmOverloads` secondary constructor, baseline/after `javap`, precompiled Kotlin consumer, `RedisScriptRunner` 별도 descriptor 검사                                         | 검증 완료                                         |
+| unregister→migration resurrection      | same-slot persistent tombstone/fence, source 숨김, deterministic barrier test                                                                                                | 검증 완료                                         |
+| same-payload destructive cleanup       | migration unique token + raw value compare, candidate/index/token만 cleanup, source key는 script에서 제외                                                                    | 검증 완료                                         |
+| clusterTest/CI false green             | `testClassesDirs`/`classpath`/`dependsOn`/`failOnNoDiscoveredTests`, regular tag exclusion, JUnit XML count/skip guard, full-scope Nightly aggregator와 diagnostics artifact | 로컬 검증 완료; hosted Nightly PENDING            |
+| stale legacy index / source precedence | v2·colon key를 모두 preflight하고 stale member가 속한 index만 제거하며, 하위 우선순위 malformed source도 표면화                                                              | 검증 완료; blocking/suspend isolation 회귀        |
+| Cluster matrix scope                   | public blocking/suspend single/group lifecycle·migration·TTL·cancellation을 17개 독립 test와 checked-in manifest로 고정하고 Gradle/CI가 필수 이름을 exact 검증               | 로컬 검증 완료; hosted Nightly PENDING            |
+| mutable fixture image tag              | image tag와 실제 image digest, helper, `cluster_state`, 6개 endpoint, Docker host provenance를 성공 artifact에 기록하고 tag pinning은 upstream fixture 후속 범위로 명시      | provenance 로컬 검증 완료; immutable pull P2 후속 |
+| rollback claim overreach               | 별도 recovery tool/parity 변환을 비범위로 명시하고 v3 write 뒤 stop·보존·forward fix만 허용                                                                                  | 검증 완료                                         |
 
 초기 구현 전에는 이 표의 P0/P1 항목과 `A-04` 승인 상태가 수렴되기 전 source code mutation, Nightly dispatch, PR 생성 또는 merge를 실행하지 않는 stop condition을 적용했다. 현재 구현은 로컬 증거를 갱신했지만, mutable fixture pinning·hosted Nightly·PR은 별도 PENDING 범위로 남긴다.
 

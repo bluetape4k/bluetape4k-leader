@@ -4,6 +4,8 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.leader.testcontainers.ReadinessEndpoint
 import io.bluetape4k.leader.testcontainers.readinessBoundaryWaitStrategy
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.testcontainers.infra.EtcdServer
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -18,6 +20,11 @@ import java.time.Duration
 @Tag("integration")
 @Execution(ExecutionMode.SAME_THREAD)
 class EtcdReadinessBoundaryIntegrationTest {
+
+    private companion object: KLogging() {
+        val ETCD_READINESS_ENDPOINT =
+            ReadinessEndpoint(EtcdServer.NAME, EtcdServer.CLIENT_PORT, "/health")
+    }
 
     @Test
     fun `host wait 실패 직전에 실제 세 경계의 정상 증거를 수집한다`() {
@@ -37,6 +44,7 @@ class EtcdReadinessBoundaryIntegrationTest {
             .mapNotNull { it.message }
             .first { "Readiness boundary diagnostic:" in it }
 
+        log.debug { "diagnaostic=$diagnostic" }
         diagnostic shouldContain "boundary=UNKNOWN"
         diagnostic shouldContain "internal=SUCCESS"
         diagnostic shouldContain "host=SUCCESS"
@@ -64,8 +72,4 @@ class EtcdReadinessBoundaryIntegrationTest {
     private fun Throwable.causes(): Sequence<Throwable> =
         generateSequence(this) { it.cause }
 
-    private companion object {
-        val ETCD_READINESS_ENDPOINT =
-            ReadinessEndpoint(EtcdServer.NAME, EtcdServer.CLIENT_PORT, "/health")
-    }
 }

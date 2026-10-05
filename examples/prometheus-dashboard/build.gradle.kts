@@ -31,17 +31,15 @@ dependencies {
     implementation(project(":bluetape4k-leader-micrometer"))
     implementation(project(":bluetape4k-leader-redis-lettuce"))
 
-    implementation(bt4k.bluetape4k.logging)
-    implementation(bt4k.bluetape4k.testcontainers)
+    implementation(bt4k.bluetape4k.lettuce)
     implementation(libs.lettuce.core)
     implementation(libs.micrometer.registry.prometheus)
     implementation(libs.spring.tx)
+    implementation(bt4k.bluetape4k.testcontainers)
     implementation(libs.testcontainers)
 
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-web")
-
-    runtimeOnly(bt4k.logback)
 
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(libs.awaitility.kotlin)

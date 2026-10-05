@@ -6,7 +6,7 @@ Issue #424에는 하나의 노드에서만 실행해야 하는 레거시 예약 
 
 ## 결정
 
-`ZooKeeperLeaderElector`를 유일한 선택 경계로 사용하고 데모 및 테스트에서 큐레이터 수명주기 호출자를 소유하게 유지하세요. 또한 이 예제에서는 bluetape4k 도우미(`ZooKeeperServer.Launcher`, `Base58`, `requireNotBlank` 및 bluetape4k 어설션)를 사용하므로 원시 큐레이터 레시피가 아닌 생태계를 보여줍니다.
+`ZooKeeperLeaderElector`를 유일한 선택 경계로 사용하고 데모 및 테스트에서 큐레이터 수명주기 호출자를 소유하게 유지하세요. 또한 이 예제에서는 bluetape4k 도우미 (`ZooKeeperServer.Launcher`, `Base58`, `requireNotBlank` 및 bluetape4k 어설션)를 사용하므로 원시 큐레이터 레시피가 아닌 생태계를 보여줍니다.
 
 ## 결과
 

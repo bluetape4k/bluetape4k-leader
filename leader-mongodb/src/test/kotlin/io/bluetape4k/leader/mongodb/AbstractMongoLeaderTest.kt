@@ -18,8 +18,8 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractMongoLeaderTest {
 
-    companion object : KLogging() {
-        val mongoServer: MongoDBServer = MongoDBServer.Launcher.mongoDB
+    companion object: KLogging() {
+        val mongoServer: MongoDBServer by lazy { MongoDBServer.Launcher.mongoDB }
 
         val mongoClient by lazy {
             MongoDBServer.Launcher.getClient().also {

@@ -30,7 +30,7 @@ import kotlin.time.Duration
 class LettuceStrategicSuspendLeaderGroupElector @JvmOverloads constructor(
     connection: StatefulRedisConnection<String, String>,
     override val nodeId: String = Uuid.V7.nextBase62(),
-) : StrategicSuspendLeaderGroupElector {
+): StrategicSuspendLeaderGroupElector {
 
     private lateinit var registry: LettuceSuspendCandidateRegistry
 
@@ -47,14 +47,14 @@ class LettuceStrategicSuspendLeaderGroupElector @JvmOverloads constructor(
     constructor(
         connection: StatefulRedisClusterConnection<String, String>,
         nodeId: String = Uuid.V7.nextBase62(),
-    ) : this(LettuceStrategicConstructorSupport.clusterPrimaryConnection, nodeId) {
+    ): this(LettuceStrategicConstructorSupport.clusterPrimaryConnection, nodeId) {
         registry = LettuceSuspendCandidateRegistry(
             connection,
             LettuceSuspendCandidateRegistry.GROUP_KEY_PREFIX,
         )
     }
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     override suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
         registry.registerCandidate(lockName, info, ttl)
@@ -78,7 +78,7 @@ class LettuceStrategicSuspendLeaderGroupElector @JvmOverloads constructor(
         maxLeaders: Int,
         action: suspend () -> T,
     ): T? {
-        validateLockName(lockName)
+        lockName.validateLockName()
         currentCoroutineContext().ensureActive()
         val candidates = try {
             listCandidates(lockName)
@@ -93,7 +93,7 @@ class LettuceStrategicSuspendLeaderGroupElector @JvmOverloads constructor(
 
         log.info {
             "[$lockName] 전략적 그룹 선출: ${result.winners.joinToString { it.nodeId }} " +
-                "(전략: ${strategy::class.simpleName}, 후보: ${result.winners.size + result.eliminations.size}명)"
+                    "(전략: ${strategy::class.simpleName}, 후보: ${result.winners.size + result.eliminations.size}명)"
         }
         if (result.scores.isNotEmpty()) {
             log.debug {

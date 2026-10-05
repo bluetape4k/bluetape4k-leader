@@ -1,17 +1,20 @@
 package io.bluetape4k.leader.micrometer
 
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.leader.LeaderManagementActionOutcome
 import io.bluetape4k.leader.LeaderManagementActionObservation
+import io.bluetape4k.leader.LeaderManagementActionOutcome
 import io.bluetape4k.leader.LeaderManagementActionPhase
 import io.bluetape4k.leader.LeaderManagementActionSurface
 import io.bluetape4k.leader.LeaderManagementQuarantineReason
+import io.bluetape4k.logging.KLogging
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Test
 
 class MicrometerLeaderManagementActionObserverTest {
+
+    companion object: KLogging()
 
     @Test
     fun `quarantine counter and active gauge use fixed low cardinality tags`() {
@@ -34,6 +37,7 @@ class MicrometerLeaderManagementActionObserverTest {
             MicrometerNames.MANAGEMENT_TAG_SURFACE,
             "ktor",
         ).count() shouldBeEqualTo 1.0
+
         meters.find(MicrometerNames.MANAGEMENT_QUARANTINE_ACTIVE)
             .tags(
                 MicrometerNames.MANAGEMENT_TAG_REASON, "non-interruptible",
@@ -42,6 +46,7 @@ class MicrometerLeaderManagementActionObserverTest {
             )
             .gauge()
             ?.value() shouldBeEqualTo 1.0
+
         meters.find(MicrometerNames.MANAGEMENT_QUARANTINE)
             .meters()
             .single()
@@ -74,6 +79,7 @@ class MicrometerLeaderManagementActionObserverTest {
             MicrometerNames.MANAGEMENT_TAG_SURFACE,
             "core",
         ).count() shouldBeEqualTo 1.0
+
         meters.find(MicrometerNames.MANAGEMENT_QUARANTINE_ACTIVE)
             .tags(
                 MicrometerNames.MANAGEMENT_TAG_REASON, "cleanup-timeout",
@@ -99,10 +105,11 @@ class MicrometerLeaderManagementActionObserverTest {
         )
 
         meters.find(MicrometerNames.MANAGEMENT_QUARANTINE).counter().let { counter ->
-            (counter == null).shouldBeTrue()
+            counter.shouldBeNull()
         }
+
         meters.find(MicrometerNames.MANAGEMENT_QUARANTINE_ACTIVE).gauge().let { gauge ->
-            (gauge == null).shouldBeTrue()
+            gauge.shouldBeNull()
         }
     }
 
@@ -110,7 +117,8 @@ class MicrometerLeaderManagementActionObserverTest {
     fun `every quarantine reason has a stable metric value`() {
         val meters = SimpleMeterRegistry()
         val observer = MicrometerLeaderManagementActionObserver(meters)
-        LeaderManagementQuarantineReason.values().forEach { reason ->
+
+        LeaderManagementQuarantineReason.entries.forEach { reason ->
             observer.onResult(
                 observation(
                     reason = reason,
@@ -121,7 +129,8 @@ class MicrometerLeaderManagementActionObserverTest {
         }
 
         meters.find(MicrometerNames.MANAGEMENT_QUARANTINE).counters().size shouldBeEqualTo 4
-        LeaderManagementQuarantineReason.values().forEach { reason ->
+
+        LeaderManagementQuarantineReason.entries.forEach { reason ->
             meters.find(MicrometerNames.MANAGEMENT_QUARANTINE)
                 .tag(MicrometerNames.MANAGEMENT_TAG_REASON, reason.name.lowercase().replace('_', '-'))
                 .counter()

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.javatimes.millis
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupState
@@ -14,6 +15,7 @@ import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonSuspendSemaphoreExtendDelegate
+import io.bluetape4k.leader.redisson.runSuspendIfLeaderGroup as currentRunSuspendIfLeaderGroup
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -42,7 +44,8 @@ import kotlin.time.Duration
 class RedissonSuspendLeaderGroupElector private constructor(
     private val redissonClient: RedissonClient,
     val options: LeaderGroupElectionOptions,
-): SuspendLeaderGroupElector, LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient) {
+): SuspendLeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient) {
 
     companion object: KLoggingChannel() {
         internal const val REDISSON_SUSPEND_GROUP_FACTORY_BEAN_NAME = "redisson-suspend-leader-group-elector"
@@ -121,7 +124,7 @@ class RedissonSuspendLeaderGroupElector private constructor(
         lockName.requireNotBlank("lockName")
 
         val semaphore = getInitializedPermitSemaphoreAsync(lockName)
-        log.debug { "슬롯 획득 요청. lockName=$lockName, maxLeaders=$maxLeaders" }
+        log.debug { "슬롯 획득 요청... lockName=$lockName, maxLeaders=$maxLeaders" }
 
         val permitId: String? = try {
             semaphore.tryAcquireAsync(
@@ -149,7 +152,7 @@ class RedissonSuspendLeaderGroupElector private constructor(
             try {
                 withContext(Dispatchers.IO) {
                     auditMap.fastPut(permitId, auditLeaderId)
-                    auditMap.expire(java.time.Duration.ofMillis(leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS))
+                    auditMap.expire((leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS).millis())
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -214,17 +217,11 @@ class RedissonSuspendLeaderGroupElector private constructor(
     }
 }
 
-/**
- * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend fun <T> RedissonClient.runSuspendIfLeaderGroup(
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runSuspendIfLeaderGroup")
+suspend fun <T> RedissonClient.legacyRunSuspendIfLeaderGroup(
     lockName: String,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     action: suspend () -> T,
-): T? {
-    lockName.requireNotBlank("lockName")
-    options.maxLeaders.requirePositiveNumber("maxLeaders")
-    return RedissonSuspendLeaderGroupElector(this, options).runIfLeader(lockName, action)
-}
+): T? = this.currentRunSuspendIfLeaderGroup(lockName, options, action)

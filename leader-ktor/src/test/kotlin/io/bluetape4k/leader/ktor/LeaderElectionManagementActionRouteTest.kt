@@ -3,6 +3,7 @@ package io.bluetape4k.leader.ktor
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.ktor.testing.shouldHaveStatus
 import io.bluetape4k.leader.ExtendOutcome
@@ -13,30 +14,35 @@ import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseHandle
 import io.bluetape4k.leader.coroutines.SuspendLeaderManagementActionRegistry
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
+import io.ktor.server.application.install
 import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.basic
 import io.ktor.server.auth.principal
-import io.ktor.server.application.install
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
-import java.util.Base64
+import java.util.*
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionManagementActionRouteTest {
 
-    private val registries = mutableListOf<RecordingRegistry>()
+    companion object: KLoggingChannel()
+
+    private val registries = ConcurrentLinkedQueue<RecordingRegistry>()
 
     @AfterEach
     fun closeRegistries() {
@@ -78,6 +84,7 @@ class LeaderElectionManagementActionRouteTest {
             client.post("/internal/leader-status/actions/batch-job") {
                 managementCredentials()
             } shouldHaveStatus HttpStatusCode.OK
+
             client.post("/management/leaderElection/actions/batch-job") {
                 managementCredentials()
             } shouldHaveStatus HttpStatusCode.NotFound
@@ -132,6 +139,7 @@ class LeaderElectionManagementActionRouteTest {
 
             val response = client.post("/management/leaderElection/actions/batch-job")
 
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.Unauthorized
         }
     }
@@ -149,9 +157,10 @@ class LeaderElectionManagementActionRouteTest {
                 managementCredentials()
             }
 
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.Forbidden
             response.bodyAsText() shouldBeEqualTo
-                "{\"code\":\"AUTHORIZATION_DENIED\",\"message\":\"management action authorization denied\"}"
+                    "{\"code\":\"AUTHORIZATION_DENIED\",\"message\":\"management action authorization denied\"}"
         }
     }
 
@@ -168,10 +177,11 @@ class LeaderElectionManagementActionRouteTest {
                 managementCredentials()
             }
 
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.InternalServerError
             response.bodyAsText() shouldBeEqualTo
-                "{\"code\":\"AUTHORIZATION_FAILED\",\"message\":\"management action authorization failed\"}"
-            response.bodyAsText().contains("credential-secret").shouldBeEqualTo(false)
+                    "{\"code\":\"AUTHORIZATION_FAILED\",\"message\":\"management action authorization failed\"}"
+            response.bodyAsText() shouldNotContain "credential-secret"
             registry.releaseCalls.get() shouldBeEqualTo 0
         }
     }
@@ -189,10 +199,11 @@ class LeaderElectionManagementActionRouteTest {
                 managementCredentials()
             }
 
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.OK
             response.bodyAsText() shouldBeEqualTo
-                "{\"action\":\"RELEASE\",\"outcome\":\"RELEASED\",\"mutationAttempted\":true}"
-            response.headers[HttpHeaders.ContentType].orEmpty() shouldContain "application/json"
+                    "{\"action\":\"RELEASE\",\"outcome\":\"RELEASED\",\"mutationAttempted\":true}"
+            response.headers[HttpHeaders.ContentType] shouldContain "application/json"
             registry.observations.single().surface shouldBeEqualTo LeaderManagementActionSurface.KTOR
         }
     }
@@ -210,6 +221,7 @@ class LeaderElectionManagementActionRouteTest {
                 managementCredentials()
             }
 
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.BadRequest
             response.bodyAsText() shouldContain "\"outcome\":\"INVALID_LOCK_NAME\""
             registry.releaseCalls.get() shouldBeEqualTo 0
@@ -229,6 +241,7 @@ class LeaderElectionManagementActionRouteTest {
                 managementCredentials()
             }
 
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.NotFound
             registry.releaseCalls.get() shouldBeEqualTo 0
         }
@@ -295,7 +308,7 @@ class LeaderElectionManagementActionRouteTest {
 
     private class TestHandle(
         override val lockName: String,
-    ) : SuspendLeaderLeaseHandle {
+    ): SuspendLeaderLeaseHandle {
         private var ownershipCalls = 0
 
         override val auditLeaderId: String = "test-leader"

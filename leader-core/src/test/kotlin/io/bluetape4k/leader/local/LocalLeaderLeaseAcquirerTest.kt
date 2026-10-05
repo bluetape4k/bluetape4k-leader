@@ -2,21 +2,27 @@ package io.bluetape4k.leader.local
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LocalLeaderLeaseAcquirerTest {
+
+    companion object: KLogging()
 
     @Test
     fun `lock-name overload captures configured node and slot overload preserves caller identity`() {
@@ -48,16 +54,16 @@ class LocalLeaderLeaseAcquirerTest {
             contenderDone.countDown()
         }
         contender.start()
-        contenderDone.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        contenderDone.await(1.seconds).shouldBeTrue()
 
-        skipped.get() shouldBeEqualTo null
+        skipped.get().shouldBeNull()
         val released = CountDownLatch(1)
         val releaser = Thread {
             first.release()
             released.countDown()
         }
         releaser.start()
-        released.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        released.await(1.seconds).shouldBeTrue()
         releaser.join(1_000)
         first.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.NOT_HELD
         first.close()
@@ -96,7 +102,7 @@ class LocalLeaderLeaseAcquirerTest {
         handle.release()
 
         val elapsed = (System.nanoTime() - started).nanoseconds
-        (elapsed >= 40.milliseconds).shouldBeTrue()
+        elapsed shouldBeGreaterOrEqualTo 40.milliseconds
     }
 
     @Test
@@ -104,9 +110,10 @@ class LocalLeaderLeaseAcquirerTest {
         val elector = LocalSuspendLeaderElector(
             LeaderElectionOptions(waitTime = 50.milliseconds, leaseTime = 1_000.milliseconds, nodeId = "node-a"),
         )
-        val handle = elector.tryAcquire(LeaderSlot("suspend-lock", "caller-b")).shouldNotBeNull()
+        val slot = LeaderSlot("suspend-lock", "caller-b")
+        val handle = elector.tryAcquire(slot).shouldNotBeNull()
 
-        handle.auditLeaderId shouldBeEqualTo "caller-b"
+        handle.auditLeaderId shouldBeEqualTo slot.leaderId
         handle.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.HELD
         handle.isStillHeld().shouldBeTrue()
         handle.release()

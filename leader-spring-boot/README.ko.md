@@ -130,19 +130,12 @@ bluetape4k:
 ```
 
 공통 속성의 기본값은 `false`입니다. 특정 메서드만 켜려면
-`@LeaderGroupElection(..., useDbTime = true)`를 사용합니다. 실제 적용값은
-공통 속성과 annotation 값의 논리 OR입니다. 따라서 공통 속성을 켜면 모든
-그룹 annotation이 활성화되고, Boolean annotation만으로 메서드별 `false`
-재정의는 할 수 없습니다. 이 정책은 Exposed JDBC와 Exposed R2DBC 그룹
-elector만 소비하며 다른 그룹 backend는 무시합니다.
+`@LeaderGroupElection(..., useDbTime = true)`를 사용합니다. 실제 적용값은 공통 속성과 annotation 값의 논리 OR입니다. 따라서 공통 속성을 켜면 모든 그룹 annotation이 활성화되고, Boolean annotation만으로 메서드별 `false`
+재정의는 할 수 없습니다. 이 정책은 Exposed JDBC와 Exposed R2DBC 그룹 elector만 소비하며 다른 그룹 backend는 무시합니다.
 
-활성화하면 Exposed 소유권과 활성 슬롯 만료가 database server clock을
-사용합니다. DB timestamp를 읽지 못하면 Exposed는 계속 fail-closed로
-동작하여 슬롯을 차지하지 않습니다. AOP 호출에서는 annotation의
-`failure-mode`가 backend 오류를 재전파(`RETHROW`), 건너뛰기(`SKIP`) 또는
-`FAIL_OPEN_RUN`으로 처리할지를 결정합니다. 모든 참여자가 동일한 권위 DB
-clock을 사용하도록 라우팅하고, provider별 timestamp 정밀도와 JDBC/R2DBC
-pool에 추가되는 timestamp query 비용을 반영하세요.
+활성화하면 Exposed 소유권과 활성 슬롯 만료가 database server clock을 사용합니다. DB timestamp를 읽지 못하면 Exposed는 계속 fail-closed로 동작하여 슬롯을 차지하지 않습니다. AOP 호출에서는 annotation의
+`failure-mode`가 backend 오류를 재전파 (`RETHROW`), 건너뛰기 (`SKIP`) 또는
+`FAIL_OPEN_RUN`으로 처리할지를 결정합니다. 모든 참여자가 동일한 권위 DB clock을 사용하도록 라우팅하고, provider별 timestamp 정밀도와 JDBC/R2DBC pool에 추가되는 timestamp query 비용을 반영하세요.
 
 ## 리더 전용 Route (0.5.0)
 
@@ -350,13 +343,13 @@ bluetape4k:
 
 Diagnostics는 기본적으로 startup을 실패시키지 않습니다. warning이 있을 때 애플리케이션을 실패시키려면 `bluetape4k.leader.diagnostics.strict=true`를 설정하세요. 이 값은 `bluetape4k.leader.aop.strict`와 별개입니다. AOP strict mode는 어노테이션이 붙은 메서드를 검증하고, diagnostics strict mode는 조립된 Spring context와 management/cardinality 설정을 검증합니다.
 
-| Warning | 의미 | 일반적인 조치 |
-|---|---|---|
-| `MULTIPLE_NON_LOCAL_BACKENDS` | non-local `LeaderElector`가 둘 이상 활성화됨 | `@LeaderElection(bean = "...")`, `@LeaderElectionBackend`, `@Primary`로 사용할 bean 지정 |
-| `MANAGEMENT_ENDPOINT_NOT_EXPOSED` | `management.endpoint.leaderElection.enabled=true`지만 web exposure에 `leaderElection` 또는 `*`가 없음 | `management.endpoints.web.exposure.include`에 `leaderElection` 추가 |
-| `MANAGEMENT_REGISTRY_NOT_SEEDED` | endpoint는 켜졌지만 `bluetape4k.leader.observability.lock-names`가 비어 있어 runtime event 전 초기 report가 비어 보일 수 있음 | scheduled job의 정적 lock name을 seed하거나 runtime discovery를 의도적으로 허용 |
-| `RAW_LOCK_NAME_TAGS` | raw `lock.name` metric tag가 allow-list 없이 활성화됨 | 기본 `REDACT` 유지, 또는 작은 allow-list, `HASH`, `TRUNCATE` 사용 |
-| `RAW_LEADER_ID_TAGS` | opt-in raw `leader.id` Observation tag가 allow-list 없이 emit될 수 있음 | leader ID tag 비활성화 또는 tag policy로 bounded 처리 |
+| Warning                           | 의미                                                                                                                          | 일반적인 조치                                                                            |
+|-----------------------------------|-------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
+| `MULTIPLE_NON_LOCAL_BACKENDS`     | non-local `LeaderElector`가 둘 이상 활성화됨                                                                                  | `@LeaderElection(bean = "...")`, `@LeaderElectionBackend`, `@Primary`로 사용할 bean 지정 |
+| `MANAGEMENT_ENDPOINT_NOT_EXPOSED` | `management.endpoint.leaderElection.enabled=true`지만 web exposure에 `leaderElection` 또는 `*`가 없음                         | `management.endpoints.web.exposure.include`에 `leaderElection` 추가                      |
+| `MANAGEMENT_REGISTRY_NOT_SEEDED`  | endpoint는 켜졌지만 `bluetape4k.leader.observability.lock-names`가 비어 있어 runtime event 전 초기 report가 비어 보일 수 있음 | scheduled job의 정적 lock name을 seed하거나 runtime discovery를 의도적으로 허용          |
+| `RAW_LOCK_NAME_TAGS`              | raw `lock.name` metric tag가 allow-list 없이 활성화됨                                                                         | 기본 `REDACT` 유지, 또는 작은 allow-list, `HASH`, `TRUNCATE` 사용                        |
+| `RAW_LEADER_ID_TAGS`              | opt-in raw `leader.id` Observation tag가 allow-list 없이 emit될 수 있음                                                       | leader ID tag 비활성화 또는 tag policy로 bounded 처리                                    |
 
 현재 `leaderElection` Actuator endpoint는 read-only 상태 조회만 제공합니다. 따라서 diagnostics는 파괴적인 management action이 아니라 endpoint 노출 여부와 tag cardinality 위험을 확인합니다.
 
@@ -372,19 +365,19 @@ Metrics와 Observation은 별도 스위치를 가집니다.
 - `bluetape4k.leader.observability.tracing.enabled=false`: Observation bridge만 끕니다.
 - `bluetape4k.leader.observability.enabled=false`: leader observability 지원 bean과 tracing bridge를 함께 끕니다.
 
-| Property | 기본값 | 제어 대상 |
-|---|---:|---|
-| `bluetape4k.leader.aop.metrics.enabled` | `true` | 기존 Micrometer meter recorder |
-| `bluetape4k.leader.aop.metrics.tags.lock-name.mode` | `REDACT` | meter `lock.name` tag export 정책 |
-| `bluetape4k.leader.aop.metrics.tags.lock-name.redacted-value` | `redacted-lock` | redaction된 lock name sentinel |
-| `bluetape4k.leader.aop.metrics.tags.leader-id.mode` | `REDACT` | opt-in Observation `leader.id` 값 export 정책 |
-| `bluetape4k.leader.aop.metrics.tags.backend-name.mode` | `RAW` | bounded backend label의 export 정책; active diagnostics meter는 정제된 `backend.name`을 emit하고 그 밖의 built-in meter는 emit하지 않음 |
-| `bluetape4k.leader.observability.enabled` | `true` | leader observability와 tracing의 parent switch |
-| `bluetape4k.leader.observability.health.acquisition-failure-window` | `5m` | AOP backend 획득 실패 aggregate의 bounded window |
-| `bluetape4k.leader.observability.tracing.enabled` | `true` | Observation recorder/listener |
-| `bluetape4k.leader.observability.tracing.include-lock-name` | `false` | tag 정책을 거친 opt-in `lock.name` high-cardinality Observation data |
-| `bluetape4k.leader.observability.tracing.include-leader-id` | `false` | identified context가 있을 때 tag 정책을 거친 opt-in `leader.id` high-cardinality Observation data |
-| `bluetape4k.leader.observability.tracing.include-exception-details` | `false` | `Observation.error(...)`를 통한 raw throwable detail |
+| Property                                                            |          기본값 | 제어 대상                                                                                                                               |
+|---------------------------------------------------------------------|----------------:|-----------------------------------------------------------------------------------------------------------------------------------------|
+| `bluetape4k.leader.aop.metrics.enabled`                             |          `true` | 기존 Micrometer meter recorder                                                                                                          |
+| `bluetape4k.leader.aop.metrics.tags.lock-name.mode`                 |        `REDACT` | meter `lock.name` tag export 정책                                                                                                       |
+| `bluetape4k.leader.aop.metrics.tags.lock-name.redacted-value`       | `redacted-lock` | redaction된 lock name sentinel                                                                                                          |
+| `bluetape4k.leader.aop.metrics.tags.leader-id.mode`                 |        `REDACT` | opt-in Observation `leader.id` 값 export 정책                                                                                           |
+| `bluetape4k.leader.aop.metrics.tags.backend-name.mode`              |           `RAW` | bounded backend label의 export 정책; active diagnostics meter는 정제된 `backend.name`을 emit하고 그 밖의 built-in meter는 emit하지 않음 |
+| `bluetape4k.leader.observability.enabled`                           |          `true` | leader observability와 tracing의 parent switch                                                                                          |
+| `bluetape4k.leader.observability.health.acquisition-failure-window` |            `5m` | AOP backend 획득 실패 aggregate의 bounded window                                                                                        |
+| `bluetape4k.leader.observability.tracing.enabled`                   |          `true` | Observation recorder/listener                                                                                                           |
+| `bluetape4k.leader.observability.tracing.include-lock-name`         |         `false` | tag 정책을 거친 opt-in `lock.name` high-cardinality Observation data                                                                    |
+| `bluetape4k.leader.observability.tracing.include-leader-id`         |         `false` | identified context가 있을 때 tag 정책을 거친 opt-in `leader.id` high-cardinality Observation data                                       |
+| `bluetape4k.leader.observability.tracing.include-exception-details` |         `false` | `Observation.error(...)`를 통한 raw throwable detail                                                                                    |
 
 Observation bridge는 `leader.aop.acquire`, `leader.aop.execution`, `leader.election.event` 같은 짧은 terminal observation을 남깁니다. 보호된 메서드 본문 전체를 새 current `Observation.Scope`으로 감싸지는 않습니다.
 
@@ -401,69 +394,47 @@ Observation bridge는 `leader.aop.acquire`, `leader.aop.execution`, `leader.elec
 `leader-micrometer`와 non-NOOP `ObservationRegistry`가 있고
 `bluetape4k.leader.observability.enabled=true`,
 `bluetape4k.leader.observability.tracing.enabled=true`(둘 다 기본값)이면
-`LeaderObservationAutoConfiguration`이 core lease-extension observer를 등록합니다.
-명시적인 `LockExtender` 호출과 `LeaderLeaseAutoExtender` watchdog event를 모두
-대상으로 하며 Spring 전용 extension API를 추가하지 않습니다.
+`LeaderObservationAutoConfiguration`이 core lease-extension observer를 등록합니다. 명시적인 `LockExtender` 호출과 `LeaderLeaseAutoExtender` watchdog event를 모두 대상으로 하며 Spring 전용 extension API를 추가하지 않습니다.
 
-명시적인 호출은 `@LeaderElection`, `@LeaderGroupElection` 또는 직접 elector body가 만든 일치하는 user-owned
-active scope 안에서 사용할 수 있습니다. `WATCHDOG` event는 단일 리더의 `autoExtend = true` 경로에서만 발생하며
-group election slot은 group auto-extension을 끕니다. Issue #529는 acquire/execution observation을 담당하고, 이
-Issue #559 integration은 terminal lease-extension 시도를 담당합니다.
+명시적인 호출은 `@LeaderElection`, `@LeaderGroupElection` 또는 직접 elector body가 만든 일치하는 user-owned active scope 안에서 사용할 수 있습니다. `WATCHDOG` event는 단일 리더의 `autoExtend = true` 경로에서만 발생하며 group election slot은 group auto-extension을 끕니다. Issue #529는 acquire/execution observation을 담당하고, 이 Issue #559 integration은 terminal lease-extension 시도를 담당합니다.
 
 Spring은 다음 규칙으로 registration 수명주기를 관리합니다.
 
 - `ObservationRegistry` identity마다 `MicrometerObservationLeaderLeaseExtensionObserver`
   하나를 공유합니다.
-- 각 application context는 idempotent handle 하나를 소유하고, 마지막 context가
-  닫힐 때 core registration을 제거합니다.
+- 각 application context는 idempotent handle 하나를 소유하고, 마지막 context가 닫힐 때 core registration을 제거합니다.
 - NOOP registry이거나 tracing을 끄면 lease-extension registration을 만들지 않습니다.
-- 같은 registry에 서로 다른 `LeaderObservationOptions`가 들어오면 redaction을
-  조용히 약화하거나 callback을 중복 등록하지 않고 즉시 실패합니다.
+- 같은 registry에 서로 다른 `LeaderObservationOptions`가 들어오면 redaction을 조용히 약화하거나 callback을 중복 등록하지 않고 즉시 실패합니다.
 
-자동 lease-extension 전달은 각 local application context가 선택한 registry에 귀속됩니다. 같은 registry를 공유하는
-parent/child context는 scope와 callback 하나를 공유하고, 서로 다른 registry는 상대 event나 opt-in identity를 받지
-않습니다. 귀속 경계는 aspect가 소유한 실행 구간입니다.
+자동 lease-extension 전달은 각 local application context가 선택한 registry에 귀속됩니다. 같은 registry를 공유하는 parent/child context는 scope와 callback 하나를 공유하고, 서로 다른 registry는 상대 event나 opt-in identity를 받지 않습니다. 귀속 경계는 aspect가 소유한 실행 구간입니다.
 
-| Aspect | Sync | Suspend | `Mono` | `Flux` | Kotlin `Flow` |
-|---|---:|---:|---:|---:|---:|
-| `@LeaderElection` | 지원 | 지원 | 지원 | 지원 | 지원 |
-| `@LeaderGroupElection` | 지원 | 지원 | 지원 | 거부 | 거부 |
+| Aspect                 | Sync | Suspend | `Mono` | `Flux` | Kotlin `Flow` |
+|------------------------|-----:|--------:|-------:|-------:|--------------:|
+| `@LeaderElection`      | 지원 |    지원 |   지원 |   지원 |          지원 |
+| `@LeaderGroupElection` | 지원 |    지원 |   지원 |   거부 |          거부 |
 
 이 aspect 밖의 직접 elector 호출과 aspect가 소유한 coroutine bridge 밖의 Reactor callback에서 실행한 직접
-`LockExtender` 호출은 Spring 자동 lease-extension observation을 만들지 않습니다. 다만 명시적으로 등록한
-process-global `LeaderLeaseExtensionObservers.addObserver`에는 계속 전달됩니다. 자동 귀속이 필요하면 annotation
-경계 안으로 옮기거나 명시적인 global observer 하나를 애플리케이션이 소유하고 종료 시 닫으세요. 같은 Micrometer
-adapter에 두 방식을 함께 사용하지 마세요.
+`LockExtender` 호출은 Spring 자동 lease-extension observation을 만들지 않습니다. 다만 명시적으로 등록한 process-global `LeaderLeaseExtensionObservers.addObserver`에는 계속 전달됩니다. 자동 귀속이 필요하면 annotation 경계 안으로 옮기거나 명시적인 global observer 하나를 애플리케이션이 소유하고 종료 시 닫으세요. 같은 Micrometer adapter에 두 방식을 함께 사용하지 마세요.
 
-Canary에서는 registry A/B를 함께 실행해 자기 identity `1건`, 상대 identity `0건`, 예상 밖 `droppedCount()` delta
-없음을 확인합니다. `bluetape4k.leader.observability.tracing.enabled=false`는 startup-only rollback switch이므로
-context/process 재시작이 필요합니다. 재시작 뒤 automatic `0건`, explicit global `1건`을 확인하세요. 종료 순서는
-AOP traffic 중단, context registration close, registry/exporter grace period, exporter 종료입니다. Registration close는
-이미 accepted된 callback의 drain을 기다리지 않고 새 scoped admission만 막습니다.
+Canary에서는 registry A/B를 함께 실행해 자기 identity `1건`, 상대 identity `0건`, 예상 밖 `droppedCount()` delta 없음을 확인합니다. `bluetape4k.leader.observability.tracing.enabled=false`는 startup-only rollback switch이므로 context/process 재시작이 필요합니다. 재시작 뒤 automatic `0건`, explicit global `1건`을 확인하세요. 종료 순서는 AOP traffic 중단, context registration close, registry/exporter grace period, exporter 종료입니다. Registration close는 이미 accepted된 callback의 drain을 기다리지 않고 새 scoped admission만 막습니다.
 
-Core event는 `USER`/`WATCHDOG` source와 `BLOCKING`/`SUSPEND` execution을 그대로
-구분합니다. Micrometer는 앞서 설명한 bounded `source`, `execution`, `outcome`,
-`result` 값만 기본으로 내보냅니다. Lock name과 leader ID는 명시적으로 켰을 때
-설정된 sanitisation 정책을 거쳐 추가하지만, `includeExceptionDetails`는 tag
-sanitisation 없이 원본 backend throwable을 `Observation.error(...)`에 연결합니다.
-기본값 `false`를 유지하고 downstream observation 또는 tracing 시스템이 raw exception
-message와 stack trace를 받아도 되는 경우에만 켜세요. Observer는 진단용이므로 ownership,
-deadline 갱신, cancellation, watchdog retry/stop 동작을 바꾸지 않습니다. 전체 계약은
+Core event는 `USER`/`WATCHDOG` source와 `BLOCKING`/`SUSPEND` execution을 그대로 구분합니다. Micrometer는 앞서 설명한 bounded `source`, `execution`, `outcome`,
+`result` 값만 기본으로 내보냅니다. Lock name과 leader ID는 명시적으로 켰을 때 설정된 sanitisation 정책을 거쳐 추가하지만, `includeExceptionDetails`는 tag sanitisation 없이 원본 backend throwable을 `Observation.error(...)`에 연결합니다. 기본값 `false`를 유지하고 downstream observation 또는 tracing 시스템이 raw exception message와 stack trace를 받아도 되는 경우에만 켜세요. Observer는 진단용이므로 ownership, deadline 갱신, cancellation, watchdog retry/stop 동작을 바꾸지 않습니다. 전체 계약은
 [미배포 lease-extension 관찰 초안](https://github.com/bluetape4k/bluetape4k.github.io/blob/develop/docs/manual/bluetape4k-leader/drafts/2026-08-27-issue-559-lease-extension-observation.ko.md)에서 확인할 수 있습니다.
 
 ## Backend Factory
 
 `LeaderAopFactoryAutoConfiguration`은 backend client bean이 있을 때 해당 factory bean을 등록합니다.
 
-| Backend | 필요한 bean | Factory bean 예 |
-|---------|-------------|-----------------|
-| Local | 없음 | `localLeaderElectionFactory`, `localSuspendLeaderElectorFactory` |
-| Lettuce | `StatefulRedisConnection<String, String>` | `lettuceLeaderElectionFactory`, `lettuceSuspendLeaderElectorFactory` |
-| Redisson | `RedissonClient` | `redissonLeaderElectionFactory`, `redissonSuspendLeaderElectorFactory` |
-| Exposed JDBC | `Database` | `exposedJdbcLeaderElectionFactory` |
-| Exposed R2DBC | `R2dbcDatabase` | `exposedR2dbcSuspendLeaderElectorFactory` |
-| MongoDB | `MongoClient` | `mongoLeaderElectionFactory`, `mongoSuspendLeaderElectorFactory` |
-| Hazelcast | `HazelcastInstance` | `hazelcastLeaderElectionFactory` |
+| Backend       | 필요한 bean                               | Factory bean 예                                                        |
+|---------------|-------------------------------------------|------------------------------------------------------------------------|
+| Local         | 없음                                      | `localLeaderElectionFactory`, `localSuspendLeaderElectorFactory`       |
+| Lettuce       | `StatefulRedisConnection<String, String>` | `lettuceLeaderElectionFactory`, `lettuceSuspendLeaderElectorFactory`   |
+| Redisson      | `RedissonClient`                          | `redissonLeaderElectionFactory`, `redissonSuspendLeaderElectorFactory` |
+| Exposed JDBC  | `Database`                                | `exposedJdbcLeaderElectionFactory`                                     |
+| Exposed R2DBC | `R2dbcDatabase`                           | `exposedR2dbcSuspendLeaderElectorFactory`                              |
+| MongoDB       | `MongoClient`                             | `mongoLeaderElectionFactory`, `mongoSuspendLeaderElectorFactory`       |
+| Hazelcast     | `HazelcastInstance`                       | `hazelcastLeaderElectionFactory`                                       |
 
 여러 backend가 동시에 있으면 어노테이션의 `bean = "..."`으로 사용할 factory를 명시합니다.
 
@@ -474,7 +445,7 @@ deadline 갱신, cancellation, watchdog retry/stop 동작을 바꾸지 않습니
 class SettlementJobs {
     @LeaderScheduled(
         name = "daily-settlement",
-        cron = "\${jobs.settlement.cron:0 0 2 * * *}",
+        cron = $$"${jobs.settlement.cron:0 0 2 * * *}",
         leaseTime = "30m",
         minLeaseTime = "10s",
     )
@@ -492,8 +463,7 @@ class SettlementJobs {
 
 ### 기존 scheduled method를 위한 YAML-only policy
 
-기존 scheduled method를 수정하기 어렵다면 opt-in property policy를 켜고,
-정확한 Spring bean name과 method name으로 대상을 선택합니다.
+기존 scheduled method를 수정하기 어렵다면 opt-in property policy를 켜고, 정확한 Spring bean name과 method name으로 대상을 선택합니다.
 
 ```yaml
 bluetape4k:
@@ -513,24 +483,13 @@ bluetape4k:
 ```
 
 기본값은 `enabled: false`입니다. selector는 정확한
-`beanName#methodName`만 허용하며 wildcard, 정규식, 공백, overloaded method
-이름은 startup에서 거부합니다. 안정적인 Spring bean name을 명시하고,
-backend가 여러 개라면 `bean` factory name도 지정하세요. blank 또는 매칭되지
-않는 selector, 잘못된 duration이나 SpEL 표현식, 해석할 수 없는 backend,
-잘못된 stream policy는 scheduled task 실행 전에 startup을 실패시킵니다.
+`beanName#methodName`만 허용하며 wildcard, 정규식, 공백, overloaded method 이름은 startup에서 거부합니다. 안정적인 Spring bean name을 명시하고, backend가 여러 개라면 `bean` factory name도 지정하세요. blank 또는 매칭되지 않는 selector, 잘못된 duration이나 SpEL 표현식, 해석할 수 없는 backend, 잘못된 stream policy는 scheduled task 실행 전에 startup을 실패시킵니다.
 
-우선순위는 명시적 annotation(`@LeaderElection` 또는 `@LeaderScheduled`),
-matching property policy, leader metadata 없음 순서입니다. metadata가 없으면
-기존 `@Scheduled` method가 변경 없이 실행됩니다. `failure-mode: SKIP`은 기존
-경합 동작을 유지하므로 scheduled body를 호출하지 않고 contention exception도
-던지지 않습니다. `Flux`와 Kotlin `Flow` method는 계속해서
+우선순위는 명시적 annotation (`@LeaderElection` 또는 `@LeaderScheduled`), matching property policy, leader metadata 없음 순서입니다. metadata가 없으면 기존 `@Scheduled` method가 변경 없이 실행됩니다. `failure-mode: SKIP`은 기존 경합 동작을 유지하므로 scheduled body를 호출하지 않고 contention exception도 던지지 않습니다. `Flux`와 Kotlin `Flow` method는 계속해서
 `auto-extend: true` 또는 `stream-bounded: true`가 필요합니다.
 
 scheduled task, trigger, subscription, context close, task `Observation`
-lifecycle은 계속 Spring이 소유하며 policy registry는 metadata만 보관합니다.
-policy는 startup 시점에만 읽습니다. dynamic reload와 wildcard matching은
-지원하지 않습니다. 롤백하려면 `bluetape4k.leader.scheduling.enabled=false`로
-설정하세요. 일반 Spring scheduler 경로는 그대로 유지됩니다.
+lifecycle은 계속 Spring이 소유하며 policy registry는 metadata만 보관합니다. policy는 startup 시점에만 읽습니다. dynamic reload와 wildcard matching은 지원하지 않습니다. 롤백하려면 `bluetape4k.leader.scheduling.enabled=false`로 설정하세요. 일반 Spring scheduler 경로는 그대로 유지됩니다.
 
 ### 시퀀스 — AOP가 트리거하는 `runIfLeader`
 
@@ -538,12 +497,12 @@ policy는 startup 시점에만 읽습니다. dynamic reload와 wildcard matching
 
 지원 반환 형태:
 
-| 형태 | 동작 |
-|------|------|
-| `T?` / `Unit` | 리더에서 본문 실행 후 결과 반환, 미선출 시 `null` / no-op |
-| `suspend fun` | `SuspendLeaderElectorFactory` 사용, `LeaderElectionInfo`를 `CoroutineContext`로 전파 |
-| `Mono<T>` | Reactor context로 `LeaderElectionInfo` 전파 |
-| `Flux<T>` / `Flow<T>` | 장기 stream은 lease renewal이 필요하므로 issue #74에서 별도 추적 |
+| 형태                  | 동작                                                                                 |
+|-----------------------|--------------------------------------------------------------------------------------|
+| `T?` / `Unit`         | 리더에서 본문 실행 후 결과 반환, 미선출 시 `null` / no-op                            |
+| `suspend fun`         | `SuspendLeaderElectorFactory` 사용, `LeaderElectionInfo`를 `CoroutineContext`로 전파 |
+| `Mono<T>`             | Reactor context로 `LeaderElectionInfo` 전파                                          |
+| `Flux<T>` / `Flow<T>` | 장기 stream은 lease renewal이 필요하므로 issue #74에서 별도 추적                     |
 
 ## SpEL Lock Name
 
@@ -592,12 +551,12 @@ class RedisBackedJobs {
 
 ## Failure Mode
 
-| Mode | 동작 |
-|------|------|
-| `RETHROW` | backend 실패를 `LeaderElectionException` / `LeaderGroupElectionException`으로 감싸 전파 |
-| `SKIP` | backend 실패 또는 경쟁 상황을 skip으로 처리 |
-| `FAIL_OPEN_RUN` | backend 장애 또는 락 미획득 시 락 없이 본문 실행 |
-| `INHERIT` | 어노테이션 sentinel. `bluetape4k.leader.aop.failure-mode` 사용 |
+| Mode            | 동작                                                                                    |
+|-----------------|-----------------------------------------------------------------------------------------|
+| `RETHROW`       | backend 실패를 `LeaderElectionException` / `LeaderGroupElectionException`으로 감싸 전파 |
+| `SKIP`          | backend 실패 또는 경쟁 상황을 skip으로 처리                                             |
+| `FAIL_OPEN_RUN` | backend 장애 또는 락 미획득 시 락 없이 본문 실행                                        |
+| `INHERIT`       | 어노테이션 sentinel. `bluetape4k.leader.aop.failure-mode` 사용                          |
 
 `FAIL_OPEN_RUN`은 여러 노드가 동시에 본문을 실행할 수 있으므로 멱등 작업에만 사용해야 합니다.
 
@@ -622,7 +581,8 @@ class ReportJobs {
 
 ### Lock identity
 
-동일 thread/coroutine 안에서 동일 `name` 으로 nested 호출하면 **`LockIdentity` (lockName + 어노테이션 종류 + group params)** 로 reentrant 판정 — backend acquire 정확히 1회. `factoryBeanName` 은 equality 에서 제외 — sync ↔ suspend 중첩 호출도 정확히 reentrant 처리 (Step 3-P R3).
+동일 thread/coroutine 안에서 동일 `name` 으로 nested 호출하면 **`LockIdentity` (lockName + 어노테이션 종류 + group
+params)** 로 reentrant 판정 — backend acquire 정확히 1회. `factoryBeanName` 은 equality 에서 제외 — sync ↔ suspend 중첩 호출도 정확히 reentrant 처리 (Step 3-P R3).
 
 ### Suspend / Mono
 
@@ -637,7 +597,8 @@ suspend fun stream(): Result? {
 }
 ```
 
-⚠️ **Reactor non-suspend operator (`.map`, `.filter`) 는 미지원.** `.flatMap { mono { ... } }` 안에서 `LockAssert.assertLockedSuspend()` 호출 권장:
+⚠️ **Reactor non-suspend operator (`.map`, `.filter`) 는
+미지원.** `.flatMap { mono { ... } }` 안에서 `LockAssert.assertLockedSuspend()` 호출 권장:
 
 ```kotlin
 @LeaderElection(name = "mono-job")
@@ -657,16 +618,17 @@ fun process(): Mono<String> =
 
 ### Watchdog × LockExtender
 
-둘 다 **동일 `ExtendDelegate` reference** 공유 (token-guarded backend operation 으로 atomicity 보장). `LockExtender.extendActiveLock(d)` 호출 시 delegate 가 `lastExtendDeadline = now + d` 갱신 — 다음 watchdog tick 이 user 가 지정한 deadline 이 더 크면 backend 재extend 를 skip. 엄격한 deadline (ShedLock 동등) 이 필요하면 watchdog OFF.
+둘 다 **동일 `ExtendDelegate`
+reference** 공유 (token-guarded backend operation 으로 atomicity 보장). `LockExtender.extendActiveLock(d)` 호출 시 delegate 가 `lastExtendDeadline = now + d` 갱신 — 다음 watchdog tick 이 user 가 지정한 deadline 이 더 크면 backend 재extend 를 skip. 엄격한 deadline (ShedLock 동등) 이 필요하면 watchdog OFF.
 
 ### 반환값
 
-| API | scope 밖 | `Real` 안 | `FailOpen` sentinel |
-|---|---|---|---|
-| `LockAssert.assertLocked()` | `IllegalStateException` | passes | throws |
-| `LockAssert.isLocked()` | `false` | `true` | `false` |
-| `LockExtender.extendActiveLock(d)` | `false` + WARN | backend 결과 | `false` + WARN |
-| `LockExtender.extendActiveLockDetailed(d)` | `NotHeld` | `Extended` / `NotHeld` / `WrongThread` / `BackendError` | `NotHeld` |
+| API                                        | scope 밖                | `Real` 안                                               | `FailOpen` sentinel |
+|--------------------------------------------|-------------------------|---------------------------------------------------------|---------------------|
+| `LockAssert.assertLocked()`                | `IllegalStateException` | passes                                                  | throws              |
+| `LockAssert.isLocked()`                    | `false`                 | `true`                                                  | `false`             |
+| `LockExtender.extendActiveLock(d)`         | `false` + WARN          | backend 결과                                            | `false` + WARN      |
+| `LockExtender.extendActiveLockDetailed(d)` | `NotHeld`               | `Extended` / `NotHeld` / `WrongThread` / `BackendError` | `NotHeld`           |
 
 Java caller 는 `@JvmStatic` overload — `kotlin.time.Duration` 과 `java.time.Duration` 모두 지원.
 
@@ -737,10 +699,7 @@ GET /actuator/leaderElection
 
 ## Management Action Endpoint (Issue #532, unreleased)
 
-Write surface는 read-only `leaderElection` endpoint와 분리되어 있으며, parent
-endpoint와 nested action property를 모두 활성화할 때만 생성됩니다. Spring relaxed
-binding은 `leader-election`과 `leaderElection`을 모두 인식하므로 새 설정에는
-canonical kebab-case를 사용하세요.
+Write surface는 read-only `leaderElection` endpoint와 분리되어 있으며, parent endpoint와 nested action property를 모두 활성화할 때만 생성됩니다. Spring relaxed binding은 `leader-election`과 `leaderElection`을 모두 인식하므로 새 설정에는 canonical kebab-case를 사용하세요.
 
 ```yaml
 management:
@@ -756,25 +715,16 @@ management:
         include: health,leaderElection,leaderElectionActions
 ```
 
-Endpoint ID가 `leaderElectionActions`인 HTTP 전용 `@WebEndpoint`이며 JMX write
-operation을 추가하지 않습니다. 라이브러리는 `SecurityFilterChain`도 자동 설치하지
-않으므로 Actuator port를 애플리케이션의 기존 인증과 network policy로 보호하세요.
-Release 요청은 다음처럼 보냅니다.
+Endpoint ID가 `leaderElectionActions`인 HTTP 전용 `@WebEndpoint`이며 JMX write operation을 추가하지 않습니다. 라이브러리는 `SecurityFilterChain`도 자동 설치하지 않으므로 Actuator port를 애플리케이션의 기존 인증과 network policy로 보호하세요. Release 요청은 다음처럼 보냅니다.
 
 ```http
 POST /actuator/leaderElectionActions/{lockName}
 ```
 
-JSON body는 `action`, `outcome`, `mutationAttempted` 세 key만 허용합니다. Core 공통
-mapping은 outcome에 따라 200/400/404/409/429/503/504를 반환하고 모든 outcome의
-`retryAllowed`는 `false`입니다. Worker가 terminalize되기 전에 `ACTION_TIMED_OUT`을
-재시도하지 말고, `RELEASE_UNCONFIRMED`/`RELEASE_FAILED`를 성공으로 처리하지 마세요.
+JSON body는 `action`, `outcome`, `mutationAttempted` 세 key만 허용합니다. Core 공통 mapping은 outcome에 따라 200/400/404/409/429/503/504를 반환하고 모든 outcome의
+`retryAllowed`는 `false`입니다. Worker가 terminalize되기 전에 `ACTION_TIMED_OUT`을 재시도하지 말고, `RELEASE_UNCONFIRMED`/`RELEASE_FAILED`를 성공으로 처리하지 마세요.
 
-애플리케이션 registry bean이 없을 때만 auto-configuration이 기본 5초 timeout(최대
-30초)의 bounded library-owned registry를 만들고 Spring context 종료 전에 drain합니다.
-애플리케이션이 `LeaderManagementActionRegistry` bean을 제공하면 이를 우선하며 이
-모듈은 lifecycle과 observer를 교체하거나 닫지 않습니다. 등록은 lease-handle 경계에서
-명시적으로 수행하고 group/strategic/runtime 작업은 자동 등록하지 않습니다.
+애플리케이션 registry bean이 없을 때만 auto-configuration이 기본 5초 timeout (최대 30초)의 bounded library-owned registry를 만들고 Spring context 종료 전에 drain합니다. 애플리케이션이 `LeaderManagementActionRegistry` bean을 제공하면 이를 우선하며 이 모듈은 lifecycle과 observer를 교체하거나 닫지 않습니다. 등록은 lease-handle 경계에서 명시적으로 수행하고 group/strategic/runtime 작업은 자동 등록하지 않습니다.
 
 ## Backend 진단과 연결 상태 Health
 
@@ -808,13 +758,9 @@ bluetape4k:
 
 `UP`과 `DOWN`은 같은 이름의 Spring health status로 매핑됩니다. `UNKNOWN`과 `NOT_CHECKED`는 Spring `UNKNOWN`으로 매핑됩니다. 두 surface는 `bluetape4k.leader.observability.state-provider-bean`과 같은 elector 선택 규칙을 사용합니다. 선택된 elector가 `LeaderBackendDiagnosticsProvider`를 노출하지 않으면 typed endpoint와 health indicator를 등록하지 않습니다.
 
-Diagnostics 결과가 정상적으로 반환되면 health indicator는 allow-list detail에
-제한된 `reason` enum name을 추가합니다. `CONNECTED`는 `UP`을,
+Diagnostics 결과가 정상적으로 반환되면 health indicator는 allow-list detail에 제한된 `reason` enum name을 추가합니다. `CONNECTED`는 `UP`을,
 `DISCONNECTED`는 `DOWN`을 설명하며 `CLIENT_STATE_UNCONFIRMED`,
-`PROVIDER_UNSUPPORTED`, `PROVIDER_EXCEPTION`은 `UNKNOWN`의 원인을
-구분합니다. 정적 endpoint는 `NOT_CHECKED` 상태와 같은 reason을 반환합니다.
-이 detail은 readiness 판단이 아닙니다. 별도의 JVM-local lock·lease 신호는
-계속 `LeaderElectionReadinessHealthIndicator`가 소유합니다.
+`PROVIDER_UNSUPPORTED`, `PROVIDER_EXCEPTION`은 `UNKNOWN`의 원인을 구분합니다. 정적 endpoint는 `NOT_CHECKED` 상태와 같은 reason을 반환합니다. 이 detail은 readiness 판단이 아닙니다. 별도의 JVM-local lock·lease 신호는 계속 `LeaderElectionReadinessHealthIndicator`가 소유합니다.
 
 활성 backend probe가 일반 provider 예외를 던지면 health indicator는 이를 `UNKNOWN`으로 정규화하고 `error` 키, 예외 class/message/cause, endpoint, token, credential을 Actuator detail에 복사하지 않습니다. `management.endpoint.health.show-details=always`여도 이 계약을 유지하며 indicator의 allow-list detail만 반환합니다. 치명적인 JVM `Error`는 정규화하지 않고 재전파합니다. Probe는 실제 backend I/O를 수행하므로 실패 내용을 정제하더라도 endpoint 접근은 계속 보호해야 합니다.
 

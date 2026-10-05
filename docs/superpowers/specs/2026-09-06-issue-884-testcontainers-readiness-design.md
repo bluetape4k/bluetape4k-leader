@@ -38,12 +38,12 @@ Testcontainers wait가 container를 제거하기 전에 다음 세 경계를 한
 
 fixture는 기존 `WaitStrategy`를 delegate로 받아 정상 시 그대로 반환한다. delegate가 실패한 경우에만 bounded probe를 실행하고 다음 분류 중 하나를 만든다.
 
-| 분류 | 조건 | 의미 |
-|---|---|---|
-| `HOST_FORWARDING` | internal HTTP 성공, port mapping 존재, host HTTP 실패 | container service와 Docker mapping 이후 host forwarding 경계에서 응답 유실 |
-| `CONTAINER_SERVICE` | internal HTTP 실패 | target service 또는 endpoint 자체가 준비되지 않음 |
-| `PORT_MAPPING` | expected exposed port의 host binding 없음 | Docker/Testcontainers mapping 설정 또는 inspect 경계 실패 |
-| `UNKNOWN` | probe 자체가 완전한 결론을 만들지 못함 | 원래 wait failure와 수집된 부분 증거를 보존해 후속 조사 필요 |
+| 분류                | 조건                                                  | 의미                                                                       |
+|---------------------|-------------------------------------------------------|----------------------------------------------------------------------------|
+| `HOST_FORWARDING`   | internal HTTP 성공, port mapping 존재, host HTTP 실패 | container service와 Docker mapping 이후 host forwarding 경계에서 응답 유실 |
+| `CONTAINER_SERVICE` | internal HTTP 실패                                    | target service 또는 endpoint 자체가 준비되지 않음                          |
+| `PORT_MAPPING`      | expected exposed port의 host binding 없음             | Docker/Testcontainers mapping 설정 또는 inspect 경계 실패                  |
+| `UNKNOWN`           | probe 자체가 완전한 결론을 만들지 못함                | 원래 wait failure와 수집된 부분 증거를 보존해 후속 조사 필요               |
 
 ### Internal endpoint probe
 

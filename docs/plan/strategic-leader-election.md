@@ -9,27 +9,27 @@
 
 의존 관계 순서로 bottom-up 구현.
 
-| # | 파일 | 의존 |
-|---|------|------|
-| 1 | `CandidateResult.kt` | 없음 |
-| 2 | `CandidateInfo.kt` | `CandidateResult` |
-| 3 | `CandidateScorer.kt` | `CandidateInfo` |
-| 4 | `ElectionStrategy.kt` | `CandidateInfo` |
-| 5 | `IdleTimeScorer.kt` | `CandidateScorer` |
-| 6 | `SuccessRateScorer.kt` | `CandidateScorer` |
-| 7 | `RecentSuccessScorer.kt` | `CandidateScorer` |
-| 8 | `WeightedScorer.kt` | `CandidateScorer` |
-| 9 | `FifoElectionStrategy.kt` | `ElectionStrategy` |
-| 10 | `RandomElectionStrategy.kt` | `ElectionStrategy` |
-| 11 | `ScoredElectionStrategy.kt` | `ElectionStrategy`, `CandidateScorer` |
-| 12 | `StrategicLeaderElection.kt` | `CandidateInfo`, `ElectionStrategy`, `CandidateResult`, `LeaderElectionOptions` |
-| 13 | `StrategicSuspendLeaderElection.kt` | 위와 동일 (suspend 버전) |
-| 14 | `LocalStrategicLeaderElection.kt` | `StrategicLeaderElection` |
-| 15 | `LocalStrategicSuspendLeaderElection.kt` | `StrategicSuspendLeaderElection` |
-| T1 | `ElectionStrategyTest.kt` | 전략 3종 단위 테스트 |
-| T2 | `CandidateScorerTest.kt` | Scorer 4종 단위 테스트 |
-| T3 | `LocalStrategicLeaderElectionTest.kt` | Local 구현 통합 테스트 |
-| T4 | `LocalStrategicSuspendLeaderElectionTest.kt` | suspend 버전 통합 테스트 |
+| #  | 파일                                         | 의존                                                                            |
+|----|----------------------------------------------|---------------------------------------------------------------------------------|
+| 1  | `CandidateResult.kt`                         | 없음                                                                            |
+| 2  | `CandidateInfo.kt`                           | `CandidateResult`                                                               |
+| 3  | `CandidateScorer.kt`                         | `CandidateInfo`                                                                 |
+| 4  | `ElectionStrategy.kt`                        | `CandidateInfo`                                                                 |
+| 5  | `IdleTimeScorer.kt`                          | `CandidateScorer`                                                               |
+| 6  | `SuccessRateScorer.kt`                       | `CandidateScorer`                                                               |
+| 7  | `RecentSuccessScorer.kt`                     | `CandidateScorer`                                                               |
+| 8  | `WeightedScorer.kt`                          | `CandidateScorer`                                                               |
+| 9  | `FifoElectionStrategy.kt`                    | `ElectionStrategy`                                                              |
+| 10 | `RandomElectionStrategy.kt`                  | `ElectionStrategy`                                                              |
+| 11 | `ScoredElectionStrategy.kt`                  | `ElectionStrategy`, `CandidateScorer`                                           |
+| 12 | `StrategicLeaderElection.kt`                 | `CandidateInfo`, `ElectionStrategy`, `CandidateResult`, `LeaderElectionOptions` |
+| 13 | `StrategicSuspendLeaderElection.kt`          | 위와 동일 (suspend 버전)                                                        |
+| 14 | `LocalStrategicLeaderElection.kt`            | `StrategicLeaderElection`                                                       |
+| 15 | `LocalStrategicSuspendLeaderElection.kt`     | `StrategicSuspendLeaderElection`                                                |
+| T1 | `ElectionStrategyTest.kt`                    | 전략 3종 단위 테스트                                                            |
+| T2 | `CandidateScorerTest.kt`                     | Scorer 4종 단위 테스트                                                          |
+| T3 | `LocalStrategicLeaderElectionTest.kt`        | Local 구현 통합 테스트                                                          |
+| T4 | `LocalStrategicSuspendLeaderElectionTest.kt` | suspend 버전 통합 테스트                                                        |
 
 ---
 
@@ -37,17 +37,17 @@
 
 ### 1. `StrategicLeaderElection` — 기존 인터페이스와 독립 계층
 
-`LeaderElection`을 extend하지 않는다. 선출 방식이 근본적으로 다르므로(락 경쟁 vs 후보 목록 기반) 별도 계층으로 분리.
+`LeaderElection`을 extend하지 않는다. 선출 방식이 근본적으로 다르므로 (락 경쟁 vs 후보 목록 기반) 별도 계층으로 분리.
 
 ### 2. `LocalStrategicLeaderElection` — 동기화 전략
 
 - 후보 맵: `ConcurrentHashMap<String, ConcurrentHashMap<String, CandidateInfo>>`
-  - 외부 키: `lockName`, 내부 키: `nodeId`
-- `runIfLeader()` 내부: `reentrantLock()` 으로 전체 시퀀스(listCandidates → selectLeader → run) atomic 보장
+    - 외부 키: `lockName`, 내부 키: `nodeId`
+- `runIfLeader()` 내부: `reentrantLock()` 으로 전체 시퀀스 (listCandidates → selectLeader → run) atomic 보장
 
 ### 3. `updateResult()` — 불변 CandidateInfo 업데이트
 
-`CandidateInfo`는 data class(불변). `updateResult()` 는 기존 `CandidateInfo`를 `copy()`로 업데이트 후 맵 교체.
+`CandidateInfo`는 data class (불변). `updateResult()` 는 기존 `CandidateInfo`를 `copy()`로 업데이트 후 맵 교체.
 
 ### 4. `RandomElectionStrategy` — 결정론적 처리
 
@@ -55,7 +55,7 @@
 
 ### 5. Tie-breaking
 
-동점 후보 발생 시 `registeredAt` 오름차순(먼저 등록한 쪽) 으로 결정. 모든 전략에 공통 적용.
+동점 후보 발생 시 `registeredAt` 오름차순 (먼저 등록한 쪽) 으로 결정. 모든 전략에 공통 적용.
 
 ---
 

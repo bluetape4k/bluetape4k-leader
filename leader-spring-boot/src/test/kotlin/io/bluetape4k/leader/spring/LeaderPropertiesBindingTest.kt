@@ -1,9 +1,11 @@
 package io.bluetape4k.leader.spring
 
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.leader.spring.properties.LeaderElectionProperties
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.spring.properties.LeaderBackendHealthProperties
+import io.bluetape4k.leader.spring.properties.LeaderElectionProperties
 import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.leader.spring.properties.LeaderObservabilityHealthProperties
 import io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode
@@ -17,13 +19,11 @@ import org.springframework.boot.context.properties.source.ConfigurationPropertyS
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
 
-private inline fun <reified T : Any> Binder.bindAs(name: String): BindResult<T> =
+private inline fun <reified T: Any> Binder.bindAs(name: String): BindResult<T> =
     bind(name, T::class.java)
 
-private inline fun <reified T : Any> Binder.bindOrCreate(name: String): T =
+private inline fun <reified T: Any> Binder.bindOrCreate(name: String): T =
     bindOrCreate(name, T::class.java)
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

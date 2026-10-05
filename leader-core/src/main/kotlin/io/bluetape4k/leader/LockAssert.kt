@@ -10,7 +10,7 @@ import kotlin.coroutines.coroutineContext
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-object LockAssert : KLogging() {
+object LockAssert: KLogging() {
 
     /**
      * `assertLocked` 호출은 leader election 계약의 일부 동작을 수행합니다.
@@ -22,6 +22,7 @@ object LockAssert : KLogging() {
     fun assertLocked() {
         val handle = LockStateHolder.peekSync()
             ?: error("LockAssert.assertLocked() called outside an active @LeaderElection / @LeaderGroupElection scope")
+
         check(handle !is LeaderLockHandle.FailOpen) {
             "LockAssert.assertLocked() — current scope is fail-open (no real lock held). lockName=${handle.lockName}"
         }
@@ -38,6 +39,7 @@ object LockAssert : KLogging() {
     fun assertLocked(lockName: String) {
         val handle = LockStateHolder.peekSyncMatching(lockName)
             ?: error("LockAssert.assertLocked('$lockName') — no active scope with this lock")
+
         check(handle !is LeaderLockHandle.FailOpen) {
             "LockAssert.assertLocked('$lockName') — current scope is fail-open"
         }

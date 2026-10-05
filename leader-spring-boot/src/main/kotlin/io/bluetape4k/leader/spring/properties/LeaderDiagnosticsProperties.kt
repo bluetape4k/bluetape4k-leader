@@ -13,7 +13,7 @@ data class LeaderDiagnosticsProperties(
     val enabled: Boolean = true,
     val strict: Boolean = false,
     val includeBeanNames: Boolean = true,
-) : Serializable {
+): Serializable {
     companion object {
         private const val serialVersionUID = 1L
     }

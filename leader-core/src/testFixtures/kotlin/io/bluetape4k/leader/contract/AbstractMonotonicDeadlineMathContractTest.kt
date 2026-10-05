@@ -3,6 +3,7 @@ package io.bluetape4k.leader.contract
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -14,6 +15,14 @@ import kotlin.time.Duration.Companion.milliseconds
  * 검증은 각 backend의 기존 계약으로 유지할 수 있습니다.
  */
 abstract class AbstractMonotonicDeadlineMathContractTest {
+
+    companion object: KLogging() {
+        private val deadlineCases = listOf(
+            DeadlineCase(0.milliseconds, 42L, 0L, 0L, 0L, false),
+            DeadlineCase((-1).milliseconds, 42L, 0L, 0L, 0L, false),
+            DeadlineCase(1.milliseconds, 1_000_000L, 999_500L, 500L, 1L, true),
+        )
+    }
 
     protected abstract fun createDeadline(
         waitTime: Duration,
@@ -88,12 +97,4 @@ abstract class AbstractMonotonicDeadlineMathContractTest {
         val expectedDelayMillis: Long,
         val hasTimeRemaining: Boolean,
     )
-
-    companion object {
-        private val deadlineCases = listOf(
-            DeadlineCase(0.milliseconds, 42L, 0L, 0L, 0L, false),
-            DeadlineCase((-1).milliseconds, 42L, 0L, 0L, 0L, false),
-            DeadlineCase(1.milliseconds, 1_000_000L, 999_500L, 500L, 1L, true),
-        )
-    }
 }

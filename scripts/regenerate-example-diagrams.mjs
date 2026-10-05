@@ -6,80 +6,80 @@ import path from "node:path";
 const root = process.cwd();
 const dir = path.join(root, "docs/images/readme-diagrams");
 const targets = fs
-  .readdirSync(dir)
-  .filter((name) => /^examples-.+-(architecture|flow|scenario|sequence)-01\.svg$/.test(name))
-  .sort();
+    .readdirSync(dir)
+    .filter((name) => /^examples-.+-(architecture|flow|scenario|sequence)-01\.svg$/.test(name))
+    .sort();
 
 const words = {
-  k8s: "K8s",
-  ktor: "Ktor",
-  etcd: "etcd",
-  redisson: "Redisson",
-  zookeeper: "ZooKeeper",
-  dynamodb: "DynamoDB",
-  consul: "Consul",
-  prometheus: "Prometheus",
-  redis: "Redis",
+    k8s: "K8s",
+    ktor: "Ktor",
+    etcd: "etcd",
+    redisson: "Redisson",
+    zookeeper: "ZooKeeper",
+    dynamodb: "DynamoDB",
+    consul: "Consul",
+    prometheus: "Prometheus",
+    redis: "Redis",
 };
 
 const domainBySlug = {
-  "batch-scheduler": ["Scheduler", "batch trigger", "Quartz-style tick"],
-  "cache-warmer": ["Cache", "warm keyspace", "Redis population"],
-  "consul-maintenance": ["Consul", "session maintenance", "KV lock"],
-  "dynamodb-export": ["DynamoDB", "export partition", "conditional write"],
-  "etcd-reconciler": ["etcd", "reconcile loop", "lease key"],
-  "k8s-lease": ["K8s Lease", "controller lease", "coordination API"],
-  "k8s-operator": ["K8s Operator", "custom resource", "reconcile claim"],
-  "ktor-app": ["Ktor", "HTTP worker", "request guard"],
-  "migration-gate": ["Migration", "schema gate", "one writer"],
-  "prometheus-dashboard": ["Prometheus", "metrics scrape", "dashboard refresh"],
-  "rate-limiter": ["Rate Limit", "bucket refill", "shared quota"],
-  "redisson-watchdog": ["Redisson", "watchdog renew", "Redis lock"],
-  "strategic-election": ["Strategy", "elector policy", "candidate scoring"],
-  "tenant-aggregator": ["Tenant", "fan-in window", "aggregate snapshot"],
-  "virtual-thread-runner": ["Virtual Thread", "blocking job", "cheap carrier"],
-  "webhook-poller": ["Webhook", "remote poll", "delivery cursor"],
-  "zookeeper-scheduler": ["ZooKeeper", "ephemeral znode", "scheduled leader"],
+    "batch-scheduler": ["Scheduler", "batch trigger", "Quartz-style tick"],
+    "cache-warmer": ["Cache", "warm keyspace", "Redis population"],
+    "consul-maintenance": ["Consul", "session maintenance", "KV lock"],
+    "dynamodb-export": ["DynamoDB", "export partition", "conditional write"],
+    "etcd-reconciler": ["etcd", "reconcile loop", "lease key"],
+    "k8s-lease": ["K8s Lease", "controller lease", "coordination API"],
+    "k8s-operator": ["K8s Operator", "custom resource", "reconcile claim"],
+    "ktor-app": ["Ktor", "HTTP worker", "request guard"],
+    "migration-gate": ["Migration", "schema gate", "one writer"],
+    "prometheus-dashboard": ["Prometheus", "metrics scrape", "dashboard refresh"],
+    "rate-limiter": ["Rate Limit", "bucket refill", "shared quota"],
+    "redisson-watchdog": ["Redisson", "watchdog renew", "Redis lock"],
+    "strategic-election": ["Strategy", "elector policy", "candidate scoring"],
+    "tenant-aggregator": ["Tenant", "fan-in window", "aggregate snapshot"],
+    "virtual-thread-runner": ["Virtual Thread", "blocking job", "cheap carrier"],
+    "webhook-poller": ["Webhook", "remote poll", "delivery cursor"],
+    "zookeeper-scheduler": ["ZooKeeper", "ephemeral znode", "scheduled leader"],
 };
 
 const colors = {
-  ink: "#263238",
-  text: "#36464f",
-  muted: "#60727d",
-  frame: "#41545d",
-  line: "#3f7d9c",
-  work: "#6e8f4f",
-  return: "#9b7d54",
-  skip: "#b86868",
-  amber: "#c97831",
-  purple: "#7c5aa6",
-  slate: "#78909c",
-  bg: "#fbfcf8",
-  panel: "#ffffff",
+    ink: "#263238",
+    text: "#36464f",
+    muted: "#60727d",
+    frame: "#41545d",
+    line: "#3f7d9c",
+    work: "#6e8f4f",
+    return: "#9b7d54",
+    skip: "#b86868",
+    amber: "#c97831",
+    purple: "#7c5aa6",
+    slate: "#78909c",
+    bg: "#fbfcf8",
+    panel: "#ffffff",
 };
 
 function esc(value) {
-  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function titleCase(slug) {
-  return slug
-    .split("-")
-    .map((part) => words[part] || part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+    return slug
+        .split("-")
+        .map((part) => words[part] || part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
 }
 
 function parseName(name) {
-  const match = name.match(/^examples-(.+)-(architecture|flow|scenario|sequence)-01\.svg$/);
-  return { slug: match[1], kind: match[2], title: titleCase(match[1]) };
+    const match = name.match(/^examples-(.+)-(architecture|flow|scenario|sequence)-01\.svg$/);
+    return {slug: match[1], kind: match[2], title: titleCase(match[1])};
 }
 
 function domain(slug) {
-  return domainBySlug[slug] || [titleCase(slug), "work request", "shared lock"];
+    return domainBySlug[slug] || [titleCase(slug), "work request", "shared lock"];
 }
 
 function defs(width = 1680, height = 1040) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title desc">
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title desc">
   <defs>
     <filter id="softShadow" x="-12%" y="-12%" width="124%" height="124%">
       <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#263238" flood-opacity="0.14"/>
@@ -122,12 +122,12 @@ function defs(width = 1680, height = 1040) {
 }
 
 function marker(id, color) {
-  return `<marker id="arrow-${id}" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="${color}" stroke="${color}" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>`;
+    return `<marker id="arrow-${id}" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="${color}" stroke="${color}" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>`;
 }
 
 function label(x, y, w, text, color, n) {
-  w = Math.max(w, text.length * 8 + 66);
-  return `<g>
+    w = Math.max(w, text.length * 8 + 66);
+    return `<g>
     <rect x="${x}" y="${y}" width="${w}" height="32" rx="16" class="pill" stroke="${color}"/>
     <circle cx="${x + 22}" cy="${y + 16}" r="12.5" fill="#fff" stroke="${color}" stroke-width="1.6"/>
     <text x="${x + 22}" y="${y + 20}" text-anchor="middle" class="badgeText" fill="${color}">${n}</text>
@@ -136,7 +136,7 @@ function label(x, y, w, text, color, n) {
 }
 
 function card(x, y, w, h, title, detail, fill, stroke) {
-  return `<g>
+    return `<g>
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" class="card" fill="${fill}" stroke="${stroke}"/>
     <text x="${x + w / 2}" y="${y + 34}" text-anchor="middle" class="cardTitle">${esc(title)}</text>
     <text x="${x + w / 2}" y="${y + 58}" text-anchor="middle" class="detail">${esc(detail)}</text>
@@ -144,7 +144,7 @@ function card(x, y, w, h, title, detail, fill, stroke) {
 }
 
 function shell(title, subtitle, desc, body, width = 1680, height = 1040) {
-  return `${defs(width, height)}
+    return `${defs(width, height)}
   <title id="title">${esc(title)}</title>
   <desc id="desc">${esc(desc)}</desc>
   <rect width="${width}" height="${height}" class="canvas"/>
@@ -157,9 +157,9 @@ ${body}
 }
 
 function architecture(file) {
-  const { slug, title } = parseName(file);
-  const [system, trigger, store] = domain(slug);
-  const body = `
+    const {slug, title} = parseName(file);
+    const [system, trigger, store] = domain(slug);
+    const body = `
   <rect x="84" y="150" width="352" height="760" rx="8" class="band"/>
   <text x="112" y="184" class="bandTitle">Request Lane</text>
   <text x="112" y="207" class="bandHint">trigger and candidate context</text>
@@ -194,13 +194,13 @@ function architecture(file) {
   ${label(1265, 856, 190, "metrics explain", colors.skip, 6)}
   <path d="M 1172 781 L 1244 781" class="edge" stroke="${colors.skip}" marker-end="url(#arrow-skip)"/>
   `;
-  return shell(`${title} Architecture`, `${system} uses one elected worker while peers observe explicit skipped or failed outcomes.`, `Architecture diagram for ${title}.`, body);
+    return shell(`${title} Architecture`, `${system} uses one elected worker while peers observe explicit skipped or failed outcomes.`, `Architecture diagram for ${title}.`, body);
 }
 
 function flow(file) {
-  const { slug, title } = parseName(file);
-  const [system, trigger, store] = domain(slug);
-  const body = `
+    const {slug, title} = parseName(file);
+    const [system, trigger, store] = domain(slug);
+    const body = `
   <rect x="84" y="150" width="430" height="850" rx="8" class="band"/>
   <text x="112" y="184" class="bandTitle">Failure / Retry Lane</text>
   <text x="112" y="207" class="bandHint">errors and later attempts stay off the main lane</text>
@@ -238,13 +238,13 @@ function flow(file) {
   <path d="M 840 960 L 840 986 Q 840 1000 854 1000 L 1530 1000 Q 1544 1000 1544 986 L 1544 140 Q 1544 126 1530 126 L 880 126 Q 840 126 840 140 L 840 164" class="edge dash" stroke="${colors.purple}"/>
   <polygon points="840,164 832,148 848,148" fill="${colors.purple}" stroke="${colors.purple}" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
   `;
-  return shell(`${title} Flow`, `${system} follows trigger, prepare, election, protected work, and observable outcome bands.`, `Flow diagram for ${title}.`, body);
+    return shell(`${title} Flow`, `${system} follows trigger, prepare, election, protected work, and observable outcome bands.`, `Flow diagram for ${title}.`, body);
 }
 
 function scenario(file) {
-  const { slug, title } = parseName(file);
-  const [system, trigger, store] = domain(slug);
-  const body = `
+    const {slug, title} = parseName(file);
+    const [system, trigger, store] = domain(slug);
+    const body = `
   <rect x="84" y="150" width="430" height="938" rx="8" class="band"/>
   <text x="112" y="184" class="bandTitle">Retry Lane</text>
   <text x="112" y="207" class="bandHint">backoff path stays outside the main line</text>
@@ -283,17 +283,17 @@ function scenario(file) {
   <polygon points="630,1031 614,1023 614,1039" fill="${colors.purple}" stroke="${colors.purple}" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
   <path d="M 1350 702 L 1350 1018 Q 1350 1031 1337 1031 L 1050 1031" class="edge" stroke="${colors.amber}" marker-end="url(#arrow-amber)"/>
   `;
-  return shell(`${title} Scenario`, `${system} now follows a vertical trigger-to-result scenario with side branches kept off the main lane.`, `Scenario diagram for ${title}.`, body, 1680, 1160);
+    return shell(`${title} Scenario`, `${system} now follows a vertical trigger-to-result scenario with side branches kept off the main lane.`, `Scenario diagram for ${title}.`, body, 1680, 1160);
 }
 
 function sequence(file) {
-  const { slug, title } = parseName(file);
-  const [system, trigger, store] = domain(slug);
-  const xs = [155, 410, 675, 950, 1215, 1450];
-  const header = (x, w, p, r) => `<rect x="${x - w / 2}" y="150" width="${w}" height="68" rx="8" class="header"/><text x="${x}" y="179" text-anchor="middle" class="participant">${esc(p)}</text><text x="${x}" y="201" text-anchor="middle" class="role">${esc(r)}</text>`;
-  const msg = (n, y, x1, x2, text, color, marker) => `${label(Math.min(x1, x2) + 20, y - 52, Math.abs(x2 - x1) - 40, text, color, n)}
+    const {slug, title} = parseName(file);
+    const [system, trigger, store] = domain(slug);
+    const xs = [155, 410, 675, 950, 1215, 1450];
+    const header = (x, w, p, r) => `<rect x="${x - w / 2}" y="150" width="${w}" height="68" rx="8" class="header"/><text x="${x}" y="179" text-anchor="middle" class="participant">${esc(p)}</text><text x="${x}" y="201" text-anchor="middle" class="role">${esc(r)}</text>`;
+    const msg = (n, y, x1, x2, text, color, marker) => `${label(Math.min(x1, x2) + 20, y - 52, Math.abs(x2 - x1) - 40, text, color, n)}
   <path d="M ${x1} ${y} L ${x2} ${y}" class="edge" stroke="${color}" marker-end="url(#arrow-${marker})"/>`;
-  const body = `
+    const body = `
   ${header(xs[0], 170, "Caller", trigger)}
   ${header(xs[1], 190, "Example", system)}
   ${header(xs[2], 210, "Leader API", "runIfLeader")}
@@ -317,14 +317,14 @@ function sequence(file) {
   ${msg(7, 838, xs[2], xs[3], "release lease and state", colors.return, "return")}
   ${msg(8, 910, xs[2], xs[0], "return explicit result to caller", colors.line, "line")}
   `;
-  return shell(`${title} Sequence`, `${system} follows the leader-core sequence style with clear calls, returns, and alternate outcomes.`, `Sequence diagram for ${title}.`, body, 1600, 1020);
+    return shell(`${title} Sequence`, `${system} follows the leader-core sequence style with clear calls, returns, and alternate outcomes.`, `Sequence diagram for ${title}.`, body, 1600, 1020);
 }
 
-const renderers = { architecture, flow, scenario, sequence };
+const renderers = {architecture, flow, scenario, sequence};
 
 for (const file of targets) {
-  const { kind } = parseName(file);
-  fs.writeFileSync(path.join(dir, file), renderers[kind](file), "utf8");
+    const {kind} = parseName(file);
+    fs.writeFileSync(path.join(dir, file), renderers[kind](file), "utf8");
 }
 
 console.log(`regenerated=${targets.length}`);

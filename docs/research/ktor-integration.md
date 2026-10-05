@@ -18,13 +18,13 @@
 
 ## 2. Ktor 버전
 
-| 버전 | 비고 |
-|------|------|
-| 2.x  | Feature → Plugin 리네임 (2.0), 현재 유지보수 |
+| 버전 | 비고                                                                                                                                  |
+|------|---------------------------------------------------------------------------------------------------------------------------------------|
+| 2.x  | Feature → Plugin 리네임 (2.0), 현재 유지보수                                                                                          |
 | 3.0  | `monitor`, `parentCoroutineContext`, `rootPath` 소유권이 `ApplicationEnvironment` → `Application`으로 이동. `embeddedServer` API 변경 |
-| 3.2  | 빌트인 DI (`ktor-server-di`) 추가. `dependencies { provide<T> { ... } }` DSL |
+| 3.2  | 빌트인 DI (`ktor-server-di`) 추가. `dependencies { provide<T> { ... } }` DSL                                                          |
 
-**권장**: Ktor **3.x** 타겟. 현재 프로젝트(Kotlin 2.3.21, coroutines 1.10.2) 완전 호환.
+**권장**: Ktor **3.x** 타겟. 현재 프로젝트 (Kotlin 2.3.21, coroutines 1.10.2) 완전 호환.
 
 최신 Ktor 버전 확인: https://github.com/ktorio/ktor/releases
 
@@ -187,13 +187,13 @@ class LeaderElectionPluginConfig {
 
 ## 8. 기술적 제약
 
-| 항목 | 내용 |
-|------|------|
-| Ktor 최소 버전 | 3.0.0 (monitor 소유권 변경) |
-| 코루틴 의존성 | `leader-core`가 이미 포함, 추가 불필요 |
-| Thread safety | `Application.launch`는 코루틴 기반, `@Synchronized` 불필요 |
-| graceful shutdown | `Application` CoroutineScope 소멸 시 자동 취소 |
-| 테스트 | `testApplication { }` DSL로 단위 테스트 가능 |
+| 항목              | 내용                                                       |
+|-------------------|------------------------------------------------------------|
+| Ktor 최소 버전    | 3.0.0 (monitor 소유권 변경)                                |
+| 코루틴 의존성     | `leader-core`가 이미 포함, 추가 불필요                     |
+| Thread safety     | `Application.launch`는 코루틴 기반, `@Synchronized` 불필요 |
+| graceful shutdown | `Application` CoroutineScope 소멸 시 자동 취소             |
+| 테스트            | `testApplication { }` DSL로 단위 테스트 가능               |
 
 ---
 

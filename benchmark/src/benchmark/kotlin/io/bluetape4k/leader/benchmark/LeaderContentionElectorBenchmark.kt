@@ -1,6 +1,9 @@
 package io.bluetape4k.leader.benchmark
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
@@ -56,8 +59,8 @@ import java.io.Serializable
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
-import java.util.concurrent.TimeoutException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -232,7 +235,7 @@ class BlockingLeaderContentionElectorBenchmark {
             },
             VirtualThreadExecutor,
         )
-        require(ready.await(30, TimeUnit.SECONDS)) {
+        require(ready.await(30.seconds)) {
             "Contention holder was not ready. backend=$backend, lockName=$lockName"
         }
         return BlockingHolder(release, future)
@@ -258,38 +261,35 @@ class BlockingLeaderContentionElectorBenchmark {
         val actionExecutions = AtomicInteger()
 
         val futures = (0 until contenders).map {
-            CompletableFuture.supplyAsync(
-                {
-                    start.await()
-                    attempted.countDown()
-                    val result = elector.runIfLeaderResult(lockName) {
-                        actionExecutions.incrementAndGet()
-                        winnerEntered.countDown()
-                        require(attempted.await(30, TimeUnit.SECONDS)) {
-                            "Parallel contention contenders did not all attempt. backend=$backend, lockName=$lockName"
-                        }
-                        releaseWinner.await()
-                        1
+            futureOf(VirtualThreadExecutor) {
+                start.await()
+                attempted.countDown()
+                val result = elector.runIfLeaderResult(lockName) {
+                    actionExecutions.incrementAndGet()
+                    winnerEntered.countDown()
+                    require(attempted.await(30.seconds)) {
+                        "Parallel contention contenders did not all attempt. backend=$backend, lockName=$lockName"
                     }
-                    if (result.isSkipped) {
-                        skipped.countDown()
-                    }
-                    result
-                },
-                VirtualThreadExecutor,
-            )
+                    releaseWinner.await()
+                    1
+                }
+                if (result.isSkipped) {
+                    skipped.countDown()
+                }
+                result
+            }
         }
 
         start.countDown()
-        require(winnerEntered.await(30, TimeUnit.SECONDS)) {
+        require(winnerEntered.await(30.seconds)) {
             "No contention winner entered action. backend=$backend, contenders=$contenders"
         }
-        require(skipped.await(30, TimeUnit.SECONDS)) {
+        require(skipped.await(30.seconds)) {
             "Contention skip paths did not finish. backend=$backend, contenders=$contenders"
         }
         releaseWinner.countDown()
 
-        val results = futures.map { it.get(30, TimeUnit.SECONDS) }
+        val results = futures.map { it.get(30.seconds) }
         return ContentionOutcome(
             elected = results.count { it.isElected },
             skipped = results.count { it.isSkipped },
@@ -304,7 +304,7 @@ class BlockingLeaderContentionElectorBenchmark {
     private fun closeHolder(holder: BlockingHolder) {
         holder.release.countDown()
         try {
-            holder.future.get(10, TimeUnit.SECONDS)
+            holder.future.get(10.seconds)
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
             log.warn(e) { "Contention holder cleanup was interrupted. backend=$backend" }
@@ -493,7 +493,7 @@ class SuspendLeaderContentionElectorBenchmark {
                 "Failed to acquire suspend contention holder. backend=$backend, lockName=$lockName"
             }
         }
-        require(ready.await(30, TimeUnit.SECONDS)) {
+        require(ready.await(30.seconds)) {
             "Suspend contention holder was not ready. backend=$backend, lockName=$lockName"
         }
         return SuspendHolder(release, job)
@@ -525,7 +525,7 @@ class SuspendLeaderContentionElectorBenchmark {
                 val result = elector.runIfLeaderResultSuspend(lockName) {
                     actionExecutions.incrementAndGet()
                     winnerEntered.countDown()
-                    require(attempted.await(30, TimeUnit.SECONDS)) {
+                    require(attempted.await(30.seconds)) {
                         "Suspend parallel contenders did not all attempt. backend=$backend, lockName=$lockName"
                     }
                     releaseWinner.await()
@@ -539,10 +539,10 @@ class SuspendLeaderContentionElectorBenchmark {
         }
 
         start.complete(Unit)
-        require(winnerEntered.await(30, TimeUnit.SECONDS)) {
+        require(winnerEntered.await(30.seconds)) {
             "No suspend contention winner entered action. backend=$backend, contenders=$contenders"
         }
-        require(skipped.await(30, TimeUnit.SECONDS)) {
+        require(skipped.await(30.seconds)) {
             "Suspend contention skip paths did not finish. backend=$backend, contenders=$contenders"
         }
         releaseWinner.complete(Unit)
@@ -663,7 +663,7 @@ class LocalBlockingLeaderContentionElectorBenchmark {
             },
             VirtualThreadExecutor,
         )
-        require(ready.await(30, TimeUnit.SECONDS)) {
+        require(ready.await(30.seconds)) {
             "Local contention holder was not ready. lockName=$lockName"
         }
         return BlockingHolder(release, future)
@@ -689,38 +689,35 @@ class LocalBlockingLeaderContentionElectorBenchmark {
         val actionExecutions = AtomicInteger()
 
         val futures = (0 until contenders).map {
-            CompletableFuture.supplyAsync(
-                {
-                    start.await()
-                    attempted.countDown()
-                    val result = elector.runIfLeaderResult(lockName) {
-                        actionExecutions.incrementAndGet()
-                        winnerEntered.countDown()
-                        require(attempted.await(30, TimeUnit.SECONDS)) {
-                            "Local parallel contenders did not all attempt. lockName=$lockName"
-                        }
-                        releaseWinner.await()
-                        1
+            futureOf(VirtualThreadExecutor) {
+                start.await()
+                attempted.countDown()
+                val result = elector.runIfLeaderResult(lockName) {
+                    actionExecutions.incrementAndGet()
+                    winnerEntered.countDown()
+                    require(attempted.await(30.seconds)) {
+                        "Local parallel contenders did not all attempt. lockName=$lockName"
                     }
-                    if (result.isSkipped) {
-                        skipped.countDown()
-                    }
-                    result
-                },
-                VirtualThreadExecutor,
-            )
+                    releaseWinner.await()
+                    1
+                }
+                if (result.isSkipped) {
+                    skipped.countDown()
+                }
+                result
+            }
         }
 
         start.countDown()
-        require(winnerEntered.await(30, TimeUnit.SECONDS)) {
+        require(winnerEntered.await(30.seconds)) {
             "No local contention winner entered action. contenders=$contenders"
         }
-        require(skipped.await(30, TimeUnit.SECONDS)) {
+        require(skipped.await(30.seconds)) {
             "Local contention skip paths did not finish. contenders=$contenders"
         }
         releaseWinner.countDown()
 
-        val results = futures.map { it.get(30, TimeUnit.SECONDS) }
+        val results = futures.map { it.get(30.seconds) }
         return ContentionOutcome(
             elected = results.count { it.isElected },
             skipped = results.count { it.isSkipped },
@@ -735,7 +732,7 @@ class LocalBlockingLeaderContentionElectorBenchmark {
     private fun closeHolder(resource: String, holder: BlockingHolder) {
         holder.release.countDown()
         try {
-            holder.future.get(10, TimeUnit.SECONDS)
+            holder.future.get(10.seconds)
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
             log.warn(e) { "Local contention holder cleanup was interrupted. resource=$resource" }
@@ -826,7 +823,7 @@ class LocalSuspendLeaderContentionElectorBenchmark {
                 "Failed to acquire local suspend contention holder. lockName=$lockName"
             }
         }
-        require(ready.await(30, TimeUnit.SECONDS)) {
+        require(ready.await(30.seconds)) {
             "Local suspend contention holder was not ready. lockName=$lockName"
         }
         return SuspendHolder(release, job)
@@ -858,7 +855,7 @@ class LocalSuspendLeaderContentionElectorBenchmark {
                 val result = elector.runIfLeaderResultSuspend(lockName) {
                     actionExecutions.incrementAndGet()
                     winnerEntered.countDown()
-                    require(attempted.await(30, TimeUnit.SECONDS)) {
+                    require(attempted.await(30.seconds)) {
                         "Local suspend parallel contenders did not all attempt. lockName=$lockName"
                     }
                     releaseWinner.await()
@@ -872,10 +869,10 @@ class LocalSuspendLeaderContentionElectorBenchmark {
         }
 
         start.complete(Unit)
-        require(winnerEntered.await(30, TimeUnit.SECONDS)) {
+        require(winnerEntered.await(30.seconds)) {
             "No local suspend contention winner entered action. contenders=$contenders"
         }
-        require(skipped.await(30, TimeUnit.SECONDS)) {
+        require(skipped.await(30.seconds)) {
             "Local suspend contention skip paths did not finish. contenders=$contenders"
         }
         releaseWinner.complete(Unit)
@@ -909,7 +906,7 @@ private fun interface SuspendElectorFactory {
 private data class BlockingHolder(
     val release: CountDownLatch,
     val future: CompletableFuture<Void>,
-) : Serializable {
+): Serializable {
     companion object {
         private const val serialVersionUID: Long = 3019430824624016201L
 
@@ -920,7 +917,7 @@ private data class BlockingHolder(
 private data class SuspendHolder(
     val release: CompletableDeferred<Unit>,
     val job: kotlinx.coroutines.Deferred<Unit>,
-) : Serializable {
+): Serializable {
     companion object {
         private const val serialVersionUID: Long = -8433527060337158541L
 
@@ -932,7 +929,7 @@ private data class ContentionOutcome(
     val elected: Int,
     val skipped: Int,
     val actionExecutions: Int,
-) : Serializable {
+): Serializable {
     companion object {
         private const val serialVersionUID: Long = -5808360179162951240L
     }

@@ -1,7 +1,10 @@
 package io.bluetape4k.leader.micrometer
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationHandler
 import io.micrometer.observation.ObservationRegistry
@@ -12,6 +15,15 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MicrometerObservationLeaderElectionListenerTest {
+
+    private companion object: KLogging() {
+        fun snapshot(context: Observation.Context): ObservationSnapshot =
+            ObservationSnapshot(
+                name = context.name.orEmpty(),
+                low = context.lowCardinalityKeyValues.associate { it.key to it.value },
+                high = context.highCardinalityKeyValues.associate { it.key to it.value },
+            )
+    }
 
     private lateinit var registry: ObservationRegistry
     private lateinit var handler: CollectingObservationHandler
@@ -32,9 +44,11 @@ class MicrometerObservationLeaderElectionListenerTest {
         listener.onSkipped("job-lock")
 
         handler.stopped.map { it.low[OBSERVATION_TAG_EVENT] } shouldBeEqualTo listOf("elected", "revoked", "skipped")
+
         handler.stopped.forEach { snapshot ->
+            log.debug { "snapshot=$snapshot" }
             snapshot.name shouldBeEqualTo OBSERVATION_LEADER_ELECTION_EVENT
-            snapshot.high.containsKey(MicrometerNames.TAG_LOCK_NAME).shouldBeEqualTo(false)
+            snapshot.high.containsKey(MicrometerNames.TAG_LOCK_NAME).shouldBeFalse()
         }
     }
 
@@ -48,6 +62,7 @@ class MicrometerObservationLeaderElectionListenerTest {
         listener.onElected("job-lock")
 
         val stopped = handler.singleStopped()
+        log.debug { "stopped=$stopped" }
         stopped.high[MicrometerNames.TAG_LOCK_NAME] shouldBeEqualTo "redacted-lock"
     }
 
@@ -64,6 +79,7 @@ class MicrometerObservationLeaderElectionListenerTest {
         listener.onElected("job-lock")
 
         val stopped = handler.singleStopped()
+        log.debug { "stopped=$stopped" }
         stopped.high[MicrometerNames.TAG_LOCK_NAME] shouldBeEqualTo "job-lock"
     }
 
@@ -78,7 +94,7 @@ class MicrometerObservationLeaderElectionListenerTest {
         handler.stopped.isEmpty().shouldBeTrue()
     }
 
-    private class CollectingObservationHandler : ObservationHandler<Observation.Context> {
+    private class CollectingObservationHandler: ObservationHandler<Observation.Context> {
         val stopped = CopyOnWriteArrayList<ObservationSnapshot>()
 
         override fun onStop(context: Observation.Context) {
@@ -99,12 +115,4 @@ class MicrometerObservationLeaderElectionListenerTest {
         val high: Map<String, String>,
     )
 
-    private companion object {
-        fun snapshot(context: Observation.Context): ObservationSnapshot =
-            ObservationSnapshot(
-                name = context.name.orEmpty(),
-                low = context.lowCardinalityKeyValues.associate { it.key to it.value },
-                high = context.highCardinalityKeyValues.associate { it.key to it.value },
-            )
-    }
 }

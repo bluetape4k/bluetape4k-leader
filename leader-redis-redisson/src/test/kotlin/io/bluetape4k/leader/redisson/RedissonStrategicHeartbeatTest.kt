@@ -2,8 +2,8 @@ package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeAfter
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeEmpty
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldNotBeNull
@@ -13,12 +13,16 @@ import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredGroupElectionStrategy
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class RedissonStrategicHeartbeatTest : AbstractRedissonLeaderTest() {
+class RedissonStrategicHeartbeatTest: AbstractRedissonLeaderTest() {
+
+    companion object: KLogging()
 
     private val registeredAt = Instant.parse("2026-01-01T00:00:00Z")
     private val lastStartTime = Instant.parse("2026-01-01T00:00:30Z")
@@ -45,6 +49,8 @@ class RedissonStrategicHeartbeatTest : AbstractRedissonLeaderTest() {
         expectedFailureCount: Long,
         expectedMetadata: String,
     ) {
+        log.debug { "candidate=$candidate" }
+
         candidate.registeredAt shouldBeEqualTo registeredAt
         candidate.lastStartTime shouldBeEqualTo lastStartTime
         candidate.lastCompletionTime.shouldNotBeNull() shouldBeAfter staleCompletion
@@ -70,7 +76,9 @@ class RedissonStrategicHeartbeatTest : AbstractRedissonLeaderTest() {
         val candidates = elector.listCandidates(lockName)
         assertHeartbeatResult(candidates.first { it.nodeId == "node-1" }, 5L, 1L, "fresh-1")
         assertHeartbeatResult(candidates.first { it.nodeId == "node-2" }, 2L, 4L, "fresh-2")
-        ScoredElectionStrategy(SuccessRateScorer).elect(candidates).winner?.nodeId shouldBeEqualTo "node-1"
+
+        ScoredElectionStrategy(SuccessRateScorer)
+            .elect(candidates).winner?.nodeId shouldBeEqualTo "node-1"
     }
 
     @Test
@@ -90,6 +98,7 @@ class RedissonStrategicHeartbeatTest : AbstractRedissonLeaderTest() {
         val candidates = elector.listCandidates(lockName)
         assertHeartbeatResult(candidates.first { it.nodeId == "node-1" }, 5L, 1L, "fresh-1")
         assertHeartbeatResult(candidates.first { it.nodeId == "node-2" }, 2L, 4L, "fresh-2")
+
         ScoredGroupElectionStrategy(SuccessRateScorer)
             .elect(candidates, maxLeaders = 1)
             .winners
@@ -114,7 +123,9 @@ class RedissonStrategicHeartbeatTest : AbstractRedissonLeaderTest() {
         val candidates = elector.listCandidates(lockName)
         assertHeartbeatResult(candidates.first { it.nodeId == "node-1" }, 5L, 1L, "fresh-1")
         assertHeartbeatResult(candidates.first { it.nodeId == "node-2" }, 2L, 4L, "fresh-2")
-        ScoredElectionStrategy(SuccessRateScorer).elect(candidates).winner?.nodeId shouldBeEqualTo "node-1"
+
+        ScoredElectionStrategy(SuccessRateScorer)
+            .elect(candidates).winner?.nodeId shouldBeEqualTo "node-1"
     }
 
     @Test
@@ -134,6 +145,7 @@ class RedissonStrategicHeartbeatTest : AbstractRedissonLeaderTest() {
         val candidates = elector.listCandidates(lockName)
         assertHeartbeatResult(candidates.first { it.nodeId == "node-1" }, 5L, 1L, "fresh-1")
         assertHeartbeatResult(candidates.first { it.nodeId == "node-2" }, 2L, 4L, "fresh-2")
+
         ScoredGroupElectionStrategy(SuccessRateScorer)
             .elect(candidates, maxLeaders = 1)
             .winners
@@ -146,14 +158,17 @@ class RedissonStrategicHeartbeatTest : AbstractRedissonLeaderTest() {
         val lockName = randomName()
         val elector = RedissonStrategicLeaderElector(redissonClient, "node-1")
         val stale = candidate("node-1", successCount = 1, failureCount = 0, metadata = "stale")
+
         val cache = redissonClient.getMapCache<String, CandidateInfo>(
             "${RedissonCandidateRegistry.DEFAULT_KEY_PREFIX}:$lockName",
         )
 
         elector.registerCandidate(lockName, stale, ttl = 800.milliseconds)
         val beforeUpdate = cache.remainTimeToLive("node-1")
+
         elector.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
         val afterUpdate = cache.remainTimeToLive("node-1")
+
         beforeUpdate shouldBeGreaterThan 0L
         afterUpdate shouldBeGreaterThan 0L
         afterUpdate shouldBeLessOrEqualTo beforeUpdate + 50L
@@ -163,6 +178,7 @@ class RedissonStrategicHeartbeatTest : AbstractRedissonLeaderTest() {
         afterRefresh shouldBeGreaterThan afterUpdate
 
         cache.remove("node-1")
+
         elector.refreshCandidate(lockName, stale.copy(metadata = mapOf("source" to "late")), ttl = 2.seconds)
         elector.listCandidates(lockName).shouldBeEmpty()
     }
@@ -172,7 +188,11 @@ class RedissonStrategicHeartbeatTest : AbstractRedissonLeaderTest() {
         val elector = RedissonStrategicLeaderElector(redissonClient, "node-1")
 
         assertFailsWith<IllegalArgumentException> {
-            elector.refreshCandidate(randomName(), candidate("node-1", 0L, 0L, "stale"), (-1).milliseconds)
+            elector.refreshCandidate(
+                randomName(),
+                candidate("node-1", 0L, 0L, "stale"),
+                (-1).milliseconds
+            )
         }
     }
 
@@ -181,7 +201,11 @@ class RedissonStrategicHeartbeatTest : AbstractRedissonLeaderTest() {
         val elector = RedissonStrategicSuspendLeaderElector(redissonClient, "node-1")
 
         assertFailsWith<IllegalArgumentException> {
-            elector.refreshCandidate(randomName(), candidate("node-1", 0L, 0L, "stale"), (-1).milliseconds)
+            elector.refreshCandidate(
+                randomName(),
+                candidate("node-1", 0L, 0L, "stale"),
+                (-1).milliseconds
+            )
         }
     }
 }

@@ -2,21 +2,23 @@
 
 package io.bluetape4k.leader.spring.route
 
+import io.bluetape4k.ToStringBuilder
+import io.bluetape4k.leader.ExtendOutcome
+import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAcquirer
 import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderLeaseWatchdogAdmission
-import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.LeaseCleanupReservation
+import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseHandle
 import io.bluetape4k.leader.internal.LeaseAdmissionController
 import io.bluetape4k.leader.internal.LeaseOperationScheduler
 import io.bluetape4k.leader.internal.ResidualLeaseRegistry
-import io.bluetape4k.leader.ExtendOutcome
-import io.bluetape4k.leader.LeaseOwnershipStatus
-import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.spring.properties.LeaderRouteLeaseProperties
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
@@ -24,15 +26,15 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.time.Instant
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
-import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
 
@@ -57,7 +59,7 @@ internal class LeaderRouteLeaseRuntime(
         Executors.newSingleThreadScheduledExecutor { runnable ->
             Thread(runnable, "bluetape4k-route-lease-lifetime").apply { isDaemon = true }
         },
-) : AutoCloseable {
+): AutoCloseable {
 
     init {
         // 내부 테스트/직접 생성 경로는 인위적으로 짧은 lifetime을 사용할 수 있다.
@@ -290,6 +292,19 @@ internal class LeaderRouteLeaseRuntime(
     val runtimeState: String
         get() = shutdownCoordinator.runtimeState.name
 
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("activeLease", activeLeases)
+            .add("effectiveActiveCapacity", effectiveActiveCapacity)
+            .add("acquireInFlight", acquireInFlight)
+            .add("acquireQueueAvailable", acquireQueueAvailable)
+            .add("cleanupInFlight", cleanupInFlight)
+            .add("cleanupQueueAvailable", cleanupQueueAvailable)
+            .add("watchdogInFlight", watchdogInFlight)
+            .add("residualLeases", residualLeases)
+            .toString()
+    }
+
     private data class AdmissionReservations(
         val acquire: LeaseAdmissionController.AcquireReservation?,
         val cleanup: LeaseAdmissionController.CleanupReservation,
@@ -318,7 +333,7 @@ internal class LeaderRouteLeaseRuntime(
         private val registryReservation: ResidualLeaseRegistry.ResidualReservation,
         private val registry: ResidualLeaseRegistry,
         private val onTransferFailure: () -> Unit,
-    ) : io.bluetape4k.leader.LeaseCleanupReservation {
+    ): LeaseCleanupReservation {
         private val terminal = AtomicBoolean(false)
 
         override val isTerminal: Boolean get() = terminal.get()
@@ -361,7 +376,7 @@ internal class LeaderRouteLeaseRuntime(
         private val admission: LeaseAdmissionController,
         private val observe: (LeaseObservationCode) -> Unit,
         private val onTerminal: () -> Unit,
-    ) : LeaderLeaseHandle {
+    ): LeaderLeaseHandle {
 
         private val released = AtomicBoolean(false)
         private val terminalStatus = AtomicReference<LeaseOwnershipStatus?>(null)
@@ -499,6 +514,14 @@ internal class LeaderRouteLeaseRuntime(
         private fun safeDeadline(nowNanos: Long, durationNanos: Long): Long =
             if (durationNanos > 0L && nowNanos > Long.MAX_VALUE - durationNanos) Long.MAX_VALUE
             else nowNanos + durationNanos
+
+        override fun toString(): String {
+            return ToStringBuilder(this)
+                .add("lockName", lockName)
+                .add("auditLeaderId", auditLeaderId)
+                .add("acquiredAt", acquiredAt)
+                .toString()
+        }
     }
 
     private class AdmissionBoundSuspendLeaseHandle(
@@ -512,7 +535,7 @@ internal class LeaderRouteLeaseRuntime(
         private val admission: LeaseAdmissionController,
         private val observe: (LeaseObservationCode) -> Unit,
         private val onTerminal: () -> Unit,
-    ) : SuspendLeaderLeaseHandle {
+    ): SuspendLeaderLeaseHandle {
         private val released = AtomicBoolean(false)
         private val lifetimeExpired = AtomicBoolean(false)
         private val terminalStatus = AtomicReference<LeaseOwnershipStatus?>(null)
@@ -631,6 +654,14 @@ internal class LeaderRouteLeaseRuntime(
         private fun safeDeadline(nowNanos: Long, durationNanos: Long): Long =
             if (durationNanos > 0L && nowNanos > Long.MAX_VALUE - durationNanos) Long.MAX_VALUE
             else nowNanos + durationNanos
+
+        override fun toString(): String {
+            return ToStringBuilder(this)
+                .add("lockName", lockName)
+                .add("auditLeaderId", auditLeaderId)
+                .add("acquiredAt", acquiredAt)
+                .toString()
+        }
     }
 
     @Suppress("CyclomaticComplexMethod")

@@ -4,9 +4,11 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.storage.RedisServer
 import io.bluetape4k.utils.ShutdownQueue
+import kotlinx.coroutines.delay
 import org.redisson.Redisson
 import org.redisson.api.RedissonClient
 import org.redisson.config.Config
+import kotlin.random.Random
 
 /**
  * `leader-ktor` 통합 테스트의 공통 베이스 클래스입니다.
@@ -19,7 +21,7 @@ import org.redisson.config.Config
 abstract class AbstractLeaderKtorTest {
 
     companion object: KLogging() {
-        val redis = RedisServer.Launcher.redis
+        val redis by lazy { RedisServer.Launcher.redis }
 
         val redisUrl: String get() = redis.url
 
@@ -37,4 +39,12 @@ abstract class AbstractLeaderKtorTest {
     }
 
     protected fun randomName(): String = "leader-ktor-test:${Base58.randomString(8)}"
+
+    protected suspend fun randomDely(from: Long = 10L, to: Long = 20L) {
+        delay(timeMillis = Random.nextLong(from, to))
+    }
+
+    protected fun randomSleep(from: Long = 10L, to: Long = 20L) {
+        Thread.sleep(Random.nextLong(from, to))
+    }
 }

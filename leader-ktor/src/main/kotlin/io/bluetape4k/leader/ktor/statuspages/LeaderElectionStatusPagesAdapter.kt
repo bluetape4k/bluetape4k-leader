@@ -1,15 +1,14 @@
 package io.bluetape4k.leader.ktor.statuspages
 
+import io.bluetape4k.leader.ktor.LeaderElectionConfigKey
 import io.bluetape4k.leader.ktor.LeaderElectionErrorCode
 import io.bluetape4k.leader.ktor.LeaderElectionErrorContext
 import io.bluetape4k.leader.ktor.LeaderElectionErrorResponder
 import io.bluetape4k.leader.ktor.LeaderElectionHttpException
-import io.bluetape4k.leader.ktor.LeaderElectionConfigKey
 import io.bluetape4k.leader.ktor.toErrorContext
 import io.ktor.http.ContentType
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.plugins.statuspages.StatusPagesConfig
-import io.ktor.server.plugins.statuspages.exception
 import io.ktor.server.response.respondText
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -19,7 +18,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * StatusPages가 없는 애플리케이션은 [ApplicationCall.respondLeaderElectionError]를 직접
  * 호출할 수 있으며, 두 경로 모두 converter 없이 stable JSON을 반환합니다.
  */
-public fun StatusPagesConfig.leaderElectionErrors(
+fun StatusPagesConfig.leaderElectionErrors(
     responder: LeaderElectionErrorResponder? = null,
 ) {
     exception<LeaderElectionHttpException> { call, failure ->

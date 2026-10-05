@@ -4,8 +4,6 @@
 
 이 문서는 `Issue 42 Tenant Lock Namespace Design`에 대한 설계 또는 실행 계획 기록입니다. 아래 원문 구조의 범위, 결정, 작업 순서, 검증 조건, 위험 및 후속 조치는 기록 보존을 위해 유지합니다. 검토자는 각 `Action`, `Expected DoD`, `Validation`, `Target files` 항목을 한국어 해설과 함께 읽고, 코드 식별자와 명령은 원문 그대로 취급해야 합니다.
 
-
-
 ## Context
 
 Issue #42 requests multi-tenancy support by isolating lock names per tenant without backend changes. Current leader APIs accept a caller-provided `lockName`; every backend already treats that value as the lock identity. The lightest compatible design is therefore a decorator that rewrites public lock names into namespaced backend lock names.
@@ -93,13 +91,13 @@ Colon is reserved as the namespace separator. This prevents ambiguous values suc
 
 ## Rejected Options
 
-| Option | Reason |
-|---|---|
-| Backend-specific tenant fields | Requires schema and backend changes, contrary to issue scope. |
-| Free-form string concatenation in each wrapper | Repeats validation and risks inconsistent lock naming. |
-| Public `forTenant(tenantId: String, prefix: String)` | Two same-typed parameters are easy to swap; use `TenantLockNamespace` for custom prefix. |
-| Returning unscoped `LeaderState.lockName` | Would hide the actual backend lock identity and complicate diagnostics. |
-| Excluding virtual-thread interfaces | They do not inherit `LeaderElector`; excluding them would leave a public lock-name path without tenant scoping. |
+| Option                                               | Reason                                                                                                          |
+|------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| Backend-specific tenant fields                       | Requires schema and backend changes, contrary to issue scope.                                                   |
+| Free-form string concatenation in each wrapper       | Repeats validation and risks inconsistent lock naming.                                                          |
+| Public `forTenant(tenantId: String, prefix: String)` | Two same-typed parameters are easy to swap; use `TenantLockNamespace` for custom prefix.                        |
+| Returning unscoped `LeaderState.lockName`            | Would hide the actual backend lock identity and complicate diagnostics.                                         |
+| Excluding virtual-thread interfaces                  | They do not inherit `LeaderElector`; excluding them would leave a public lock-name path without tenant scoping. |
 
 ## Acceptance Criteria
 

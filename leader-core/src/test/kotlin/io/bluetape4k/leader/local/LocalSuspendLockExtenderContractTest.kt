@@ -3,6 +3,7 @@ package io.bluetape4k.leader.local
 import io.bluetape4k.leader.contract.AbstractSuspendLockExtenderContractTest
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.TestInstance
 
 /**
@@ -12,7 +13,9 @@ import org.junit.jupiter.api.TestInstance
  * 외부 인프라 불필요 — 단일 JVM 인메모리 실행.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LocalSuspendLockExtenderContractTest : AbstractSuspendLockExtenderContractTest() {
+class LocalSuspendLockExtenderContractTest: AbstractSuspendLockExtenderContractTest() {
+
+    companion object: KLogging()
 
     override val elector: SuspendLeaderElector = LocalSuspendLeaderElector()
 }

@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>MagicNumber:RateLimiterDemo.kt:RateLimiterDemo$15</ID>
-    <ID>MagicNumber:RateLimiterDemo.kt:RateLimiterDemo$1_050</ID>
-  </CurrentIssues>
+    <ManuallySuppressedIssues/>
+    <CurrentIssues>
+        <ID>MagicNumber:RateLimiterDemo.kt:RateLimiterDemo$15</ID>
+        <ID>MagicNumber:RateLimiterDemo.kt:RateLimiterDemo$1_050</ID>
+    </CurrentIssues>
 </SmellBaseline>

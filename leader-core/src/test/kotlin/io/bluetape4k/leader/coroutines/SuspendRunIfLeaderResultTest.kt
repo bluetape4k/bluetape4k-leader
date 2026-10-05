@@ -1,15 +1,16 @@
 package io.bluetape4k.leader.coroutines
 
-import io.bluetape4k.codec.Base58
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.codec.Base58
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -17,10 +18,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SuspendRunIfLeaderResultTest {
+
+    companion object: KLogging()
 
     private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
@@ -31,8 +33,7 @@ class SuspendRunIfLeaderResultTest {
         val election = LocalSuspendLeaderElector()
         val result = election.runIfLeaderResultSuspend(randomLockName()) { "ok" }
 
-        (result is LeaderRunResult.Elected).shouldBeTrue()
-        (result as LeaderRunResult.Elected<String>).value shouldBeEqualTo "ok"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>().value shouldBeEqualTo "ok"
     }
 
     @Test
@@ -40,8 +41,7 @@ class SuspendRunIfLeaderResultTest {
         val election = LocalSuspendLeaderElector()
         val result = election.runIfLeaderResultSuspend(randomLockName()) { null }
 
-        (result is LeaderRunResult.Elected).shouldBeTrue()
-        (result as LeaderRunResult.Elected<Nothing?>).value.shouldBeNull()
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().value.shouldBeNull()
     }
 
     @Test
@@ -50,8 +50,9 @@ class SuspendRunIfLeaderResultTest {
         val failure = IllegalStateException("suspend-boom")
         val result = election.runIfLeaderResultSuspend<Any?>(randomLockName()) { throw failure }
 
-        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
-        (result as LeaderRunResult.ActionFailed).cause shouldBeInstanceOf IllegalStateException::class
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+            .cause.shouldBeInstanceOf<IllegalStateException>()
+
         result.cause.message shouldBeEqualTo failure.message
     }
 
@@ -80,14 +81,14 @@ class SuspendRunIfLeaderResultTest {
                 delay(500.milliseconds)
                 "holder"
             }
-        }
+        }.log("Holder Job")
 
         holderReady.receive()
 
         val result = skipElection.runIfLeaderResultSuspend(lockName) { "should-skip" }
         result shouldBeEqualTo LeaderRunResult.Skipped
 
-        holder.await()
+        holder.await() shouldBeEqualTo "holder"
     }
 
     @Test
@@ -95,8 +96,7 @@ class SuspendRunIfLeaderResultTest {
         val election = LocalSuspendLeaderElector()
         val result = election.runIfLeaderResultSuspend(randomLockName()) { 42 }
 
-        (result is LeaderRunResult.Elected).shouldBeTrue()
-        (result as LeaderRunResult.Elected).value shouldBeEqualTo 42
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<Int>>().value shouldBeEqualTo 42
     }
 
     @Test
@@ -105,11 +105,10 @@ class SuspendRunIfLeaderResultTest {
         val lockName = randomLockName()
 
         val first = election.runIfLeaderResultSuspend(lockName) { "first" }
-        (first is LeaderRunResult.Elected).shouldBeTrue()
+        first.shouldBeInstanceOf<LeaderRunResult.Elected<String>>().value shouldBeEqualTo "first"
 
         val second = election.runIfLeaderResultSuspend(lockName) { "second" }
-        (second is LeaderRunResult.Elected).shouldBeTrue()
-        (second as LeaderRunResult.Elected).value shouldBeEqualTo "second"
+        second.shouldBeInstanceOf<LeaderRunResult.Elected<String>>().value shouldBeEqualTo "second"
     }
 
     // ── SuspendLeaderGroupElector ────────────────────────────────────────────
@@ -119,8 +118,7 @@ class SuspendRunIfLeaderResultTest {
         val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 2))
         val result = election.runIfLeaderResultSuspend(randomLockName()) { "group-ok" }
 
-        (result is LeaderRunResult.Elected).shouldBeTrue()
-        (result as LeaderRunResult.Elected<String>).value shouldBeEqualTo "group-ok"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>().value shouldBeEqualTo "group-ok"
     }
 
     @Test
@@ -128,8 +126,7 @@ class SuspendRunIfLeaderResultTest {
         val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 1))
         val result = election.runIfLeaderResultSuspend(randomLockName()) { null }
 
-        (result is LeaderRunResult.Elected).shouldBeTrue()
-        (result as LeaderRunResult.Elected<Nothing?>).value.shouldBeNull()
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().value.shouldBeNull()
     }
 
     @Test
@@ -138,8 +135,8 @@ class SuspendRunIfLeaderResultTest {
         val failure = IllegalArgumentException("group-suspend-boom")
         val result = election.runIfLeaderResultSuspend<Any?>(randomLockName()) { throw failure }
 
-        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
-        (result as LeaderRunResult.ActionFailed).cause shouldBeInstanceOf IllegalArgumentException::class
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+            .cause.shouldBeInstanceOf<IllegalArgumentException>()
         result.cause.message shouldBeEqualTo failure.message
     }
 
@@ -169,13 +166,13 @@ class SuspendRunIfLeaderResultTest {
                 delay(500.milliseconds)
                 "holder"
             }
-        }
+        }.log("Holder Job")
 
         holderReady.receive()
 
         val result = election.runIfLeaderResultSuspend(lockName) { "should-skip" }
         result shouldBeEqualTo LeaderRunResult.Skipped
 
-        holder.await()
+        holder.await() shouldBeEqualTo "holder"
     }
 }

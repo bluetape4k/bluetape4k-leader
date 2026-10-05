@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap
 class MicrometerLeaderElectionListener(
     private val registry: MeterRegistry,
     private val tagSanitizer: LeaderMetricTagSanitizer,
-) : LeaderElectionListener {
+): LeaderElectionListener {
 
     constructor(registry: MeterRegistry): this(
         registry = registry,

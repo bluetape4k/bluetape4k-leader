@@ -54,6 +54,7 @@ object KubernetesLeaseStateMapper {
         val spec = lease.spec ?: return null
         val renewedAt = spec.renewTime ?: spec.acquireTime ?: return null
         val seconds = spec.leaseDurationSeconds ?: return null
+
         return renewedAt.toInstant().plusSeconds(seconds.toLong())
     }
 }

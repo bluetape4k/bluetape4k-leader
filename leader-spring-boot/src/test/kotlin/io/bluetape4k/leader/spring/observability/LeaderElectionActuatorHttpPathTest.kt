@@ -6,6 +6,8 @@ import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.spring.LeaderTestApplication
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
@@ -41,6 +43,8 @@ import java.util.concurrent.Executor
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionActuatorHttpPathTest {
 
+    companion object: KLogging()
+
     @LocalServerPort
     private var port: Int = 0
 
@@ -52,19 +56,22 @@ class LeaderElectionActuatorHttpPathTest {
             .uri(URI.create("http://localhost:$port/actuator/leaderElection"))
             .GET()
             .build()
+
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
 
+        log.debug { "response statusCode=${response.statusCode()}, body=${response.body()}" }
+
         response.statusCode() shouldBeEqualTo 200
-        response.body().shouldContain("\"backend\":\"test\"")
-        response.body().shouldContain("\"stateProviderBean\":\"testLeaderElector\"")
-        response.body().shouldContain("\"stateSupported\":true")
-        response.body().shouldContain("\"acquisitionFailures\"")
-        response.body().shouldContain("\"count\":0")
-        response.body().shouldContain("\"window\":\"PT5M\"")
-        response.body().shouldContain("\"name\":\"batch-job\"")
-        response.body().shouldContain("\"status\":\"Occupied\"")
-        response.body().shouldContain("\"leaderId\":\"node-1\"")
-        response.body().shouldContain("\"leaseExpiry\":\"2026-05-16T00:00:00Z\"")
+        response.body() shouldContain "\"backend\":\"test\""
+        response.body() shouldContain "\"stateProviderBean\":\"testLeaderElector\""
+        response.body() shouldContain "\"stateSupported\":true"
+        response.body() shouldContain "\"acquisitionFailures\""
+        response.body() shouldContain "\"count\":0"
+        response.body() shouldContain "\"window\":\"PT5M\""
+        response.body() shouldContain "\"name\":\"batch-job\""
+        response.body() shouldContain "\"status\":\"Occupied\""
+        response.body() shouldContain "\"leaderId\":\"node-1\""
+        response.body() shouldContain "\"leaseExpiry\":\"2026-05-16T00:00:00Z\""
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -75,7 +82,7 @@ class LeaderElectionActuatorHttpPathTest {
             TestLeaderElector()
     }
 
-    private class TestLeaderElector : LeaderElector {
+    private class TestLeaderElector: LeaderElector {
 
         override val supportsAuditLeaderState: Boolean = true
 

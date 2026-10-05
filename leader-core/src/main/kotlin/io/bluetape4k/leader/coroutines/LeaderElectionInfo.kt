@@ -1,7 +1,6 @@
 package io.bluetape4k.leader.coroutines
 
 import io.bluetape4k.leader.identity.LeaderIdSource
-import io.bluetape4k.logging.KLogging
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -18,8 +17,9 @@ data class LeaderElectionInfo(
     val wasElected: Boolean,
     val leaderId: String? = null,
     val leaderIdSource: LeaderIdSource? = null,
-) : CoroutineContext.Element {
-    companion object Key : CoroutineContext.Key<LeaderElectionInfo>, KLogging()
+): CoroutineContext.Element {
+    companion object Key: CoroutineContext.Key<LeaderElectionInfo>
+
     override val key: CoroutineContext.Key<*> get() = Key
 }
 

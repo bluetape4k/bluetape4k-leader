@@ -1,5 +1,6 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.support.publicLazy
 import kotlinx.coroutines.ThreadContextElement
 import kotlinx.coroutines.asContextElement
 import java.util.concurrent.atomic.AtomicBoolean
@@ -15,10 +16,10 @@ class LeaderLeaseExtensionObservationScope private constructor(
     @get:JvmSynthetic
     internal val observer: LeaderLeaseExtensionObserver,
     private val closeAction: (LeaderLeaseExtensionObservationScope) -> Unit,
-) : AutoCloseable {
+): AutoCloseable {
 
     private val active = AtomicBoolean(true)
-    private val contextElement by lazy(LazyThreadSafetyMode.PUBLICATION) {
+    private val contextElement by publicLazy {
         scopes.asContextElement(this)
     }
 

@@ -19,12 +19,10 @@ data class ExposedR2dbcLeaderElectionOptions(
     val retryStrategy: RetryStrategy = RetryStrategy.Jitter(),
     val recordHistory: Boolean = false,
     val lockOwner: String? = null,
-) : Serializable {
+): Serializable {
 
     init {
-        lockOwner?.let {
-            it.length.requireLe(ExposedLeaderConstants.LOCK_OWNER_LENGTH, "lockOwner.length")
-        }
+        lockOwner?.length?.requireLe(ExposedLeaderConstants.LOCK_OWNER_LENGTH, "lockOwner.length")
     }
 
     companion object {

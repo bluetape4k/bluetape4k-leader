@@ -12,7 +12,7 @@ data class StrategicGroupElectionResult(
     val winners: List<CandidateInfo>,
     val eliminations: List<Elimination>,
     val scores: Map<String, Double> = emptyMap(),
-) : Serializable {
+): Serializable {
 
     companion object {
         private const val serialVersionUID = 1L

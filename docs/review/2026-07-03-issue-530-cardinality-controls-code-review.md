@@ -9,15 +9,15 @@
 
 ## 칠층문 결과
 
-| Tier | Result | Evidence |
-|---|---|---|
-| Tier 1 Performance | PASS | HASH now reuses a `ThreadLocal<MessageDigest>`; duration PromQL aggregates numerator and denominator by `lock_name`. |
-| Tier 2 Stability | PASS | Explicit raw-name registration is tracked per exported tag; deregistration keeps collapsed gauges until the last raw source is removed; in-flight active gauges are retained. Rerun result: P0=0, P1=0. |
-| Tier 3 Security | PASS | Observation listener and recorder sanitize opt-in `lock.name` and `leader.id`; Spring Observation auto-config passes the same tag policy. Rerun result: P0=0, P1=0. |
-| Tier 4 Operations | PASS | Fresh affected-module verification completed; prior evidence gap was closed by full module tests. |
-| Tier 5 Developer/API | PASS | Existing constructors remain available for `LeaderObservationOptions` and `LeaderAopProperties.Metrics`; javap confirmed binary-compatible entry points. |
-| Tier 6 User/Caller | PASS | README EN/KO now explains RAW, HASH, TRUNCATE, allowlist risk, and that built-in meters do not currently emit `backend.name`. Rerun result: P0=0, P1=0. |
-| Tier 7 Evidence | PASS | Tracked review artifact and lessons are included before PR creation; README architecture diagram was updated after the cardinality-control documentation changed. |
+| Tier                 | Result | Evidence                                                                                                                                                                                                |
+|----------------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Tier 1 Performance   | PASS   | HASH now reuses a `ThreadLocal<MessageDigest>`; duration PromQL aggregates numerator and denominator by `lock_name`.                                                                                    |
+| Tier 2 Stability     | PASS   | Explicit raw-name registration is tracked per exported tag; deregistration keeps collapsed gauges until the last raw source is removed; in-flight active gauges are retained. Rerun result: P0=0, P1=0. |
+| Tier 3 Security      | PASS   | Observation listener and recorder sanitize opt-in `lock.name` and `leader.id`; Spring Observation auto-config passes the same tag policy. Rerun result: P0=0, P1=0.                                     |
+| Tier 4 Operations    | PASS   | Fresh affected-module verification completed; prior evidence gap was closed by full module tests.                                                                                                       |
+| Tier 5 Developer/API | PASS   | Existing constructors remain available for `LeaderObservationOptions` and `LeaderAopProperties.Metrics`; javap confirmed binary-compatible entry points.                                                |
+| Tier 6 User/Caller   | PASS   | README EN/KO now explains RAW, HASH, TRUNCATE, allowlist risk, and that built-in meters do not currently emit `backend.name`. Rerun result: P0=0, P1=0.                                                 |
+| Tier 7 Evidence      | PASS   | Tracked review artifact and lessons are included before PR creation; README architecture diagram was updated after the cardinality-control documentation changed.                                       |
 
 최종 차단 횟수: P0=0, P1=0.
 
@@ -34,35 +34,35 @@
 ## 검증
 
 - `./gradlew :bluetape4k-leader-micrometer:test :bluetape4k-leader-spring-boot:test --tests '*LeaderMetricTagOptionsTest' --tests '*MicrometerLeaderAopMetricsRecorderTest' --tests '*InstrumentedLeaderElectorsTest' --tests '*MicrometerLeaderElectionListenerTest' --tests '*MicrometerObservationLeaderAopMetricsRecorderTest' --tests '*MicrometerObservationLeaderElectionListenerTest' --tests '*PrometheusExportTest' --tests '*LeaderAopPropertiesBindingTest' --tests '*LeaderMicrometerAutoConfigurationTest' --tests '*LeaderObservationAutoConfigurationTest'`
-  - 결과: PASS, Micrometer 75 합격, Spring 23 합격.
+    - 결과: PASS, Micrometer 75 합격, Spring 23 합격.
 - `./gradlew :examples:prometheus-dashboard:test --tests '*PrometheusScrapeTest'`
-  - 결과: PASS, 1개 통과.
+    - 결과: PASS, 1개 통과.
 - `./gradlew :bluetape4k-leader-micrometer:test :bluetape4k-leader-spring-boot:test :examples:prometheus-dashboard:test`
-  - 결과: PASS, 349 통과, `BUILD SUCCESSFUL in 1m 36s`.
+    - 결과: PASS, 349 통과, `BUILD SUCCESSFUL in 1m 36s`.
 - `javap -classpath leader-micrometer/build/classes/kotlin/main io.bluetape4k.leader.micrometer.LeaderObservationOptions`
-  - 결과: PASS, 생성자에는 `(boolean, boolean, boolean, LeaderMetricTagOptions)`, `(boolean, boolean, boolean)` 및 no-arg가 포함됩니다.
+    - 결과: PASS, 생성자에는 `(boolean, boolean, boolean, LeaderMetricTagOptions)`, `(boolean, boolean, boolean)` 및 no-arg가 포함됩니다.
 - `javap -classpath leader-spring-boot/build/classes/kotlin/main 'io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Metrics'`
-  - 결과: PASS, 생성자에는 `(boolean, Tags)`, `(boolean)` 및 no-arg가 포함됩니다.
+    - 결과: PASS, 생성자에는 `(boolean, Tags)`, `(boolean)` 및 no-arg가 포함됩니다.
 - `git diff --check`
-  - 결과: 통과.
+    - 결과: 통과.
 - `jq empty leader-spring-boot/src/main/resources/META-INF/spring/additional-spring-configuration-metadata.json examples/prometheus-dashboard/provisioning/grafana/dashboards/leader-dashboard.json`
-  - 결과: 통과.
+    - 결과: 통과.
 - 금지된 어설션, 오래된 원시 잠금 문서 및 임시 동시성 도우미에 대한 패턴 스캔입니다.
-  - 결과: 접촉된 범위에 대해 통과; 동시 적용 범위는 `MultithreadingTester`를 사용합니다.
+    - 결과: 접촉된 범위에 대해 통과; 동시 적용 범위는 `MultithreadingTester`를 사용합니다.
 - `xmllint --noout docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
-  - 결과: 통과.
+    - 결과: 통과.
 - `~/.local/bin/cairosvg docs/images/readme-diagrams/leader-micrometer-architecture-01.svg -o docs/images/readme-diagrams/leader-micrometer-architecture-01.png -s 2`
-  - 결과: PASS, PNG가 3692x2240에서 렌더링되었습니다.
+    - 결과: PASS, PNG가 3692x2240에서 렌더링되었습니다.
 - `python3 /Users/debop/.codex/skills/bluetape4k-diagram/references/diagram-geometry-audit.py docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
-  - 결과: 통과, `geometry_failures=0`.
+    - 결과: 통과, `geometry_failures=0`.
 - `python3 /Users/debop/.codex/skills/bluetape4k-diagram/references/diagram-endpoint-audit.py docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
-  - 결과: 통과, `files=1`.
+    - 결과: 통과, `files=1`.
 - `python3 /Users/debop/.codex/skills/bluetape4k-diagram/references/diagram-mixed-corner-audit.py docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
-  - 결과: 통과, `paths=16`, `q_bends=0`, `failures=0`; 이 자산의 모든 커넥터는 직선입니다.
+    - 결과: 통과, `paths=16`, `q_bends=0`, `failures=0`; 이 자산의 모든 커넥터는 직선입니다.
 - `python3 /Users/debop/.codex/skills/bluetape4k-diagram/references/diagram-connector-audit.py docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
-  - 결과: 통과, `markers=5`, `connectors=16`, `cards=19`, `intrusions=0`, `crossings=0`.
+    - 결과: 통과, `markers=5`, `connectors=16`, `cards=19`, `intrusions=0`, `crossings=0`.
 - `view_image`를 사용한 전체 크기 PNG 검사
-  - 결과: 통과, 눈에 띄는 텍스트 오버플로 없음, 커넥터/카드 침입, 라벨 겹침 또는 잘린 가드레일 텍스트.
+    - 결과: 통과, 눈에 띄는 텍스트 오버플로 없음, 커넥터/카드 침입, 라벨 겹침 또는 잘린 가드레일 텍스트.
 
 ## 잔여 위험
 

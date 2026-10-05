@@ -1,12 +1,14 @@
 # Issue #884 Testcontainers readiness 경계 진단 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic
+workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Testcontainers HTTP wait 실패가 target container를 제거하기 전에 internal endpoint, mapped host endpoint, Docker port mapping을 함께 수집해 Colima host forwarding과 container service 실패를 결정적으로 구분한다.
 
 **Architecture:** `leader-core` test fixtures에 기존 `WaitStrategy`를 감싸는 진단 strategy와 bounded probe를 둔다. 정상 경로는 기존 delegate만 실행하고, 실패 경로에서 pinned Alpine helper를 target network namespace에 붙여 internal HTTP를 확인한 뒤 host HTTP와 Docker inspect를 한 진단으로 합친다. Production source, startup timeout, Colima runtime은 변경하지 않는다.
 
-**Tech Stack:** Kotlin/JVM, JUnit 5, MockK, bluetape4k assertions, Testcontainers 2.0.5, Docker Java, Gradle test fixtures, Colima.
+**Tech
+Stack:** Kotlin/JVM, JUnit 5, MockK, bluetape4k assertions, Testcontainers 2.0.5, Docker Java, Gradle test fixtures, Colima.
 
 ---
 
@@ -22,6 +24,7 @@
 ## Task 1 — 기준 상태와 root-cause 경계 고정
 
 **Files:**
+
 - Create: `docs/superpowers/specs/2026-09-06-issue-884-testcontainers-readiness-design.md`
 - Create: `docs/superpowers/plans/2026-09-06-issue-884-testcontainers-readiness-plan.md`
 
@@ -50,6 +53,7 @@
 ## Task 2 — classifier와 wait wrapper RED
 
 **Files:**
+
 - Create: `leader-core/src/test/kotlin/io/bluetape4k/leader/testcontainers/ReadinessBoundaryWaitStrategyTest.kt`
 - Modify: `leader-core/build.gradle.kts`
 
@@ -100,6 +104,7 @@
 ## Task 3 — 최소 diagnostic fixture GREEN
 
 **Files:**
+
 - Create: `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/testcontainers/ReadinessBoundaryWaitStrategy.kt`
 - Test: `leader-core/src/test/kotlin/io/bluetape4k/leader/testcontainers/ReadinessBoundaryWaitStrategyTest.kt`
 
@@ -138,6 +143,7 @@
 ## Task 4 — Toxiproxy·etcd 적용과 실제 endpoint proof
 
 **Files:**
+
 - Modify: `leader-redis-lettuce/src/test/kotlin/io/bluetape4k/leader/lettuce/LettuceStrategicGroupToxiproxyCancellationTest.kt`
 - Modify: `leader-redis-redisson/src/test/kotlin/io/bluetape4k/leader/redisson/RedissonStrategicGroupToxiproxyCancellationTest.kt`
 - Modify: `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/AbstractEtcdLeaderTest.kt`
@@ -166,6 +172,7 @@
 ## Task 5 — clean 반복·module·전체 build 검증
 
 **Files:**
+
 - Verify: all changed files and generated JUnit XML
 
 - [x] **Step 1: Source hygiene를 검사한다**
@@ -200,6 +207,7 @@
 ## Task 6 — lesson·inline review·delivery checkpoint
 
 **Files:**
+
 - Create: `docs/lessons/2026-09-06-issue-884-testcontainers-readiness.md`
 - Create: `docs/review/2026-09-06-issue-884-testcontainers-readiness-review.md`
 

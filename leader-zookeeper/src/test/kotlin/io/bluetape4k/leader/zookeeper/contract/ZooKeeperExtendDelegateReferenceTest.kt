@@ -1,8 +1,9 @@
 package io.bluetape4k.leader.zookeeper.contract
 
-import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.AopScopeAccess
@@ -77,8 +78,8 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         // ZK passthrough: observedExpireAt = Instant.MAX (session-held semantics)
-        ((outcome as ExtendOutcome.Extended).observedExpireAt == Instant.MAX).shouldBeTrue()
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        (outcome as ExtendOutcome.Extended).observedExpireAt shouldBeEqualTo Instant.MAX
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test
@@ -93,7 +94,7 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-        ((outcome as ExtendOutcome.Extended).observedExpireAt == Instant.MAX).shouldBeTrue()
+        (outcome as ExtendOutcome.Extended).observedExpireAt shouldBeEqualTo Instant.MAX
     }
 
     @Test
@@ -111,8 +112,8 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-        ((outcome as ExtendOutcome.Extended).observedExpireAt == Instant.MAX).shouldBeTrue()
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        (outcome as ExtendOutcome.Extended).observedExpireAt shouldBeEqualTo Instant.MAX
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test
@@ -130,8 +131,8 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-        ((outcome as ExtendOutcome.Extended).observedExpireAt == Instant.MAX).shouldBeTrue()
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        (outcome as ExtendOutcome.Extended).observedExpireAt shouldBeEqualTo Instant.MAX
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test

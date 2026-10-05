@@ -4,8 +4,6 @@
 
 이 문서는 `Issue 226 Leader Observability Design`에 대한 설계 또는 실행 계획 기록입니다. 아래 원문 구조의 범위, 결정, 작업 순서, 검증 조건, 위험 및 후속 조치는 기록 보존을 위해 유지합니다. 검토자는 각 `Action`, `Expected DoD`, `Validation`, `Target files` 항목을 한국어 해설과 함께 읽고, 코드 식별자와 명령은 원문 그대로 취급해야 합니다.
 
-
-
 ## Context
 
 Issue #226 asks for Spring Boot observability around leader election:
@@ -34,14 +32,14 @@ Add `LeaderElectionObservabilityAutoConfiguration` after the core/aop auto-confi
 It registers:
 
 - `LeaderElectionStatusRegistry`
-  - stores known lock names in a thread-safe sorted set;
-  - seeded from `bluetape4k.leader.observability.lock-names`;
-  - implements `LeaderElectionListener` so listener-aware electors can add names from `onElected`, `onSkipped`, and `onRevoked`.
+    - stores known lock names in a thread-safe sorted set;
+    - seeded from `bluetape4k.leader.observability.lock-names`;
+    - implements `LeaderElectionListener` so listener-aware electors can add names from `onElected`, `onSkipped`, and `onRevoked`.
 - `LeaderElectionEventPublisher` fallback bean
-  - if no publisher bean exists, expose a publisher-only listener adapter;
-  - the adapter emits events observed through `LeaderElectionListenerRegistry` beans and never becomes a `LeaderElector` candidate.
+    - if no publisher bean exists, expose a publisher-only listener adapter;
+    - the adapter emits events observed through `LeaderElectionListenerRegistry` beans and never becomes a `LeaderElector` candidate.
 - `LeaderElectionListenerRegistry` registrar
-  - attaches the status registry to all listener-aware leader beans after singleton initialization.
+    - attaches the status registry to all listener-aware leader beans after singleton initialization.
 
 Add `LeaderElectionActuatorAutoConfiguration` after observability:
 

@@ -77,7 +77,7 @@ data class LeaderLockHistoryRecord private constructor(
      * `metadata` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
      */
     val metadata: Map<String, String> = emptyMap(),
-) : Serializable {
+): Serializable {
 
     /**
      * `withSanitizedContent` 호출은 leader election 계약의 일부 동작을 수행합니다.
@@ -93,10 +93,10 @@ data class LeaderLockHistoryRecord private constructor(
     // 이 record를 문자열 보간으로 로그에 남길 때 credential이 노출되지 않도록 token을 가립니다.
     override fun toString(): String =
         "LeaderLockHistoryRecord(lockName=$lockName, token=***, kind=$kind, acquiredAt=$acquiredAt, " +
-        "lockedUntil=$lockedUntil, nodeId=$nodeId, status=$status, slotId=$slotId, " +
-        "durationMs=$durationMs, errorType=$errorType)"
+                "lockedUntil=$lockedUntil, nodeId=$nodeId, status=$status, slotId=$slotId, " +
+                "durationMs=$durationMs, errorType=$errorType)"
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         private const val serialVersionUID = 1L
 
         /**

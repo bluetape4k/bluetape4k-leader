@@ -1,8 +1,13 @@
 package io.bluetape4k.leader.spring.metrics
 
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeLessThan
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaderElectionListener
@@ -14,12 +19,15 @@ import io.bluetape4k.leader.micrometer.MicrometerObservationLeaderElectionListen
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
 import io.bluetape4k.leader.spring.scheduling.LeaderScheduledPolicyAutoConfiguration
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationHandler
 import io.micrometer.observation.ObservationRegistry
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.springframework.beans.factory.getBean
 import org.springframework.beans.factory.getBeansOfType
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.micrometer.observation.autoconfigure.ObservationAutoConfiguration
@@ -30,6 +38,8 @@ import org.springframework.context.annotation.Primary
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderObservationAutoConfigurationTest {
+
+    companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(
@@ -47,10 +57,9 @@ class LeaderObservationAutoConfigurationTest {
         runner
             .withUserConfiguration(ObservationRegistryConfig::class.java)
             .run { ctx ->
-                ctx.getBean(MicrometerObservationLeaderAopMetricsRecorder::class.java).shouldNotBeNull()
-                ctx.getBean(MicrometerObservationLeaderElectionListener::class.java).shouldNotBeNull()
-                ctx.getBean(LeaderElectionListener::class.java)
-                    .shouldBeInstanceOf<MicrometerObservationLeaderElectionListener>()
+                ctx.getBean<MicrometerObservationLeaderAopMetricsRecorder>().shouldNotBeNull()
+                ctx.getBean<MicrometerObservationLeaderElectionListener>().shouldNotBeNull()
+                ctx.getBean<LeaderElectionListener>().shouldBeInstanceOf<MicrometerObservationLeaderElectionListener>()
             }
     }
 
@@ -61,8 +70,8 @@ class LeaderObservationAutoConfigurationTest {
             .run { ctx ->
                 ctx.containsBean(LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME).shouldBeTrue()
                 ctx.containsBean("leaseExtensionObserverRegistration").shouldBeTrue()
-                ctx.getBean("leaseExtensionObserverRegistration")
-                    .shouldBeInstanceOf<AutoCloseable>()
+                ctx.getBean("leaseExtensionObserverRegistration").shouldBeInstanceOf<AutoCloseable>()
+
                 LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 1
             }
 
@@ -74,10 +83,8 @@ class LeaderObservationAutoConfigurationTest {
         runner
             .withUserConfiguration(NoopObservationRegistryConfig::class.java)
             .run { ctx ->
-                ctx.getBean(
-                    LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME,
-                    LeaseExtensionObservationScopeOwner::class.java,
-                ).current() shouldBeEqualTo null
+                ctx.getBean<LeaseExtensionObservationScopeOwner>(LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME)
+                    .current().shouldBeNull()
                 ctx.containsBean("leaseExtensionObserverRegistration").shouldBeFalse()
                 LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 0
             }
@@ -86,8 +93,8 @@ class LeaderObservationAutoConfigurationTest {
     @Test
     fun `ObservationRegistry 빈 없을 때 Observation recorder 와 listener 미등록`() {
         runner.run { ctx ->
-            ctx.getBeansOfType<MicrometerObservationLeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
-            ctx.getBeansOfType<MicrometerObservationLeaderElectionListener>().isEmpty().shouldBeTrue()
+            ctx.getBeansOfType<MicrometerObservationLeaderAopMetricsRecorder>().shouldBeEmpty()
+            ctx.getBeansOfType<MicrometerObservationLeaderElectionListener>().shouldBeEmpty()
         }
     }
 
@@ -97,7 +104,7 @@ class LeaderObservationAutoConfigurationTest {
             .withConfiguration(AutoConfigurations.of(ObservationAutoConfiguration::class.java))
             .withUserConfiguration(BootObservationHandlerConfig::class.java)
             .run { ctx ->
-                ctx.getBean(ObservationRegistry::class.java).isNoop.shouldBeFalse()
+                ctx.getBean<ObservationRegistry>().isNoop.shouldBeFalse()
                 ctx.containsBean("leaseExtensionObserverRegistration").shouldBeTrue()
                 LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 1
             }
@@ -110,7 +117,7 @@ class LeaderObservationAutoConfigurationTest {
         runner
             .withUserConfiguration(MultipleObservationRegistryConfig::class.java)
             .run { ctx ->
-                val primary = ctx.getBean(ObservationRegistry::class.java)
+                val primary = ctx.getBean<ObservationRegistry>()
                 ctx.containsBean("leaseExtensionObserverRegistration").shouldBeTrue()
                 LeaseExtensionObservationRegistrationManager.referenceCount(primary) shouldBeEqualTo 1
                 LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 1
@@ -125,8 +132,8 @@ class LeaderObservationAutoConfigurationTest {
             .withUserConfiguration(ObservationRegistryConfig::class.java)
             .withPropertyValues("bluetape4k.leader.observability.enabled=false")
             .run { ctx ->
-                ctx.getBeansOfType<MicrometerObservationLeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
-                ctx.getBeansOfType<MicrometerObservationLeaderElectionListener>().isEmpty().shouldBeTrue()
+                ctx.getBeansOfType<MicrometerObservationLeaderAopMetricsRecorder>().shouldBeEmpty()
+                ctx.getBeansOfType<MicrometerObservationLeaderElectionListener>().shouldBeEmpty()
             }
     }
 
@@ -137,8 +144,8 @@ class LeaderObservationAutoConfigurationTest {
             .withPropertyValues("bluetape4k.leader.observability.tracing.enabled=false")
             .run { ctx ->
                 ctx.containsBean(LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME).shouldBeFalse()
-                ctx.getBeansOfType<MicrometerObservationLeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
-                ctx.getBeansOfType<MicrometerObservationLeaderElectionListener>().isEmpty().shouldBeTrue()
+                ctx.getBeansOfType<MicrometerObservationLeaderAopMetricsRecorder>().shouldBeEmpty()
+                ctx.getBeansOfType<MicrometerObservationLeaderElectionListener>().shouldBeEmpty()
             }
     }
 
@@ -154,14 +161,18 @@ class LeaderObservationAutoConfigurationTest {
                 "bluetape4k.leader.aop.metrics.tags.lock-name.hash-length=12",
             )
             .run { ctx ->
-                val recorder = ctx.getBean(MicrometerObservationLeaderAopMetricsRecorder::class.java)
-                val listener = ctx.getBean(MicrometerObservationLeaderElectionListener::class.java)
+                val recorder = ctx.getBean<MicrometerObservationLeaderAopMetricsRecorder>()
+                val listener = ctx.getBean<MicrometerObservationLeaderElectionListener>()
+
+                log.debug { "recorder=$recorder" }
 
                 recorder.options.includeLockName.shouldBeTrue()
                 recorder.options.includeLeaderId.shouldBeTrue()
                 recorder.options.includeExceptionDetails.shouldBeTrue()
                 recorder.options.tagOptions.lockName.mode shouldBeEqualTo LeaderMetricTagMode.HASH
                 recorder.options.tagOptions.lockName.hashLength shouldBeEqualTo 12
+
+                log.debug { "listener=$listener" }
                 listener.options shouldBeEqualTo recorder.options
             }
     }
@@ -171,8 +182,8 @@ class LeaderObservationAutoConfigurationTest {
         runner
             .withUserConfiguration(MeterRegistryConfig::class.java, ObservationRegistryConfig::class.java)
             .run { ctx ->
-                ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java).shouldNotBeNull()
-                ctx.getBean(MicrometerObservationLeaderAopMetricsRecorder::class.java).shouldNotBeNull()
+                ctx.getBean<MicrometerLeaderAopMetricsRecorder>().shouldNotBeNull()
+                ctx.getBean<MicrometerObservationLeaderAopMetricsRecorder>().shouldNotBeNull()
             }
     }
 
@@ -181,8 +192,8 @@ class LeaderObservationAutoConfigurationTest {
         runner
             .withUserConfiguration(MeterRegistryConfig::class.java, CustomObservationRecorderConfig::class.java)
             .run { ctx ->
-                ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java).shouldNotBeNull()
-                ctx.getBean(MicrometerObservationLeaderAopMetricsRecorder::class.java)
+                ctx.getBean<MicrometerLeaderAopMetricsRecorder>().shouldNotBeNull()
+                ctx.getBean<MicrometerObservationLeaderAopMetricsRecorder>()
                     .shouldBeInstanceOf<MicrometerObservationLeaderAopMetricsRecorder>()
             }
     }
@@ -190,11 +201,15 @@ class LeaderObservationAutoConfigurationTest {
     @Test
     fun `사용자 정의 generic LeaderAopMetricsRecorder 는 default meter recorder 를 억제한다`() {
         runner
-            .withUserConfiguration(MeterRegistryConfig::class.java, ObservationRegistryConfig::class.java, CustomGenericRecorderConfig::class.java)
+            .withUserConfiguration(
+                MeterRegistryConfig::class.java,
+                ObservationRegistryConfig::class.java,
+                CustomGenericRecorderConfig::class.java
+            )
             .run { ctx ->
                 ctx.getBeansOfType<MicrometerLeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
                 ctx.getBeansOfType<LeaderAopMetricsRecorder>()["customRecorder"] shouldBeEqualTo LeaderAopMetricsRecorder.NoOp
-                ctx.getBean(MicrometerObservationLeaderAopMetricsRecorder::class.java).shouldNotBeNull()
+                ctx.getBean<MicrometerObservationLeaderAopMetricsRecorder>().shouldNotBeNull()
             }
     }
 
@@ -205,6 +220,7 @@ class LeaderObservationAutoConfigurationTest {
             .run { ctx ->
                 val recorders = ctx.getBeansOfType<MicrometerObservationLeaderAopMetricsRecorder>()
 
+                log.debug { "recorders=$recorders" }
                 recorders.size shouldBeEqualTo 1
                 recorders.values.single().options.includeLockName.shouldBeTrue()
             }
@@ -224,12 +240,12 @@ class LeaderObservationAutoConfigurationTest {
         val schedulingPolicyIndex = imports.indexOf(LeaderScheduledPolicyAutoConfiguration::class.qualifiedName)
         val aopIndex = imports.indexOf(LeaderAopAutoConfiguration::class.qualifiedName)
 
-        (factoryIndex >= 0).shouldBeTrue()
-        (schedulingPolicyIndex > factoryIndex).shouldBeTrue()
-        (schedulingPolicyIndex < metricsIndex).shouldBeTrue()
-        (metricsIndex >= 0).shouldBeTrue()
-        (observationIndex > metricsIndex).shouldBeTrue()
-        (aopIndex > observationIndex).shouldBeTrue()
+        factoryIndex shouldBeGreaterOrEqualTo 0
+        schedulingPolicyIndex shouldBeGreaterThan factoryIndex
+        schedulingPolicyIndex shouldBeLessThan metricsIndex
+        metricsIndex shouldBeGreaterOrEqualTo 0
+        observationIndex shouldBeGreaterThan metricsIndex
+        aopIndex shouldBeGreaterThan observationIndex
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -272,7 +288,7 @@ class LeaderObservationAutoConfigurationTest {
         }
     }
 
-    private object NonNoopObservationHandler : ObservationHandler<Observation.Context> {
+    private object NonNoopObservationHandler: ObservationHandler<Observation.Context> {
         override fun supportsContext(context: Observation.Context): Boolean = true
     }
 

@@ -9,10 +9,11 @@ import io.bluetape4k.leader.LeaderLockHandle
  */
 internal object LeaderLockHandleCapture {
 
-    private val tl: ThreadLocal<LeaderLockHandle.Real?> = ThreadLocal()
+    // TODO: Virtual Thread 대응을 위해서는 ThreadLocal 대신 ScopedValue 를 사용해야 하지 않을까?
+    private val threadLocal: ThreadLocal<LeaderLockHandle.Real?> = ThreadLocal()
 
     fun set(handle: LeaderLockHandle.Real) {
-        tl.set(handle)
+        threadLocal.set(handle)
     }
 
     /**
@@ -22,12 +23,12 @@ internal object LeaderLockHandleCapture {
      * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun poll(): LeaderLockHandle.Real? {
-        val handle = tl.get()
-        tl.remove()
+        val handle = threadLocal.get()
+        threadLocal.remove()
         return handle
     }
 
     fun clear() {
-        tl.remove()
+        threadLocal.remove()
     }
 }

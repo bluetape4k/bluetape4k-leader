@@ -323,5 +323,5 @@ class BackendLeaderElectorBenchmark {
             }
     }
 
-    companion object : KLogging()
+    companion object: KLogging()
 }

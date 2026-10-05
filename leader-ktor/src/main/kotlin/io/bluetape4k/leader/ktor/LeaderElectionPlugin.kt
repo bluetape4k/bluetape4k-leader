@@ -38,10 +38,10 @@ val LeaderElectionPlugin = createApplicationPlugin(
         resourceRegistry.observeShutdown { report ->
             LeaderElectionPluginInternals.log.info {
                 "LeaderElectionPlugin resource shutdown — " +
-                    "attempted=${report.attempted}, closed=${report.closed}, " +
-                    "failures=${report.failures}, timedOutJobs=${report.timedOutJobs}, " +
-                    "timedOutResources=${report.timedOutResources}, " +
-                    "failureKinds=${report.failureKinds}, timeoutKinds=${report.timeoutKinds}"
+                        "attempted=${report.attempted}, closed=${report.closed}, " +
+                        "failures=${report.failures}, timedOutJobs=${report.timedOutJobs}, " +
+                        "timedOutResources=${report.timedOutResources}, " +
+                        "failureKinds=${report.failureKinds}, timeoutKinds=${report.timeoutKinds}"
             }
         }
         application.installApplicationResourceLifecycle().register(resourceRegistry)

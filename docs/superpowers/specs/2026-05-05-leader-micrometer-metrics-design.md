@@ -11,23 +11,25 @@
 
 ### 1.1 문제 정의
 
-현재 `leader-spring-boot-common`의 `LeaderElectionAspect`는 6개의 라이프사이클 콜백을 정의한 `LeaderAopMetricsRecorder` SPI를 통해 관측 지점을 노출하고 있다. 그러나 운영 환경에서 사용 가능한 **기본 구현체(default implementation)** 가 없어, 사용자는 자체적으로 SPI를 구현해야 메트릭을 얻을 수 있다.
+현재 `leader-spring-boot-common`의 `LeaderElectionAspect`는 6개의 라이프사이클 콜백을 정의한 `LeaderAopMetricsRecorder` SPI를 통해 관측 지점을 노출하고 있다. 그러나 운영 환경에서 사용 가능한
+**기본 구현체 (default implementation)** 가 없어, 사용자는 자체적으로 SPI를 구현해야 메트릭을 얻을 수 있다.
 
-본 작업은 가장 보편적인 메트릭 백엔드인 **Micrometer** 기반의 `MicrometerLeaderAopMetricsRecorder`를 제공하여, Spring Boot 3/4 환경에서 별도 구현 없이 Prometheus / Datadog / CloudWatch 등으로 leader-aop 메트릭을 즉시 송출할 수 있도록 한다.
+본 작업은 가장 보편적인 메트릭 백엔드인
+**Micrometer** 기반의 `MicrometerLeaderAopMetricsRecorder`를 제공하여, Spring Boot 3/4 환경에서 별도 구현 없이 Prometheus / Datadog / CloudWatch 등으로 leader-aop 메트릭을 즉시 송출할 수 있도록 한다.
 
 ### 1.2 ShedLock 비교
 
 ShedLock의 `MicrometerLockProvider` 패턴을 참고 설계 기준으로 채택하되, leader-aop가 가진 다음 강점을 반영한다.
 
-| 항목 | ShedLock | leader-aop (본 설계) |
-|---|---|---|
-| 락 획득 시도 / 성공 카운터 | O | O |
-| 락 미획득 카운터 | O (단일 카운터) | O + `reason` 태그 (CONTENTION / BACKEND_ERROR) |
-| 작업 실행 시간 Timer | O | O |
-| **작업 실패 카운터** | X | **O + `exception` 태그** |
-| **현재 활성 leader 게이지** | X | **O (`AtomicInteger` 기반)** |
-| Spring Boot AutoConfig | X (수동 등록) | **O (Boot3 + Boot4 둘 다)** |
-| 락 획득 소요 시간 | X | (옵션, v2 후보) |
+| 항목                        | ShedLock        | leader-aop (본 설계)                           |
+|-----------------------------|-----------------|------------------------------------------------|
+| 락 획득 시도 / 성공 카운터  | O               | O                                              |
+| 락 미획득 카운터            | O (단일 카운터) | O + `reason` 태그 (CONTENTION / BACKEND_ERROR) |
+| 작업 실행 시간 Timer        | O               | O                                              |
+| **작업 실패 카운터**        | X               | **O + `exception` 태그**                       |
+| **현재 활성 leader 게이지** | X               | **O (`AtomicInteger` 기반)**                   |
+| Spring Boot AutoConfig      | X (수동 등록)   | **O (Boot3 + Boot4 둘 다)**                    |
+| 락 획득 소요 시간           | X               | (옵션, v2 후보)                                |
 
 ### 1.3 비목표 (Non-goals)
 
@@ -41,7 +43,8 @@ ShedLock의 `MicrometerLockProvider` 패턴을 참고 설계 기준으로 채택
 
 ### 2.1 모듈 배치 원칙
 
-`leader-micrometer`는 **Spring Boot 버전에 의존하지 않는다.** Boot3 / Boot4 모두 동일한 `MicrometerLeaderAopMetricsRecorder`를 사용하며, 각 Spring Boot 버전 모듈은 자신의 AutoConfiguration 안에서 동일한 시그니처의 `@Bean` 메서드 하나로 이를 등록한다.
+`leader-micrometer`는 **Spring Boot 버전에 의존하지
+않는다.** Boot3 / Boot4 모두 동일한 `MicrometerLeaderAopMetricsRecorder`를 사용하며, 각 Spring Boot 버전 모듈은 자신의 AutoConfiguration 안에서 동일한 시그니처의 `@Bean` 메서드 하나로 이를 등록한다.
 
 ```
 leader-core
@@ -91,22 +94,26 @@ io.bluetape4k.leader.spring.boot4.metrics
 
 총 **6개의 메터**를 등록한다. 모든 메터는 공통 prefix `leader.aop.*`를 사용한다.
 
-| Meter name | Type | Tags | 트리거 콜백 | 의미 |
-|---|---|---|---|---|
-| `leader.aop.attempts` | Counter | `lock.name` | `onLockAttempt` | 락 획득 시도 횟수 |
-| `leader.aop.acquired` | Counter | `lock.name` | `onLockAcquired` | 락 획득 성공 (= leader 선출) 횟수 |
-| `leader.aop.lock.not.acquired` | Counter | `lock.name`, `reason` | `onLockNotAcquired` | 미획득. `reason ∈ {CONTENTION, BACKEND_ERROR}` |
-| `leader.aop.execution.duration` | Timer | `lock.name` | `onTaskFinished` | 정상 종료된 작업의 attempt → completion 경과 시간 |
-| `leader.aop.task.failed` | Counter | `lock.name`, `exception` | `onTaskFailed` | 작업 본문에서 던진 예외 발생 횟수. `exception` = `throwable::class.simpleName` |
-| `leader.aop.active` | Gauge (`AtomicInteger`) | `lock.name` | `onTaskStarted` (+1) / `onTaskFinished` & `onTaskFailed` (-1) | 동시 실행 중인 leader 작업 수 (JVM-local) |
+| Meter name                      | Type                    | Tags                     | 트리거 콜백                                                   | 의미                                                                           |
+|---------------------------------|-------------------------|--------------------------|---------------------------------------------------------------|--------------------------------------------------------------------------------|
+| `leader.aop.attempts`           | Counter                 | `lock.name`              | `onLockAttempt`                                               | 락 획득 시도 횟수                                                              |
+| `leader.aop.acquired`           | Counter                 | `lock.name`              | `onLockAcquired`                                              | 락 획득 성공 (= leader 선출) 횟수                                              |
+| `leader.aop.lock.not.acquired`  | Counter                 | `lock.name`, `reason`    | `onLockNotAcquired`                                           | 미획득. `reason ∈ {CONTENTION, BACKEND_ERROR}`                                 |
+| `leader.aop.execution.duration` | Timer                   | `lock.name`              | `onTaskFinished`                                              | 정상 종료된 작업의 attempt → completion 경과 시간                              |
+| `leader.aop.task.failed`        | Counter                 | `lock.name`, `exception` | `onTaskFailed`                                                | 작업 본문에서 던진 예외 발생 횟수. `exception` = `throwable::class.simpleName` |
+| `leader.aop.active`             | Gauge (`AtomicInteger`) | `lock.name`              | `onTaskStarted` (+1) / `onTaskFinished` & `onTaskFailed` (-1) | 동시 실행 중인 leader 작업 수 (JVM-local)                                      |
 
-> **`leader.aop.active`는 JVM-local 값이다.** 멀티 인스턴스 클러스터에서 Prometheus 집계 시 `sum` 대신 `max by (lock_name) (leader_aop_active)`를 사용해야 올바른 값을 얻을 수 있다. `sum`을 사용하면 인스턴스 수 × actual count가 된다.
+> **`leader.aop.active`는 JVM-local
+값이다.** 멀티 인스턴스 클러스터에서 Prometheus 집계 시 `sum` 대신 `max by (lock_name) (leader_aop_active)`를 사용해야 올바른 값을 얻을 수 있다. `sum`을 사용하면 인스턴스 수 × actual count가 된다.
 
 ### 3.2 네이밍 근거
 
-- **Prefix `leader.aop.`** : leader-core 자체 메트릭(향후 #76 등)과 명확히 구분하기 위해 `aop` 세그먼트를 둔다.
-- **완전 dot-separated**: Micrometer의 `NamingConvention`이 백엔드별로 자동 변환(Prometheus는 `leader_aop_attempts_total`, Datadog은 `leader.aop.attempts.count` 등)하므로, **모든 세그먼트를 점(.)으로만 구분**한다. underscore 혼용 금지 — `execution_time` 대신 `execution.duration`, `lock_not_acquired` 대신 `lock.not.acquired`.
-- **`lock.name`** : ShedLock 관례(`name`)와 차별화하면서, leader-aop의 SpEL 결과 락 이름임을 명확히 한다. dot-prefix는 Micrometer 권장 태그 네이밍.
+- **Prefix `leader.aop.`** : leader-core 자체 메트릭 (향후 #76 등)과 명확히 구분하기 위해 `aop` 세그먼트를 둔다.
+- **완전
+  dot-separated**: Micrometer의 `NamingConvention`이 백엔드별로 자동 변환 (Prometheus는 `leader_aop_attempts_total`, Datadog은 `leader.aop.attempts.count` 등)하므로,
+  **모든 세그먼트를 점 (.)으로만
+  구분**한다. underscore 혼용 금지 — `execution_time` 대신 `execution.duration`, `lock_not_acquired` 대신 `lock.not.acquired`.
+- **`lock.name`** : ShedLock 관례 (`name`)와 차별화하면서, leader-aop의 SpEL 결과 락 이름임을 명확히 한다. dot-prefix는 Micrometer 권장 태그 네이밍.
 
 ### 3.3 태그 카디널리티 가이드
 
@@ -118,7 +125,8 @@ io.bluetape4k.leader.spring.boot4.metrics
 
 콜백마다 `registry.counter(name, tags)`를 호출하면 매 호출 내부 lookup이 발생한다. 따라서 **`ConcurrentHashMap<String, Meter>` 단위 캐싱**을 적용한다.
 
-> ShedLock과 달리 우리는 콜백 시그니처에 `Duration`이 직접 전달되므로 **ThreadLocal Timer.Sample** 패턴은 불필요하다. `timer.record(executionTime)`을 직접 호출한다.
+> ShedLock과 달리 우리는 콜백 시그니처에 `Duration`이 직접 전달되므로 **ThreadLocal
+Timer.Sample** 패턴은 불필요하다. `timer.record(executionTime)`을 직접 호출한다.
 
 ```kotlin
 // 타입 별칭 — Pair는 data class이므로 equals/hashCode 정상 동작
@@ -162,9 +170,11 @@ private fun buildActiveGauge(lockName: String): AtomicInteger {
 
 **`registerMetricsFor`는 멱등**해야 한다. `computeIfAbsent`가 이를 보장한다 — 동일 이름으로 두 번 호출해도 미터가 중복 등록되지 않는다.
 
-**SmartInitializingSingleton 권장**: `@PostConstruct`보다 `SmartInitializingSingleton.afterSingletonsInstantiated()` 또는 `ApplicationReadyEvent`에서 호출해야, `CompositeMeterRegistry`의 모든 delegate가 완전히 바인딩된 후 Gauge가 등록된다.
+**SmartInitializingSingleton
+권장**: `@PostConstruct`보다 `SmartInitializingSingleton.afterSingletonsInstantiated()` 또는 `ApplicationReadyEvent`에서 호출해야, `CompositeMeterRegistry`의 모든 delegate가 완전히 바인딩된 후 Gauge가 등록된다.
 
-**Gauge 해제 (`deregisterMetricsFor`)**: 동적 SpEL로 lock.name이 변경되거나 잡이 제거된 경우, `ConcurrentHashMap`에 남은 `AtomicInteger`와 `MeterRegistry` 내부 참조가 메모리 누수로 이어진다. 구현체는 `deregisterMetricsFor(vararg lockNames: String)` API도 제공해야 한다.
+**Gauge
+해제 (`deregisterMetricsFor`)**: 동적 SpEL로 lock.name이 변경되거나 잡이 제거된 경우, `ConcurrentHashMap`에 남은 `AtomicInteger`와 `MeterRegistry` 내부 참조가 메모리 누수로 이어진다. 구현체는 `deregisterMetricsFor(vararg lockNames: String)` API도 제공해야 한다.
 
 ```kotlin
 fun deregisterMetricsFor(vararg lockNames: String) {
@@ -257,9 +267,10 @@ class MicrometerLeaderAopMetricsRecorder(
 }
 ```
 
-### 4.2 격리(Isolation) 보장
+### 4.2 격리 (Isolation) 보장
 
-`LeaderElectionAspect`는 metrics recorder의 throw가 본 작업 흐름에 영향을 주지 않도록 **try/catch로 감싸서 호출**해야 한다. (이는 기존 aspect 동작이 이미 그러하다고 가정하나, 본 spec 검토 시 확인하고 필요 시 보강한다.)
+`LeaderElectionAspect`는 metrics recorder의 throw가 본 작업 흐름에 영향을 주지 않도록 **try/catch로 감싸서
+호출**해야 한다. (이는 기존 aspect 동작이 이미 그러하다고 가정하나, 본 spec 검토 시 확인하고 필요 시 보강한다.)
 
 본 구현체 자체는 **throw를 발생시키지 않는다** — `Micrometer`의 `Counter.increment()` 등이 internal exception을 던질 가능성은 무시 가능 수준.
 
@@ -282,13 +293,15 @@ class LeaderMicrometerAutoConfiguration {
 }
 ```
 
-> 메모리 규칙(`feedback_conditional_on_property_all_phases.md`)에 따라 `@ConditionalOnProperty`는 모든 Phase에 적용한다.
+> 메모리 규칙 (`feedback_conditional_on_property_all_phases.md`)에 따라 `@ConditionalOnProperty`는 모든 Phase에 적용한다.
 
 #### 4.3.2 AutoConfig 등록 순서
 
-`LeaderAopAutoConfiguration`보다 **먼저** 등록되어야, Aspect가 recorder 빈을 `ObjectProvider`로 주입받을 수 있다. `LeaderAopFactoryAutoConfiguration`과는 의존 관계 없으므로 Factory 이후에 놓아도 된다.
+`LeaderAopAutoConfiguration`보다
+**먼저** 등록되어야, Aspect가 recorder 빈을 `ObjectProvider`로 주입받을 수 있다. `LeaderAopFactoryAutoConfiguration`과는 의존 관계 없으므로 Factory 이후에 놓아도 된다.
 
 올바른 순서:
+
 ```
 META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
   ...
@@ -297,7 +310,7 @@ META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
   io.bluetape4k.leader.spring.boot3.aop.LeaderAopAutoConfiguration
 ```
 
-`@AutoConfigureBefore(LeaderAopAutoConfiguration::class)` + `@AutoConfigureAfter(LeaderAopFactoryAutoConfiguration::class)` 함께 명시(이중 안전).
+`@AutoConfigureBefore(LeaderAopAutoConfiguration::class)` + `@AutoConfigureAfter(LeaderAopFactoryAutoConfiguration::class)` 함께 명시 (이중 안전).
 
 > **이전 spec 오류 수정**: Micrometer 설정을 Factory보다 앞에 놓을 이유가 없다. Recorder 빈은 Factory 빈에 의존하지 않으므로, 올바른 제약은 "AOP보다 앞" 뿐이다.
 
@@ -308,9 +321,10 @@ META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
 ### 4.4 HealthIndicator 연동 (Boot 3 only, 본 PR 범위)
 
 > ⛔ **`leader-spring-boot-common`의 `LeaderAopHealthIndicator`는 수정하지 않는다.**  
-> `leader-spring-boot-common`에 `MeterRegistry` 의존을 추가하면 Micrometer가 없는 환경에서 `ClassNotFoundException`이 발생하고, 모듈 경계(`leader-spring-boot-common`은 SPI만 포함)를 위반한다.
+> `leader-spring-boot-common`에 `MeterRegistry` 의존을 추가하면 Micrometer가 없는 환경에서 `ClassNotFoundException`이 발생하고, 모듈 경계 (`leader-spring-boot-common`은 SPI만 포함)를 위반한다.
 
-대신, **`leader-spring-boot3`** 내에서 `MicrometerLeaderAopMetricsRecorder` 빈이 존재할 때 `LeaderAopHealthIndicator`를 교체 혹은 보완하는 별도 `HealthContributor` 빈을 등록한다.
+대신,
+**`leader-spring-boot3`** 내에서 `MicrometerLeaderAopMetricsRecorder` 빈이 존재할 때 `LeaderAopHealthIndicator`를 교체 혹은 보완하는 별도 `HealthContributor` 빈을 등록한다.
 
 ```kotlin
 // leader-spring-boot3/.../metrics/LeaderMicrometerAutoConfiguration.kt 내부 추가 @Bean
@@ -337,13 +351,13 @@ Boot4 HealthIndicator 연동은 본 PR 범위 외.
 
 ## 5. Out of Scope
 
-| 항목 | 처리 |
-|---|---|
-| Micrometer Observation API / Tracing span | Issue #85 이후 별도 PR |
+| 항목                                             | 처리                    |
+|--------------------------------------------------|-------------------------|
+| Micrometer Observation API / Tracing span        | Issue #85 이후 별도 PR  |
 | `leader.aop.acquire_time` Timer (acquireElapsed) | v2 후보로 KDoc에만 표시 |
-| Boot4 HealthIndicator 메트릭 노출 | 본 PR 범위 외 |
-| async / suspend / reactive 반환 메트릭 | leader-aop v2 |
-| Tag 카디널리티 자동 보호(allow-list) | v2 후보 |
+| Boot4 HealthIndicator 메트릭 노출                | 본 PR 범위 외           |
+| async / suspend / reactive 반환 메트릭           | leader-aop v2           |
+| Tag 카디널리티 자동 보호(allow-list)             | v2 후보                 |
 
 ---
 
@@ -404,7 +418,8 @@ Boot3과 동일 시나리오. 패키지/AutoConfig 클래스만 다름.
 ### 6.4 커버리지 목표
 
 - `leader-micrometer`: **80%** 이상 (단순 모듈, 분기 적음)
-- `leader-spring-boot3/4`의 `LeaderMicrometerAutoConfiguration`: 메모리 규칙 (`feedback_kover_unit_test_only_threshold.md`)에 따라 통합 모듈 기준 **60%**
+- `leader-spring-boot3/4`의 `LeaderMicrometerAutoConfiguration`: 메모리 규칙 (`feedback_kover_unit_test_only_threshold.md`)에 따라 통합 모듈 기준
+  **60%**
 
 ---
 
@@ -412,7 +427,8 @@ Boot3과 동일 시나리오. 패키지/AutoConfig 클래스만 다름.
 
 이슈 #75 DoD 중 본 PR에 포함되는 항목:
 
-- [ ] `leader-micrometer/build.gradle.kts`에서 기존 `api(project(":leader-core"))` → `api(project(":leader-spring-boot-common"))`로 **교체** (`leader-core`는 `leader-spring-boot-common`의 transitive dep으로 충분)
+- [ ] `leader-micrometer/build.gradle.kts`에서 기존 `api(project(":leader-core"))` → `api(project(":leader-spring-boot-common"))`로
+  **교체** (`leader-core`는 `leader-spring-boot-common`의 transitive dep으로 충분)
 - [ ] `MicrometerLeaderAopMetricsRecorder` 구현 (6 콜백 + `registerMetricsFor` + `deregisterMetricsFor`)
 - [ ] `ConcurrentHashMap` 기반 메터 캐싱 적용
 - [ ] `leader-spring-boot3`에 `LeaderMicrometerAutoConfiguration` + `AutoConfiguration.imports` 등록
@@ -426,7 +442,8 @@ Boot3과 동일 시나리오. 패키지/AutoConfig 클래스만 다름.
 - [ ] 모든 public API에 KDoc
 - [ ] 6중 코드 리뷰 (CRITICAL/HIGH 0)
 
-**제외(Deferred):**
+**제외 (Deferred):**
+
 - [ ] ~~Micrometer Observation API / Tracing span~~ → #85 이후
 - [ ] ~~`leader.aop.acquire_time` Timer~~ → v2
 
@@ -436,27 +453,27 @@ Boot3과 동일 시나리오. 패키지/AutoConfig 클래스만 다름.
 
 ### 8.1 생성 (Create)
 
-| 경로 | 내용 |
-|---|---|
-| `leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/MicrometerLeaderAopMetricsRecorder.kt` | 핵심 구현체 |
-| `leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/MicrometerNames.kt` | (선택) 메터/태그 이름 상수 |
-| `leader-micrometer/src/test/kotlin/io/bluetape4k/leader/micrometer/MicrometerLeaderAopMetricsRecorderTest.kt` | 단위 테스트 |
-| `leader-micrometer/src/test/resources/junit-platform.properties` | PER_CLASS + parallel=false (메모리 규칙) |
-| `leader-micrometer/README.md` | 영문 사용 가이드 |
-| `leader-micrometer/README.ko.md` | 한글 사용 가이드 |
-| `leader-spring-boot3/src/main/kotlin/io/bluetape4k/leader/spring/boot3/metrics/LeaderMicrometerAutoConfiguration.kt` | Boot3 AutoConfig |
-| `leader-spring-boot4/src/main/kotlin/io/bluetape4k/leader/spring/boot4/metrics/LeaderMicrometerAutoConfiguration.kt` | Boot4 AutoConfig (시그니처 동일) |
-| `leader-spring-boot3/src/test/kotlin/.../LeaderMicrometerAutoConfigurationBoot3Test.kt` | Boot3 통합 테스트 |
-| `leader-spring-boot4/src/test/kotlin/.../LeaderMicrometerAutoConfigurationBoot4Test.kt` | Boot4 통합 테스트 |
+| 경로                                                                                                                 | 내용                                     |
+|----------------------------------------------------------------------------------------------------------------------|------------------------------------------|
+| `leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/MicrometerLeaderAopMetricsRecorder.kt`            | 핵심 구현체                              |
+| `leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/MicrometerNames.kt`                               | (선택) 메터/태그 이름 상수               |
+| `leader-micrometer/src/test/kotlin/io/bluetape4k/leader/micrometer/MicrometerLeaderAopMetricsRecorderTest.kt`        | 단위 테스트                              |
+| `leader-micrometer/src/test/resources/junit-platform.properties`                                                     | PER_CLASS + parallel=false (메모리 규칙) |
+| `leader-micrometer/README.md`                                                                                        | 영문 사용 가이드                         |
+| `leader-micrometer/README.ko.md`                                                                                     | 한글 사용 가이드                         |
+| `leader-spring-boot3/src/main/kotlin/io/bluetape4k/leader/spring/boot3/metrics/LeaderMicrometerAutoConfiguration.kt` | Boot3 AutoConfig                         |
+| `leader-spring-boot4/src/main/kotlin/io/bluetape4k/leader/spring/boot4/metrics/LeaderMicrometerAutoConfiguration.kt` | Boot4 AutoConfig (시그니처 동일)         |
+| `leader-spring-boot3/src/test/kotlin/.../LeaderMicrometerAutoConfigurationBoot3Test.kt`                              | Boot3 통합 테스트                        |
+| `leader-spring-boot4/src/test/kotlin/.../LeaderMicrometerAutoConfigurationBoot4Test.kt`                              | Boot4 통합 테스트                        |
 
 ### 8.2 수정 (Modify)
 
-| 경로 | 변경 |
-|---|---|
-| `leader-micrometer/build.gradle.kts` | `api(project(":leader-core"))` → `api(project(":leader-spring-boot-common"))`로 **교체** |
+| 경로                                                                                                                      | 변경                                                                                                                 |
+|---------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| `leader-micrometer/build.gradle.kts`                                                                                      | `api(project(":leader-core"))` → `api(project(":leader-spring-boot-common"))`로 **교체**                             |
 | `leader-spring-boot3/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` | `LeaderMicrometerAutoConfiguration`을 `LeaderAopFactoryAutoConfiguration` 뒤, `LeaderAopAutoConfiguration` 앞에 추가 |
-| `leader-spring-boot4/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` | 동일 |
-| `leader-bom/build.gradle.kts` | **변경 불필요** — `leader-micrometer`는 이미 BOM에 등록되어 있음 (`api(project(":leader-micrometer"))` 확인됨) |
+| `leader-spring-boot4/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` | 동일                                                                                                                 |
+| `leader-bom/build.gradle.kts`                                                                                             | **변경 불필요** — `leader-micrometer`는 이미 BOM에 등록되어 있음 (`api(project(":leader-micrometer"))` 확인됨)       |
 
 ### 8.3 검증 (Verify only — 변경 없을 가능성)
 
@@ -467,16 +484,16 @@ Boot3과 동일 시나리오. 패키지/AutoConfig 클래스만 다름.
 
 ## 9. Risks & Mitigations
 
-| Risk | 영향 | 완화책 |
-|---|---|---|
-| `lock.name` 카디널리티 폭발 (동적 SpEL 남용) | TSDB 메모리 / 비용 폭증 | README 경고 + KDoc 명시 + 신규 lock.name 등록 시 `log.warn` 출력. v2에서 allow-list 검토 |
-| `exception` 태그 카디널리티 (anonymous class 등) | 동일 | `simpleName` 사용. `null` → `"Unknown"`로 정규화 |
-| Gauge 메모리 누수 (동적 lock.name 미해제) | 메모리 누수 / TSDB 비용 | `deregisterMetricsFor` API 제공. KDoc 및 README에 동적 SpEL 사용 시 반드시 호출하도록 명시 |
-| `leader.aop.active` JVM-local → multi-instance 오해 | 잘못된 대시보드 집계 | KDoc + README에 `max by (lock_name)` 권장 PromQL 예시 명시 |
-| Micrometer 미존재 환경에서 ClassLoading 실패 | AutoConfig 실패 | `@ConditionalOnClass(name = [...])`로 보호 |
-| 사용자 정의 recorder 무시 | 기능 손상 | `@ConditionalOnMissingBean`으로 우선권 보장 |
-| `onTaskFailed` 음수 active gauge | 게이지 영구 음수 | `updateAndGet { if (it > 0) it - 1 else 0 }` 패턴 적용 |
-| Boot3/Boot4 AutoConfig 코드 중복 | 유지보수 부담 | 시그니처 동일 → 변경 시 두 파일 동시 패치 |
+| Risk                                                | 영향                    | 완화책                                                                                     |
+|-----------------------------------------------------|-------------------------|--------------------------------------------------------------------------------------------|
+| `lock.name` 카디널리티 폭발 (동적 SpEL 남용)        | TSDB 메모리 / 비용 폭증 | README 경고 + KDoc 명시 + 신규 lock.name 등록 시 `log.warn` 출력. v2에서 allow-list 검토   |
+| `exception` 태그 카디널리티 (anonymous class 등)    | 동일                    | `simpleName` 사용. `null` → `"Unknown"`로 정규화                                           |
+| Gauge 메모리 누수 (동적 lock.name 미해제)           | 메모리 누수 / TSDB 비용 | `deregisterMetricsFor` API 제공. KDoc 및 README에 동적 SpEL 사용 시 반드시 호출하도록 명시 |
+| `leader.aop.active` JVM-local → multi-instance 오해 | 잘못된 대시보드 집계    | KDoc + README에 `max by (lock_name)` 권장 PromQL 예시 명시                                 |
+| Micrometer 미존재 환경에서 ClassLoading 실패        | AutoConfig 실패         | `@ConditionalOnClass(name = [...])`로 보호                                                 |
+| 사용자 정의 recorder 무시                           | 기능 손상               | `@ConditionalOnMissingBean`으로 우선권 보장                                                |
+| `onTaskFailed` 음수 active gauge                    | 게이지 영구 음수        | `updateAndGet { if (it > 0) it - 1 else 0 }` 패턴 적용                                     |
+| Boot3/Boot4 AutoConfig 코드 중복                    | 유지보수 부담           | 시그니처 동일 → 변경 시 두 파일 동시 패치                                                  |
 
 ---
 

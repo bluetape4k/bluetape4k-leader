@@ -2,10 +2,10 @@ package io.bluetape4k.leader.audit
 
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CoroutineScope
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
-import java.util.function.Consumer
 
 /**
  * `LeaderElectionEventPublisher` lifecycle event를 exporter에 연결하는 closeable subscription입니다.
@@ -19,7 +19,9 @@ class LeaderElectionEventExportSubscription private constructor(
     private val exporter: LeaderAuditExporter,
     private val sanitizer: LeaderAuditValueSanitizer,
     private val attributes: Map<String, String>,
-) : AutoCloseable {
+): AutoCloseable {
+
+    companion object: KLogging()
 
     private val gate = ReentrantLock()
     private val closed = AtomicBoolean(false)
@@ -30,7 +32,7 @@ class LeaderElectionEventExportSubscription private constructor(
         publisher: LeaderElectionEventPublisher,
         scope: CoroutineScope,
         exporter: LeaderAuditExporter,
-    ) : this(publisher, scope, exporter, emptyMap(), LeaderAuditValueSanitizer.Default)
+    ): this(publisher, scope, exporter, emptyMap(), LeaderAuditValueSanitizer.Default)
 
     /** 지정한 attributes와 redaction 정책으로 publisher를 구독합니다. */
     constructor(
@@ -39,11 +41,8 @@ class LeaderElectionEventExportSubscription private constructor(
         exporter: LeaderAuditExporter,
         attributes: Map<String, String>,
         sanitizer: LeaderAuditValueSanitizer,
-    ) : this(exporter, sanitizer, attributes.toMap()) {
-        upstream = publisher.onEvent(
-            scope,
-            Consumer { event -> submitIfOpen(event) },
-        )
+    ): this(exporter, sanitizer, attributes.toMap()) {
+        upstream = publisher.onEvent(scope) { event -> submitIfOpen(event) }
     }
 
     override fun close() {

@@ -1,10 +1,11 @@
 package io.bluetape4k.leader.internal
 
-import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.leader.ExtendOutcome
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -16,23 +17,27 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExtendDelegateTest {
 
+    companion object: KLogging()
+
     /**
      * Minimal concrete [ExtendDelegate] that stores lastExtendDeadline as required.
      * R2 contract: the same AtomicReference instance must be returned on every access.
      */
-    private class ConcreteDelegate(private val held: Boolean = true) : ExtendDelegate {
+    private class ConcreteDelegate(private val held: Boolean = true): ExtendDelegate {
         private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
         override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
         override fun extend(lockAtMostFor: Duration): ExtendOutcome =
             if (held) ExtendOutcome.Extended(Instant.now()) else ExtendOutcome.NotHeld
+
         override fun isHeld(): Boolean = held
     }
 
-    private class ConcreteSuspendDelegate(private val held: Boolean = true) : SuspendExtendDelegate {
+    private class ConcreteSuspendDelegate(private val held: Boolean = true): SuspendExtendDelegate {
         private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
         override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
         override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
             if (held) ExtendOutcome.Extended(Instant.now()) else ExtendOutcome.NotHeld
+
         override suspend fun isHeldSuspend(): Boolean = held
     }
 
@@ -41,14 +46,16 @@ class ExtendDelegateTest {
         val delegate = ConcreteDelegate()
         val ref1 = delegate.lastExtendDeadline
         val ref2 = delegate.lastExtendDeadline
+
         // Must be the exact same stored object — not a new instance each call
-        (ref1 === ref2).shouldBeTrue()
+        ref1 shouldBe ref2
     }
 
     @Test
     fun `set on lastExtendDeadline is visible on next get`() {
         val delegate = ConcreteDelegate()
         val deadline = Instant.now().plusSeconds(60)
+
         delegate.lastExtendDeadline.set(deadline)
         delegate.lastExtendDeadline.get() shouldBeEqualTo deadline
     }
@@ -94,6 +101,6 @@ class ExtendDelegateTest {
         val delegate = ConcreteSuspendDelegate(held = true)
 
         delegate.extendSuspend(30.seconds).shouldBeInstanceOf<ExtendOutcome.Extended>()
-        delegate.isHeldSuspend() shouldBe true
+        delegate.isHeldSuspend().shouldBeTrue()
     }
 }

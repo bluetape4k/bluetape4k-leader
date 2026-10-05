@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.micrometer
 
 import io.bluetape4k.leader.LeaderElectionListener
+import io.bluetape4k.logging.KLogging
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationRegistry
 
@@ -14,7 +15,7 @@ import io.micrometer.observation.ObservationRegistry
 class MicrometerObservationLeaderElectionListener(
     private val registry: ObservationRegistry,
     val options: LeaderObservationOptions = LeaderObservationOptions(),
-) : LeaderElectionListener {
+): LeaderElectionListener {
 
     private val tagSanitizer = LeaderMetricTagSanitizer.from(options.tagOptions)
 
@@ -46,7 +47,7 @@ class MicrometerObservationLeaderElectionListener(
         observation.start().stop()
     }
 
-    private companion object {
+    private companion object: KLogging() {
         const val EVENT_ELECTED = "elected"
         const val EVENT_REVOKED = "revoked"
         const val EVENT_SKIPPED = "skipped"

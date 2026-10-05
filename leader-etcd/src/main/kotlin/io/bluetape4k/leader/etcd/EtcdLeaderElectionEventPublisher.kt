@@ -1,9 +1,14 @@
 package io.bluetape4k.leader.etcd
 
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.etcd.internal.EtcdKeyEncoder
 import io.bluetape4k.leader.etcd.internal.EtcdLeaderPaths
+import io.bluetape4k.leader.etcd.support.getOption
+import io.bluetape4k.leader.etcd.support.getOptionOf
+import io.bluetape4k.leader.etcd.support.toByteSequence
+import io.bluetape4k.leader.etcd.support.toUtf8String
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -11,13 +16,13 @@ import io.etcd.jetcd.ByteSequence
 import io.etcd.jetcd.Client
 import io.etcd.jetcd.KV
 import io.etcd.jetcd.Watch
-import io.etcd.jetcd.options.GetOption
 import io.etcd.jetcd.options.GetOption.SortOrder
 import io.etcd.jetcd.options.GetOption.SortTarget
 import io.etcd.jetcd.options.WatchOption
 import io.etcd.jetcd.watch.WatchEvent
 import io.etcd.jetcd.watch.WatchResponse
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -34,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * `EtcdLeaderElectionEventPublisher`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
@@ -45,7 +51,15 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
     keyPrefix: String = EtcdLeaderPaths.DefaultPrefix,
     coroutineScope: CoroutineScope? = null,
     eventBufferCapacity: Int = DefaultEventBufferCapacity,
-) : LeaderElectionEventPublisher, AutoCloseable {
+): LeaderElectionEventPublisher, AutoCloseable {
+
+    companion object: KLogging() {
+        const val DefaultEventBufferCapacity: Int = 64
+        private const val GroupSlotPrefix: String = "slot-"
+        private const val InitialRestartBackoffMs: Long = 200
+        private const val MaxRestartBackoffMs: Long = 5_000
+        private const val MaxConsecutiveFailures: Int = 10
+    }
 
     private val kvClient: KV = client.kvClient
     private val watchClient: Watch = client.watchClient
@@ -55,6 +69,7 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
     private val closed = AtomicBoolean(false)
     private val failureCount = AtomicInteger(0)
     private val watcherRef = AtomicReference<Watch.Watcher?>(null)
+    private val watchReady = CompletableDeferred<Unit>()
     private val activeOwnerKeys = ConcurrentHashMap<String, String>()
     private val eventSubject = MutableSharedFlow<LeaderElectionEvent>(
         extraBufferCapacity = eventBufferCapacity.coerceAtLeast(1),
@@ -62,6 +77,10 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
     )
 
     override val events: Flow<LeaderElectionEvent> = eventSubject.asSharedFlow()
+
+    internal suspend fun awaitWatchReady() {
+        watchReady.await()
+    }
 
     init {
         startWatch()
@@ -75,6 +94,7 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
             runCatching { watcher.close() }
                 .onFailure { e -> log.debug(e) { "etcd watch close skipped." } }
         }
+        watchReady.completeExceptionally(CancellationException("etcd event publisher closed before watch became ready"))
         if (ownsScope) {
             scope.cancel()
         }
@@ -87,6 +107,7 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
 
         val option = WatchOption.builder()
             .isPrefix(true)
+            .withCreateNotify(true)
             .withRequireLeader(true)
             .build()
         val watcher = watchClient.watch(
@@ -95,36 +116,54 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
             Watch.listener(::onResponse, ::onFailure, ::onCompleted),
         )
         if (closed.get()) {
-            runCatching { watcher.close() }
-                .onFailure { e -> log.debug(e) { "etcd watch close skipped after publisher close." } }
+            runCatching {
+                watcher.close()
+            }.onFailure { e ->
+                log.debug(e) { "etcd watch close skipped after publisher close." }
+            }
             return
         }
         watcherRef.getAndSet(watcher)?.let { oldWatcher ->
-            runCatching { oldWatcher.close() }
-                .onFailure { e -> log.debug(e) { "previous etcd watch close skipped." } }
+            runCatching {
+                oldWatcher.close()
+            }.onFailure { e ->
+                log.debug(e) { "previous etcd watch close skipped." }
+            }
         }
         if (closed.get() && watcherRef.compareAndSet(watcher, null)) {
-            runCatching { watcher.close() }
-                .onFailure { e -> log.debug(e) { "etcd watch close skipped after concurrent publisher close." } }
-        }
-        scope.launch {
-            seedCurrentOwners()
+            runCatching {
+                watcher.close()
+            }.onFailure { e ->
+                log.debug(e) { "etcd watch close skipped after concurrent publisher close." }
+            }
         }
     }
 
     private fun onResponse(response: WatchResponse) {
+        if (closed.get()) {
+            return
+        }
         failureCount.set(0)
+        if (response.isCreatedNotify) {
+            scope.launch {
+                seedCurrentOwners()
+                watchReady.complete(Unit)
+            }.log("Watch Seed Job")
+            return
+        }
+
         val events = response.events
             .mapNotNull { event ->
                 resourceFromKey(event.keyValue.key)?.let { resource -> resource to event }
             }
+
         scope.launch {
             events.forEach { (resource, event) ->
                 if (!closed.get()) {
                     revalidateOwner(resource, event)
                 }
             }
-        }
+        }.log("Revalidate Owners Job")
     }
 
     private fun onFailure(error: Throwable) {
@@ -140,10 +179,11 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
 
         val backoffMs = restartBackoffMs(failures)
         log.warn(error) { "etcd watch failed. Restarting in ${backoffMs}ms. keyPrefix=${paths.keyPrefix}" }
+
         scope.launch {
-            delay(backoffMs)
+            delay(backoffMs.milliseconds)
             startWatch()
-        }
+        }.log("Failure Job")
     }
 
     private fun onCompleted() {
@@ -155,10 +195,10 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
 
     private suspend fun seedCurrentOwners() {
         try {
-            val option = GetOption.builder()
-                .isPrefix(true)
-                .build()
-            val resources = kvClient.get(ByteSequence.from(paths.keyPrefix, StandardCharsets.UTF_8), option)
+            val key = paths.keyPrefix.toByteSequence()
+            val option = getOptionOf(isPrefix = true)
+
+            val resources = kvClient.get(key, option)
                 .await()
                 .kvs
                 .mapNotNull { kv -> resourceFromKey(kv.key) }
@@ -178,7 +218,7 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
 
     private suspend fun revalidateOwner(resource: WatchedResource, event: WatchEvent) {
         try {
-            val eventOwnerKey = event.keyValue.key.toString(StandardCharsets.UTF_8)
+            val eventOwnerKey = event.keyValue.key.toUtf8String()
             val currentOwnerKey = currentOwnerKey(resource)
             when (event.eventType) {
                 WatchEvent.EventType.PUT -> handlePut(resource, eventOwnerKey, currentOwnerKey)
@@ -196,6 +236,7 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
         val previousOwnerKey = activeOwnerKeys[resource.id]
         val eventIsCurrentOwner = currentOwnerKey == eventOwnerKey
         val eventWasShortLivedOwner = previousOwnerKey == null && currentOwnerKey == null
+
         if (!eventIsCurrentOwner && !eventWasShortLivedOwner) {
             return
         }
@@ -207,6 +248,7 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
 
     private fun handleDelete(resource: WatchedResource, eventOwnerKey: String, currentOwnerKey: String?) {
         val previousOwnerKey = activeOwnerKeys[resource.id]
+
         if (previousOwnerKey == eventOwnerKey) {
             activeOwnerKeys.remove(resource.id, eventOwnerKey)
             eventSubject.tryEmit(LeaderElectionEvent.Revoked(resource.lockName))
@@ -221,27 +263,31 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
     }
 
     private suspend fun currentOwnerKey(resource: WatchedResource): String? {
-        val option = GetOption.builder()
-            .isPrefix(true)
-            .withSortField(SortTarget.CREATE)
-            .withSortOrder(SortOrder.ASCEND)
-            .withLimit(1)
-            .build()
-        return kvClient.get(resource.lockKey, option)
+        val option = getOption {
+            isPrefix(true)
+            withSortField(SortTarget.CREATE)
+            withSortOrder(SortOrder.ASCEND)
+            withLimit(1)
+        }
+
+        return kvClient
+            .get(resource.lockKey, option)
             .await()
             .kvs
             .firstOrNull()
             ?.key
-            ?.toString(StandardCharsets.UTF_8)
+            ?.toUtf8String()
     }
 
     private fun resourceFromKey(key: ByteSequence): WatchedResource? {
         val path = key.toString(StandardCharsets.UTF_8)
         val singlePrefix = "${paths.keyPrefix}/single/"
+
         if (path.startsWith(singlePrefix)) {
             val encodedLockName = firstSegment(path.removePrefix(singlePrefix)) ?: return null
             val lockName = decodeSegment(encodedLockName) ?: return null
-            val lockKey = ByteSequence.from("$singlePrefix$encodedLockName", StandardCharsets.UTF_8)
+            val lockKey = "$singlePrefix$encodedLockName".toByteSequence()
+
             return WatchedResource(
                 id = "single:$encodedLockName",
                 lockName = lockName,
@@ -258,7 +304,8 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
                 ?.takeIf { it.startsWith(GroupSlotPrefix) }
                 ?: return null
             val lockName = decodeSegment(encodedLockName) ?: return null
-            val lockKey = ByteSequence.from("$groupPrefix$encodedLockName/$slotSegment", StandardCharsets.UTF_8)
+            val lockKey = "$groupPrefix$encodedLockName/$slotSegment".toByteSequence()
+
             return WatchedResource(
                 id = "group:$encodedLockName:$slotSegment",
                 lockName = lockName,
@@ -273,9 +320,11 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
         value.substringBefore('/').takeIf { it.isNotBlank() }
 
     private fun decodeSegment(segment: String): String? =
-        runCatching { EtcdKeyEncoder.decodeSegment(segment) }
-            .onFailure { e -> log.debug(e) { "etcd watch ignored an undecodable ownership key segment." } }
-            .getOrNull()
+        runCatching {
+            EtcdKeyEncoder.decodeSegment(segment)
+        }.onFailure { e ->
+            log.debug(e) { "etcd watch ignored an undecodable ownership key segment." }
+        }.getOrNull()
 
     private fun restartBackoffMs(failures: Int): Long {
         val shift = (failures - 1).coerceIn(0, 5)
@@ -287,12 +336,4 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
         val lockName: String,
         val lockKey: ByteSequence,
     )
-
-    companion object: KLogging() {
-        const val DefaultEventBufferCapacity: Int = 64
-        private const val GroupSlotPrefix: String = "slot-"
-        private const val InitialRestartBackoffMs: Long = 200
-        private const val MaxRestartBackoffMs: Long = 5_000
-        private const val MaxConsecutiveFailures: Int = 10
-    }
 }

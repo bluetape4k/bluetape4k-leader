@@ -2,7 +2,12 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
@@ -22,14 +27,56 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
-import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
-import io.bluetape4k.assertions.shouldBeTrue
+import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionListenerTest {
+
+    @Test
+    fun `동시에 등록해도 동일 listener는 한 번만 호출한다`() {
+        val support = LeaderElectionListenerSupport()
+        val callbackCount = AtomicInteger()
+        val listener = object: LeaderElectionListener {
+            override fun onElected(lockName: String) {
+                callbackCount.incrementAndGet()
+            }
+        }
+        val workers = 16
+        val ready = CountDownLatch(workers)
+        val start = CountDownLatch(1)
+        val handles = ConcurrentLinkedQueue<AutoCloseable>()
+        val threads = List(workers) {
+            thread(start = false) {
+                ready.countDown()
+                start.await()
+                handles.add(support.addListener(listener))
+            }
+        }
+
+        try {
+            threads.forEach(Thread::start)
+            check(ready.await(5, TimeUnit.SECONDS))
+            start.countDown()
+            threads.forEach { worker ->
+                worker.join(5_000)
+                check(!worker.isAlive)
+            }
+
+            support.notifyElected("concurrent-listener")
+            callbackCount.get() shouldBeEqualTo 1
+        } finally {
+            start.countDown()
+            threads.forEach { it.join(5_000) }
+            handles.forEach(AutoCloseable::close)
+        }
+    }
 
     @Test
     fun `LocalLeaderElector - 선출과 반납 callback 을 순서대로 발행한다`() {
@@ -40,11 +87,12 @@ class LeaderElectionListenerTest {
         val result = election.runIfLeader("listener-job") { "done" }
 
         result shouldBeEqualTo "done"
-        listener.events shouldBeEqualTo listOf("elected:listener-job", "revoked:listener-job")
+        listener.events.toList() shouldBeEqualTo listOf("elected:listener-job", "revoked:listener-job")
 
         handle.close()
+
         election.runIfLeader("listener-job") { "done-again" }
-        listener.events shouldBeEqualTo listOf("elected:listener-job", "revoked:listener-job")
+        listener.events.toList() shouldBeEqualTo listOf("elected:listener-job", "revoked:listener-job")
     }
 
     @Test
@@ -58,6 +106,7 @@ class LeaderElectionListenerTest {
         val result = election.runIfLeader("listener-metadata-job") { "done" }
 
         result shouldBeEqualTo "done"
+
         val lease = listener.electedLeases.single().shouldNotBeNull()
         lease.auditLeaderId shouldBeEqualTo "node-a"
         lease.nodeId shouldBeEqualTo "node-a"
@@ -67,7 +116,7 @@ class LeaderElectionListenerTest {
     @Test
     fun `LeaderElectionEventPublisher - onEvent callback 은 close 후 해제된다`() = runTest {
         val publisher = FakeEventPublisher()
-        val observed = CopyOnWriteArrayList<LeaderElectionEvent>()
+        val observed = ConcurrentLinkedQueue<LeaderElectionEvent>()
 
         val handle = publisher.onEvent(this) { event ->
             observed += event
@@ -76,22 +125,22 @@ class LeaderElectionListenerTest {
 
         publisher.emit(LeaderElectionEvent.Elected("callback-job"))
         runCurrent()
-        observed shouldBeEqualTo listOf(LeaderElectionEvent.Elected("callback-job"))
+        observed.toList() shouldBeEqualTo listOf(LeaderElectionEvent.Elected("callback-job"))
 
         handle.close()
         runCurrent()
 
         publisher.emit(LeaderElectionEvent.Revoked("callback-job"))
         runCurrent()
-        observed shouldBeEqualTo listOf(LeaderElectionEvent.Elected("callback-job"))
+        observed.toList() shouldBeEqualTo listOf(LeaderElectionEvent.Elected("callback-job"))
     }
 
     @Test
     fun `LeaderElectionEventPublisher - typed callbacks filter events`() = runTest {
         val publisher = FakeEventPublisher()
-        val elected = CopyOnWriteArrayList<String>()
-        val revoked = CopyOnWriteArrayList<String>()
-        val skipped = CopyOnWriteArrayList<String>()
+        val elected = ConcurrentLinkedQueue<String>()
+        val revoked = ConcurrentLinkedQueue<String>()
+        val skipped = ConcurrentLinkedQueue<String>()
 
         val handles = listOf(
             publisher.onElected(this) { event -> elected += event.lockName },
@@ -105,9 +154,9 @@ class LeaderElectionListenerTest {
         publisher.emit(LeaderElectionEvent.Skipped("skipped-job"))
         runCurrent()
 
-        elected shouldBeEqualTo listOf("elected-job")
-        revoked shouldBeEqualTo listOf("revoked-job")
-        skipped shouldBeEqualTo listOf("skipped-job")
+        elected.toList() shouldBeEqualTo listOf("elected-job")
+        revoked.toList() shouldBeEqualTo listOf("revoked-job")
+        skipped.toList() shouldBeEqualTo listOf("skipped-job")
 
         handles.forEach(AutoCloseable::close)
     }
@@ -115,7 +164,7 @@ class LeaderElectionListenerTest {
     @Test
     fun `LeaderElectionEventPublisher - callback 예외는 collector 를 중단하지 않는다`() = runTest {
         val publisher = FakeEventPublisher()
-        val observed = CopyOnWriteArrayList<String>()
+        val observed = ConcurrentLinkedQueue<String>()
         var calls = 0
 
         val handle = publisher.onEvent(this) { event ->
@@ -133,7 +182,7 @@ class LeaderElectionListenerTest {
         runCurrent()
 
         calls shouldBeEqualTo 2
-        observed shouldBeEqualTo listOf("continued-callback-job")
+        observed.toList() shouldBeEqualTo listOf("continued-callback-job")
 
         handle.close()
     }
@@ -147,17 +196,17 @@ class LeaderElectionListenerTest {
         val holderDone = CountDownLatch(1)
         election.addListener(listener)
 
-        val holder = Thread {
+        val holder = thread {
             election.runIfLeader(lockName) {
                 holderReady.countDown()
                 holderDone.await()
             }
-        }.apply { start() }
+        }
 
         holderReady.await()
         val skipped = election.runIfLeader(lockName) { "not-called" }
 
-        skipped shouldBeEqualTo null
+        skipped.shouldBeNull()
         listener.events.contains("skipped:$lockName").shouldBeTrue()
 
 
@@ -173,7 +222,7 @@ class LeaderElectionListenerTest {
         val result = election.runIfLeader("decorated-job") { "done" }
 
         result shouldBeEqualTo "done"
-        listener.events shouldBeEqualTo listOf("elected:decorated-job", "revoked:decorated-job")
+        listener.events.toList() shouldBeEqualTo listOf("elected:decorated-job", "revoked:decorated-job")
     }
 
     @Test
@@ -202,7 +251,7 @@ class LeaderElectionListenerTest {
         val result = election.runIfLeader("decorated-skip-job") { "not-called" }
 
         result shouldBeEqualTo null
-        listener.events shouldBeEqualTo listOf("skipped:decorated-skip-job")
+        listener.events.toList() shouldBeEqualTo listOf("skipped:decorated-skip-job")
     }
 
     @Test
@@ -233,7 +282,7 @@ class LeaderElectionListenerTest {
         }
 
         val result = election.runAsyncIfLeader("decorated-async-flow-job", executor) {
-            CompletableFuture.completedFuture("done")
+            completableFutureOf("done")
         }.join()
 
         result shouldBeEqualTo "done"
@@ -254,7 +303,7 @@ class LeaderElectionListenerTest {
         }
 
         val result = election.runAsyncIfLeader("decorated-async-flow-skip-job", executor) {
-            CompletableFuture.completedFuture("not-called")
+            completableFutureOf("not-called")
         }.join()
 
         result shouldBeEqualTo null
@@ -275,7 +324,7 @@ class LeaderElectionListenerTest {
 
         assertFailsWith<CompletionException> {
             election.runAsyncIfLeader("decorated-async-flow-failure-job", executor) {
-                CompletableFuture.failedFuture<String>(IllegalStateException("boom"))
+                failedCompletableFutureOf<String>(IllegalStateException("boom"))
             }.join()
         }
         collected.await() shouldBeEqualTo listOf(
@@ -317,7 +366,7 @@ class LeaderElectionListenerTest {
         election.activeCount("decorated-group-job") shouldBeEqualTo 1
         election.availableSlots("decorated-group-job") shouldBeEqualTo 1
         election.state("decorated-group-job") shouldBeEqualTo LeaderGroupState("decorated-group-job", 2, 1)
-        listener.events shouldBeEqualTo listOf("elected:decorated-group-job", "revoked:decorated-group-job")
+        listener.events.toList() shouldBeEqualTo listOf("elected:decorated-group-job", "revoked:decorated-group-job")
     }
 
     @Test
@@ -365,7 +414,7 @@ class LeaderElectionListenerTest {
         val result = election.runIfLeader("decorated-group-skip-job") { "not-called" }
 
         result shouldBeEqualTo null
-        listener.events shouldBeEqualTo listOf("skipped:decorated-group-skip-job")
+        listener.events.toList() shouldBeEqualTo listOf("skipped:decorated-group-skip-job")
     }
 
     @Test
@@ -392,11 +441,14 @@ class LeaderElectionListenerTest {
         val election = StubLeaderGroupElector(elected = true).withListeners(listener)
 
         val result = election.runAsyncIfLeader("decorated-group-async-job", executor) {
-            CompletableFuture.completedFuture("done")
+            completableFutureOf("done")
         }.join()
 
         result shouldBeEqualTo "done"
-        listener.events shouldBeEqualTo listOf("elected:decorated-group-async-job", "revoked:decorated-group-async-job")
+        listener.events.toList() shouldBeEqualTo listOf(
+            "elected:decorated-group-async-job",
+            "revoked:decorated-group-async-job"
+        )
     }
 
     @Test
@@ -406,11 +458,11 @@ class LeaderElectionListenerTest {
         val election = StubLeaderGroupElector(elected = false).withListeners(listener)
 
         val result = election.runAsyncIfLeader("decorated-group-async-skip-job", executor) {
-            CompletableFuture.completedFuture("not-called")
+            completableFutureOf("not-called")
         }.join()
 
         result shouldBeEqualTo null
-        listener.events shouldBeEqualTo listOf("skipped:decorated-group-async-skip-job")
+        listener.events.toList() shouldBeEqualTo listOf("skipped:decorated-group-async-skip-job")
     }
 
     @Test
@@ -424,7 +476,7 @@ class LeaderElectionListenerTest {
         }
 
         val result = election.runAsyncIfLeader("decorated-group-async-flow-job", executor) {
-            CompletableFuture.completedFuture("done")
+            completableFutureOf("done")
         }.join()
 
         result shouldBeEqualTo "done"
@@ -445,7 +497,7 @@ class LeaderElectionListenerTest {
         }
 
         val result = election.runAsyncIfLeader("decorated-group-async-flow-skip-job", executor) {
-            CompletableFuture.completedFuture("not-called")
+            completableFutureOf("not-called")
         }.join()
 
         result shouldBeEqualTo null
@@ -466,7 +518,7 @@ class LeaderElectionListenerTest {
 
         assertFailsWith<CompletionException> {
             election.runAsyncIfLeader("decorated-group-async-flow-failure-job", executor) {
-                CompletableFuture.failedFuture<String>(IllegalStateException("boom"))
+                failedCompletableFutureOf<String>(IllegalStateException("boom"))
             }.join()
         }
         collected.await() shouldBeEqualTo listOf(
@@ -528,7 +580,10 @@ class LeaderElectionListenerTest {
         val result = election.runIfLeader("decorated-suspend-job") { "done" }
 
         result shouldBeEqualTo "done"
-        listener.events shouldBeEqualTo listOf("elected:decorated-suspend-job", "revoked:decorated-suspend-job")
+        listener.events.toList() shouldBeEqualTo listOf(
+            "elected:decorated-suspend-job",
+            "revoked:decorated-suspend-job"
+        )
     }
 
     @Test
@@ -552,7 +607,7 @@ class LeaderElectionListenerTest {
             2,
             1
         )
-        listener.events shouldBeEqualTo listOf(
+        listener.events.toList() shouldBeEqualTo listOf(
             "elected:decorated-suspend-group-job",
             "revoked:decorated-suspend-group-job",
         )
@@ -567,7 +622,7 @@ class LeaderElectionListenerTest {
         val listener = RecordingListener()
         val election = StubSuspendLeaderGroupElector(elected = false).withListeners(listener)
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000) {
+            withTimeout(2.seconds) {
                 election.events.take(1).toList()
             }
         }
@@ -575,14 +630,14 @@ class LeaderElectionListenerTest {
         val result = election.runIfLeader("decorated-suspend-group-skip-job") { "not-called" }
 
         result shouldBeEqualTo null
-        listener.events shouldBeEqualTo listOf("skipped:decorated-suspend-group-skip-job")
+        listener.events.toList() shouldBeEqualTo listOf("skipped:decorated-suspend-group-skip-job")
         collected.await() shouldBeEqualTo listOf(
             LeaderElectionEvent.Skipped("decorated-suspend-group-skip-job"),
         )
     }
 
     private class RecordingListener: LeaderElectionListener {
-        val events = CopyOnWriteArrayList<String>()
+        val events = ConcurrentLinkedQueue<String>()
 
         override fun onElected(lockName: String) {
             events += "elected:$lockName"
@@ -598,7 +653,7 @@ class LeaderElectionListenerTest {
     }
 
     private class RecordingLeaseListener: LeaderElectionListener {
-        val electedLeases = CopyOnWriteArrayList<LeaderLease?>()
+        val electedLeases = ConcurrentLinkedQueue<LeaderLease>()
 
         override fun onElected(lockName: String, leader: LeaderLease?) {
             electedLeases += leader
@@ -631,11 +686,9 @@ class LeaderElectionListenerTest {
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> =
             if (elected) {
-                CompletableFuture.supplyAsync({ action() }, executor)
-                    .thenCompose { it }
-                    .thenApply<T?> { it }
+                futureOf(executor) { action() }.thenCompose { it }.thenApply { it }
             } else {
-                CompletableFuture.completedFuture(null)
+                completableFutureOf(null)
             }
     }
 
@@ -662,11 +715,11 @@ class LeaderElectionListenerTest {
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> =
             if (elected) {
-                CompletableFuture.supplyAsync({ action() }, executor)
+                futureOf(executor) { action() }
                     .thenCompose { it }
-                    .thenApply<T?> { it }
+                    .thenApply { it }
             } else {
-                CompletableFuture.completedFuture(null)
+                completableFutureOf(null)
             }
     }
 

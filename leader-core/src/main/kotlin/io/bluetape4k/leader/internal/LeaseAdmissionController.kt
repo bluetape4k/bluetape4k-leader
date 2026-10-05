@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.internal
 
+import io.bluetape4k.logging.KLogging
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -21,6 +22,8 @@ class LeaseAdmissionController(
     maxResidualLeases: Int = 1_024,
     maxWatchdogInFlight: Int = 256,
 ) {
+
+    companion object: KLogging()
 
     private val acquirePermits = Semaphore(maxConcurrentAcquires, true)
     private val acquireQueue = Semaphore(maxAcquireQueueDepth, true)
@@ -129,7 +132,7 @@ class LeaseAdmissionController(
         watchdogCount.decrementAndGet()
     }
 
-    sealed class Reservation protected constructor() : AutoCloseable {
+    sealed class Reservation protected constructor(): AutoCloseable {
         private val terminal = AtomicBoolean(false)
 
         final override fun close() {
@@ -141,27 +144,27 @@ class LeaseAdmissionController(
         internal abstract fun releaseOnce()
     }
 
-    class AcquireReservation internal constructor(private val owner: LeaseAdmissionController) : Reservation() {
+    class AcquireReservation internal constructor(private val owner: LeaseAdmissionController): Reservation() {
         override fun releaseOnce() = owner.releaseAcquire()
     }
 
-    class CleanupReservation internal constructor(private val owner: LeaseAdmissionController) : Reservation() {
+    class CleanupReservation internal constructor(private val owner: LeaseAdmissionController): Reservation() {
         override fun releaseOnce() = owner.releaseCleanup()
     }
 
-    class MvcWaiterReservation internal constructor(private val owner: LeaseAdmissionController) : Reservation() {
+    class MvcWaiterReservation internal constructor(private val owner: LeaseAdmissionController): Reservation() {
         override fun releaseOnce() = owner.releaseMvcWaiter()
     }
 
-    class ActiveReservation internal constructor(private val owner: LeaseAdmissionController) : Reservation() {
+    class ActiveReservation internal constructor(private val owner: LeaseAdmissionController): Reservation() {
         override fun releaseOnce() = owner.releaseActive()
     }
 
-    class ResidualReservation internal constructor(private val owner: LeaseAdmissionController) : Reservation() {
+    class ResidualReservation internal constructor(private val owner: LeaseAdmissionController): Reservation() {
         override fun releaseOnce() = owner.releaseResidual()
     }
 
-    class WatchdogReservation internal constructor(private val owner: LeaseAdmissionController) : Reservation() {
+    class WatchdogReservation internal constructor(private val owner: LeaseAdmissionController): Reservation() {
         override fun releaseOnce() = owner.releaseWatchdog()
     }
 }

@@ -4,10 +4,6 @@ import com.hazelcast.core.HazelcastInstance
 import com.mongodb.client.MongoClient
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectorFactory
-import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElectorFactory
-import io.bluetape4k.leader.coroutines.LocalSuspendLeaderGroupElectorFactory
-import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
-import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.consul.ConsulEndpoint
 import io.bluetape4k.leader.consul.ConsulLeaderElectionOptions
 import io.bluetape4k.leader.consul.ConsulLeaderElectorFactory
@@ -15,6 +11,10 @@ import io.bluetape4k.leader.consul.ConsulLeaderGroupElectionOptions
 import io.bluetape4k.leader.consul.ConsulLeaderGroupElectorFactory
 import io.bluetape4k.leader.consul.ConsulSuspendLeaderElectorFactory
 import io.bluetape4k.leader.consul.ConsulSuspendLeaderGroupElectorFactory
+import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElectorFactory
+import io.bluetape4k.leader.coroutines.LocalSuspendLeaderGroupElectorFactory
+import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
+import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElectorFactory
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderGroupElectorFactory
 import io.bluetape4k.leader.dynamodb.DynamoDbSuspendLeaderElectorFactory
@@ -77,7 +77,12 @@ import kotlin.time.toKotlinDuration
  */
 @AutoConfiguration
 @ConditionalOnClass(Aspect::class)
-@ConditionalOnProperty(prefix = "bluetape4k.leader.aop", name = ["enabled"], havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(
+    prefix = "bluetape4k.leader.aop",
+    name = ["enabled"],
+    havingValue = "true",
+    matchIfMissing = true
+)
 @EnableConfigurationProperties(LeaderProperties::class)
 class LeaderAopFactoryAutoConfiguration {
 
@@ -101,7 +106,8 @@ class LeaderAopFactoryAutoConfiguration {
     @Bean(name = ["localSuspendLeaderGroupElectorFactory"])
     @ConditionalOnMissingBean(name = ["localSuspendLeaderGroupElectorFactory"])
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    fun localSuspendLeaderGroupElectorFactory(): SuspendLeaderGroupElectorFactory = LocalSuspendLeaderGroupElectorFactory()
+    fun localSuspendLeaderGroupElectorFactory(): SuspendLeaderGroupElectorFactory =
+        LocalSuspendLeaderGroupElectorFactory()
 
     // ── Lettuce ──────────────────────────────────────────────────
 
@@ -409,7 +415,8 @@ class LeaderAopFactoryAutoConfiguration {
             syncGroupCollection: com.mongodb.client.MongoCollection<Document>,
             @Qualifier("leaderGroupLockMongoCoroutineCollection")
             coroutineGroupCollection: com.mongodb.kotlin.client.coroutine.MongoCollection<Document>,
-        ): SuspendLeaderGroupElectorFactory = MongoSuspendLeaderGroupElectorFactory(syncGroupCollection, coroutineGroupCollection)
+        ): SuspendLeaderGroupElectorFactory =
+            MongoSuspendLeaderGroupElectorFactory(syncGroupCollection, coroutineGroupCollection)
     }
 
     // ── Hazelcast ────────────────────────────────────────────────

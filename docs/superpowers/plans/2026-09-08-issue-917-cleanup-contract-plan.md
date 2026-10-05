@@ -2,8 +2,7 @@
 
 > 실행: `executing-plans`로 직접 수행한다. native 검토 실행 실패는 독립 PASS로 바꾸지 않는다.
 
-목표: production 코드를 바꾸지 않고 네 backend의 dispatcher 회귀 계약을 기존 core testFixtures에 모은다.
-구조: 공통 추상 테스트 + 각 모듈 내부 dispatcher를 호출하는 얇은 adapter. Kotlin/JUnit5/bluetape4k assertions 사용.
+목표: production 코드를 바꾸지 않고 네 backend의 dispatcher 회귀 계약을 기존 core testFixtures에 모은다. 구조: 공통 추상 테스트 + 각 모듈 내부 dispatcher를 호출하는 얇은 adapter. Kotlin/JUnit5/bluetape4k assertions 사용.
 
 ## 작업 1 — 공유 suite와 adapter
 
@@ -50,6 +49,4 @@ override fun <T, R> completeAfter(
 
 ## 위험과 되돌리기
 
-adapter가 production dispatcher 대신 fake 로직을 검사하면 contract가 무의미해진다. adapter의 실제 호출을 검토한다.
-모든 suite 메서드의 JUnit 상속 실행 수를 네 XML에서 확인한다. backend별 차이를 공통화하려 production 상태 머신을
-변경하지 않는다. 되돌리기는 이 branch의 테스트·문서 diff만 대상으로 하며 #916 commit은 보존한다.
+adapter가 production dispatcher 대신 fake 로직을 검사하면 contract가 무의미해진다. adapter의 실제 호출을 검토한다. 모든 suite 메서드의 JUnit 상속 실행 수를 네 XML에서 확인한다. backend별 차이를 공통화하려 production 상태 머신을 변경하지 않는다. 되돌리기는 이 branch의 테스트·문서 diff만 대상으로 하며 #916 commit은 보존한다.

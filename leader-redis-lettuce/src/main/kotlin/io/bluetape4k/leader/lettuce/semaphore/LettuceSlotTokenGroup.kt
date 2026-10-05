@@ -1,7 +1,10 @@
 package io.bluetape4k.leader.lettuce.semaphore
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.ExtendOutcome
+import io.bluetape4k.leader.lettuce.DEFAULT_TOKEN_LENGTH
 import io.bluetape4k.leader.lettuce.internal.MonotonicDeadline
 import io.bluetape4k.leader.lettuce.script.RedisScript
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
@@ -24,6 +27,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.LockSupport
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * `LettuceSlotTokenGroup`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -44,7 +48,8 @@ class LettuceSlotTokenGroup(
         private const val SLOT_KEY_TTL_MARGIN_MS = 5_000L
 
         // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
-        private const val TOKEN_LENGTH = 22
+        internal fun newToken(size: Int = DEFAULT_TOKEN_LENGTH): String = Base58.randomString(size)
+
         private const val KEY_PREFIX = "lg:{"
         private const val KEY_SUFFIX = "}"
 
@@ -142,7 +147,7 @@ return 0
     }
 
     init {
-        validateLockName(lockName)
+        lockName.validateLockName()
         maxLeaders.requirePositiveNumber("maxLeaders")
     }
 
@@ -162,7 +167,7 @@ return 0
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun tryAcquire(waitTime: Duration, leaseTime: Duration, auditLeaderId: String = ""): String? {
-        val token = Base58.randomString(TOKEN_LENGTH)
+        val token = newToken()
         val deadline = MonotonicDeadline.fromNow(waitTime)
         val leaseMs = leaseTime.inWholeMilliseconds.toString()
         while (true) {
@@ -260,7 +265,7 @@ return 0
         leaseTime: Duration,
         auditLeaderId: String = "",
     ): CompletableFuture<String?> {
-        val token = Base58.randomString(TOKEN_LENGTH)
+        val token = newToken()
         val deadline = MonotonicDeadline.fromNow(waitTime)
         val leaseMs = leaseTime.inWholeMilliseconds.toString()
         val lastError = AtomicReference<Throwable?>(null)
@@ -280,20 +285,20 @@ return 0
                 }
             }.thenCompose { result ->
                 when {
-                    !result.isNullOrEmpty()     -> CompletableFuture.completedFuture<String?>(result)
+                    !result.isNullOrEmpty() -> completableFutureOf(result)
                     deadline.hasTimeRemaining() -> {
                         val delayMillis = deadline.remainingMillisForDelay(SPIN_DELAY_MS)
                         val delayed = CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS)
                         CompletableFuture.runAsync({}, delayed).thenCompose { attempt() }
                     }
-                    else                        -> {
+                    else -> {
                         // deadline 도달 시점에 마지막 error 가 있으면 backend outage 로 간주하여 surface.
                         // contention (script 정상 실행 + 빈 문자열 반환) 만 null 로 반환.
                         val terminalError = lastError.get()
                         if (terminalError != null) {
-                            CompletableFuture.failedFuture(terminalError)
+                            failedCompletableFutureOf(terminalError)
                         } else {
-                            CompletableFuture.completedFuture<String?>(null)
+                            completableFutureOf(null)
                         }
                     }
                 }
@@ -308,9 +313,7 @@ return 0
             asyncCommands, RELEASE_SCRIPT, ScriptOutputType.INTEGER,
             arrayOf(slotKey, metaKey), token, remainingMinLeaseMs.toString()
         ).thenApply {
-            log.debug {
-                "슬롯 해제 (async). slotKey=$slotKey, token=$token, remainingMinLeaseMs=$remainingMinLeaseMs"
-            }
+            log.debug { "슬롯 해제 (async). slotKey=$slotKey, token=$token, remainingMinLeaseMs=$remainingMinLeaseMs" }
         }
     }
 
@@ -319,7 +322,7 @@ return 0
     // =========================================================================
 
     suspend fun tryAcquireSuspending(waitTime: Duration, leaseTime: Duration, auditLeaderId: String = ""): String? {
-        val token = Base58.randomString(TOKEN_LENGTH)
+        val token = newToken()
         val deadline = MonotonicDeadline.fromNow(waitTime)
         val leaseMs = leaseTime.inWholeMilliseconds.toString()
         while (true) {
@@ -336,7 +339,7 @@ return 0
                 log.debug { "슬롯 획득 타임아웃 (suspend). slotKey=$slotKey, waitTime=$waitTime" }
                 return null
             }
-            delay(timeMillis = delayMillis)
+            delay(delayMillis.milliseconds)
         }
     }
 
@@ -381,9 +384,7 @@ return 0
             asyncCommands, RELEASE_SCRIPT, ScriptOutputType.INTEGER,
             arrayOf(slotKey, metaKey), token, remainingMinLeaseMs.toString()
         )
-        log.debug {
-            "슬롯 해제 (suspend). slotKey=$slotKey, token=$token, remainingMinLeaseMs=$remainingMinLeaseMs, ret=$ret"
-        }
+        log.debug { "슬롯 해제 (suspend). slotKey=$slotKey, token=$token, remainingMinLeaseMs=$remainingMinLeaseMs, ret=$ret" }
     }
 
     suspend fun activeCountSuspending(): Int = statusSuspending().first

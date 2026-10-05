@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.examples.k8slease
 
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.support.requireNotBlank
@@ -34,7 +35,7 @@ class K8sLeaseLeaderElectionExample(
         require(!leaseDuration.isNegative && !leaseDuration.isZero) {
             "leaseDuration must be positive. leaseDuration=$leaseDuration"
         }
-        require(leaseDuration <= Duration.ofSeconds(Int.MAX_VALUE.toLong())) {
+        require(leaseDuration <= Int.MAX_VALUE.seconds()) {
             "leaseDuration is too large for Kubernetes leaseDurationSeconds. leaseDuration=$leaseDuration"
         }
     }
@@ -77,7 +78,12 @@ class K8sLeaseLeaderElectionExample(
                     .withHolderIdentity(holderIdentity)
                     .withLeaseDurationSeconds(leaseDurationSeconds)
                     .withRenewTime(now)
-                    .withLeaseTransitions((current.spec?.leaseTransitions ?: 0) + transitionIncrement(current, holderIdentity))
+                    .withLeaseTransitions(
+                        (current.spec?.leaseTransitions ?: 0) + transitionIncrement(
+                            current,
+                            holderIdentity
+                        )
+                    )
                     .build()
             )
             .build()
@@ -142,7 +148,11 @@ class K8sLeaseLeaderElectionExample(
             if (e.code != CONFLICT_STATUS) {
                 throw e
             }
-            LeaseAttempt(LeaseOutcome.CONFLICT, holderIdentity = lease(leaseName)?.spec?.holderIdentity, leaseName = leaseName)
+            LeaseAttempt(
+                LeaseOutcome.CONFLICT,
+                holderIdentity = lease(leaseName)?.spec?.holderIdentity,
+                leaseName = leaseName
+            )
         }
     }
 

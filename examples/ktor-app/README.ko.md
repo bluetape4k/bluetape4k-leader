@@ -7,9 +7,7 @@ Ktor 3.x REST API 서버 + 리더 선출로 보호되는 주기 백그라운드 
 ## 시나리오
 
 여러 Ktor replica가 같은 `/stats`, `/health`, `/readyz` 라우트를 노출합니다. 백그라운드
-`leaderScheduled` 작업은 공유 Redis lock `hourly-stats-aggregation`을 사용하므로
-cycle마다 1개 replica만 `StatsAggregator.aggregate()`를 호출하고, 나머지 replica는
-HTTP 트래픽을 계속 처리합니다.
+`leaderScheduled` 작업은 공유 Redis lock `hourly-stats-aggregation`을 사용하므로 cycle마다 1개 replica만 `StatsAggregator.aggregate()`를 호출하고, 나머지 replica는 HTTP 트래픽을 계속 처리합니다.
 
 ## 예제 시나리오
 
@@ -120,25 +118,25 @@ PORT=8081 REDIS_URL=redis://localhost:6379 ./gradlew :examples:ktor-app:run
 
 ## 설정 옵션
 
-| 출처                | 키 / 필드                       | 기본값                            | 설명                                                       |
-|---------------------|---------------------------------|----------------------------------|------------------------------------------------------------|
-| 환경 변수           | `REDIS_URL`                     | `redis://localhost:6379`         | Redis 접속 URL                                              |
-| 환경 변수           | `PORT`                          | `8080`                           | HTTP listen 포트 (replica 별로 다른 값 지정)               |
-| `KtorAppMain`       | `DEFAULT_PORT`                  | `8080`                           | `PORT` 미지정 시 기본 listen 포트                          |
-| `KtorAppMain`       | `DEFAULT_AGGREGATION_LOCK`      | `hourly-stats-aggregation`       | 분산 락 이름 (모든 노드 공유)                              |
-| `KtorAppMain`       | `DEFAULT_AGGREGATION_PERIOD`    | `60.minutes`                     | cycle 주기                                                  |
-| `LeaderElectionOptions` | `waitTime`                  | `aggregationPeriod`              | cycle 당 lock 획득 대기 시간                                |
-| `LeaderElectionOptions` | `leaseTime`                 | `aggregationPeriod * 2`          | auto-extend 미사용 — cycle 당 안전 lease 시간              |
-| `LeaderElectionOptions` | `minLeaseTime`              | `aggregationPeriod`              | 최소 한 cycle 동안 lock 보유 → 중복 실행 차단              |
+| 출처                    | 키 / 필드                    | 기본값                     | 설명                                          |
+|-------------------------|------------------------------|----------------------------|-----------------------------------------------|
+| 환경 변수               | `REDIS_URL`                  | `redis://localhost:6379`   | Redis 접속 URL                                |
+| 환경 변수               | `PORT`                       | `8080`                     | HTTP listen 포트 (replica 별로 다른 값 지정)  |
+| `KtorAppMain`           | `DEFAULT_PORT`               | `8080`                     | `PORT` 미지정 시 기본 listen 포트             |
+| `KtorAppMain`           | `DEFAULT_AGGREGATION_LOCK`   | `hourly-stats-aggregation` | 분산 락 이름 (모든 노드 공유)                 |
+| `KtorAppMain`           | `DEFAULT_AGGREGATION_PERIOD` | `60.minutes`               | cycle 주기                                    |
+| `LeaderElectionOptions` | `waitTime`                   | `aggregationPeriod`        | cycle 당 lock 획득 대기 시간                  |
+| `LeaderElectionOptions` | `leaseTime`                  | `aggregationPeriod * 2`    | auto-extend 미사용 — cycle 당 안전 lease 시간 |
+| `LeaderElectionOptions` | `minLeaseTime`               | `aggregationPeriod`        | 최소 한 cycle 동안 lock 보유 → 중복 실행 차단 |
 
 ## 마이그레이션 가이드 — Spring `@Scheduled` 에서 Ktor `leaderScheduled` 로
 
-| 관심사               | Spring                                     | Ktor (본 예제)                                             |
-|----------------------|--------------------------------------------|------------------------------------------------------------|
-| 주기 dispatch        | `@Scheduled(fixedRate = ...)`              | `leaderScheduled(lockName, period) { ... }`                |
-| 다중 인스턴스 단일 실행 | ShedLock annotation                     | `LeaderElectionPlugin` — 동일 시맨틱 (skip 시 `null`)      |
-| 백엔드 교체          | Config property                            | `LettuceSuspendLeaderElector` 를 다른 구현체로 대체        |
-| Graceful shutdown    | Spring lifecycle                           | `ApplicationStopped` 가 launched 코루틴을 자동 취소         |
+| 관심사                  | Spring                        | Ktor (본 예제)                                        |
+|-------------------------|-------------------------------|-------------------------------------------------------|
+| 주기 dispatch           | `@Scheduled(fixedRate = ...)` | `leaderScheduled(lockName, period) { ... }`           |
+| 다중 인스턴스 단일 실행 | ShedLock annotation           | `LeaderElectionPlugin` — 동일 시맨틱 (skip 시 `null`) |
+| 백엔드 교체             | Config property               | `LettuceSuspendLeaderElector` 를 다른 구현체로 대체   |
+| Graceful shutdown       | Spring lifecycle              | `ApplicationStopped` 가 launched 코루틴을 자동 취소   |
 
 ## 의존성
 

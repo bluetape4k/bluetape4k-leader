@@ -29,16 +29,16 @@ Issue #529는 acquire/execution terminal callback과 leader election lifecycle o
 
 ## 2. 현재 구현 근거
 
-| 근거 | 현재 계약 | 설계 제약 |
-| --- | --- | --- |
-| `leader-core/.../LockExtender.kt` | blocking/suspend detailed 경로가 `ExtendOutcome`을 반환하고 `Extended`일 때만 `lastExtendDeadline`을 갱신한다. | hook은 delegate 호출과 deadline 갱신의 순서를 바꾸지 않는다. |
-| `leader-core/.../ExtendOutcome.kt` | `Extended`, `NotHeld`, `WrongThread`, `BackendError`가 공통 vocabulary다. | blocking/suspend/watchdog 모두 같은 outcome 이름을 사용한다. |
-| `leader-core/.../internal/ExtendDelegate.kt` | watchdog와 handle이 같은 delegate reference를 사용한다. | backend별 wrapper나 중복 extend logic을 만들지 않는다. |
-| `leader-core/.../LeaderLeaseAutoExtender.kt` | blocking/suspend `start` overload가 delegate를 호출하고 transient/non-transient/fatal 정책을 적용한다. | observation은 `start`의 기존 결과 처리보다 바깥에서 terminal attempt를 기록한다. |
-| `leader-core/.../LeaderLockHandle.kt` | `Real`에 `lockName`, `auditLeaderId`, `extendDelegate`가 함께 있고 `FailOpen`도 별도 상태다. | 실제 handle context만 identity source로 사용한다. |
-| `leader-core/.../internal/LockStateHolder.kt`, `coroutines/LockHandleElement.kt` | blocking은 thread-local stack, suspend는 coroutine context에서 active handle을 찾는다. | 두 lookup 경로가 모두 hook에 연결되어야 한다. |
-| `leader-core/.../LeaderElectionListener.kt` | election lifecycle listener는 `Elected`, `Revoked`, `Skipped`에 집중한다. | lease extension을 기존 election listener에 추가해 lifecycle domain을 결합하지 않는다. |
-| `leader-micrometer/.../MicrometerObservationLeaderAopMetricsRecorder.kt` | observation name과 low/high-cardinality tag 정책이 이미 존재한다. | 새 observer도 동일한 redaction과 bounded tag 원칙을 재사용한다. |
+| 근거                                                                             | 현재 계약                                                                                                      | 설계 제약                                                                             |
+|----------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
+| `leader-core/.../LockExtender.kt`                                                | blocking/suspend detailed 경로가 `ExtendOutcome`을 반환하고 `Extended`일 때만 `lastExtendDeadline`을 갱신한다. | hook은 delegate 호출과 deadline 갱신의 순서를 바꾸지 않는다.                          |
+| `leader-core/.../ExtendOutcome.kt`                                               | `Extended`, `NotHeld`, `WrongThread`, `BackendError`가 공통 vocabulary다.                                      | blocking/suspend/watchdog 모두 같은 outcome 이름을 사용한다.                          |
+| `leader-core/.../internal/ExtendDelegate.kt`                                     | watchdog와 handle이 같은 delegate reference를 사용한다.                                                        | backend별 wrapper나 중복 extend logic을 만들지 않는다.                                |
+| `leader-core/.../LeaderLeaseAutoExtender.kt`                                     | blocking/suspend `start` overload가 delegate를 호출하고 transient/non-transient/fatal 정책을 적용한다.         | observation은 `start`의 기존 결과 처리보다 바깥에서 terminal attempt를 기록한다.      |
+| `leader-core/.../LeaderLockHandle.kt`                                            | `Real`에 `lockName`, `auditLeaderId`, `extendDelegate`가 함께 있고 `FailOpen`도 별도 상태다.                   | 실제 handle context만 identity source로 사용한다.                                     |
+| `leader-core/.../internal/LockStateHolder.kt`, `coroutines/LockHandleElement.kt` | blocking은 thread-local stack, suspend는 coroutine context에서 active handle을 찾는다.                         | 두 lookup 경로가 모두 hook에 연결되어야 한다.                                         |
+| `leader-core/.../LeaderElectionListener.kt`                                      | election lifecycle listener는 `Elected`, `Revoked`, `Skipped`에 집중한다.                                      | lease extension을 기존 election listener에 추가해 lifecycle domain을 결합하지 않는다. |
+| `leader-micrometer/.../MicrometerObservationLeaderAopMetricsRecorder.kt`         | observation name과 low/high-cardinality tag 정책이 이미 존재한다.                                              | 새 observer도 동일한 redaction과 bounded tag 원칙을 재사용한다.                       |
 
 ## 3. 선택한 아키텍처
 
@@ -53,7 +53,7 @@ Issue #529는 acquire/execution terminal callback과 leader election lifecycle o
 - `LeaderLeaseExtensionExecution`: `BLOCKING`, `SUSPEND`
 - `LeaderLeaseExtensionContext`: `lockName`과 `auditLeaderId`를 포함하는 선택적 context
 
-기본 registry는 `CopyOnWriteArrayList` 기반 snapshot을 사용한다. 읽기(각 extension attempt의 publish)가 등록·해제보다 압도적으로 많고, observer 목록을 순회하는 동안 등록/해제가 발생해도 현재 snapshot의 일관성을 유지해야 하기 때문이다. 이 train은 전역 process-local registry 하나만 제공한다. 별도 registry를 `LockExtender` 또는 watchdog에 주입하는 계약은 범위에서 제외한다.
+기본 registry는 `CopyOnWriteArrayList` 기반 snapshot을 사용한다. 읽기 (각 extension attempt의 publish)가 등록·해제보다 압도적으로 많고, observer 목록을 순회하는 동안 등록/해제가 발생해도 현재 snapshot의 일관성을 유지해야 하기 때문이다. 이 train은 전역 process-local registry 하나만 제공한다. 별도 registry를 `LockExtender` 또는 watchdog에 주입하는 계약은 범위에서 제외한다.
 
 등록 메서드는 idempotent `AutoCloseable`을 반환한다. 동일 observer를 여러 번 등록할 수 있으며 각 registration handle은 자기 entry만 소유한다. `close()`는 해당 entry를 한 번만 제거하고, 이미 닫힌 handle을 다시 닫아도 예외를 내지 않는다. 명시적 `removeObserver`는 동일 object identity를 가진 entry를 모두 제거하고 실제 변경 여부를 Boolean으로 반환한다.
 
@@ -63,18 +63,18 @@ core registry 자체는 동일 observer의 중복 등록을 deduplicate하지 �
 
 Kotlin/JVM public surface는 다음으로 고정한다.
 
-| 선언 | JVM 계약 | 의미 |
-| --- | --- | --- |
-| `fun interface LeaderLeaseExtensionObserver { fun onExtension(event: LeaderLeaseExtensionEvent) }` | public SAM, non-null observer/event | callback은 event를 수정하지 않는다. |
-| `class LeaderLeaseExtensionContext(val lockName: String, val auditLeaderId: String?)` | public immutable, deliberately non-`Serializable` value type with explicit `equals`/`hashCode`/redacted `toString` | active `Real` 또는 `FailOpen` handle에서만 만들며 `auditLeaderId`는 `Real`에서만 사용한다. data-class generated API와 serialization contract는 노출하지 않는다. `toString()`은 lock/leader identity를 출력하지 않는다. |
+| 선언                                                                                                                                                                                                                   | JVM 계약                                                                                                                         | 의미                                                                                                                                                                                                                                                                                                 |
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `fun interface LeaderLeaseExtensionObserver { fun onExtension(event: LeaderLeaseExtensionEvent) }`                                                                                                                     | public SAM, non-null observer/event                                                                                              | callback은 event를 수정하지 않는다.                                                                                                                                                                                                                                                                  |
+| `class LeaderLeaseExtensionContext(val lockName: String, val auditLeaderId: String?)`                                                                                                                                  | public immutable, deliberately non-`Serializable` value type with explicit `equals`/`hashCode`/redacted `toString`               | active `Real` 또는 `FailOpen` handle에서만 만들며 `auditLeaderId`는 `Real`에서만 사용한다. data-class generated API와 serialization contract는 노출하지 않는다. `toString()`은 lock/leader identity를 출력하지 않는다.                                                                               |
 | `class LeaderLeaseExtensionEvent(val source: LeaderLeaseExtensionSource, val execution: LeaderLeaseExtensionExecution, val outcome: ExtendOutcome, val elapsedNanos: Long, val context: LeaderLeaseExtensionContext?)` | public immutable five-argument, deliberately non-`Serializable` value type with explicit `equals`/`hashCode`/redacted `toString` | `outcome`은 기존 `ExtendOutcome` reference이며 callback 동안만 사용한다. data-class `copy`/`componentN`과 serialization/long-term binary contract를 만들지 않는다. `toString()`은 bounded source/execution/outcome 이름만 출력하고 exception details, token, lock/leader identity를 출력하지 않는다. |
-| `object LeaderLeaseExtensionObservers { @JvmStatic fun addObserver(observer: LeaderLeaseExtensionObserver): AutoCloseable }` | public static facade method `LeaderLeaseExtensionObservers.addObserver(LeaderLeaseExtensionObserver)` | registration token을 반환하며 `null`을 받지 않는다. member-extension receiver를 사용하지 않는다. |
-| `object LeaderLeaseExtensionObservers { @JvmStatic fun removeObserver(observer: LeaderLeaseExtensionObserver): Boolean }` | public static facade method `LeaderLeaseExtensionObservers.removeObserver(LeaderLeaseExtensionObserver)` | 동일 object identity의 registration entry를 모두 제거한다. member-extension receiver를 사용하지 않는다. |
-| `object LeaderLeaseExtensionObservers { @JvmStatic fun droppedCount(): Long }` | public static read-only diagnostic `LeaderLeaseExtensionObservers.droppedCount()` | admission 실패로 누락된 observer delivery 누적 수를 반환한다. reset은 제공하지 않는다. |
-| `@JvmSynthetic internal fun hasObservers(): Boolean` (object member) | Java source에서 숨기는 internal bridge; public Java contract 아님 | extension caller가 event allocation 전에 관찰자 유무를 확인한다. |
-| `@JvmSynthetic internal fun publish(event: LeaderLeaseExtensionEvent)` (object member) | Java source에서 숨기는 internal bridge; public Java contract 아님 | `LockExtender`와 `LeaderLeaseAutoExtender`만 terminal event를 publish한다. |
+| `object LeaderLeaseExtensionObservers { @JvmStatic fun addObserver(observer: LeaderLeaseExtensionObserver): AutoCloseable }`                                                                                           | public static facade method `LeaderLeaseExtensionObservers.addObserver(LeaderLeaseExtensionObserver)`                            | registration token을 반환하며 `null`을 받지 않는다. member-extension receiver를 사용하지 않는다.                                                                                                                                                                                                     |
+| `object LeaderLeaseExtensionObservers { @JvmStatic fun removeObserver(observer: LeaderLeaseExtensionObserver): Boolean }`                                                                                              | public static facade method `LeaderLeaseExtensionObservers.removeObserver(LeaderLeaseExtensionObserver)`                         | 동일 object identity의 registration entry를 모두 제거한다. member-extension receiver를 사용하지 않는다.                                                                                                                                                                                              |
+| `object LeaderLeaseExtensionObservers { @JvmStatic fun droppedCount(): Long }`                                                                                                                                         | public static read-only diagnostic `LeaderLeaseExtensionObservers.droppedCount()`                                                | admission 실패로 누락된 observer delivery 누적 수를 반환한다. reset은 제공하지 않는다.                                                                                                                                                                                                               |
+| `@JvmSynthetic internal fun hasObservers(): Boolean` (object member)                                                                                                                                                   | Java source에서 숨기는 internal bridge; public Java contract 아님                                                                | extension caller가 event allocation 전에 관찰자 유무를 확인한다.                                                                                                                                                                                                                                     |
+| `@JvmSynthetic internal fun publish(event: LeaderLeaseExtensionEvent)` (object member)                                                                                                                                 | Java source에서 숨기는 internal bridge; public Java contract 아님                                                                | `LockExtender`와 `LeaderLeaseAutoExtender`만 terminal event를 publish한다.                                                                                                                                                                                                                           |
 
-`LeaderLeaseExtensionEvent` 생성자는 `source`, `execution`, `outcome`, `elapsedNanos`, nullable `context`를 받는 다섯 인자 immutable value type으로 고정한다. 두 value type은 일반 final class이며 `Serializable`과 `serialVersionUID`를 제공하지 않고, 명시적 `equals`/`hashCode`와 redacted `toString`만 유지한다. `Context.toString()`은 고정된 타입명만 출력하고 lock/leader identity를 출력하지 않는다. `Event.toString()`은 bounded source/execution/outcome 이름만 출력하고 exception message/stack, raw backend payload, token, lock/leader identity를 출력하지 않는다. 따라서 Kotlin data-class `copy`/`componentN` generated JVM method는 public contract에 생기지 않는다. `@JvmStatic` facade는 기존 `LockExtender`/watchdog JVM descriptor를 변경하지 않는다. callback task는 일반 `Exception`을 격리하고 warning에는 callback class의 안전한 이름만 rate-limit해 기록한다. `Error` 계열(`VirtualMachineError`, `ThreadDeath`, `LinkageError` 포함)은 callback task 밖으로 재전파해 fatal 상태를 숨기지 않으며, permit 반환은 `finally`에서 보장한다.
+`LeaderLeaseExtensionEvent` 생성자는 `source`, `execution`, `outcome`, `elapsedNanos`, nullable `context`를 받는 다섯 인자 immutable value type으로 고정한다. 두 value type은 일반 final class이며 `Serializable`과 `serialVersionUID`를 제공하지 않고, 명시적 `equals`/`hashCode`와 redacted `toString`만 유지한다. `Context.toString()`은 고정된 타입명만 출력하고 lock/leader identity를 출력하지 않는다. `Event.toString()`은 bounded source/execution/outcome 이름만 출력하고 exception message/stack, raw backend payload, token, lock/leader identity를 출력하지 않는다. 따라서 Kotlin data-class `copy`/`componentN` generated JVM method는 public contract에 생기지 않는다. `@JvmStatic` facade는 기존 `LockExtender`/watchdog JVM descriptor를 변경하지 않는다. callback task는 일반 `Exception`을 격리하고 warning에는 callback class의 안전한 이름만 rate-limit해 기록한다. `Error` 계열 (`VirtualMachineError`, `ThreadDeath`, `LinkageError` 포함)은 callback task 밖으로 재전파해 fatal 상태를 숨기지 않으며, permit 반환은 `finally`에서 보장한다.
 
 `hasObservers`와 `publish`는 `@JvmSynthetic internal` bridge다. Kotlin internal의 JVM bytecode method가 reflection에 보일 수 있고 synthetic method가 runtime public으로 남을 수 있다는 점은 인정한다. `@JvmSynthetic`으로 Java source 호출과 공개 Java API 사용을 막되 security boundary로 사용하지 않는다. 외부에서 event를 직접 구성해도 publish bridge를 거치지 않으면 dispatch되지 않는다. ABI fixture는 두 bridge의 `ACC_SYNTHETIC`와 Java compile 불가를 확인하고, production caller가 core boundary 네 곳으로 제한되는지 source scan한다.
 
@@ -90,13 +90,13 @@ callback 예외는 dispatcher task 안에서 격리한다. callback은 bounded/n
 
 `LeaderLeaseExtensionEvent`는 다음 필드를 가진다.
 
-| 필드 | 의미 | 공개/보호 규칙 |
-| --- | --- | --- |
-| `source` | 사용자 호출인지 watchdog tick인지 구분한다. | bounded enum이며 tag로 직접 사용 가능하다. |
-| `execution` | blocking인지 suspend인지 구분한다. | bounded enum이며 `ExtendOutcome`과 함께 parity를 검증한다. |
-| `outcome` | 실제 extension delegate의 `ExtendOutcome`이다. | 기존 detailed vocabulary를 재사용하고 새 결과 종류를 만들지 않는다. |
-| `elapsedNanos` | delegate 호출 전후의 monotonic elapsed time이다. | 음수가 될 수 없으며 wall-clock timestamp로 ownership을 추론하지 않는다. |
-| `context` | active handle에서 얻은 `LeaderLeaseExtensionContext`다. | user event라도 active handle이 없으면 `null`; watchdog event는 OBS-02에서 항상 `null`이며 이름/ID를 추정하지 않는다. |
+| 필드           | 의미                                                    | 공개/보호 규칙                                                                                                       |
+|----------------|---------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| `source`       | 사용자 호출인지 watchdog tick인지 구분한다.             | bounded enum이며 tag로 직접 사용 가능하다.                                                                           |
+| `execution`    | blocking인지 suspend인지 구분한다.                      | bounded enum이며 `ExtendOutcome`과 함께 parity를 검증한다.                                                           |
+| `outcome`      | 실제 extension delegate의 `ExtendOutcome`이다.          | 기존 detailed vocabulary를 재사용하고 새 결과 종류를 만들지 않는다.                                                  |
+| `elapsedNanos` | delegate 호출 전후의 monotonic elapsed time이다.        | 음수가 될 수 없으며 wall-clock timestamp로 ownership을 추론하지 않는다.                                              |
+| `context`      | active handle에서 얻은 `LeaderLeaseExtensionContext`다. | user event라도 active handle이 없으면 `null`; watchdog event는 OBS-02에서 항상 `null`이며 이름/ID를 추정하지 않는다. |
 
 `Extended.observedExpireAt`는 outcome 안의 backend 관측값을 그대로 유지한다. registry는 이를 다시 계산하거나 `Instant.now()`로 바꾸지 않는다.
 
@@ -117,13 +117,13 @@ observation boundary는 private delegate helper가 아니라 public detailed ent
 
 unexpected raw exception matrix는 다음으로 고정한다.
 
-| 경로 | delegate/lookup 결과 | event | caller 결과 |
-| --- | --- | --- | --- |
-| active delegate | `ExtendOutcome` 반환 | 동일 outcome event | 기존 outcome 반환 |
-| active delegate | `CancellationException` | 없음 | 예외 재전파 |
-| active delegate | 다른 `Exception` | 관찰 전용 `BackendError(exception)` event | 원래 exception 재전파 |
-| active delegate | `Error` | 없음 | 원래 `Error` 재전파 |
-| outside scope/name mismatch | lookup 실패 | `NotHeld` event, context `null`, elapsed `0` | `NotHeld`/Boolean `false` |
+| 경로                        | delegate/lookup 결과    | event                                        | caller 결과               |
+|-----------------------------|-------------------------|----------------------------------------------|---------------------------|
+| active delegate             | `ExtendOutcome` 반환    | 동일 outcome event                           | 기존 outcome 반환         |
+| active delegate             | `CancellationException` | 없음                                         | 예외 재전파               |
+| active delegate             | 다른 `Exception`        | 관찰 전용 `BackendError(exception)` event    | 원래 exception 재전파     |
+| active delegate             | `Error`                 | 없음                                         | 원래 `Error` 재전파       |
+| outside scope/name mismatch | lookup 실패             | `NotHeld` event, context `null`, elapsed `0` | `NotHeld`/Boolean `false` |
 
 active `Real` handle에서는 `lockName`과 `auditLeaderId`를 context source로 사용한다. `FailOpen`은 `lockName`만 제공할 수 있고 ownership을 의미하는 leader ID는 제공하지 않는다. active scope 밖 호출은 실제 active context가 없으므로 context를 `null`로 두고, API가 반환하는 `NotHeld`를 하나의 terminal user event로 기록한다. 이 event의 `elapsedNanos`는 delegate를 호출하지 않은 경로임을 반영해 `0`으로 둔다. 어느 경우에도 존재하지 않는 lock/leader identity를 만들어서는 안 된다.
 
@@ -138,7 +138,7 @@ watchdog context는 delegate의 `hashCode`, lock-name 추정, node ID 추론으�
 
 `scheduleWithFixedDelay` 자체가 `RejectedExecutionException`을 던지는 scheduler admission 실패는 delegate invocation 전이므로 event를 만들지 않고 기존 `NoopCloseable` 반환 및 suspend `scope.cancel()` 동작을 유지한다. 반대로 이미 호출한 delegate가 `RejectedExecutionException`을 던지면 일반 delegate 예외와 같은 terminal `BackendError(exception)` watchdog event를 먼저 publish한 뒤 기존 scheduler-cancel/stop 동작을 유지한다. 이 두 rejection 경계를 blocking/suspend 각각에서 별도 contract test로 고정한다.
 
-이 경계는 현재 production source의 56개 watchdog 호출부(44개 파일)를 backend별로 재작성하지 않고도 동일한 observer contract를 적용한다. 사용자와 watchdog 호출이 실제로 경쟁하면 각 실제 delegate invocation이 하나의 event가 되며, source가 다르므로 observer가 임의로 중복 제거하지 않는다.
+이 경계는 현재 production source의 56개 watchdog 호출부 (44개 파일)를 backend별로 재작성하지 않고도 동일한 observer contract를 적용한다. 사용자와 watchdog 호출이 실제로 경쟁하면 각 실제 delegate invocation이 하나의 event가 되며, source가 다르므로 observer가 임의로 중복 제거하지 않는다.
 
 ### 3.5 cancellation, no-op, fail-open
 
@@ -164,12 +164,12 @@ watchdog context는 delegate의 `hashCode`, lock-name 추정, node ID 추론으�
 
 `result` mapping은 다음으로 고정한다.
 
-| `ExtendOutcome` | `outcome` tag | `result` tag |
-| --- | --- | --- |
-| `Extended` | `extended` | `success` |
-| `NotHeld` | `not_held` | `skipped` |
-| `WrongThread` | `wrong_thread` | `error` |
-| `BackendError` | `backend_error` | `error` |
+| `ExtendOutcome` | `outcome` tag   | `result` tag |
+|-----------------|-----------------|--------------|
+| `Extended`      | `extended`      | `success`    |
+| `NotHeld`       | `not_held`      | `skipped`    |
+| `WrongThread`   | `wrong_thread`  | `error`      |
+| `BackendError`  | `backend_error` | `error`      |
 
 직접 `LockExtender` delegate가 `CancellationException`을 던지면 event를 만들지 않고 예외를 재전파한다. 다른 `Exception`은 관찰 전용 `BackendError` event와 `result=error`를 남긴 뒤 원래 exception을 재전파한다. `Error`와 delegate 호출 전 scheduler `RejectedExecutionException`은 event를 만들지 않는다. watchdog이 delegate 호출 중 얻은 `BackendError` 또는 delegate-thrown `RejectedExecutionException`은 기존 retry/stop 정책을 적용하면서 위 표대로 관찰한다.
 
@@ -204,20 +204,20 @@ Spring Boot의 `ObservationRegistryPostProcessor`가 registry handler와 customi
 
 ## 5. failure mode와 완화책
 
-| failure mode | 잘못된 결과 | 완화책과 검증 |
-| --- | --- | --- |
-| observer callback이 예외를 던짐 | lock extension 결과가 바뀌거나 watchdog이 중단됨 | COW snapshot dispatch와 callback별 격리. observer 예외를 warning으로 기록하고 원래 결과를 반환한다. |
-| observer callback이 느리거나 영구 대기함 | watchdog tick이 callback을 기다려 다음 renewal이 늦어짐 | bounded virtual-thread dispatcher와 `MAX_IN_FLIGHT` non-blocking admission. 상한 초과 event는 drop하고 renewal을 기다리지 않는다. |
-| callback이 close 이후에도 실행 중임 | Spring context가 닫힌 뒤 observer resource가 유지됨 | close는 이후 snapshot에서만 제거하고 accepted task는 permit `finally` 후 종료한다. observer는 bounded/non-blocking callback 계약을 지켜야 하며 강제 interrupt/drain은 제공하지 않는다. |
-| 한 observer가 admission permit을 독점함 | 다른 observer의 event가 전역 상한 때문에 함께 drop됨 | registration별 `MAX_IN_FLIGHT_PER_OBSERVER`와 전체 `MAX_IN_FLIGHT`를 분리하고 drop count/warning을 observer 단위로 기록한다. |
-| 등록 handle을 닫지 않음 | process-local registry가 listener를 영구 참조해 memory leak 발생 | `AutoCloseable` 반환, idempotent close, Spring bean destroy 시 close, add/remove/close 반복 테스트. |
-| user와 watchdog tick이 동시에 실행됨 | 중복 event를 잘못 합치거나 ownership을 거짓으로 보고함 | 실제 delegate invocation마다 하나의 event를 기록하고 `source`로 구분한다. registry에 dedup state를 두지 않는다. |
-| raw lock/leader identity를 기본 tag로 사용함 | Micrometer time series 폭발과 민감정보 노출 | bounded low-cardinality 기본값, identity는 opt-in high-cardinality, 기존 redaction 정책 재사용. |
-| delegate/hashCode/node ID로 ownership 추정 | 다른 lease의 leader ID 또는 lock name을 보고함 | active handle 또는 명시적 context만 허용하고 watchdog 기본 context는 `null`이다. |
-| `BackendError`를 일반 실패로 평탄화 | 기존 retry/stop 정책과 상세 API가 손상됨 | event는 원래 `ExtendOutcome`을 유지하고 watchdog classifier/stop 정책은 기존 코드에서 계속 수행한다. |
-| suspend cancellation을 삼킴 | structured concurrency 위반과 작업 지연 | `CancellationException`은 재전파하고 완료되지 않은 attempt는 outcome event를 만들지 않는다. |
-| observer registry가 extension보다 먼저 상태를 변경함 | `lastExtendDeadline` 또는 반환 결과 불일치 | delegate 호출과 deadline 갱신을 먼저 완료한 뒤 terminal publish한다. |
-| listener 등록 중 dispatch race | 일부 callback이 예측 불가능하게 누락/중복됨 | publish 시점 snapshot semantics를 문서화하고 add/remove 동시성 테스트를 둔다. |
+| failure mode                                         | 잘못된 결과                                                      | 완화책과 검증                                                                                                                                                                          |
+|------------------------------------------------------|------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| observer callback이 예외를 던짐                      | lock extension 결과가 바뀌거나 watchdog이 중단됨                 | COW snapshot dispatch와 callback별 격리. observer 예외를 warning으로 기록하고 원래 결과를 반환한다.                                                                                    |
+| observer callback이 느리거나 영구 대기함             | watchdog tick이 callback을 기다려 다음 renewal이 늦어짐          | bounded virtual-thread dispatcher와 `MAX_IN_FLIGHT` non-blocking admission. 상한 초과 event는 drop하고 renewal을 기다리지 않는다.                                                      |
+| callback이 close 이후에도 실행 중임                  | Spring context가 닫힌 뒤 observer resource가 유지됨              | close는 이후 snapshot에서만 제거하고 accepted task는 permit `finally` 후 종료한다. observer는 bounded/non-blocking callback 계약을 지켜야 하며 강제 interrupt/drain은 제공하지 않는다. |
+| 한 observer가 admission permit을 독점함              | 다른 observer의 event가 전역 상한 때문에 함께 drop됨             | registration별 `MAX_IN_FLIGHT_PER_OBSERVER`와 전체 `MAX_IN_FLIGHT`를 분리하고 drop count/warning을 observer 단위로 기록한다.                                                           |
+| 등록 handle을 닫지 않음                              | process-local registry가 listener를 영구 참조해 memory leak 발생 | `AutoCloseable` 반환, idempotent close, Spring bean destroy 시 close, add/remove/close 반복 테스트.                                                                                    |
+| user와 watchdog tick이 동시에 실행됨                 | 중복 event를 잘못 합치거나 ownership을 거짓으로 보고함           | 실제 delegate invocation마다 하나의 event를 기록하고 `source`로 구분한다. registry에 dedup state를 두지 않는다.                                                                        |
+| raw lock/leader identity를 기본 tag로 사용함         | Micrometer time series 폭발과 민감정보 노출                      | bounded low-cardinality 기본값, identity는 opt-in high-cardinality, 기존 redaction 정책 재사용.                                                                                        |
+| delegate/hashCode/node ID로 ownership 추정           | 다른 lease의 leader ID 또는 lock name을 보고함                   | active handle 또는 명시적 context만 허용하고 watchdog 기본 context는 `null`이다.                                                                                                       |
+| `BackendError`를 일반 실패로 평탄화                  | 기존 retry/stop 정책과 상세 API가 손상됨                         | event는 원래 `ExtendOutcome`을 유지하고 watchdog classifier/stop 정책은 기존 코드에서 계속 수행한다.                                                                                   |
+| suspend cancellation을 삼킴                          | structured concurrency 위반과 작업 지연                          | `CancellationException`은 재전파하고 완료되지 않은 attempt는 outcome event를 만들지 않는다.                                                                                            |
+| observer registry가 extension보다 먼저 상태를 변경함 | `lastExtendDeadline` 또는 반환 결과 불일치                       | delegate 호출과 deadline 갱신을 먼저 완료한 뒤 terminal publish한다.                                                                                                                   |
+| listener 등록 중 dispatch race                       | 일부 callback이 예측 불가능하게 누락/중복됨                      | publish 시점 snapshot semantics를 문서화하고 add/remove 동시성 테스트를 둔다.                                                                                                          |
 
 ## 6. API/ABI와 호환성
 
@@ -256,7 +256,7 @@ Spring Boot의 `ObservationRegistryPostProcessor`가 registry handler와 customi
 ### 7.3 문서와 train
 
 - `docs/manual/en/core/lease-extension.md`, `docs/manual/ko/core/lease-extension.md`, root/core/micrometer/spring README에서 #529 acquire/execution observation과 #559 lease-extension observation의 관계를 설명한다.
-- 현재 README의 #559 stale 문구(`deferred`, `tracked separately`, `out of scope`, `follow-up`, `별도로`, `미뤘`, `범위 밖`, `후속`)는 제거하고 실제 API·redaction·cancellation·watchdog drop/lifecycle 설명으로 교체한다. 구현 검증에서 `rg -n -i --glob 'README*' '(issue[[:space:]]*#559.*(deferred|tracked separately|out of scope|follow-up|별도로|미뤘|범위 밖|후속))|((deferred|tracked separately|out of scope|follow-up|별도로|미뤘|범위 밖|후속).*issue[[:space:]]*#559)' .`가 0건인지 모든 tracked EN/KO README를 scan한다. unrelated issue marker는 이 검사 대상이 아니다.
+- 현재 README의 #559 stale 문구 (`deferred`, `tracked separately`, `out of scope`, `follow-up`, `별도로`, `미뤘`, `범위 밖`, `후속`)는 제거하고 실제 API·redaction·cancellation·watchdog drop/lifecycle 설명으로 교체한다. 구현 검증에서 `rg -n -i --glob 'README*' '(issue[[:space:]]*#559.*(deferred|tracked separately|out of scope|follow-up|별도로|미뤘|범위 밖|후속))|((deferred|tracked separately|out of scope|follow-up|별도로|미뤘|범위 밖|후속).*issue[[:space:]]*#559)' .`가 0건인지 모든 tracked EN/KO README를 scan한다. unrelated issue marker는 이 검사 대상이 아니다.
 - 문서에는 source, outcome, redaction, cancellation, watchdog context 규칙을 포함한다.
 - Spring auto-configuration contract test는 context 생성 시 context별 handle 하나와 shared registry identity별 core registration 하나만 생기는지, 동일 registry를 공유하는 parent/child·병렬 context에서 event당 callback이 한 번인지, acquire와 last-close가 교차해도 double registration/조기 close가 없는지, 마지막 context destroy 뒤 handle/core registration이 닫히고 manager가 registry/handle strong reference를 남기지 않는지 검증한다. 서로 다른 registry를 사용하는 context는 각각 한 번 등록되는지 별도로 확인한다. 동일 registry에서 옵션이 다르면 observer를 추가 등록하지 않고 `IllegalStateException`으로 fail-fast하며 redaction 약화가 없는지 검증한다. close 전에 accepted된 callback task가 실행될 수 있다는 core 정책도 함께 검증한다.
 - PR body는 이슈 milestone `0.6.0`, labels `enhancement`, `feature`, `integration`, assignee `debop`을 그대로 반영한다.
@@ -277,25 +277,29 @@ Spring Boot의 `ObservationRegistryPostProcessor`가 registry handler와 customi
 
 `LockExtender`와 watchdog가 공통 event contract를 publish하고, Micrometer가 별도 observer로 구독한다. 등록/해제는 `AutoCloseable`이며 observer 오류는 격리한다.
 
-**선택 이유:** core가 framework-neutral 상태를 유지하고, 현재 production source의 56개 watchdog call site를 backend별로 복제하지 않으며, user/watchdog parity와 redaction을 한 곳에서 검증할 수 있다.
+**선택
+이유:** core가 framework-neutral 상태를 유지하고, 현재 production source의 56개 watchdog call site를 backend별로 복제하지 않으며, user/watchdog parity와 redaction을 한 곳에서 검증할 수 있다.
 
 ### 대안 B — 각 elector/backend에 listener 직접 주입
 
 각 backend가 lock name, leader ID, watchdog를 직접 감싸서 event를 만든다.
 
-**거부 사유:** backend별 중복 logic과 누락 가능성이 커지고, 같은 `ExtendDelegate`를 쓰는 경로가 서로 다른 observation 결과를 만들 수 있다. Issue #559의 framework-neutral hook과 parity 목표에 맞지 않는다.
+**거부
+사유:** backend별 중복 logic과 누락 가능성이 커지고, 같은 `ExtendDelegate`를 쓰는 경로가 서로 다른 observation 결과를 만들 수 있다. Issue #559의 framework-neutral hook과 parity 목표에 맞지 않는다.
 
 ### 대안 C — 기존 `LeaderElectionListener`에 extension callback 추가
 
 `onExtended` 또는 유사 callback을 기존 listener interface에 추가한다.
 
-**거부 사유:** acquire/elected/revoked lifecycle과 lease renewal attempt를 하나의 listener domain에 결합한다. 기존 listener 구현체의 source compatibility와 event 의미를 불필요하게 흔든다.
+**거부
+사유:** acquire/elected/revoked lifecycle과 lease renewal attempt를 하나의 listener domain에 결합한다. 기존 listener 구현체의 source compatibility와 event 의미를 불필요하게 흔든다.
 
 ### 대안 D — Micrometer에서 `LockExtender`를 직접 계측
 
 core hook 없이 Micrometer가 특정 implementation과 backend를 감싼다.
 
-**거부 사유:** framework-neutral contract가 사라지고 Spring/AOP/직접 호출/watchdog 경로 간 누락이 생긴다. 또한 core API의 fail-open/no-op semantics를 instrumentation이 독자적으로 재현하게 된다.
+**거부
+사유:** framework-neutral contract가 사라지고 Spring/AOP/직접 호출/watchdog 경로 간 누락이 생긴다. 또한 core API의 fail-open/no-op semantics를 instrumentation이 독자적으로 재현하게 된다.
 
 ## 10. 구현 단계 진입 조건
 

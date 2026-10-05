@@ -28,5 +28,5 @@
 ## 검증 증거
 
 - `./gradlew :bluetape4k-leader-micrometer:test :bluetape4k-leader-spring-boot:test :examples:prometheus-dashboard:test`
-  - 통과, 349 통과, `BUILD SUCCESSFUL in 1m 36s`.
+    - 통과, 349 통과, `BUILD SUCCESSFUL in 1m 36s`.
 - 6단계-R 최종 차단 횟수: P0=0, P1=0.

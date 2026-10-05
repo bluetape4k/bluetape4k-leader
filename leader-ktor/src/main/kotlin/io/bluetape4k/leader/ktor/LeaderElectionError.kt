@@ -32,7 +32,7 @@ data class LeaderElectionErrorContext(
     val message: String,
     val status: HttpStatusCode,
     val lockName: String? = null,
-) : Serializable {
+): Serializable {
 
     init {
         require(status in LEADER_ELECTION_ERROR_STATUSES) {
@@ -62,7 +62,7 @@ data class LeaderElectionErrorContext(
 data class LeaderElectionErrorOverride(
     val status: HttpStatusCode? = null,
     val exposeLockName: Boolean = false,
-) : Serializable {
+): Serializable {
 
     init {
         require(status == null || status in LEADER_ELECTION_ERROR_STATUSES) {
@@ -79,7 +79,7 @@ data class LeaderElectionErrorOverride(
 internal class LeaderElectionHttpException(
     val context: LeaderElectionErrorContext,
     cause: Throwable? = null,
-) : RuntimeException(context.message, cause)
+): RuntimeException(context.message, cause)
 
 /**
  * 오류 응답을 typed override로만 사용자화하는 callback입니다.
@@ -107,7 +107,7 @@ internal fun toErrorContext(
     cause?.let { throwable ->
         LeaderElectionErrorLogger.log.warn {
             "leader election error mapped — code=${code.name}, " +
-                "causeType=${throwable::class.simpleName ?: "Unknown"}"
+                    "causeType=${throwable::class.simpleName ?: "Unknown"}"
         }
     }
     return LeaderElectionErrorContext(
@@ -135,16 +135,16 @@ private val LeaderElectionErrorCode.defaultStatus: HttpStatusCode
     get() = when (this) {
         LeaderElectionErrorCode.INVALID_LOCK_NAME,
         LeaderElectionErrorCode.INVALID_CURSOR,
-        -> HttpStatusCode.BadRequest
+            -> HttpStatusCode.BadRequest
 
         LeaderElectionErrorCode.LEADER_LOCKED -> HttpStatusCode.Locked
         LeaderElectionErrorCode.NOT_LEADER,
         LeaderElectionErrorCode.BACKEND_UNAVAILABLE,
-        -> HttpStatusCode.ServiceUnavailable
+            -> HttpStatusCode.ServiceUnavailable
 
         LeaderElectionErrorCode.CONFIGURATION,
         LeaderElectionErrorCode.INTERNAL,
-        -> HttpStatusCode.InternalServerError
+            -> HttpStatusCode.InternalServerError
     }
 
 private val LeaderElectionErrorCode.defaultMessage: String
@@ -158,4 +158,4 @@ private val LeaderElectionErrorCode.defaultMessage: String
         LeaderElectionErrorCode.INVALID_CURSOR -> "cursor is invalid"
     }
 
-private object LeaderElectionErrorLogger : KLogging()
+private object LeaderElectionErrorLogger: KLogging()

@@ -10,20 +10,15 @@
 
 `leader-redis-redisson`은 Redisson의 `RLock`과 `RPermitExpirableSemaphore` 를 사용하여 `leader-core` 인터페이스를 구현합니다. 블로킹, `CompletableFuture` 비동기, 코루틴 API를 지원합니다. 비동기 호출은 caller가 제공한 executor를 사용하므로 virtual-thread executor를 전달할 수 있지만, 이 모듈은 별도의 `RedissonVirtualThread*` elector 타입을 제공하지 않습니다.
 
-단일 리더 선출에서 `LeaderElectionOptions(autoExtend = true)`를 사용하면 공통 `LeaderLeaseAutoExtender` watchdog 이 lease 를 연장합니다(T8 PR 3 / Issue #79). Redisson 자체 lock watchdog 은 사용하지 않습니다. `tryLock`은 항상 명시적 `leaseTime` 으로 호출하므로 `LeaderLeaseAutoExtender`가 lease extension 의 단일 기준이 됩니다. 사용자가 `LockExtender.extendActiveLock(d)`를 호출하면 watchdog 은 공유 `ExtendDelegate`의 `lastExtendDeadline`을 확인하고, 다음 tick 이 사용자 연장분을 줄일 수 있으면 건너뜁니다. 이제 `autoExtend = true`와 `minLeaseTime > 0` 조합도 지원합니다.
+단일 리더 선출에서 `LeaderElectionOptions(autoExtend = true)`를 사용하면 공통 `LeaderLeaseAutoExtender` watchdog 이 lease 를 연장합니다 (T8 PR 3 / Issue #79). Redisson 자체 lock watchdog 은 사용하지 않습니다. `tryLock`은 항상 명시적 `leaseTime` 으로 호출하므로 `LeaderLeaseAutoExtender`가 lease extension 의 단일 기준이 됩니다. 사용자가 `LockExtender.extendActiveLock(d)`를 호출하면 watchdog 은 공유 `ExtendDelegate`의 `lastExtendDeadline`을 확인하고, 다음 tick 이 사용자 연장분을 줄일 수 있으면 건너뜁니다. 이제 `autoExtend = true`와 `minLeaseTime > 0` 조합도 지원합니다.
 
 복수 리더 그룹 elector 는 `lg:{lockName}` 키의 `RPermitExpirableSemaphore` 를 사용하며, 첫 접근 시 `trySetPermits(maxLeaders)` 를 멱등적으로 호출합니다 (호출하지 않으면 0 permits 로 시작하여 acquire 가 영구 실패). 각 acquire 는 Redisson 이 발급한 고유한 `permitId` 를 반환하며, release / 연장 시 정확히 그 슬롯을 식별합니다. `minLeaseTime` 은 `updateLeaseTime` (sync) / `updateLeaseTimeAsync` (async) 로 backend TTL 에 위임되어 — caller 를 park 하지 않고 `runIfLeader` 가 `action` 종료 직후 즉시 반환합니다. 비동기 단일/그룹 API 의 반환 `CompletableFuture`는 release/update 경로가 끝난 뒤 완료되므로, caller 가 곧바로 다음 호출을 이어 붙여도 false contention 을 관찰하지 않습니다. 클라이언트 crash 시 (release 미호출) `leaseTime` 만료 후 Redisson 이 자동으로 슬롯을 회수합니다. `lg:{lockName}` key prefix 는 롤링 배포 시 구버전 semaphore 키와의 충돌을 피하기 위해 의도적으로 분리되었습니다.
 
-코루틴 단일 리더 구현체는 PID 시드 기반의 미니 Snowflake ID 생성기를 사용하여 Redis 라운드트립 없이 코루틴별 고유 락 ID를 생성합니다. HA(다중 JVM) 환경에서 안전하게 동작합니다.
+코루틴 단일 리더 구현체는 PID 시드 기반의 미니 Snowflake ID 생성기를 사용하여 Redis 라운드트립 없이 코루틴별 고유 락 ID를 생성합니다. HA (다중 JVM) 환경에서 안전하게 동작합니다.
 
 ### 비동기 정리 정책
 
-단일 락의 비동기 정리는 `isHeldByThreadAsync`, `expireAsync`, `unlockAsync`를
-직접 사용합니다. executor 거부 후 최소 lease 정리도 native expiry를 사용하며,
-이 경로에서는 blocking Redis 호출을 common pool로 감싸지 않습니다.
-single/group 정리 future로 보고된 실패는 로그에 남기고 원래 action 값·예외·취소를
-바꾸지 않습니다. 이는 best-effort 정책이며 해제 성공 보장은 아닙니다.
-최소 lease가 남아 있으면 TTL 만료까지 정상 경합이 발생할 수 있습니다.
+단일 락의 비동기 정리는 `isHeldByThreadAsync`, `expireAsync`, `unlockAsync`를 직접 사용합니다. executor 거부 후 최소 lease 정리도 native expiry를 사용하며, 이 경로에서는 blocking Redis 호출을 common pool로 감싸지 않습니다. single/group 정리 future로 보고된 실패는 로그에 남기고 원래 action 값·예외·취소를 바꾸지 않습니다. 이는 best-effort 정책이며 해제 성공 보장은 아닙니다. 최소 lease가 남아 있으면 TTL 만료까지 정상 경합이 발생할 수 있습니다.
 
 ## 아키텍처
 
@@ -43,18 +38,18 @@ single/group 정리 future로 보고된 실패는 로그에 남기고 원래 act
 
 ## 구현체 목록
 
-| 클래스 | 구현 인터페이스 | 설명 |
-|-------|--------------|------|
-| `RedissonLeaderElector` | `LeaderElector` | `RLock.tryLock()` 기반 블로킹 |
-| `RedissonLeaderGroupElector` | `LeaderGroupElector` | `RPermitExpirableSemaphore` (`lg:{lockName}`) 기반 블로킹 복수 리더 |
-| `RedissonSuspendLeaderElector` | `SuspendLeaderElector` | 코루틴, PID 시드 Snowflake 락 ID |
-| `RedissonSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | `RPermitExpirableSemaphoreAsync` 기반 코루틴 복수 리더 |
-| `RedissonSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `RedissonSuspendLeaderElector` 생성 |
-| `RedissonSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `RedissonSuspendLeaderGroupElector` 생성 |
+| 클래스                                     | 구현 인터페이스                    | 설명                                                                |
+|--------------------------------------------|------------------------------------|---------------------------------------------------------------------|
+| `RedissonLeaderElector`                    | `LeaderElector`                    | `RLock.tryLock()` 기반 블로킹                                       |
+| `RedissonLeaderGroupElector`               | `LeaderGroupElector`               | `RPermitExpirableSemaphore` (`lg:{lockName}`) 기반 블로킹 복수 리더 |
+| `RedissonSuspendLeaderElector`             | `SuspendLeaderElector`             | 코루틴, PID 시드 Snowflake 락 ID                                    |
+| `RedissonSuspendLeaderGroupElector`        | `SuspendLeaderGroupElector`        | `RPermitExpirableSemaphoreAsync` 기반 코루틴 복수 리더              |
+| `RedissonSuspendLeaderElectorFactory`      | `SuspendLeaderElectorFactory`      | 팩토리: 호출마다 `RedissonSuspendLeaderElector` 생성                |
+| `RedissonSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `RedissonSuspendLeaderGroupElector` 생성           |
 
 ## 코루틴 락 ID 설계
 
-Redisson은 락 ID(스레드 ID)를 "소유자" 식별자로 사용합니다. 동일한 ID는 "내가 이 락을 보유 중"을 의미하며, 재진입성(reentrancy)을 활성화합니다. 코루틴 환경에서는 여러 코루틴이 같은 스레드에서 실행될 수 있으므로, 스레드 기반 ID를 사용하면 잘못된 재진입이 발생합니다.
+Redisson은 락 ID (스레드 ID)를 "소유자" 식별자로 사용합니다. 동일한 ID는 "내가 이 락을 보유 중"을 의미하며, 재진입성 (reentrancy)을 활성화합니다. 코루틴 환경에서는 여러 코루틴이 같은 스레드에서 실행될 수 있으므로, 스레드 기반 ID를 사용하면 잘못된 재진입이 발생합니다.
 
 `RedissonSuspendLeaderElector`은 `runIfLeader` 호출마다 미니 Snowflake로 고유한 락 ID를 생성합니다:
 
@@ -73,8 +68,8 @@ timestamp(42비트) | pid%(2^10)(10비트) | seq(12비트)
 - 각 `lockName` 의 첫 접근에서 `trySetPermits(maxLeaders)` 를 멱등적으로 호출. 호출하지 않으면 0 permits 로 시작해 `tryAcquire` 가 항상 `null` 을 반환합니다.
 - 각 `tryAcquire(waitTime, leaseTime, ms)` 는 고유한 `permitId: String?` 를 반환 (경합 시 `null`). 이 `permitId` 로 정확한 슬롯을 release / 연장하므로 동일 elector 인스턴스가 동시에 여러 슬롯을 보유해도 안전합니다.
 - `runIfLeader` finally 블록에서:
-  - `remainingMinLeaseTime > 0` → `updateLeaseTime(permitId, remainingMs, MILLISECONDS)` 로 backend TTL 연장 (async 경로는 `updateLeaseTimeAsync`).
-  - 그 외 → `release(permitId)` 로 즉시 슬롯 반납.
+    - `remainingMinLeaseTime > 0` → `updateLeaseTime(permitId, remainingMs, MILLISECONDS)` 로 backend TTL 연장 (async 경로는 `updateLeaseTimeAsync`).
+    - 그 외 → `release(permitId)` 로 즉시 슬롯 반납.
 - 클라이언트 crash 시 (release 미호출) `leaseTime` 만료 후 Redisson 이 자동으로 permit 을 회수합니다.
 - `minLeaseTime` 을 backend TTL 에 위임 (caller-park 없음) — `runIfLeader` 는 `action` 종료 직후 즉시 반환.
 
@@ -210,7 +205,7 @@ abstract class AbstractRedissonLeaderTest {
 
 ## 감사 정체성 (`LeaderSlot`)
 
-`lockName` 대신 `LeaderSlot`을 전달하면 각 선출 라운드마다 사람이 읽을 수 있는 노드 식별자를 전파할 수 있습니다. 식별자는 슬롯이 유지되는 동안 Redis Hash(`lg:{lockName}:audit`)에 저장되고, release 시 삭제됩니다.
+`lockName` 대신 `LeaderSlot`을 전달하면 각 선출 라운드마다 사람이 읽을 수 있는 노드 식별자를 전파할 수 있습니다. 식별자는 슬롯이 유지되는 동안 Redis Hash (`lg:{lockName}:audit`)에 저장되고, release 시 삭제됩니다.
 
 ```kotlin
 val slot = LeaderSlot("batch-job", leaderId = "node-a")
@@ -225,8 +220,7 @@ if (result is LeaderRunResult.Elected) {
 val result2 = suspendElector.runIfLeaderResultSuspend(slot) { doWork() }
 ```
 
-`leaderId`는 acquire 시 `HSET lg:{lockName}:audit <permitId> <leaderId>`로 기록되고,
-release 시 `HDEL`로 삭제됩니다. `null` 또는 생략된 `leaderId`는 기록을 생략합니다.
+`leaderId`는 acquire 시 `HSET lg:{lockName}:audit <permitId> <leaderId>`로 기록되고, release 시 `HDEL`로 삭제됩니다. `null` 또는 생략된 `leaderId`는 기록을 생략합니다.
 
 ## 의존성 추가
 

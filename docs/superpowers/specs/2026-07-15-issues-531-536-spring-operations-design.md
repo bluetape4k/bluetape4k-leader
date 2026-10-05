@@ -4,8 +4,6 @@
 
 이 문서는 `Issues 531 and 536 Spring Operations Design`에 대한 설계 또는 실행 계획 기록입니다. 아래 원문 구조의 범위, 결정, 작업 순서, 검증 조건, 위험 및 후속 조치는 기록 보존을 위해 유지합니다. 검토자는 각 `Action`, `Expected DoD`, `Validation`, `Target files` 항목을 한국어 해설과 함께 읽고, 코드 식별자와 명령은 원문 그대로 취급해야 합니다.
 
-
-
 ## Context
 
 Issues #531 and #536 were moved into milestone 0.5.0 after separating the parts that need broader contracts:
@@ -110,13 +108,13 @@ Both additions are opt-in and additive. Existing health contributors, Actuator e
 
 External read-only Codex review processes were attempted twice but exceeded the bounded review window because repository startup hooks dominated their execution. Per the workflow fallback, the main session applied all six lenses against the exact spec, plan, and local source anchors.
 
-| Priority | Lens | Finding | Resolution |
-|---|---|---|---|
-| P2 | performance | Health cost grows linearly with JVM-known lock names and backend state latency. | Added explicit cost model, bounded-static-set guidance, and call-count proof requirement. |
-| P2 | stability | Failure, concurrency, CTW, and rollback behavior were implicit. | Added five readiness and five scheduling failure modes plus dogfood and rollback contracts. |
-| P2 | security | Raw lock-name details and SpEL trust boundaries were not called out. | Added Actuator detail-access warning, no-exception-disclosure rule, and reuse of existing SpEL controls. |
-| P2 | operator/Ops | Empty registry and unknown expiry could be misread as cluster health. | Defined JVM-local semantics and explicit detail/status interpretation. |
-| P2 | developer/API | Compatibility and Spring scheduled-method constraints were incomplete. | Added additive compatibility, existing validation ownership, and rollback mapping. |
-| P2 | user/caller | Scheduling enablement and misuse boundaries needed documentation. | Added the Spring constraint contract and README acceptance requirement. |
+| Priority | Lens          | Finding                                                                         | Resolution                                                                                               |
+|----------|---------------|---------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| P2       | performance   | Health cost grows linearly with JVM-known lock names and backend state latency. | Added explicit cost model, bounded-static-set guidance, and call-count proof requirement.                |
+| P2       | stability     | Failure, concurrency, CTW, and rollback behavior were implicit.                 | Added five readiness and five scheduling failure modes plus dogfood and rollback contracts.              |
+| P2       | security      | Raw lock-name details and SpEL trust boundaries were not called out.            | Added Actuator detail-access warning, no-exception-disclosure rule, and reuse of existing SpEL controls. |
+| P2       | operator/Ops  | Empty registry and unknown expiry could be misread as cluster health.           | Defined JVM-local semantics and explicit detail/status interpretation.                                   |
+| P2       | developer/API | Compatibility and Spring scheduled-method constraints were incomplete.          | Added additive compatibility, existing validation ownership, and rollback mapping.                       |
+| P2       | user/caller   | Scheduling enablement and misuse boundaries needed documentation.               | Added the Spring constraint contract and README acceptance requirement.                                  |
 
 Latest integrated result: P0=0, P1=0. All P2 findings are repaired in this revision.

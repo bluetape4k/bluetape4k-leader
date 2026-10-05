@@ -8,13 +8,13 @@
 
 ## 1. 배경 및 목적
 
-현재 `LeaderElection` 구현체들은 분산 락(FIFO) 방식으로 리더를 선출한다. 이 방식은 단순하지만 다음 시나리오에서 한계가 있다.
+현재 `LeaderElection` 구현체들은 분산 락 (FIFO) 방식으로 리더를 선출한다. 이 방식은 단순하지만 다음 시나리오에서 한계가 있다.
 
 - **부하 분산**: 항상 동일 노드가 리더가 되면 특정 노드에 부하 집중
-- **복원력(Resilience)**: 최근 실패한 노드보다 성공한 노드를 리더로 선호해야 하는 경우
+- **복원력 (Resilience)**: 최근 실패한 노드보다 성공한 노드를 리더로 선호해야 하는 경우
 - **공정성**: 오래 쉰 노드에게 우선권을 주어 작업 기회 균등 분배
 
-이 기능은 **플러그형 선출 전략(Pluggable Election Strategy)** 을 leader-core 에 추가하여 다양한 선출 기준을 지원한다.
+이 기능은 **플러그형 선출 전략 (Pluggable Election Strategy)** 을 leader-core 에 추가하여 다양한 선출 기준을 지원한다.
 
 ---
 
@@ -58,7 +58,7 @@ winner.nodeId == myNodeId ?
 
 > **Local pilot scope**: 단일 프로세스 내 `reentrantLock()` 으로 listCandidates→selectLeader→run 시퀀스 atomic 보장.  
 > 분산 환경에서는 노드별 등록/조회 시점 차이로 후보 목록이 달라져 winner 불일치 가능.  
-> **분산 일관성 보장(epoch/coordinator 패턴)은 백엔드 구현 시 처리한다.**
+> **분산 일관성 보장 (epoch/coordinator 패턴)은 백엔드 구현 시 처리한다.**
 
 단, `RandomElectionStrategy` 사용 시 분산 환경에서 shared seed 필요 (백엔드 구현 시 처리).
 
@@ -158,22 +158,22 @@ interface StrategicLeaderElection {
 
 ## 6. 내장 전략 목록
 
-| 클래스 | 설명 | 동작 |
-|--------|------|------|
-| `FifoElectionStrategy` | 가장 먼저 등록한 후보 선출 | `registeredAt` 오름차순 첫 번째 |
-| `RandomElectionStrategy` | 랜덤 선출 | 주어진 seed 또는 시스템 랜덤 |
-| `ScoredElectionStrategy` | 점수 기반 선출 | `scorer.score()` 최고점 후보 |
+| 클래스                   | 설명                       | 동작                            |
+|--------------------------|----------------------------|---------------------------------|
+| `FifoElectionStrategy`   | 가장 먼저 등록한 후보 선출 | `registeredAt` 오름차순 첫 번째 |
+| `RandomElectionStrategy` | 랜덤 선출                  | 주어진 seed 또는 시스템 랜덤    |
+| `ScoredElectionStrategy` | 점수 기반 선출             | `scorer.score()` 최고점 후보    |
 
 ---
 
 ## 7. 내장 Scorer 목록
 
-| 클래스 | 선호 후보 | 점수 산식 |
-|--------|----------|---------|
-| `IdleTimeScorer` | 가장 오래 쉰 노드 | `idleDuration.toMillis()` (미실행 노드 = 등록 이후 전체 경과 시간) |
-| `SuccessRateScorer` | 성공률 높은 노드 | `successRate * 100` |
-| `RecentSuccessScorer` | 최근 성공한 노드 | 성공한 경우 최근 완료시각 점수 |
-| `WeightedScorer` | 복합 기준 | `Σ(scorer.score * weight)` |
+| 클래스                | 선호 후보         | 점수 산식                                                          |
+|-----------------------|-------------------|--------------------------------------------------------------------|
+| `IdleTimeScorer`      | 가장 오래 쉰 노드 | `idleDuration.toMillis()` (미실행 노드 = 등록 이후 전체 경과 시간) |
+| `SuccessRateScorer`   | 성공률 높은 노드  | `successRate * 100`                                                |
+| `RecentSuccessScorer` | 최근 성공한 노드  | 성공한 경우 최근 완료시각 점수                                     |
+| `WeightedScorer`      | 복합 기준         | `Σ(scorer.score * weight)`                                         |
 
 ---
 

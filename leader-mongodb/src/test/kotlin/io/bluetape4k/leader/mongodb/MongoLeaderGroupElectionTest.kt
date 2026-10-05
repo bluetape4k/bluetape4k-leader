@@ -1,6 +1,17 @@
 package io.bluetape4k.leader.mongodb
 
+import com.mongodb.client.model.Filters
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderGroupElectionException
@@ -10,12 +21,6 @@ import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeLessOrEqualTo
-import io.bluetape4k.assertions.shouldNotBeNull
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -24,22 +29,20 @@ import io.mockk.verify
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withPollInterval
 import org.bson.Document
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
 
@@ -52,7 +55,9 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
             leaseTime = 60.seconds,
         )
     )
-    private val election by lazy { MongoLeaderGroupElector(groupLockCollection, options) }
+    private val elector by lazy {
+        MongoLeaderGroupElector(groupLockCollection, options)
+    }
     private val historyRecorder: SafeLeaderHistoryRecorder = mockk(relaxed = true)
 
     @BeforeEach
@@ -62,8 +67,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - 리더로 선출되어 action을 실행하고 결과를 반환한다`() {
-        val result = election.runIfLeader(randomName()) { "hello" }
-
+        val result = elector.runIfLeader(randomName()) { "hello" }
         result shouldBeEqualTo "hello"
     }
 
@@ -72,14 +76,16 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
         val lockName = randomName()
         val recordSlot = slot<LeaderLockHistoryRecord>()
         val historyKey = LeaderHistoryKey(lockName = lockName, token = "history-token", slotId = "0")
-        every { historyRecorder.recordAcquired(capture(recordSlot)) } returns historyKey
-        val election = MongoLeaderGroupElector(groupLockCollection, options, historyRecorder)
 
-        val result = election.runIfLeader(lockName) { "recorded" }
+        every { historyRecorder.recordAcquired(capture(recordSlot)) } returns historyKey
+
+        val elector = MongoLeaderGroupElector(groupLockCollection, options, historyRecorder)
+        val result = elector.runIfLeader(lockName) { "recorded" }
 
         result shouldBeEqualTo "recorded"
         recordSlot.captured.lockName shouldBeEqualTo lockName
         recordSlot.captured.slotId.shouldNotBeNull()
+
         verify(exactly = 1) { historyRecorder.recordCompleted(historyKey, any(), any()) }
         verify(exactly = 0) { historyRecorder.recordFailed(any(), any(), any(), any()) }
     }
@@ -88,12 +94,14 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
     fun `runIfLeader - action failure records failed event`() {
         val lockName = randomName()
         val historyKey = LeaderHistoryKey(lockName = lockName, token = "history-token", slotId = "0")
+
         every { historyRecorder.recordAcquired(any()) } returns historyKey
-        val election = MongoLeaderGroupElector(groupLockCollection, options, historyRecorder)
+
+        val elector = MongoLeaderGroupElector(groupLockCollection, options, historyRecorder)
         val failure = IllegalStateException("boom")
 
         val ex = assertFailsWith<IllegalStateException> {
-            election.runIfLeader(lockName) { throw failure }
+            elector.runIfLeader(lockName) { throw failure }
         }
 
         ex shouldBeEqualTo failure
@@ -103,8 +111,8 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - 서로 다른 lockName은 독립적인 슬롯 풀을 가진다`() {
-        val result1 = election.runIfLeader(randomName()) { "a" }
-        val result2 = election.runIfLeader(randomName()) { "b" }
+        val result1 = elector.runIfLeader(randomName()) { "a" }
+        val result2 = elector.runIfLeader(randomName()) { "b" }
 
         result1 shouldBeEqualTo "a"
         result2 shouldBeEqualTo "b"
@@ -120,7 +128,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
             .workers(options.maxLeaders * 4)
             .rounds(2)
             .add {
-                election.runIfLeader(lockName) {
+                elector.runIfLeader(lockName) {
                     val current = currentConcurrent.incrementAndGet()
                     peakConcurrent.updateAndGet { max(it, current) }
                     Thread.sleep(Random.nextLong(5, 15))
@@ -136,9 +144,11 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
     @Test
     fun `runIfLeader - action 예외 발생 후 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomName()
-        runCatching { election.runIfLeader(lockName) { throw LeaderGroupElectionException("실패") } }
+        runCatching {
+            elector.runIfLeader(lockName) { throw LeaderGroupElectionException("실패") }
+        }
 
-        val result = election.runIfLeader(lockName) { "복구 성공" }
+        val result = elector.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
     }
 
@@ -165,34 +175,36 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
         }
 
         try {
-            acquiredLatch.await(2, TimeUnit.SECONDS)
-            val result = singleElection.runIfLeader(lockName) { }
+            acquiredLatch.await(2.seconds)
+            val result = singleElection.runIfLeader(lockName) { "실행되지 않는다" }
             result.shouldBeNull()
         } finally {
             holdLatch.countDown()
             executor.shutdown()
-            executor.awaitTermination(3, TimeUnit.SECONDS)
+            executor.awaitTermination(3.seconds)
         }
     }
 
     @Test
     fun `runIfLeader - colon-slot-colon을 포함한 lockName은 IllegalArgumentException을 발생시킨다`() {
         assertFailsWith<IllegalArgumentException> {
-            election.runIfLeader("a:slot:b") { }
+            elector.runIfLeader("a:slot:b") { }
         }
     }
 
     @Test
     fun `state - 초기 상태는 activeCount=0, isEmpty=true, isFull=false이다`() {
         val lockName = randomName()
-        val state = election.state(lockName)
+        val state = elector.state(lockName)
 
+        log.debug { "state=$state" }
         state.lockName shouldBeEqualTo lockName
         state.maxLeaders shouldBeEqualTo options.maxLeaders
         state.activeCount shouldBeEqualTo 0
         state.isEmpty.shouldBeTrue()
         state.isFull.shouldBeFalse()
-        election.availableSlots(lockName) shouldBeEqualTo options.maxLeaders
+
+        elector.availableSlots(lockName) shouldBeEqualTo options.maxLeaders
     }
 
     @Test
@@ -222,16 +234,19 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
         }
 
         try {
-            acquiredLatch.await(10, TimeUnit.SECONDS)
+            acquiredLatch.await(10.seconds)
 
             val stateWhileHeld = fastElection.state(lockName)
+
+            log.debug { "stateWhileHeld=$stateWhileHeld" }
             stateWhileHeld.activeCount shouldBeEqualTo maxLeaders
             stateWhileHeld.isFull.shouldBeTrue()
+
             fastElection.availableSlots(lockName) shouldBeEqualTo 0
         } finally {
             holdLatch.countDown()
             executor.shutdown()
-            executor.awaitTermination(5, TimeUnit.SECONDS)
+            executor.awaitTermination(5.seconds)
         }
 
         val stateAfter = fastElection.state(lockName)
@@ -249,14 +264,14 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
                 .append("expireAt", Date(System.currentTimeMillis() - 60_000))
         )
 
-        election.activeCount(lockName) shouldBeEqualTo 0
+        elector.activeCount(lockName) shouldBeEqualTo 0
     }
 
     @Test
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action을 실행하고 결과를 반환한다`() {
-        val result = election.runAsyncIfLeader(randomName(), VirtualThreadExecutor) {
+        val result = elector.runAsyncIfLeader(randomName(), VirtualThreadExecutor) {
             futureOf { "async 성공" }
-        }.get(5, TimeUnit.SECONDS)
+        }.get(5.seconds)
 
         result shouldBeEqualTo "async 성공"
     }
@@ -265,12 +280,13 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
     fun `runAsyncIfLeader - history recorder receives acquired and completed events`() {
         val lockName = randomName()
         val historyKey = LeaderHistoryKey(lockName = lockName, token = "history-token", slotId = "0")
-        every { historyRecorder.recordAcquired(any()) } returns historyKey
-        val election = MongoLeaderGroupElector(groupLockCollection, options, historyRecorder)
 
-        val result = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+        every { historyRecorder.recordAcquired(any()) } returns historyKey
+
+        val elector = MongoLeaderGroupElector(groupLockCollection, options, historyRecorder)
+        val result = elector.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
             futureOf { "async recorded" }
-        }.get(5, TimeUnit.SECONDS)
+        }.get(5.seconds)
 
         result shouldBeEqualTo "async recorded"
         verify(exactly = 1) { historyRecorder.recordCompleted(historyKey, any(), any()) }
@@ -281,12 +297,14 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
     fun `runAsyncIfLeader - action failure records failed event`() {
         val lockName = randomName()
         val historyKey = LeaderHistoryKey(lockName = lockName, token = "history-token", slotId = "0")
+
         every { historyRecorder.recordAcquired(any()) } returns historyKey
-        val election = MongoLeaderGroupElector(groupLockCollection, options, historyRecorder)
+
+        val elector = MongoLeaderGroupElector(groupLockCollection, options, historyRecorder)
         val failure = IllegalStateException("async boom")
 
         assertFailsWith<CompletionException> {
-            election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
+            elector.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
                 futureOf { throw failure }
             }.join()
         }
@@ -300,14 +318,14 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
         val lockName = randomName()
 
         assertFailsWith<CompletionException> {
-            election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
+            elector.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
                 throw IllegalStateException("action 동기 예외")
             }.join()
         }
 
-        val result = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+        val result = elector.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
             futureOf { "복구 성공" }
-        }.get(5, TimeUnit.SECONDS)
+        }.get(5.seconds)
         result shouldBeEqualTo "복구 성공"
     }
 
@@ -316,14 +334,15 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
         val lockName = randomName()
 
         assertFailsWith<CompletionException> {
-            election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
+            elector.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
                 throw IllegalStateException("action 동기 예외")
             }.join()
         }
 
-        val ids = (0 until options.maxLeaders).map { "$lockName:slot:$it" }
+        val ids = List(options.maxLeaders) { "$lockName:slot:$it" }
+
         groupLockCollection.countDocuments(
-            com.mongodb.client.model.Filters.`in`("_id", ids)
+            Filters.`in`("_id", ids)
         ) shouldBeEqualTo 0L
     }
 
@@ -334,21 +353,23 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
         val actionFuture = CompletableFuture<String>()
 
         try {
-            val resultFuture = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+            val resultFuture = elector.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
 
             resultFuture.cancel(false).shouldBeTrue()
 
-            await.atMost(2.seconds).untilAsserted {
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
                 actionFuture.isCancelled.shouldBeTrue()
             }
-            await.atMost(2.seconds).untilAsserted {
-                election.activeCount(lockName) shouldBeEqualTo 0
+
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
+                elector.activeCount(lockName) shouldBeEqualTo 0
             }
-            election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+
+            elector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             actionFuture.cancel(false)
         }
@@ -358,26 +379,29 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
     fun `runAsyncIfLeader - caller 취소는 group failure history를 기록하지 않는다`() {
         val lockName = randomName()
         val historyKey = LeaderHistoryKey(lockName = lockName, token = "cancel-history-token", slotId = "0")
+
         every { historyRecorder.recordAcquired(any()) } returns historyKey
+
         val actionStarted = CountDownLatch(1)
         val actionFuture = CompletableFuture<String>()
-        val election = MongoLeaderGroupElector(groupLockCollection, options, historyRecorder)
+        val elector = MongoLeaderGroupElector(groupLockCollection, options, historyRecorder)
 
         try {
-            val resultFuture = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+            val resultFuture = elector.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
 
             resultFuture.cancel(false).shouldBeTrue()
 
-            await.atMost(2.seconds).untilAsserted {
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
                 actionFuture.isCancelled.shouldBeTrue()
             }
-            await.atMost(2.seconds).untilAsserted {
-                election.activeCount(lockName) shouldBeEqualTo 0
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
+                elector.activeCount(lockName) shouldBeEqualTo 0
             }
+
             verify(exactly = 0) { historyRecorder.recordFailed(any(), any(), any(), any()) }
             verify(exactly = 0) { historyRecorder.recordCompleted(any(), any(), any()) }
         } finally {

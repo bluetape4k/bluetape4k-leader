@@ -31,7 +31,7 @@ class LeaderManagementActionRegistry(
     actionQueueCapacity: Int = 32,
     maxRegistrations: Int = 1_024,
     private val closeTimeout: Duration = 5.seconds,
-) : AutoCloseable {
+): AutoCloseable {
 
     private companion object {
         const val MAX_TIMEOUT_SECONDS = 30L
@@ -69,7 +69,7 @@ class LeaderManagementActionRegistry(
     /** 등록된 handle을 identity 기준으로 참조 계수합니다. backend callback은 호출하지 않습니다. */
     fun register(handle: LeaderLeaseHandle): LeaderManagementRegistration {
         val lockName = handle.lockName
-        if (!isManagementActionLockName(lockName)) {
+        if (!lockName.isManagementActionLockName()) {
             return LeaderManagementRegistration(
                 accepted = false,
                 outcome = LeaderManagementRegistrationOutcome.INVALID_LOCK_NAME,
@@ -109,7 +109,7 @@ class LeaderManagementActionRegistry(
         surface: LeaderManagementActionSurface,
     ): LeaderManagementActionResult {
         val deadline = MonotonicDeadline.fromNow(actionTimeout)
-        if (!isManagementActionLockName(lockName)) {
+        if (!lockName.isManagementActionLockName()) {
             return immediate(LeaderManagementActionOutcome.INVALID_LOCK_NAME, surface)
         }
 
@@ -551,17 +551,17 @@ class LeaderManagementActionRegistry(
             action = LeaderManagementAction.RELEASE,
             outcome = LeaderManagementActionOutcome.ACTION_TIMED_OUT,
             mutationAttempted = action.mutationAttempted.get() ||
-                action.phase.get() in setOf(
-                    LeaderManagementActionPhase.RELEASE_STARTED,
-                    LeaderManagementActionPhase.POSTCHECK,
-                ),
+                    action.phase.get() in setOf(
+                LeaderManagementActionPhase.RELEASE_STARTED,
+                LeaderManagementActionPhase.POSTCHECK,
+            ),
         )
 
     private fun quarantineReason(phase: LeaderManagementActionPhase): LeaderManagementQuarantineReason =
         when (phase) {
             LeaderManagementActionPhase.RELEASE_STARTED,
             LeaderManagementActionPhase.POSTCHECK,
-            -> LeaderManagementQuarantineReason.NON_INTERRUPTIBLE
+                -> LeaderManagementQuarantineReason.NON_INTERRUPTIBLE
 
             else -> LeaderManagementQuarantineReason.CLEANUP_TIMEOUT
         }

@@ -1,10 +1,14 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
@@ -23,9 +27,9 @@ import kotlin.time.Duration.Companion.seconds
  * - Concurrent acquire/release does not leave ghost audit entries
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class RedissonRMapAuditTest : AbstractRedissonLeaderTest() {
+class RedissonRMapAuditTest: AbstractRedissonLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val options = LeaderGroupElectionOptions(
         maxLeaders = 3,
@@ -46,14 +50,14 @@ class RedissonRMapAuditTest : AbstractRedissonLeaderTest() {
         elector.runIfLeader(slot) {
             val auditMap = redissonClient.getMap<String, String>(auditMapKey(lockName))
             val entries = auditMap.readAllEntrySet()
-            (entries.any { it.value == "node-audit" }).shouldBeTrue()
+            entries.any { it.value == "node-audit" }.shouldBeTrue()
             capturedPermitId = entries.firstOrNull { it.value == "node-audit" }?.key
         }
 
         // release 후 RMap 에서 삭제 확인
         if (capturedPermitId != null) {
             val auditMap = redissonClient.getMap<String, String>(auditMapKey(lockName))
-            auditMap.get(capturedPermitId).shouldBeNull()
+            auditMap[capturedPermitId].shouldBeNull()
         }
     }
 
@@ -65,8 +69,8 @@ class RedissonRMapAuditTest : AbstractRedissonLeaderTest() {
 
         val result = elector.runIfLeaderResult(slot) { "done" }
 
-        (result is LeaderRunResult.Elected).shouldBeTrue()
-        (result as LeaderRunResult.Elected).leaderId shouldBeEqualTo "result-node"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.leaderId shouldBeEqualTo "result-node"
         result.value shouldBeEqualTo "done"
     }
 
@@ -77,7 +81,7 @@ class RedissonRMapAuditTest : AbstractRedissonLeaderTest() {
 
         elector.runIfLeader(lockName) {
             val auditMap = redissonClient.getMap<String, String>(auditMapKey(lockName))
-            auditMap.size shouldBeEqualTo 0
+            auditMap.shouldBeEmpty()
         }
     }
 
@@ -102,7 +106,31 @@ class RedissonRMapAuditTest : AbstractRedissonLeaderTest() {
 
         // 모든 실행 후 RMap 에 ghost 항목이 없어야 함
         val auditMap = redissonClient.getMap<String, String>(auditMapKey(lockName))
-        auditMap.size shouldBeEqualTo 0
-        (successCount.get() > 0).shouldBeTrue()
+        auditMap.shouldBeEmpty()
+        successCount.get() shouldBeGreaterThan 0
+    }
+
+    @Test
+    fun `StructuredTaskScopeTester 100×3 — concurrent slot acquire_release RMap ghost 없음`() {
+        val lockName = randomLockName()
+        val elector = RedissonLeaderGroupElector(redissonClient, options)
+        val successCount = AtomicInteger(0)
+
+        StructuredTaskScopeTester()
+            .rounds(100 * options.maxLeaders)
+            .add {
+                val leaderId = "node-${Thread.currentThread().threadId()}"
+                val slot = LeaderSlot(lockName, leaderId)
+                val result = elector.runIfLeaderResult(slot) { leaderId }
+                if (result is LeaderRunResult.Elected) {
+                    successCount.incrementAndGet()
+                }
+            }
+            .run()
+
+        // 모든 실행 후 RMap 에 ghost 항목이 없어야 함
+        val auditMap = redissonClient.getMap<String, String>(auditMapKey(lockName))
+        auditMap.shouldBeEmpty()
+        successCount.get() shouldBeGreaterThan 0
     }
 }

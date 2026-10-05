@@ -1,11 +1,14 @@
 package io.bluetape4k.leader.spring.metrics
 
-import io.bluetape4k.leader.LeaderLeaseExtensionObservers
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.LeaderLeaseExtensionObservationScope
+import io.bluetape4k.leader.LeaderLeaseExtensionObservers
 import io.bluetape4k.leader.micrometer.LeaderObservationOptions
 import io.bluetape4k.leader.micrometer.MicrometerObservationLeaderLeaseExtensionObserver
+import io.bluetape4k.logging.KotlinLogging
+import io.bluetape4k.logging.debug
 import io.micrometer.observation.ObservationRegistry
-import java.util.IdentityHashMap
+import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -19,10 +22,18 @@ import kotlin.concurrent.withLock
  */
 internal object LeaseExtensionObservationRegistrationManager {
 
+    private val log = KotlinLogging.logger {}
+
     internal data class ManagedRegistration(
         val scope: LeaderLeaseExtensionObservationScope,
         private val closeHandle: AutoCloseable,
-    ) : AutoCloseable by closeHandle
+    ): AutoCloseable by closeHandle {
+        override fun toString(): String =
+            ToStringBuilder(this)
+                .add("scope", scope)
+                .add("closeHandle", closeHandle)
+                .toString()
+    }
 
     private val lock = ReentrantLock()
     private val entries = IdentityHashMap<ObservationRegistry, Entry>()
@@ -38,13 +49,20 @@ internal object LeaseExtensionObservationRegistrationManager {
             }
             existing.referenceCount++
             return@withLock ManagedRegistration(existing.scope, RegistrationHandle(registry, existing))
+                .apply {
+                    log.debug { "acquire ManagedRegistration. $this" }
+                }
         }
 
         val observer = MicrometerObservationLeaderLeaseExtensionObserver(registry, options)
         val scope = LeaderLeaseExtensionObservers.addScopedObserver(observer)
         val entry = Entry(options, scope)
         entries[registry] = entry
+
         ManagedRegistration(scope, RegistrationHandle(registry, entry))
+            .apply {
+                log.debug { "acquire ManagedRegistration. $this" }
+            }
     }
 
     internal fun registryCount(): Int = lock.withLock { entries.size }
@@ -65,6 +83,7 @@ internal object LeaseExtensionObservationRegistrationManager {
                 entries.remove(registry)
                 entry.scope.close()
             }
+            log.debug { "release ${entry.referenceCount} for $registry" }
         }
     }
 
@@ -72,12 +91,19 @@ internal object LeaseExtensionObservationRegistrationManager {
         val options: LeaderObservationOptions,
         val scope: LeaderLeaseExtensionObservationScope,
         var referenceCount: Int = 1,
-    )
+    ) {
+        override fun toString(): String =
+            ToStringBuilder(this)
+                .add("options: ", options)
+                .add("scope", scope)
+                .add("referenceCount", referenceCount)
+                .toString()
+    }
 
     private class RegistrationHandle(
         private val registry: ObservationRegistry,
         private val entry: Entry,
-    ) : AutoCloseable {
+    ): AutoCloseable {
 
         private val closed = AtomicBoolean(false)
 
@@ -86,5 +112,11 @@ internal object LeaseExtensionObservationRegistrationManager {
                 release(registry, entry)
             }
         }
+
+        override fun toString(): String =
+            ToStringBuilder(this)
+                .add("registry", registry)
+                .add("entry", entry)
+                .toString()
     }
 }

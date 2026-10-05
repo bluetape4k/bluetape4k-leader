@@ -30,8 +30,20 @@ class DynamoDbLockClientStateLookupTest {
             .responses(
                 mapOf(
                     tableName to listOf(
-                        item("${prefix}0", ownerId = "owner-a", auditLeaderId = "audit-a", nodeId = "node-a", expiresAt = 5_000L),
-                        item("${prefix}1", ownerId = "owner-b", auditLeaderId = "audit-b", nodeId = "node-b", expiresAt = 999L),
+                        item(
+                            "${prefix}0",
+                            ownerId = "owner-a",
+                            auditLeaderId = "audit-a",
+                            nodeId = "node-a",
+                            expiresAt = 5_000L
+                        ),
+                        item(
+                            "${prefix}1",
+                            ownerId = "owner-b",
+                            auditLeaderId = "audit-b",
+                            nodeId = "node-b",
+                            expiresAt = 999L
+                        ),
                     ),
                 ),
             )

@@ -6,16 +6,19 @@ import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
+import io.bluetape4k.leader.mongodb.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoSuspendLockExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
-import io.bluetape4k.leader.mongodb.lock.validateMongoLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -39,14 +42,14 @@ class MongoSuspendLeaderElector private constructor(
     val options: MongoLeaderElectionOptions,
     private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
 ): SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics,
-    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics,
+   SuspendLeaderLeaseAcquirerSupport {
 
-    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
         internal const val MONGO_SUSPEND_FACTORY_BEAN_NAME = "mongo-suspend-leader-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(MongoBackendErrorClassifier)
 
@@ -61,7 +64,7 @@ class MongoSuspendLeaderElector private constructor(
     }
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
-        validateMongoLockName(lockName)
+        lockName.validateMonoLockName()
         val lock = MongoSuspendLock(collection, lockName, options.retryDelay)
         log.debug { "리더 승격을 요청합니다 (suspend). lockName=$lockName" }
 
@@ -141,13 +144,11 @@ class MongoSuspendLeaderElector private constructor(
     }
 }
 
-/**
- * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend fun <T> MongoCollection<Document>.suspendRunIfLeader(
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeader")
+suspend fun <T> MongoCollection<Document>.legacySuspendRunIfLeader(
     lockName: String,
     options: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,
     action: suspend () -> T,
-): T? = MongoSuspendLeaderElector(this, options).runIfLeader(lockName, action)
+): T? = this.currentSuspendRunIfLeader(lockName, options, action)

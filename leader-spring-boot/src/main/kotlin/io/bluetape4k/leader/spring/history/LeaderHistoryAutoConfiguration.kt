@@ -28,7 +28,7 @@ import org.springframework.context.annotation.Configuration
 @ConditionalOnProperty(prefix = "bluetape4k.leader.history", name = ["enabled"], matchIfMissing = true)
 class LeaderHistoryAutoConfiguration {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     // ----------------------------------------------------------------
     // Noop fallbacks — registered when no real sink bean is present

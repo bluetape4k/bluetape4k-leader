@@ -12,11 +12,13 @@ Hazelcast-backed leader election — blocking, async, virtual-thread, and corout
 
 Lock strategy: `IMap.putIfAbsent(key, token, leaseTimeMs, MILLISECONDS)` for atomic acquire, `IMap.remove(key, token)` for owner-only release. Thread-unbound token model — safe for Virtual Threads and coroutine thread switches.
 
-> **Note:** `leaseTime` must be longer than the expected action duration. TTL expiry automatically releases the lock; single-leader electors can renew the TTL when `autoExtend` is enabled.
+>
+**Note:** `leaseTime` must be longer than the expected action duration. TTL expiry automatically releases the lock; single-leader electors can renew the TTL when `autoExtend` is enabled.
 >
 > `minLeaseTime` retains the token with a shortened map-entry TTL when work finishes early, so other nodes cannot reacquire the same lock until the minimum lease has elapsed.
 >
-> **Note:** Never enable near-cache on the lock map. Stale near-cache reads can cause `isHeldByCurrentInstance()` to misidentify the lock holder.
+>
+**Note:** Never enable near-cache on the lock map. Stale near-cache reads can cause `isHeldByCurrentInstance()` to misidentify the lock holder.
 
 ## Implementation Structure
 
@@ -24,13 +26,13 @@ Lock strategy: `IMap.putIfAbsent(key, token, leaseTimeMs, MILLISECONDS)` for ato
 
 ## Implementations
 
-| Class | Interface | Description |
-|-------|-----------|-------------|
-| `HazelcastLeaderElector` | `LeaderElector` | Blocking + async single-leader |
-| `HazelcastLeaderGroupElector` | `LeaderGroupElector` | Blocking + async multi-leader (slot-based) |
-| `HazelcastSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader |
-| `HazelcastSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader (slot-based) |
-| `HazelcastLeaderElectorFactory` | `LeaderElectorFactory` | Factory: creates `HazelcastLeaderElector` per call |
+| Class                                | Interface                   | Description                                             |
+|--------------------------------------|-----------------------------|---------------------------------------------------------|
+| `HazelcastLeaderElector`             | `LeaderElector`             | Blocking + async single-leader                          |
+| `HazelcastLeaderGroupElector`        | `LeaderGroupElector`        | Blocking + async multi-leader (slot-based)              |
+| `HazelcastSuspendLeaderElector`      | `SuspendLeaderElector`      | Coroutine single-leader                                 |
+| `HazelcastSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader (slot-based)                     |
+| `HazelcastLeaderElectorFactory`      | `LeaderElectorFactory`      | Factory: creates `HazelcastLeaderElector` per call      |
 | `HazelcastLeaderGroupElectorFactory` | `LeaderGroupElectorFactory` | Factory: creates `HazelcastLeaderGroupElector` per call |
 
 ## Usage
@@ -157,6 +159,7 @@ Check:   IMap.get(lockKey) == token
 Group election simulates a semaphore with N slot keys (`lockName:slot:0` … `lockName:slot:N-1`). Each caller tries slots in sequence; first acquired slot wins.
 
 Lock map names:
+
 - Single-leader: `bluetape4k:leader:locks`
 - Group: `bluetape4k:leader:group:locks`
 

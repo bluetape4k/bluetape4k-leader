@@ -21,7 +21,7 @@ class LockIdentity(
      */
     val factoryBeanName: String,
     val groupParams: GroupParams? = null,
-) : Serializable {
+): Serializable {
 
     init {
         lockName.requireNotBlank("lockName")
@@ -56,7 +56,10 @@ class LockIdentity(
     override fun toString(): String =
         "LockIdentity(lockName='$lockName', kind=$kind, factoryBeanName='$factoryBeanName', groupParams=$groupParams)"
 
-    enum class AnnotationKind { SINGLE, GROUP }
+    enum class AnnotationKind {
+        SINGLE,
+        GROUP
+    }
 
     /**
      * `GroupParams` 선언은 leader election 계약에서 사용되는 data class입니다.
@@ -64,7 +67,7 @@ class LockIdentity(
      * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
      * @property maxLeaders 동시에 leadership을 획득할 수 있는 최대 슬롯 수입니다.
      */
-    data class GroupParams(val maxLeaders: Int) : Serializable {
+    data class GroupParams(val maxLeaders: Int): Serializable {
 
         init {
             maxLeaders.requirePositiveNumber("maxLeaders")

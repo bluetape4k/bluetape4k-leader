@@ -18,7 +18,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class PrometheusBackendConnectivityProbe(
     @Qualifier("prometheusBackendDiagnosticsProvider")
     private val provider: LeaderBackendDiagnosticsProvider,
-    @Value("\${demo.backend-probe.timeout-ms:500}") timeoutMillis: Long,
+    @Value($$"${demo.backend-probe.timeout-ms:500}") timeoutMillis: Long,
 ) {
 
     private val timeout = timeoutMillis
@@ -26,8 +26,8 @@ class PrometheusBackendConnectivityProbe(
         .milliseconds
 
     @Scheduled(
-        fixedDelayString = "\${demo.backend-probe.fixed-delay-ms:5000}",
-        initialDelayString = "\${demo.backend-probe.initial-delay-ms:1000}",
+        fixedDelayString = $$"${demo.backend-probe.fixed-delay-ms:5000}",
+        initialDelayString = $$"${demo.backend-probe.initial-delay-ms:1000}",
     )
     fun probe() {
         provider.checkConnectivity(timeout)

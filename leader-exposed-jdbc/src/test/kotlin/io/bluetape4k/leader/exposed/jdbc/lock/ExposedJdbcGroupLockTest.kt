@@ -1,10 +1,14 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
-import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -12,23 +16,18 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.shouldBeFalse
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
-class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
+class ExposedJdbcGroupLockTest: AbstractExposedJdbcLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @ParameterizedTest
     @MethodSource("enableDialects")
@@ -61,9 +60,11 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
     fun `tryLock - group 재시도 대기 interrupt 를 재전파한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val holder = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
         holder.tryLock(1.seconds, 30.seconds)
+
         val contender = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 10L))
 
         try {
@@ -160,6 +161,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
     fun `unlock - 만료된 동일 token에는 minLeaseTime을 적용하지 않는다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val now = Instant.parse("2026-01-02T03:04:05Z")
         val lock = ExposedJdbcGroupLock(
@@ -172,6 +174,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         lock.tryLock(1.seconds, 30.seconds).shouldBeTrue()
 
         val expiredUntil = now.minusSeconds(1)
+
         transaction(db) {
             LeaderGroupLockTable.update(
                 where = { (LeaderGroupLockTable.lockName eq lockName) and (LeaderGroupLockTable.slot eq 0) },
@@ -187,7 +190,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
                 .selectAll()
                 .where { (LeaderGroupLockTable.lockName eq lockName) and (LeaderGroupLockTable.slot eq 0) }
                 .single()[LeaderGroupLockTable.lockedUntil]
-        }.shouldBeEqualTo(expiredUntil)
+        } shouldBeEqualTo expiredUntil
     }
 
     @ParameterizedTest
@@ -211,6 +214,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
     fun `unlock - 이미 해제된 락에 재호출해도 예외가 발생하지 않는다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lock = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
         lock.tryLock(1.seconds, 10.seconds)
         lock.unlock()
@@ -232,6 +236,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
 
             transaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
             ExposedJdbcSchemaInitializer.resetFor(db)
+
             val failed = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
             failed.unlockAndReport() shouldBeEqualTo ExposedJdbcUnlockOutcome.FAILED
         } finally {

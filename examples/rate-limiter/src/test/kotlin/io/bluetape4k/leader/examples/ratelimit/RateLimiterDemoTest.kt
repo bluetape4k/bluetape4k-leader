@@ -2,9 +2,13 @@ package io.bluetape4k.leader.examples.ratelimit
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 
 class RateLimiterDemoTest: AbstractRateLimiterTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `3 nodes dispatch once and consume external API below global quota`() {
@@ -15,6 +19,7 @@ class RateLimiterDemoTest: AbstractRateLimiterTest() {
             attemptsPerSecond = 15,
         )
 
+        log.debug { "report=$report" }
         report.scheduledNodeCount shouldBeEqualTo 1
         report.totalCalls shouldBeEqualTo report.consumedCalls
         report.totalCalls shouldBeLessOrEqualTo report.expectedMaxCalls

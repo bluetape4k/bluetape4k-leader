@@ -2,16 +2,23 @@ package io.bluetape4k.leader.audit
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeLessThan
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.audit.internal.LeaderAuditPendingContextStore
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.toUtf8Bytes
 import org.junit.jupiter.api.Test
 import java.time.Instant
 
 class LeaderAuditPendingContextStoreTest {
+
+    companion object: KLogging()
 
     @Test
     fun `store removes by token fingerprint without retaining token in context`() {
@@ -20,9 +27,11 @@ class LeaderAuditPendingContextStoreTest {
         store.put(key, record())
 
         store.size() shouldBeEqualTo 1
+
         val context = store.remove(key)
+
         context?.lockName shouldBeEqualTo "job"
-        context.toString().contains("credential").not().shouldBeTrue()
+        context.toString() shouldNotContain "credential"
         store.size() shouldBeEqualTo 0
     }
 
@@ -31,10 +40,11 @@ class LeaderAuditPendingContextStoreTest {
         val store = LeaderAuditPendingContextStore(maxEntries = 1)
         val first = LeaderHistoryKey(lockName = "first", token = "one")
         val second = LeaderHistoryKey(lockName = "second", token = "two")
+
         store.put(first, record("first"))
         store.put(second, record("second"))
 
-        store.remove(first).shouldBeEqualTo(null)
+        store.remove(first).shouldBeNull()
         store.remove(second)?.lockName shouldBeEqualTo "second"
     }
 
@@ -72,14 +82,15 @@ class LeaderAuditPendingContextStoreTest {
         firstStore.put(firstKey, record(metadata = metadata))
         secondStore.put(secondKey, record(metadata = metadata))
 
-        val first = requireNotNull(firstStore.remove(firstKey))
-        val second = requireNotNull(secondStore.remove(secondKey))
+        val first = firstStore.remove(firstKey).shouldNotBeNull()
+        val second = secondStore.remove(secondKey).shouldNotBeNull()
+
         val firstBytes = first.metadata.entries.sumOf { (key, value) ->
-            key.toByteArray(Charsets.UTF_8).size + value.toByteArray(Charsets.UTF_8).size
+            key.toUtf8Bytes().size + value.toUtf8Bytes().size
         }
 
         firstBytes shouldBeLessOrEqualTo LeaderAuditExportEvent.MAX_ATTRIBUTES_TOTAL_BYTES
-        (first.metadata.size < LeaderLockHistoryRecord.MAX_METADATA_KEYS).shouldBeTrue()
+        first.metadata.size shouldBeLessThan LeaderLockHistoryRecord.MAX_METADATA_KEYS
         first.metadata shouldBeEqualTo second.metadata
     }
 
@@ -90,7 +101,9 @@ class LeaderAuditPendingContextStoreTest {
                 put("entry-$index", "value-$index")
             }
         }
-        val descending = ascending.entries.reversed().associateTo(linkedMapOf()) { it.key to it.value }
+        val descending = ascending.entries.reversed()
+            .associateTo(linkedMapOf()) { it.key to it.value }
+
         val firstKey = LeaderHistoryKey(lockName = "ascending", token = "token-1")
         val secondKey = LeaderHistoryKey(lockName = "descending", token = "token-2")
         val firstStore = LeaderAuditPendingContextStore()

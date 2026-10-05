@@ -4,17 +4,16 @@
 package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.leader.lettuce.script.RedisScript
-import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.SetArgs
-import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.lettuce.core.api.async.RedisScriptingAsyncCommands
+import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import io.lettuce.core.cluster.api.coroutines.RedisClusterCoroutinesCommands
-import io.lettuce.core.cluster.api.coroutines
 import kotlinx.coroutines.flow.toList
 
 /** suspend registry가 사용하는 direct command와 script capability입니다. */
 internal interface SuspendCandidateCommands {
+
     suspend fun get(key: String): String?
     suspend fun set(key: String, value: String): String?
     suspend fun set(key: String, value: String, args: SetArgs): String?
@@ -39,7 +38,7 @@ internal interface SuspendCandidateCommands {
 internal class LettuceSuspendCandidateCommands(
     private val commands: RedisClusterCoroutinesCommands<String, String>,
     scriptCommands: () -> RedisScriptingAsyncCommands<String, String>,
-) : SuspendCandidateCommands {
+): SuspendCandidateCommands {
 
     private val scriptCommands by lazy(scriptCommands)
 
@@ -87,7 +86,7 @@ internal fun interface SuspendCandidateValueReader {
 /** standalone에서도 Lettuce coroutine API가 제공하는 MGET으로 후보를 일괄 조회합니다. */
 internal class StandaloneSuspendCandidateValueReader(
     private val commands: RedisCoroutinesCommands<String, String>,
-) : SuspendCandidateValueReader {
+): SuspendCandidateValueReader {
     override suspend fun read(keys: List<String>): Map<String, String?> =
         commands.mget(*keys.toTypedArray()).toList().associate { value ->
             value.key to if (value.hasValue()) value.value else null
@@ -97,11 +96,9 @@ internal class StandaloneSuspendCandidateValueReader(
 /** Cluster에서는 동일 lock hash-tag를 가진 v3 key를 coroutine MGET으로 읽습니다. */
 internal class ClusterSuspendCandidateValueReader(
     private val commands: RedisClusterCoroutinesCommands<String, String>,
-) : SuspendCandidateValueReader {
+): SuspendCandidateValueReader {
     override suspend fun read(keys: List<String>): Map<String, String?> =
         commands.mget(*keys.toTypedArray()).toList().associate { value ->
             value.key to if (value.hasValue()) value.value else null
         }
 }
-
-private const val REDIS_KEY_ABSENT_TTL = -2L

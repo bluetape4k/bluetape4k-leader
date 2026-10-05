@@ -16,7 +16,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractExposedTableTest {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         /**
          * CI에서 `LEADER_TEST_DB` 환경 변수로 단일 DB를 선택할 수 있습니다.
          * 미설정 시 H2 / PostgreSQL / MySQL_V8 전체 실행 (로컬 개발 기본값).

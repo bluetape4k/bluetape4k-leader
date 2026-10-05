@@ -1,9 +1,7 @@
 # Spec — Redis Group minLeaseTime slot-token TTL 재설계
 
-**Issue**: #151
-**관련 PR (참조)**: #149 (core/local minLeaseTime), #150 (single lock backend TTL 위임)
-**작성일**: 2026-05-10
-**영향 모듈**: `leader-redis-lettuce/`, `leader-redis-redisson/`
+**Issue**: #151 **관련 PR (참조)**: #149 (core/local minLeaseTime), #150 (single lock backend TTL 위임)
+**작성일**: 2026-05-10 **영향 모듈**: `leader-redis-lettuce/`, `leader-redis-redisson/`
 
 ---
 
@@ -34,9 +32,10 @@ Redis group elector 모델을 **slot-token 기반**으로 재설계하여:
 
 ### 3.1 Lettuce — Sorted Set + Lua atomic script
 
-`lg:{lockName}` ZSET. score = expiryAt (epoch milliseconds). member = token (Base58.randomString(8)).
+`lg:{lockName}` ZSET. score = expiryAt (epoch milliseconds). member = token (Base58.randomString (8)).
 
 **ACQUIRE Lua** (server-side clock으로 클럭 skew 차단):
+
 ```lua
 -- KEYS[1] = slotKey, ARGV[1] = maxLeaders, ARGV[2] = token, ARGV[3] = leaseTimeMs
 local t = redis.call('TIME')
@@ -51,6 +50,7 @@ return ''
 ```
 
 **RELEASE Lua** (server-side clock):
+
 ```lua
 -- KEYS[1] = slotKey, ARGV[1] = token, ARGV[2] = remainingMinLeaseMs
 if tonumber(ARGV[2]) > 0 then
@@ -63,6 +63,7 @@ end
 ```
 
 **STATUS Lua** (server-side clock):
+
 ```lua
 -- KEYS[1] = slotKey, ARGV[1] = maxLeaders
 local t = redis.call('TIME')
@@ -72,20 +73,24 @@ local active = redis.call('ZCARD', KEYS[1])
 return { active, tonumber(ARGV[1]) - active }
 ```
 
-**근거 (Codex P1)**: 클라이언트 clock skew 시 `nowMs` 클라이언트 사용은 fast client 가 valid slot 제거 / slow client 가 overlong lease 생성 가능. **모든 시간 비교는 Redis 서버 시간 기준** (`redis.call('TIME')`).
+**근거 (Codex
+P1)**: 클라이언트 clock skew 시 `nowMs` 클라이언트 사용은 fast client 가 valid slot 제거 / slow client 가 overlong lease 생성 가능. **모든 시간
+비교는 Redis 서버 시간 기준** (`redis.call('TIME')`).
 
 ### 3.2 Redisson — RPermitExpirableSemaphore
 
 `lg:{lockName}` RPermitExpirableSemaphore. Redisson 표준 API (Redisson 4.3.1):
+
 - `trySetPermits(maxLeaders): Boolean` — **첫 사용 전 반드시 호출** (멱등). 안 하면 0 permits 로 시작하여 acquire 영구 실패.
 - `tryAcquire(waitTime, leaseTime, unit): String?` — permitId 반환 (null = 획득 실패)
 - `updateLeaseTime(permitId, leaseTime, unit): Unit` (sync) / `updateLeaseTimeAsync(permitId, leaseTime, unit): RFuture<Void>` (async) — minLease 위임
-  - 주의: `tryUpdateLeaseTime` 은 Redisson 4.3.1 에 없음. `updateLeaseTime` 만 존재.
+    - 주의: `tryUpdateLeaseTime` 은 Redisson 4.3.1 에 없음. `updateLeaseTime` 만 존재.
 - `release(permitId)` — 즉시 해제
 
 자체 Lua script 불필요. Redisson watchdog 자연 결합.
 
 **근거 (Codex P1+P2)**:
+
 - 새 `lg:{lockName}` 키에 `trySetPermits(maxLeaders)` 멱등 초기화 누락 시 모든 acquire 실패 → group election 영구 안 됨
 - API 명칭 정확: `updateLeaseTime` / `updateLeaseTimeAsync` (Redisson 4.3.1)
 
@@ -132,6 +137,7 @@ client → elector.runIfLeader(lockName, action)
 ### 5.3 leak recovery
 
 클라이언트 crash 시:
+
 - Lettuce: 다음 acquire 시 `ZREMRANGEBYSCORE 0 nowMs` 가 만료 entry 자동 정리
 - Redisson: `RPermitExpirableSemaphore` 가 backend TTL 로 permit 자동 회수
 
@@ -140,6 +146,7 @@ client → elector.runIfLeader(lockName, action)
 ### 5.4 split-brain 방지
 
 `leaseTime` 이 action 실제 시간보다 짧으면:
+
 - backend 가 slot 자동 만료 → 다른 client acquire → 동시 실행 (split-brain)
 - watchdog auto-extension 미구현 (이번 issue scope 외)
 - caller 책임: `leaseTime > worst-case action duration` 보장
@@ -185,16 +192,17 @@ client → elector.runIfLeader(lockName, action)
 4. **maxLeaders 동시 점유 + 모두 minLeaseTime 보유**: maxLeaders+1 번째 client 는 waitTime 내 실패
 5. **slot 누수 회수**: client crash 시뮬레이션 (release 호출 없음) → leaseTime 만료 후 다른 client acquire 성공
 6. **Suspend 코루틴 취소 + minLeaseTime > 0**: NonCancellable release 가 minLease score 갱신 정확히 적용
-7. **autoExtend + minLeaseTime > 0** (group autoExtend 도입 시): IllegalArgumentException — 이번 PR scope 외, group autoExtend 미구현이므로 N/A
+7. **autoExtend + minLeaseTime >
+   0** (group autoExtend 도입 시): IllegalArgumentException — 이번 PR scope 외, group autoExtend 미구현이므로 N/A
 
 ---
 
 ## 8. 위험 / 완화
 
-| 위험 | 완화 |
-|------|------|
-| 키 자료구조 변경 → 롤링 배포 중 WRONGTYPE | `lg:{lockName}` prefix 도입 |
-| maxLeaders 일시 2배 (구/신 분리) | 구 pod drain 후 신 배포 명시 (CHANGELOG) |
-| Lua script 에러 → 락 누수 | release try-catch + 어차피 leaseTime TTL 로 자동 회수 |
+| 위험                                                        | 완화                                                                                 |
+|-------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| 키 자료구조 변경 → 롤링 배포 중 WRONGTYPE                   | `lg:{lockName}` prefix 도입                                                          |
+| maxLeaders 일시 2배 (구/신 분리)                            | 구 pod drain 후 신 배포 명시 (CHANGELOG)                                             |
+| Lua script 에러 → 락 누수                                   | release try-catch + 어차피 leaseTime TTL 로 자동 회수                                |
 | `updateLeaseTime` race (minLease 가 release 시점 직전 만료) | RFuture<Boolean> false 반환 시 warn log 만, 던지지 않음 — 이미 자동 만료된 정상 결과 |
-| backward compat (행동 변경) | `minLeaseTime` semantic 자체는 동일 — caller-park → backend-TTL, 외부 관찰 동일 |
+| backward compat (행동 변경)                                 | `minLeaseTime` semantic 자체는 동일 — caller-park → backend-TTL, 외부 관찰 동일      |

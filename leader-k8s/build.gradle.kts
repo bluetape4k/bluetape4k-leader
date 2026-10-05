@@ -37,10 +37,14 @@ dependencies {
     api(project(":bluetape4k-leader-core"))
     api(bt4k.fabric8.kubernetes.client)
 
+    // Coroutines
+    compileOnly(bt4k.bluetape4k.coroutines)
+    compileOnly(libs.kotlinx.coroutines.core)
+    testImplementation(libs.kotlinx.coroutines.test)
+
     testImplementation(testFixtures(project(":bluetape4k-leader-core")))
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(bt4k.bluetape4k.testcontainers)
-    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
 }

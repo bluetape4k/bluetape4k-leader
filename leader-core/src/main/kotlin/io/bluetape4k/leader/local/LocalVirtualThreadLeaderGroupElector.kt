@@ -8,6 +8,7 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.VirtualThreadLeaderGroupElector
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletionException
@@ -83,6 +84,7 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
         slot: LeaderSlot,
         action: () -> T,
     ): VirtualFuture<LeaderRunResult<T>> {
+        log.debug { "runAsyncIfLeaderResult... slot=$slot" }
         val elected = AtomicBoolean(false)
         val source: VirtualFuture<T?> = virtualFuture {
             tryWithPermit(
@@ -98,7 +100,10 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId) as LeaderRunResult<T>
+                elected.get() -> LeaderRunResult.Elected(
+                    value,
+                    leaderId = slot.leaderId
+                ) as LeaderRunResult<T>
                 else -> LeaderRunResult.Skipped as LeaderRunResult<T>
             }
         }

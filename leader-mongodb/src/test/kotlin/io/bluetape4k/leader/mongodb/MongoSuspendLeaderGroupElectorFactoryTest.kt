@@ -1,25 +1,24 @@
 package io.bluetape4k.leader.mongodb
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldNotBe
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
  * [MongoSuspendLeaderGroupElectorFactory] — SPI contract 테스트.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class MongoSuspendLeaderGroupElectorFactoryTest : AbstractMongoLeaderTest() {
+class MongoSuspendLeaderGroupElectorFactoryTest: AbstractMongoLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val factory: SuspendLeaderGroupElectorFactory =
         MongoSuspendLeaderGroupElectorFactory(groupLockCollection, coroutineGroupLockCollection)
@@ -43,7 +42,7 @@ class MongoSuspendLeaderGroupElectorFactoryTest : AbstractMongoLeaderTest() {
     fun `create - 호출마다 새 인스턴스 반환`() = runSuspendIO {
         val a = factory.create(LeaderGroupElectionOptions.Default)
         val b = factory.create(LeaderGroupElectionOptions.Default)
-        (a !== b).shouldBeEqualTo(true)
+        a shouldNotBe b
     }
 
     @Test

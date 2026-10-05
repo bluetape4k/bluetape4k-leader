@@ -1,8 +1,11 @@
 package io.bluetape4k.leader.examples.k8soperator
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CompletableFuture
@@ -10,6 +13,8 @@ import java.util.concurrent.Executor
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OperatorControllerTest {
+
+    companion object: KLogging()
 
     @Test
     fun `leader pod runs reconcile workload`() {
@@ -63,7 +68,7 @@ class OperatorControllerTest {
 
     private class FixedLeaderElector(
         private val acquire: Boolean,
-    ) : LeaderElector {
+    ): LeaderElector {
 
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
             if (acquire) action() else null
@@ -73,10 +78,10 @@ class OperatorControllerTest {
             executor: Executor,
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> =
-            if (acquire) action().thenApply { it } else CompletableFuture.completedFuture(null)
+            if (acquire) action().thenApply { it } else completableFutureOf(null)
 
         override fun state(lockName: String): LeaderState =
-            if (acquire) LeaderState.occupied(lockName, io.bluetape4k.leader.LeaderLease("test-node"))
+            if (acquire) LeaderState.occupied(lockName, LeaderLease("test-node"))
             else LeaderState.empty(lockName)
     }
 }

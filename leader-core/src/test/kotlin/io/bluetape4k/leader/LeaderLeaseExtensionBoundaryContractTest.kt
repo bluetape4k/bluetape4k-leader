@@ -1,28 +1,29 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.BackendErrorKind
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
 import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Modifier
 import java.time.Instant
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
@@ -36,6 +37,8 @@ import kotlin.time.toJavaDuration
  * OBS-02 PR2의 user/watchdog renewal 경계가 동일한 terminal outcome을 관찰하는지 검증합니다.
  */
 class LeaderLeaseExtensionBoundaryContractTest {
+
+    companion object: KLogging()
 
     @Test
     fun `blocking and suspend user events stay in the installed observation scope`() = runSuspendIO {
@@ -128,7 +131,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 stale.withScope {
                     LockStateHolder.withPushed(realHandle(RecordingDelegate {
                         entered.countDown()
-                        release.await(5, TimeUnit.SECONDS)
+                        release.await(5.seconds)
                         ExtendOutcome.NotHeld
                     })) {
                         LockExtender.extendActiveLockDetailed(30.seconds)
@@ -139,7 +142,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
             }
         }
 
-        entered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        entered.await(5.seconds).shouldBeTrue()
         stale.close()
         val replacement = LeaderLeaseExtensionObservers.addScopedObserver(replacementEvents::add)
         try {
@@ -239,7 +242,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
             try {
                 LockStateHolder.withPushed(realHandle(delegate, auditLeaderId = "named-leader")) {
                     LockExtender.extendActiveLockDetailed("boundary-lock", 30.seconds) shouldBeEqualTo
-                        ExtendOutcome.NotHeld
+                            ExtendOutcome.NotHeld
                 }
 
                 submitted.single().run()
@@ -286,7 +289,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
             try {
                 LockStateHolder.withPushed(realHandle(delegate)) {
                     LockExtender.extendActiveLockDetailed("other-lock", 30.seconds) shouldBeEqualTo
-                        ExtendOutcome.NotHeld
+                            ExtendOutcome.NotHeld
                 }
 
                 submitted.single().run()
@@ -386,7 +389,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
             try {
                 withContext(LockHandleElement(realHandle(delegate, auditLeaderId = "suspend-leader"))) {
                     LockExtender.extendActiveLockDetailedSuspend(30.seconds) shouldBeEqualTo
-                        ExtendOutcome.Extended(expireAt)
+                            ExtendOutcome.Extended(expireAt)
                 }
                 submitted.single().run()
                 events.single().execution shouldBeEqualTo LeaderLeaseExtensionExecution.SUSPEND
@@ -394,7 +397,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
 
                 withContext(LockHandleElement(realHandle(delegate, auditLeaderId = "suspend-leader"))) {
                     LockExtender.extendActiveLockDetailedSuspend("boundary-lock", 30.seconds) shouldBeEqualTo
-                        ExtendOutcome.Extended(expireAt)
+                            ExtendOutcome.Extended(expireAt)
                 }
                 submitted.drop(1).single().run()
                 events.size shouldBeEqualTo 2
@@ -447,7 +450,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 events.size shouldBeEqualTo 2
                 events.all {
                     it.source == LeaderLeaseExtensionSource.USER &&
-                        it.execution == LeaderLeaseExtensionExecution.SUSPEND
+                            it.execution == LeaderLeaseExtensionExecution.SUSPEND
                 }.shouldBeTrue()
             } finally {
                 registration.close()
@@ -615,9 +618,9 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 ) { throw CancellationException("watchdog cancelled") }
                 val watchdog = LeaderLeaseAutoExtender.start(true, 75.milliseconds, delegate)
                 try {
-                    firstCall.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    firstCall.await(5.seconds).shouldBeTrue()
                     if (asyncExtend) {
-                        uncaughtLatch.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                        uncaughtLatch.await(5.seconds).shouldBeTrue()
                     }
                     secondCall.await(250, TimeUnit.MILLISECONDS).shouldBeFalse()
                 } finally {
@@ -663,8 +666,8 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 }
                 val watchdog = LeaderLeaseAutoExtender.start(true, 75.milliseconds, delegate)
                 try {
-                    firstCall.await(5, TimeUnit.SECONDS).shouldBeTrue()
-                    secondCall.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    firstCall.await(5.seconds).shouldBeTrue()
+                    secondCall.await(5.seconds).shouldBeTrue()
                     await
                         .atMost(5.seconds)
                         .withPollInterval(25.milliseconds)
@@ -700,21 +703,37 @@ class LeaderLeaseExtensionBoundaryContractTest {
             Long::class.javaPrimitiveType,
         )
         startMethods.toSet() shouldBeEqualTo setOf(
-            "start-dWUq8MI" to (directPrefix + listOf(ExtendDelegate::class.java, classifier) to AutoCloseable::class.java),
-            "start-dWUq8MI" to (directPrefix + listOf(SuspendExtendDelegate::class.java, classifier) to AutoCloseable::class.java),
+            "start-dWUq8MI" to (directPrefix + listOf(
+                ExtendDelegate::class.java,
+                classifier
+            ) to AutoCloseable::class.java),
+            "start-dWUq8MI" to (directPrefix + listOf(
+                SuspendExtendDelegate::class.java,
+                classifier
+            ) to AutoCloseable::class.java),
             "start-dWUq8MI\$default" to
-                (defaultPrefix + listOf(ExtendDelegate::class.java, classifier, Int::class.javaPrimitiveType, Any::class.java) to
-                    AutoCloseable::class.java),
+                    (defaultPrefix + listOf(
+                        ExtendDelegate::class.java,
+                        classifier,
+                        Int::class.javaPrimitiveType,
+                        Any::class.java
+                    ) to
+                            AutoCloseable::class.java),
             "start-dWUq8MI\$default" to
-                (defaultPrefix + listOf(SuspendExtendDelegate::class.java, classifier, Int::class.javaPrimitiveType, Any::class.java) to
-                    AutoCloseable::class.java),
+                    (defaultPrefix + listOf(
+                        SuspendExtendDelegate::class.java,
+                        classifier,
+                        Int::class.javaPrimitiveType,
+                        Any::class.java
+                    ) to
+                            AutoCloseable::class.java),
         )
     }
 
     private class RecordingDelegate(
         private val onCall: (Int) -> Unit = {},
         private val block: (Duration) -> ExtendOutcome,
-    ) : ExtendDelegate {
+    ): ExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
         val calls = java.util.concurrent.atomic.AtomicInteger()
         override val lastExtendDeadline: AtomicReference<Instant> get() = deadline
@@ -730,7 +749,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
     private class RecordingSuspendDelegate(
         private val onCall: (Int) -> Unit = {},
         private val block: suspend (Duration) -> ExtendOutcome,
-    ) : SuspendExtendDelegate {
+    ): SuspendExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
         val calls = java.util.concurrent.atomic.AtomicInteger()
         override val lastExtendDeadline: AtomicReference<Instant> get() = deadline

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.examples.batch
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.lettuce.LettuceLeaderElector
@@ -57,5 +58,13 @@ class BatchScheduler(
             }
             is LeaderRunResult.ActionFailed -> throw outcome.cause
         }
+    }
+
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("nodeId", nodeId)
+            .add("lockName", lockName)
+            .add("elector", elector)
+            .toString()
     }
 }

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.observability
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.LeaderElectionListener
 import io.bluetape4k.support.requireNotBlank
 import java.util.concurrent.ConcurrentSkipListSet
@@ -11,7 +12,7 @@ import java.util.concurrent.ConcurrentSkipListSet
  */
 class LeaderElectionStatusRegistry(
     initialLockNames: Iterable<String> = emptyList(),
-) : LeaderElectionListener {
+): LeaderElectionListener {
 
     private val lockNames = ConcurrentSkipListSet<String>()
 
@@ -47,5 +48,11 @@ class LeaderElectionStatusRegistry(
 
     override fun onSkipped(lockName: String) {
         register(lockName)
+    }
+
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("lockNames", lockNames)
+            .toString()
     }
 }

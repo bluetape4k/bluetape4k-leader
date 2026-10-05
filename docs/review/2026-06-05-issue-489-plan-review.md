@@ -16,14 +16,14 @@ P0/P1 차단제가 없습니다.
 
 ## 수표
 
-| Check | Result | Evidence |
-|---|---:|---|
-| Spec order respected | PASS | Plan was created after spec review artifact with `P0 = 0`, `P1 = 0` |
-| Work split respected | PASS | Plan excludes #490 layer redesign and #491 new Scenario/Flow expansion |
-| `bluetape4k-diagram` gates are operational | PASS | Plan includes evidence repair, semantic color checks, Graphviz evidence, XML, link, diff, and visual QA gates |
-| Generator-first strategy | PASS | Plan requires generator/evidence script changes before broad SVG edits |
-| Color semantics are constrained | PASS | Plan maps acquired, skipped/contention, release, retry/reacquire, and neutral paths |
-| Visual QA is explicit | PASS | Plan requires contact sheet and individual PNG inspection for changed lock-state diagrams |
+| Check                                      | Result | Evidence                                                                                                      |
+|--------------------------------------------|-------:|---------------------------------------------------------------------------------------------------------------|
+| Spec order respected                       |   PASS | Plan was created after spec review artifact with `P0 = 0`, `P1 = 0`                                           |
+| Work split respected                       |   PASS | Plan excludes #490 layer redesign and #491 new Scenario/Flow expansion                                        |
+| `bluetape4k-diagram` gates are operational |   PASS | Plan includes evidence repair, semantic color checks, Graphviz evidence, XML, link, diff, and visual QA gates |
+| Generator-first strategy                   |   PASS | Plan requires generator/evidence script changes before broad SVG edits                                        |
+| Color semantics are constrained            |   PASS | Plan maps acquired, skipped/contention, release, retry/reacquire, and neutral paths                           |
+| Visual QA is explicit                      |   PASS | Plan requires contact sheet and individual PNG inspection for changed lock-state diagrams                     |
 
 ## 잔여 위험
 

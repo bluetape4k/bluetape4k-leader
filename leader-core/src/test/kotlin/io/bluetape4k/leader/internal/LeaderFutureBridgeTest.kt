@@ -5,7 +5,10 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
@@ -14,9 +17,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class LeaderFutureBridgeTest {
 
+    companion object: KLogging()
+
     @Test
     fun `map은 성공 값을 변환한다`() {
-        val mapped = LeaderFutureBridge.map(CompletableFuture.completedFuture("done")) { value, failure ->
+        val mapped = LeaderFutureBridge.map(completableFutureOf("done")) { value, failure ->
             failure shouldBeEqualTo null
             requireNotNull(value).length
         }
@@ -27,13 +32,15 @@ class LeaderFutureBridgeTest {
     @Test
     fun `map은 source 실패를 mapper에 전달한다`() {
         val failure = IllegalStateException("source failed")
-        val mapped = LeaderFutureBridge.map(CompletableFuture.failedFuture<String>(failure)) { _, observed ->
+        val mapped = LeaderFutureBridge.map(failedCompletableFutureOf<String>(failure)) { _, observed ->
             val observedFailure = requireNotNull(observed)
             observedFailure shouldBeEqualTo failure
             throw observedFailure
         }
 
-        assertFailsWith<CompletionException> { mapped.join() }.cause shouldBeEqualTo failure
+        assertFailsWith<CompletionException> {
+            mapped.join()
+        }.cause shouldBeEqualTo failure
     }
 
     @Test
@@ -45,12 +52,14 @@ class LeaderFutureBridgeTest {
 
         source.cancel(false).shouldBeTrue()
 
-        assertFailsWith<CompletionException> { mapped.join() }.cause shouldBeInstanceOf CancellationException::class
+        assertFailsWith<CompletionException> {
+            mapped.join()
+        }.cause.shouldBeInstanceOf<CancellationException>()
     }
 
     @Test
     fun `map 완료 후 cancel은 source 상태를 바꾸지 않는다`() {
-        val source = CompletableFuture.completedFuture("done")
+        val source = completableFutureOf("done")
         val mapped = LeaderFutureBridge.map(source) { value, _ -> value }
 
         mapped.join() shouldBeEqualTo "done"
@@ -72,7 +81,7 @@ class LeaderFutureBridgeTest {
     fun `observe callback 실패를 반환 future 로 전파한다`() {
         val failure = IllegalStateException("observer failed")
 
-        val observed = LeaderFutureBridge.observe(CompletableFuture.completedFuture("done")) { _, _ ->
+        val observed = LeaderFutureBridge.observe(completableFutureOf("done")) { _, _ ->
             throw failure
         }
 
@@ -84,7 +93,7 @@ class LeaderFutureBridgeTest {
         val source = CompletableFuture<String>()
 
         val bridged = LeaderFutureBridge.flatMap(source) { value, _ ->
-            CompletableFuture.completedFuture(value)
+            completableFutureOf(value)
         }
 
         bridged.cancel(false).shouldBeTrue()
@@ -106,7 +115,7 @@ class LeaderFutureBridgeTest {
 
     @Test
     fun `flatMap은 cleanup stage 완료 후 terminal state를 반환한다`() {
-        val source = CompletableFuture.failedFuture<String>(IllegalStateException("failed"))
+        val source = failedCompletableFutureOf<String>(IllegalStateException("failed"))
         val cleanup = CompletableFuture<String>()
 
         val bridged = LeaderFutureBridge.flatMap(source) { _, _ -> cleanup }
@@ -126,7 +135,7 @@ class LeaderFutureBridgeTest {
         bridged.cancel(false).shouldBeTrue()
         val actionFuture = cancellationRelay.invoke {
             invoked.set(true)
-            CompletableFuture.completedFuture("started")
+            completableFutureOf("started")
         }
 
         invoked.get().shouldBeFalse()

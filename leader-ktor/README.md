@@ -2,22 +2,18 @@
 
 English | [한국어](./README.ko.md)
 
-Ktor 3.x integration module for `bluetape4k-leader`. Provides a Ktor application plugin
-DSL and a Spring-`@Scheduled`-style helper that runs leader-only tasks on a fixed period
-within the application coroutine scope.
+Ktor 3.x integration module for `bluetape4k-leader`. Provides a Ktor application plugin DSL and a Spring-`@Scheduled`-style helper that runs leader-only tasks on a fixed period within the application coroutine scope.
 
 ## Architecture
 
 `leader-ktor` adds three pieces of glue on top of `leader-core`:
 
 1. **`LeaderElectionPlugin`** — a `createApplicationPlugin` DSL that captures a
-   `SuspendLeaderElector` (and optionally a `SuspendLeaderGroupElector`) and stores it
-   in the `Application.attributes` map so it can be reused by extension functions.
-2. **`leaderElectionPluginConfig()`** — extension on `Application` to retrieve the
-   stored configuration.
-3. **`Application.leaderScheduled(...)`** — schedules a leader-only `suspend` action on
-   a fixed period. When `LeaderElectionPlugin` is installed, the returned Job is registered
-   as an application-owned resource and cancelled with a bounded join at `ApplicationStopped`.
+   `SuspendLeaderElector` (and optionally a `SuspendLeaderGroupElector`) and stores it in the `Application.attributes` map so it can be reused by extension functions.
+2. **`leaderElectionPluginConfig()`** — extension on `Application` to retrieve the stored configuration.
+3.
+
+**`Application.leaderScheduled(...)`** — schedules a leader-only `suspend` action on a fixed period. When `LeaderElectionPlugin` is installed, the returned Job is registered as an application-owned resource and cancelled with a bounded join at `ApplicationStopped`.
 
 ![leader ktor Architecture diagram](../docs/images/readme-diagrams/leader-ktor-architecture-01.png)
 
@@ -28,14 +24,11 @@ within the application coroutine scope.
 ## Core Features
 
 - Ktor 3.x compatible, coroutine-native (`SuspendLeaderElector` based)
-- Application-owned scheduler Job cancellation at `ApplicationStopped` through the plugin
-  resource registry; caller-owned electors and backend clients are never closed implicitly
-- Per-cycle exception isolation — `action` exceptions are logged and the next cycle
-  continues (poison-pill prevention)
+- Application-owned scheduler Job cancellation at `ApplicationStopped` through the plugin resource registry; caller-owned electors and backend clients are never closed implicitly
+- Per-cycle exception isolation — `action` exceptions are logged and the next cycle continues (poison-pill prevention)
 - `CancellationException` is always re-thrown so structured concurrency works
 - Validation: `lockName` must be non-blank; `period` must be positive
-- Pluggable backend: any `SuspendLeaderElector` implementation
-  (`leader-redis-redisson`, `leader-redis-lettuce`, `leader-mongodb`, etc.)
+- Pluggable backend: any `SuspendLeaderElector` implementation (`leader-redis-redisson`, `leader-redis-lettuce`, `leader-mongodb`, etc.)
 
 ## Usage Examples
 
@@ -72,14 +65,9 @@ job.cancel()
 
 `LeaderElectionPlugin` creates one application-owned resource registry. Jobs returned by
 `leaderScheduled` are registered there and are cancelled immediately when
-`ApplicationStopped` is observed; cleanup then performs a bounded join without blocking the
-Ktor stop callback. Resource cleanup is idempotent and runs outside the registry lock.
+`ApplicationStopped` is observed; cleanup then performs a bounded join without blocking the Ktor stop callback. Resource cleanup is idempotent and runs outside the registry lock.
 
-The plugin does not close the supplied `SuspendLeaderElector`, Redis/SQL/Mongo client, or
-any other backend owned by the application. If `leaderScheduled` receives an explicit elector
-without the plugin, it remains in the normal `Application` scope and the caller owns its
-cancellation. Normal lock contention still returns `null` and the scheduler continues with
-the next cycle.
+The plugin does not close the supplied `SuspendLeaderElector`, Redis/SQL/Mongo client, or any other backend owned by the application. If `leaderScheduled` receives an explicit elector without the plugin, it remains in the normal `Application` scope and the caller owns its cancellation. Normal lock contention still returns `null` and the scheduler continues with the next cycle.
 
 Bypassing the plugin (advanced — pass the elector explicitly):
 
@@ -95,36 +83,36 @@ leaderScheduled(
 
 ## Configuration Options
 
-| Field                 | Type                          | Required | Description                              |
-|-----------------------|-------------------------------|----------|------------------------------------------|
-| `leaderElection`      | `SuspendLeaderElector?`       | Yes      | Single-leader elector backend            |
-| `leaderGroupElection` | `SuspendLeaderGroupElector?`  | No       | Group/multi-leader elector (optional)    |
-| `managementRouteEnabled` | `Boolean`                  | No       | Enables `GET /management/leaderElection` |
-| `managementRoutePath` | `String`                      | No       | Management route path                    |
-| `backendDiagnosticsRouteEnabled` | `Boolean`           | No       | Enables `GET /management/leaderElection/diagnostics` |
-| `backendDiagnosticsRoutePath` | `String`                | No       | Backend diagnostics route path           |
-| `backendConnectivityCheckEnabled` | `Boolean`          | No       | Runs one active connectivity probe per request |
-| `backendConnectivityCheckTimeout` | `kotlin.time.Duration` | No    | Positive, finite probe timeout; defaults to `500ms` |
-| `managementActionRouteEnabled` | `Boolean` | No | Validates an application-owned action registry; route install remains explicit |
-| `managementActionRegistry` | `SuspendLeaderManagementActionRegistry?` | No | Application-owned single-leader action registry |
-| `managementActionRoutePath` | `String?` | No | Explicit action path override; defaults to `<managementRoutePath>/actions` when passed to the route |
-| `eventStreamRouteEnabled` | `Boolean` | No | Enables explicit caller-registered leader event streaming (default `false`) |
-| `eventStreamRoutePath` | `String` | No | SSE path; default `/management/leaderElection/events` |
-| `eventStreamSseEnabled` / `eventStreamWebSocketEnabled` | `Boolean` | No | Selects optional SSE and WebSocket transports |
-| `eventStreamAllLocksEnabled` | `Boolean` | No | Allows an all-lock subscription; requires lock-name exposure |
-| `eventStreamExposeLockName` / `eventStreamExposeLeaderMetadata` | `Boolean` | No | Opts into lock and leader metadata in payloads; both default to `false` |
-| `eventStreamReplayCapacity` | `Int` | No | Bounded replay ring size `0..1024`; `0` is live-only |
-| `eventStreamMaxConnections` | `Int` | No | Bounded concurrent connection limit `1..1024`; default `128` |
-| `eventStreamHeartbeat` | `kotlin.time.Duration` | No | Finite positive heartbeat period; default `15.seconds` |
+| Field                                                           | Type                                     | Required | Description                                                                                         |
+|-----------------------------------------------------------------|------------------------------------------|----------|-----------------------------------------------------------------------------------------------------|
+| `leaderElection`                                                | `SuspendLeaderElector?`                  | Yes      | Single-leader elector backend                                                                       |
+| `leaderGroupElection`                                           | `SuspendLeaderGroupElector?`             | No       | Group/multi-leader elector (optional)                                                               |
+| `managementRouteEnabled`                                        | `Boolean`                                | No       | Enables `GET /management/leaderElection`                                                            |
+| `managementRoutePath`                                           | `String`                                 | No       | Management route path                                                                               |
+| `backendDiagnosticsRouteEnabled`                                | `Boolean`                                | No       | Enables `GET /management/leaderElection/diagnostics`                                                |
+| `backendDiagnosticsRoutePath`                                   | `String`                                 | No       | Backend diagnostics route path                                                                      |
+| `backendConnectivityCheckEnabled`                               | `Boolean`                                | No       | Runs one active connectivity probe per request                                                      |
+| `backendConnectivityCheckTimeout`                               | `kotlin.time.Duration`                   | No       | Positive, finite probe timeout; defaults to `500ms`                                                 |
+| `managementActionRouteEnabled`                                  | `Boolean`                                | No       | Validates an application-owned action registry; route install remains explicit                      |
+| `managementActionRegistry`                                      | `SuspendLeaderManagementActionRegistry?` | No       | Application-owned single-leader action registry                                                     |
+| `managementActionRoutePath`                                     | `String?`                                | No       | Explicit action path override; defaults to `<managementRoutePath>/actions` when passed to the route |
+| `eventStreamRouteEnabled`                                       | `Boolean`                                | No       | Enables explicit caller-registered leader event streaming (default `false`)                         |
+| `eventStreamRoutePath`                                          | `String`                                 | No       | SSE path; default `/management/leaderElection/events`                                               |
+| `eventStreamSseEnabled` / `eventStreamWebSocketEnabled`         | `Boolean`                                | No       | Selects optional SSE and WebSocket transports                                                       |
+| `eventStreamAllLocksEnabled`                                    | `Boolean`                                | No       | Allows an all-lock subscription; requires lock-name exposure                                        |
+| `eventStreamExposeLockName` / `eventStreamExposeLeaderMetadata` | `Boolean`                                | No       | Opts into lock and leader metadata in payloads; both default to `false`                             |
+| `eventStreamReplayCapacity`                                     | `Int`                                    | No       | Bounded replay ring size `0..1024`; `0` is live-only                                                |
+| `eventStreamMaxConnections`                                     | `Int`                                    | No       | Bounded concurrent connection limit `1..1024`; default `128`                                        |
+| `eventStreamHeartbeat`                                          | `kotlin.time.Duration`                   | No       | Finite positive heartbeat period; default `15.seconds`                                              |
 
 `leaderScheduled` parameters:
 
-| Parameter        | Type                       | Default                              | Notes                                       |
-|------------------|----------------------------|--------------------------------------|---------------------------------------------|
-| `lockName`       | `String`                   | —                                    | Must be non-blank                           |
-| `period`         | `kotlin.time.Duration`     | —                                    | Must be positive                            |
-| `leaderElection` | `SuspendLeaderElector`     | from installed plugin                | Falls back to plugin config if omitted      |
-| `action`         | `suspend () -> Unit`       | —                                    | Executed only when this node is leader      |
+| Parameter        | Type                   | Default               | Notes                                  |
+|------------------|------------------------|-----------------------|----------------------------------------|
+| `lockName`       | `String`               | —                     | Must be non-blank                      |
+| `period`         | `kotlin.time.Duration` | —                     | Must be positive                       |
+| `leaderElection` | `SuspendLeaderElector` | from installed plugin | Falls back to plugin config if omitted |
+| `action`         | `suspend () -> Unit`   | —                     | Executed only when this node is leader |
 
 ## Management Route
 
@@ -163,17 +151,16 @@ The route is installed on the main Ktor application port and routing pipeline. P
 
 ### Stable error responses
 
-Management and adapter failures use a small, stable JSON contract. Normal lock
-contention remains `null`/skip and is not converted to an HTTP error.
+Management and adapter failures use a small, stable JSON contract. Normal lock contention remains `null`/skip and is not converted to an HTTP error.
 
-| Code | HTTP status | Meaning |
-|---|---:|---|
-| `INVALID_LOCK_NAME` | 400 | The lock name is blank or outside the core ASCII grammar |
-| `NOT_LEADER` | 503 | The current leader state does not allow the request |
-| `LEADER_LOCKED` | 423 | The leader lock is already held |
-| `BACKEND_UNAVAILABLE` | 503 | State/backend access failed |
-| `CONFIGURATION`, `INTERNAL` | 500 | Configuration or unexpected request failure |
-| `INVALID_CURSOR` | 400 | A stream cursor is malformed |
+| Code                        | HTTP status | Meaning                                                  |
+|-----------------------------|------------:|----------------------------------------------------------|
+| `INVALID_LOCK_NAME`         |         400 | The lock name is blank or outside the core ASCII grammar |
+| `NOT_LEADER`                |         503 | The current leader state does not allow the request      |
+| `LEADER_LOCKED`             |         423 | The leader lock is already held                          |
+| `BACKEND_UNAVAILABLE`       |         503 | State/backend access failed                              |
+| `CONFIGURATION`, `INTERNAL` |         500 | Configuration or unexpected request failure              |
+| `INVALID_CURSOR`            |         400 | A stream cursor is malformed                             |
 
 The response contains only `code`, `message`, and numeric `status` by default:
 
@@ -181,14 +168,10 @@ The response contains only `code`, `message`, and numeric `status` by default:
 {"code":"BACKEND_UNAVAILABLE","message":"leader backend is temporarily unavailable","status":503}
 ```
 
-Backend exception messages, stack traces, and cause details are never copied to
-the response. `lockName` is omitted unless a typed `LeaderElectionErrorOverride`
-explicitly sets `exposeLockName = true`; status overrides are restricted to the
-same allow-list above. `CancellationException` is rethrown so request
-cancellation is not misclassified as an infrastructure failure.
+Backend exception messages, stack traces, and cause details are never copied to the response. `lockName` is omitted unless a typed `LeaderElectionErrorOverride`
+explicitly sets `exposeLockName = true`; status overrides are restricted to the same allow-list above. `CancellationException` is rethrown so request cancellation is not misclassified as an infrastructure failure.
 
-The management route has a converter-free `respondText` fallback. Applications
-that already use Ktor `StatusPages` may opt in to the adapter (the dependency is
+The management route has a converter-free `respondText` fallback. Applications that already use Ktor `StatusPages` may opt in to the adapter (the dependency is
 `compileOnly` in this module):
 
 ```kotlin
@@ -200,19 +183,13 @@ install(StatusPages) {
 }
 ```
 
-Detached `leaderScheduled` exceptions stay outside this HTTP mapping: the
-plugin logs the sanitized exception type at `WARN`, skips that iteration, and
-continues with the next schedule.
+Detached `leaderScheduled` exceptions stay outside this HTTP mapping: the plugin logs the sanitized exception type at `WARN`, skips that iteration, and continues with the next schedule.
 
 ## Route-scoped leader guard (Issue #701, unreleased)
 
-`Route.leaderGuard` and its `leaderOnlyRoute` shorthand protect a route with the
-same stable leader-election error contract. The guard runs after Ktor's public
-`AuthenticationChecked` hook, so an enclosing `authenticate(...)` route and
-your authorization or rate-limit plugins run first. An unauthenticated or
-forbidden request therefore does not call the leader backend. This module keeps
-`ktor-server-auth` as `compileOnly`; applications that use `authenticate` must
-provide the matching Ktor auth artifact themselves.
+`Route.leaderGuard` and its `leaderOnlyRoute` shorthand protect a route with the same stable leader-election error contract. The guard runs after Ktor's public
+`AuthenticationChecked` hook, so an enclosing `authenticate(...)` route and your authorization or rate-limit plugins run first. An unauthenticated or forbidden request therefore does not call the leader backend. This module keeps
+`ktor-server-auth` as `compileOnly`; applications that use `authenticate` must provide the matching Ktor auth artifact themselves.
 
 ```kotlin
 import io.bluetape4k.leader.ktor.leaderGuard
@@ -228,32 +205,18 @@ routing {
 }
 ```
 
-`STATE` is the default authority mode. It reads the current `LeaderState` once
-per request and rejects an empty state with `NOT_LEADER` (503). This is a
-passive snapshot: it does not reserve the request, extend a lease, or make
-downstream work atomic. The default elector must advertise
-`supportsAuditLeaderState`; an explicit `stateProvider` can supply the snapshot
-when the elector does not. Use `@LeaderElection` for atomic execution of a
-method, or select `authorityMode = LeaderRouteAuthorityMode.LEASE` when the
-request itself must hold a lease.
+`STATE` is the default authority mode. It reads the current `LeaderState` once per request and rejects an empty state with `NOT_LEADER` (503). This is a passive snapshot: it does not reserve the request, extend a lease, or make downstream work atomic. The default elector must advertise
+`supportsAuditLeaderState`; an explicit `stateProvider` can supply the snapshot when the elector does not. Use `@LeaderElection` for atomic execution of a method, or select `authorityMode = LeaderRouteAuthorityMode.LEASE` when the request itself must hold a lease.
 
-`LEASE` is explicit and never silently falls back to `STATE`. It requires an
-explicit `SuspendLeaderLeaseAcquirer` or an elector exposing that capability,
-and `leaseMaxDuration` must be finite and positive. Acquire and release are
-bounded by that duration; contention returns `LEADER_LOCKED` (423), a successful
-request releases exactly once, and release failure or timeout is logged without
-replacing the downstream response or cancellation.
+`LEASE` is explicit and never silently falls back to `STATE`. It requires an explicit `SuspendLeaderLeaseAcquirer` or an elector exposing that capability, and `leaseMaxDuration` must be finite and positive. Acquire and release are bounded by that duration; contention returns `LEADER_LOCKED` (423), a successful request releases exactly once, and release failure or timeout is logged without replacing the downstream response or cancellation.
 
 Route-guard errors hide `lockName` and other leader metadata by default. Set
-`exposeMetadata = true` only for a deliberate trusted boundary; any custom
-status or metadata policy still goes through the typed, allow-listed
+`exposeMetadata = true` only for a deliberate trusted boundary; any custom status or metadata policy still goes through the typed, allow-listed
 `LeaderElectionErrorResponder` contract.
 
 ## Leader event stream (Issue #701, unreleased)
 
-The event stream is disabled by default. Enable it only when the configured elector also
-implements `LeaderElectionEventPublisher`, then register the route inside the caller's
-authenticated boundary. The plugin never creates an unauthenticated root route.
+The event stream is disabled by default. Enable it only when the configured elector also implements `LeaderElectionEventPublisher`, then register the route inside the caller's authenticated boundary. The plugin never creates an unauthenticated root route.
 
 ```kotlin
 install(SSE)
@@ -277,34 +240,22 @@ routing {
 }
 ```
 
-`ktor-server-sse` and `ktor-server-websockets` are optional compile-only dependencies of
-this module. The application supplies matching Ktor artifacts and installs the transport
-plugins it enables. SSE uses the configured path; WebSocket uses the same path with `/ws`
+`ktor-server-sse` and `ktor-server-websockets` are optional compile-only dependencies of this module. The application supplies matching Ktor artifacts and installs the transport plugins it enables. SSE uses the configured path; WebSocket uses the same path with `/ws`
 appended. A `lockName` query parameter is required by default. Set
 `eventStreamAllLocksEnabled = true` to subscribe to every lock; this mode also requires
 `eventStreamExposeLockName = true` so consumers can distinguish events.
 
-Each event receives a monotonic `sequence` and one of `Elected`, `Revoked`, or `Skipped`.
-SSE frames expose the sequence as the event id. `afterSequence` (or SSE `Last-Event-ID`)
-replays retained events; the two cursor inputs cannot be supplied together. A future cursor
-starts live-only, while a cursor older than the bounded ring produces a `replay_gap` control
-frame. Set `eventStreamReplayCapacity = 0` for live-only delivery. Invalid lock names or
-cursors return the stable `INVALID_LOCK_NAME`/`INVALID_CURSOR` 400 response.
+Each event receives a monotonic `sequence` and one of `Elected`, `Revoked`, or `Skipped`. SSE frames expose the sequence as the event id. `afterSequence` (or SSE `Last-Event-ID`)
+replays retained events; the two cursor inputs cannot be supplied together. A future cursor starts live-only, while a cursor older than the bounded ring produces a `replay_gap` control frame. Set `eventStreamReplayCapacity = 0` for live-only delivery. Invalid lock names or cursors return the stable `INVALID_LOCK_NAME`/`INVALID_CURSOR` 400 response.
 
-Payloads omit lock names, leader ids, lease expiry, `LeaderLease`, and backend addresses by
-default. Opt in to `eventStreamExposeLockName` and
+Payloads omit lock names, leader ids, lease expiry, `LeaderLease`, and backend addresses by default. Opt in to `eventStreamExposeLockName` and
 `eventStreamExposeLeaderMetadata` only at a trusted boundary. Heartbeats use
-`{"event":"heartbeat"}`. Per-connection channels are bounded and drop the oldest item for
-slow consumers; `eventStreamMaxConnections` (1..1024) provides admission control and excess
-connections receive `BACKEND_UNAVAILABLE` (503). Connection cleanup is idempotent, and
-closing the plugin-owned hub never closes the caller-owned elector, publisher, or backend.
+`{"event":"heartbeat"}`. Per-connection channels are bounded and drop the oldest item for slow consumers; `eventStreamMaxConnections` (1..1024) provides admission control and excess connections receive `BACKEND_UNAVAILABLE` (503). Connection cleanup is idempotent, and closing the plugin-owned hub never closes the caller-owned elector, publisher, or backend.
 
 ## Management Action Route (Issue #532, unreleased)
 
-The write route is a separate, explicit opt-in. `LeaderElectionPlugin` validates that
-an application-owned `SuspendLeaderManagementActionRegistry` is present when
-`managementActionRouteEnabled=true`, but it never installs a POST route. Install the
-route inside the application's own `authenticate("management")` scope:
+The write route is a separate, explicit opt-in. `LeaderElectionPlugin` validates that an application-owned `SuspendLeaderManagementActionRegistry` is present when
+`managementActionRouteEnabled=true`, but it never installs a POST route. Install the route inside the application's own `authenticate("management")` scope:
 
 ```kotlin
 val actionRegistry = SuspendLeaderManagementActionRegistry()
@@ -337,24 +288,14 @@ routing {
 }
 ```
 
-The canonical path is `POST /management/leaderElection/actions/{lockName}`. Pass an
-explicit `path` (for example `/internal/leader-status/actions`) when
-`managementRoutePath` is customized; the action path is not inferred by an automatic
-route installation. The route uses the shared ASCII lock-name grammar. An encoded or
-literal slash stays outside the selector boundary and returns 404; a matched hostile
-selector such as `%` returns 400 with `INVALID_LOCK_NAME`.
+The canonical path is `POST /management/leaderElection/actions/{lockName}`. Pass an explicit `path` (for example `/internal/leader-status/actions`) when
+`managementRoutePath` is customized; the action path is not inferred by an automatic route installation. The route uses the shared ASCII lock-name grammar. An encoded or literal slash stays outside the selector boundary and returns 404; a matched hostile selector such as `%` returns 400 with `INVALID_LOCK_NAME`.
 
 Ktor authentication owns unauthenticated 401 and principal failures. A false
-`authorize` callback returns 403 `AUTHORIZATION_DENIED`; an ordinary callback exception
-returns 500 `AUTHORIZATION_FAILED` without invoking the registry or copying exception
-text. Successful and typed registry outcomes use the common HTTP mapping and an
-allow-listed JSON body containing only `action`, `outcome`, and `mutationAttempted`.
-There is no automatic retry, including for `ACTION_TIMED_OUT` or
+`authorize` callback returns 403 `AUTHORIZATION_DENIED`; an ordinary callback exception returns 500 `AUTHORIZATION_FAILED` without invoking the registry or copying exception text. Successful and typed registry outcomes use the common HTTP mapping and an allow-listed JSON body containing only `action`, `outcome`, and `mutationAttempted`. There is no automatic retry, including for `ACTION_TIMED_OUT` or
 `RELEASE_UNCONFIRMED`.
 
-The application owns the registry, observer, and scope. Drain it before stopping the
-engine; the helper keeps shutdown suspend-native and never cancels an external
-application scope:
+The application owns the registry, observer, and scope. Drain it before stopping the engine; the helper keeps shutdown suspend-native and never cancels an external application scope:
 
 ```kotlin
 suspend fun shutdown(
@@ -369,9 +310,7 @@ suspend fun shutdown(
 }
 ```
 
-`closeAndDrain()` is bounded. If it returns `false`, the helper logs a sanitized
-warning and still stops the engine; it does not release arbitrary leases. Register
-only single-leader lease handles explicitly. `runIfLeader`, group/strategic election,
+`closeAndDrain()` is bounded. If it returns `false`, the helper logs a sanitized warning and still stops the engine; it does not release arbitrary leases. Register only single-leader lease handles explicitly. `runIfLeader`, group/strategic election,
 `leaderScheduled`, and `LeaderRouteLeaseRuntime` are not auto-registered.
 
 ## Backend Diagnostics Route
@@ -402,22 +341,18 @@ install(LeaderElectionPlugin) {
 
 The route calls `LeaderBackendDiagnosticsProvider.checkConnectivity()` once on `Dispatchers.IO` with the configured timeout. Unsupported or indeterminate checks return `UNKNOWN`. Electors may expose the provider directly or through `LeaderBackendDiagnosticsAware`; plugin installation fails with a clear error when diagnostics are enabled but no provider is available.
 
-The JSON payload keeps the existing `descriptor` and connectivity fields and adds
-the bounded `connectivity.reason` field:
+The JSON payload keeps the existing `descriptor` and connectivity fields and adds the bounded `connectivity.reason` field:
 
-| Status | Reason | Route meaning |
-|---|---|---|
-| `UP` | `CONNECTED` | The backend was reachable when the active probe ran. |
-| `DOWN` | `DISCONNECTED` | The active probe confirmed that the backend is unavailable. |
-| `UNKNOWN` | `CLIENT_STATE_UNCONFIRMED`, `PROVIDER_UNSUPPORTED`, or `PROVIDER_EXCEPTION` | Connectivity was not confirmed; do not promote this to `DOWN`. |
-| `NOT_CHECKED` | `NOT_CHECKED` | Passive diagnostics ran without a probe and are not readiness proof. |
+| Status        | Reason                                                                      | Route meaning                                                        |
+|---------------|-----------------------------------------------------------------------------|----------------------------------------------------------------------|
+| `UP`          | `CONNECTED`                                                                 | The backend was reachable when the active probe ran.                 |
+| `DOWN`        | `DISCONNECTED`                                                              | The active probe confirmed that the backend is unavailable.          |
+| `UNKNOWN`     | `CLIENT_STATE_UNCONFIRMED`, `PROVIDER_UNSUPPORTED`, or `PROVIDER_EXCEPTION` | Connectivity was not confirmed; do not promote this to `DOWN`.       |
+| `NOT_CHECKED` | `NOT_CHECKED`                                                               | Passive diagnostics ran without a probe and are not readiness proof. |
 
-An active diagnostics result is a successful diagnostics serialization, so the
-route keeps HTTP 200 and puts the backend meaning in the JSON `status` and
+An active diagnostics result is a successful diagnostics serialization, so the route keeps HTTP 200 and puts the backend meaning in the JSON `status` and
 `reason`. If a custom provider throws, or if cancellation, interruption, fatal
-`Error`, or invalid `NOT_CHECKED` output escapes the built-in probe, the
-application's Ktor pipeline and `StatusPages` policy own the HTTP status. The
-route does not turn those failures into a synthetic JSON response.
+`Error`, or invalid `NOT_CHECKED` output escapes the built-in probe, the application's Ktor pipeline and `StatusPages` policy own the HTTP status. The route does not turn those failures into a synthetic JSON response.
 
 Built-in providers use `LeaderBackendDiagnosticsProbe.check`: ordinary callback exceptions become an HTTP 200 response with `UNKNOWN`, while cancellation, interruption, fatal `Error`, and invalid `NOT_CHECKED` results remain caller-owned pipeline failures. A custom provider override is not rewritten by the route and keeps its existing exception policy.
 
@@ -427,8 +362,7 @@ Protect the route before exposing it outside a trusted management boundary. Conn
 
 `LockAssert.assertLockedSuspend()` and `LockExtender.extendActiveLockDetailedSuspend(d)`
 work inside the `leaderScheduled { ... }` background action — the underlying
-`SuspendLeaderElector`'s capture mechanism propagates `LockHandleElement` through
-the action's `CoroutineContext`.
+`SuspendLeaderElector`'s capture mechanism propagates `LockHandleElement` through the action's `CoroutineContext`.
 
 ```kotlin
 leaderScheduled("daily-report", period = 1.hours) {
@@ -440,10 +374,9 @@ leaderScheduled("daily-report", period = 1.hours) {
 }
 ```
 
-**Unsupported scenarios**: `Application.routing` handlers, `PipelineContext`,
-or any non-`leaderScheduled` surface. The plugin only stores configuration in
-`Application.attributes`; `LockHandleElement` is not injected into Ktor's
-routing pipeline. Use `leaderScheduled` for guaranteed propagation.
+**Unsupported
+scenarios**: `Application.routing` handlers, `PipelineContext`, or any non-`leaderScheduled` surface. The plugin only stores configuration in
+`Application.attributes`; `LockHandleElement` is not injected into Ktor's routing pipeline. Use `leaderScheduled` for guaranteed propagation.
 
 ## Dependency
 
@@ -461,13 +394,9 @@ dependencies {
 }
 ```
 
-The `ktor-server-core` artifact is `compileOnly` in this module — your application
-must declare it explicitly.
+The `ktor-server-core` artifact is `compileOnly` in this module — your application must declare it explicitly.
 
-`bluetape4k-leader-ktor` includes `bluetape4k-ktor-core` as a runtime dependency
-for the shared `ApplicationStopped` resource lifecycle. You do not need to
-declare it separately. The `ktor-server-core` artifact remains `compileOnly` in
-this module, so your application must declare it explicitly.
+`bluetape4k-leader-ktor` includes `bluetape4k-ktor-core` as a runtime dependency for the shared `ApplicationStopped` resource lifecycle. You do not need to declare it separately. The `ktor-server-core` artifact remains `compileOnly` in this module, so your application must declare it explicitly.
 
 ## License
 

@@ -10,7 +10,7 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
 
 /** DynamoDB backend의 정적 capability와 안전한 connectivity 계약입니다. */
-object DynamoDbLeaderBackendDiagnostics : LeaderBackendDiagnosticsProvider {
+object DynamoDbLeaderBackendDiagnostics: LeaderBackendDiagnosticsProvider {
 
     private val SupportedModes = LeaderBackendModeSupport(
         single = LeaderBackendSupport.SUPPORTED,

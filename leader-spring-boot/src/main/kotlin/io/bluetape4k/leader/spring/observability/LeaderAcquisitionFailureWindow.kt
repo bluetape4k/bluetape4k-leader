@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.observability
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
 import io.bluetape4k.leader.metrics.SkipReason
@@ -7,7 +8,9 @@ import java.io.Serializable
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.util.ArrayDeque
+import java.util.*
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import kotlin.time.toKotlinDuration
 
 /**
@@ -21,7 +24,7 @@ data class LeaderAcquisitionFailureView(
     val window: Duration,
     val capacity: Int,
     val overflowed: Boolean,
-) : Serializable {
+): Serializable {
 
     companion object {
         val DefaultWindow: Duration = Duration.ofMinutes(5)
@@ -49,14 +52,14 @@ internal class LeaderAcquisitionFailureWindow(
     private val window: Duration,
     private val clock: Clock = Clock.systemUTC(),
     private val capacity: Int = LeaderAcquisitionFailureView.DefaultCapacity,
-) : LeaderAopMetricsRecorder {
+): LeaderAopMetricsRecorder {
 
     internal companion object {
         val DefaultWindow: Duration = LeaderAcquisitionFailureView.DefaultWindow
         const val DefaultCapacity: Int = LeaderAcquisitionFailureView.DefaultCapacity
     }
 
-    private val monitor = Any()
+    private val lock = ReentrantLock()
     private val failures = ArrayDeque<Instant>(capacity)
     private var overflowed = false
 
@@ -75,7 +78,7 @@ internal class LeaderAcquisitionFailureWindow(
 
         runCatching {
             val failureAt = clock.instant()
-            synchronized(monitor) {
+            lock.withLock {
                 failures.addLast(failureAt)
                 while (failures.size > capacity) {
                     failures.removeFirst()
@@ -85,7 +88,7 @@ internal class LeaderAcquisitionFailureWindow(
         }
     }
 
-    fun view(now: Instant = clock.instant()): LeaderAcquisitionFailureView = synchronized(monitor) {
+    fun view(now: Instant = clock.instant()): LeaderAcquisitionFailureView = lock.withLock {
         val boundary = now.minus(window)
         val iterator = failures.iterator()
         while (iterator.hasNext()) {
@@ -104,5 +107,15 @@ internal class LeaderAcquisitionFailureWindow(
             capacity = capacity,
             overflowed = overflowed,
         )
+    }
+
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("window", window)
+            .add("clock", clock)
+            .add("capacity", capacity)
+            .add("failures", failures)
+            .add("overflowed", overflowed)
+            .toString()
     }
 }

@@ -13,8 +13,12 @@
 `minLeaseTime` 설정 시 unlock은 문서를 즉시 삭제하지 않고 남은 최소 lease만큼 `expireAt`을 갱신합니다. caller를 블로킹하지 않으면서 ShedLock `lockAtLeastFor`와 같은 동작을 제공합니다. `LeaderElectionOptions(autoExtend = true)`를 사용하면 단일 리더 elector가 저장된 token이 현재 owner와 일치할 때만 `expireAt`을 주기적으로 갱신합니다.
 
 락 전략:
-- **획득**: `findOneAndUpdate(filter: {_id, expireAt < 현재}, update: {token, expireAt}, upsert=true, returnDocument=AFTER)` — 반환된 token이 일치하면 성공; `E11000`은 유효한 락이 이미 존재함을 의미 → 재시도.
-- **해제**: `deleteOne({_id, token})`, 또는 `minLeaseTime`이 남아 있으면 `updateOne({_id, token}, expireAt = now + remainingMinLeaseTime)`.
+
+-
+
+**획득**: `findOneAndUpdate(filter: {_id, expireAt < 현재}, update: {token, expireAt}, upsert=true, returnDocument=AFTER)` — 반환된 token이 일치하면 성공; `E11000`은 유효한 락이 이미 존재함을 의미 → 재시도.
+-
+**해제**: `deleteOne({_id, token})`, 또는 `minLeaseTime`이 남아 있으면 `updateOne({_id, token}, expireAt = now + remainingMinLeaseTime)`.
 
 ## 아키텍처
 
@@ -22,20 +26,20 @@
 
 ## 구현 클래스
 
-| 클래스 | 인터페이스 | 설명 |
-|--------|-----------|------|
-| `MongoLeaderElector` | `LeaderElector` + `AsyncLeaderElector` | `MongoLock` 기반 블로킹/비동기 단일 리더 |
-| `MongoLeaderGroupElector` | `LeaderGroupElector` | 슬롯 기반 `MongoLock`을 이용한 블로킹 복수 리더 |
-| `MongoSuspendLeaderElector` | `SuspendLeaderElector` | `MongoSuspendLock` 기반 코루틴 단일 리더 |
-| `MongoSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | 슬롯 기반 `MongoSuspendLock`을 이용한 코루틴 복수 리더 |
-| `MongoSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `MongoSuspendLeaderElector` 생성 |
-| `MongoSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `MongoSuspendLeaderGroupElector` 생성 |
+| 클래스                                  | 인터페이스                             | 설명                                                   |
+|-----------------------------------------|----------------------------------------|--------------------------------------------------------|
+| `MongoLeaderElector`                    | `LeaderElector` + `AsyncLeaderElector` | `MongoLock` 기반 블로킹/비동기 단일 리더               |
+| `MongoLeaderGroupElector`               | `LeaderGroupElector`                   | 슬롯 기반 `MongoLock`을 이용한 블로킹 복수 리더        |
+| `MongoSuspendLeaderElector`             | `SuspendLeaderElector`                 | `MongoSuspendLock` 기반 코루틴 단일 리더               |
+| `MongoSuspendLeaderGroupElector`        | `SuspendLeaderGroupElector`            | 슬롯 기반 `MongoSuspendLock`을 이용한 코루틴 복수 리더 |
+| `MongoSuspendLeaderElectorFactory`      | `SuspendLeaderElectorFactory`          | 팩토리: 호출마다 `MongoSuspendLeaderElector` 생성      |
+| `MongoSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory`     | 팩토리: 호출마다 `MongoSuspendLeaderGroupElector` 생성 |
 
 ## 컬렉션
 
-| 컬렉션 | 용도 |
-|--------|------|
-| `bluetape4k_leader_locks` | 단일 리더 락 문서 |
+| 컬렉션                          | 용도                                    |
+|---------------------------------|-----------------------------------------|
+| `bluetape4k_leader_locks`       | 단일 리더 락 문서                       |
 | `bluetape4k_leader_group_locks` | 복수 리더 슬롯 문서 (`lockName:slot:N`) |
 
 `expireAt` 필드의 TTL 인덱스 (`expireAfterSeconds=0`)는 최초 사용 시 자동으로 생성됩니다.
@@ -87,7 +91,7 @@ val future: CompletableFuture<String?> = election.runAsyncIfLeader(
 ) {
     futureOf { doWork() }
 }
-val result = future.get(5, TimeUnit.SECONDS)
+val result = future.get(5.seconds)
 ```
 
 ### 코루틴 단일 리더
@@ -131,13 +135,7 @@ val election = MongoLeaderElector(lockCollection, options)
 
 ### 비동기 cleanup 실패
 
-single/group 비동기 선출은 획득 상태를 기록한 뒤 action을 제출합니다. action 제출에 실패하면
-획득한 lease의 cleanup이 끝난 뒤 결과 future를 완료합니다. cleanup은 호출자의 완료 스레드가 아니라
-backend 소유 virtual thread에서 실행합니다. cleanup scheduler가 모두 실패하면 inline cleanup 없이
-future를 예외로 완료하며, 이 경우 lease가 해제되었다고 보장하지 않습니다.
-dispatcher는 원래 action 오류를 우선하고 자신이 관찰한 cleanup 또는 dispatch 오류를 suppressed 예외로 보존합니다.
-backend unlock의 기존 best-effort 오류 처리 정책은 변경하지 않습니다.
-명시적인 `cancel()`은 호출자 future를 즉시 완료하므로 cleanup 완료 신호로 사용하면 안 됩니다.
+single/group 비동기 선출은 획득 상태를 기록한 뒤 action을 제출합니다. action 제출에 실패하면 획득한 lease의 cleanup이 끝난 뒤 결과 future를 완료합니다. cleanup은 호출자의 완료 스레드가 아니라 backend 소유 virtual thread에서 실행합니다. cleanup scheduler가 모두 실패하면 inline cleanup 없이 future를 예외로 완료하며, 이 경우 lease가 해제되었다고 보장하지 않습니다. dispatcher는 원래 action 오류를 우선하고 자신이 관찰한 cleanup 또는 dispatch 오류를 suppressed 예외로 보존합니다. backend unlock의 기존 best-effort 오류 처리 정책은 변경하지 않습니다. 명시적인 `cancel()`은 호출자 future를 즉시 완료하므로 cleanup 완료 신호로 사용하면 안 됩니다.
 
 ### SPI 팩토리 사용
 
@@ -178,6 +176,7 @@ collection.findOneAndUpdate(
 ```
 
 **`MongoSuspendLock`** (코루틴 드라이버):
+
 - 동일 전략에서 `Thread.sleep()` 대신 `delay()` 사용
 - 매 재시도마다 `currentCoroutineContext().ensureActive()` 호출 → 취소 안전
 
@@ -195,7 +194,8 @@ try {
 
 ## 이중 컬렉션 설계 (`MongoSuspendLeaderGroupElector`)
 
-`activeCount()`, `availableSlots()`, `state()`는 non-suspend 인터페이스 메서드입니다. 코루틴 드라이버의 `countDocuments`는 `suspend` 함수이므로, 상태 조회는 **동기 드라이버**를, 락 작업은 **코루틴 드라이버**를 각각 사용합니다:
+`activeCount()`, `availableSlots()`, `state()`는 non-suspend 인터페이스 메서드입니다. 코루틴 드라이버의 `countDocuments`는 `suspend` 함수이므로, 상태 조회는
+**동기 드라이버**를, 락 작업은 **코루틴 드라이버**를 각각 사용합니다:
 
 ```kotlin
 MongoSuspendLeaderGroupElector(
@@ -206,19 +206,16 @@ MongoSuspendLeaderGroupElector(
 
 ## History 인덱스 빌드 상태 관측
 
-`MongoLeaderHistoryIndexer.indexLifecycleState`로 history 인덱스 빌드의 수명 주기를 확인할 수 있습니다.
-기존 `indexState` 속성과 `leader.history.mongodb.index.state` 게이지도 같은 고정 숫자 코드를 사용합니다.
+`MongoLeaderHistoryIndexer.indexLifecycleState`로 history 인덱스 빌드의 수명 주기를 확인할 수 있습니다. 기존 `indexState` 속성과 `leader.history.mongodb.index.state` 게이지도 같은 고정 숫자 코드를 사용합니다.
 
-| 상태 | 코드 | 의미 |
-|------|------|------|
-| `BUILDING` | `0` | 인덱스 생성 작업이 실행 중입니다. |
-| `READY` | `1` | 설정된 history 인덱스가 모두 준비됐습니다. |
-| `FAILED` | `-1` | 인덱스 생성 재시도가 모두 실패했습니다. |
+| 상태               | 코드 | 의미                                                                      |
+|--------------------|------|---------------------------------------------------------------------------|
+| `BUILDING`         | `0`  | 인덱스 생성 작업이 실행 중입니다.                                         |
+| `READY`            | `1`  | 설정된 history 인덱스가 모두 준비됐습니다.                                |
+| `FAILED`           | `-1` | 인덱스 생성 재시도가 모두 실패했습니다.                                   |
 | `SHUTDOWN_TIMEOUT` | `-2` | `closeSuspend()`가 제한 시간 안에 인덱스 작업 종료를 확인하지 못했습니다. |
 
-`SHUTDOWN_TIMEOUT`은 해당 indexer 인스턴스의 종료 상태입니다. `NonCancellable` 구간에서 늦게 끝난
-인덱스 작업이 이 상태를 `READY`나 `FAILED`로 덮어쓰지 않습니다. 새 indexer는 `BUILDING`에서 시작해
-자체 빌드 상태를 추적합니다. 호출자 취소는 계속 전파하며 shutdown timeout으로 기록하지 않습니다.
+`SHUTDOWN_TIMEOUT`은 해당 indexer 인스턴스의 종료 상태입니다. `NonCancellable` 구간에서 늦게 끝난 인덱스 작업이 이 상태를 `READY`나 `FAILED`로 덮어쓰지 않습니다. 새 indexer는 `BUILDING`에서 시작해 자체 빌드 상태를 추적합니다. 호출자 취소는 계속 전파하며 shutdown timeout으로 기록하지 않습니다.
 
 ## 주의사항
 

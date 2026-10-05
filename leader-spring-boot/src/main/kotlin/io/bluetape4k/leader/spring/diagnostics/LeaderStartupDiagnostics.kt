@@ -4,9 +4,12 @@ import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.internal.LeaderElectionStateSelector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.info
+import io.bluetape4k.logging.warn
 import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.core.env.Environment
+import org.springframework.core.env.getProperty
 import java.io.Serializable
 
 /**
@@ -24,7 +27,9 @@ class LeaderStartupDiagnostics(
     private val environment: Environment,
     private val leaderProperties: LeaderProperties,
     private val aopProperties: LeaderAopProperties,
-) : SmartInitializingSingleton {
+): SmartInitializingSingleton {
+
+    companion object: KLogging()
 
     private val stateSelector = LeaderElectionStateSelector(
         beanFactory,
@@ -38,15 +43,15 @@ class LeaderStartupDiagnostics(
         val nextReport = inspect()
         report = nextReport
 
-        log.info(
+        log.info {
             "leader.spring.diagnostics activeBackends=${nextReport.activeBackends} " +
                     "leaderElectors=${nextReport.leaderElectorCount} " +
                     "actuatorEndpoint=${nextReport.actuatorEndpoint} " +
                     "webExposure=${nextReport.webExposure} " +
                     "warnings=${nextReport.warningCodes.size}"
-        )
+        }
         nextReport.warnings.forEach { warning ->
-            log.warn("leader.spring.diagnostics.warn code=${warning.code} message=\"${warning.message}\"")
+            log.warn { "leader.spring.diagnostics.warn code=${warning.code} message=\"${warning.message}\"" }
         }
 
         if (nextReport.strict && nextReport.warningCodes.isNotEmpty()) {
@@ -64,10 +69,14 @@ class LeaderStartupDiagnostics(
 
     private fun inspect(): Report {
         val stateProviderCandidates = stateSelector.candidates()
-        val stateProviderBeans = stateProviderCandidates.map(LeaderElectionStateSelector.Candidate::beanName)
-        val leaderElectorBeans = stateProviderCandidates.filter(LeaderElectionStateSelector.Candidate::blocking)
+        val stateProviderBeans = stateProviderCandidates
             .map(LeaderElectionStateSelector.Candidate::beanName)
-        val activeBackends = stateProviderCandidates.map(LeaderElectionStateSelector.Candidate::backendName).distinct()
+        val leaderElectorBeans = stateProviderCandidates
+            .filter(LeaderElectionStateSelector.Candidate::blocking)
+            .map(LeaderElectionStateSelector.Candidate::beanName)
+        val activeBackends = stateProviderCandidates
+            .map(LeaderElectionStateSelector.Candidate::backendName)
+            .distinct()
         val selectedStateProvider = when {
             leaderProperties.observability.stateProviderBean.isNotBlank() ->
                 // An explicit but invalid bean name is a configuration error; do not hide it.
@@ -157,7 +166,7 @@ class LeaderStartupDiagnostics(
     }
 
     private fun isManagementEndpointEnabled(): Boolean =
-        environment.getProperty("management.endpoint.leaderElection.enabled", Boolean::class.java, false)
+        environment.getProperty<Boolean>("management.endpoint.leaderElection.enabled", false)
 
     private fun managementWebExposure(): String {
         val include = environment.getProperty("management.endpoints.web.exposure.include")
@@ -197,7 +206,7 @@ class LeaderStartupDiagnostics(
         val stateProviderBeans: List<String> = emptyList(),
         val stateProviderCount: Int = leaderElectorCount,
         val selectedStateProviderBean: String? = null,
-    ) : Serializable {
+    ): Serializable {
         val warningCodes: List<String> = warnings.map { it.code.name }
 
         companion object {
@@ -214,7 +223,7 @@ class LeaderStartupDiagnostics(
     data class Warning(
         val code: WarningCode,
         val message: String,
-    ) : Serializable {
+    ): Serializable {
         companion object {
             private const val serialVersionUID = 1L
         }
@@ -233,6 +242,4 @@ class LeaderStartupDiagnostics(
         RAW_LOCK_NAME_TAGS,
         RAW_LEADER_ID_TAGS,
     }
-
-    companion object : KLogging()
 }

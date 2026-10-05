@@ -6,8 +6,7 @@ Leader-only body를 실행하기 전에 가장 적합한 service node를 선택�
 
 ## 시나리오
 
-세 service node가 maintenance task 실행 권한을 경쟁합니다. Readiness, historical success rate, idle time을 가중 점수로
-합산해 winner를 선택합니다. Winner가 아닌 node는 예외 없이 action을 skip합니다.
+세 service node가 maintenance task 실행 권한을 경쟁합니다. Readiness, historical success rate, idle time을 가중 점수로 합산해 winner를 선택합니다. Winner가 아닌 node는 예외 없이 action을 skip합니다.
 
 ## 예제 시나리오
 

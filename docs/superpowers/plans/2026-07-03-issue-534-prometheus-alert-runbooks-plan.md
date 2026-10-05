@@ -4,15 +4,12 @@
 
 이 문서는 `Issue #534 Prometheus alert and runbook plan`에 대한 설계 또는 실행 계획 기록입니다. 아래 원문 구조의 범위, 결정, 작업 순서, 검증 조건, 위험 및 후속 조치는 기록 보존을 위해 유지합니다. 검토자는 각 `Action`, `Expected DoD`, `Validation`, `Target files` 항목을 한국어 해설과 함께 읽고, 코드 식별자와 명령은 원문 그대로 취급해야 합니다.
 
-
-
 ## Gate 0/1 - 방향 확인
 
 조치:
 
 - Work from a dedicated branch/worktree based on latest `origin/develop`.
-- Read issue #534, current Prometheus dashboard example, related merged PR #257,
-  and current Micrometer metric source.
+- Read issue #534, current Prometheus dashboard example, related merged PR #257, and current Micrometer metric source.
 
 예상 DoD:
 
@@ -22,15 +19,13 @@
 단계 DoD:
 
 - Worktree: `.worktrees/feat-issue-534-prometheus-alert-runbooks`.
-- Current metric evidence: `MicrometerNames`, `MicrometerLeaderAopMetricsRecorder`,
-  history decorators, dashboard JSON, README, Prometheus config, and Compose.
+- Current metric evidence: `MicrometerNames`, `MicrometerLeaderAopMetricsRecorder`, history decorators, dashboard JSON, README, Prometheus config, and Compose.
 
 ## Gate 2/3 - 설계
 
 조치:
 
-- Record a design that maps issue requirements to existing metrics without
-  inventing unsupported lease-extension metrics.
+- Record a design that maps issue requirements to existing metrics without inventing unsupported lease-extension metrics.
 - Define alert, dashboard, README, diagram, and validation scope.
 
 예상 DoD:
@@ -46,10 +41,8 @@
 
 조치:
 
-1. Add a failing static test for Prometheus rule provisioning, dashboard alert
-   expressions, and README diagram/rule references.
-2. Add `provisioning/prometheus/rules/leader-alerts.yml` using the exact
-   alert expressions, windows, labels, and annotations defined in the spec.
+1. Add a failing static test for Prometheus rule provisioning, dashboard alert expressions, and README diagram/rule references.
+2. Add `provisioning/prometheus/rules/leader-alerts.yml` using the exact alert expressions, windows, labels, and annotations defined in the spec.
 3. Add `rule_files` to `prometheus.yml` and mount the rules directory in
    `docker-compose.yml`.
 4. Add Grafana alert-oriented panels.
@@ -58,12 +51,9 @@
 
 예상 DoD:
 
-- The new test fails before implementation for missing rule/config/dashboard
-  evidence and passes after implementation.
+- The new test fails before implementation for missing rule/config/dashboard evidence and passes after implementation.
 - No production Kotlin behavior changes are required.
-- Test code follows `bluetape4k-code-patterns`: JUnit 5, class-level reusable
-  state, bluetape4k assertions, and no weak boolean-only coverage for core
-  assets.
+- Test code follows `bluetape4k-code-patterns`: JUnit 5, class-level reusable state, bluetape4k assertions, and no weak boolean-only coverage for core assets.
 
 대상 파일:
 
@@ -82,15 +72,13 @@
 조치:
 
 - Run the affected example test module serially.
-- Run rule syntax validation with `promtool` when available locally or through
-  the configured Prometheus image.
+- Run rule syntax validation with `promtool` when available locally or through the configured Prometheus image.
 - Validate JSON and whitespace.
 
 예상 DoD:
 
 - `./gradlew :examples:prometheus-dashboard:test --no-configuration-cache --console=plain` passes.
-- Prometheus rule syntax check passes or an exact environment blocker is
-  recorded with static test fallback.
+- Prometheus rule syntax check passes or an exact environment blocker is recorded with static test fallback.
 - `jq` parses the Grafana dashboard.
 - `git diff --check` passes.
 
@@ -99,15 +87,13 @@
 조치:
 
 - Verify implementation against this spec and plan.
-- Run material Step 6-R review lanes for operator/Ops, developer/API/test, user
-  documentation, and diagram/readability risks.
+- Run material Step 6-R review lanes for operator/Ops, developer/API/test, user documentation, and diagram/readability risks.
 - Run diagram render and geometry audit.
 
 예상 DoD:
 
 - P0/P1 findings are zero after fixes.
-- Diagram evidence includes render command, dimensions, connector/card counts,
-  and audit result.
+- Diagram evidence includes render command, dimensions, connector/card counts, and audit result.
 
 ## Gate 7 - PR
 

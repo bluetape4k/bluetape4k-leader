@@ -1,6 +1,19 @@
 package io.bluetape4k.leader.exposed.jdbc
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
@@ -10,46 +23,42 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.exposed.jdbc.history.ExposedLeaderHistorySink
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcLock
+import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
-import io.bluetape4k.leader.history.LeaderHistoryKey
-import io.bluetape4k.leader.history.LeaderLockHistoryRecord
-import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
+import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderHistoryStatus
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.utils.Runtimex
 import kotlinx.coroutines.CancellationException
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
-import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldNotBeNull
-import io.bluetape4k.assertions.shouldBeTrue
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.until
+import org.awaitility.kotlin.withPollInterval
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import io.bluetape4k.assertions.assertFailsWith
-import org.awaitility.kotlin.atMost
-import org.awaitility.kotlin.await
-import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.CancellationException as FutureCancellationException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.max
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import java.util.concurrent.CancellationException as FutureCancellationException
 
 class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
 
@@ -60,9 +69,9 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runIfLeader - 리더로 선출되어 action을 실행하고 결과를 반환한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
-        val election = ExposedJdbcLeaderElector(db)
 
-        val result = election.runIfLeader(randomName()) { "hello" }
+        val elector = ExposedJdbcLeaderElector(db)
+        val result = elector.runIfLeader(randomName()) { "hello" }
 
         result shouldBeEqualTo "hello"
     }
@@ -72,6 +81,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `ExposedJdbcLock - useDbTime true면 DB 서버 시간 경로로 락을 획득한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val lock = ExposedJdbcLock(
             db = db,
@@ -81,8 +91,8 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         )
 
         try {
-            lock.tryLock(1.seconds, 5.seconds) shouldBeEqualTo true
-            lock.isHeldByCurrentInstance() shouldBeEqualTo true
+            lock.tryLock(1.seconds, 5.seconds).shouldBeTrue()
+            lock.isHeldByCurrentInstance().shouldBeTrue()
 
             val lockedUntil = transaction(db) {
                 LeaderLockTable
@@ -91,6 +101,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                     .singleOrNull()
                     ?.get(LeaderLockTable.lockedUntil)
             }
+            log.debug { "lockedUntil: $lockedUntil" }
             lockedUntil.shouldNotBeNull()
         } finally {
             lock.unlock()
@@ -178,6 +189,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runIfLeader - action 예외 발생 시 예외가 재전파되고 락 행이 삭제된다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val election = ExposedJdbcLeaderElector(db)
 
@@ -200,10 +212,15 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runIfLeader - action 예외 발생 후 락이 해제되어 다음 호출이 성공한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val election = ExposedJdbcLeaderElector(db)
 
-        runCatching { election.runIfLeader(lockName) { throw LeaderElectionException("실패") } }
+        runCatching {
+            election.runIfLeader(lockName) {
+                throw LeaderElectionException("실패")
+            }
+        }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
@@ -214,9 +231,11 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runIfLeader - CancellationException은 재전파되고 이력에 기록되지 않는다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val sink = ExposedLeaderHistorySink(db)
         val recorder = SafeLeaderHistoryRecorder(sink)
+
         val options = ExposedJdbcLeaderElectionOptions(
             leaderOptions = LeaderElectionOptions(
                 waitTime = 2.seconds,
@@ -236,7 +255,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             LeaderLockHistoryTable.selectAll()
                 .where {
                     (LeaderLockHistoryTable.lockName eq lockName) and
-                            (LeaderLockHistoryTable.status eq LeaderHistoryStatus.FAILED.name)
+                            (LeaderLockHistoryTable.status eq LeaderHistoryStatus.FAILED)
                 }
                 .count()
         }
@@ -259,7 +278,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         )
         val election = ExposedJdbcLeaderElector(db, options, recorder)
 
-        election.runIfLeader(lockName) { "done" }
+        election.runIfLeader(lockName) { "done" } shouldBeEqualTo "done"
 
         val rows = transaction(db) {
             LeaderLockHistoryTable.selectAll()
@@ -267,7 +286,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 .toList()
         }
         rows.size shouldBeEqualTo 1
-        rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.COMPLETED.name
+        rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.COMPLETED
     }
 
     @ParameterizedTest
@@ -275,6 +294,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runIfLeader - historyRecorder 사용 시 action 실패 후 예외가 재전파되고 FAILED 이력이 기록된다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val sink = ExposedLeaderHistorySink(db)
         val recorder = SafeLeaderHistoryRecorder(sink)
@@ -287,7 +307,9 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val election = ExposedJdbcLeaderElector(db, options, recorder)
 
         assertFailsWith<LeaderElectionException> {
-            election.runIfLeader(lockName) { throw LeaderElectionException("fail") }
+            election.runIfLeader(lockName) {
+                throw LeaderElectionException("fail")
+            }
         }
 
         val rows = transaction(db) {
@@ -296,7 +318,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 .toList()
         }
         rows.size shouldBeEqualTo 1
-        rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED.name
+        rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED
     }
 
     @ParameterizedTest
@@ -304,6 +326,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runIfLeader - 동일 lockName에 여러 스레드 동시 접근 시 최소 1개 이상 성공한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val options = ExposedJdbcLeaderElectionOptions(
             leaderOptions = LeaderElectionOptions(
@@ -312,20 +335,28 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             )
         )
         val election = ExposedJdbcLeaderElector(db, options)
+        val currentCount = AtomicInteger(0)
+        val peakCount = AtomicInteger(0)
         val successCount = AtomicInteger(0)
 
         MultithreadingTester()
-            .workers(8)
-            .rounds(1)
+            .workers(Runtimex.availableProcessors)
+            .rounds(2)
             .add {
                 election.runIfLeader(lockName) {
+                    val current = currentCount.incrementAndGet()
+                    peakCount.updateAndGet { max(it, current) }
+
                     Thread.sleep(10)
                     successCount.incrementAndGet()
+
+                    currentCount.decrementAndGet()
                 }
-                log.debug { "successCount=${successCount.get()}" }
             }
             .run()
 
+        log.debug { "peak count=$peakCount, success count=$successCount" }
+        peakCount.get() shouldBeEqualTo 1
         successCount.get() shouldBeGreaterOrEqualTo 1
     }
 
@@ -334,11 +365,12 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action을 실행하고 결과를 반환한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val election = ExposedJdbcLeaderElector(db)
 
         val result = election.runAsyncIfLeader(randomName(), VirtualThreadExecutor) {
             futureOf { "async 성공" }
-        }.get(5, TimeUnit.SECONDS)
+        }.get(5.seconds)
 
         result shouldBeEqualTo "async 성공"
     }
@@ -348,6 +380,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeader - 두 번째 executor 제출 거부 후 획득한 락을 정리한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val election = ExposedJdbcLeaderElector(
             db,
@@ -373,13 +406,15 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             val resultFuture = runCatching {
                 election.runAsyncIfLeader(lockName, executor) {
                     actionInvoked.set(true)
-                    CompletableFuture.completedFuture("실행되면 안 됨")
+                    completableFutureOf("실행되면 안 됨")
                 }
-            }.getOrElse { CompletableFuture.failedFuture(it) }
+            }.getOrElse { failedCompletableFutureOf(it) }
 
             val failure = assertFailsWith<CompletionException> { resultFuture.join() }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
-            actionInvoked.get() shouldBeEqualTo false
+
+            actionInvoked.get().shouldBeFalse()
+
             election.runIfLeader(lockName) { "executor 거부 후 복구" } shouldBeEqualTo "executor 거부 후 복구"
         } finally {
             worker.shutdownNow()
@@ -391,6 +426,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeader - 반환 future 취소 시 락 획득 대기를 중단한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val holder = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(10L))
         holder.tryLock(Duration.ZERO, 30.seconds).shouldBeTrue()
@@ -410,12 +446,12 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         try {
             val resultFuture = election.runAsyncIfLeader(lockName, executor) {
                 actionInvocations.incrementAndGet()
-                CompletableFuture.completedFuture("실행되면 안 됨")
+                completableFutureOf("실행되면 안 됨")
             }
 
             resultFuture.cancel(false).shouldBeTrue()
             assertFailsWith<FutureCancellationException> { resultFuture.join() }
-            executor.submit { }.get(3, TimeUnit.SECONDS)
+            executor.submit { }.get(3.seconds)
             actionInvocations.get() shouldBeEqualTo 0
         } finally {
             executor.shutdownNow()
@@ -428,6 +464,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeader - 획득 후 composition callback 전에 취소되면 action 없이 락을 반납한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val election = ExposedJdbcLeaderElector(
             db,
@@ -447,7 +484,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             worker.execute {
                 if (taskNumber.incrementAndGet() == 2) {
                     composeReady.countDown()
-                    check(composeAllowed.await(5, TimeUnit.SECONDS)) { "composition callback 대기 시간이 초과되었습니다." }
+                    check(composeAllowed.await(5.seconds)) { "composition callback 대기 시간이 초과되었습니다." }
                 }
                 command.run()
             }
@@ -456,14 +493,18 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         try {
             val resultFuture = election.runAsyncIfLeader(lockName, executor) {
                 actionInvocations.incrementAndGet()
-                CompletableFuture.completedFuture("실행되면 안 됨")
+                completableFutureOf("실행되면 안 됨")
             }
 
-            composeReady.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            composeReady.await(5.seconds).shouldBeTrue()
             resultFuture.cancel(false).shouldBeTrue()
             composeAllowed.countDown()
-            assertFailsWith<FutureCancellationException> { resultFuture.join() }
-            worker.submit { }.get(3, TimeUnit.SECONDS)
+
+            assertFailsWith<FutureCancellationException> {
+                resultFuture.join()
+            }
+
+            worker.submit { }.get(3.seconds)
             actionInvocations.get() shouldBeEqualTo 0
 
             election.runIfLeader(lockName) { "compose 경계 복구" } shouldBeEqualTo "compose 경계 복구"
@@ -478,32 +519,40 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeader - history 기록 중 취소되면 action 없이 FAILED 이력과 락 반납을 완료한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val recordStarted = CountDownLatch(1)
         val recordAllowed = CountDownLatch(1)
-        val recorder = object : SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db)) {
+        val recorder = object: SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db)) {
             override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
                 recordStarted.countDown()
-                check(recordAllowed.await(5, TimeUnit.SECONDS)) { "history 기록 대기 시간이 초과되었습니다." }
+                check(recordAllowed.await(5.seconds)) { "history 기록 대기 시간이 초과되었습니다." }
                 return super.recordAcquired(record)
             }
         }
+
         val election = ExposedJdbcLeaderElector(db, historyRecorder = recorder)
         val actionInvocations = AtomicInteger()
         val worker = Executors.newSingleThreadExecutor()
-        val executor = Executor { command -> worker.execute(command) }
+        val executor = Executor { command: Runnable ->
+            worker.execute(command)
+        }
 
         try {
             val resultFuture = election.runAsyncIfLeader(lockName, executor) {
                 actionInvocations.incrementAndGet()
-                CompletableFuture.completedFuture("실행되면 안 됨")
+                completableFutureOf("실행되면 안 됨")
             }
 
-            recordStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            recordStarted.await(5.seconds).shouldBeTrue()
             resultFuture.cancel(false).shouldBeTrue()
             recordAllowed.countDown()
-            assertFailsWith<FutureCancellationException> { resultFuture.join() }
-            worker.submit { }.get(3, TimeUnit.SECONDS)
+
+            assertFailsWith<FutureCancellationException> {
+                resultFuture.join()
+            }
+
+            worker.submit { }.get(3.seconds)
             actionInvocations.get() shouldBeEqualTo 0
 
             val history = transaction(db) {
@@ -511,7 +560,8 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                     .where { LeaderLockHistoryTable.lockName eq lockName }
                     .single()
             }
-            history[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED.name
+            history[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED
+
             election.runIfLeader(lockName) { "history 경계 복구" } shouldBeEqualTo "history 경계 복구"
         } finally {
             recordAllowed.countDown()
@@ -525,7 +575,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lockName = randomName()
-        val recorder = object : SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db)) {
+        val recorder = object: SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db)) {
             override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
                 throw InterruptedException("acquire history interrupted")
             }
@@ -540,12 +590,16 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val election = ExposedJdbcLeaderElector(db, options, recorder)
 
         val resultFuture = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-            CompletableFuture.completedFuture("실행되면 안 됨")
+            completableFutureOf("실행되면 안 됨")
         }
 
-        val failure = assertFailsWith<CompletionException> { resultFuture.join() }
-        failure.cause.shouldBeInstanceOf(InterruptedException::class)
-        ExposedJdbcLeaderElector(db, options).runIfLeader(lockName) { "복구 성공" } shouldBeEqualTo "복구 성공"
+        val failure = assertFailsWith<CompletionException> {
+            resultFuture.join()
+        }
+        failure.cause.shouldBeInstanceOf<InterruptedException>()
+
+        ExposedJdbcLeaderElector(db, options)
+            .runIfLeader(lockName) { "복구 성공" } shouldBeEqualTo "복구 성공"
     }
 
     @ParameterizedTest
@@ -553,6 +607,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeader - finishAction history 예외 후 원 결과와 락 정리를 보장한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val options = ExposedJdbcLeaderElectionOptions(
             leaderOptions = LeaderElectionOptions(
                 waitTime = 100.milliseconds,
@@ -561,7 +616,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             ),
         )
         val actionFailure = IllegalStateException("action 실패")
-        val recorder = object : SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db)) {
+        val recorder = object: SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db)) {
             override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
                 throw InterruptedException("completed history interrupted")
             }
@@ -579,20 +634,30 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
 
         val completedLockName = randomName()
         val completedFuture = election.runAsyncIfLeader(completedLockName, VirtualThreadExecutor) {
-            CompletableFuture.completedFuture("완료")
+            completableFutureOf("완료")
         }
-        val completedFailure = assertFailsWith<CompletionException> { completedFuture.join() }
-        completedFailure.cause.shouldBeInstanceOf(InterruptedException::class)
-        ExposedJdbcLeaderElector(db, options).runIfLeader(completedLockName) { "완료 복구" } shouldBeEqualTo "완료 복구"
+
+        val completedFailure = assertFailsWith<CompletionException> {
+            completedFuture.join()
+        }
+
+        completedFailure.cause.shouldBeInstanceOf<InterruptedException>()
+
+        ExposedJdbcLeaderElector(db, options)
+            .runIfLeader(completedLockName) { "완료 복구" } shouldBeEqualTo "완료 복구"
 
         val failedLockName = randomName()
         val failedFuture = election.runAsyncIfLeader<Int>(failedLockName, VirtualThreadExecutor) {
-            CompletableFuture.failedFuture(actionFailure)
+            failedCompletableFutureOf(actionFailure)
         }
 
-        val failedCompletion = assertFailsWith<CompletionException> { failedFuture.join() }
+        val failedCompletion = assertFailsWith<CompletionException> {
+            failedFuture.join()
+        }
         failedCompletion.cause shouldBeEqualTo actionFailure
-        ExposedJdbcLeaderElector(db, options).runIfLeader(failedLockName) { "실패 복구" } shouldBeEqualTo "실패 복구"
+
+        ExposedJdbcLeaderElector(db, options)
+            .runIfLeader(failedLockName) { "실패 복구" } shouldBeEqualTo "실패 복구"
     }
 
     @ParameterizedTest
@@ -600,6 +665,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeader - action future 취소 후 FAILED 이력을 기록하고 락을 반환한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val recorder = SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db))
         val election = ExposedJdbcLeaderElector(db, historyRecorder = recorder)
@@ -611,18 +677,22 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             actionFuture
         }
 
-        actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        actionStarted.await(5.seconds).shouldBeTrue()
         actionFuture.cancel(false).shouldBeTrue()
 
-        val thrown = assertFailsWith<CompletionException> { resultFuture.join() }
+        val thrown = assertFailsWith<CompletionException> {
+            resultFuture.join()
+        }
         thrown.cause.shouldNotBeNull()
-        (thrown.cause is FutureCancellationException).shouldBeTrue()
+        thrown.cause.shouldBeInstanceOf<FutureCancellationException>()
+
         val history = transaction(db) {
             LeaderLockHistoryTable.selectAll()
                 .where { LeaderLockHistoryTable.lockName eq lockName }
                 .single()
         }
-        history[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED.name
+        history[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED
+
         election.runIfLeader(lockName) { "action 취소 후 복구" } shouldBeEqualTo "action 취소 후 복구"
     }
 
@@ -631,6 +701,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeader - 반환 future 취소를 action에 전파하고 FAILED 이력과 락 반환을 보장한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val recorder = SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db))
         val election = ExposedJdbcLeaderElector(db, historyRecorder = recorder)
@@ -642,21 +713,25 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             actionFuture
         }
 
-        actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        actionStarted.await(5.seconds).shouldBeTrue()
         resultFuture.cancel(false).shouldBeTrue()
-        assertFailsWith<FutureCancellationException> { resultFuture.join() }
-        await atMost 5.seconds untilAsserted {
-            actionFuture.isCancelled.shouldBeTrue()
+
+        assertFailsWith<FutureCancellationException> {
+            resultFuture.join()
+        }
+        await atMost 5.seconds withPollInterval 100.milliseconds until {
+            actionFuture.isCancelled
         }
 
-        await atMost 5.seconds untilAsserted {
+        await atMost 5.seconds withPollInterval 100.milliseconds until {
             val history = transaction(db) {
                 LeaderLockHistoryTable.selectAll()
                     .where { LeaderLockHistoryTable.lockName eq lockName }
                     .single()
             }
-            history[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED.name
+            history[LeaderLockHistoryTable.status] == LeaderHistoryStatus.FAILED
         }
+
         election.runIfLeader(lockName) { "반환 취소 후 복구" } shouldBeEqualTo "반환 취소 후 복구"
     }
 
@@ -665,32 +740,39 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeaderResult - 반환 future 취소를 action에 전파하고 FAILED 이력과 락 반환을 보장한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val recorder = SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db))
         val election = ExposedJdbcLeaderElector(db, historyRecorder = recorder)
         val actionStarted = CountDownLatch(1)
         val actionFuture = CompletableFuture<String>()
 
-        val resultFuture = election.runAsyncIfLeaderResult(LeaderSlot(lockName, "result-cancel-node"), VirtualThreadExecutor) {
-            actionStarted.countDown()
-            actionFuture
-        }
+        val resultFuture =
+            election.runAsyncIfLeaderResult(LeaderSlot(lockName, "result-cancel-node"), VirtualThreadExecutor) {
+                actionStarted.countDown()
+                actionFuture
+            }
 
-        actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        actionStarted.await(5.seconds).shouldBeTrue()
         resultFuture.cancel(false).shouldBeTrue()
-        assertFailsWith<FutureCancellationException> { resultFuture.join() }
-        await atMost 5.seconds untilAsserted {
-            actionFuture.isCancelled.shouldBeTrue()
+
+        assertFailsWith<FutureCancellationException> {
+            resultFuture.join()
         }
 
-        await atMost 5.seconds untilAsserted {
+        await atMost 5.seconds withPollInterval 100.milliseconds until {
+            actionFuture.isCancelled
+        }
+
+        await atMost 5.seconds withPollInterval 100.milliseconds until {
             val historyStatus = transaction(db) {
                 LeaderLockHistoryTable.selectAll()
                     .where { LeaderLockHistoryTable.lockName eq lockName }
                     .single()[LeaderLockHistoryTable.status]
             }
-            historyStatus shouldBeEqualTo LeaderHistoryStatus.FAILED.name
+            historyStatus == LeaderHistoryStatus.FAILED
         }
+
         election.runIfLeader(lockName) { "result 취소 후 복구" } shouldBeEqualTo "result 취소 후 복구"
     }
 
@@ -699,6 +781,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeader - action이 CF 반환 전 throw하면 예외를 전파하고 락이 해제된다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val recorder = SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db))
         val election = ExposedJdbcLeaderElector(db, historyRecorder = recorder)
@@ -718,7 +801,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             LeaderLockHistoryTable.selectAll()
                 .where {
                     (LeaderLockHistoryTable.lockName eq lockName) and
-                            (LeaderLockHistoryTable.status eq LeaderHistoryStatus.FAILED.name)
+                            (LeaderLockHistoryTable.status eq LeaderHistoryStatus.FAILED)
                 }
                 .count()
         }
@@ -730,16 +813,19 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeaderResult - action 동기 throw를 ActionFailed로 분류하고 락을 해제한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val election = ExposedJdbcLeaderElector(db)
         val failure = IllegalStateException("action 동기 예외")
 
-        val result = election.runAsyncIfLeaderResult<Int>(LeaderSlot(lockName, "node-755"), VirtualThreadExecutor) {
-            throw failure
-        }.get(5, TimeUnit.SECONDS)
+        val result = election
+            .runAsyncIfLeaderResult<Int>(LeaderSlot(lockName, "node-755"), VirtualThreadExecutor) {
+                throw failure
+            }.get(5.seconds)
 
-        result shouldBeInstanceOf LeaderRunResult.ActionFailed::class
-        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+        result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
+        result.cause shouldBeEqualTo failure
+
         election.runIfLeader(lockName) { "복구 성공" } shouldBeEqualTo "복구 성공"
     }
 
@@ -748,6 +834,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeader - action이 failedFuture 반환 시 FAILED 이력 기록 후 락 해제된다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val sink = ExposedLeaderHistorySink(db)
         val recorder = SafeLeaderHistoryRecorder(sink)
@@ -757,12 +844,13 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 leaseTime = 10.seconds,
             ),
         )
+
         val election = ExposedJdbcLeaderElector(db, options, recorder)
 
         // failedFuture case: the future itself fails → CompletionException propagates
         assertFailsWith<CompletionException> {
             election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
-                CompletableFuture.failedFuture(IllegalStateException("async 실패"))
+                failedCompletableFutureOf(IllegalStateException("async 실패"))
             }.join()
         }
 
@@ -775,7 +863,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             LeaderLockHistoryTable.selectAll()
                 .where {
                     (LeaderLockHistoryTable.lockName eq lockName) and
-                            (LeaderLockHistoryTable.status eq LeaderHistoryStatus.FAILED.name)
+                            (LeaderLockHistoryTable.status eq LeaderHistoryStatus.FAILED)
                 }
                 .count()
         }
@@ -787,6 +875,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeader - caller executor shutdown 후 action 완료되어도 cleanup 이 실행된다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val election = ExposedJdbcLeaderElector(
             db,
@@ -807,15 +896,17 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 actionStarted.countDown()
                 actionFuture
             }
-            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(3.seconds).shouldBeTrue()
             executor.shutdown()
 
             actionFuture.complete("done")
 
-            resultFuture.get(3, TimeUnit.SECONDS) shouldBeEqualTo "done"
+            resultFuture.get(3.seconds) shouldBeEqualTo "done"
+
             election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             executor.shutdownNow()
+            executor.awaitTermination(5.seconds)
         }
     }
 
@@ -824,12 +915,13 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeader - 정상 완료 후 락 행이 삭제된다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val election = ExposedJdbcLeaderElector(db)
 
         election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
             futureOf { "ok" }
-        }.get(5, TimeUnit.SECONDS) shouldBeEqualTo "ok"
+        }.get(5.seconds) shouldBeEqualTo "ok"
 
         val rowCount = transaction(db) {
             LeaderLockTable.selectAll()
@@ -843,10 +935,8 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     @MethodSource("enableDialects")
     fun `ensureSchema - resetFor 후 재호출 시 에러 없이 완료된다`(testDB: TestDB) {
         val db = connectDb(testDB)
-        io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer.resetFor(db)
-
-        io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer.ensureSchema(db)
-
+        ExposedJdbcSchemaInitializer.resetFor(db)
+        ExposedJdbcSchemaInitializer.ensureSchema(db)
         db.shouldNotBeNull()
     }
 
@@ -857,7 +947,6 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
 
         val result = db.runIfLeader(randomName()) { "ext 성공" }
-
         result shouldBeEqualTo "ext 성공"
     }
 
@@ -869,8 +958,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
 
         val result = db.runAsyncIfLeader(randomName()) {
             futureOf { "async ext 성공" }
-        }.get(5, TimeUnit.SECONDS)
-
+        }.get(5.seconds)
         result shouldBeEqualTo "async ext 성공"
     }
 
@@ -880,8 +968,9 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
 
-        val result = db.runVirtualIfLeader(randomName()) { "virtual ext 성공" }[5, TimeUnit.SECONDS]
-
+        val result = db.runVirtualIfLeader(randomName()) {
+            "virtual ext 성공"
+        }.get(5.seconds)
         result shouldBeEqualTo "virtual ext 성공"
     }
 
@@ -890,11 +979,11 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `VirtualThread 선출 - runAsyncIfLeader 정상 동작한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val election = ExposedJdbcLeaderElector(db)
         val vtElection = ExposedJdbcVirtualThreadLeaderElector(election)
 
-        val result = vtElection.runAsyncIfLeader(randomName()) { "vt 성공" }[5, TimeUnit.SECONDS]
-
+        val result = vtElection.runAsyncIfLeader(randomName()) { "vt 성공" }.get(5.seconds)
         result shouldBeEqualTo "vt 성공"
     }
 
@@ -903,8 +992,8 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `VirtualThread 선출 - 락 보유 중 실패 시 null을 반환한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
-        val lockName = randomName()
 
+        val lockName = randomName()
         val holderLock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
         holderLock.tryLock(1.seconds, 30.seconds)
 
@@ -917,9 +1006,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             )
             val election = ExposedJdbcLeaderElector(db, shortOptions)
             val vtElection = ExposedJdbcVirtualThreadLeaderElector(election)
-            val result = vtElection.runAsyncIfLeader(lockName) { "실행하면 안 됨" }
-                .get(5, TimeUnit.SECONDS)
-
+            val result = vtElection.runAsyncIfLeader(lockName) { "실행하면 안 됨" }.get(5.seconds)
             result.shouldBeNull()
         } finally {
             holderLock.unlock()

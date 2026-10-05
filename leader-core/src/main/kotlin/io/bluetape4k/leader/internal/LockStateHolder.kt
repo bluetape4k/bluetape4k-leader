@@ -1,13 +1,14 @@
 package io.bluetape4k.leader.internal
 
 import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.logging.KLogging
 
 /**
  * `LockStateHolder`는 leader election의 현재 상태를 표현합니다.
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-internal object LockStateHolder {
+internal object LockStateHolder: KLogging() {
 
     private val tl: ThreadLocal<ArrayDeque<LeaderLockHandle>> =
         ThreadLocal.withInitial { ArrayDeque() }

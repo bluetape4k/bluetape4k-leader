@@ -1,11 +1,14 @@
 package io.bluetape4k.leader.examples.ktor
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.json.JsonMapper
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.jackson.Jackson
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.ktor.core.HealthResponse
 import io.bluetape4k.ktor.testing.decodeJsonBody
@@ -39,18 +42,19 @@ class KtorAppTest: AbstractKtorAppTest() {
     companion object: KLoggingChannel() {
         private val SHORT_PERIOD = 100.milliseconds
         private val POLL_INTERVAL = 100.milliseconds
-        private val AWAIT_TIMEOUT = 15.seconds
+        private val AWAIT_TIMEOUT = 5.seconds
 
-        private val objectMapper = ObjectMapper()
+        private val jsonMapper: JsonMapper = Jackson.defaultJsonMapper
     }
 
     @Test
     fun `Redis URL redaction removes credentials from startup log value`() {
         val redacted = redactRedisUrlForLog("redis://user:secret@localhost:6379/0")
 
+        log.debug { "redacted=$redacted" }
         redacted shouldBeEqualTo "redis://redacted@localhost:6379/0"
-        redacted.contains("user").shouldBeFalse()
-        redacted.contains("secret").shouldBeFalse()
+        redacted shouldNotContain "user"
+        redacted shouldNotContain "secret"
     }
 
     @Test
@@ -78,12 +82,11 @@ class KtorAppTest: AbstractKtorAppTest() {
 
             val body = response.bodyAsText()
             log.debug { "GET /stats body=$body" }
-            val node: JsonNode = objectMapper.readTree(body)
+
+            val node: JsonNode = jsonMapper.readTree(body)
             // runCount 는 0 또는 양수 (cycle 이 빠르게 1회 이상 실행되었을 수 있음)
-            val runCountNode = requireNotNull(node.get("runCount")) {
-                "runCount field missing in response: $body"
-            }
-            (runCountNode.asLong() >= 0L).shouldBeTrue()
+            val runCountNode = node.get("runCount").shouldNotBeNull()
+            runCountNode.asLong() shouldBeGreaterOrEqualTo 0L
         }
     }
 
@@ -103,6 +106,8 @@ class KtorAppTest: AbstractKtorAppTest() {
             response shouldHaveStatus HttpStatusCode.OK
 
             val health = response.decodeJsonBody<HealthResponse>()
+
+            log.debug { "health=$health" }
             health.status shouldBeEqualTo HealthResponse.UP
         }
     }
@@ -123,6 +128,8 @@ class KtorAppTest: AbstractKtorAppTest() {
             response shouldHaveStatus HttpStatusCode.OK
 
             val readiness = response.decodeJsonBody<HealthResponse>()
+
+            log.debug { "readiness=$readiness" }
             readiness.status shouldBeEqualTo HealthResponse.UP
         }
     }
@@ -148,17 +155,18 @@ class KtorAppTest: AbstractKtorAppTest() {
 
             val state = aggregator.currentState()
             state.runCount shouldBeGreaterOrEqualTo 3L
-            (state.lastRunAt != null).shouldBeTrue()
+            state.lastRunAt.shouldNotBeNull()
 
             // REST endpoint 로도 동일 상태 노출 확인
             val response = client.get("/stats") { accept(ContentType.Application.Json) }
             response shouldHaveStatus HttpStatusCode.OK
+
             val body = response.bodyAsText()
-            val node = objectMapper.readTree(body)
-            val runCountNode = requireNotNull(node.get("runCount")) {
-                "runCount field missing in response: $body"
-            }
-            (runCountNode.asLong() >= 3L).shouldBeTrue()
+            log.debug { "response body=$body" }
+
+            val node = jsonMapper.readTree(body)
+            val runCountNode = node.get("runCount").shouldNotBeNull()
+            runCountNode.asLong() shouldBeGreaterOrEqualTo 3L
         }
     }
 
@@ -194,13 +202,12 @@ class KtorAppTest: AbstractKtorAppTest() {
             }
             startApplication()
 
-            await.atMost(AWAIT_TIMEOUT.toJavaDuration())
-                .withPollInterval(POLL_INTERVAL.toJavaDuration())
-                .until { aggregatorA.currentState().runCount + aggregatorB.currentState().runCount >= 3L }
+            await atMost AWAIT_TIMEOUT withPollInterval POLL_INTERVAL until {
+                aggregatorA.currentState().runCount + aggregatorB.currentState().runCount >= 3L
+            }
 
             val total = aggregatorA.currentState().runCount + aggregatorB.currentState().runCount
             total shouldBeGreaterOrEqualTo 3L
-            (total > 0L).shouldBeTrue()
         }
     }
 
@@ -219,16 +226,17 @@ class KtorAppTest: AbstractKtorAppTest() {
             }
             startApplication()
 
-            await.atMost(AWAIT_TIMEOUT.toJavaDuration())
-                .withPollInterval(POLL_INTERVAL.toJavaDuration())
-                .until { aggregator.currentState().runCount >= 2L }
+            await atMost AWAIT_TIMEOUT withPollInterval POLL_INTERVAL until {
+                aggregator.currentState().runCount >= 2L
+            }
         } // testApplication 블록 종료 시 application 종료 + 스코프 취소
 
         val countAtStop = aggregator.currentState().runCount
         delay(SHORT_PERIOD * 5)
+
         // 종료 후에는 더 이상 실행되지 않아야 한다 — 약간의 race 허용 (+2)
         val countAfterDelay = aggregator.currentState().runCount
-        (countAfterDelay <= countAtStop + 2L).shouldBeTrue()
+        countAfterDelay shouldBeLessOrEqualTo countAtStop + 2L
     }
 
     @Test
@@ -254,9 +262,9 @@ class KtorAppTest: AbstractKtorAppTest() {
             }
             startApplication()
 
-            await.atMost(AWAIT_TIMEOUT.toJavaDuration())
-                .withPollInterval(POLL_INTERVAL.toJavaDuration())
-                .until { cycles.get() >= 3 }
+            await atMost AWAIT_TIMEOUT withPollInterval POLL_INTERVAL until {
+                cycles.get() >= 3
+            }
 
             cycles.get() shouldBeGreaterOrEqualTo 3
             firstCycleConsumed.get().shouldBeTrue()

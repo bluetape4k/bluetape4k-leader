@@ -9,6 +9,7 @@ import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.zookeeper.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperSuspendSlotExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -35,7 +36,7 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
     private val basePath: String,
     options: LeaderGroupElectionOptions,
 ): SuspendLeaderGroupElector,
-    LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client) {
+   LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client) {
 
     companion object: KLoggingChannel() {
         const val DEFAULT_BASE_PATH = "/leader-group-election"
@@ -78,6 +79,7 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
         val semaphore = InterProcessSemaphoreV2(client, path, maxLeaders)
 
         log.debug { "ZooKeeper suspend group lease 획득을 요청합니다. path=$path, maxLeaders=$maxLeaders" }
+
         val lease = try {
             withContext(Dispatchers.IO) {
                 semaphore.acquire(waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
@@ -146,27 +148,21 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
         InterProcessSemaphoreV2(client, ZooKeeperPaths.electionPath(basePath, lockName), maxLeaders)
 }
 
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend inline fun <T> CuratorFramework.suspendRunIfLeaderGroup(
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeaderGroup")
+suspend inline fun <T> CuratorFramework.legacySuspendRunIfLeaderGroupByPath(
     path: ZooKeeperElectionPath,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     crossinline action: suspend () -> T,
-): T? =
-    ZooKeeperSuspendLeaderGroupElector(this, options, path.basePath).runIfLeader(path.lockName) { action() }
+): T? = this.currentSuspendRunIfLeaderGroup(path, options, action)
 
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend inline fun <T> CuratorFramework.suspendRunIfLeaderGroup(
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeaderGroup")
+suspend inline fun <T> CuratorFramework.legacySuspendRunIfLeaderGroupByName(
     lockName: String,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     basePath: String = ZooKeeperSuspendLeaderGroupElector.DEFAULT_BASE_PATH,
     crossinline action: suspend () -> T,
-): T? =
-    suspendRunIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), options, action)
+): T? = this.currentSuspendRunIfLeaderGroup(lockName, options, basePath, action)

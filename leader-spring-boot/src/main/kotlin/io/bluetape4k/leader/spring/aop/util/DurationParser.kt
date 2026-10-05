@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.spring.aop.util
 
+import io.bluetape4k.logging.KotlinLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.support.requireGt
 import io.bluetape4k.support.requireNotBlank
 import java.time.Duration
@@ -10,6 +12,8 @@ import java.time.Duration
  * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 object DurationParser {
+
+    private val log = KotlinLogging.logger {}
 
     private val SIMPLE_PATTERN = Regex("^(\\d+)\\s*(ms|s|m|h|d)$", RegexOption.IGNORE_CASE)
 
@@ -43,6 +47,7 @@ object DurationParser {
         }
 
         duration.requireGt(Duration.ZERO, "duration")
+        log.debug { "parse `$text` to $duration" }
         return duration
     }
 
@@ -61,14 +66,16 @@ object DurationParser {
      */
     fun parseNonNegativeOrDefault(text: String, default: Duration): Duration {
         if (text.isBlank()) return default
-        val duration = runCatching { parse(text) }
-            .getOrElse { error ->
-                val trimmed = text.trim()
-                if (trimmed == "0" || trimmed.equals("PT0S", ignoreCase = true)) {
-                    return Duration.ZERO
-                }
-                throw error
+        val duration = runCatching {
+            parse(text)
+        }.getOrElse { error ->
+            val trimmed = text.trim()
+            if (trimmed == "0" || trimmed.equals("PT0S", ignoreCase = true)) {
+                return Duration.ZERO
             }
+            throw error
+        }
+        log.debug { "parse `$text` to $duration, default: $default" }
         return duration
     }
 }

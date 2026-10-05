@@ -18,7 +18,7 @@ data class EtcdLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
     val keyPrefix: String = EtcdLeaderPaths.DefaultPrefix,
     val retryDelay: Duration = 50.milliseconds,
-) : Serializable {
+): Serializable {
 
     init {
         EtcdLeaderPaths(keyPrefix)

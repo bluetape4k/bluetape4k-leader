@@ -2,8 +2,8 @@ package io.bluetape4k.leader.etcd.internal
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
-import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeInRange
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.random.Random
@@ -14,6 +14,8 @@ import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class EtcdLeaseTimeTest {
+
+    companion object: KLogging()
 
     @Test
     fun `ttl seconds rounds positive durations up`() {
@@ -51,8 +53,7 @@ class EtcdLeaseTimeTest {
 
         repeat(100) {
             val factor = EtcdLeaseTime.randomJitterFactor(random)
-            factor shouldBeGreaterOrEqualTo -0.10
-            factor shouldBeLessOrEqualTo 0.10
+            factor.shouldBeInRange(-0.10..0.10)
         }
     }
 

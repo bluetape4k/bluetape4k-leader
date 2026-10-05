@@ -1,10 +1,12 @@
 package io.bluetape4k.leader.exposed.tables
 
+import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants.LOCK_HISTORY_TABLE_NAME
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants.LOCK_NAME_LENGTH
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants.LOCK_OWNER_LENGTH
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants.STATUS_LENGTH
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants.TOKEN_LENGTH
+import io.bluetape4k.leader.history.LeaderHistoryStatus
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.javatime.timestamp
 
@@ -13,7 +15,7 @@ import org.jetbrains.exposed.v1.javatime.timestamp
  *
  * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
-object LeaderLockHistoryTable : Table(LOCK_HISTORY_TABLE_NAME) {
+object LeaderLockHistoryTable: Table(LOCK_HISTORY_TABLE_NAME) {
 
     /**
      * `id` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
@@ -48,7 +50,7 @@ object LeaderLockHistoryTable : Table(LOCK_HISTORY_TABLE_NAME) {
     /**
      * `status` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
-    val status = varchar("status", STATUS_LENGTH)
+    val status = enumerationByName<LeaderHistoryStatus>("status", STATUS_LENGTH)
 
     /**
      * `startedAt` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
@@ -80,7 +82,7 @@ object LeaderLockHistoryTable : Table(LOCK_HISTORY_TABLE_NAME) {
     /**
      * `kind` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
-    val kind = varchar("kind", 32).nullable()
+    val kind = enumerationByName<LockIdentity.AnnotationKind>("kind", 32).nullable()
 
     /**
      * `participantId` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.

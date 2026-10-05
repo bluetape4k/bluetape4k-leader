@@ -21,7 +21,7 @@
 ## 증거
 
 - `node --check scripts/check-readme-language-switches.mjs`: 통과.
-- `node scripts/check-readme-language-switches.mjs`: 통과(`groups=37; files=74; failures=0`).
+- `node scripts/check-readme-language-switches.mjs`: 통과 (`groups=37; files=74; failures=0`).
 - `actionlint .github/workflows/readme-language.yml`: 통과.
 - `git diff --check`: 통과.
 

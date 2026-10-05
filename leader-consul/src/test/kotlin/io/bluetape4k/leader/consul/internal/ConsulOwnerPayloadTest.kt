@@ -2,10 +2,14 @@ package io.bluetape4k.leader.consul.internal
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.time.Instant
 
 class ConsulOwnerPayloadTest {
+
+    companion object: KLogging()
 
     @Test
     fun `round trips owner payload json`() {
@@ -17,7 +21,12 @@ class ConsulOwnerPayloadTest {
             leaseUntil = Instant.parse("2026-05-22T01:02:13Z"),
         )
 
-        val decoded = ConsulOwnerPayload.fromJson(payload.toJson())
+        val json = payload.toJson()
+        val decoded = ConsulOwnerPayload.fromJson(json)
+
+        log.debug { "payload=$payload" }
+        log.debug { "json=$json" }
+        log.debug { "decoded=$decoded" }
 
         decoded shouldBeEqualTo payload
         decoded?.toLeaderLease()?.auditLeaderId shouldBeEqualTo "audit-node"
@@ -34,7 +43,10 @@ class ConsulOwnerPayloadTest {
             leaseUntil = Instant.parse("2026-05-22T01:02:13Z"),
         )
 
-        ConsulOwnerPayload.fromJson(payload.toJson()) shouldBeEqualTo payload
+        val json = payload.toJson()
+        log.debug { "payload=$payload" }
+        log.debug { "json=$json" }
+        ConsulOwnerPayload.fromJson(json) shouldBeEqualTo payload
     }
 
     @Test

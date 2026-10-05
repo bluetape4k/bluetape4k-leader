@@ -11,7 +11,7 @@ import org.junit.jupiter.api.TestInstance
  * 외부 인프라 불필요 — 단일 JVM 인메모리 실행.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LocalSuspendGroupLockExtenderContractTest : AbstractSuspendGroupLockExtenderContractTest() {
+class LocalSuspendGroupLockExtenderContractTest: AbstractSuspendGroupLockExtenderContractTest() {
 
     override val elector: SuspendLeaderGroupElector =
         LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))

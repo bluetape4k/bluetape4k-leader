@@ -18,8 +18,10 @@ import io.bluetape4k.leader.consul.internal.ConsulSuspendLockExtendDelegate
 import io.bluetape4k.leader.consul.internal.JavaHttpConsulLockClient
 import io.bluetape4k.leader.consul.internal.getWithinRequestTimeout
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -45,19 +47,19 @@ class ConsulSuspendLeaderElector private constructor(
     private val lockClient: ConsulLockClient,
     val options: ConsulLeaderElectionOptions,
 ): SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics,
-    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics,
+   io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
 
-    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
     constructor(
         endpoint: ConsulEndpoint,
         options: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
-    ) : this(JavaHttpConsulLockClient(endpoint, options.keyPrefix), options)
+    ): this(JavaHttpConsulLockClient(endpoint, options.keyPrefix), options)
 
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
         internal const val CONSUL_SUSPEND_FACTORY_BEAN_NAME = "consul-suspend-leader-elector"
 
         internal fun create(
@@ -107,7 +109,7 @@ class ConsulSuspendLeaderElector private constructor(
         if (lease == null) {
             log.warn {
                 "Consul suspend leader state ignored because owner payload is missing or invalid. " +
-                    "lockName=$lockName, sessionId=${sessionId.value}"
+                        "lockName=$lockName, sessionId=${sessionId.value}"
             }
             return LeaderState.empty(lockName)
         }

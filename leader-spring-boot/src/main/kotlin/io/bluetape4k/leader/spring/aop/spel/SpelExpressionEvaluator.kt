@@ -81,13 +81,14 @@ class SpelExpressionEvaluator(
                 )
             }
         } else {
-            runCatching { expressionCache.get(resolved) { parser.parseExpression(it) } }
-                .onFailure { ex ->
-                    throw IllegalStateException(
-                        "Invalid SpEL expression '$resolved' on ${method.declaringClass.name}#${method.name}: ${ex.message}",
-                        ex,
-                    )
-                }
+            runCatching {
+                expressionCache.get(resolved) { parser.parseExpression(it) }
+            }.onFailure { ex ->
+                throw IllegalStateException(
+                    "Invalid SpEL expression '$resolved' on ${method.declaringClass.name}#${method.name}: ${ex.message}",
+                    ex,
+                )
+            }
         }
     }
 
@@ -102,7 +103,9 @@ class SpelExpressionEvaluator(
         embeddedValueResolver?.resolveStringValue(expression) ?: expression
 
     private fun buildContext(method: Method, args: Array<Any?>?, target: Any?): SimpleEvaluationContext {
-        val rootObject = if (allowMethodInvocation) RootCtx(method, args ?: emptyArray(), target) else RootCtx(method, args ?: emptyArray(), null)
+        val rootObject =
+            if (allowMethodInvocation) RootCtx(method, args ?: emptyArray(), target)
+            else RootCtx(method, args ?: emptyArray(), null)
 
         val builder = SimpleEvaluationContext.forPropertyAccessors(
             DataBindingPropertyAccessor.forReadOnlyAccess(),
@@ -147,6 +150,7 @@ class SpelExpressionEvaluator(
         val args: Array<Any?>,
         val target: Any?,
     ) {
+
         val methodName: String get() = method.name
 
         override fun equals(other: Any?): Boolean {

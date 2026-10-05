@@ -1,25 +1,28 @@
 package io.bluetape4k.leader.etcd
 
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInRange
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class EtcdLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `runIfLeader acquires releases and allows sequential reacquire`() {
@@ -50,11 +53,11 @@ class EtcdLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
             val elector = EtcdLeaderElector(client, options)
             val lockName = randomName()
 
-            elector.state(lockName).isEmpty shouldBeEqualTo true
+            elector.state(lockName).isEmpty.shouldBeTrue()
 
             elector.runIfLeader(lockName) {
                 LockAssert.assertLocked(lockName)
-                elector.state(lockName).isEmpty shouldBeEqualTo true
+                elector.state(lockName).isEmpty.shouldBeTrue()
                 "holder"
             } shouldBeEqualTo "holder"
         }
@@ -64,6 +67,7 @@ class EtcdLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
     fun `runIfLeader returns null on contention`() {
         newClient().use { client ->
             val keyPrefix = "/bluetape4k/leader/test/${randomName()}"
+
             val holder = EtcdLeaderElector(
                 client,
                 EtcdLeaderElectionOptions(
@@ -78,6 +82,7 @@ class EtcdLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                     keyPrefix = keyPrefix,
                 ),
             )
+
             val lockName = randomName()
             val started = CountDownLatch(1)
             val release = CountDownLatch(1)
@@ -87,16 +92,16 @@ class EtcdLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 val holderFuture = executor.submit<String?> {
                     holder.runIfLeader(lockName) {
                         started.countDown()
-                        release.await(10, TimeUnit.SECONDS)
+                        release.await(10.seconds)
                         "holder"
                     }
                 }
 
-                started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+                started.await(10.seconds).shouldBeTrue()
                 contender.runIfLeader(lockName) { "contender" }.shouldBeNull()
 
                 release.countDown()
-                holderFuture.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+                holderFuture.get(10.seconds) shouldBeEqualTo "holder"
             } finally {
                 release.countDown()
                 executor.shutdownNow()
@@ -117,7 +122,7 @@ class EtcdLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 LockExtender.extendActiveLock(10.seconds)
             }
 
-            extended shouldBeEqualTo true
+            extended.shouldBeTrue()
         }
     }
 
@@ -139,10 +144,8 @@ class EtcdLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
             val result = outcome.second
             result.shouldBeInstanceOf<ExtendOutcome.Extended>()
 
-            val observedMillis = Duration.between(outcome.first, (result as ExtendOutcome.Extended).observedExpireAt)
-                .toMillis()
-            observedMillis shouldBeGreaterOrEqualTo 0L
-            observedMillis shouldBeLessOrEqualTo 6_000L
+            val observedMillis = Duration.between(outcome.first, result.observedExpireAt).toMillis()
+            observedMillis.shouldBeInRange(0L..6_000L)
         }
     }
 
@@ -158,7 +161,6 @@ class EtcdLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 "extension"
             }
 
-            result.shouldNotBeNull()
             result shouldBeEqualTo "extension"
         }
     }

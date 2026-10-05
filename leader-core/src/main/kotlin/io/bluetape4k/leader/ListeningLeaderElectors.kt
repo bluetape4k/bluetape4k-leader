@@ -1,10 +1,12 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.support.requireNotNull
+import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.resolveLeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.LeaderFutureBridge
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.requireNotNull
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -23,11 +25,13 @@ private const val EVENT_BUFFER_CAPACITY = 64
  */
 class ListeningLeaderElector(
     private val delegate: LeaderElector,
-) : LeaderElector,
-    LeaderLeaseAcquirerSupport,
-    LeaderElectionListenerRegistry,
-    LeaderElectionEventPublisher,
-    LeaderBackendDiagnosticsAware {
+): LeaderElector,
+   LeaderLeaseAcquirerSupport,
+   LeaderElectionListenerRegistry,
+   LeaderElectionEventPublisher,
+   LeaderBackendDiagnosticsAware {
+
+    companion object: KLogging()
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveLeaderBackendDiagnosticsProvider()
@@ -44,8 +48,7 @@ class ListeningLeaderElector(
         get() = delegate.supportsAuditLeaderState
 
     override val leaseCapabilityAvailable: Boolean
-        get() = (delegate as? LeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
-            ?: delegate is LeaderLeaseAcquirer
+        get() = ((delegate as? LeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable ?: delegate) is LeaderLeaseAcquirer
 
     override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
         (delegate as? LeaderLeaseAcquirer).requireNotNull {
@@ -144,7 +147,7 @@ class ListeningLeaderElector(
             } catch (e: Throwable) {
                 listeners.notifyRevoked(lockName)
                 eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
-                CompletableFuture.failedFuture(e)
+                failedCompletableFutureOf(e)
             }
         }
         return LeaderFutureBridge.observe(source) { value, failure ->
@@ -174,7 +177,7 @@ class ListeningLeaderElector(
             } catch (e: Throwable) {
                 listeners.notifyRevoked(slot.lockName)
                 eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
-                CompletableFuture.failedFuture(e)
+                failedCompletableFutureOf(e)
             }
         }
         return LeaderFutureBridge.observe(source) { value, failure ->
@@ -204,7 +207,7 @@ class ListeningLeaderElector(
             } catch (e: Throwable) {
                 listeners.notifyRevoked(slot.lockName)
                 eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
-                CompletableFuture.failedFuture(e)
+                failedCompletableFutureOf(e)
             }
         }
         return LeaderFutureBridge.observe(source) { result, failure ->
@@ -224,10 +227,10 @@ class ListeningLeaderElector(
  */
 class ListeningLeaderGroupElector(
     private val delegate: LeaderGroupElector,
-) : LeaderGroupElector,
-    LeaderElectionListenerRegistry,
-    LeaderElectionEventPublisher,
-    LeaderBackendDiagnosticsAware {
+): LeaderGroupElector,
+   LeaderElectionListenerRegistry,
+   LeaderElectionEventPublisher,
+   LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveLeaderBackendDiagnosticsProvider()
@@ -295,7 +298,7 @@ class ListeningLeaderGroupElector(
             } catch (e: Throwable) {
                 listeners.notifyRevoked(lockName)
                 eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
-                CompletableFuture.failedFuture(e)
+                failedCompletableFutureOf(e)
             }
         }
         return LeaderFutureBridge.observe(source) { value, failure ->

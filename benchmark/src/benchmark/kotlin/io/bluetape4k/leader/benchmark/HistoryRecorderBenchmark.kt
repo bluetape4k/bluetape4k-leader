@@ -186,7 +186,7 @@ class HistoryRecorderBenchmark {
     private fun fallbackKey(): LeaderHistoryKey =
         LeaderHistoryKey(lockName = record.lockName, token = record.token)
 
-    private class InMemoryLeaderHistorySink : LeaderHistorySink {
+    private class InMemoryLeaderHistorySink: LeaderHistorySink {
         private val records = ConcurrentHashMap<LeaderHistoryKey, LeaderLockHistoryRecord>()
 
         override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey {
@@ -224,7 +224,7 @@ class HistoryRecorderBenchmark {
         }
     }
 
-    private class InMemorySuspendLeaderHistorySink : SuspendLeaderHistorySink {
+    private class InMemorySuspendLeaderHistorySink: SuspendLeaderHistorySink {
         private val records = ConcurrentHashMap<LeaderHistoryKey, LeaderLockHistoryRecord>()
 
         override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey {

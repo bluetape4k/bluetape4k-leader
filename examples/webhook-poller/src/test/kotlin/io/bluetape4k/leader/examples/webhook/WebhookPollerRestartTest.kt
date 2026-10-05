@@ -3,7 +3,10 @@ package io.bluetape4k.leader.examples.webhook
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -24,6 +27,9 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WebhookPollerRestartTest {
+
+    companion object: KLoggingChannel()
+
     @ParameterizedTest
     @ValueSource(strings = ["timeout", "caller-cancel", "direct-cancel", "zero-timeout"])
     fun `정리가 끝나기 전에는 재시작을 거부하고 완료 후 허용한다`(mode: String) = runTest {
@@ -31,8 +37,10 @@ class WebhookPollerRestartTest {
         val cleaning = CompletableDeferred<Unit>()
         val elector = cleanupElector(cleaning, release)
         val worker = WebhookPoller(elector, mockk(relaxed = true), WebhookPollerOptions("node", "restart")) { }
-        val first = worker.start(backgroundScope)
+
+        val first = worker.start(backgroundScope).log("first")
         runCurrent()
+
         try {
             when (mode) {
                 "timeout" -> worker.stopGracefully(10.milliseconds)
@@ -47,56 +55,68 @@ class WebhookPollerRestartTest {
             runCurrent()
             cleaning.isCompleted.shouldBeTrue()
             first.isCompleted.shouldBeFalse()
-            assertFailsWith<IllegalStateException> { worker.start(backgroundScope) }
+
+            assertFailsWith<IllegalStateException> {
+                worker.start(backgroundScope)
+            }
         } finally {
             release.complete(Unit)
             first.cancelAndJoin()
         }
-        val next = worker.start(backgroundScope)
+
+        val next = worker.start(backgroundScope).log("next")
         runCurrent()
-        try {
-            assertFailsWith<IllegalStateException> { worker.start(backgroundScope) }
-        } finally {
-            next.cancelAndJoin()
+
+        assertFailsWith<IllegalStateException> {
+            worker.start(backgroundScope)
         }
+        next.cancelAndJoin()
     }
 
     @Test
     fun `이전 stop의 반환이 완료 callback에서 시작한 새 job을 지우지 않는다`() = runTest {
         val release = CompletableDeferred<Unit>()
         val elector = cleanupElector(CompletableDeferred(), release)
+
         val worker = WebhookPoller(elector, mockk(relaxed = true), WebhookPollerOptions("node", "restart")) { }
+
         val first = worker.start(backgroundScope)
         runCurrent()
+
         var next: Job? = null
         first.invokeOnCompletion { next = worker.start(backgroundScope) }
         release.complete(Unit)
         worker.stopGracefully()
         runCurrent()
-        try {
-            requireNotNull(next).isActive.shouldBeTrue()
-            assertFailsWith<IllegalStateException> { worker.start(backgroundScope) }
-        } finally {
-            next?.cancelAndJoin()
+
+
+        next.shouldNotBeNull().isActive.shouldBeTrue()
+        assertFailsWith<IllegalStateException> {
+            worker.start(backgroundScope)
         }
+
+        next.cancelAndJoin()
     }
 
     @Test
     fun `이미 취소된 scope의 즉시 완료도 재시작을 막지 않는다`() = runTest {
         val release = CompletableDeferred<Unit>().apply { complete(Unit) }
         val elector = cleanupElector(CompletableDeferred(), release)
+
         val worker = WebhookPoller(elector, mockk(relaxed = true), WebhookPollerOptions("node", "restart")) { }
         val cancelledScope = CoroutineScope(backgroundScope.coroutineContext + Job().apply { cancel() })
+
         val first = worker.start(cancelledScope)
         runCurrent()
         first.isCompleted.shouldBeTrue()
+
         val next = worker.start(backgroundScope)
         runCurrent()
-        try {
-            assertFailsWith<IllegalStateException> { worker.start(backgroundScope) }
-        } finally {
-            next.cancelAndJoin()
+
+        assertFailsWith<IllegalStateException> {
+            worker.start(backgroundScope)
         }
+        next.cancelAndJoin()
     }
 
     /** 실제 worker의 job 종료를 backend cleanup 경계에서 멈춥니다. */

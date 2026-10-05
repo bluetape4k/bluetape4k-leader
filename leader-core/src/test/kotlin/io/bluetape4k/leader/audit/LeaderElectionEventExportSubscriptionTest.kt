@@ -1,14 +1,20 @@
 package io.bluetape4k.leader.audit
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import java.util.concurrent.ConcurrentLinkedQueue
 
 class LeaderElectionEventExportSubscriptionTest {
+
+    companion object: KLoggingChannel()
 
     @Test
     fun `subscription exports lifecycle events and stops after close`() = runTest {
@@ -24,19 +30,21 @@ class LeaderElectionEventExportSubscriptionTest {
         runCurrent()
 
         exporter.events.size shouldBeEqualTo 1
-        (exporter.events.single() as LeaderAuditExportEvent.Lifecycle).outcome
-            .shouldBeEqualTo(LeaderAuditLifecycleOutcome.ELECTED)
+        val event = exporter.events.single()
+        event.shouldBeInstanceOf<LeaderAuditExportEvent.Lifecycle>()
+        event.outcome shouldBeEqualTo LeaderAuditLifecycleOutcome.ELECTED
+
         subscription.close()
     }
 
-    private class FakePublisher : LeaderElectionEventPublisher {
+    private class FakePublisher: LeaderElectionEventPublisher {
         val subject = MutableSharedFlow<LeaderElectionEvent>(extraBufferCapacity = 8)
-        override val events: kotlinx.coroutines.flow.Flow<LeaderElectionEvent>
+        override val events: Flow<LeaderElectionEvent>
             get() = subject
     }
 
-    private class RecordingExporter : LeaderAuditExporter {
-        val events = mutableListOf<LeaderAuditExportEvent>()
+    private class RecordingExporter: LeaderAuditExporter {
+        val events = ConcurrentLinkedQueue<LeaderAuditExportEvent>()
 
         override fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult {
             events += event

@@ -5,6 +5,7 @@ import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
+import java.io.Serializable
 
 /**
  * `AdviceMetadata`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
@@ -45,7 +46,7 @@ internal data class AdviceMetadata(
     val suspendElectorFactoryBeanName: String,
     val annotationKind: LockIdentity.AnnotationKind = LockIdentity.AnnotationKind.SINGLE,
     val groupParams: LockIdentity.GroupParams? = null,
-) {
+): Serializable {
     /**
      * `resolveLockIdentity` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
      *
@@ -62,5 +63,9 @@ internal data class AdviceMetadata(
             factoryBeanName = beanName,
             groupParams = groupParams,
         )
+    }
+
+    companion object {
+        private const val serialVersionUID = 1L
     }
 }

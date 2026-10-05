@@ -2,22 +2,25 @@ package io.bluetape4k.leader.etcd.internal
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class EtcdLeaderPathsTest {
 
+    companion object: KLogging()
+
     @Test
     fun `single leader path uses default prefix and encoded lock name`() {
-        EtcdLeaderPaths().single("batch:daily") shouldBeEqualTo
-            "/bluetape4k/leader/single/batch%3Adaily"
+        EtcdLeaderPaths()
+            .single("batch:daily") shouldBeEqualTo "/bluetape4k/leader/single/batch%3Adaily"
     }
 
     @Test
     fun `group slot path uses zero based slot suffix`() {
-        EtcdLeaderPaths("/service/leader/").groupSlot("batch_job", 2) shouldBeEqualTo
-            "/service/leader/group/batch_job/slot-2"
+        EtcdLeaderPaths("/service/leader/")
+            .groupSlot("batch_job", 2) shouldBeEqualTo "/service/leader/group/batch_job/slot-2"
     }
 
     @Test

@@ -15,7 +15,7 @@ import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 class ExposedR2DbcSuspendLeaderGroupElectorFactory(
     private val db: R2dbcDatabase,
     private val baseOptions: ExposedR2dbcLeaderGroupElectionOptions = ExposedR2dbcLeaderGroupElectionOptions.Default,
-) : SuspendLeaderGroupElectorFactory {
+): SuspendLeaderGroupElectorFactory {
 
     override suspend fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
         ExposedR2DbcSuspendLeaderGroupElector(db, baseOptions.copy(leaderGroupOptions = options))

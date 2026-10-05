@@ -9,7 +9,7 @@ package io.bluetape4k.leader.spring.route
 class LeaderRouteGuardConfigurationException(
     val code: String,
     detail: String,
-) : IllegalStateException("$code: $detail") {
+): IllegalStateException("$code: $detail") {
 
     companion object {
         const val AUTHORITY_MIXED: String = "LEADER_ROUTE_AUTHORITY_MIXED"

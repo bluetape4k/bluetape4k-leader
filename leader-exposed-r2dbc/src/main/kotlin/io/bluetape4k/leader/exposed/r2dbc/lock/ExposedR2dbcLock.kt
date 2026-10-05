@@ -1,43 +1,37 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
-import io.bluetape4k.leader.remainingMinLeaseTime
-import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.r2dbc.internal.MonotonicDeadline
 import io.bluetape4k.leader.exposed.r2dbc.internal.classifyAcquisitionFailure
-import io.bluetape4k.leader.internal.BackendErrorKind
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
+import io.bluetape4k.leader.internal.BackendErrorKind
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.withContext
-import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
+import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
-import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
 import org.jetbrains.exposed.v1.r2dbc.deleteWhere
 import org.jetbrains.exposed.v1.r2dbc.insertIgnore
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
-import kotlinx.coroutines.flow.firstOrNull
-import java.time.LocalDateTime
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
-import java.time.ZonedDateTime
+import kotlin.time.Duration
 
 /**
  * `ExposedR2dbcLock`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -278,8 +272,8 @@ internal class ExposedR2dbcLock internal constructor(
             val updated = LeaderLockTable.update(
                 where = {
                     (LeaderLockTable.lockName eq lockNameVal) and
-                        (LeaderLockTable.token eq tokenVal) and
-                        (LeaderLockTable.lockedUntil greater now)  // R6: expired row revival 차단
+                            (LeaderLockTable.token eq tokenVal) and
+                            (LeaderLockTable.lockedUntil greater now)  // R6: expired row revival 차단
                 }
             ) {
                 it[LeaderLockTable.lockedUntil] = newLockedUntil
@@ -293,36 +287,52 @@ internal class ExposedR2dbcLock internal constructor(
         }
     }
 
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("lockName", lockName)
+            .add("lockOwner", lockOwner)
+            .add("useDbTime", useDbTime)
+            .add("retryStrategy", retryStrategy)
+            .toString()
+    }
 }
 
-// Keep the 0.4.x file-facade ABI while the shared current-time implementation lives in
-// ExposedR2dbcCurrentTime.kt. This private declaration intentionally retains compiler-generated
-// accessors used by already-compiled callers.
+/**
+ * 1.0.0에서 노출된 JVM facade를 유지하는 호환용 cancellation 보존 연산 함수입니다.
+ */
 @Suppress("unused")
-private suspend fun R2dbcTransaction.currentTime(): Instant = dbCurrentTimestamp()
-
-private suspend fun R2dbcTransaction.dbCurrentTimestamp(): Instant =
-    exec("SELECT CURRENT_TIMESTAMP") { row -> row.get(0).toInstant() }
-        ?.firstOrNull()
-        ?: error("SELECT CURRENT_TIMESTAMP returned no rows")
-
-private fun Any?.toInstant(): Instant =
-    when (this) {
-        is Instant -> this
-        is OffsetDateTime -> toInstant()
-        is ZonedDateTime -> toInstant()
-        is LocalDateTime -> toInstant(ZoneOffset.UTC)
-        else -> error("Unsupported CURRENT_TIMESTAMP value: ${this?.javaClass?.name ?: "null"}")
-    }
-
-internal suspend fun <T> runR2dbcLockOperationPreservingCancellation(
+@JvmName("runR2dbcLockOperationPreservingCancellation")
+public suspend fun <T> legacyRunR2dbcLockOperationPreservingCancellation(
     onFailure: (Exception) -> T,
     operation: suspend () -> T,
-): T =
-    try {
-        operation()
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        onFailure(e)
-    }
+): T = runR2dbcLockOperationPreservingCancellation(onFailure, operation)
+
+// Keep the 1.0.0 file-facade accessors while current-time behavior lives in
+// ExposedR2dbcCurrentTime.kt. These private declarations are retained solely for
+// already-compiled callers that resolve the generated access$currentTime methods.
+@Suppress("unused")
+private suspend fun R2dbcTransaction.currentTime(): Instant = currentTime(useDbTime = true)
+
+@Suppress("unused")
+private suspend fun R2dbcTransaction.dbCurrentTimestamp(): Instant = currentTime(useDbTime = true)
+
+//// Keep the 0.4.x file-facade ABI while the shared current-time implementation lives in
+//// ExposedR2dbcCurrentTime.kt. This private declaration intentionally retains compiler-generated
+//// accessors used by already-compiled callers.
+//@Suppress("unused")
+//private suspend fun R2dbcTransaction.currentTime(): Instant = dbCurrentTimestamp()
+//
+//private suspend fun R2dbcTransaction.dbCurrentTimestamp(): Instant =
+//    exec("SELECT CURRENT_TIMESTAMP") { row -> row.get(0).toInstant() }
+//        ?.firstOrNull()
+//        ?: error("SELECT CURRENT_TIMESTAMP returned no rows")
+//
+//private fun Any?.toInstant(): Instant =
+//    when (this) {
+//        is Instant -> this
+//        is OffsetDateTime -> toInstant()
+//        is ZonedDateTime -> toInstant()
+//        is LocalDateTime -> toInstant(ZoneOffset.UTC)
+//        else -> error("Unsupported CURRENT_TIMESTAMP value: ${this?.javaClass?.name ?: "null"}")
+//    }
+//

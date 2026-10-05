@@ -16,7 +16,7 @@ internal class LeaderRouteAuthorityRuntime(
 ) {
 
     /** Preserves the constructor descriptor published before redirect freshness support. */
-    internal constructor(authority: LeaderRouteAuthority) : this(authority, Clock.systemUTC())
+    internal constructor(authority: LeaderRouteAuthority): this(authority, Clock.systemUTC())
 
     fun evaluate(slot: LeaderSlot): LeaderRouteDecision = evaluateSnapshot(slot).decision
 

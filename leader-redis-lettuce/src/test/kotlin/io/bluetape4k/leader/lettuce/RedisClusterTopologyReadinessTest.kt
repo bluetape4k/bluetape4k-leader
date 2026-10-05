@@ -4,6 +4,8 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.lettuce.core.cluster.models.partitions.RedisClusterNode
 import io.lettuce.core.cluster.models.partitions.RedisClusterNode.NodeFlag
 import org.awaitility.core.ConditionTimeoutException
@@ -12,6 +14,8 @@ import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
 class RedisClusterTopologyReadinessTest {
+
+    companion object: KLogging()
 
     @Test
     fun `replica 관계가 다음 topology snapshot에 나타나면 기다린 뒤 반환한다`() {
@@ -26,7 +30,10 @@ class RedisClusterTopologyReadinessTest {
 
         actual.nodeId shouldBeEqualTo "replica"
         attempts.get() shouldBeGreaterThan 1
+
         val readiness = evidence.single()
+
+        log.debug { "readiness=$readiness" }
         readiness shouldContain "phase=replica-readiness"
         readiness shouldContain "attempts=${attempts.get()}"
         readiness shouldContain "source=source;replica=replica"
@@ -44,13 +51,15 @@ class RedisClusterTopologyReadinessTest {
             }
         }
 
-        failure.message.orEmpty() shouldContain "sourceNodeId=source"
-        failure.message.orEmpty() shouldContain "nodeId=source"
-        failure.message.orEmpty() shouldContain "role=UPSTREAM"
-        failure.message.orEmpty() shouldContain "slaveOf=other"
-        failure.message.orEmpty() shouldContain "slotCount=2"
-        failure.message.orEmpty() shouldContain "slotRange=0..1"
+        failure.message shouldContain "sourceNodeId=source"
+        failure.message shouldContain "nodeId=source"
+        failure.message shouldContain "role=UPSTREAM"
+        failure.message shouldContain "slaveOf=other"
+        failure.message shouldContain "slotCount=2"
+        failure.message shouldContain "slotRange=0..1"
+
         val readiness = evidence.single()
+        log.debug { "readiness=$readiness" }
         readiness shouldContain "phase=replica-readiness"
         readiness shouldContain "source=source;replica=null"
         readiness shouldContain "slaveOf=other"

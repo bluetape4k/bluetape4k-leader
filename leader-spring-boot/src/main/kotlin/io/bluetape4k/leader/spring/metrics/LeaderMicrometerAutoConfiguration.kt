@@ -1,12 +1,12 @@
 package io.bluetape4k.leader.spring.metrics
 
 import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
-import io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder
-import io.bluetape4k.leader.micrometer.MicrometerObservationLeaderAopMetricsRecorder
 import io.bluetape4k.leader.micrometer.LeaderMetricTagMode
 import io.bluetape4k.leader.micrometer.LeaderMetricTagOptions
 import io.bluetape4k.leader.micrometer.LeaderMetricTagRule
 import io.bluetape4k.leader.micrometer.LeaderMetricTagSanitizer
+import io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder
+import io.bluetape4k.leader.micrometer.MicrometerObservationLeaderAopMetricsRecorder
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
@@ -35,10 +35,12 @@ import org.springframework.core.type.AnnotatedTypeMetadata
     after = [LeaderAopFactoryAutoConfiguration::class],
     before = [LeaderAopAutoConfiguration::class],
 )
-@ConditionalOnClass(name = [
-    "io.micrometer.core.instrument.MeterRegistry",
-    "io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder",
-])
+@ConditionalOnClass(
+    name = [
+        "io.micrometer.core.instrument.MeterRegistry",
+        "io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder",
+    ]
+)
 @ConditionalOnProperty(
     prefix = "bluetape4k.leader.aop.metrics",
     name = ["enabled"],
@@ -110,7 +112,7 @@ private fun LeaderAopProperties.Metrics.TagMode.toMicrometerMode(): LeaderMetric
         LeaderAopProperties.Metrics.TagMode.TRUNCATE -> LeaderMetricTagMode.TRUNCATE
     }
 
-private class DefaultMeterRecorderCondition : Condition {
+private class DefaultMeterRecorderCondition: Condition {
     override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean {
         val beanFactory = context.beanFactory as? ListableBeanFactory ?: return true
         val recorderNames = beanFactory.getBeanNamesForType(LeaderAopMetricsRecorder::class.java, true, false)

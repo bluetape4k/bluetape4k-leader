@@ -5,10 +5,29 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.CancellationException
 import org.junit.jupiter.api.Test
+import java.lang.reflect.Modifier
 
 class R2dbcLockCancellationTest {
+
+    companion object: KLoggingChannel()
+
+    @Test
+    fun `legacy cancellation helper remains in its original JVM facade`() {
+        val method = Class.forName(
+            "io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcLockKt"
+        ).getDeclaredMethod(
+            "runR2dbcLockOperationPreservingCancellation",
+            Function1::class.java,
+            Function1::class.java,
+            kotlin.coroutines.Continuation::class.java,
+        )
+
+        method.returnType shouldBeEqualTo Any::class.java
+        (Modifier.isPublic(method.modifiers) && Modifier.isStatic(method.modifiers)) shouldBeEqualTo true
+    }
 
     @Test
     fun `R2DBC lock operation - CancellationException 재전파`() = runSuspendIO {

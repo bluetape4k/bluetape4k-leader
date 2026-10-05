@@ -1,25 +1,29 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderStatus
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
-import kotlin.time.Duration
+import java.util.concurrent.CompletionException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
+import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.random.Random
-import io.bluetape4k.assertions.shouldBeTrue
 
 class LocalLeaderElectionTest {
 
@@ -51,15 +55,15 @@ class LocalLeaderElectionTest {
             LeaderElectionOptions(nodeId = nodeId)
         )
         val lockName = randomLockName()
-        val started = java.util.concurrent.CountDownLatch(1)
-        val release = java.util.concurrent.CountDownLatch(1)
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
 
-        val holder = Thread {
+        val holder = thread {
             stateElection.runIfLeader(lockName) {
                 started.countDown()
                 release.await()
             }
-        }.apply { start() }
+        }
 
         started.await()
 
@@ -110,7 +114,6 @@ class LocalLeaderElectionTest {
         holder.join()
 
         extendedLeaseUntil.isAfter(initialLeaseUntil).shouldBeTrue()
-
     }
 
     @Test
@@ -125,7 +128,8 @@ class LocalLeaderElectionTest {
     @Test
     fun `runIfLeader - action 예외 후에도 락이 해제되어 다음 호출이 성공한다`() {
         val lockName = randomLockName()
-        runCatching {
+
+        assertFailsWith<LeaderElectionException> {
             election.runIfLeader(lockName) { throw LeaderElectionException("실패") }
         }
 
@@ -148,7 +152,7 @@ class LocalLeaderElectionTest {
     fun `runIfLeader - 멀티스레드 동시 실행 시 직렬 처리를 보장한다`() {
         val lockName = randomLockName()
         val counter = AtomicInteger(0)
-        val numThreads = 8
+        val numThreads = 2 * Runtimex.availableProcessors
         val roundsPerThread = 4
 
         MultithreadingTester()
@@ -177,7 +181,7 @@ class LocalLeaderElectionTest {
     @Test
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action 을 실행하고 결과를 반환한다`() {
         val result = election.runAsyncIfLeader(randomLockName()) {
-            CompletableFuture.completedFuture("async-ok")
+            completableFutureOf("async-ok")
         }.join()
 
         result shouldBeEqualTo "async-ok"
@@ -187,7 +191,7 @@ class LocalLeaderElectionTest {
     fun `runAsyncIfLeader - action future 실패 시 CompletionException 이 전파된다`() {
         assertFailsWith<CompletionException> {
             election.runAsyncIfLeader(randomLockName()) {
-                CompletableFuture.failedFuture<String>(IllegalStateException("비동기 실패"))
+                failedCompletableFutureOf<String>(IllegalStateException("비동기 실패"))
             }.join()
         }
     }
@@ -195,14 +199,14 @@ class LocalLeaderElectionTest {
     @Test
     fun `runAsyncIfLeader - action future 실패 후에도 락이 해제되어 다음 호출이 성공한다`() {
         val lockName = randomLockName()
-        runCatching {
+        assertFailsWith<RuntimeException> {
             election.runAsyncIfLeader(lockName) {
-                CompletableFuture.failedFuture<Int>(RuntimeException("실패"))
+                failedCompletableFutureOf<Int>(RuntimeException("실패"))
             }.join()
         }
 
         val result = election.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture(42)
+            completableFutureOf(42)
         }.join()
 
         result shouldBeEqualTo 42
@@ -212,7 +216,7 @@ class LocalLeaderElectionTest {
     fun `runAsyncIfLeader - 멀티스레드 동시 실행 시 직렬 처리를 보장한다`() {
         val lockName = randomLockName()
         val counter = AtomicInteger(0)
-        val numThreads = 8
+        val numThreads = 2 * Runtimex.availableProcessors
         val roundsPerThread = 4
 
         MultithreadingTester()
@@ -220,7 +224,7 @@ class LocalLeaderElectionTest {
             .rounds(roundsPerThread)
             .add {
                 election.runAsyncIfLeader(lockName) {
-                    CompletableFuture.supplyAsync {
+                    futureOf {
                         log.debug { "비동기 작업 1 실행. counter=${counter.get()}" }
                         Thread.sleep(Random.nextLong(1, 5))
                         counter.incrementAndGet()
@@ -229,7 +233,7 @@ class LocalLeaderElectionTest {
             }
             .add {
                 election.runAsyncIfLeader(lockName) {
-                    CompletableFuture.supplyAsync {
+                    futureOf {
                         log.debug { "비동기 작업 2 실행. counter=${counter.get()}" }
                         Thread.sleep(Random.nextLong(1, 5))
                         counter.incrementAndGet()
@@ -254,12 +258,12 @@ class LocalLeaderElectionTest {
         val releaseLatch = java.util.concurrent.CountDownLatch(1)
 
         // 첫 번째 스레드: 동일 election 으로 락을 획득하고 오래 대기
-        val firstThread = Thread {
+        val firstThread = thread {
             skipElection.runIfLeader(lockName) {
                 latch.countDown()
                 releaseLatch.await() // 메인 스레드가 skip 확인 후 해제
             }
-        }.apply { start() }
+        }
 
         latch.await() // 첫 번째 스레드가 락을 획득할 때까지 대기
 
@@ -297,14 +301,14 @@ class LocalLeaderElectionTest {
             )
         )
         val lockName = randomLockName()
-        val actionReturned = java.util.concurrent.CountDownLatch(1)
+        val actionReturned = CountDownLatch(1)
 
-        val holder = Thread {
+        val holder = thread {
             minLeaseElection.runIfLeader(lockName) {
                 actionReturned.countDown()
                 "fast"
             }
-        }.apply { start() }
+        }
 
         actionReturned.await()
 
@@ -323,20 +327,21 @@ class LocalLeaderElectionTest {
             LeaderElectionOptions(waitTime = 100.milliseconds)
         )
         val lockName = randomLockName()
-        val latch = java.util.concurrent.CountDownLatch(1)
-        val releaseLatch = java.util.concurrent.CountDownLatch(1)
+        val latch = CountDownLatch(1)
+        val releaseLatch = CountDownLatch(1)
 
-        val firstThread = Thread {
+        val firstThread = thread {
             skipElection.runIfLeader(lockName) {
                 latch.countDown()
                 releaseLatch.await()
             }
-        }.apply { start() }
+        }
 
         latch.await()
 
+        // Leader 선출 실패
         val result = skipElection.runAsyncIfLeader(lockName) {
-            CompletableFuture.completedFuture("should-skip")
+            completableFutureOf("should-skip")
         }.join()
         result.shouldBeNull()
 

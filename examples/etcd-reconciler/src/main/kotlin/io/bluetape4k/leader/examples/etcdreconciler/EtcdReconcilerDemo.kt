@@ -15,7 +15,7 @@ object EtcdReconcilerDemo {
     @JvmStatic
     fun main(args: Array<String>) {
         startExampleContainer { reuse -> EtcdServer(reuse = reuse) }
-            .also { etcd ->
+            .use { etcd ->
                 Client.builder()
                     .endpoints(etcd.endpoint)
                     .connectTimeout(Duration.ofSeconds(10))

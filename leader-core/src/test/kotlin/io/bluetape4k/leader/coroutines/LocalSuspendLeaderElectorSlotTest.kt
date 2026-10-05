@@ -3,12 +3,11 @@ package io.bluetape4k.leader.coroutines
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -20,7 +19,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LocalSuspendLeaderElectorSlotTest {
 
-    companion object : KLogging()
+    companion object: KLoggingChannel()
 
     private val election = LocalSuspendLeaderElector()
 
@@ -50,8 +49,8 @@ class LocalSuspendLeaderElectorSlotTest {
         val s = slot("suspend-result")
         val result = election.runIfLeaderResultSuspend(s) { "done" }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value shouldBeEqualTo "done"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+        result.value shouldBeEqualTo "done"
         result.leaderId shouldBeEqualTo "suspend-result"
     }
 
@@ -60,8 +59,8 @@ class LocalSuspendLeaderElectorSlotTest {
         val s = slot("null-suspend")
         val result = election.runIfLeaderResultSuspend(s) { null }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value.shouldBeNull()
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.value.shouldBeNull()
         result.leaderId shouldBeEqualTo "null-suspend"
     }
 
@@ -85,7 +84,7 @@ class LocalSuspendLeaderElectorSlotTest {
         val r1 = election.runIfLeaderResultSuspend(s1) { 1 }
         val r2 = election.runIfLeaderResultSuspend(s2) { 2 }
 
-        (r1 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "suspend-1"
-        (r2 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "suspend-2"
+        r1.shouldBeInstanceOf<LeaderRunResult.Elected<Int>>().leaderId shouldBeEqualTo "suspend-1"
+        r2.shouldBeInstanceOf<LeaderRunResult.Elected<Int>>().leaderId shouldBeEqualTo "suspend-2"
     }
 }

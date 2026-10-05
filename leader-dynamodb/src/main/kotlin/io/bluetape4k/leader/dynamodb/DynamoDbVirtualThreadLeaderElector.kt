@@ -2,6 +2,7 @@ package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.concurrent.virtualthread.virtualFuture
+import io.bluetape4k.leader.dynamodb.runVirtualIfLeader as currentRunVirtualIfLeader
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.VirtualThreadLeaderElector
@@ -17,8 +18,8 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
  */
 class DynamoDbVirtualThreadLeaderElector(
     private val delegate: DynamoDbLeaderElector,
-) : VirtualThreadLeaderElector,
-    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
+): VirtualThreadLeaderElector,
+   LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
 
     override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
         virtualFuture {
@@ -39,14 +40,11 @@ class DynamoDbVirtualThreadLeaderElector(
         })
 }
 
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
-fun <T> DynamoDbClient.runVirtualIfLeader(
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("runVirtualIfLeader")
+fun <T> DynamoDbClient.legacyRunVirtualIfLeader(
     lockName: String,
     options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
     action: () -> T,
-): VirtualFuture<T?> =
-    DynamoDbVirtualThreadLeaderElector(DynamoDbLeaderElector(this, options)).runAsyncIfLeader(lockName, action)
+): VirtualFuture<T?> = this.currentRunVirtualIfLeader(lockName, options, action)

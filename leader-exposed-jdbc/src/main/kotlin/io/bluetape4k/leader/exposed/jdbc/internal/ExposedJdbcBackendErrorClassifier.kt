@@ -2,7 +2,6 @@ package io.bluetape4k.leader.exposed.jdbc.internal
 
 import io.bluetape4k.leader.internal.BackendErrorClassifier
 import io.bluetape4k.leader.internal.BackendErrorKind
-import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import java.sql.SQLException
 import java.sql.SQLNonTransientException
 import java.sql.SQLRecoverableException
@@ -13,7 +12,7 @@ import java.sql.SQLTransientException
  *
  * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
-internal object ExposedJdbcBackendErrorClassifier : BackendErrorClassifier {
+internal object ExposedJdbcBackendErrorClassifier: BackendErrorClassifier {
 
     /**
      * `SQL_STATE_CONNECTION_PREFIX` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.

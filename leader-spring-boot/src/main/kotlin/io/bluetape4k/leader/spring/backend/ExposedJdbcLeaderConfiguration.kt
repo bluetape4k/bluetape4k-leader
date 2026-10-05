@@ -1,9 +1,9 @@
 package io.bluetape4k.leader.spring.backend
 
-import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElector
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElectionOptions
-import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElector
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElector
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElectionOptions
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElector
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcVirtualThreadLeaderElector
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.spring.LeaderProperties

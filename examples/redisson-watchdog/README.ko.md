@@ -7,8 +7,7 @@ bluetape4k lease auto-extension으로 장시간 leader job을 보호하는 Redis
 ## 시나리오
 
 두 node가 같은 Redis-backed lock을 경쟁합니다. 선출된 node의 job은 초기 lease time보다 오래 실행될 수 있으므로
-`LeaderElectionOptions(autoExtend = true)`가 method body 실행 중 lock을 계속 갱신합니다. 경쟁 node는 lock이 유지되는
-동안 skip하고, leader가 release한 뒤 lock을 획득할 수 있습니다.
+`LeaderElectionOptions(autoExtend = true)`가 method body 실행 중 lock을 계속 갱신합니다. 경쟁 node는 lock이 유지되는 동안 skip하고, leader가 release한 뒤 lock을 획득할 수 있습니다.
 
 ## 예제 시나리오
 

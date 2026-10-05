@@ -1,22 +1,23 @@
 package io.bluetape4k.leader.spring.route.mvc
 
-import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderLeaseHandle
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.spring.properties.LeaderRouteGuardProperties
 import io.bluetape4k.leader.spring.route.LeaderRouteAuthorityRuntime
-import io.bluetape4k.leader.spring.route.LeaderRouteLeaseRuntime
 import io.bluetape4k.leader.spring.route.LeaderRouteDecision
+import io.bluetape4k.leader.spring.route.LeaderRouteLeaseRuntime
+import io.bluetape4k.leader.spring.route.LeaderRouteRedirectFramework
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectPolicy
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectRequestMetadata
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectRequestMetadataProvider
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectResolver
-import io.bluetape4k.leader.spring.route.LeaderRouteRedirectFramework
+import io.bluetape4k.logging.KLogging
 import jakarta.servlet.AsyncEvent
 import jakarta.servlet.AsyncListener
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import org.springframework.web.servlet.HandlerInterceptor
 import org.springframework.web.servlet.AsyncHandlerInterceptor
+import org.springframework.web.servlet.HandlerInterceptor
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -38,21 +39,21 @@ class LeaderMvcRouteGuardFactory internal constructor(
     internal constructor(
         runtime: LeaderRouteAuthorityRuntime,
         properties: LeaderRouteGuardProperties,
-    ) : this(runtime, properties, properties.redirect.takeIf { it.enabled }?.let(::LeaderRouteRedirectPolicy))
+    ): this(runtime, properties, properties.redirect.takeIf { it.enabled }?.let(::LeaderRouteRedirectPolicy))
 
     /**
      * `interceptor`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
      *
      * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
      */
-    fun interceptor(slot: LeaderSlot): HandlerInterceptor = object : HandlerInterceptor, AsyncHandlerInterceptor {
+    fun interceptor(slot: LeaderSlot): HandlerInterceptor = object: HandlerInterceptor, AsyncHandlerInterceptor {
         override fun preHandle(
             request: HttpServletRequest,
             response: HttpServletResponse,
             _handler: Any,
         ): Boolean = preHandle(slot, request, response, null, null)
 
-    override fun afterCompletion(
+        override fun afterCompletion(
             request: HttpServletRequest,
             response: HttpServletResponse,
             _handler: Any,
@@ -79,7 +80,7 @@ class LeaderMvcRouteGuardFactory internal constructor(
         slot: LeaderSlot,
         resolver: LeaderRouteRedirectResolver,
         metadataProvider: LeaderRouteRedirectRequestMetadataProvider<HttpServletRequest>?,
-    ): HandlerInterceptor = object : HandlerInterceptor, AsyncHandlerInterceptor {
+    ): HandlerInterceptor = object: HandlerInterceptor, AsyncHandlerInterceptor {
         override fun preHandle(
             request: HttpServletRequest,
             response: HttpServletResponse,
@@ -92,7 +93,7 @@ class LeaderMvcRouteGuardFactory internal constructor(
             request: HttpServletRequest,
             response: HttpServletResponse,
             _handler: Any,
-        _exception: Exception?,
+            _exception: Exception?,
         ) {
             releaseLease(request)
         }
@@ -201,7 +202,7 @@ class LeaderMvcRouteGuardFactory internal constructor(
     private fun registerAsyncCompletion(request: HttpServletRequest) {
         val holder = request.getAttribute(LEASE_HANDLE_ATTRIBUTE) as? LeaseRequestHolder ?: return
         try {
-            request.asyncContext.addListener(object : AsyncListener {
+            request.asyncContext.addListener(object: AsyncListener {
                 override fun onComplete(event: AsyncEvent) = releaseLease(request)
 
                 override fun onTimeout(event: AsyncEvent) = releaseLease(request)
@@ -233,24 +234,25 @@ class LeaderMvcRouteGuardFactory internal constructor(
     private fun captureMetadata(
         request: HttpServletRequest,
         provider: LeaderRouteRedirectRequestMetadataProvider<HttpServletRequest>?,
-    ): MetadataCapture = try {
-        MetadataCapture.Success(provider?.capture(request))
-    } catch (e: java.util.concurrent.CancellationException) {
-        throw e
-    } catch (e: InterruptedException) {
-        Thread.currentThread().interrupt()
-        throw e
-    } catch (_: Exception) {
-        MetadataCapture.Failure
-    }
+    ): MetadataCapture =
+        try {
+            MetadataCapture.Success(provider?.capture(request))
+        } catch (e: java.util.concurrent.CancellationException) {
+            throw e
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw e
+        } catch (_: Exception) {
+            MetadataCapture.Failure
+        }
 
     private sealed interface MetadataCapture {
-        data class Success(val metadata: LeaderRouteRedirectRequestMetadata?) : MetadataCapture
+        data class Success(val metadata: LeaderRouteRedirectRequestMetadata?): MetadataCapture
 
-        data object Failure : MetadataCapture
+        data object Failure: MetadataCapture
     }
 
-    private companion object {
+    private companion object: KLogging() {
         const val TEMPORARY_REDIRECT_STATUS = 307
         const val FINGERPRINT_MULTIPLIER = 31
         const val LEASE_HANDLE_ATTRIBUTE = "io.bluetape4k.leader.spring.route.mvc.LEASE_HANDLE"

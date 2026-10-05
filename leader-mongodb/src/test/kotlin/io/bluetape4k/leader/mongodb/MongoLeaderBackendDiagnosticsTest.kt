@@ -1,30 +1,51 @@
 package io.bluetape4k.leader.mongodb
 
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
-import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 class MongoLeaderBackendDiagnosticsTest {
 
+    private companion object: KLogging() {
+        val nativeExecutionModels = setOf(
+            LeaderExecutionModel.BLOCKING,
+            LeaderExecutionModel.ASYNC,
+            LeaderExecutionModel.SUSPEND,
+        )
+        val supportedModes = LeaderBackendModeSupport(
+            single = LeaderBackendSupport.SUPPORTED,
+            group = LeaderBackendSupport.SUPPORTED,
+        )
+        val unsupportedModes = LeaderBackendModeSupport(
+            single = LeaderBackendSupport.UNSUPPORTED,
+            group = LeaderBackendSupport.UNSUPPORTED,
+        )
+    }
+
+
     @Test
     fun `MongoDB descriptor는 native single group 실행 모델과 DB lease 계약을 보고한다`() {
         val descriptor = MongoLeaderBackendDiagnostics.backendDescriptor
-        val capabilities = descriptor.capabilities
-
+        log.debug { "descriptor=$descriptor" }
         descriptor.backendId shouldBeEqualTo "mongodb"
         descriptor.displayName shouldBeEqualTo "MongoDB"
+
+        val capabilities = descriptor.capabilities
+        log.debug { "capabilities=$capabilities" }
         capabilities.singleExecutionModels shouldBeEqualTo nativeExecutionModels
         capabilities.groupExecutionModels shouldBeEqualTo nativeExecutionModels
         capabilities.leaseExtension shouldBeEqualTo supportedModes
@@ -64,28 +85,15 @@ class MongoLeaderBackendDiagnosticsTest {
     @Test
     fun `모든 canonical MongoDB elector는 diagnostics provider를 구현한다`() {
         LeaderBackendDiagnosticsProvider::class.java
-            .isAssignableFrom(MongoLeaderElector::class.java) shouldBe true
-        LeaderBackendDiagnosticsProvider::class.java
-            .isAssignableFrom(MongoLeaderGroupElector::class.java) shouldBe true
-        LeaderBackendDiagnosticsProvider::class.java
-            .isAssignableFrom(MongoSuspendLeaderElector::class.java) shouldBe true
-        LeaderBackendDiagnosticsProvider::class.java
-            .isAssignableFrom(MongoSuspendLeaderGroupElector::class.java) shouldBe true
-    }
+            .isAssignableFrom(MongoLeaderElector::class.java).shouldBeTrue()
 
-    private companion object {
-        val nativeExecutionModels = setOf(
-            LeaderExecutionModel.BLOCKING,
-            LeaderExecutionModel.ASYNC,
-            LeaderExecutionModel.SUSPEND,
-        )
-        val supportedModes = LeaderBackendModeSupport(
-            single = LeaderBackendSupport.SUPPORTED,
-            group = LeaderBackendSupport.SUPPORTED,
-        )
-        val unsupportedModes = LeaderBackendModeSupport(
-            single = LeaderBackendSupport.UNSUPPORTED,
-            group = LeaderBackendSupport.UNSUPPORTED,
-        )
+        LeaderBackendDiagnosticsProvider::class.java
+            .isAssignableFrom(MongoLeaderGroupElector::class.java).shouldBeTrue()
+
+        LeaderBackendDiagnosticsProvider::class.java
+            .isAssignableFrom(MongoSuspendLeaderElector::class.java).shouldBeTrue()
+
+        LeaderBackendDiagnosticsProvider::class.java
+            .isAssignableFrom(MongoSuspendLeaderGroupElector::class.java).shouldBeTrue()
     }
 }

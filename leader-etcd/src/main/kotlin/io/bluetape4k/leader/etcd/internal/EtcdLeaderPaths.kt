@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.etcd.internal
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.validateLockName
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireGe
 import io.bluetape4k.support.requireNotBlank
 
@@ -12,21 +14,25 @@ import io.bluetape4k.support.requireNotBlank
 internal class EtcdLeaderPaths(
     keyPrefix: String = DefaultPrefix,
 ) {
-
     val keyPrefix: String = normalizePrefix(keyPrefix)
 
     fun single(lockName: String): String {
-        validateLockName(lockName)
+        lockName.validateLockName()
         return "$keyPrefix/single/${EtcdKeyEncoder.encodeSegment(lockName)}"
     }
 
     fun groupSlot(lockName: String, zeroBasedSlot: Int): String {
-        validateLockName(lockName)
+        lockName.validateLockName()
         zeroBasedSlot.requireGe(0, "zeroBasedSlot")
         return "$keyPrefix/group/${EtcdKeyEncoder.encodeSegment(lockName)}/slot-$zeroBasedSlot"
     }
 
-    companion object {
+    override fun toString(): String =
+        ToStringBuilder(this)
+            .add("keyPrefix", keyPrefix)
+            .toString()
+
+    companion object: KLogging() {
         const val DefaultPrefix: String = "/bluetape4k/leader"
 
         private fun normalizePrefix(keyPrefix: String): String {

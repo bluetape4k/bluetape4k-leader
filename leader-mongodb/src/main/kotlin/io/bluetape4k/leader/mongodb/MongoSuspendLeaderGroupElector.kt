@@ -2,7 +2,6 @@ package io.bluetape4k.leader.mongodb
 
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Filters
-import com.mongodb.kotlin.client.coroutine.MongoCollection as CoroutineMongoCollection
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
@@ -15,10 +14,10 @@ import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.leader.mongodb.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoSuspendSlotExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
-import io.bluetape4k.leader.mongodb.lock.validateMongoLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -29,10 +28,11 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.bson.Document
 import java.time.Instant
-import java.util.Date
+import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 import kotlin.time.Duration
+import com.mongodb.kotlin.client.coroutine.MongoCollection as CoroutineMongoCollection
 
 /**
  * `MongoSuspendLeaderGroupElector`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -48,16 +48,16 @@ class MongoSuspendLeaderGroupElector private constructor(
     private val coroutineGroupCollection: CoroutineMongoCollection<Document>,
     val options: MongoLeaderGroupElectionOptions,
     private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
-) : SuspendLeaderGroupElector, LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics {
+): SuspendLeaderGroupElector, LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics {
 
     init {
         check(groupCollection.namespace.fullName == coroutineGroupCollection.namespace.fullName) {
             "groupCollection과 coroutineGroupCollection은 동일한 namespace여야 합니다: " +
-                "${groupCollection.namespace.fullName} vs ${coroutineGroupCollection.namespace.fullName}"
+                    "${groupCollection.namespace.fullName} vs ${coroutineGroupCollection.namespace.fullName}"
         }
     }
 
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
         internal const val MONGO_SUSPEND_GROUP_FACTORY_BEAN_NAME = "mongo-suspend-leader-group-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(MongoBackendErrorClassifier)
 
@@ -98,7 +98,7 @@ class MongoSuspendLeaderGroupElector private constructor(
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
-        validateMongoLockName(lockName)
+        lockName.validateMonoLockName()
 
         val leaseTime = options.leaderGroupOptions.leaseTime
         val perSlotWait = options.leaderGroupOptions.waitTime / maxLeaders
@@ -212,18 +212,21 @@ class MongoSuspendLeaderGroupElector private constructor(
     private suspend fun recordCompleted(historyKey: LeaderHistoryKey?, finishedAt: Instant, durationMs: Long) =
         historyKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
 
-    private suspend fun recordFailed(historyKey: LeaderHistoryKey?, finishedAt: Instant, durationMs: Long, error: Throwable?) =
+    private suspend fun recordFailed(
+        historyKey: LeaderHistoryKey?,
+        finishedAt: Instant,
+        durationMs: Long,
+        error: Throwable?,
+    ) =
         historyKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, error) }
 }
 
-/**
- * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend fun <T> MongoCollection<Document>.suspendRunIfLeaderGroup(
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeaderGroup")
+suspend fun <T> MongoCollection<Document>.legacySuspendRunIfLeaderGroup(
     coroutineGroupCollection: CoroutineMongoCollection<Document>,
     lockName: String,
     options: MongoLeaderGroupElectionOptions = MongoLeaderGroupElectionOptions.Default,
     action: suspend () -> T,
-): T? = MongoSuspendLeaderGroupElector(this, coroutineGroupCollection, options).runIfLeader(lockName, action)
+): T? = this.currentSuspendRunIfLeaderGroup(coroutineGroupCollection, lockName, options, action)

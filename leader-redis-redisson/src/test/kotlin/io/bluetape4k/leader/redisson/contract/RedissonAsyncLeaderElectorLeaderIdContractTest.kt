@@ -14,11 +14,9 @@ import org.junit.jupiter.api.TestInstance
  * Verifies slot-aware audit identity propagation for async [RedissonLeaderElector].
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class RedissonAsyncLeaderElectorLeaderIdContractTest : AbstractAsyncLeaderElectorLeaderIdContractTest() {
+class RedissonAsyncLeaderElectorLeaderIdContractTest: AbstractAsyncLeaderElectorLeaderIdContractTest() {
 
-    companion object : KLogging() {
-        val redis = AbstractRedissonLeaderTest.redis
-    }
+    companion object: KLogging()
 
     override fun createElector(options: LeaderElectionOptions): AsyncLeaderElector =
         RedissonLeaderElector(AbstractRedissonLeaderTest.redissonClient, options)

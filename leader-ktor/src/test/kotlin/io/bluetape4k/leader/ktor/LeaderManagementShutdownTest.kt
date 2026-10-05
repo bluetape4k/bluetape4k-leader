@@ -2,8 +2,10 @@ package io.bluetape4k.leader.ktor
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.SuspendLeaderManagementActionRegistry
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.ktor.server.application.ApplicationEnvironment
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.EngineConnectorConfig
@@ -12,13 +14,15 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class LeaderManagementShutdownTest {
 
+    companion object: KLoggingChannel()
+
     @Test
     fun `registry drain completes before engine stop`() = runSuspendIO {
         val registry = SuspendLeaderManagementActionRegistry()
         val engine = RecordingEngine()
         val drained = engine.stopLeaderManagementGracefully(registry)
 
-        drained shouldBeEqualTo true
+        drained.shouldBeTrue()
         engine.stopCalls.get() shouldBeEqualTo 1
         registry.close()
     }
@@ -36,7 +40,7 @@ class LeaderManagementShutdownTest {
         registry.close()
     }
 
-    private class RecordingEngine : ApplicationEngine {
+    private class RecordingEngine: ApplicationEngine {
         val stopCalls = AtomicInteger()
 
         override val environment: ApplicationEnvironment

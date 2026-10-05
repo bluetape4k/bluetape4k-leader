@@ -5,13 +5,16 @@ import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
-import kotlinx.coroutines.CompletableDeferred
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -35,6 +38,24 @@ import kotlin.time.Duration.Companion.seconds
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractStrategicBackendConformanceTest {
+
+    private companion object: KLoggingChannel() {
+        const val NODE_A = "node-a"
+        const val NODE_B = "node-b"
+        const val WORKERS = 8
+        const val ROUNDS = 25
+        const val RACE_ROUNDS = 25
+        val INITIAL_TTL = 30.seconds
+        val REFRESH_TTL = 60.seconds
+        val EXPIRING_TTL = 100.milliseconds
+        val EXPIRY_TIMEOUT = 5.seconds
+        val REGISTERED_AT: Instant = Instant.parse("2026-01-01T00:00:00Z")
+        val LATER: Instant = Instant.parse("2026-01-01T00:00:01Z")
+        val LAST_START: Instant = Instant.parse("2026-01-01T00:01:00Z")
+        val LAST_COMPLETION: Instant = Instant.parse("2026-01-01T00:02:00Z")
+        val OLD_METADATA = mapOf("version" to "old")
+        val NEW_METADATA = mapOf("version" to "new")
+    }
 
     protected abstract fun createProvider(): StrategicBackendConformanceProvider
 
@@ -123,10 +144,12 @@ abstract class AbstractStrategicBackendConformanceTest {
 
             winner.registerCandidate(lockName, candidate(NODE_A), INITIAL_TTL)
             loser.registerCandidate(lockName, candidate(NODE_B, LATER), INITIAL_TTL)
+
             winner.runIfLeader(lockName) {
                 winnerActions.incrementAndGet()
                 "winner"
             } shouldBeEqualTo "winner"
+
             loser.runIfLeader(lockName) {
                 loserActions.incrementAndGet()
                 "loser"
@@ -134,9 +157,10 @@ abstract class AbstractStrategicBackendConformanceTest {
 
             winnerActions.get() shouldBeEqualTo 1
             loserActions.get() shouldBeEqualTo 0
+
             val candidates = winner.listCandidates(lockName).associateBy(CandidateInfo::nodeId)
-            checkNotNull(candidates[NODE_A]).successCount shouldBeEqualTo 8L
-            checkNotNull(candidates[NODE_B]) shouldBeEqualTo candidate(NODE_B, LATER)
+            candidates[NODE_A].shouldNotBeNull().successCount shouldBeEqualTo 8L
+            candidates[NODE_B].shouldNotBeNull() shouldBeEqualTo candidate(NODE_B, LATER)
         }
     }
 
@@ -163,9 +187,10 @@ abstract class AbstractStrategicBackendConformanceTest {
 
                 winnerActions.get() shouldBeEqualTo 1
                 loserActions.get() shouldBeEqualTo 0
+
                 val candidates = winner.listCandidates(lockName).associateBy(CandidateInfo::nodeId)
-                checkNotNull(candidates[NODE_A]).successCount shouldBeEqualTo 8L
-                checkNotNull(candidates[NODE_B]) shouldBeEqualTo candidate(NODE_B, LATER)
+                candidates[NODE_A].shouldNotBeNull().successCount shouldBeEqualTo 8L
+                candidates[NODE_B].shouldNotBeNull() shouldBeEqualTo candidate(NODE_B, LATER)
             }
         }
     }
@@ -198,23 +223,36 @@ abstract class AbstractStrategicBackendConformanceTest {
                 val sequence = AtomicInteger()
                 val registered = java.util.concurrent.ConcurrentLinkedQueue<CandidateInfo>()
 
-                MultithreadingTester().workers(WORKERS).rounds(ROUNDS).add {
-                    val n = sequence.incrementAndGet().toLong()
-                    val info = candidate(NODE_A).copy(
-                        successCount = n,
-                        failureCount = n * 2,
-                        metadata = mapOf("sequence" to n.toString()),
-                    )
-                    registered.add(info)
-                    backend.registerCandidate(registerLock, info, INITIAL_TTL)
-                }.run()
+                MultithreadingTester()
+                    .workers(WORKERS)
+                    .rounds(ROUNDS)
+                    .add {
+                        val n = sequence.incrementAndGet().toLong()
+                        val info = candidate(NODE_A).copy(
+                            successCount = n,
+                            failureCount = n * 2,
+                            metadata = mapOf("sequence" to n.toString()),
+                        )
+                        registered.add(info)
+                        backend.registerCandidate(registerLock, info, INITIAL_TTL)
+                    }
+                    .run()
+
                 registered.contains(backend.listCandidates(registerLock).single()).shouldBeTrue()
 
                 backend.registerCandidate(updateLock, candidate(NODE_A).copy(successCount = 0L), INITIAL_TTL)
-                MultithreadingTester().workers(WORKERS).rounds(ROUNDS).add {
-                    backend.updateResult(updateLock, NODE_A, CandidateResult.SUCCESS)
-                    backend.refreshCandidate(updateLock, candidate(NODE_A).copy(metadata = NEW_METADATA), REFRESH_TTL)
-                }.run()
+                MultithreadingTester()
+                    .workers(WORKERS)
+                    .rounds(ROUNDS)
+                    .add {
+                        backend.updateResult(updateLock, NODE_A, CandidateResult.SUCCESS)
+                        backend.refreshCandidate(
+                            updateLock,
+                            candidate(NODE_A).copy(metadata = NEW_METADATA),
+                            REFRESH_TTL
+                        )
+                    }
+                    .run()
 
                 val updated = backend.listCandidates(updateLock).single()
                 updated.successCount shouldBeEqualTo (WORKERS * ROUNDS).toLong()
@@ -232,39 +270,36 @@ abstract class AbstractStrategicBackendConformanceTest {
                 val sequence = AtomicInteger()
                 val registered = java.util.concurrent.ConcurrentLinkedQueue<CandidateInfo>()
 
-                coroutineScope {
-                    List(WORKERS) {
-                        async(Dispatchers.Default) {
-                            repeat(ROUNDS) {
-                                val n = sequence.incrementAndGet().toLong()
-                                val info = candidate(NODE_A).copy(
-                                    successCount = n,
-                                    failureCount = n * 2,
-                                    metadata = mapOf("sequence" to n.toString()),
-                                )
-                                registered.add(info)
-                                backend.registerCandidate(registerLock, info, INITIAL_TTL)
-                            }
-                        }
-                    }.awaitAll()
-                }
+                SuspendedJobTester()
+                    .workers(WORKERS)
+                    .rounds(WORKERS * ROUNDS)
+                    .add {
+                        val n = sequence.incrementAndGet().toLong()
+                        val info = candidate(NODE_A).copy(
+                            successCount = n,
+                            failureCount = n * 2,
+                            metadata = mapOf("sequence" to n.toString()),
+                        )
+                        registered.add(info)
+                        backend.registerCandidate(registerLock, info, INITIAL_TTL)
+                    }
+                    .run()
+
                 registered.contains(backend.listCandidates(registerLock).single()).shouldBeTrue()
 
                 backend.registerCandidate(updateLock, candidate(NODE_A).copy(successCount = 0L), INITIAL_TTL)
-                coroutineScope {
-                    List(WORKERS) {
-                        async(Dispatchers.Default) {
-                            repeat(ROUNDS) {
-                                backend.updateResult(updateLock, NODE_A, CandidateResult.SUCCESS)
-                                backend.refreshCandidate(
-                                    updateLock,
-                                    candidate(NODE_A).copy(metadata = NEW_METADATA),
-                                    REFRESH_TTL,
-                                )
-                            }
-                        }
-                    }.awaitAll()
-                }
+                SuspendedJobTester()
+                    .workers(WORKERS)
+                    .rounds(WORKERS * ROUNDS)
+                    .add {
+                        backend.updateResult(updateLock, NODE_A, CandidateResult.SUCCESS)
+                        backend.refreshCandidate(
+                            updateLock,
+                            candidate(NODE_A).copy(metadata = NEW_METADATA),
+                            REFRESH_TTL,
+                        )
+                    }
+                    .run()
 
                 val updated = backend.listCandidates(updateLock).single()
                 updated.successCount shouldBeEqualTo (WORKERS * ROUNDS).toLong()
@@ -366,40 +401,16 @@ abstract class AbstractStrategicBackendConformanceTest {
         "$prefix-${kind.name.lowercase()}-${Base58.randomString(8).lowercase()}"
 
     private inline fun <T> withProvider(block: (StrategicBackendConformanceProvider) -> T): T {
-        val provider = createProvider()
-        return try {
+        return createProvider().use { provider ->
             block(provider)
-        } finally {
-            provider.close()
         }
     }
 
     private suspend fun <T> withProviderSuspend(
         block: suspend (StrategicBackendConformanceProvider) -> T,
     ): T {
-        val provider = createProvider()
-        return try {
+        return createProvider().use { provider ->
             block(provider)
-        } finally {
-            provider.close()
         }
-    }
-
-    private companion object {
-        const val NODE_A = "node-a"
-        const val NODE_B = "node-b"
-        const val WORKERS = 8
-        const val ROUNDS = 25
-        const val RACE_ROUNDS = 25
-        val INITIAL_TTL = 30.seconds
-        val REFRESH_TTL = 60.seconds
-        val EXPIRING_TTL = 100.milliseconds
-        val EXPIRY_TIMEOUT = 5.seconds
-        val REGISTERED_AT: Instant = Instant.parse("2026-01-01T00:00:00Z")
-        val LATER: Instant = Instant.parse("2026-01-01T00:00:01Z")
-        val LAST_START: Instant = Instant.parse("2026-01-01T00:01:00Z")
-        val LAST_COMPLETION: Instant = Instant.parse("2026-01-01T00:02:00Z")
-        val OLD_METADATA = mapOf("version" to "old")
-        val NEW_METADATA = mapOf("version" to "new")
     }
 }

@@ -6,8 +6,7 @@ Backend-neutral strategic leader-election example. It chooses the best service n
 
 ## Scenario
 
-Three service nodes compete to run a maintenance task. The winner is selected by weighted scoring across readiness,
-historical success rate, and idle time. Non-winner nodes skip the action without throwing.
+Three service nodes compete to run a maintenance task. The winner is selected by weighted scoring across readiness, historical success rate, and idle time. Non-winner nodes skip the action without throwing.
 
 ## Example Scenario
 
@@ -58,5 +57,4 @@ val strategy = ScoredElectionStrategy(scorer)
 val elector = LocalStrategicLeaderElector("node-a")
 ```
 
-Use this example when leadership should prefer the healthiest or most appropriate candidate instead of the first lock
-holder.
+Use this example when leadership should prefer the healthiest or most appropriate candidate instead of the first lock holder.

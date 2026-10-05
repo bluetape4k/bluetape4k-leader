@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.spring.route
 
-import java.util.IdentityHashMap
+import io.bluetape4k.ToStringBuilder
+import io.bluetape4k.logging.KLogging
+import java.util.*
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -15,9 +17,9 @@ internal class LeaderRouteLeaseShutdownCoordinator(
     private val cleanupComplete: () -> Boolean = { true },
     private val releaseHandles: () -> Unit = {},
     private val disposeSchedulers: () -> Unit = {},
-) : AutoCloseable {
+): AutoCloseable {
 
-    private companion object {
+    private companion object: KLogging() {
         const val DRAIN_POLL_MILLIS = 1L
     }
 
@@ -86,6 +88,14 @@ internal class LeaderRouteLeaseShutdownCoordinator(
             State.CLOSED_WITH_LEAKS, State.CLOSED -> Unit
             State.RUNNING, State.QUIESCING, State.DRAINING -> Unit
         }
+    }
+
+    override fun toString(): String {
+        return ToStringBuilder(this)
+            .add("runtimeState", runtimeState)
+            .add("acceptsAcquired", acceptsAcquire())
+            .add("allowsCleanup", allowsCleanup())
+            .toString()
     }
 
     enum class State {

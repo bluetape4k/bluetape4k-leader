@@ -5,6 +5,8 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseAnnotations
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.fabric8.kubernetes.api.model.coordination.v1.Lease
 import io.fabric8.kubernetes.api.model.coordination.v1.LeaseBuilder
 import org.junit.jupiter.api.Test
@@ -15,6 +17,8 @@ import java.time.ZonedDateTime
 
 class KubernetesLeaseStateMapperTest {
 
+    companion object: KLogging()
+
     private val now = Instant.parse("2026-05-21T12:00:00Z")
     private val clock: Clock = Clock.fixed(now, ZoneOffset.UTC)
 
@@ -22,6 +26,7 @@ class KubernetesLeaseStateMapperTest {
     fun `missing lease maps to empty state`() {
         val state = KubernetesLeaseStateMapper.map("daily-job", null, clock)
 
+        log.debug { "state=$state" }
         state.isEmpty.shouldBeTrue()
         state.leader.shouldBeNull()
     }
@@ -30,6 +35,7 @@ class KubernetesLeaseStateMapperTest {
     fun `blank holder maps to empty state`() {
         val state = KubernetesLeaseStateMapper.map("daily-job", lease(holder = ""), clock)
 
+        log.debug { "state=$state" }
         state.isEmpty.shouldBeTrue()
     }
 
@@ -41,6 +47,7 @@ class KubernetesLeaseStateMapperTest {
             clock,
         )
 
+        log.debug { "state=$state" }
         state.isEmpty.shouldBeTrue()
     }
 
@@ -61,6 +68,7 @@ class KubernetesLeaseStateMapperTest {
             clock,
         )
 
+        log.debug { "state=$state" }
         state.isOccupied.shouldBeTrue()
         state.leader?.auditLeaderId shouldBeEqualTo "audit-a"
         state.leader?.nodeId shouldBeEqualTo "node-a"
@@ -72,6 +80,7 @@ class KubernetesLeaseStateMapperTest {
     fun `active lease falls back to holder as audit identity`() {
         val state = KubernetesLeaseStateMapper.map("daily-job", lease(holder = "token-a"), clock)
 
+        log.debug { "state=$state" }
         state.isEmpty.shouldBeFalse()
         state.leader?.auditLeaderId shouldBeEqualTo "token-a"
     }

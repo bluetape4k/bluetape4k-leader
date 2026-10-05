@@ -1,12 +1,14 @@
 package io.bluetape4k.leader.local
 
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeEmpty
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.javatimes.millis
+import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.strategy.CandidateInfo
@@ -14,15 +16,12 @@ import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.BeforeEach
@@ -32,6 +31,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 
 class LocalStrategicSuspendLeaderElectorTest {
+
+    companion object: KLoggingChannel()
 
     private val lockName = "test-suspend-lock-" + Base58.randomString(8)
 
@@ -50,9 +51,9 @@ class LocalStrategicSuspendLeaderElectorTest {
     fun `FIFO - node1 먼저 등록하면 node1 만 action 실행`() = runTest {
         val t0 = Instant.now()
         node1.registerCandidate(lockName, CandidateInfo("node-1", registeredAt = t0))
-        node1.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0.plusMillis(10)))
+        node1.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0 + 10.millis()))
         node2.registerCandidate(lockName, CandidateInfo("node-1", registeredAt = t0))
-        node2.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0.plusMillis(10)))
+        node2.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0 + 10.millis()))
 
         val counter = AtomicInteger(0)
         val r1 = node1.runIfLeader(lockName, FifoElectionStrategy) { counter.incrementAndGet() }
@@ -116,16 +117,17 @@ class LocalStrategicSuspendLeaderElectorTest {
         val rounds = 100
         node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
 
-        coroutineScope {
-            List(workers) {
-                launch(Dispatchers.Default) {
-                    repeat(rounds) {
-                        node1.updateResult(lockName, node1.nodeId, CandidateResult.SUCCESS)
-                        node1.refreshCandidate(lockName, CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")))
-                    }
-                }
-            }.joinAll()
-        }
+        SuspendedJobTester()
+            .workers(workers)
+            .rounds(rounds * workers)
+            .add {
+                node1.updateResult(lockName, node1.nodeId, CandidateResult.SUCCESS)
+                node1.refreshCandidate(
+                    lockName,
+                    CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok"))
+                )
+            }
+            .run()
 
         node1.listCandidates(lockName).single().successCount shouldBeEqualTo (workers * rounds).toLong()
     }
@@ -134,23 +136,18 @@ class LocalStrategicSuspendLeaderElectorTest {
     fun `refreshCandidate와 unregisterCandidate 동시 호출에서도 후보를 되살리지 않는다`() = runSuspendIO {
         node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
 
-        coroutineScope {
-            listOf(
-                launch(Dispatchers.Default) {
-                    repeat(100) {
-                        node1.refreshCandidate(
-                            lockName,
-                            CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")),
-                        )
-                    }
-                },
-                launch(Dispatchers.Default) {
-                    repeat(100) {
-                        node1.unregisterCandidate(lockName, node1.nodeId)
-                    }
-                },
-            ).joinAll()
-        }
+        SuspendedJobTester()
+            .rounds(100)
+            .add {
+                node1.refreshCandidate(
+                    lockName,
+                    CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")),
+                )
+            }
+            .add {
+                node1.unregisterCandidate(lockName, node1.nodeId)
+            }
+            .run()
 
         node1.listCandidates(lockName).shouldBeEmpty()
     }
@@ -195,7 +192,9 @@ class LocalStrategicSuspendLeaderElectorTest {
                 lockName = lockName,
                 result = CandidateResult.SUCCESS,
                 update = { throw cancellation },
-                onFailure = { _, _ -> error("CancellationException must not be handled as a backend failure") },
+                onFailure = { _, _ ->
+                    error("CancellationException must not be handled as a backend failure")
+                },
             )
         }
 
@@ -290,7 +289,7 @@ class LocalStrategicSuspendLeaderElectorTest {
 
         val strategy = ScoredElectionStrategy(SuccessRateScorer)
         val winner = strategy.elect(node1.listCandidates(lockName)).winner
-        winner?.nodeId shouldBeEqualTo "node-2"
+        winner.shouldNotBeNull().nodeId shouldBeEqualTo "node-2"
 
         val counter = AtomicInteger(0)
         node1.runIfLeader(lockName, strategy) { counter.incrementAndGet() }
@@ -313,14 +312,13 @@ class LocalStrategicSuspendLeaderElectorTest {
         candidates.forEach { node3.registerCandidate(lockName, it) }
 
         val counter = AtomicInteger(0)
-        coroutineScope {
-            val jobs = listOf(
-                async { node1.runIfLeader(lockName, FifoElectionStrategy) { counter.incrementAndGet() } },
-                async { node2.runIfLeader(lockName, FifoElectionStrategy) { counter.incrementAndGet() } },
-                async { node3.runIfLeader(lockName, FifoElectionStrategy) { counter.incrementAndGet() } },
-            )
-            jobs.awaitAll()
-        }
+
+        val jobs = listOf(
+            async { node1.runIfLeader(lockName, FifoElectionStrategy) { counter.incrementAndGet() } },
+            async { node2.runIfLeader(lockName, FifoElectionStrategy) { counter.incrementAndGet() } },
+            async { node3.runIfLeader(lockName, FifoElectionStrategy) { counter.incrementAndGet() } },
+        )
+        jobs.awaitAll()
         counter.get() shouldBeEqualTo 1
     }
 }

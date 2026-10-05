@@ -7,12 +7,13 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.ktor.testing.shouldHaveStatus
 import io.bluetape4k.leader.ktor.statuspages.leaderElectionErrors
 import io.bluetape4k.leader.ktor.statuspages.respondLeaderElectionError
+import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.install
 import io.ktor.server.plugins.statuspages.StatusPages
-import io.ktor.server.plugins.statuspages.exception
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
@@ -20,8 +21,12 @@ import org.junit.jupiter.api.Test
 import java.io.File
 import java.net.URL
 import java.net.URLClassLoader
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 class LeaderElectionStatusPagesAdapterTest {
+
+    companion object: KLoggingChannel()
 
     @Test
     fun `StatusPages 없이도 stable JSON fallback을 반환한다`() = runSuspendIO {
@@ -37,9 +42,11 @@ class LeaderElectionStatusPagesAdapterTest {
             }
 
             val response = client.get("/error")
+
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.ServiceUnavailable
             response.bodyAsText() shouldBeEqualTo
-                """{"code":"NOT_LEADER","message":"leader state does not allow this request","status":503}"""
+                    """{"code":"NOT_LEADER","message":"leader state does not allow this request","status":503}"""
         }
     }
 
@@ -58,6 +65,8 @@ class LeaderElectionStatusPagesAdapterTest {
             }
 
             val response = client.get("/error")
+
+            log.debug { "response=$response" }
             response shouldHaveStatus HttpStatusCode.ServiceUnavailable
             response.bodyAsText() shouldContain "\"code\":\"BACKEND_UNAVAILABLE\""
         }
@@ -68,16 +77,19 @@ class LeaderElectionStatusPagesAdapterTest {
         val mainLocation = Class.forName(
             "io.bluetape4k.leader.ktor.LeaderElectionPluginKt",
         ).protectionDomain.codeSource.location
+
         val filteredRuntimeUrls = buildList {
             add(mainLocation)
             System.getProperty("java.class.path")
                 .split(File.pathSeparator)
+                .asSequence()
                 .filter(String::isNotBlank)
                 .map(::File)
                 .map(File::toURI)
                 .map(java.net.URI::toURL)
                 .filterNot { it.file.contains("ktor-server-status-pages") }
                 .filterNot { it == mainLocation }
+                .toList()
                 .forEach(::add)
         }
 
@@ -91,19 +103,21 @@ class LeaderElectionStatusPagesAdapterTest {
                 true,
                 loader,
             )
-            assertFailsWith<LinkageError> { adapterClass.declaredMethods }
+            assertFailsWith<LinkageError> {
+                adapterClass.declaredMethods
+            }
         }
 
         println(
             "optional StatusPages smoke: filteredRuntimeUrls=" +
-                filteredRuntimeUrls.joinToString(",") { it.toString() } +
-                "; plugin=config loaded; adapter=blocked",
+                    filteredRuntimeUrls.joinToString(",") { it.toString() } +
+                    "; plugin=config loaded; adapter=blocked",
         )
     }
 
     private class MissingStatusPagesClassLoader(
         private val delegate: ClassLoader,
-    ) : ClassLoader(null) {
+    ): ClassLoader(null) {
         override fun loadClass(name: String, resolve: Boolean): Class<*> {
             if (name.startsWith("io.ktor.server.plugins.statuspages.")) {
                 throw ClassNotFoundException(name)
@@ -115,10 +129,11 @@ class LeaderElectionStatusPagesAdapterTest {
     private class IsolatedLeaderClassLoader(
         urls: Array<URL>,
         parent: ClassLoader,
-    ) : URLClassLoader(urls, parent) {
+    ): URLClassLoader(urls, parent) {
+        private val lock = ReentrantLock()
         override fun loadClass(name: String, resolve: Boolean): Class<*> {
             if (name.startsWith("io.bluetape4k.leader.ktor.")) {
-                synchronized(getClassLoadingLock(name)) {
+                lock.withLock {
                     findLoadedClass(name)?.let { return it }
                     try {
                         val isolated = findClass(name)

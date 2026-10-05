@@ -8,6 +8,7 @@ import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.zookeeper.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperOwnedInterProcessMutex
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperSuspendLockExtendDelegate
@@ -39,9 +40,9 @@ class ZooKeeperSuspendLeaderElector private constructor(
     private val basePath: String,
     private val options: LeaderElectionOptions,
 ): SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client),
-    AutoCloseable,
-    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+   LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client),
+   AutoCloseable,
+   io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
 
     override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
         io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options)
@@ -127,7 +128,7 @@ class ZooKeeperSuspendLeaderElector private constructor(
             if (options.autoExtend) {
                 log.warn {
                     "ZooKeeper 는 TTL 이 없는 세션 기반 락 — autoExtend=true 설정이 무시됩니다. " +
-                        "ZK 세션 keepalive 가 lease 역할을 대신합니다. lockName=$lockName"
+                            "ZK 세션 keepalive 가 lease 역할을 대신합니다. lockName=$lockName"
                 }
             }
             watchdog = LeaderLeaseAutoExtender.start(
@@ -202,33 +203,21 @@ class ZooKeeperSuspendLeaderElector private constructor(
     }
 }
 
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend inline fun <T> CuratorFramework.suspendRunIfLeader(
+/** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
+@Deprecated("리팩터링 전 JVM facade 호환성 유지용", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeader")
+suspend inline fun <T> CuratorFramework.legacySuspendRunIfLeaderByPath(
     path: ZooKeeperElectionPath,
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: suspend () -> T,
-): T? {
-    val elector = ZooKeeperSuspendLeaderElector(this, path.basePath, options)
-    return try {
-        elector.runIfLeader(path.lockName) { action() }
-    } finally {
-        elector.close()
-    }
-}
+): T? = this.currentSuspendRunIfLeader(path, options, action)
 
-/**
- * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
-suspend inline fun <T> CuratorFramework.suspendRunIfLeader(
+/** Binary compatibility shim for the pre-refactor JVM facade. */
+@Deprecated("Binary compatibility shim", level = DeprecationLevel.HIDDEN)
+@JvmName("suspendRunIfLeader")
+suspend inline fun <T> CuratorFramework.legacySuspendRunIfLeaderByName(
     lockName: String,
     basePath: String = ZooKeeperSuspendLeaderElector.DEFAULT_BASE_PATH,
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: suspend () -> T,
-): T? =
-    suspendRunIfLeader(ZooKeeperElectionPath(lockName, basePath), options, action)
+): T? = this.currentSuspendRunIfLeader(lockName, basePath, options, action)

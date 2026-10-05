@@ -29,7 +29,7 @@ data class LeaderManagementActionResult(
     val action: LeaderManagementAction,
     val outcome: LeaderManagementActionOutcome,
     val mutationAttempted: Boolean,
-) : Serializable {
+): Serializable {
 
     init {
         if (outcome == LeaderManagementActionOutcome.RELEASED) {
@@ -69,7 +69,7 @@ class LeaderManagementRegistration internal constructor(
     val accepted: Boolean,
     val outcome: LeaderManagementRegistrationOutcome,
     private val onClose: () -> Unit = {},
-) : AutoCloseable {
+): AutoCloseable {
 
     private val closed = AtomicBoolean(false)
 
@@ -155,13 +155,13 @@ object LeaderManagementHttpContract {
         LeaderManagementActionOutcome.AMBIGUOUS,
         LeaderManagementActionOutcome.NOT_HELD,
         LeaderManagementActionOutcome.ACTION_IN_PROGRESS,
-        -> STATUS_CONFLICT
+            -> STATUS_CONFLICT
         LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED -> STATUS_TOO_MANY_REQUESTS
         LeaderManagementActionOutcome.OWNERSHIP_UNKNOWN,
         LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
         LeaderManagementActionOutcome.RELEASE_FAILED,
         LeaderManagementActionOutcome.REGISTRY_CLOSED,
-        -> STATUS_SERVICE_UNAVAILABLE
+            -> STATUS_SERVICE_UNAVAILABLE
         LeaderManagementActionOutcome.ACTION_TIMED_OUT -> STATUS_GATEWAY_TIMEOUT
     }
 

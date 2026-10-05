@@ -1,16 +1,18 @@
 package io.bluetape4k.leader.examples.redissonwatchdog
 
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
+import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
-import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.testcontainers.storage.RedisServer
 import io.bluetape4k.utils.ShutdownQueue
 import org.redisson.Redisson
 import org.redisson.config.Config
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `RedissonWatchdogDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -51,11 +53,11 @@ object RedissonWatchdogDemo: KLogging() {
             val leaderFuture = executor.submit<RedissonWatchdogNodeReport> {
                 leader.runJob {
                     leaderStarted.countDown()
-                    releaseLeader.await(2, TimeUnit.SECONDS)
+                    releaseLeader.await(2.seconds)
                 }
             }
 
-            leaderStarted.await(1, TimeUnit.SECONDS)
+            leaderStarted.await(1.seconds)
             Thread.sleep(700)
 
             val contenderDuringLongJob = contender.runJob {
@@ -63,7 +65,7 @@ object RedissonWatchdogDemo: KLogging() {
             }
 
             releaseLeader.countDown()
-            val leaderReport = leaderFuture.get(2, TimeUnit.SECONDS)
+            val leaderReport = leaderFuture.get(2.seconds)
             val contenderAfterRelease = contender.runJob {
                 log.info { "[node-2] acquired leadership after node-1 released the lock" }
             }

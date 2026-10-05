@@ -11,7 +11,7 @@ import java.sql.SQLTransientException
  *
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
-internal object CoreBackendErrorClassifier : BackendErrorClassifier {
+internal object CoreBackendErrorClassifier: BackendErrorClassifier {
 
     override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {
         is OutOfMemoryError, is StackOverflowError, is LinkageError -> BackendErrorKind.FATAL

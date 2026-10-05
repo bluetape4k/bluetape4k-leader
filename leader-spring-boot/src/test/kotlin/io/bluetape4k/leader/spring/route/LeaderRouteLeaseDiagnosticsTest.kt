@@ -3,6 +3,7 @@ package io.bluetape4k.leader.spring.route
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.javatimes.millis
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAcquirer
@@ -11,15 +12,20 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.leader.spring.properties.LeaderRouteLeaseProperties
-import org.junit.jupiter.api.Test
-import java.time.Instant
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withPollInterval
+import org.junit.jupiter.api.Test
+import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class LeaderRouteLeaseDiagnosticsTest {
+
+    companion object: KLogging()
 
     @Test
     fun `diagnostics exposes only bounded aggregate and fixed observations`() {
@@ -27,16 +33,18 @@ class LeaderRouteLeaseDiagnosticsTest {
         val runtime = LeaderRouteLeaseRuntime(
             acquirer = LocalLeaderElector(LeaderElectionOptions(waitTime = 1.milliseconds)),
             suspendAcquirer = null,
-            properties = LeaderRouteLeaseProperties(maxBlockingWaitTime = java.time.Duration.ofMillis(20)),
+            properties = LeaderRouteLeaseProperties(maxBlockingWaitTime = 20.millis()),
             externalObservationSink = SanitizedRouteLeaseObservationSink { sinkCodes += it },
         )
 
         runtime.tryAcquire(LeaderSlot("private-lock-name", "private-leader-id")).shouldNotBeNull().release()
-        await.atMost(2.seconds).untilAsserted {
+        await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
             runtime.activeLeases shouldBeEqualTo 0
         }
 
         val diagnostics = LeaderRouteLeaseDiagnosticsContributor(runtime).diagnostics()
+
+        log.debug { "diagnostic=$diagnostics" }
         diagnostics.runtimeState shouldBeEqualTo "RUNNING"
         diagnostics.active shouldBeEqualTo 0
         diagnostics.effectiveActiveCapacity shouldBeEqualTo 1_024
@@ -58,11 +66,13 @@ class LeaderRouteLeaseDiagnosticsTest {
         )
 
         runtime.tryAcquire(LeaderSlot("lifetime-lock", "node"))
-        await.atMost(2.seconds).untilAsserted {
+        await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
             runtime.activeLeases shouldBeEqualTo 0
         }
+
+        log.debug { "runtime=$runtime" }
         runtime.residualLeases shouldBeEqualTo 0
-        runtime.diagnostics().observations[LeaseObservationCode.TIMEOUT.name].shouldNotBeNull() shouldBeEqualTo 1
+        runtime.diagnostics().observations[LeaseObservationCode.TIMEOUT.name] shouldBeEqualTo 1
         runtime.close()
     }
 
@@ -78,24 +88,24 @@ class LeaderRouteLeaseDiagnosticsTest {
         )
         runtime.tryAcquire(LeaderSlot("cleanup-timeout", "node")).shouldNotBeNull().release()
 
-        await.atMost(2.seconds).untilAsserted {
-            runtime.diagnostics().observations[LeaseObservationCode.CLEANUP_TIMEOUT.name]
-                .shouldNotBeNull() shouldBeEqualTo 1
+        await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
+            runtime.diagnostics().observations[LeaseObservationCode.CLEANUP_TIMEOUT.name] shouldBeEqualTo 1
         }
 
+        log.debug { "runtime=$runtime" }
         runtime.residualLeases shouldBeEqualTo 1
         runtime.diagnostics().observations[LeaseObservationCode.CLEANUP_TIMEOUT.name] shouldBeEqualTo 1
         runtime.close()
     }
 
-    private class BlockingReleaseAcquirer : LeaderLeaseAcquirer {
+    private class BlockingReleaseAcquirer: LeaderLeaseAcquirer {
         override val configuredOptions: LeaderElectionOptions = LeaderElectionOptions.Default
 
         override fun tryAcquire(lockName: String): LeaderLeaseHandle? = tryAcquire(
             LeaderSlot(lockName, configuredOptions.nodeId),
         )
 
-        override fun tryAcquire(slot: LeaderSlot): LeaderLeaseHandle = object : LeaderLeaseHandle {
+        override fun tryAcquire(slot: LeaderSlot): LeaderLeaseHandle = object: LeaderLeaseHandle {
             override val lockName: String = slot.lockName
             override val auditLeaderId: String = slot.leaderId
             override val acquiredAt: Instant = Instant.now()

@@ -1,9 +1,10 @@
 package io.bluetape4k.leader.examples.consulmaintenance
 
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.consul.ConsulEndpoint
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -31,12 +32,12 @@ internal class ServiceMaintenanceScenario(
             val activeFuture = executor.submit<MaintenanceReport> {
                 nodeA.performMaintenance {
                     started.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                    release.await(10.seconds)
                     listOf("mark-instance-draining", "flush-inflight-requests", "rotate-service-endpoint")
                 }
             }
 
-            check(started.await(10, TimeUnit.SECONDS)) {
+            check(started.await(10.seconds)) {
                 "Timed out waiting for the first maintenance node to acquire leadership."
             }
 
@@ -46,7 +47,7 @@ internal class ServiceMaintenanceScenario(
             )
 
             release.countDown()
-            return listOf(activeFuture.get(10, TimeUnit.SECONDS)) + skipped
+            return listOf(activeFuture.get(10.seconds)) + skipped
         } finally {
             release.countDown()
             executor.shutdownNow()

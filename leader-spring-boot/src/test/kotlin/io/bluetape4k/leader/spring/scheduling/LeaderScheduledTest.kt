@@ -1,9 +1,13 @@
 package io.bluetape4k.leader.spring.scheduling
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.annotation.LeaderElection
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.springframework.core.annotation.AnnotatedElementUtils
 import org.springframework.scheduling.annotation.Scheduled
@@ -11,18 +15,21 @@ import java.util.concurrent.TimeUnit
 
 class LeaderScheduledTest {
 
+    companion object: KLogging()
+
     @Test
     fun `aliases Spring scheduling attributes`() {
         val scheduled = mergedAnnotation<Scheduled>()
 
-        scheduled.cron shouldBeEqualTo "\${jobs.cron}"
+        log.debug { "scheduled=$scheduled" }
+        scheduled.cron shouldBeEqualTo $$"${jobs.cron}"
         scheduled.zone shouldBeEqualTo "Asia/Seoul"
         scheduled.fixedRate shouldBeEqualTo 2L
-        scheduled.fixedRateString shouldBeEqualTo "\${jobs.fixed-rate:}"
+        scheduled.fixedRateString shouldBeEqualTo $$"${jobs.fixed-rate:}"
         scheduled.fixedDelay shouldBeEqualTo 3L
-        scheduled.fixedDelayString shouldBeEqualTo "\${jobs.fixed-delay:}"
+        scheduled.fixedDelayString shouldBeEqualTo $$"${jobs.fixed-delay:}"
         scheduled.initialDelay shouldBeEqualTo 4L
-        scheduled.initialDelayString shouldBeEqualTo "\${jobs.initial-delay:}"
+        scheduled.initialDelayString shouldBeEqualTo $$"${jobs.initial-delay:}"
         scheduled.timeUnit shouldBeEqualTo TimeUnit.SECONDS
         scheduled.scheduler shouldBeEqualTo "leaderScheduler"
     }
@@ -31,17 +38,18 @@ class LeaderScheduledTest {
     fun `aliases leader election attributes`() {
         val election = mergedAnnotation<LeaderElection>()
 
-        election.name shouldBeEqualTo "\${jobs.lock-name}"
+        log.debug { "election=$election" }
+        election.name shouldBeEqualTo $$"${jobs.lock-name}"
         election.waitTime shouldBeEqualTo "PT2S"
         election.leaseTime shouldBeEqualTo "PT30S"
         election.minLeaseTime shouldBeEqualTo "PT5S"
-        election.autoExtend shouldBeEqualTo true
-        election.streamBounded shouldBeEqualTo false
+        election.autoExtend.shouldBeTrue()
+        election.streamBounded.shouldBeFalse()
         election.bean shouldBeEqualTo "redisLeaderElectionFactory"
         election.failureMode shouldBeEqualTo LeaderAspectFailureMode.SKIP
     }
 
-    private inline fun <reified A : Annotation> mergedAnnotation(): A =
+    private inline fun <reified A: Annotation> mergedAnnotation(): A =
         AnnotatedElementUtils.findMergedAnnotation(
             SampleJobs::class.java.getDeclaredMethod("run"),
             A::class.java,
@@ -49,15 +57,15 @@ class LeaderScheduledTest {
 
     private class SampleJobs {
         @LeaderScheduled(
-            name = "\${jobs.lock-name}",
-            cron = "\${jobs.cron}",
+            name = $$"${jobs.lock-name}",
+            cron = $$"${jobs.cron}",
             zone = "Asia/Seoul",
             fixedRate = 2,
-            fixedRateString = "\${jobs.fixed-rate:}",
+            fixedRateString = $$"${jobs.fixed-rate:}",
             fixedDelay = 3,
-            fixedDelayString = "\${jobs.fixed-delay:}",
+            fixedDelayString = $$"${jobs.fixed-delay:}",
             initialDelay = 4,
-            initialDelayString = "\${jobs.initial-delay:}",
+            initialDelayString = $$"${jobs.initial-delay:}",
             timeUnit = TimeUnit.SECONDS,
             scheduler = "leaderScheduler",
             waitTime = "PT2S",

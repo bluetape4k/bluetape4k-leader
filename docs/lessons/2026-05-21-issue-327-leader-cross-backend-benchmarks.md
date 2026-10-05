@@ -6,7 +6,7 @@
 
 ## 결정
 
-`src/benchmark/kotlin`, `benchmarkImplementation`, 명시적 `JvmBenchmarkTarget.jmhVersion`, INFO 로깅 및 두 개의 JSON 프로필(처리량 및 평균 시간)을 사용하여 게시되지 않은 중앙 `benchmark/` 모듈을 만들었습니다. 벤치마크 클래스 경로는 모든 테스트 또는 컴파일 전용 종속성을 상속하는 대신 의도적으로 명시적입니다. 이전 #326 로컬 벤치마크 클래스가 `leader-core/src/jmh`에서 이 모듈로 이동되었습니다.
+`src/benchmark/kotlin`, `benchmarkImplementation`, 명시적 `JvmBenchmarkTarget.jmhVersion`, INFO 로깅 및 두 개의 JSON 프로필 (처리량 및 평균 시간)을 사용하여 게시되지 않은 중앙 `benchmark/` 모듈을 만들었습니다. 벤치마크 클래스 경로는 모든 테스트 또는 컴파일 전용 종속성을 상속하는 대신 의도적으로 명시적입니다. 이전 #326 로컬 벤치마크 클래스가 `leader-core/src/jmh`에서 이 모듈로 이동되었습니다.
 
 ## 결과
 

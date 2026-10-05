@@ -2,7 +2,6 @@ package io.bluetape4k.leader.examples.ktor
 
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.support.closeSafe
 import io.bluetape4k.testcontainers.storage.RedisServer
 import io.bluetape4k.utils.ShutdownQueue
 import io.lettuce.core.RedisClient
@@ -17,21 +16,20 @@ import io.lettuce.core.codec.StringCodec
 abstract class AbstractKtorAppTest {
 
     companion object: KLogging() {
-        val redis = RedisServer.Launcher.redis
+        val redis by lazy { RedisServer.Launcher.redis }
 
         val redisUrl: String get() = redis.url
 
         val client: RedisClient by lazy {
-            RedisClient.create(redisUrl).also {
-                ShutdownQueue.register { runCatching { it.shutdown() } }
-            }
+            RedisClient.create(redisUrl)
+                .apply(ShutdownQueue::register)
         }
 
         fun newConnection(): StatefulRedisConnection<String, String> =
-            client.connect(StringCodec.UTF8).also {
-                ShutdownQueue.register { it.closeSafe() }
-            }
+            client.connect(StringCodec.UTF8)
+                .apply(ShutdownQueue::register)
     }
 
-    protected fun randomLockName(): String = "examples-ktor-app:${Base58.randomString(8)}"
+    protected fun randomLockName(): String =
+        "examples-ktor-app:${Base58.randomString(8)}"
 }

@@ -2,27 +2,19 @@
 
 ## Guidance hierarchy
 
-Before applying this repository overlay, read and follow the guidance in this
-order:
+Before applying this repository overlay, read and follow the guidance in this order:
 
 1. User scope: `${CODEX_HOME:-$HOME/.codex}/AGENTS.md`.
 2. Workspace scope: `/Users/debop/work/bluetape4k/.github/docs/workspace/AGENTS.md`.
 
 Apply both broader scopes before repository-specific rules.
 
-This repository inherits the workspace guidance from `../AGENTS.md`.
-Read and follow the workspace root guide first. This file only adds
-repo-specific layout, commands, domain rules, and local exceptions.
+This repository inherits the workspace guidance from `../AGENTS.md`. Read and follow the workspace root guide first. This file only adds repo-specific layout, commands, domain rules, and local exceptions.
 
-
-Distributed leader election library with blocking, async, coroutine, and
-virtual-thread APIs. Backends include Redis/Lettuce, Redis/Redisson, Exposed,
-MongoDB, DynamoDB, etcd, Consul, Kubernetes, Hazelcast, and ZooKeeper. Ktor 3.x
-integration is provided by `bluetape4k-leader-ktor`.
+Distributed leader election library with blocking, async, coroutine, and virtual-thread APIs. Backends include Redis/Lettuce, Redis/Redisson, Exposed, MongoDB, DynamoDB, etcd, Consul, Kubernetes, Hazelcast, and ZooKeeper. Ktor 3.x integration is provided by `bluetape4k-leader-ktor`.
 
 - Group: `io.github.bluetape4k.leader`
-- Publishing: Maven Central through NMCP (`examples/*` are excluded — see
-  Publishing rules below)
+- Publishing: Maven Central through NMCP (`examples/*` are excluded — see Publishing rules below)
 
 ## Layout
 
@@ -80,9 +72,7 @@ buildSrc/
 
 ## Core Contract
 
-`runIfLeader()` must not throw for normal lock contention. If leader election
-fails because the lock was not acquired, return `null`, matching ShedLock-style
-skip-on-contention behavior.
+`runIfLeader()` must not throw for normal lock contention. If leader election fails because the lock was not acquired, return `null`, matching ShedLock-style skip-on-contention behavior.
 
 ```kotlin
 val result = leaderElection.runIfLeader("job-lock") { doWork() }
@@ -91,29 +81,26 @@ val result = leaderElection.runIfLeader("job-lock") { doWork() }
 
 ## Interfaces
 
-| Interface | Execution model |
-|---|---|
-| `LeaderElector` | Blocking |
-| `AsyncLeaderElector` | `CompletableFuture` async |
-| `VirtualThreadLeaderElector` | Virtual thread per election |
-| `SuspendLeaderElector` | Coroutine suspend |
-| `LeaderGroupElector` | Blocking semaphore-style multi-leader |
-| `SuspendLeaderGroupElector` | Coroutine semaphore-style multi-leader |
+| Interface                    | Execution model                        |
+|------------------------------|----------------------------------------|
+| `LeaderElector`              | Blocking                               |
+| `AsyncLeaderElector`         | `CompletableFuture` async              |
+| `VirtualThreadLeaderElector` | Virtual thread per election            |
+| `SuspendLeaderElector`       | Coroutine suspend                      |
+| `LeaderGroupElector`         | Blocking semaphore-style multi-leader  |
+| `SuspendLeaderGroupElector`  | Coroutine semaphore-style multi-leader |
 
 ## Spring AOP Rules
 
-`@LeaderElection` and `@LeaderGroupElection` use AspectJ compile-time weaving
-through Freefair post-compile weaving.
+`@LeaderElection` and `@LeaderGroupElection` use AspectJ compile-time weaving through Freefair post-compile weaving.
 
 - Do not add `@EnableAspectJAutoProxy`; CTW handles weaving.
 - Kotlin methods do not need to be `open`.
 - Private methods are not intercepted; startup validation warns or fails.
-- `@LeaderElection` supports `T?`, `suspend T?`, `Mono<T>`, `Flux<T>`,
-  and Kotlin `Flow<T>`. Use `autoExtend = true` for long-running streams or
+- `@LeaderElection` supports `T?`, `suspend T?`, `Mono<T>`, `Flux<T>`, and Kotlin `Flow<T>`. Use `autoExtend = true` for long-running streams or
   `streamBounded = true` only when the stream finishes inside the lease window.
 - `@LeaderGroupElection` supports `T?`, `suspend T?`, and `Mono<T>`.
-  `Flux<T>` and Kotlin `Flow<T>` group streams are rejected because per-slot
-  stream lease extension is not defined.
+  `Flux<T>` and Kotlin `Flow<T>` group streams are rejected because per-slot stream lease extension is not defined.
 - SpEL names must be valid expressions. Use `"'prefix-' + #param"`, not
   `"prefix-#param"`.
 - Strict validation throws for final/private/suspend footguns. Invalid SpEL with
@@ -130,9 +117,7 @@ LeaderAopAutoConfiguration
 
 ## Publishing Rules
 
-Examples are not publishing artifacts. The root `build.gradle.kts` excludes
-every project under `:examples:` from `publishing`, the NMCP aggregation, and
-the publishing-signing tasks:
+Examples are not publishing artifacts. The root `build.gradle.kts` excludes every project under `:examples:` from `publishing`, the NMCP aggregation, and the publishing-signing tasks:
 
 ```kotlin
 // build.gradle.kts (root)
@@ -149,26 +134,22 @@ subprojects
     .filter { it.name != "bluetape4k-leader-bom" && !it.path.startsWith(":examples:") }
 ```
 
-When adding a new module under `examples/`, no publishing change is required —
-the path-prefix filter handles it. Library modules (`leader-*`) must be
-registered in `bluetape4k-leader-bom/build.gradle.kts` constraints.
+When adding a new module under `examples/`, no publishing change is required — the path-prefix filter handles it. Library modules (`leader-*`) must be registered in `bluetape4k-leader-bom/build.gradle.kts` constraints.
 
 ## CI / Scheduled Workflow Update Checklist
 
-When adding (or renaming) a module — library or example — keep the four
-locations below in sync. Missing any of them silently disables coverage.
+When adding (or renaming) a module — library or example — keep the four locations below in sync. Missing any of them silently disables coverage.
 
 1. `settings.gradle.kts` — `include(...)` entry.
 2. `.github/workflows/ci.yml`
-   - `paths-filter` filter outputs (changes job)
-   - per-module test job (`test-<module>`)
-   - aggregator `needs:` lists (build/test summary)
+    - `paths-filter` filter outputs (changes job)
+    - per-module test job (`test-<module>`)
+    - aggregator `needs:` lists (build/test summary)
 3. Scheduled workflow:
-   - publishable `leader-*` modules: `.github/workflows/nightly-tests.yml`
-   - `examples/*` modules: `.github/workflows/examples.yml`
-   - add the per-module/matrix test entry and aggregator `needs:` when needed
-4. `bluetape4k-leader-bom/build.gradle.kts` — only for publishable `leader-*` modules
-   (NOT for `examples/*`).
+    - publishable `leader-*` modules: `.github/workflows/nightly-tests.yml`
+    - `examples/*` modules: `.github/workflows/examples.yml`
+    - add the per-module/matrix test entry and aggregator `needs:` when needed
+4. `bluetape4k-leader-bom/build.gradle.kts` — only for publishable `leader-*` modules (NOT for `examples/*`).
 
 Example modules currently wired into `ci.yml` and `examples.yml`:
 `batch-scheduler`, `migration-gate`, `webhook-poller`, `cache-warmer`,
@@ -182,41 +163,30 @@ Example modules currently wired into `ci.yml` and `examples.yml`:
 For non-trivial changes (new module, public API change, cross-module refactor)
 delegate each phase to Codex with retry-3 to absorb transient failures:
 
-1. **Spec** — `codex run spec --retry 3` to draft scope, contracts, and
-   acceptance criteria before any code change.
+1. **Spec** — `codex run spec --retry 3` to draft scope, contracts, and acceptance criteria before any code change.
 2. **Plan** — `codex run plan --retry 3` to break the spec into ordered tasks.
-3. **Implementation** — author the change directly, keeping each commit small
-   and aligned with the plan tasks.
-4. **Code Review** — `codex run review --retry 3` against the diff to surface
-   regressions, then fix HIGH/CRITICAL findings before requesting human review.
+3. **Implementation** — author the change directly, keeping each commit small and aligned with the plan tasks.
+4. **Code
+   Review** — `codex run review --retry 3` against the diff to surface regressions, then fix HIGH/CRITICAL findings before requesting human review.
 
-Trivial documentation-only or single-file fixes can skip Spec/Plan but should
-still run the Code Review pass before merging.
+Trivial documentation-only or single-file fixes can skip Spec/Plan but should still run the Code Review pass before merging.
 
 ## Repo-Specific Guards
 
-- For distributed-lock or leader-election changes, verify sync, async, suspend,
-  and virtual-thread paths for delegate/watchdog parity.
-- For exception tests, use `io.bluetape4k.assertions.assertFailsWith`; do not
-  introduce JUnit `assertThrows`, `kotlin.test.assertFailsWith`, or
+- For distributed-lock or leader-election changes, verify sync, async, suspend, and virtual-thread paths for delegate/watchdog parity.
+- For exception tests, use `io.bluetape4k.assertions.assertFailsWith`; do not introduce JUnit `assertThrows`, `kotlin.test.assertFailsWith`, or
   `invoking { } shouldThrow` in new tests.
-- Example module builds are covered by `.github/workflows/examples.yml`. Keep
-  examples out of Nightly unless their backend coverage becomes part of
-  Nightly's explicit contract.
-- When `.github/workflows/nightly-tests.yml` is changed, explicitly dispatch
-  Nightly before DoD and record the run URL/result.
+- Example module builds are covered by `.github/workflows/examples.yml`. Keep examples out of Nightly unless their backend coverage becomes part of Nightly's explicit contract.
+- When `.github/workflows/nightly-tests.yml` is changed, explicitly dispatch Nightly before DoD and record the run URL/result.
 
 ## Manual Ownership
 
 - The central site owns user-facing release documentation under
-  `bluetape4k.github.io/docs/manual/bluetape4k-leader`; this repository must not
-  recreate a second `docs/manual/` tree. README files are concise entry points
-  and must link into the central manual instead of duplicating it.
+  `bluetape4k.github.io/docs/manual/bluetape4k-leader`; this repository must not recreate a second `docs/manual/` tree. README files are concise entry points and must link into the central manual instead of duplicating it.
 - Versioned manuals are written against the pinned `releaseRef` and
   `releaseCommit` in the central site's
   `docs/manual/bluetape4k-leader/manifest.yaml`. Authoring may happen on
-  `develop`, but API claims and repository links must remain valid at that
-  release commit.
+  `develop`, but API claims and repository links must remain valid at that release commit.
 - Applications select only `io.github.bluetape4k:bluetape4k-dependencies`; do not teach users to coordinate a separate Leader BOM or per-module version.
 - Keep English and Korean paths aligned. Korean prose should read as native technical writing, not as a literal translation.
 - Treat every `examples/*` project as a workshop: document prerequisites, execution, observable results, diagnosis, and the next learning step.

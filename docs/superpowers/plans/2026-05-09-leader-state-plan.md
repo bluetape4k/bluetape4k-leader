@@ -119,12 +119,12 @@
 - affected module tests
 - 전체 build 또는 가능한 범위의 `check`
 - 6-Tier code review:
-  1. API/compatibility
-  2. Correctness/race
-  3. Backend consistency
-  4. Coroutine/cancellation
-  5. Tests/coverage
-  6. Docs/maintainability
+    1. API/compatibility
+    2. Correctness/race
+    3. Backend consistency
+    4. Coroutine/cancellation
+    5. Tests/coverage
+    6. Docs/maintainability
 
 **PR**
 

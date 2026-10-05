@@ -36,7 +36,7 @@ data class LeaderGroupElectionOptions(
         leaseTime: Duration,
         nodeId: String,
         minLeaseTime: Duration,
-    ) : this(maxLeaders, waitTime, leaseTime, nodeId, minLeaseTime, false)
+    ): this(maxLeaders, waitTime, leaseTime, nodeId, minLeaseTime, false)
 
     /**
      * 기존 Kotlin 기본 인자 호출자가 사용하던 0.5.x synthetic constructor descriptor를
@@ -44,14 +44,14 @@ data class LeaderGroupElectionOptions(
      * 직접 의미 있는 값을 전달하지 않습니다.
      */
     @Suppress("LongParameterList", "UnusedParameter", "UNUSED_PARAMETER")
-    public constructor(
+    constructor(
         maxLeaders: Int,
         waitTimeNanos: Long,
         leaseTimeNanos: Long,
         nodeId: String,
         minLeaseTimeNanos: Long,
         marker: DefaultConstructorMarker?,
-    ) : this(
+    ): this(
         maxLeaders,
         waitTimeNanos.nanoseconds,
         leaseTimeNanos.nanoseconds,
@@ -62,7 +62,7 @@ data class LeaderGroupElectionOptions(
 
     /** 0.5.x의 기본 인자 mask constructor descriptor를 보존합니다. */
     @Suppress("LongParameterList", "UnusedParameter", "UNUSED_PARAMETER")
-    public constructor(
+    constructor(
         maxLeaders: Int,
         waitTimeNanos: Long,
         leaseTimeNanos: Long,
@@ -70,7 +70,7 @@ data class LeaderGroupElectionOptions(
         minLeaseTimeNanos: Long,
         mask: Int,
         marker: DefaultConstructorMarker?,
-    ) : this(
+    ): this(
         maxLeaders = if (mask and 1 != 0) DefaultMaxLeaders else maxLeaders,
         waitTime = if (mask and 2 != 0) DefaultWaitTime else waitTimeNanos.nanoseconds,
         leaseTime = if (mask and 4 != 0) DefaultLeaseTime else leaseTimeNanos.nanoseconds,

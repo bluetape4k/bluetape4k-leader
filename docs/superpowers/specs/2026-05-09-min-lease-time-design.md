@@ -62,7 +62,7 @@ suspend 구현은 action 완료 또는 예외 후 unlock/release 직전에 남�
 
 - 분산 backend unlock TTL 위임은 #77에서 처리한다.
 - AOP annotation `minLeaseTime` 필드 복구는 #77에서 처리한다.
-- `leaseTime` 자동 연장(heartbeat)은 본 범위가 아니다.
+- `leaseTime` 자동 연장 (heartbeat)은 본 범위가 아니다.
 
 ## 6. 테스트
 

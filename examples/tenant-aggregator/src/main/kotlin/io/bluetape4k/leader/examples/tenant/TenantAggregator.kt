@@ -1,16 +1,12 @@
 package io.bluetape4k.leader.examples.tenant
 
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
-import kotlin.coroutines.cancellation.CancellationException
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -20,6 +16,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * 테넌트별 독립 leader-election 으로 멀티테넌트 집계를 수행하는 long-running 워커.
@@ -98,6 +99,7 @@ class TenantAggregator(
         check(rootJob == null || rootJob?.isCompleted == true) {
             "TenantAggregator(nodeId=${options.nodeId}) is already running"
         }
+
         val job = scope.launch {
             try {
                 supervisorScope {
@@ -111,8 +113,10 @@ class TenantAggregator(
                 log.warn(e) { "[${options.nodeId}] tenant aggregator root terminated unexpectedly" }
                 throw e
             }
-        }
+        }.log("Aggregator Job")
+
         rootJob = job
+
         job.invokeOnCompletion {
             lifecycleLock.withLock {
                 if (rootJob === job) rootJob = null
@@ -133,7 +137,10 @@ class TenantAggregator(
         // 대기 시간이 0이거나 호출자가 이미 취소됐어도 worker 취소는 요청합니다.
         job.cancel()
         try {
-            val completed = withTimeoutOrNull(timeout) { job.cancelAndJoin(); true } ?: false
+            val completed = withTimeoutOrNull(timeout) {
+                job.cancelAndJoin();
+                true
+            } ?: false
             if (!completed && !job.isCompleted) {
                 log.warn { "[${options.nodeId}] stopGracefully timed out; cleanup is still pending" }
             }

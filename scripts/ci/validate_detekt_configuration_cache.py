@@ -8,7 +8,6 @@ import re
 import sys
 from pathlib import Path
 
-
 GUARD_MARKER = "val detektProductionSourceGuard = tasks.register"
 FORBIDDEN_ACTION_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bsubprojects\b"), "subprojects 참조"),

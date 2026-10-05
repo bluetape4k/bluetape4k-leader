@@ -283,7 +283,7 @@ jobs:
 
   github-release:
     name: Create GitHub Release
-    needs: [resolve-version, publish]
+    needs: [ resolve-version, publish ]
     runs-on: ubuntu-latest
     permissions:
       contents: write

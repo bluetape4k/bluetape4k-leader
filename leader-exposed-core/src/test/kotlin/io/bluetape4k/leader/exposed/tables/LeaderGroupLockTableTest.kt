@@ -1,11 +1,15 @@
 package io.bluetape4k.leader.exposed.tables
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.exposed.tests.withTables
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.exposed.AbstractExposedTableTest
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
@@ -14,14 +18,11 @@ import org.jetbrains.exposed.v1.jdbc.exists
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
-import io.bluetape4k.assertions.shouldBeTrue
 
-class LeaderGroupLockTableTest : AbstractExposedTableTest() {
+class LeaderGroupLockTableTest: AbstractExposedTableTest() {
 
     companion object: KLogging()
 
@@ -45,7 +46,7 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
                     it[lockName] = "group-job"
                     it[LeaderGroupLockTable.slot] = slot
                     it[lockOwner] = "owner-$slot"
-                    it[token] = Base58.randomString(8)
+                    it[token] = Base58.randomString(16)
                     it[lockedAt] = now
                     it[lockedUntil] = now.plusSeconds(60)
                 }
@@ -66,7 +67,7 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
             LeaderGroupLockTable.insert {
                 it[lockName] = "dup-group"
                 it[slot] = 0
-                it[token] = Base58.randomString(8)
+                it[token] = Base58.randomString(16)
                 it[lockedAt] = now
                 it[lockedUntil] = now.plusSeconds(60)
             }
@@ -96,7 +97,7 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
                 it[slot] = 0
                 it[token] = Base58.randomString(8)
                 it[lockedAt] = expired
-                it[lockedUntil] = expired.plusSeconds(30) // 이미 만료
+                it[lockedUntil] = expired + 30.seconds()  // 이미 만료
             }
             // 활성 슬롯
             LeaderGroupLockTable.insert {
@@ -104,13 +105,13 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
                 it[slot] = 1
                 it[token] = Base58.randomString(8)
                 it[lockedAt] = now
-                it[lockedUntil] = now.plusSeconds(60)
+                it[lockedUntil] = now + 60.seconds()
             }
 
             val activeCount = LeaderGroupLockTable.selectAll()
                 .where {
                     LeaderGroupLockTable.lockName eq "test-group" and
-                        LeaderGroupLockTable.lockedUntil.greaterEq(now)
+                            LeaderGroupLockTable.lockedUntil.greaterEq(now)
                 }
                 .count()
 
@@ -128,17 +129,17 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
             LeaderGroupLockTable.insert {
                 it[lockName] = "renew-group"
                 it[slot] = 0
-                it[token] = Base58.randomString(8)
+                it[token] = Base58.randomString(16)
                 it[lockedAt] = expired
                 it[lockedUntil] = expired.plusSeconds(30)
             }
 
-            val newToken = Base58.randomString(8)
+            val newToken = Base58.randomString(16)
             val updated = LeaderGroupLockTable.update(
                 where = {
                     LeaderGroupLockTable.lockName eq "renew-group" and
-                        (LeaderGroupLockTable.slot eq 0) and
-                        LeaderGroupLockTable.lockedUntil.less(now)
+                            (LeaderGroupLockTable.slot eq 0) and
+                            LeaderGroupLockTable.lockedUntil.less(now)
                 }
             ) {
                 it[token] = newToken
@@ -160,7 +161,7 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
                 LeaderGroupLockTable.insert {
                     it[lockName] = "range-group"
                     it[slot] = s
-                    it[token] = Base58.randomString(8)
+                    it[token] = Base58.randomString(16)
                     it[lockedAt] = now
                     it[lockedUntil] = now.plusSeconds(60)
                 }
@@ -169,8 +170,8 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
             val count = LeaderGroupLockTable.selectAll()
                 .where {
                     LeaderGroupLockTable.lockName eq "range-group" and
-                        (LeaderGroupLockTable.slot greaterEq 0) and
-                        (LeaderGroupLockTable.slot less maxLeaders)
+                            (LeaderGroupLockTable.slot greaterEq 0) and
+                            (LeaderGroupLockTable.slot less maxLeaders)
                 }
                 .count()
 

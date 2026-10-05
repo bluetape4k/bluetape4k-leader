@@ -2,16 +2,21 @@ package io.bluetape4k.leader.zookeeper
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
-import java.util.concurrent.CompletableFuture
 import kotlin.time.Duration.Companion.seconds
 
 class ZooKeeperApiCoverageTest: AbstractZooKeeperLeaderTest() {
+
+    companion object: KLogging()
 
     @Test
     fun `CuratorFramework extension functions execute leader actions`() = runTest {
@@ -25,10 +30,10 @@ class ZooKeeperApiCoverageTest: AbstractZooKeeperLeaderTest() {
         } shouldBeEqualTo "blocking-typed"
 
         curator.runAsyncIfLeader("${lockName}-async") {
-            CompletableFuture.completedFuture("async")
+            completableFutureOf("async")
         }.join() shouldBeEqualTo "async"
         curator.runAsyncIfLeader(ZooKeeperElectionPath.single("${lockName}-async-typed")) {
-            CompletableFuture.completedFuture("async-typed")
+            completableFutureOf("async-typed")
         }.join() shouldBeEqualTo "async-typed"
 
         curator.runIfLeaderGroup(groupName, groupOptions) { "group" } shouldBeEqualTo "group"
@@ -37,10 +42,10 @@ class ZooKeeperApiCoverageTest: AbstractZooKeeperLeaderTest() {
         } shouldBeEqualTo "group-typed"
 
         curator.runAsyncIfLeaderGroup("${groupName}-async", options = groupOptions) {
-            CompletableFuture.completedFuture("group-async")
+            completableFutureOf("group-async")
         }.join() shouldBeEqualTo "group-async"
         curator.runAsyncIfLeaderGroup(ZooKeeperElectionPath.group("${groupName}-async-typed"), options = groupOptions) {
-            CompletableFuture.completedFuture("group-async-typed")
+            completableFutureOf("group-async-typed")
         }.join() shouldBeEqualTo "group-async-typed"
 
         curator.suspendRunIfLeader("${lockName}-suspend") { "suspend" } shouldBeEqualTo "suspend"
@@ -85,19 +90,20 @@ class ZooKeeperApiCoverageTest: AbstractZooKeeperLeaderTest() {
     fun `group state reports active count and available slots`() {
         val lockName = randomName()
         val options = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 5.seconds)
-        val election = ZooKeeperLeaderGroupElector(curator, options)
+        val elector = ZooKeeperLeaderGroupElector(curator, options)
 
-        election.activeCount(lockName) shouldBeEqualTo 0
-        election.availableSlots(lockName) shouldBeEqualTo 2
-        election.state(lockName).availableSlots shouldBeEqualTo 2
+        elector.activeCount(lockName) shouldBeEqualTo 0
+        elector.availableSlots(lockName) shouldBeEqualTo 2
+        elector.state(lockName).availableSlots shouldBeEqualTo 2
 
-        election.runIfLeader(lockName) {
-            election.activeCount(lockName) shouldBeEqualTo 1
-            election.availableSlots(lockName) shouldBeEqualTo 1
-            election.state(lockName).activeCount shouldBeEqualTo 1
+        elector.runIfLeader(lockName) {
+            elector.activeCount(lockName) shouldBeEqualTo 1
+            elector.availableSlots(lockName) shouldBeEqualTo 1
+            elector.state(lockName).activeCount shouldBeEqualTo 1
         }
 
-        election.activeCount(lockName) shouldBeEqualTo 0
+        log.debug { "elector state=${elector.state(lockName)}" }
+        elector.activeCount(lockName) shouldBeEqualTo 0
     }
 
     @Test
@@ -136,23 +142,24 @@ class ZooKeeperApiCoverageTest: AbstractZooKeeperLeaderTest() {
 
     @Test
     fun `suspend elector reuses owner dispatcher across runIfLeader calls`() = runTest {
-        val election = ZooKeeperSuspendLeaderElector(curator)
+        val elector = ZooKeeperSuspendLeaderElector(curator)
         try {
             repeat(3) { index ->
-                election.runIfLeader("${randomName()}-$index") { "ok" } shouldBeEqualTo "ok"
+                elector.runIfLeader("${randomName()}-$index") { "ok" } shouldBeEqualTo "ok"
             }
         } finally {
-            election.close()
+            elector.close()
         }
 
         val source = Path.of(
             "src/main/kotlin/io/bluetape4k/leader/zookeeper/ZooKeeperSuspendLeaderElector.kt",
         ).toFile().readText()
+
         val runStart = source.indexOf("private suspend fun <T> runWithOwnerDispatcher")
         val closeStart = source.indexOf("override fun close()", startIndex = runStart)
         val runBody = source.substring(runStart, closeStart)
 
-        source.contains("private class ZooKeeperOwnerDispatcherPool").shouldBeTrue()
-        (!runBody.contains("Executors.newSingleThreadExecutor")).shouldBeTrue()
+        source shouldContain "private class ZooKeeperOwnerDispatcherPool"
+        runBody shouldNotContain "Executors.newSingleThreadExecutor"
     }
 }
