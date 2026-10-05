@@ -59,7 +59,9 @@ class MongoLeaderHistoryIndexerTest {
         val release = CompletableDeferred<Unit>()
         coEvery { collection.createIndex(any<Bson>(), any<IndexOptions>()) } coAnswers {
             started.countDown()
-            release.await()
+            withContext(NonCancellable) {
+                release.await()
+            }
             "index"
         }
 
