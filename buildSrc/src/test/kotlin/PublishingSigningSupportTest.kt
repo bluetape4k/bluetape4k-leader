@@ -90,6 +90,46 @@ class PublishingSigningSupportTest {
     }
 
     @Test
+    fun `published POM treats reordered managed dependency fields as identical`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply("maven-publish")
+        project.pluginManager.apply("signing")
+
+        val publication = project.extensions.getByType(PublishingExtension::class.java)
+            .publications.create("test", MavenPublication::class.java)
+        publication.groupId = "io.github.bluetape4k.test"
+        publication.artifactId = "pom-field-order-test"
+        publication.version = "1.0.0"
+        publication.pom.withXml {
+            val dependencies = asNode()
+                .appendNode("dependencyManagement")
+                .appendNode("dependencies")
+            val first = dependencies.appendNode("dependency")
+            first.appendNode("groupId", "software.amazon.awssdk")
+            first.appendNode("artifactId", "bom")
+            first.appendNode("version", "2.54.12")
+            first.appendNode("type", "pom")
+            first.appendNode("scope", "import")
+
+            val second = dependencies.appendNode("dependency")
+            second.appendNode("groupId", "software.amazon.awssdk")
+            second.appendNode("artifactId", "bom")
+            second.appendNode("version", "2.54.12")
+            second.appendNode("scope", "import")
+            second.appendNode("type", "pom")
+        }
+        project.configurePublishingSigning("test")
+
+        val output = project.file("build/test-pom.xml")
+        val task = project.tasks.getByName("generatePomFileForTestPublication") as GenerateMavenPom
+        task.destination = output
+        task.actions.forEach { action -> action.execute(task) }
+
+        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(output)
+        assertEquals(1, document.getElementsByTagName("dependency").length)
+    }
+
+    @Test
     fun `rejects conflicting managed dependency versions`() {
         val project = ProjectBuilder.builder().build()
         project.pluginManager.apply("maven-publish")

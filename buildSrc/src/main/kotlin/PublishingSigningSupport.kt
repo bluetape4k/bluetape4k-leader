@@ -204,7 +204,7 @@ private fun org.w3c.dom.Node.canonicalFingerprint(): String = when (nodeType) {
                 -> child.nodeValue?.trim()?.takeIf(String::isNotEmpty)
                 else -> null
             }
-        }.joinToString("|")
+        }.sorted().joinToString("|")
         "$nodeName[$serializedAttributes]{$content}"
     }
     else -> nodeValue?.trim().orEmpty()
