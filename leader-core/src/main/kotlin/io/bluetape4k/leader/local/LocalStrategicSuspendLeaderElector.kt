@@ -18,9 +18,9 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 
 /**
- * `LocalStrategicSuspendLeaderElector` 선언은 leader election 계약에서 사용되는 class입니다.
+ * JVM 메모리에 후보를 보관하고 `ElectionStrategy`로 단일 leader를 선택하는 suspend elector입니다.
+ * 양수 `ttl`은 후보 만료에 적용되며, `Duration.ZERO`는 만료되지 않는 후보를 뜻합니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  * @property nodeId 상태 조회와 audit에 노출되는 노드 또는 인스턴스 식별자입니다.
  */
 class LocalStrategicSuspendLeaderElector(
@@ -29,36 +29,34 @@ class LocalStrategicSuspendLeaderElector(
 
     companion object: KLoggingChannel()
 
-    private val registry = ConcurrentHashMap<String, ConcurrentHashMap<String, CandidateInfo>>()
+    private val registry = ConcurrentHashMap<String, LocalStrategicCandidateRegistry>()
     private val mutexes = ConcurrentHashMap<String, Mutex>()
 
-    private fun candidatesFor(lockName: String): ConcurrentHashMap<String, CandidateInfo> {
+    private fun candidatesFor(lockName: String): LocalStrategicCandidateRegistry {
         lockName.validateLockName()
-        return registry.computeIfAbsent(lockName) { ConcurrentHashMap() }
+        return registry.computeIfAbsent(lockName) { LocalStrategicCandidateRegistry() }
     }
 
     private fun mutexFor(lockName: String): Mutex =
         mutexes.computeIfAbsent(lockName) { Mutex() }
 
     override suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
-        candidatesFor(lockName)[info.nodeId] = info
+        candidatesFor(lockName).register(info, ttl)
     }
 
     override suspend fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
-        candidatesFor(lockName).computeIfPresent(info.nodeId) { _, current ->
-            current.copy(metadata = info.metadata)
-        }
+        candidatesFor(lockName).refresh(info, ttl)
     }
 
     override suspend fun unregisterCandidate(lockName: String, nodeId: String) {
-        candidatesFor(lockName).remove(nodeId)
+        candidatesFor(lockName).unregister(nodeId)
     }
 
     override suspend fun listCandidates(lockName: String): List<CandidateInfo> =
-        candidatesFor(lockName).values.toList()
+        candidatesFor(lockName).list()
 
     override suspend fun updateResult(lockName: String, nodeId: String, result: CandidateResult) {
-        candidatesFor(lockName).computeIfPresent(nodeId) { _, current -> current.withResult(result) }
+        candidatesFor(lockName).updateResult(nodeId, result)
     }
 
     override suspend fun <T> runIfLeader(

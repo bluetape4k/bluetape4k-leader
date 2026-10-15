@@ -199,6 +199,15 @@ LeaderGroupElectionOptions(
 registerCandidate() → elect(strategy) → 1명 선출, 나머지 skip
 ```
 
+로컬 strategic single/group elector(`LocalStrategicLeaderElector`,
+`LocalStrategicLeaderGroupElector`, `LocalStrategicSuspendLeaderElector`,
+`LocalStrategicSuspendLeaderGroupElector`)는 후보를 프로세스 내부 registry에 보관합니다.
+양수 `ttl`은 등록 또는 갱신 시점부터 적용되어 만료된 후보를 목록과 선출 대상에서 제외하고,
+`Duration.ZERO`는 명시적으로 해제하거나 프로세스가 종료될 때까지 후보를 유지합니다.
+`refreshCandidate`는 살아 있는 후보의 metadata와 TTL만 갱신하고 결과 통계와 실행 시각을 보존하며,
+없거나 이미 만료된 후보를 다시 등록하지 않습니다. 이 TTL은 프로세스 내부에서만 유효하고
+분산 만료를 제공하지 않습니다.
+
 ### 내장 전략
 
 | 전략                             | 설명                                                       |
