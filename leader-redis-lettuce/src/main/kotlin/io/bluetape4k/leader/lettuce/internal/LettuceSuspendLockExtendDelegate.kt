@@ -25,6 +25,7 @@ internal class LettuceSuspendLockExtendDelegate(
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
         try {
             lock.extendDetailed(lockAtMostFor)
@@ -35,6 +36,7 @@ internal class LettuceSuspendLockExtendDelegate(
             ExtendOutcome.BackendError(e)
         }
 
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun isHeldSuspend(): Boolean =
         try {
             lock.isHeldByCurrentInstance()

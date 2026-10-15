@@ -74,6 +74,7 @@ class ZooKeeperSuspendLeaderElector private constructor(
             runWithOwnerDispatcher(lockName, ownerDispatcher, action)
         }
 
+    // 획득 실패, 작업 예외, 취소 정리의 계약을 분리해 보존합니다.
     private suspend fun <T> runWithOwnerDispatcher(
         lockName: String,
         ownerDispatcher: ExecutorCoroutineDispatcher,
@@ -83,6 +84,7 @@ class ZooKeeperSuspendLeaderElector private constructor(
         val mutex = ZooKeeperOwnedInterProcessMutex(client, path)
 
         log.debug { "ZooKeeper suspend leader lock 획득을 요청합니다. path=$path" }
+        var acquisitionFailed = false
         val acquired = try {
             runInterruptible(ownerDispatcher) {
                 mutex.acquire(options.waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
@@ -90,75 +92,96 @@ class ZooKeeperSuspendLeaderElector private constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            acquisitionFailed = true
             log.warn(e) { "ZooKeeper suspend leader lock 획득 실패. path=$path" }
-            return null
+            false
         }
 
         if (!acquired) {
-            log.debug { "ZooKeeper suspend leader lock 획득 실패 (timeout). path=$path" }
+            if (!acquisitionFailed) {
+                log.debug { "ZooKeeper suspend leader lock 획득 실패 (timeout). path=$path" }
+            }
             return null
         }
 
         log.debug { "ZooKeeper suspend leader lock 획득 성공. path=$path" }
 
         var watchdog: AutoCloseable? = null
-        try {
+        return try {
             val lockPath = runInterruptible(ownerDispatcher) {
                 mutex.currentThreadLockPath()
             }
             if (lockPath == null) {
                 log.warn { "ZooKeeper suspend leader lock path 조회 실패. path=$path" }
-                return null
-            }
-
-            val acquiredAtNanos = System.nanoTime()
-            val delegate = ZooKeeperSuspendLockExtendDelegate(client, mutex, path, lockPath)
-            val identity = LockIdentity(
-                lockName = lockName,
-                kind = LockIdentity.AnnotationKind.SINGLE,
-                factoryBeanName = ZOOKEEPER_SUSPEND_FACTORY_BEAN_NAME,
-            )
-            val handle = LeaderLockHandle.real(
-                identity = identity,
-                token = lockName,
-                acquiredAtNanos = acquiredAtNanos,
-                extendDelegate = delegate,
-            )
-            // R16 enforce: ZK 는 TTL 없음 — autoExtend 강제 비활성화 (사용자 설정 무시 + WARN)
-            if (options.autoExtend) {
-                log.warn {
-                    "ZooKeeper 는 TTL 이 없는 세션 기반 락 — autoExtend=true 설정이 무시됩니다. " +
-                            "ZK 세션 keepalive 가 lease 역할을 대신합니다. lockName=$lockName"
+                null
+            } else {
+                val acquiredAtNanos = System.nanoTime()
+                val delegate = ZooKeeperSuspendLockExtendDelegate(client, mutex, path, lockPath)
+                val handle = createLockHandle(lockName, acquiredAtNanos, delegate)
+                // R16 enforce: ZK 는 TTL 없음 — autoExtend 강제 비활성화 (사용자 설정 무시 + WARN)
+                if (options.autoExtend) {
+                    log.warn {
+                        "ZooKeeper 는 TTL 이 없는 세션 기반 락 — autoExtend=true 설정이 무시됩니다. " +
+                                "ZK 세션 keepalive 가 lease 역할을 대신합니다. lockName=$lockName"
+                    }
                 }
-            }
-            watchdog = LeaderLeaseAutoExtender.start(
-                enabled = false,
-                leaseTime = options.leaseTime,
-                delegate = delegate,
-                classifier = ERROR_CLASSIFIER,
-            )
+                watchdog = LeaderLeaseAutoExtender.start(
+                    enabled = false,
+                    leaseTime = options.leaseTime,
+                    delegate = delegate,
+                    classifier = ERROR_CLASSIFIER,
+                )
 
-            return withContext(AopScopeAccess.createLockHandleElement(handle)) {
-                action()
+                withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                    action()
+                }
             }
         } finally {
-            // NonCancellable: 코루틴 취소 시에도 watchdog close + 락 해제가 중단되지 않도록 보호
-            withContext(NonCancellable) {
-                try {
-                    watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }
-                } catch (e: Exception) {
-                    log.warn(e) { "ZooKeeper suspend watchdog close 실패. path=$path" }
+            releaseAfterRun(ownerDispatcher, mutex, watchdog, path)
+        }
+    }
+
+    private fun createLockHandle(
+        lockName: String,
+        acquiredAtNanos: Long,
+        delegate: ZooKeeperSuspendLockExtendDelegate,
+    ): LeaderLockHandle {
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = ZOOKEEPER_SUSPEND_FACTORY_BEAN_NAME,
+        )
+        return LeaderLockHandle.real(
+            identity = identity,
+            token = lockName,
+            acquiredAtNanos = acquiredAtNanos,
+            extendDelegate = delegate,
+        )
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun releaseAfterRun(
+        ownerDispatcher: ExecutorCoroutineDispatcher,
+        mutex: ZooKeeperOwnedInterProcessMutex,
+        watchdog: AutoCloseable?,
+        path: String,
+    ) {
+        // NonCancellable: 코루틴 취소 시에도 watchdog close + 락 해제가 중단되지 않도록 보호
+        withContext(NonCancellable) {
+            try {
+                watchdog?.let { LeaderLeaseAutoExtender.closeSuspend(it) }
+            } catch (e: Exception) {
+                log.warn(e) { "ZooKeeper suspend watchdog close 실패. path=$path" }
+            }
+            try {
+                runInterruptible(ownerDispatcher) {
+                    mutex.release()
                 }
-                try {
-                    runInterruptible(ownerDispatcher) {
-                        mutex.release()
-                    }
-                    log.debug { "ZooKeeper suspend leader lock 반납 완료. path=$path" }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    log.warn(e) { "ZooKeeper suspend leader lock 반납 실패. path=$path" }
-                }
+                log.debug { "ZooKeeper suspend leader lock 반납 완료. path=$path" }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.warn(e) { "ZooKeeper suspend leader lock 반납 실패. path=$path" }
             }
         }
     }

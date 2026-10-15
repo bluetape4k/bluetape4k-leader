@@ -58,6 +58,7 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
     private val waitTime = options.waitTime
     private val leaseTime = options.leaseTime
 
+    @Suppress("TooGenericExceptionCaught")
     override fun activeCount(lockName: String): Int {
         val semaphore = semaphore(lockName)
         return try {
@@ -74,6 +75,7 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         val path = ZooKeeperPaths.electionPath(basePath, lockName)
         val semaphore = InterProcessSemaphoreV2(client, path, maxLeaders)
@@ -88,7 +90,7 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
             throw e
         } catch (e: Exception) {
             log.warn(e) { "ZooKeeper suspend group lease 획득 실패. path=$path" }
-            return null
+            null
         } ?: return null
 
         log.debug { "ZooKeeper suspend group lease 획득 성공. path=$path" }
@@ -122,24 +124,34 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
                 action()
             }
         } finally {
-            // NonCancellable: 코루틴 취소 시에도 watchdog close + release 가 중단되지 않도록 보호
-            withContext(NonCancellable) {
-                try {
-                    LeaderLeaseAutoExtender.closeSuspend(watchdog)
-                } catch (e: Exception) {
-                    log.warn(e) { "ZooKeeper suspend group watchdog close 실패. path=$path" }
+            releaseAfterRun(path, lease, watchdog, delegate)
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun releaseAfterRun(
+        path: String,
+        lease: org.apache.curator.framework.recipes.locks.Lease,
+        watchdog: AutoCloseable,
+        delegate: ZooKeeperSuspendSlotExtendDelegate,
+    ) {
+        // NonCancellable: 코루틴 취소 시에도 watchdog close + release 가 중단되지 않도록 보호
+        withContext(NonCancellable) {
+            try {
+                LeaderLeaseAutoExtender.closeSuspend(watchdog)
+            } catch (e: Exception) {
+                log.warn(e) { "ZooKeeper suspend group watchdog close 실패. path=$path" }
+            }
+            delegate.markReleased()
+            try {
+                withContext(Dispatchers.IO) {
+                    lease.close()
                 }
-                delegate.markReleased()
-                try {
-                    withContext(Dispatchers.IO) {
-                        lease.close()
-                    }
-                    log.debug { "ZooKeeper suspend group lease 반납 완료. path=$path" }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    log.warn(e) { "ZooKeeper suspend group lease 반납 실패. path=$path" }
-                }
+                log.debug { "ZooKeeper suspend group lease 반납 완료. path=$path" }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.warn(e) { "ZooKeeper suspend group lease 반납 실패. path=$path" }
             }
         }
     }

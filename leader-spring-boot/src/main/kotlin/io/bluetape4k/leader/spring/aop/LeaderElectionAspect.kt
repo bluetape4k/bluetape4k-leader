@@ -230,7 +230,8 @@ class LeaderElectionAspect(
                     log.debug { "leader.aop.elected lockName=$resolvedName elapsedNs=$elapsed" }
                     if (elapsed > meta.leaseTimeWarnThresholdNanos) {
                         log.warn {
-                            "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${opts.leaseTime.inWholeNanoseconds}"
+                            "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed " +
+                                    "leaseTimeNs=${opts.leaseTime.inWholeNanoseconds}"
                         }
                     }
                     runResult.value
@@ -290,6 +291,8 @@ class LeaderElectionAspect(
      *
      * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    // Coroutine advice의 획득·실행·fail-open·오류 처리는 lease 수명 순서를 보존하도록 한 흐름입니다.
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ThrowsCount")
     private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
         @Suppress("UNCHECKED_CAST")
         val continuation = pjp.args.last() as Continuation<Any?>
@@ -334,7 +337,10 @@ class LeaderElectionAspect(
                             val elapsed = System.nanoTime() - start
                             fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
                             if (elapsed > meta.leaseTimeWarnThresholdNanos) {
-                                log.warn { "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}" }
+                                log.warn {
+                                    "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed " +
+                                            "leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}"
+                                }
                             }
                             log.debug { "leader.aop.elected lockName=$resolvedName elapsedNs=$elapsed" }
                             bodyResult
@@ -492,7 +498,10 @@ class LeaderElectionAspect(
                                 val elapsed = System.nanoTime() - start
                                 fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
                                 if (elapsed > meta.leaseTimeWarnThresholdNanos) {
-                                    log.warn { "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}" }
+                                    log.warn {
+                                        "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed " +
+                                                "leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}"
+                                    }
                                 }
                                 log.debug { "leader.aop.elected lockName=$resolvedName elapsedNs=$elapsed" }
                             } catch (ce: CancellationException) {
@@ -674,7 +683,10 @@ class LeaderElectionAspect(
                             val elapsed = System.nanoTime() - start
                             fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
                             if (elapsed > meta.leaseTimeWarnThresholdNanos) {
-                                log.warn { "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}" }
+                                log.warn {
+                                    "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed " +
+                                            "leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}"
+                                }
                             }
                             log.debug { "leader.aop.elected lockName=$resolvedName elapsedNs=$elapsed" }
                         } catch (ce: CancellationException) {
@@ -818,7 +830,10 @@ class LeaderElectionAspect(
                                 val elapsed = System.nanoTime() - start
                                 fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
                                 if (elapsed > meta.leaseTimeWarnThresholdNanos) {
-                                    log.warn { "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}" }
+                                    log.warn {
+                                        "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed " +
+                                                "leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}"
+                                    }
                                 }
                                 log.debug { "leader.aop.elected lockName=$resolvedName elapsedNs=$elapsed" }
                                 bodyResult

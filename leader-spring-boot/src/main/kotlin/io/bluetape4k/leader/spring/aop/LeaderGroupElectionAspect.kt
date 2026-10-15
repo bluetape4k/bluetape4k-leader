@@ -171,7 +171,8 @@ class LeaderGroupElectionAspect(
             fanOut { it.onLockAttempt(resolvedName, coreOpts) }
 
             val runResult = election.runIfLeaderResult(resolvedName) {
-                // Elector (e.g., AbstractLocalLeaderGroupElector) 내부에서 LockStateHolder.withPushed 호출 — aspect 가 double-push 하지 않음.
+                // Elector (e.g., AbstractLocalLeaderGroupElector) 내부에서
+                // LockStateHolder.withPushed 호출 — aspect 가 double-push 하지 않음.
                 fanOut {
                     it.onLockAcquired(resolvedName, coreOpts, (System.nanoTime() - start).nanoseconds)
                     it.onTaskStarted(resolvedName)
@@ -205,7 +206,8 @@ class LeaderGroupElectionAspect(
                     log.debug { "leader.aop.group.elected lockName=$resolvedName elapsedNs=$elapsed" }
                     if (elapsed > meta.leaseTimeWarnThresholdNanos) {
                         log.warn {
-                            "leader.aop.group.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${opts.leaseTime.inWholeNanoseconds}"
+                            "leader.aop.group.lease-warn lockName=$resolvedName elapsedNs=$elapsed " +
+                                    "leaseTimeNs=${opts.leaseTime.inWholeNanoseconds}"
                         }
                     }
                     runResult.value
@@ -265,6 +267,8 @@ class LeaderGroupElectionAspect(
      *
      * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    // Coroutine advice의 획득·실행·fail-open·오류 처리는 lease 수명 순서를 보존하도록 한 흐름입니다.
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ThrowsCount")
     private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any? {
         @Suppress("UNCHECKED_CAST")
         val continuation = pjp.args.last() as Continuation<Any?>
@@ -309,7 +313,10 @@ class LeaderGroupElectionAspect(
                             val elapsed = System.nanoTime() - start
                             fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
                             if (elapsed > meta.leaseTimeWarnThresholdNanos) {
-                                log.warn { "leader.aop.group.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}" }
+                                log.warn {
+                                    "leader.aop.group.lease-warn lockName=$resolvedName elapsedNs=$elapsed " +
+                                            "leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}"
+                                }
                             }
                             log.debug { "leader.aop.group.elected lockName=$resolvedName elapsedNs=$elapsed" }
                             bodyResult
@@ -385,7 +392,10 @@ class LeaderGroupElectionAspect(
                     LeaderAspectFailureMode.FAIL_OPEN_RUN -> {
                         val failOpenHandle = AopScopeAccess.createFailOpen(resolveIdentity(effectiveName))
                         fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.FAIL_OPEN_FORCED) }
-                        log.warn(backendEx) { "leader.aop.group.fail-open lockName=$effectiveName reason=BACKEND_ERROR" }
+                        log.warn(backendEx) {
+                            "leader.aop.group.fail-open lockName=$effectiveName " +
+                                    "reason=BACKEND_ERROR"
+                        }
                         fanOut { it.onTaskStarted(effectiveName) }
                         try {
                             @Suppress("UNCHECKED_CAST")
@@ -426,6 +436,8 @@ class LeaderGroupElectionAspect(
      *
      * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    // Mono advice는 취소·backend 오류 처리와 lease cleanup 순서를 하나의 scoped 흐름으로 유지합니다.
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ThrowsCount")
     private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any? {
         val method = (pjp.signature as MethodSignature).method
         val coreOpts = meta.options.toCoreOptions()
@@ -464,7 +476,10 @@ class LeaderGroupElectionAspect(
                                 val elapsed = System.nanoTime() - start
                                 fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
                                 if (elapsed > meta.leaseTimeWarnThresholdNanos) {
-                                    log.warn { "leader.aop.group.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}" }
+                                    log.warn {
+                                        "leader.aop.group.lease-warn lockName=$resolvedName elapsedNs=$elapsed " +
+                                                "leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}"
+                                    }
                                 }
                                 log.debug { "leader.aop.group.elected lockName=$resolvedName elapsedNs=$elapsed" }
                                 bodyResult
@@ -540,13 +555,19 @@ class LeaderGroupElectionAspect(
                                     backendEx
                                 )
                             }
-                            log.warn(backendEx) { "leader.aop.group.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
+                            log.warn(backendEx) {
+                                "leader.aop.group.skipped lockName=$effectiveName " +
+                                        "reason=BACKEND_ERROR"
+                            }
                             null
                         }
                         LeaderAspectFailureMode.FAIL_OPEN_RUN -> {
                             val failOpenHandle = AopScopeAccess.createFailOpen(resolveIdentity(effectiveName))
                             fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.FAIL_OPEN_FORCED) }
-                            log.warn(backendEx) { "leader.aop.group.fail-open lockName=$effectiveName reason=BACKEND_ERROR" }
+                            log.warn(backendEx) {
+                                "leader.aop.group.fail-open lockName=$effectiveName " +
+                                        "reason=BACKEND_ERROR"
+                            }
                             fanOut { it.onTaskStarted(effectiveName) }
                             try {
                                 @Suppress("UNCHECKED_CAST")

@@ -158,7 +158,11 @@ data class LeaderProperties(
             leaseTime = if (mask and 0x002 != 0) self.leaseTime else leaseTime.requireNotNull("leaseTime"),
             watchdogThreads = if (mask and 0x004 != 0) self.watchdogThreads else watchdogThreads,
             watchdogAsyncExtend = if (mask and 0x008 != 0) self.watchdogAsyncExtend else watchdogAsyncExtend,
-            observability = if (mask and 0x010 != 0) self.observability else observability.requireNotNull("observability"),
+            observability = if (mask and 0x010 != 0) {
+                self.observability
+            } else {
+                observability.requireNotNull("observability")
+            },
             group = if (mask and 0x020 != 0) self.group else group.requireNotNull("group"),
             mongo = if (mask and 0x040 != 0) self.mongo else mongo.requireNotNull("mongo"),
             etcd = if (mask and 0x080 != 0) self.etcd else etcd.requireNotNull("etcd"),

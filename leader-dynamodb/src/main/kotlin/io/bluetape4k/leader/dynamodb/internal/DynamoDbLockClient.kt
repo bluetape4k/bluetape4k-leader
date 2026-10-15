@@ -129,7 +129,9 @@ internal class DynamoDbLockClient(
             releaseAsync(acquired, Duration.ZERO, System.nanoTime())
                 .whenComplete { _, failure ->
                     if (failure != null) {
-                        log.warn(failure.unwrapCompletionException()) { "DynamoDB late async acquire release failed. key=$key" }
+                        log.warn(failure.unwrapCompletionException()) {
+                            "DynamoDB late async acquire release failed. " + "key=$key"
+                        }
                     }
                 }
         }

@@ -36,6 +36,7 @@ fun String.validateLockName(parameterName: String = "lockName"): String = apply 
     this.requireNotBlank(parameterName = parameterName)
     this.length.requireLe(255, "$parameterName.length")
     require(LOCK_NAME_PATTERN.matches(this)) {
-        "$parameterName contains invalid characters. Allowed: [a-zA-Z0-9_\\-:], first char must be alphanumeric, got: $this"
+        "$parameterName contains invalid characters. Allowed: " +
+                "[a-zA-Z0-9_\\-:], first char must be alphanumeric, got: $this"
     }
 }

@@ -8,8 +8,8 @@ import io.bluetape4k.leader.LeaderLockHandle
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 internal object LeaderLockHandleCapture {
+    // 가상 스레드 경로에 ScopedValue를 적용할지는 별도 설계 검토가 필요합니다.
 
-    // TODO: Virtual Thread 대응을 위해서는 ThreadLocal 대신 ScopedValue 를 사용해야 하지 않을까?
     private val threadLocal: ThreadLocal<LeaderLockHandle.Real?> = ThreadLocal()
 
     fun set(handle: LeaderLockHandle.Real) {

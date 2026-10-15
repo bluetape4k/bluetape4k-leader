@@ -53,6 +53,8 @@ class LeaderRouteGuardAutoConfiguration {
     class StateModeConfiguration {
 
         @Bean
+        // 누락·중복·잘못된 mode는 서로 다른 설정 오류 코드로 유지합니다.
+        @Suppress("ThrowsCount")
         internal fun leaderRouteAuthorityRuntime(
             beanFactory: ListableBeanFactory,
             properties: LeaderProperties,
@@ -87,6 +89,8 @@ class LeaderRouteGuardAutoConfiguration {
     class CustomModeConfiguration {
 
         @Bean
+        // CUSTOM mode 입력별 오류 코드를 유지해 원인을 구분합니다.
+        @Suppress("ThrowsCount")
         internal fun leaderRouteAuthorityRuntime(
             beanFactory: ListableBeanFactory,
             properties: LeaderProperties,
@@ -246,6 +250,8 @@ class LeaderRouteGuardAutoConfiguration {
     }
 
     companion object {
+        // Bean lookup별 오류 원인을 유지해 설정 실패 진단을 구분합니다.
+        @Suppress("ThrowsCount")
         private fun selectElector(
             beanFactory: ListableBeanFactory,
             electorBean: String,

@@ -78,7 +78,11 @@ class LettuceSuspendLeaderGroupElector(
     override suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? =
         runImpl(slot.lockName, auditLeaderId = slot.leaderId, action)
 
-    override suspend fun <T> runIfLeaderResultSuspend(slot: LeaderSlot, action: suspend () -> T): LeaderRunResult<T> {
+    @Suppress("TooGenericExceptionCaught")
+    override suspend fun <T> runIfLeaderResultSuspend(
+        slot: LeaderSlot,
+        action: suspend () -> T,
+    ): LeaderRunResult<T> {
         var elected = false
         val value = try {
             runImpl(slot.lockName, auditLeaderId = slot.leaderId) {
@@ -130,17 +134,34 @@ class LettuceSuspendLeaderGroupElector(
                 action()
             }
         } finally {
-            // NonCancellable: 코루틴 취소 시에도 슬롯 반납이 중단되지 않도록 보호
-            withContext(NonCancellable) {
-                LeaderLeaseAutoExtender.closeSuspend(watchdog)
-                try {
-                    val remainingMs = remainingMinLeaseTime(startedAtNanos, options.minLeaseTime).inWholeMilliseconds
-                    slotGroup.releaseSuspending(token, remainingMs)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Throwable) {
-                    log.warn(e) { "Failed to release slot. lockName=$lockName, token=$token" }
-                }
+            releaseSlotAfterRun(slotGroup, token, startedAtNanos, watchdog, lockName)
+        }
+    }
+
+    /**
+     * 취소 중에도 watchdog와 슬롯을 정리하고, release 취소만 caller에게 재전파합니다.
+     *
+     * 이 helper를 finally 바깥에 두어 cleanup 예외가 action 예외를 덮을 수 있다는
+     * `ThrowingExceptionFromFinally` 오탐을 피하면서 기존 취소 계약을 유지합니다.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun releaseSlotAfterRun(
+        slotGroup: LettuceSlotTokenGroup,
+        token: String,
+        startedAtNanos: Long,
+        watchdog: AutoCloseable,
+        lockName: String,
+    ) {
+        // NonCancellable: 코루틴 취소 시에도 슬롯 반납이 중단되지 않도록 보호
+        withContext(NonCancellable) {
+            LeaderLeaseAutoExtender.closeSuspend(watchdog)
+            try {
+                val remainingMs = remainingMinLeaseTime(startedAtNanos, options.minLeaseTime).inWholeMilliseconds
+                slotGroup.releaseSuspending(token, remainingMs)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                log.warn(e) { "Failed to release slot. lockName=$lockName, token=$token" }
             }
         }
     }

@@ -338,7 +338,9 @@ class ExposedJdbcLeaderGroupElector private constructor(
                             ExposedJdbcUnlockOutcome.FAILED ->
                                 log.warn { "외부 취소 후 슬롯 해제에 실패했습니다(DB 오류). lockName=$lockName, slot=$slot" }
                         }
-                        return@thenComposeAsync failedCompletableFutureOf(CancellationException("runAsyncIfLeader result was cancelled"))
+                        return@thenComposeAsync failedCompletableFutureOf(
+                            CancellationException("runAsyncIfLeader result was cancelled"),
+                        )
                     }
                     log.debug { "그룹 슬롯 비동기 작업 수행. lockName=$lockName, slot=$slot" }
 
