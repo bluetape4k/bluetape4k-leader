@@ -109,7 +109,7 @@ internal class SuspendLeaderLeaseLifecycle(
                                 (monotonicNanos() - backend.acquiredAtNanos)
                         )
                     .coerceAtLeast(0L)
-                if (remaining > 0L) delay(remaining / NANOS_PER_MILLISECOND)
+                if (remaining > 0L) delay((remaining - 1L) / NANOS_PER_MILLISECOND + 1L)
                 val releaseOutcome = try {
                     callbacks.release(backend, deadline)
                 } catch (cancelled: CancellationException) {
