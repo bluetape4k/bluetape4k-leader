@@ -130,6 +130,43 @@ class PublishingSigningSupportTest {
     }
 
     @Test
+    fun `published POM treats omitted jar type as explicit jar`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply("maven-publish")
+        project.pluginManager.apply("signing")
+
+        val publication = project.extensions.getByType(PublishingExtension::class.java)
+            .publications.create("test", MavenPublication::class.java)
+        publication.groupId = "io.github.bluetape4k.test"
+        publication.artifactId = "pom-default-jar-type-test"
+        publication.version = "1.0.0"
+        publication.pom.withXml {
+            val dependencies = asNode()
+                .appendNode("dependencyManagement")
+                .appendNode("dependencies")
+            val implicitJar = dependencies.appendNode("dependency")
+            implicitJar.appendNode("groupId", "org.example")
+            implicitJar.appendNode("artifactId", "managed-library")
+            implicitJar.appendNode("version", "1.2.3")
+
+            val explicitJar = dependencies.appendNode("dependency")
+            explicitJar.appendNode("groupId", "org.example")
+            explicitJar.appendNode("artifactId", "managed-library")
+            explicitJar.appendNode("version", "1.2.3")
+            explicitJar.appendNode("type", "jar")
+        }
+        project.configurePublishingSigning("test")
+
+        val output = project.file("build/test-pom.xml")
+        val task = project.tasks.getByName("generatePomFileForTestPublication") as GenerateMavenPom
+        task.destination = output
+        task.actions.forEach { action -> action.execute(task) }
+
+        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(output)
+        assertEquals(1, document.getElementsByTagName("dependency").length)
+    }
+
+    @Test
     fun `rejects conflicting managed dependency versions`() {
         val project = ProjectBuilder.builder().build()
         project.pluginManager.apply("maven-publish")
