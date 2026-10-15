@@ -19,10 +19,9 @@ import org.jetbrains.exposed.v1.jdbc.update
 import java.time.Instant
 
 /**
- * `ExposedLeaderHistorySink`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ExposedLeaderHistorySink`는 JDBC transaction으로 leader history 행을 기록하고 완료·실패 상태를 갱신합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property database Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property database history 테이블에 획득·완료·실패 행을 쓰고 정리할 Exposed JDBC 데이터베이스입니다.
  */
 class ExposedLeaderHistorySink(
     private val database: Database,
@@ -63,9 +62,8 @@ class ExposedLeaderHistorySink(
     }
 
     /**
-     * `deleteOlderThan` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [cutoff]보다 이전에 시작된 history 행을 최대 [limit]개 삭제하고 삭제한 행 수를 반환합니다.
+     * 삭제는 하나의 JDBC transaction에서 수행되며, 음수 limit의 검증은 Exposed에 위임됩니다.
      */
     override fun deleteOlderThan(cutoff: Instant, limit: Int): Int =
         transaction(database) {

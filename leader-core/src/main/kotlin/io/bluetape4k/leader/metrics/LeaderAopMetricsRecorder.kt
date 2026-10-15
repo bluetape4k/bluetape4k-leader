@@ -4,9 +4,9 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import kotlin.time.Duration
 
 /**
- * `LeaderAopMetricsRecorder`는 leader election audit/history 저장 계약을 표현합니다.
+ * Spring AOP가 전달하는 lock 시도·획득·건너뜀 및 사용자 작업 시작·종료 이벤트를 기록합니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * 기본 구현은 이벤트를 무시합니다. context overload는 기존 구현과 호환되도록 문맥을 경고하고 context 없는 overload로 위임합니다.
  */
 interface LeaderAopMetricsRecorder {
 
@@ -15,64 +15,46 @@ interface LeaderAopMetricsRecorder {
     // =========================================================================
 
     /**
-     * `onLockAttempt` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param name 호출자가 전달하는 이름 또는 key입니다.
-     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * lock 획득을 요청한 시점을 기록합니다.
+     * @param name AOP가 해석한 lock 이름입니다.
+     * @param options 해당 요청에 적용한 대기 시간, lease TTL 및 연장 정책입니다.
      */
     fun onLockAttempt(name: String, options: LeaderElectionOptions) {}
 
     /**
-     * `onLockAcquired` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param name 호출자가 전달하는 이름 또는 key입니다.
-     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param acquireElapsed `acquireElapsed` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * lock 획득에 성공한 시점과 대기 시간을 기록합니다.
+     * @param name AOP가 해석한 lock 이름입니다.
+     * @param options 해당 요청에 적용한 대기 시간, lease TTL 및 연장 정책입니다.
+     * @param acquireElapsed lock 획득 시도부터 성공 응답까지의 경과 시간입니다.
      */
     fun onLockAcquired(name: String, options: LeaderElectionOptions, acquireElapsed: Duration) {}
 
     /**
-     * `onLockNotAcquired` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param name 호출자가 전달하는 이름 또는 key입니다.
-     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param reason `reason` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * lock을 얻지 못한 시점과 건너뛴 원인을 기록합니다.
+     * @param name AOP가 해석한 lock 이름입니다.
+     * @param options 해당 요청에 적용한 대기 시간, lease TTL 및 연장 정책입니다.
+     * @param reason lock 획득이 완료되지 않은 원인 분류입니다.
      */
     fun onLockNotAcquired(name: String, options: LeaderElectionOptions, reason: SkipReason) {}
 
     /**
-     * `onTaskStarted` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param name 호출자가 전달하는 이름 또는 key입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * leadership을 얻은 뒤 사용자 작업이 시작된 시점을 기록합니다.
+     * @param name AOP가 해석한 lock 이름입니다.
      */
     fun onTaskStarted(name: String) {}
 
     /**
-     * `onTaskFinished` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param name 호출자가 전달하는 이름 또는 key입니다.
-     * @param executionTime `executionTime` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 사용자 작업이 정상 종료된 시점과 실행 시간을 기록합니다.
+     * @param name AOP가 해석한 lock 이름입니다.
+     * @param executionTime 사용자 작업 실행 시간입니다.
      */
     fun onTaskFinished(name: String, executionTime: Duration) {}
 
     /**
-     * `onTaskFailed` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param name 호출자가 전달하는 이름 또는 key입니다.
-     * @param executionTime `executionTime` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param throwable `throwable` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 사용자 작업이 예외로 끝난 시점과 실행 시간을 기록합니다.
+     * @param name AOP가 해석한 lock 이름입니다.
+     * @param executionTime 사용자 작업 실행 시간입니다.
+     * @param throwable 사용자 작업에서 발생한 예외입니다.
      */
     fun onTaskFailed(name: String, executionTime: Duration, throwable: Throwable) {}
 
@@ -83,13 +65,11 @@ interface LeaderAopMetricsRecorder {
     // =========================================================================
 
     /**
-     * `onLockAttempt` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param name 호출자가 전달하는 이름 또는 key입니다.
-     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * lock 획득을 요청한 시점을 기록합니다.
+     * 이 overload는 leader ID 문맥을 포함합니다. 기본 구현은 문맥을 경고 로그에 알리고 문맥 없는 overload로 위임합니다.
+     * @param name AOP가 해석한 lock 이름입니다.
+     * @param options 해당 요청에 적용한 대기 시간, lease TTL 및 연장 정책입니다.
+     * @param context 현재 AOP 실행에 연결된 leader ID 문맥입니다. 식별할 수 없으면 `Unknown`입니다.
      */
     fun onLockAttempt(name: String, options: LeaderElectionOptions, context: LeaderAopMetricsContext) {
         LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
@@ -97,14 +77,12 @@ interface LeaderAopMetricsRecorder {
     }
 
     /**
-     * `onLockAcquired` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param name 호출자가 전달하는 이름 또는 key입니다.
-     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param acquireElapsed `acquireElapsed` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * lock 획득에 성공한 시점과 대기 시간을 기록합니다.
+     * 이 overload는 leader ID 문맥을 포함합니다. 기본 구현은 문맥을 경고 로그에 알리고 문맥 없는 overload로 위임합니다.
+     * @param name AOP가 해석한 lock 이름입니다.
+     * @param options 해당 요청에 적용한 대기 시간, lease TTL 및 연장 정책입니다.
+     * @param acquireElapsed lock 획득 시도부터 성공 응답까지의 경과 시간입니다.
+     * @param context 현재 AOP 실행에 연결된 leader ID 문맥입니다. 식별할 수 없으면 `Unknown`입니다.
      */
     fun onLockAcquired(
         name: String,
@@ -117,14 +95,12 @@ interface LeaderAopMetricsRecorder {
     }
 
     /**
-     * `onLockNotAcquired` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param name 호출자가 전달하는 이름 또는 key입니다.
-     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param reason `reason` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * lock을 얻지 못한 시점과 건너뛴 원인을 기록합니다.
+     * 이 overload는 leader ID 문맥을 포함합니다. 기본 구현은 문맥을 경고 로그에 알리고 문맥 없는 overload로 위임합니다.
+     * @param name AOP가 해석한 lock 이름입니다.
+     * @param options 해당 요청에 적용한 대기 시간, lease TTL 및 연장 정책입니다.
+     * @param reason lock 획득이 완료되지 않은 원인 분류입니다.
+     * @param context 현재 AOP 실행에 연결된 leader ID 문맥입니다. 식별할 수 없으면 `Unknown`입니다.
      */
     fun onLockNotAcquired(
         name: String,
@@ -137,12 +113,10 @@ interface LeaderAopMetricsRecorder {
     }
 
     /**
-     * `onTaskStarted` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param name 호출자가 전달하는 이름 또는 key입니다.
-     * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * leadership을 얻은 뒤 사용자 작업이 시작된 시점을 기록합니다.
+     * 이 overload는 leader ID 문맥을 포함합니다. 기본 구현은 문맥을 경고 로그에 알리고 문맥 없는 overload로 위임합니다.
+     * @param name AOP가 해석한 lock 이름입니다.
+     * @param context 현재 AOP 실행에 연결된 leader ID 문맥입니다. 식별할 수 없으면 `Unknown`입니다.
      */
     fun onTaskStarted(name: String, context: LeaderAopMetricsContext) {
         LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
@@ -150,13 +124,11 @@ interface LeaderAopMetricsRecorder {
     }
 
     /**
-     * `onTaskFinished` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param name 호출자가 전달하는 이름 또는 key입니다.
-     * @param executionTime `executionTime` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 사용자 작업이 정상 종료된 시점과 실행 시간을 기록합니다.
+     * 이 overload는 leader ID 문맥을 포함합니다. 기본 구현은 문맥을 경고 로그에 알리고 문맥 없는 overload로 위임합니다.
+     * @param name AOP가 해석한 lock 이름입니다.
+     * @param executionTime 사용자 작업 실행 시간입니다.
+     * @param context 현재 AOP 실행에 연결된 leader ID 문맥입니다. 식별할 수 없으면 `Unknown`입니다.
      */
     fun onTaskFinished(name: String, executionTime: Duration, context: LeaderAopMetricsContext) {
         LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
@@ -164,24 +136,18 @@ interface LeaderAopMetricsRecorder {
     }
 
     /**
-     * `onTaskFailed` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param name 호출자가 전달하는 이름 또는 key입니다.
-     * @param executionTime `executionTime` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param throwable `throwable` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 사용자 작업이 예외로 끝난 시점과 실행 시간을 기록합니다.
+     * 이 overload는 leader ID 문맥을 포함합니다. 기본 구현은 문맥을 경고 로그에 알리고 문맥 없는 overload로 위임합니다.
+     * @param name AOP가 해석한 lock 이름입니다.
+     * @param executionTime 사용자 작업 실행 시간입니다.
+     * @param throwable 사용자 작업에서 발생한 예외입니다.
+     * @param context 현재 AOP 실행에 연결된 leader ID 문맥입니다. 식별할 수 없으면 `Unknown`입니다.
      */
     fun onTaskFailed(name: String, executionTime: Duration, throwable: Throwable, context: LeaderAopMetricsContext) {
         LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onTaskFailed(name, executionTime, throwable)
     }
 
-    /**
-     * `NoOp` 선언은 leader election 계약에서 사용되는 object입니다.
-     *
-     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
-     */
+    /** 모든 이벤트를 무시하는 recorder입니다. */
     object NoOp: LeaderAopMetricsRecorder
 }

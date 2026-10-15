@@ -9,14 +9,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 private val TOKEN_HEX_DIGITS = CharArray(16) { it.toString(16).single() }
 
 /**
- * `EtcdLeaseHandle`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `EtcdLeaseHandle`는 획득한 etcd lease ID, ownership key, lock 식별자와 반납 상태를 묶습니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property leaseId etcd backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lockName etcd backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property ownershipKey etcd backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property acquiredAtNanos etcd backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property slotId etcd backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property leaseId etcd에서 발급한 양수 lease ID이며 unlock/revoke/keep-alive의 기준입니다.
+ * @property lockName 검증된 최대 255자 lock 키입니다.
+ * @property ownershipKey etcd lock이 반환한 비어 있지 않은 소유 키입니다. unlock에 그대로 사용합니다.
+ * @property acquiredAtNanos 획득 시점의 monotonic nanoTime으로 최소 lease 남은 시간을 계산합니다.
+ * @property slotId 단일 선거에서는 null이고 그룹 선거에서는 슬롯 번호 문자열입니다.
  */
 internal class EtcdLeaseHandle(
     val leaseId: Long,

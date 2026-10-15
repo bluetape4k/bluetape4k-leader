@@ -1,41 +1,34 @@
 package io.bluetape4k.leader
 
 /**
- * `LeaderGroupElectionState`는 leader election의 현재 상태를 표현합니다.
+ * 그룹 선거에서 동시 점유 slot 수와 lock별 상태 snapshot을 조회하는 계약입니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface LeaderGroupElectionState {
 
     /**
-     * `maxLeaders` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     * 한 `lockName`에서 동시에 점유할 수 있는 leader slot의 상한입니다. 유효한 설정은 양수여야 합니다.
      */
     val maxLeaders: Int
 
     /**
-     * `activeCount`는 현재 점유된 group leader slot 수를 조회합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 지정한 lock에서 현재 점유된 group leader slot 수를 반환합니다.
+     * @param lockName slot 점유 수를 조회할 lock 이름
+     * @return 현재 점유된 slot 수
      */
     fun activeCount(lockName: String): Int
 
     /**
-     * `availableSlots`는 아직 획득 가능한 group leader slot 수를 조회합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 지정한 lock에서 아직 획득 가능한 group leader slot 수를 반환합니다.
+     * @param lockName 사용 가능 slot 수를 조회할 lock 이름
+     * @return 아직 점유되지 않은 slot 수
      */
     fun availableSlots(lockName: String): Int
 
     /**
-     * `state`는 현재 leader election 상태 snapshot을 조회합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 지정한 lock의 최대 slot 수, 현재 점유 수, backend가 제공하는 leader ID를 담은 snapshot을 반환합니다.
+     * @param lockName 그룹 상태를 조회할 lock 이름
+     * @return `lockName`의 그룹 상태 snapshot
      */
     fun state(lockName: String): LeaderGroupState
 }

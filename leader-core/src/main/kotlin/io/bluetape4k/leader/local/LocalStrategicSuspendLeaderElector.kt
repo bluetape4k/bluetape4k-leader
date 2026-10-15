@@ -40,10 +40,23 @@ class LocalStrategicSuspendLeaderElector(
     private fun mutexFor(lockName: String): Mutex =
         mutexes.computeIfAbsent(lockName) { Mutex() }
 
+    /**
+     * 후보를 현재 인스턴스의 메모리에 등록하고 TTL을 설정합니다.
+     * 양수 TTL은 후보를 만료시키며, 0 이하 또는 [Duration.INFINITE]는 만료되지 않습니다.
+     * @param lockName 후보 집합을 구분하는 lock 이름
+     * @param info 메모리에 등록할 후보 snapshot
+     * @param ttl 후보가 유효한 기간입니다.
+     */
     override suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
         candidatesFor(lockName).register(info, ttl)
     }
 
+    /**
+     * 기존 후보의 metadata와 TTL을 갱신합니다. 없는 후보는 무시하고, 이미 만료된 후보는 제거합니다.
+     * @param lockName 후보 집합을 구분하는 lock 이름
+     * @param info 기존 후보와 교체할 metadata를 담은 정보
+     * @param ttl 갱신할 후보의 유효 기간입니다.
+     */
     override suspend fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
         candidatesFor(lockName).refresh(info, ttl)
     }

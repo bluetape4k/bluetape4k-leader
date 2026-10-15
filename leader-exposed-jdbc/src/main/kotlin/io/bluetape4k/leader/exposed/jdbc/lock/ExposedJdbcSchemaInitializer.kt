@@ -15,9 +15,8 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * `ExposedJdbcSchemaInitializer`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ExposedJdbcSchemaInitializer`는 JDBC URL별로 leader 테이블을 한 번 생성하고 누락 열을 보완합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object ExposedJdbcSchemaInitializer: KLogging() {
 
@@ -25,9 +24,8 @@ internal object ExposedJdbcSchemaInitializer: KLogging() {
     private val initLock = ReentrantLock()
 
     /**
-     * `ensureSchema` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [db] URL별로 한 번만 리더 선출 테이블을 생성하고 누락된 컬럼을 추가합니다.
+     * 초기화가 실패하면 성공 표시를 남기지 않아 다음 호출에서 다시 시도합니다.
      */
     fun ensureSchema(db: Database) {
         val dbKey = db.url
@@ -51,9 +49,7 @@ internal object ExposedJdbcSchemaInitializer: KLogging() {
     }
 
     /**
-     * `sanitizeUrl` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * 로그에 기록할 DB URL에서 사용자명·비밀번호와 같은 민감한 인증 정보를 제거합니다.
      */
     @OptIn(LeaderInternalApi::class)
     internal fun sanitizeUrl(url: String): String =
@@ -67,9 +63,7 @@ internal object ExposedJdbcSchemaInitializer: KLogging() {
     }
 
     /**
-     * `resetFor` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [db] URL의 초기화 완료 표시를 제거합니다. 테스트나 재초기화 후 다음 호출이 스키마를 다시 확인하게 합니다.
      */
     internal fun resetFor(db: Database) {
         initializedDbs.remove(db.url)

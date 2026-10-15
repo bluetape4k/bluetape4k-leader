@@ -8,20 +8,15 @@ import java.sql.SQLRecoverableException
 import java.sql.SQLTransientException
 
 /**
- * `ExposedJdbcBackendErrorClassifier`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ExposedJdbcBackendErrorClassifier`는 JDBC 예외 유형과 SQLState를 transient/non-transient 오류로 분류합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object ExposedJdbcBackendErrorClassifier: BackendErrorClassifier {
 
-    /**
-     * `SQL_STATE_CONNECTION_PREFIX` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-     */
+    /** JDBC SQLState에서 연결 오류를 나타내는 `08` 접두사입니다. */
     private const val SQL_STATE_CONNECTION_PREFIX = "08"
 
-    /**
-     * `SQL_STATE_SERIALIZATION_FAILURE` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-     */
+    /** 트랜잭션 serialization failure를 나타내며 재시도 가능한 `40001` SQLState입니다. */
     private const val SQL_STATE_SERIALIZATION_FAILURE = "40001"
 
     override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {

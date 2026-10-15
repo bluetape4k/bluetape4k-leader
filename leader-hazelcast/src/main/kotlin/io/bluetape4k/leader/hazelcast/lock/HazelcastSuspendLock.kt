@@ -20,13 +20,13 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * `HazelcastSuspendLock`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `HazelcastSuspendLock`는 Hazelcast lock key의 token 기반 tryLock·ownership 확인·unlock·lease 연장을 suspend 경로로 수행합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property lockMap Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lockKey Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property transactionMapName Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property transactionContextProvider Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
+ * `tryLock`이 경합·timeout으로 ownership을 획득하지 못하면 `false`를 반환하며, unlock/extend는 backend token 일치 여부를 확인해 불일치·만료를 성공으로 처리하지 않습니다.
+ * @property lockMap lock key와 소유 token을 저장하며 TTL을 적용하는 Hazelcast `IMap`입니다.
+ * @property lockKey `lockMap`에서 이 인스턴스의 소유 token을 조회할 문자열 키입니다. 그룹 선출에서는 슬롯 키가 됩니다.
+ * @property transactionMapName transaction-aware 연산에서 사용할 map 이름이며, `null`이면 `lockMap.name`을 사용합니다.
+ * @property transactionContextProvider lock 해제·연장 시 소유 검증을 원자적으로 수행할 transaction context 공급자입니다. `null`이면 직접 map 연산을 사용합니다.
  */
 class HazelcastSuspendLock(
     private val lockMap: IMap<String, String>,
@@ -51,11 +51,7 @@ class HazelcastSuspendLock(
 
     private val token: String = Base58.randomString(8)
 
-    /**
-     * `tryLock` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** `waitTime` 동안 최대 50ms 간격으로 `putIfAbsent`를 중단 가능한 방식으로 재시도하고 `leaseTime` TTL을 설정합니다. 실패는 `false`입니다. */
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean = tryLock(
         waitTime = waitTime,
         leaseTime = leaseTime,
@@ -97,20 +93,12 @@ class HazelcastSuspendLock(
         return false
     }
 
-    /**
-     * `isHeldByCurrentInstance` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** IO dispatcher에서 map의 현재 값과 이 인스턴스의 소유 token을 비교합니다. */
     suspend fun isHeldByCurrentInstance(): Boolean = withContext(Dispatchers.IO) {
         lockMap[lockKey] == token
     }
 
-    /**
-     * `unlock` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 소유 token을 검증한 뒤, 남은 `minLeaseTime`이 있으면 TTL만 줄이고 없으면 key를 제거합니다. */
     suspend fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
         acquiredAtNanos: Long = System.nanoTime(),
@@ -135,11 +123,7 @@ class HazelcastSuspendLock(
         }
     }
 
-    /**
-     * `extendDetailed` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 소유 token이 유효할 때만 TTL을 `leaseTime`으로 갱신하고, 결과를 `Extended`·`NotHeld`·`BackendError`로 구분합니다. */
     suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         val leaseMs = leaseTime.inWholeMilliseconds
         val nowMs = System.currentTimeMillis()

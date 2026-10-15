@@ -11,18 +11,15 @@ import kotlin.time.Duration
 import kotlin.time.toKotlinDuration
 
 /**
- * `LockExtender` 선언은 leader election 계약에서 사용되는 object입니다.
+ * blocking 또는 coroutine 실행 문맥에 연결된 lock handle을 통해 backend lease 연장을 요청하는 facade입니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 object LockExtender: KLogging() {
 
     /**
-     * `extendActiveLock` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 현재 실행 문맥에 캡처된 lock의 lease 연장을 시도합니다. 반환값은 연장 성공 여부만 나타냅니다.
+     * @param lockAtMostFor 연장 성공 후 유지할 lease TTL입니다.
+     * @return 연장 성공이면 `true`, 그렇지 않으면 `false`입니다.
      */
     @JvmStatic
     fun extendActiveLock(lockAtMostFor: Duration): Boolean {
@@ -31,12 +28,10 @@ object LockExtender: KLogging() {
     }
 
     /**
-     * `extendActiveLock` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 현재 실행 문맥에 캡처된 lock의 lease 연장을 시도합니다. 반환값은 연장 성공 여부만 나타냅니다.
+     * @param lockName 현재 실행 문맥에서 연장할 lock 이름입니다. 지정하면 캡처된 handle의 이름과 일치해야 합니다.
+     * @param lockAtMostFor 연장 성공 후 유지할 lease TTL입니다.
+     * @return 연장 성공이면 `true`, 그렇지 않으면 `false`입니다.
      */
     @JvmStatic
     fun extendActiveLock(lockName: String, lockAtMostFor: Duration): Boolean {
@@ -45,34 +40,28 @@ object LockExtender: KLogging() {
     }
 
     /**
-     * `extendActiveLock` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 현재 실행 문맥에 캡처된 lock의 lease 연장을 시도합니다. 반환값은 연장 성공 여부만 나타냅니다.
+     * @param lockAtMostFor 연장 성공 후 유지할 lease TTL입니다.
+     * @return 연장 성공이면 `true`, 그렇지 않으면 `false`입니다.
      */
     @JvmStatic
     fun extendActiveLock(lockAtMostFor: java.time.Duration): Boolean =
         extendActiveLock(lockAtMostFor.toKotlinDuration())
 
     /**
-     * `extendActiveLock` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 현재 실행 문맥에 캡처된 lock의 lease 연장을 시도합니다. 반환값은 연장 성공 여부만 나타냅니다.
+     * @param lockName 현재 실행 문맥에서 연장할 lock 이름입니다. 지정하면 캡처된 handle의 이름과 일치해야 합니다.
+     * @param lockAtMostFor 연장 성공 후 유지할 lease TTL입니다.
+     * @return 연장 성공이면 `true`, 그렇지 않으면 `false`입니다.
      */
     @JvmStatic
     fun extendActiveLock(lockName: String, lockAtMostFor: java.time.Duration): Boolean =
         extendActiveLock(lockName, lockAtMostFor.toKotlinDuration())
 
     /**
-     * `extendActiveLockDetailed` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 현재 실행 문맥에 캡처된 lock의 lease 연장을 시도합니다. 연장 결과를 `ExtendOutcome`으로 구분해 반환합니다.
+     * @param lockAtMostFor 연장 성공 후 유지할 lease TTL입니다.
+     * @return 성공, 미보유, thread 제약, 큐 거부 또는 backend 오류를 구분하는 결과입니다.
      */
     @JvmStatic
     fun extendActiveLockDetailed(lockAtMostFor: Duration): ExtendOutcome {
@@ -82,12 +71,10 @@ object LockExtender: KLogging() {
     }
 
     /**
-     * `extendActiveLockDetailed` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 현재 실행 문맥에 캡처된 lock의 lease 연장을 시도합니다. 연장 결과를 `ExtendOutcome`으로 구분해 반환합니다.
+     * @param lockName 현재 실행 문맥에서 연장할 lock 이름입니다. 지정하면 캡처된 handle의 이름과 일치해야 합니다.
+     * @param lockAtMostFor 연장 성공 후 유지할 lease TTL입니다.
+     * @return 성공, 미보유, thread 제약, 큐 거부 또는 backend 오류를 구분하는 결과입니다.
      */
     @JvmStatic
     fun extendActiveLockDetailed(lockName: String, lockAtMostFor: Duration): ExtendOutcome {
@@ -97,11 +84,9 @@ object LockExtender: KLogging() {
     }
 
     /**
-     * `extendActiveLockSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * coroutine context에 캡처된 lock의 lease 연장을 시도합니다. 반환값은 연장 성공 여부만 나타냅니다.
+     * @param lockAtMostFor 연장 성공 후 유지할 lease TTL입니다.
+     * @return 연장 성공이면 `true`, 그렇지 않으면 `false`입니다.
      */
     suspend fun extendActiveLockSuspend(lockAtMostFor: Duration): Boolean {
         val outcome = extendActiveLockDetailedSuspend(lockAtMostFor)
@@ -109,12 +94,10 @@ object LockExtender: KLogging() {
     }
 
     /**
-     * `extendActiveLockSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * coroutine context에 캡처된 lock의 lease 연장을 시도합니다. 반환값은 연장 성공 여부만 나타냅니다.
+     * @param lockName 현재 실행 문맥에서 연장할 lock 이름입니다. 지정하면 캡처된 handle의 이름과 일치해야 합니다.
+     * @param lockAtMostFor 연장 성공 후 유지할 lease TTL입니다.
+     * @return 연장 성공이면 `true`, 그렇지 않으면 `false`입니다.
      */
     suspend fun extendActiveLockSuspend(lockName: String, lockAtMostFor: Duration): Boolean {
         val outcome = extendActiveLockDetailedSuspend(lockName, lockAtMostFor)
@@ -122,11 +105,9 @@ object LockExtender: KLogging() {
     }
 
     /**
-     * `extendActiveLockDetailedSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * coroutine context에 캡처된 lock의 lease 연장을 시도합니다. 연장 결과를 `ExtendOutcome`으로 구분해 반환합니다.
+     * @param lockAtMostFor 연장 성공 후 유지할 lease TTL입니다.
+     * @return 성공, 미보유, thread 제약, 큐 거부 또는 backend 오류를 구분하는 결과입니다.
      */
     suspend fun extendActiveLockDetailedSuspend(lockAtMostFor: Duration): ExtendOutcome {
         val handle = coroutineContext[LockHandleElement]?.handle
@@ -135,12 +116,10 @@ object LockExtender: KLogging() {
     }
 
     /**
-     * `extendActiveLockDetailedSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * coroutine context에 캡처된 lock의 lease 연장을 시도합니다. 연장 결과를 `ExtendOutcome`으로 구분해 반환합니다.
+     * @param lockName 현재 실행 문맥에서 연장할 lock 이름입니다. 지정하면 캡처된 handle의 이름과 일치해야 합니다.
+     * @param lockAtMostFor 연장 성공 후 유지할 lease TTL입니다.
+     * @return 성공, 미보유, thread 제약, 큐 거부 또는 backend 오류를 구분하는 결과입니다.
      */
     suspend fun extendActiveLockDetailedSuspend(lockName: String, lockAtMostFor: Duration): ExtendOutcome {
         val handle = currentCoroutineContext()[LockHandleElement]?.handle
@@ -312,11 +291,8 @@ object LockExtender: KLogging() {
     }
 
     /**
-     * `processBooleanResult` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param outcome `outcome` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 상세 연장 결과를 기존 Boolean 계약으로 변환합니다. `Extended`만 `true`이고 나머지는 `false`입니다.
+     * @param outcome backend 연장 결과 또는 연장을 시도할 수 없었던 원인입니다.
      */
     private fun processBooleanResult(outcome: ExtendOutcome): Boolean = when (outcome) {
         is ExtendOutcome.Extended -> true

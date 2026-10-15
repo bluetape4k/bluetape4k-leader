@@ -16,9 +16,7 @@ import org.springframework.boot.health.contributor.HealthIndicator
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Role
 
-/**
- * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
- */
+/** health observability가 활성화되면 선택된 state provider를 읽는 readiness indicator를 등록합니다. */
 @AutoConfiguration(after = [LeaderElectionObservabilityAutoConfiguration::class])
 @ConditionalOnClass(name = ["org.springframework.boot.health.contributor.HealthIndicator"])
 @ConditionalOnBean(LeaderElectionStatusRegistry::class, LeaderElectionState::class)

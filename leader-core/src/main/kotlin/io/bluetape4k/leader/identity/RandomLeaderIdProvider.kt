@@ -5,10 +5,8 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireGt
 
 /**
- * `RandomLeaderIdProvider` 선언은 leader election 계약에서 사용되는 class입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property length `length` 호출 또는 상태 계산에 필요한 값입니다.
+ * Base58 문자 집합에서 임의의 leader ID를 생성합니다.
+ * @property length 생성할 ID 문자열의 문자 수. 0보다 커야 합니다.
  */
 class RandomLeaderIdProvider(val length: Int = DefaultLength): LeaderIdProvider {
 
@@ -18,12 +16,12 @@ class RandomLeaderIdProvider(val length: Int = DefaultLength): LeaderIdProvider 
 
     companion object: KLogging() {
         /**
-         * `DefaultLength` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+         * 기본 leader ID 길이인 12자입니다.
          */
         const val DefaultLength: Int = 12
 
         /**
-         * `Default` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+         * 기본 길이 12를 사용하는 재사용 가능한 provider입니다.
          */
         @JvmField
         val Default: LeaderIdProvider = RandomLeaderIdProvider()

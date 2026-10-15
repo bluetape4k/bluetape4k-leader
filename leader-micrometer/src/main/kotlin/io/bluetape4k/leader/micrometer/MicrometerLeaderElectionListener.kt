@@ -6,11 +6,10 @@ import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * `MicrometerLeaderElectionListener`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * leader election의 elected, revoked, skipped 이벤트를 lock별 Micrometer counter로 기록합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property registry Micrometer observability 계약에서 사용하는 속성입니다.
- * @property tagSanitizer Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property registry 이벤트 counter를 등록하는 `MeterRegistry`입니다.
+ * @property tagSanitizer counter의 `lock.name` tag를 생성할 때 적용할 sanitization 정책입니다.
  */
 class MicrometerLeaderElectionListener(
     private val registry: MeterRegistry,

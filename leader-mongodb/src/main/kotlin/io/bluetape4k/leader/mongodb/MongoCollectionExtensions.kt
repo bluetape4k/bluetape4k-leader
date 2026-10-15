@@ -8,11 +8,7 @@ import java.util.concurrent.Executor
 import com.mongodb.kotlin.client.coroutine.MongoCollection as CoroutineMongoCollection
 
 
-/**
- * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
+/** MongoDB 단일 lock 문서를 획득한 경우에만 `action`을 실행하고, 정상 경합이면 `null`을 반환합니다. */
 fun <T> MongoCollection<Document>.runIfLeader(
     lockName: String,
     options: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,
@@ -20,11 +16,7 @@ fun <T> MongoCollection<Document>.runIfLeader(
 ): T? =
     MongoLeaderElector(this, options).runIfLeader(lockName, action)
 
-/**
- * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
+/** MongoDB 단일 lock 획득과 action future를 `executor`에서 수행하며, 경합이면 완료값 `null`을 반환합니다. */
 fun <T> MongoCollection<Document>.runAsyncIfLeader(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
@@ -33,11 +25,7 @@ fun <T> MongoCollection<Document>.runAsyncIfLeader(
 ): CompletableFuture<T?> =
     MongoLeaderElector(this, options).runAsyncIfLeader(lockName, executor, action)
 
-/**
- * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
+/** `$lockName:slot:n` 중 하나의 MongoDB group lock을 획득한 경우에만 `action`을 실행합니다. 슬롯이 없으면 `null`입니다. */
 fun <T> MongoCollection<Document>.runIfLeaderGroup(
     lockName: String,
     options: MongoLeaderGroupElectionOptions = MongoLeaderGroupElectionOptions.Default,
@@ -45,11 +33,7 @@ fun <T> MongoCollection<Document>.runIfLeaderGroup(
 ): T? =
     MongoLeaderGroupElector(this, options).runIfLeader(lockName, action)
 
-/**
- * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
+/** MongoDB 그룹 lock 획득과 action future를 `executor`에서 수행하며, 사용 가능한 슬롯이 없으면 `null`을 반환합니다. */
 fun <T> MongoCollection<Document>.runAsyncIfLeaderGroup(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
@@ -58,11 +42,7 @@ fun <T> MongoCollection<Document>.runAsyncIfLeaderGroup(
 ): CompletableFuture<T?> =
     MongoLeaderGroupElector(this, options).runAsyncIfLeader(lockName, executor, action)
 
-/**
- * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
+/** coroutine MongoDB 단일 lock을 획득한 경우에만 suspend `action`을 실행하고, 정상 경합이면 `null`을 반환합니다. */
 suspend fun <T> CoroutineMongoCollection<Document>.suspendRunIfLeader(
     lockName: String,
     options: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,
@@ -71,11 +51,7 @@ suspend fun <T> CoroutineMongoCollection<Document>.suspendRunIfLeader(
     MongoSuspendLeaderElector(this, options).runIfLeader(lockName, action)
 
 
-/**
- * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
+/** 동기·coroutine collection을 같은 namespace로 사용해 MongoDB 그룹 slot을 획득하고, 없으면 `null`을 반환합니다. */
 suspend fun <T> MongoCollection<Document>.suspendRunIfLeaderGroup(
     coroutineGroupCollection: CoroutineMongoCollection<Document>,
     lockName: String,

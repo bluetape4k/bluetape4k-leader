@@ -11,10 +11,9 @@ import kotlin.concurrent.withLock
 import kotlin.reflect.KClass
 
 /**
- * `LeaderElectorBridgeLog` 선언은 leader election 계약에서 사용되는 class입니다.
+ * slot overload를 구현하지 않은 elector의 audit ID 손실을 감지하고 경고합니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property cacheSize `cacheSize` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property cacheSize 최근 경고 key를 보관하는 LRU cache의 최대 크기입니다. 양수여야 하며 기본값은 `128`입니다.
  */
 class LeaderElectorBridgeLog(val cacheSize: Int = DEFAULT_CACHE_SIZE) {
 
@@ -40,28 +39,19 @@ class LeaderElectorBridgeLog(val cacheSize: Int = DEFAULT_CACHE_SIZE) {
     private val droppedResultCounter: AtomicLong = AtomicLong(0L)
 
     /**
-     * `droppedAuditCount` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * `LeaderSlot` 경로에서 bridge default가 사용된 총 호출 수입니다. 중복 경고 여부와 무관하게 매 호출 증가합니다.
      */
     fun droppedAuditCount(): Long = droppedCounter.get()
 
     /**
-     * `droppedResultBridgeCount` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * `LeaderRunResult`의 slot overload에서 bridge default가 사용된 총 호출 수입니다.
      */
     fun droppedResultBridgeCount(): Long = droppedResultCounter.get()
 
     /**
-     * `warnOnBridgeUse` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param implClass `implClass` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * implementation과 leader ID 조합마다 bridge 경고를 한 번 기록합니다. key가 LRU에서 제거되면 다시 경고할 수 있습니다.
+     * @param implClass `LeaderSlot` overload가 기본 구현을 사용하는 elector 구현 클래스입니다.
+     * @param slot lock 이름과 audit에 전달할 leader ID를 가진 선택 slot입니다.
      */
     fun warnOnBridgeUse(implClass: KClass<*>, slot: LeaderSlot) {
         droppedCounter.incrementAndGet()
@@ -79,12 +69,9 @@ class LeaderElectorBridgeLog(val cacheSize: Int = DEFAULT_CACHE_SIZE) {
     }
 
     /**
-     * `warnOnResultBridgeUse` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param implClass `implClass` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * result overload를 재정의하지 않은 elector에 경고합니다. 두 slot 경로별 LRU에서 key를 제거하면 다시 경고할 수 있습니다.
+     * @param implClass `LeaderRunResult` slot overload가 기본 구현을 사용하는 elector 구현 클래스입니다.
+     * @param slot lock 이름과 audit에 전달할 leader ID를 가진 선택 slot입니다.
      */
     fun warnOnResultBridgeUse(implClass: KClass<*>, slot: LeaderSlot) {
         droppedResultCounter.incrementAndGet()
@@ -105,10 +92,7 @@ class LeaderElectorBridgeLog(val cacheSize: Int = DEFAULT_CACHE_SIZE) {
         private const val LOAD_FACTOR: Float = 0.75f
 
         /**
-         * `String` 호출은 leader election 계약의 일부 동작을 수행합니다.
-         *
-         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+         * log entry 안의 control character를 `?`로 바꿉니다.
          */
         private fun String.sanitizeForLog(): String =
             replace(Regex("\\p{Cntrl}"), "?")
@@ -117,19 +101,13 @@ class LeaderElectorBridgeLog(val cacheSize: Int = DEFAULT_CACHE_SIZE) {
         private var globalInstance: LeaderElectorBridgeLog = LeaderElectorBridgeLog()
 
         /**
-         * `global` 호출은 leader election 계약의 일부 동작을 수행합니다.
-         *
-         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+         * process-wide bridge logger를 반환합니다.
          */
         fun global(): LeaderElectorBridgeLog = globalInstance
 
         /**
-         * `setGlobal` 호출은 leader election 계약의 일부 동작을 수행합니다.
-         *
-         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-         * @param instance `instance` 호출 또는 상태 계산에 필요한 값입니다.
-         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+         * process-wide bridge logger를 교체합니다.
+         * @param instance 이후 bridge 경고와 counter 조회에 사용할 logger입니다.
          */
         fun setGlobal(instance: LeaderElectorBridgeLog) {
             val prev = globalInstance

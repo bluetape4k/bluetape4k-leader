@@ -1,28 +1,26 @@
 package io.bluetape4k.leader.identity
 
 /**
- * `LeaderIdSource` 선언은 leader election 계약에서 사용되는 enum입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * leader ID 표현식이 선택되는 방식을 나타냅니다.
  */
 enum class LeaderIdSource {
     /**
-     * `LITERAL` 선언은 leader election 계약에서 사용되는 declaration입니다.
+     * 설정한 문자열을 leader ID로 그대로 사용합니다.
      */
     LITERAL,
 
     /**
-     * `SPEL` 선언은 leader election 계약에서 사용되는 declaration입니다.
+     * Spring Expression Language 표현식을 평가해 leader ID를 정합니다.
      */
     SPEL,
 
     /**
-     * `PROPERTY` 선언은 leader election 계약에서 사용되는 declaration입니다.
+     * 환경 또는 application property에서 leader ID를 가져옵니다.
      */
     PROPERTY,
 
     /**
-     * `AUTO` 선언은 leader election 계약에서 사용되는 declaration입니다.
+     * 설정값의 형태를 보고 literal, SpEL 또는 property 방식으로 자동 판별합니다.
      */
     AUTO,
 }

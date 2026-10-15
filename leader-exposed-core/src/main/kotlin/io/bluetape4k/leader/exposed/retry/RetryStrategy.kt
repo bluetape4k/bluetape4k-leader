@@ -6,9 +6,8 @@ import java.io.Serializable
 import java.util.concurrent.ThreadLocalRandom
 
 /**
- * `RetryStrategy`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `RetryStrategy`는 Exposed lock 획득 재시도마다 다음 시도까지의 지연 시간을 계산하는 정책입니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 sealed class RetryStrategy: Serializable {
 
@@ -17,16 +16,15 @@ sealed class RetryStrategy: Serializable {
     }
 
     /**
-     * `delayMs` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * 현재 재시도 횟수와 남은 대기 시간에 맞는 다음 지연을 밀리초로 계산합니다. `remaining <= 0`이면 `0`을
+     * 반환하고, 그 밖에는 반환값이 남은 시간보다 클 수 없습니다.
      */
     abstract fun delayMs(attempt: Int, remaining: Long): Long
 
     /**
      * `Jitter`는 Exposed database leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
      *
-     * @property baseDelayMs Exposed database backend 계약에서 `baseDelayMs` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property baseDelayMs jitter를 계산할 때 사용할 상한 밀리초입니다. `2` 이상이어야 하며 기본값은 50ms입니다.
      */
     data class Jitter(val baseDelayMs: Long = 50L): RetryStrategy() {
         init {
@@ -42,8 +40,8 @@ sealed class RetryStrategy: Serializable {
     /**
      * `Exponential`는 Exposed database leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
      *
-     * @property baseDelayMs Exposed database backend 계약에서 `baseDelayMs` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property maxDelayMs Exposed database backend 계약에서 `maxDelayMs` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property baseDelayMs 지수 증가의 시작 지연 밀리초입니다. `1` 이상이어야 하며 기본값은 50ms입니다.
+     * @property maxDelayMs 지수 증가 지연의 상한 밀리초입니다. `baseDelayMs` 이상이어야 하며 기본값은 5,000ms입니다.
      */
     data class Exponential(val baseDelayMs: Long = 50L, val maxDelayMs: Long = 5_000L): RetryStrategy() {
         init {
@@ -62,7 +60,7 @@ sealed class RetryStrategy: Serializable {
     /**
      * `Fixed`는 Exposed database leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
      *
-     * @property fixedMs Exposed database backend 계약에서 `fixedMs` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property fixedMs 매 재시도에 사용할 고정 지연 밀리초입니다. `1` 이상이어야 하며 기본값은 50ms입니다.
      */
     data class Fixed(val fixedMs: Long = 50L): RetryStrategy() {
         init {

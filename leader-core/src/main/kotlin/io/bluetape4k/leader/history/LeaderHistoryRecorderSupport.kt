@@ -5,10 +5,8 @@ import io.bluetape4k.support.truncateUtf8
 private const val MAX_METADATA_KEY_LENGTH = 64
 
 /**
- * `String` 호출은 leader election 계약의 일부 동작을 수행합니다.
- *
- * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+ * log line separator와 제어 문자를 `?`로 바꿉니다.
+ * @return 안전 문자로 치환한 문자열. 이미 안전하면 receiver를 그대로 반환합니다.
  */
 internal fun String.sanitizeForLog(): String {
     val firstUnsafe = indexOfFirstUnsafeLogChar()
@@ -26,11 +24,9 @@ internal fun String.sanitizeForLog(): String {
 }
 
 /**
- * `sanitize` 호출은 leader election 계약의 일부 동작을 수행합니다.
- *
- * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @param record `record` 호출 또는 상태 계산에 필요한 값입니다.
- * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+ * 오류 메시지와 metadata를 log-safe 문자로 바꾸고, 바이트·문자 수 및 key 수 제한을 적용합니다.
+ * @param record 정리할 lock history record
+ * @return 내용 변경이 필요 없으면 같은 record, 변경이 있으면 정리된 record 복사본
  */
 internal fun sanitize(record: LeaderLockHistoryRecord): LeaderLockHistoryRecord {
     val sanitizedMessage = record.errorMessage

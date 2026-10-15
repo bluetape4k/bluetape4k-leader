@@ -7,29 +7,24 @@ import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * `SuspendLeaderElector`는 coroutine suspend leader election 실행자입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * suspend 함수로 lock 획득을 시도하고, 성공한 경우에만 사용자 작업을 실행하는 선거 계약입니다.
  */
 interface SuspendLeaderElector: LeaderElectionState {
 
     /**
      * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * @param lockName 획득할 lock의 이름
+     * @param action lock 획득 후 실행할 suspend 작업
+     * @return 획득한 경우 작업 결과, contention으로 획득하지 못한 경우 `null`
      */
     suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T?
 
     /**
-     * `runIfLeaderResultSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * action에서 발생한 `Exception`은 `ActionFailed`로 반환하고, lock 획득 중 발생한 예외와 coroutine 취소는 전파합니다.
+     * @param lockName 획득할 lock의 이름
+     * @param action lock 획득 후 실행할 suspend 작업
+     * @return 획득 결과, contention skip, action 실패를 구분하는 `LeaderRunResult`
      */
     suspend fun <T> runIfLeaderResultSuspend(
         lockName: String,
@@ -55,10 +50,10 @@ interface SuspendLeaderElector: LeaderElectionState {
     /**
      * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
-     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 기존 구현과의 호환 경로로 `slot.lockName`만 사용하고 `LeaderElectorBridgeLog` 경고를 기록합니다.
+     * @param slot lock 이름과 요청 leader ID를 담은 그룹 선거 slot
+     * @param action lock 획득 후 실행할 suspend 작업
+     * @return 획득한 경우 작업 결과, contention으로 획득하지 못한 경우 `null`
      */
     suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? {
         LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
@@ -66,12 +61,11 @@ interface SuspendLeaderElector: LeaderElectionState {
     }
 
     /**
-     * `runIfLeaderResultSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
-     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 기존 구현과의 호환 경로로 `slot.lockName`만 사용하고 `LeaderElectorBridgeLog` 경고를 기록합니다.
+     * action 실패는 `ActionFailed`로 반환하며, lock 획득 예외와 coroutine 취소는 전파합니다.
+     * @param slot lock 이름과 요청 leader ID를 담은 그룹 선거 slot
+     * @param action lock 획득 후 실행할 suspend 작업
+     * @return 획득 결과, contention skip, action 실패를 구분하는 `LeaderRunResult`
      */
     suspend fun <T> runIfLeaderResultSuspend(
         slot: LeaderSlot,

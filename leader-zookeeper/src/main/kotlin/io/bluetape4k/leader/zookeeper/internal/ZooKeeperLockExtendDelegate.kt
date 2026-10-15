@@ -11,13 +11,12 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * `ZooKeeperLockExtendDelegate`는 ZooKeeper backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ZooKeeperLockExtendDelegate`는 ZooKeeper 단일 lock의 lease 연장과 현재 ownership 확인을 elector에서 분리해 위임합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property mutex ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lockKey ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lockPath ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client 현재 ephemeral lock node가 살아 있는지 확인할 Curator client입니다.
+ * @property mutex 이 process가 `InterProcessMutex`를 보유했는지 확인할 Curator mutex입니다.
+ * @property lockKey 논리적 election path이며 진단용 lock identity입니다.
+ * @property lockPath 현재 owner가 획득한 정확한 ephemeral node path입니다.
  */
 internal class ZooKeeperLockExtendDelegate(
     private val client: CuratorFramework,
@@ -33,11 +32,7 @@ internal class ZooKeeperLockExtendDelegate(
 
     override fun extend(lockAtMostFor: Duration): ExtendOutcome = doExtend()
 
-    /**
-     * `extendSuspend` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** ZooKeeper에는 TTL 연장이 없으므로 live ownership만 확인해 `Extended(Instant.MAX)` 또는 `NotHeld`를 반환합니다. */
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = doExtend()
 
     override fun isHeld(): Boolean =

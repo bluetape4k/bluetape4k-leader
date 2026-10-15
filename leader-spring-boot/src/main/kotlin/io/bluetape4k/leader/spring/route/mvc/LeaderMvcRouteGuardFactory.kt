@@ -21,12 +21,12 @@ import org.springframework.web.servlet.HandlerInterceptor
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 
-/**
- * `LeaderMvcRouteGuardFactory`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+/** Spring MVC `HandlerInterceptor`를 만들어 leader 권한이 없는 요청을 reject 또는 redirect합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property runtime Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property properties Spring Boot integration 계약에서 사용하는 속성입니다.
+ * `LEASE` mode에서는 request attribute로 lease handle을 보관하고 async completion에서 정확히 release합니다.
+ *
+ * @property runtime route authority를 평가하는 runtime입니다.
+ * @property properties mode, rejection status, redirect, lease 정책입니다.
  */
 class LeaderMvcRouteGuardFactory internal constructor(
     private val runtime: LeaderRouteAuthorityRuntime,
@@ -41,11 +41,7 @@ class LeaderMvcRouteGuardFactory internal constructor(
         properties: LeaderRouteGuardProperties,
     ): this(runtime, properties, properties.redirect.takeIf { it.enabled }?.let(::LeaderRouteRedirectPolicy))
 
-    /**
-     * `interceptor`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
-     *
-     * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
-     */
+    /** slot을 검사하는 MVC interceptor를 반환합니다. */
     fun interceptor(slot: LeaderSlot): HandlerInterceptor = object: HandlerInterceptor, AsyncHandlerInterceptor {
         override fun preHandle(
             request: HttpServletRequest,

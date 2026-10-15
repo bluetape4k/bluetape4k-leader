@@ -6,9 +6,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * `NoopExtendDelegate` 선언은 leader election 계약에서 사용되는 object입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * lock handle이 extension 기능을 갖지 않을 때 사용하는 delegate입니다. 연장은 항상 `NotHeld`이고 소유 여부는 항상 `false`입니다.
  */
 internal object NoopExtendDelegate: ExtendDelegate {
 

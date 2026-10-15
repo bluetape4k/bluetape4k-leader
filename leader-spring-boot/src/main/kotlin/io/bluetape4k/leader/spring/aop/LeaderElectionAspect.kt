@@ -59,14 +59,16 @@ import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.toKotlinDuration
 
 /**
- * `LeaderElectionAspect`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * `@LeaderElection`와 `@LeaderScheduled` 대상 메서드에 lock 획득, 실행, skip, metric 기록을 적용합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property beanSelector Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property props Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property spel Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property lockNameValidator Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property recorders Spring Boot integration 계약에서 사용하는 속성입니다.
+ * blocking, `suspend`, `Mono`, `Flux`, `Flow` 반환 모델을 각각 처리하고, annotation failure mode에 따라
+ * backend 오류를 rethrow, skip 또는 fail-open으로 전달합니다.
+ *
+ * @property beanSelector annotation과 type으로 elector factory bean을 선택합니다.
+ * @property props AOP 기본 wait/lease, lock prefix, failure mode, metric 설정입니다.
+ * @property spel lock 이름 SpEL을 해석합니다.
+ * @property lockNameValidator 해석된 lock 이름의 공백과 길이 계약을 검증합니다.
+ * @property recorders lock 시도ㆍ획득ㆍ실행 결과를 기록하는 recorder 목록입니다.
  */
 @Aspect
 @Suppress("LargeClass", "TooManyFunctions")
@@ -286,11 +288,7 @@ class LeaderElectionAspect(
         }
     }
 
-    /**
-     * `aroundLeaderSuspend` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** suspend 대상에서 coroutine elector를 사용해 lock 획득과 body 실행을 연결합니다. */
     // Coroutine advice의 획득·실행·fail-open·오류 처리는 lease 수명 순서를 보존하도록 한 흐름입니다.
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ThrowsCount")
     private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
@@ -451,11 +449,7 @@ class LeaderElectionAspect(
         return scopedSuspendBlock.startCoroutineUninterceptedOrReturn(continuation)
     }
 
-    /**
-     * `aroundLeaderFlux` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** `Flux`가 bounded stream 정책을 만족하는지 검사한 뒤 subscription 시점에 leader 실행을 시작합니다. */
     private fun aroundLeaderFlux(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
         val method = (pjp.signature as MethodSignature).method
 
@@ -635,11 +629,7 @@ class LeaderElectionAspect(
         }
     }
 
-    /**
-     * `aroundLeaderFlow` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** `Flow`가 bounded stream 정책을 만족하는지 검사한 뒤 수집 시점에 leader 실행을 시작합니다. */
     private fun aroundLeaderFlow(
         pjp: ProceedingJoinPoint,
         method: Method,
@@ -788,11 +778,7 @@ class LeaderElectionAspect(
             }
         }.flowOn(observationCoroutineContext()).buffer(Channel.RENDEZVOUS)
 
-    /**
-     * `aroundLeaderMono` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** `Mono` subscription 시점에 leader lock을 획득하고 publisher를 실행합니다. */
     private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
         val method = (pjp.signature as MethodSignature).method
 

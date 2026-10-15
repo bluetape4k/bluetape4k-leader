@@ -26,11 +26,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * `StatefulRedisConnection` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
+/** 주어진 Redis 연결과 그룹 선출 정책으로 suspend slot-token 기반 elector를 생성합니다. */
 fun StatefulRedisConnection<String, String>.suspendLeaderGroupElector(
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
 ): LettuceSuspendLeaderGroupElector =
@@ -38,11 +34,11 @@ fun StatefulRedisConnection<String, String>.suspendLeaderGroupElector(
 
 
 /**
- * `LettuceSuspendLeaderGroupElector`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `LettuceSuspendLeaderGroupElector`는 Redis Lettuce의 suspend 그룹 선출을 제공하며 `maxLeaders` 슬롯을 acquire·extend·release합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property connection Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * lock 또는 slot을 획득하지 못한 `runIfLeader` 호출은 예외 대신 `null`/skip 결과를 반환합니다.
+ * @property connection lockName별 Redis sorted-set·metadata hash를 조회하고 갱신하는 연결입니다.
+ * @property options 동시에 허용할 `maxLeaders`, 대기·lease·최소 lease 기간을 정하는 그룹 정책입니다.
  */
 class LettuceSuspendLeaderGroupElector(
     private val connection: StatefulRedisConnection<String, String>,

@@ -30,12 +30,11 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * `LettuceSlotTokenGroup`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `LettuceSlotTokenGroup`는 lockName별 Redis sorted-set·metadata hash와 Lua script로 그룹 slot token의 획득·연장·보유 확인·해제를 수행합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property connection Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lockName Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property maxLeaders Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property connection slot acquire/release/extend Lua script를 실행하는 Redis 연결입니다.
+ * @property lockName 논리적 그룹 이름이며 slot key는 `lg:{$lockName}`, metadata hash는 `lg:{$lockName}:meta`로 파생됩니다.
+ * @property maxLeaders Redis sorted-set에서 동시에 유효하게 유지할 token의 최대 개수이며 양수여야 합니다.
  */
 class LettuceSlotTokenGroup(
     private val connection: StatefulRedisConnection<String, String>,
@@ -53,9 +52,7 @@ class LettuceSlotTokenGroup(
         private const val KEY_PREFIX = "lg:{"
         private const val KEY_SUFFIX = "}"
 
-        /**
-         * `ACQUIRE_SCRIPT` 값은 Redis Lettuce backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** Redis server time으로 만료 token을 정리한 뒤 `maxLeaders` 미만이면 token과 선택적 audit ID를 저장합니다. */
         private val ACQUIRE_SCRIPT = RedisScript(
             """
 redis.replicate_commands()
@@ -75,9 +72,7 @@ return ''
 """
         )
 
-        /**
-         * `RELEASE_SCRIPT` 값은 Redis Lettuce backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** 남은 최소 lease가 있으면 현재 token의 score를 갱신하고, 없으면 token과 metadata를 제거합니다. */
         private val RELEASE_SCRIPT = RedisScript(
             """
 redis.replicate_commands()
@@ -96,9 +91,7 @@ end
 """
         )
 
-        /**
-         * `STATUS_SCRIPT` 값은 Redis Lettuce backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** 만료 token을 정리한 뒤 `{active, maxLeaders - active}`를 반환합니다. */
         private val STATUS_SCRIPT = RedisScript(
             """
 redis.replicate_commands()
@@ -110,9 +103,7 @@ return { active, tonumber(ARGV[1]) - active }
 """
         )
 
-        /**
-         * `EXTEND_SCRIPT` 값은 Redis Lettuce backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** 유효한 token의 score와 key TTL을 `leaseTime`만큼 갱신합니다. */
         private val EXTEND_SCRIPT = RedisScript(
             """
 redis.replicate_commands()
@@ -129,9 +120,7 @@ return 0
 """
         )
 
-        /**
-         * `IS_HELD_SCRIPT` 값은 Redis Lettuce backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** token score가 Redis server time보다 큰지 검사해 소유 여부를 1 또는 0으로 반환합니다. */
         private val IS_HELD_SCRIPT = RedisScript(
             """
 redis.replicate_commands()
@@ -161,11 +150,7 @@ return 0
     // 동기 API
     // =========================================================================
 
-    /**
-     * `tryAcquire` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** `waitTime` 동안 최대 50ms 간격으로 slot을 재시도해 소유 token을 반환하며, 빈 문자열 응답은 `null`입니다. */
     fun tryAcquire(waitTime: Duration, leaseTime: Duration, auditLeaderId: String = ""): String? {
         val token = newToken()
         val deadline = MonotonicDeadline.fromNow(waitTime)
@@ -188,11 +173,7 @@ return 0
         }
     }
 
-    /**
-     * `extendSlot` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** token을 검증해 slot lease를 갱신하고, 현재 소유가 아니면 `NotHeld`를 반환합니다. */
     fun extendSlot(token: String, leaseTime: Duration): ExtendOutcome {
         token.requireNotBlank("token")
         val leaseMs = leaseTime.inWholeMilliseconds
@@ -207,11 +188,7 @@ return 0
         }
     }
 
-    /**
-     * `isSlotHeld` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** Redis server time 기준으로 token이 아직 만료되지 않았는지 검사합니다. */
     fun isSlotHeld(token: String): Boolean {
         token.requireNotBlank("token")
         val result = RedisScriptRunner.run<Long>(
@@ -221,11 +198,7 @@ return 0
         return result > 0L
     }
 
-    /**
-     * `release` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** token 소유를 확인해 즉시 제거하거나 `remainingMinLeaseMs`만큼 최소 lease를 보존합니다. token은 ownership 비밀값입니다. */
     fun release(token: String, remainingMinLeaseMs: Long) {
         token.requireNotBlank("token")
         val ret = RedisScriptRunner.run<Long>(
@@ -255,11 +228,7 @@ return 0
     // 비동기 API (CompletableFuture)
     // =========================================================================
 
-    /**
-     * `tryAcquireAsync` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** async Lua 호출을 최대 `waitTime`까지 재시도하며 정상 경합은 `null`, 마지막 backend 오류는 failed future로 구분합니다. */
     fun tryAcquireAsync(
         waitTime: Duration,
         leaseTime: Duration,
@@ -343,11 +312,7 @@ return 0
         }
     }
 
-    /**
-     * `extendSlotSuspending` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** suspend Lua 호출로 token이 유효할 때만 slot lease를 연장하고 취소를 먼저 검사합니다. */
     suspend fun extendSlotSuspending(token: String, leaseTime: Duration): ExtendOutcome {
         currentCoroutineContext().ensureActive()
         token.requireNotBlank("token")
@@ -363,11 +328,7 @@ return 0
         }
     }
 
-    /**
-     * `isSlotHeldSuspending` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** suspend Lua 호출로 Redis server time 기준 token 유효성을 검사합니다. */
     suspend fun isSlotHeldSuspending(token: String): Boolean {
         currentCoroutineContext().ensureActive()
         token.requireNotBlank("token")

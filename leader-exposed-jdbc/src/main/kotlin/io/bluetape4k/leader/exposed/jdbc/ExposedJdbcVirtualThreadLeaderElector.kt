@@ -6,10 +6,9 @@ import io.bluetape4k.leader.VirtualThreadLeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 
 /**
- * `ExposedJdbcVirtualThreadLeaderElector`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ExposedJdbcVirtualThreadLeaderElector`는 JDBC 단일 elector의 blocking 선출을 virtual thread에서 실행합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property delegate Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property delegate JDBC blocking elector에 실제 락 획득·lease·history 처리를 위임하는 객체입니다.
  */
 class ExposedJdbcVirtualThreadLeaderElector(
     private val delegate: ExposedJdbcLeaderElector,
@@ -17,9 +16,8 @@ class ExposedJdbcVirtualThreadLeaderElector(
    LeaderBackendDiagnosticsProvider by ExposedJdbcLeaderBackendDiagnostics {
 
     /**
-     * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * virtual thread에서 [delegate]의 blocking 선거를 실행합니다.
+     * 경합으로 락을 얻지 못하면 null을 반환하고, action 예외는 future에 전달합니다.
      */
     override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
         virtualFuture {

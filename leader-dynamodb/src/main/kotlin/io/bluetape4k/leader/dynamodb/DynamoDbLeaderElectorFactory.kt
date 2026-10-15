@@ -14,11 +14,10 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 
 /**
- * `DynamoDbLeaderElectorFactory`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `DynamoDbLeaderElectorFactory`는 synchronous DynamoDB client와 기본 옵션으로 단일 elector를 생성합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property baseOptions DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client 단일 lock item을 다룰 synchronous DynamoDB client입니다.
+ * @property baseOptions create 시 leader 옵션만 교체해 사용할 기본 단일 설정입니다.
  */
 class DynamoDbLeaderElectorFactory(
     private val client: DynamoDbClient,
@@ -29,11 +28,10 @@ class DynamoDbLeaderElectorFactory(
 }
 
 /**
- * `DynamoDbLeaderGroupElectorFactory`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `DynamoDbLeaderGroupElectorFactory`는 synchronous DynamoDB client와 그룹 기본 옵션으로 slot elector를 생성합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property baseOptions DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client 그룹 slot item을 다룰 synchronous DynamoDB client입니다.
+ * @property baseOptions create 시 그룹 옵션만 교체해 사용할 기본 그룹 설정입니다.
  */
 class DynamoDbLeaderGroupElectorFactory(
     private val client: DynamoDbClient,
@@ -44,11 +42,10 @@ class DynamoDbLeaderGroupElectorFactory(
 }
 
 /**
- * `DynamoDbSuspendLeaderElectorFactory`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `DynamoDbSuspendLeaderElectorFactory`는 asynchronous DynamoDB client와 기본 옵션으로 suspend 단일 elector를 생성합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property baseOptions DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client 단일 lock item을 다룰 asynchronous DynamoDB client입니다.
+ * @property baseOptions create 시 leader 옵션만 교체해 사용할 기본 단일 설정입니다.
  */
 class DynamoDbSuspendLeaderElectorFactory(
     private val client: DynamoDbAsyncClient,
@@ -59,11 +56,10 @@ class DynamoDbSuspendLeaderElectorFactory(
 }
 
 /**
- * `DynamoDbSuspendLeaderGroupElectorFactory`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `DynamoDbSuspendLeaderGroupElectorFactory`는 asynchronous DynamoDB client와 그룹 기본 옵션으로 suspend slot elector를 생성합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property baseOptions DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client 그룹 slot item을 다룰 asynchronous DynamoDB client입니다.
+ * @property baseOptions create 시 그룹 옵션만 교체해 사용할 기본 그룹 설정입니다.
  */
 class DynamoDbSuspendLeaderGroupElectorFactory(
     private val client: DynamoDbAsyncClient,

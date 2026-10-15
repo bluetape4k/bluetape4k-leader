@@ -3,9 +3,7 @@ package io.bluetape4k.leader.history
 import java.time.Instant
 
 /**
- * `NoopLeaderHistorySink`는 leader election audit/history 저장 계약을 표현합니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * 모든 history 기록 호출을 저장 없이 처리하는 blocking sink입니다. acquire 요청은 항상 null을 반환합니다.
  */
 object NoopLeaderHistorySink: LeaderHistorySink {
     override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? = null
@@ -20,9 +18,7 @@ object NoopLeaderHistorySink: LeaderHistorySink {
 }
 
 /**
- * `NoopSuspendLeaderHistorySink`는 leader election audit/history 저장 계약을 표현합니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * 모든 history 기록 호출을 저장 없이 처리하는 suspend sink입니다. acquire 요청은 항상 null을 반환합니다.
  */
 object NoopSuspendLeaderHistorySink: SuspendLeaderHistorySink {
     override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? = null

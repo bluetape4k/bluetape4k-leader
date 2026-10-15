@@ -18,10 +18,8 @@ import io.bluetape4k.support.requireNotNull
 import kotlinx.coroutines.flow.Flow
 
 /**
- * `ListeningSuspendLeaderElector` 선언은 leader election 계약에서 사용되는 class입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property delegate 실제 leader election 동작을 수행하는 위임 객체입니다.
+ * suspend elector의 선거 결과를 delegate에 위임하고 listener와 `events` Flow로 lifecycle을 알립니다.
+ * @property delegate 선거와 상태 조회를 수행할 suspend elector
  */
 class ListeningSuspendLeaderElector(
     private val delegate: SuspendLeaderElector,
@@ -131,10 +129,8 @@ class ListeningSuspendLeaderElector(
 }
 
 /**
- * `ListeningSuspendLeaderGroupElector` 선언은 leader election 계약에서 사용되는 class입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property delegate 실제 leader election 동작을 수행하는 위임 객체입니다.
+ * suspend group elector의 선거 결과를 delegate에 위임하고 listener와 `events` Flow로 lifecycle을 알립니다.
+ * @property delegate 그룹 선거와 상태 조회를 수행할 suspend group elector
  */
 class ListeningSuspendLeaderGroupElector(
     private val delegate: SuspendLeaderGroupElector,
@@ -191,11 +187,9 @@ class ListeningSuspendLeaderGroupElector(
 }
 
 /**
- * `SuspendLeaderElector`는 coroutine suspend leader election 실행자입니다.
- *
- * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @param listeners `listeners` 호출 또는 상태 계산에 필요한 값입니다.
- * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+ * 주어진 listeners를 등록한 suspend elector wrapper를 만듭니다.
+ * @param listeners 선거 lifecycle 알림을 받을 listeners
+ * @return 원래 elector에 listener 전달 기능을 추가한 wrapper
  */
 fun SuspendLeaderElector.withListeners(
     vararg listeners: LeaderElectionListener,
@@ -205,11 +199,9 @@ fun SuspendLeaderElector.withListeners(
     }
 
 /**
- * `SuspendLeaderGroupElector`는 여러 slot을 허용하는 coroutine group leader election 실행자입니다.
- *
- * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @param listeners `listeners` 호출 또는 상태 계산에 필요한 값입니다.
- * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+ * 주어진 listeners를 등록한 suspend group elector wrapper를 만듭니다.
+ * @param listeners 그룹 선거 lifecycle 알림을 받을 listeners
+ * @return 원래 group elector에 listener 전달 기능을 추가한 wrapper
  */
 fun SuspendLeaderGroupElector.withListeners(
     vararg listeners: LeaderElectionListener,

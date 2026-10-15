@@ -33,10 +33,9 @@ import kotlin.time.Duration
 private val log = KotlinLogging.logger {}
 
 /**
- * `AbstractLocalLeaderElector` 선언은 leader election 계약에서 사용되는 class입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property options `options` 호출 또는 상태 계산에 필요한 값입니다.
+ * JVM 프로세스 안에서 lock별 `ReentrantLock`, 상태 snapshot, listener, request lease를 관리하는 단일 선거 기반 클래스입니다.
+ * 이 구현이 제공하는 lock은 다른 프로세스와 공유되지 않습니다.
+ * @property options node ID, 대기 시간, lease 및 자동 연장 설정
  */
 abstract class AbstractLocalLeaderElector(
     protected val options: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -80,12 +79,10 @@ abstract class AbstractLocalLeaderElector(
     }
 
     /**
-     * `withLeaderLock` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 해당 이름의 JVM lock을 획득할 때까지 대기한 뒤 작업을 실행하고, 작업이 끝나면 lock을 해제합니다.
+     * @param lockName JVM 안에서 사용할 lock 이름
+     * @param action lock을 보유한 동안 실행할 작업
+     * @return `action`이 반환한 값
      */
     protected fun <T> withLeaderLock(lockName: String, action: () -> T): T {
         return getLock(lockName).withLock {
@@ -94,13 +91,11 @@ abstract class AbstractLocalLeaderElector(
     }
 
     /**
-     * `tryWithLeaderLock` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param waitTime leader lock 획득을 기다리는 최대 시간입니다.
-     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * `waitTime` 안에 lock을 얻으면 작업을 실행하고 해제합니다. 시간 내에 얻지 못하면 작업을 실행하지 않고 `null`을 반환합니다.
+     * @param lockName JVM 안에서 사용할 lock 이름
+     * @param waitTime lock 획득을 기다릴 최대 시간
+     * @param action lock을 보유한 동안 실행할 작업
+     * @return lock을 얻은 경우 `action`의 결과, 시간 초과로 얻지 못한 경우 `null`
      */
     protected fun <T> tryWithLeaderLock(lockName: String, waitTime: Duration, action: () -> T): T? =
         tryWithLeaderLock(
@@ -112,15 +107,13 @@ abstract class AbstractLocalLeaderElector(
         )
 
     /**
-     * `tryWithLeaderLock` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param auditLeaderId `auditLeaderId` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param nodeId 상태 조회와 audit에 노출되는 노드 또는 인스턴스 식별자입니다.
-     * @param waitTime leader lock 획득을 기다리는 최대 시간입니다.
-     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 제한 시간 안에 lock을 얻으면 상태와 listener에 지정 identity를 기록하고 작업을 실행한 뒤 lease와 lock을 정리합니다.
+     * @param lockName JVM 안에서 사용할 lock 이름
+     * @param auditLeaderId 상태 기록 및 listener 이벤트에 사용할 leader ID
+     * @param nodeId 상태 snapshot에 기록할 노드 ID. 생략하면 `options.nodeId`를 사용합니다.
+     * @param waitTime lock 획득을 기다릴 최대 시간
+     * @param action lock을 보유한 동안 실행할 작업
+     * @return lock을 얻은 경우 `action`의 결과, 시간 초과로 얻지 못한 경우 `null`
      */
     protected fun <T> tryWithLeaderLock(
         lockName: String,

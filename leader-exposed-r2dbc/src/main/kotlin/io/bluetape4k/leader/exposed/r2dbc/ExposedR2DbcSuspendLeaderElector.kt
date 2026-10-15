@@ -30,12 +30,11 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 /**
- * `ExposedR2DbcSuspendLeaderElector`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ExposedR2DbcSuspendLeaderElector`는 R2DBC lock 행을 이용해 단일 leader의 suspend 실행과 lease 수명을 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property historyRecorder Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property db 락 테이블을 조회·변경하고 suspend transaction을 실행할 Exposed R2DBC 데이터베이스입니다.
+ * @property options 대기 시간, lease/minimum lease 시간, 재시도, owner, DB 시간 사용 여부를 담은 선거 설정입니다.
+ * @property historyRecorder null이면 이 elector가 history를 기록하지 않고, 값이 있으면 suspend-safe recorder로 기록합니다.
  */
 class ExposedR2DbcSuspendLeaderElector private constructor(
     private val db: R2dbcDatabase,
@@ -55,9 +54,8 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedR2dbcBackendErrorClassifier)
 
         /**
-         * `invoke` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-         *
-         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+         * 데이터베이스 스키마를 한 번 보장한 뒤 suspend R2DBC elector를 생성합니다.
+         * [options]를 생략하면 [ExposedR2dbcLeaderElectionOptions.Default]를 사용합니다.
          */
         suspend operator fun invoke(
             db: R2dbcDatabase,
@@ -70,9 +68,8 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
     }
 
     /**
-     * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [lockName]의 R2DBC 락을 대기 시간 안에 suspend 방식으로 시도합니다.
+     * 획득하지 못하면 null을 반환하고, 획득하면 [action]을 실행한 뒤 취소 상황에서도 lease를 정리합니다.
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         lockName.validateExposedR2dbcLockName()

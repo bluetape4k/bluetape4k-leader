@@ -7,10 +7,8 @@ import io.bluetape4k.leader.strategy.ElectionStrategy
 import io.bluetape4k.leader.strategy.Elimination
 
 /**
- * `ScoredElectionStrategy`는 전략 기반 leader 선출에서 후보 평가 규칙을 제공합니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property scorer 후보 점수를 계산하는 전략 객체입니다.
+ * 가장 높은 점수를 받은 후보를 선택합니다. 동점이면 등록 시각, 이어서 `nodeId` 사전순으로 승자를 정합니다.
+ * @property scorer 후보별 점수를 계산하는 규칙
  */
 class ScoredElectionStrategy(val scorer: CandidateScorer): ElectionStrategy {
 

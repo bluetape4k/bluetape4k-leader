@@ -4,9 +4,8 @@ import io.bluetape4k.leader.strategy.CandidateInfo
 import java.time.Instant
 
 /**
- * `LettuceCandidateInfoCodec`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `LettuceCandidateInfoCodec`는 `CandidateInfo`의 nodeId·시각·성공/실패 카운터·metadata를 Redis 문자열로 직렬화하고 복원하며, 구분자를 포함한 값은 encode 시 escape합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object LettuceCandidateInfoCodec {
 
@@ -48,11 +47,7 @@ internal object LettuceCandidateInfoCodec {
             .replace(",", "%2C")
             .replace("=", "%3D")
 
-    /**
-     * `String` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** `encode`에서 `%25`, `%7C`, `%2C`, `%3D`로 escape한 candidate 필드와 metadata를 원래 문자열로 복원합니다. */
     private fun String.unesc(): String {
         if (isEmpty() || !contains('%')) return this
         val sb = StringBuilder(length)

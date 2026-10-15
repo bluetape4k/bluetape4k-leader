@@ -19,11 +19,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import kotlin.time.toKotlinDuration
 
-/**
- * `DynamoDbLeaderConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- */
+/** DynamoDB client가 있을 때 DynamoDB blocking, group, suspend elector를 등록합니다. */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(DynamoDbClient::class)
 class DynamoDbLeaderConfiguration {

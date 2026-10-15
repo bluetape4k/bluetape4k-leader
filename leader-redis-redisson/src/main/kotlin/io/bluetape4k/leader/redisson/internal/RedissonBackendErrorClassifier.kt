@@ -7,9 +7,8 @@ import org.redisson.client.RedisException
 import org.redisson.client.RedisTimeoutException
 
 /**
- * `RedissonBackendErrorClassifier`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `RedissonBackendErrorClassifier`는 Redis Redisson 예외를 `BackendErrorKind`로 분류해 재시도·중단 판단에 전달합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object RedissonBackendErrorClassifier: BackendErrorClassifier {
 

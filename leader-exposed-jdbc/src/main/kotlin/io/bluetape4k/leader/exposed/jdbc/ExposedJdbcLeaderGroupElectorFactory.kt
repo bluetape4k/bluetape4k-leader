@@ -6,11 +6,10 @@ import io.bluetape4k.leader.LeaderGroupElectorFactory
 import org.jetbrains.exposed.v1.jdbc.Database
 
 /**
- * `ExposedJdbcLeaderGroupElectorFactory`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ExposedJdbcLeaderGroupElectorFactory`는 JDBC Database와 그룹 기본 옵션으로 slot elector를 생성합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property baseOptions Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property db group elector 인스턴스가 공유할 Exposed JDBC 데이터베이스입니다.
+ * @property baseOptions 각 그룹 lock name에 적용할 기본 maxLeaders·lease·retry 설정입니다.
  */
 class ExposedJdbcLeaderGroupElectorFactory(
     private val db: Database,

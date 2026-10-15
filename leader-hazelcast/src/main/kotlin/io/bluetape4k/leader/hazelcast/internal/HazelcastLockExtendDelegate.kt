@@ -14,10 +14,9 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * `HazelcastLockExtendDelegate`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `HazelcastLockExtendDelegate`는 Hazelcast 단일 lock의 lease 연장과 현재 ownership 확인을 elector에서 분리해 위임합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property lock Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lock 현재 elector가 소유한 Hazelcast lock의 lease 연장과 보유 여부를 위임할 객체입니다.
  */
 internal class HazelcastLockExtendDelegate(
     private val lock: HazelcastLock,
@@ -36,11 +35,7 @@ internal class HazelcastLockExtendDelegate(
             ExtendOutcome.BackendError(e)
         }
 
-    /**
-     * `extendSuspend` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** IO dispatcher에서 소유 token을 검증하며 lease를 연장하고, 취소는 그대로 전파합니다. */
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
         withContext(Dispatchers.IO) {
             coroutineContext.ensureActive()

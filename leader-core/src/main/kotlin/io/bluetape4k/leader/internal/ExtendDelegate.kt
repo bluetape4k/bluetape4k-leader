@@ -6,33 +6,27 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * `ExtendDelegate` 선언은 leader election 계약에서 사용되는 interface입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * lock handle의 lease를 연장하고 현재 소유 여부 및 마지막으로 관찰한 만료 시각을 제공합니다.
  */
 interface ExtendDelegate {
 
+    /** @param lockAtMostFor 연장 뒤에도 넘지 않을 최대 lock lease 길이 */
     fun extend(lockAtMostFor: Duration): ExtendOutcome
 
     /**
-     * `extendSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 기본 구현은 blocking [extend]를 호출합니다. suspend backend는 이 함수를 재정의합니다.
+     * @param lockAtMostFor 연장 뒤에도 넘지 않을 최대 lock lease 길이
+     * @return 연장 여부와 backend 오류를 구분하는 결과
      */
     suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = extend(lockAtMostFor)
 
     /**
-     * `isHeld` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 현재 실행 중인 lock handle이 backend lock을 소유하는지 확인합니다.
      */
     fun isHeld(): Boolean
 
     /**
-     * `lastExtendDeadline` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     * 마지막 성공한 연장에서 backend가 보고한 lease 만료 시각입니다. 아직 성공한 연장이 없으면 구현별 초기값을 가집니다.
      */
     val lastExtendDeadline: AtomicReference<Instant>
 }

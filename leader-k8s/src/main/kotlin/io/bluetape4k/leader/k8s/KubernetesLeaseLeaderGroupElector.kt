@@ -37,12 +37,11 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * `KubernetesLeaseLeaderGroupElector`는 Kubernetes Lease backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `KubernetesLeaseLeaderGroupElector`는 namespaced slot Lease로 여러 leader의 blocking/async 실행과 lease 수명을 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property clock Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client 지정 namespace의 slot Lease를 생성, 조회, 갱신, 삭제하는 Fabric8 Kubernetes client입니다.
+ * @property options `maxLeaders`, namespace, 충돌 재시도 지연, 대기/Lease 유지 시간과 자동 연장을 제공하는 그룹 옵션입니다.
+ * @property clock slot Lease의 acquire/renew 시각과 만료 여부를 계산하는 시계이며 기본값은 UTC 시계입니다.
  */
 // Group elector는 blocking/async, 상태 조회, lease lifecycle, diagnostics 계약을 함께 구현합니다.
 @Suppress("TooManyFunctions")

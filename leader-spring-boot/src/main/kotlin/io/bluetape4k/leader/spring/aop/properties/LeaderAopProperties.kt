@@ -10,31 +10,18 @@ import java.io.Serializable
 import java.time.Duration
 
 /**
- * `LeaderAopProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * `@LeaderElection`와 `@LeaderGroupElection` advice의 공통 Spring Boot 기본 정책입니다.
  *
- * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property strict Spring Boot integration 계약에서 `strict` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property failureMode Spring Boot integration 계약에서 `failureMode` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property defaultWaitTime Spring Boot integration 계약에서 `defaultWaitTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property defaultLeaseTime Spring Boot integration 계약에서 `defaultLeaseTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property lockNamePrefix Spring Boot integration 계약에서 `lockNamePrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property metrics Spring Boot integration 계약에서 `metrics` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property spel Spring Boot integration 계약에서 `spel` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property enabled AOP 자동 구성을 활성화할지 여부이며 기본값은 `true`입니다.
+ * @property strict annotation 검증 오류를 startup failure로 승격할지 여부이며 기본값은 `false`입니다.
+ * @property failureMode elector backend 오류와 lock 미획득을 처리하는 기본 정책이며 기본값은 `RETHROW`입니다.
+ * @property defaultWaitTime annotation이 별도 wait time을 지정하지 않을 때 사용할 대기 기간이며 기본값은 5초입니다.
+ * @property defaultLeaseTime annotation이 별도 lease time을 지정하지 않을 때 사용할 lease 기간이며 기본값은 1분입니다.
+ * @property lockNamePrefix 계산된 lock 이름 앞에 붙이는 prefix이며 기본값은 `${spring.application.name:}:`입니다.
+ * @property metrics AOP metric과 tag sanitization 설정이며 기본값은 `Metrics()`입니다.
+ * @property spel SpEL method invocation 허용 여부이며 기본값은 비활성화된 `Spel()`입니다.
  */
 @ConfigurationProperties(prefix = LeaderAopProperties.PREFIX)
-/**
- * `LeaderAopProperties`는 Spring Boot integration에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
- * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property strict Spring Boot integration 계약에서 `strict` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property failureMode Spring Boot integration 계약에서 `failureMode` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property defaultWaitTime Spring Boot integration 계약에서 `defaultWaitTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property defaultLeaseTime Spring Boot integration 계약에서 `defaultLeaseTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property lockNamePrefix Spring Boot integration 계약에서 `lockNamePrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property metrics Spring Boot integration 계약에서 `metrics` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property spel Spring Boot integration 계약에서 `spel` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- */
 data class LeaderAopProperties(
     val enabled: Boolean = true,
     val strict: Boolean = false,
@@ -45,20 +32,18 @@ data class LeaderAopProperties(
     val metrics: Metrics = Metrics(),
     val spel: Spel = Spel(),
 ): Serializable {
-    /**
-     * `Metrics`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
-     *
-     * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property tags Spring Boot integration 계약에서 `tags` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     */
+        /**
+         * AOP leader 실행을 위한 metric recorder와 tag 변환 정책입니다.
+         *
+         * @property enabled AOP metric recorder를 활성화할지 여부이며 기본값은 `true`입니다.
+         * @property tags lock, leader ID, backend tag 각각의 노출ㆍredaction 규칙이며 기본값은 `Tags()`입니다.
+         */
     data class Metrics(
         val enabled: Boolean = true,
         val tags: Tags = Tags(),
     ): Serializable {
 
-        /**
-         * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
-         */
+        /** `Metrics`의 legacy one-argument constructor이며 tag 정책은 기본값을 사용합니다. */
         constructor(enabled: Boolean): this(
             enabled = enabled,
             tags = Tags(),
@@ -79,12 +64,12 @@ data class LeaderAopProperties(
         fun copy(enabled: Boolean): Metrics = copy(enabled = enabled, tags = tags)
 
         /**
-         * `Tags`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+         * 각 metric tag 이름에 적용할 기본 및 개별 redaction 규칙입니다.
          *
-         * @property lockName Spring Boot integration 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-         * @property leaderId Spring Boot integration 계약에서 `leaderId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-         * @property backendName Spring Boot integration 계약에서 `backendName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-         * @property defaultRule Spring Boot integration 계약에서 `defaultRule` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+         * @property lockName lock 이름 tag 규칙이며 기본값은 `REDACT`와 `redacted-lock`입니다.
+         * @property leaderId leader ID tag 규칙이며 기본값은 `REDACT`와 `redacted-leader`입니다.
+         * @property backendName backend 이름 tag 규칙이며 기본값은 `RAW`입니다.
+         * @property defaultRule 개별 규칙이 없을 때 적용할 규칙이며 기본값은 `TagRule()`입니다.
          */
         data class Tags(
             val lockName: TagRule = TagRule(redactedValue = "redacted-lock"),
@@ -98,14 +83,14 @@ data class LeaderAopProperties(
         }
 
         /**
-         * `TagRule`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+         * 하나의 metric tag 값을 raw, redacted, hashed, truncated 중 하나로 변환하는 규칙입니다.
          *
-         * @property mode Spring Boot integration 계약에서 `mode` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-         * @property allowList Spring Boot integration 계약에서 `allowList` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-         * @property denyList Spring Boot integration 계약에서 `denyList` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-         * @property hashLength Spring Boot integration 계약에서 `hashLength` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-         * @property maxLength Spring Boot integration 계약에서 `maxLength` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-         * @property redactedValue Spring Boot integration 계약에서 `redactedValue` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+         * @property mode 적용할 변환 모드이며 기본값은 `REDACT`입니다.
+         * @property allowList 값 원문을 허용할 tag/key 집합이며 기본값은 빈 집합입니다.
+         * @property denyList 원문을 금지할 tag/key 집합이며 기본값은 빈 집합입니다.
+         * @property hashLength `HASH` 결과의 길이이며 1..64 범위입니다. 기본값은 16입니다.
+         * @property maxLength `TRUNCATE` 결과의 최대 길이이며 0 이상이어야 하고 `TRUNCATE`에서는 양수여야 합니다. 기본값은 0입니다.
+         * @property redactedValue redaction 시 사용할 비공백 sentinel이며 기본값은 `redacted`입니다.
          */
         data class TagRule(
             val mode: TagMode = TagMode.REDACT,
@@ -129,11 +114,7 @@ data class LeaderAopProperties(
             }
         }
 
-        /**
-         * `TagMode`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
-         *
-         * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
-         */
+        /** metric tag 값을 처리하는 변환 모드입니다. */
         enum class TagMode {
             REDACT,
             RAW,
@@ -159,9 +140,9 @@ data class LeaderAopProperties(
     }
 
     /**
-     * `Spel`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+     * leader annotation의 SpEL 평가 보안 정책입니다.
      *
-     * @property allowMethodInvocation Spring Boot integration 계약에서 `allowMethodInvocation` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property allowMethodInvocation SpEL이 method invocation을 수행하도록 허용할지 여부이며 기본값은 `false`입니다.
      */
     data class Spel(
         val allowMethodInvocation: Boolean = false,
@@ -174,9 +155,7 @@ data class LeaderAopProperties(
     companion object {
         private const val serialVersionUID = 1L
 
-        /**
-         * `PREFIX` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** `LeaderAopProperties`를 바인딩하는 Spring Boot configuration prefix입니다. */
         const val PREFIX: String = "bluetape4k.leader.aop"
 
         @JvmField
@@ -185,9 +164,7 @@ data class LeaderAopProperties(
         @JvmField
         val DEFAULT_LEASE_TIME: Duration = Duration.ofMinutes(1)
 
-        /**
-         * `DEFAULT_LOCK_NAME_PREFIX` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** 애플리케이션 이름을 앞에 붙이는 기본 lock name prefix 표현식입니다. */
         const val DEFAULT_LOCK_NAME_PREFIX: String = $$"${spring.application.name:}:"
     }
 }

@@ -2,10 +2,8 @@ package io.bluetape4k.leader.spring.aop.internal
 
 import io.bluetape4k.exceptions.BluetapeException
 
-/**
- * `BodyThrownMarker`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+/** Aspect 내부에서 실제 advice body 예외를 backend 예외 경로와 구분해 전달하는 marker입니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property cause Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property cause advice body가 던진 원래 예외입니다.
  */
 internal class BodyThrownMarker(override val cause: Throwable): BluetapeException(cause)

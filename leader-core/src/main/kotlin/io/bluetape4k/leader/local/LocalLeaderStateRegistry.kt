@@ -11,9 +11,7 @@ import kotlin.concurrent.withLock
 import kotlin.time.Duration
 
 /**
- * `LocalLeaderStateRegistry`는 leader election의 현재 상태를 표현합니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * JVM 메모리 안에서 단일 lock과 group slot의 현재 lease를 관리합니다. 모든 상태 변경은 내부 `ReentrantLock`으로 직렬화됩니다.
  */
 internal class LocalLeaderStateRegistry {
 

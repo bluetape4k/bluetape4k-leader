@@ -10,9 +10,8 @@ import io.r2dbc.spi.R2dbcTransientException
 import io.r2dbc.spi.R2dbcTransientResourceException
 
 /**
- * `ExposedR2dbcBackendErrorClassifier`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ExposedR2dbcBackendErrorClassifier`는 R2DBC 예외 subtype을 transient/non-transient 오류로 분류합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object ExposedR2dbcBackendErrorClassifier: BackendErrorClassifier {
 

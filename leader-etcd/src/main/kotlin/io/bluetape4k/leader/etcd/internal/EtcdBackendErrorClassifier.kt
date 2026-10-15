@@ -17,9 +17,8 @@ internal enum class EtcdBackendErrorKind {
 }
 
 /**
- * `EtcdBackendErrorClassifier`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `EtcdBackendErrorClassifier`는 gRPC 상태와 lease/key not found 오류를 cleanup·transient·non-transient로 분류합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object EtcdBackendErrorClassifier: BackendErrorClassifier {
 

@@ -14,11 +14,10 @@ import org.bson.Document
 import java.time.Instant
 
 /**
- * `MongoLeaderHistorySink`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `MongoLeaderHistorySink`는 MongoDB history collection에 획득·완료·실패 기록을 저장하고, history key로 종료 상태를 갱신하거나 cutoff 이전 문서를 삭제합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property database MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property config MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property database 설정된 history collection을 조회하고 문서를 기록·갱신·삭제하는 coroutine MongoDatabase입니다.
+ * @property config 사용할 collection 이름과 TTL 보존 정책입니다.
  */
 class MongoLeaderHistorySink(
     private val database: MongoDatabase,
@@ -86,9 +85,8 @@ class MongoLeaderHistorySink(
     }
 
     /**
-     * `deleteOlderThan` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * `startedAt < cutoff`인 history 문서를 삭제하고 삭제 건수를 반환합니다.
+     * TTL index가 활성화되면 자동 보존 삭제의 주 경로이며, 이 수동 정리는 `deleteMany`를 사용해 `limit`을 적용하지 않습니다.
      */
     override suspend fun deleteOlderThan(cutoff: Instant, limit: Int): Int {
         val result = collection.deleteMany(Filters.lt(FIELD_STARTED_AT, cutoff))

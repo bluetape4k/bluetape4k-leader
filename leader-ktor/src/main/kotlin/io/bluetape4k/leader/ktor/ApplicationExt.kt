@@ -15,9 +15,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 
 /**
- * `Application` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+ * 지정한 주기로 elector에게 lock 획득을 시도하고, 선출된 cycle에서만 `action`을 실행하는 application-owned Job을 등록합니다.
  */
 fun Application.leaderScheduled(
     lockName: String,
@@ -55,9 +53,7 @@ fun Application.leaderScheduled(
 }
 
 /**
- * `Application` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+ * 설치된 `LeaderElectionPlugin`에서 `leaderElection`을 조회합니다. 설정되지 않았으면 `IllegalStateException`을 던집니다.
  */
 internal fun Application.resolveLeaderElection(): SuspendLeaderElector {
     val config = leaderElectionPluginConfig()
@@ -67,8 +63,6 @@ internal fun Application.resolveLeaderElection(): SuspendLeaderElector {
 }
 
 /**
- * `LeaderScheduledLogger`는 Ktor integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * `leaderScheduled`의 등록·실행 실패를 기록하는 logger입니다.
  */
 internal object LeaderScheduledLogger: KLogging()

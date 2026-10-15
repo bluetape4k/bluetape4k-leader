@@ -30,12 +30,12 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 /**
- * `MongoSuspendLeaderElector`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `MongoSuspendLeaderElector`는 MongoDB의 suspend 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property collection MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property historyRecorder MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * lock 또는 slot을 획득하지 못한 `runIfLeader` 호출은 예외 대신 `null`/skip 결과를 반환합니다.
+ * @property collection `_id=lockName`, `token`, `expireAt` lock 문서를 저장하는 coroutine MongoDB collection입니다.
+ * @property options core lock 정책과 MongoDB 재시도 지연 상한을 함께 담는 옵션입니다.
+ * @property historyRecorder 획득·완료·실패 이력을 best-effort로 기록할 선택적 suspend recorder입니다. `null`이면 기록하지 않습니다.
  */
 class MongoSuspendLeaderElector private constructor(
     private val collection: MongoCollection<Document>,

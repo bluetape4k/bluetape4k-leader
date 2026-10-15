@@ -28,11 +28,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
 
 /**
- * `DynamoDbLeaderGroupElector`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `DynamoDbLeaderGroupElector`는 conditional DynamoDB slot item으로 여러 leader의 blocking/async 실행을 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property dynamoDb DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property dynamoDb 그룹 slot item의 조건부 put/update/delete와 read를 수행할 synchronous DynamoDB client입니다.
+ * @property options maxLeaders, table/key prefix, lease 대기, retry, TTL padding, clock skew를 포함한 그룹 설정입니다.
  */
 class DynamoDbLeaderGroupElector(
     private val dynamoDb: DynamoDbClient,

@@ -9,10 +9,11 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
 /**
- * `LeaderElectionObservedEventPublisher`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * leader election listener callback을 status registry와 bounded shared event flow에 동시에 전달합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property registry Spring Boot integration 계약에서 사용하는 속성입니다.
+ * flow는 최대 128개 extra buffer를 사용하고 overflow 시 가장 오래된 event를 버립니다.
+ *
+ * @property registry callback에서 관찰한 lock 이름을 저장하는 status registry입니다.
  */
 class LeaderElectionObservedEventPublisher(
     private val registry: LeaderElectionStatusRegistry,

@@ -12,20 +12,20 @@ import java.io.Serializable
 import java.time.Duration
 
 /**
- * `LeaderProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * `bluetape4k.leader` 아래의 공통 leader election과 backend별 Spring Boot 설정을 묶습니다.
  *
- * @property waitTime Spring Boot integration 계약에서 `waitTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property leaseTime Spring Boot integration 계약에서 `leaseTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property watchdogThreads Spring Boot integration 계약에서 `watchdogThreads` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property watchdogAsyncExtend Spring Boot integration 계약에서 `watchdogAsyncExtend` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property diagnostics Spring Boot integration 계약에서 `diagnostics` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property routeGuard Spring Boot integration 계약에서 `routeGuard` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property observability Spring Boot integration 계약에서 `observability` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property group Spring Boot integration 계약에서 `group` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property mongo Spring Boot integration 계약에서 `mongo` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property etcd Spring Boot integration 계약에서 `etcd` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property consul Spring Boot integration 계약에서 `consul` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property dynamodb Spring Boot integration 계약에서 `dynamodb` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property waitTime 공통 lock 획득 대기 시간입니다. 기본값은 5초이며 실제 범위 검증은 core options가 담당합니다.
+ * @property leaseTime 공통 lease TTL입니다. 기본값은 60초이며 양수 여부 검증은 core options가 담당합니다.
+ * @property watchdogThreads lease auto-extension에 사용할 thread 수 override입니다. `null`이면 `LeaderLeaseAutoExtender`의 기본 thread 수를 사용합니다.
+ * @property watchdogAsyncExtend watchdog이 lease를 asynchronous 방식으로 연장할지 정합니다. 기본값은 `false`입니다.
+ * @property diagnostics startup/backend diagnostics 설정입니다. 기본값은 `LeaderDiagnosticsProperties()`입니다.
+ * @property routeGuard HTTP route guard 설정입니다. 기본값은 `LeaderRouteGuardProperties()`입니다.
+ * @property observability metric과 observation recording 설정입니다. 기본값은 `LeaderObservabilityProperties()`입니다.
+ * @property group group election의 슬롯 수·대기 시간·lease TTL 설정입니다. 기본값은 `LeaderGroupProperties()`입니다.
+ * @property mongo MongoDB backend의 단일/group collection 이름 설정입니다.
+ * @property etcd etcd backend의 key prefix 설정입니다.
+ * @property consul Consul backend의 key/session prefix와 lock delay 설정입니다.
+ * @property dynamodb DynamoDB backend의 table·key prefix·TTL 보정 설정입니다.
  */
 @ConfigurationProperties(prefix = "bluetape4k.leader")
 data class LeaderProperties(

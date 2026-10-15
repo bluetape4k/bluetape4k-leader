@@ -11,10 +11,9 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * `KubernetesLeaseLockExtendDelegate`는 Kubernetes Lease backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `KubernetesLeaseLockExtendDelegate`는 Kubernetes Lease의 연장과 owner 보유 확인을 sync/suspend watchdog에 제공합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property lock Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lock 동기/중단 가능한 Lease 연장과 현재 owner 보유 여부를 위임하는 실제 Kubernetes Lease lock입니다.
  */
 internal class KubernetesLeaseLockExtendDelegate(
     private val lock: KubernetesLeaseLock,

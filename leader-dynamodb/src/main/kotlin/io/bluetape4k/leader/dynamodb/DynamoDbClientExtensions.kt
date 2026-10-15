@@ -11,11 +11,7 @@ import java.util.concurrent.Executor
 import io.bluetape4k.leader.dynamodb.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.dynamodb.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
+/** [this]에서 [lockName]을 획득했을 때만 blocking [action]을 실행하며 경합 시 null을 반환합니다. */
 fun <T> DynamoDbClient.runIfLeader(
     lockName: String,
     options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
@@ -26,11 +22,7 @@ fun <T> DynamoDbClient.runIfLeader(
         .runIfLeader(lockName, action)
 }
 
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
+/** [executor]에서 [lockName] 획득과 비동기 [action]을 실행하며 경합 시 null로 완료합니다. */
 fun <T> DynamoDbClient.runAsyncIfLeader(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
@@ -43,11 +35,7 @@ fun <T> DynamoDbClient.runAsyncIfLeader(
 }
 
 
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
+/** [this]의 그룹 슬롯을 획득했을 때만 blocking [action]을 실행하며 사용 가능한 슬롯이 없으면 null입니다. */
 fun <T> DynamoDbClient.runIfLeaderGroup(
     lockName: String,
     options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
@@ -58,11 +46,7 @@ fun <T> DynamoDbClient.runIfLeaderGroup(
         .runIfLeader(lockName, action)
 }
 
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
+/** [executor]에서 [lockName]의 그룹 슬롯 획득과 비동기 [action]을 실행하며 슬롯 경합 시 null로 완료합니다. */
 fun <T> DynamoDbClient.runAsyncIfLeaderGroup(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
@@ -74,11 +58,7 @@ fun <T> DynamoDbClient.runAsyncIfLeaderGroup(
         .runAsyncIfLeader(lockName, executor, action)
 }
 
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
+/** virtual thread에서 [lockName]을 획득하고 blocking [action]을 실행하는 future를 반환합니다. */
 fun <T> DynamoDbClient.runVirtualIfLeader(
     lockName: String,
     options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
@@ -89,11 +69,7 @@ fun <T> DynamoDbClient.runVirtualIfLeader(
         .runAsyncIfLeader(lockName, action)
 }
 
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
+/** virtual thread에서 [lockName]의 그룹 슬롯을 획득하고 [action]을 실행하는 future를 반환합니다. */
 fun <T> DynamoDbClient.runVirtualIfLeaderGroup(
     lockName: String,
     options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,

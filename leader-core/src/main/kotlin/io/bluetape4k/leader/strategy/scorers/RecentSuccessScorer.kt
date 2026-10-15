@@ -4,9 +4,8 @@ import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateScorer
 
 /**
- * `RecentSuccessScorer`는 전략 기반 leader 선출에서 후보 평가 규칙을 제공합니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * 성공 후보의 마지막 완료 시각이 최근일수록 높은 점수를 줍니다. 성공 기록이나 완료 시각이 없으면 0이고,
+ * 성공 후보들의 완료 시각이 모두 같으면 100입니다.
  */
 object RecentSuccessScorer: CandidateScorer {
 

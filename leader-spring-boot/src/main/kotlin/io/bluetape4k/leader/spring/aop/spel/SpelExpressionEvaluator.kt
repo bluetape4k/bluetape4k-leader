@@ -17,11 +17,12 @@ import java.lang.reflect.Method
 import java.time.Duration
 
 /**
- * `SpelExpressionEvaluator`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * leader annotation의 lock-name 문자열을 placeholder와 SpEL로 해석하고 표현식 cache를 관리합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property embeddedValueResolver Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property allowMethodInvocation Spring Boot integration 계약에서 사용하는 속성입니다.
+ * 단순 영숫자 이름은 그대로 반환하고, 그 외 표현식은 method 인자와 target을 읽기 전용 context에서 평가합니다.
+ *
+ * @property embeddedValueResolver Spring `${...}` placeholder를 해석하는 resolver이며 없으면 원문을 사용합니다.
+ * @property allowMethodInvocation SpEL instance method 호출 허용 여부이며 기본값은 `false`입니다.
  */
 class SpelExpressionEvaluator(
     private val embeddedValueResolver: StringValueResolver?,
@@ -35,11 +36,7 @@ class SpelExpressionEvaluator(
         .expireAfterAccess(Duration.ofHours(1))
         .build()
 
-    /**
-     * `evaluate` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 표현식을 현재 메서드, 인자, target context에서 평가해 non-null lock 이름 문자열을 반환합니다. */
     fun evaluate(expression: String, method: Method, args: Array<Any?>, target: Any): String {
         val resolved = resolveplaceholder(expression)
 
@@ -60,11 +57,7 @@ class SpelExpressionEvaluator(
         }
     }
 
-    /**
-     * `preParse` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 표현식을 startup validation 단계에서 parse하고 문법 오류를 `IllegalStateException`으로 보고합니다. */
     fun preParse(expression: String, method: Method) {
         val resolved = resolveplaceholder(expression)
         if (LITERAL_PATTERN.matches(resolved)) return
@@ -93,11 +86,7 @@ class SpelExpressionEvaluator(
         }
     }
 
-    /**
-     * `cacheSize` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 현재 expression cache의 추정 항목 수를 반환합니다. */
     fun cacheSize(): Long = expressionCache.estimatedSize()
 
     private fun resolveplaceholder(expression: String): String =
@@ -130,22 +119,14 @@ class SpelExpressionEvaluator(
         return ctx
     }
 
-    /**
-     * `RootCtx`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+    /** SpEL root object로 노출하는 호출 대상과 invocation 값입니다.
      *
-     * @property method Spring Boot integration 계약에서 `method` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property args Spring Boot integration 계약에서 `args` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property target Spring Boot integration 계약에서 `target` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property method 현재 intercept된 Java method입니다.
+     * @property args 호출 인자 배열이며 `a0`/`p0`와 파라미터 이름 변수로 노출됩니다.
+     * @property target method target object이며 method invocation을 허용하지 않으면 `null`입니다.
      */
     @Suppress("unused")
-    /**
-     * `RootCtx`는 Spring Boot integration에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
-     *
-     * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
-     * @property method Spring Boot integration 계약에서 `method` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property args Spring Boot integration 계약에서 `args` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property target Spring Boot integration 계약에서 `target` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     */
+    /** 위 root object의 data-class 구현입니다. */
     data class RootCtx(
         val method: Method,
         val args: Array<Any?>,
@@ -168,34 +149,22 @@ class SpelExpressionEvaluator(
         }
     }
 
-    /**
-     * `unusedReference` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** Spring expression context 타입을 optional linkage로 유지하기 위한 참조입니다. */
     @Suppress("unused")
     private fun unusedReference(): Pair<Class<*>, Class<*>> =
         MethodBasedEvaluationContext::class.java to StandardEvaluationContext::class.java
 
     companion object: KLogging() {
-        /**
-         * `LITERAL_PATTERN` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** placeholder 해석 후 그대로 사용할 수 있는 literal lock-name 패턴입니다. */
         private val LITERAL_PATTERN = Regex("^[A-Za-z0-9_:.\\-]+$")
 
-        /**
-         * `TEMPLATE_DETECT` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** `#{...}` template expression을 식별하는 패턴입니다. */
         private val TEMPLATE_DETECT = Regex("#\\{.+}")
 
-        /**
-         * `TEMPLATE_PARSER_CTX` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** Spring template expression parser context입니다. */
         private val TEMPLATE_PARSER_CTX = org.springframework.expression.ParserContext.TEMPLATE_EXPRESSION
 
-        /**
-         * `MAX_CACHE_SIZE` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** expression cache의 최대 항목 수인 1024입니다. */
         const val MAX_CACHE_SIZE: Long = 1024L
     }
 }

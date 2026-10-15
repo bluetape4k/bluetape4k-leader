@@ -37,11 +37,10 @@ enum class MongoLeaderHistoryIndexState(val metricValue: Int) {
 }
 
 /**
- * `MongoLeaderHistoryIndexer`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `MongoLeaderHistoryIndexer`는 MongoDB history collection에 lockName/startedAt 복합 index, token index, 선택적 TTL index를 비동기로 생성하고 수명 주기를 기록합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property database MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property config MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property database 설정된 history collection에 복합·token·선택적 TTL index를 생성하는 coroutine MongoDatabase입니다.
+ * @property config index 대상 collection 이름과 `ttlDays > 0`일 때만 만드는 TTL 보존 기간입니다.
  */
 class MongoLeaderHistoryIndexer(
     private val database: MongoDatabase,
@@ -147,11 +146,7 @@ class MongoLeaderHistoryIndexer(
         }
     }
 
-    /**
-     * `close` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** index build job의 취소와 join을 blocking bridge로 기다리며, 5초 timeout이면 `SHUTDOWN_TIMEOUT` 상태를 기록합니다. */
     override fun close() = runBlocking { closeSuspend() }
 
     /**

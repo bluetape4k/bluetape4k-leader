@@ -11,11 +11,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * `ConsulSuspendLockExtendDelegate`는 Consul backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 class입니다.
+ * `ConsulSuspendLockExtendDelegate`는 Consul session renew와 KV session 확인을 suspend watchdog 계약으로 연결합니다.
  *
- * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
- * @property lockClient Consul backend 계약에서 `lockClient` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property handle Consul backend 계약에서 `handle` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockClient suspend session renew와 KV owner 확인을 Consul API에 위임하는 클라이언트입니다.
+ * @property handle 현재 session·KV key·owner token을 보유한 lease 핸들입니다.
  */
 internal class ConsulSuspendLockExtendDelegate(
     private val lockClient: ConsulLockClient,

@@ -10,14 +10,15 @@ import java.time.Clock
 import java.time.Duration
 
 /**
- * `LeaderElectionReadinessHealthIndicator`는 Spring Boot integration의 leader election,
- * route guard, metric, example workflow 계약을 설명합니다.
+ * 등록된 lock의 점유 상태와 lease 만료 임박 여부를 Spring readiness health로 집계합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property selectedState 관측에 사용할 backend와 상태 제공자입니다.
- * @property registry Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property leaseWarningThreshold Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property clock Spring Boot integration 계약에서 사용하는 속성입니다.
+ * backend가 audit state를 지원하지 않으면 `UNKNOWN`, 조회 실패가 있으면 `DOWN`, 만료 임박만 있으면
+ * `OUT_OF_SERVICE`를 반환합니다.
+ *
+ * @property registry 관찰할 lock 이름을 제공하는 status registry입니다.
+ * @property leaseWarningThreshold 남은 lease가 이 기간 이하일 때 만료 임박으로 표시하는 비음수 기간입니다.
+ * @property clock warning boundary 계산에 사용할 시계입니다.
+ * @property acquisitionFailureWindow 최근 획득 실패를 health detail에 집계하는 bounded window이며 없으면 detail을 비워 둡니다.
  */
 class LeaderElectionReadinessHealthIndicator private constructor(
     leaderElector: LeaderElectionState,

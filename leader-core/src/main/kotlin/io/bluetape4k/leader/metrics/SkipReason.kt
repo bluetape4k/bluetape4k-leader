@@ -1,23 +1,21 @@
 package io.bluetape4k.leader.metrics
 
 /**
- * `SkipReason` 선언은 leader election 계약에서 사용되는 enum입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * 선거 관측성 결과에서 작업을 실행하지 않았거나 lock 없이 실행한 이유를 구분합니다.
  */
 enum class SkipReason {
     /**
-     * `CONTENTION` 선언은 leader election 계약에서 사용되는 declaration입니다.
+     * lock 또는 group slot을 다른 owner가 점유해 작업을 건너뛰었습니다.
      */
     CONTENTION,
 
     /**
-     * `BACKEND_ERROR` 선언은 leader election 계약에서 사용되는 declaration입니다.
+     * backend 오류로 작업을 안전하게 진행하지 않았습니다.
      */
     BACKEND_ERROR,
 
     /**
-     * `FAIL_OPEN_FORCED` 선언은 leader election 계약에서 사용되는 declaration입니다.
+     * fail-open 정책에 따라 lock 없이 대상 작업을 실행했습니다.
      */
     FAIL_OPEN_FORCED,
 }

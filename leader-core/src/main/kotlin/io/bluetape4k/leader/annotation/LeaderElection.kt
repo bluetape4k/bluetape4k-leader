@@ -1,17 +1,16 @@
 package io.bluetape4k.leader.annotation
 
 /**
- * `LeaderElection` 선언은 leader election 계약에서 사용되는 annotation입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property name 호출자가 전달하는 이름 또는 key입니다.
- * @property waitTime leader lock 획득을 기다리는 최대 시간입니다.
- * @property leaseTime leadership을 보유할 수 있는 lease TTL입니다.
- * @property minLeaseTime 작업이 빨리 끝나더라도 lease를 최소로 유지할 시간입니다.
- * @property autoExtend 작업 실행 중 lease를 주기적으로 연장할지 결정합니다.
- * @property streamBounded `streamBounded` 호출 또는 상태 계산에 필요한 값입니다.
- * @property bean `bean` 호출 또는 상태 계산에 필요한 값입니다.
- * @property failureMode `failureMode` 호출 또는 상태 계산에 필요한 값입니다.
+ * 함수 실행을 단일 leader lock으로 감싸는 AspectJ 위빙 대상 annotation입니다.
+ * `name`은 SpEL 식이며, 빈 시간 문자열은 공통 AOP 설정을 사용합니다.
+ * @property name lock 이름으로 평가할 SpEL 식
+ * @property waitTime lock 획득 대기 시간. 빈 문자열이면 공통 대기 시간 설정을 사용합니다.
+ * @property leaseTime lock lease 시간. 빈 문자열이면 공통 lease 설정을 사용합니다.
+ * @property minLeaseTime 작업 완료 후에도 lease를 유지할 최소 시간이며 기본값은 0입니다.
+ * @property autoExtend 실행 중 lease 자동 연장을 활성화합니다.
+ * @property streamBounded `autoExtend` 없이 lease 시간 안에 완료되는 stream임을 선언합니다.
+ * @property bean 사용할 elector factory bean 이름. 빈 문자열이면 자동으로 선택합니다.
+ * @property failureMode backend 오류 처리 방식. 기본 `INHERIT`는 공통 AOP 설정을 따릅니다.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)

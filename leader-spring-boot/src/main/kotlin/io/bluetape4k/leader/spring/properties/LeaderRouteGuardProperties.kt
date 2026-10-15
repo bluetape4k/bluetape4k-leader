@@ -5,19 +5,16 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty
 import java.io.Serializable
 
 /**
- * `LeaderRouteAuthorityMode`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property value Spring Boot integration 계약에서 사용하는 속성입니다.
+ * route guard가 요청 허용 여부를 판단할 authority 출처입니다.
  */
 enum class LeaderRouteAuthorityMode {
     /**
-     * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
+     * 등록된 `LeaderElectionState` provider의 현재 상태를 authority로 사용합니다.
      */
     STATE,
 
     /**
-     * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
+     * `electorBean`으로 지정한 사용자 제공 `LeaderRouteAuthority` bean을 authority로 사용합니다.
      */
     CUSTOM,
 
@@ -26,10 +23,9 @@ enum class LeaderRouteAuthorityMode {
 }
 
 /**
- * `LeaderRouteRejectionStatus`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * route guard가 요청을 거부할 때 응답할 HTTP status code를 정의합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property value Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property value 해당 enum 항목에 대응하는 HTTP status code 정수입니다.
  */
 enum class LeaderRouteRejectionStatus(
     val value: Int,
@@ -41,12 +37,12 @@ enum class LeaderRouteRejectionStatus(
 }
 
 /**
- * `LeaderRouteGuardProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * HTTP route가 leader 권한을 가질 때만 실행되도록 제한하는 Spring Boot 설정입니다.
  *
- * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property authorityMode Spring Boot integration 계약에서 `authorityMode` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property electorBean Spring Boot integration 계약에서 `electorBean` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property rejectionStatus Spring Boot integration 계약에서 `rejectionStatus` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property enabled route guard 자동 구성을 활성화할지 여부이며 기본값은 `false`입니다.
+ * @property authorityMode authority를 state provider에서 읽을지 사용자 bean에서 읽을지 정하며 기본값은 `STATE`입니다.
+ * @property electorBean `CUSTOM` 모드에서 사용할 `LeaderRouteAuthority` bean 이름이며 기본값인 빈 문자열은 사용자 bean을 지정하지 않았음을 뜻합니다.
+ * @property rejectionStatus 요청을 거부할 때 사용할 HTTP status이며 기본값은 `SERVICE_UNAVAILABLE`(503)입니다.
  * @property lease 요청별 lease admission과 cleanup 상한입니다.
  */
 data class LeaderRouteGuardProperties(

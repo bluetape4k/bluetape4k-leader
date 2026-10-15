@@ -14,9 +14,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.core.env.Environment
 
-/**
- * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
- */
+/** diagnostics가 활성화되고 `LeaderElector`가 있을 때 startup inspection bean을 등록합니다. */
 @AutoConfiguration(
     after = [
         LeaderElectionAutoConfiguration::class,

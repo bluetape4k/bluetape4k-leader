@@ -37,23 +37,19 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
-/**
- * `StatefulRedisConnection` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
+/** 주어진 Redis 연결과 단일 선출 정책으로 `LettuceLeaderElector`를 생성합니다. */
 fun StatefulRedisConnection<String, String>.leaderElection(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
 ): LettuceLeaderElector = LettuceLeaderElector(this, options)
 
 
 /**
- * `LettuceLeaderElector`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `LettuceLeaderElector`는 Redis Lettuce의 blocking 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property connection Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property historyRecorder Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * lock 또는 slot을 획득하지 못한 `runIfLeader` 호출은 예외 대신 `null`/skip 결과를 반환합니다.
+ * @property connection lock key의 token을 저장·갱신·삭제하는 Redis 연결입니다.
+ * @property options lock 대기·lease·최소 lease·auto-extend 동작을 정하는 단일 선출 정책입니다.
+ * @property historyRecorder 획득·완료·실패 이력을 best-effort로 전달할 선택적 recorder입니다. `null`이면 이력을 기록하지 않습니다.
  */
 // Single elector는 sync/async, lease lifecycle, diagnostics 계약을 함께 구현합니다.
 @Suppress("TooManyFunctions")

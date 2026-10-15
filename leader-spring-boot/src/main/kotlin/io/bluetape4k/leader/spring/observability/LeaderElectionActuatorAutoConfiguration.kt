@@ -15,9 +15,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Role
 
-/**
- * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
- */
+/** Actuator endpoint가 활성화되면 선택된 state provider를 읽는 `leaderElection` status endpoint를 등록합니다. */
 @AutoConfiguration(after = [LeaderElectionObservabilityAutoConfiguration::class])
 @ConditionalOnClass(
     name = [

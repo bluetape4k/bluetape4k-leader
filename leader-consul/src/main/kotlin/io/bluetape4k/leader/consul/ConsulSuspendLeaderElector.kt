@@ -37,11 +37,10 @@ import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * `ConsulSuspendLeaderElector`는 Consul backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `ConsulSuspendLeaderElector`는 Consul KV/session 호출을 suspend 방식으로 수행해 단일 leader 실행을 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property lockClient Consul backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options Consul backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockClient suspend session 생성·KV acquire/release·renew/read/destroy를 Consul API에 위임하는 클라이언트입니다.
+ * @property options lease 범위(10초~24시간), KV prefix, session prefix, lock delay를 포함한 단일 설정입니다.
  */
 class ConsulSuspendLeaderElector private constructor(
     private val lockClient: ConsulLockClient,
@@ -97,9 +96,8 @@ class ConsulSuspendLeaderElector private constructor(
     }
 
     /**
-     * `state` 호출은 Consul backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
+     * Consul KV의 session과 owner payload를 읽어 [lockName]의 현재 [LeaderState]를 만듭니다.
+     * session 또는 유효한 payload가 없으면 빈 상태를 반환합니다.
      */
     override fun state(lockName: String): LeaderState {
         val key = lockClient.singleLockKey(lockName)
@@ -282,9 +280,8 @@ private fun remainingMillis(deadlineNanos: Long): Long =
     ((deadlineNanos - System.nanoTime()).coerceAtLeast(0L) / 1_000_000L).coerceAtLeast(1L)
 
 /**
- * `선언` 호출은 Consul backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
+ * [this] Consul endpoint에서 [lockName]을 suspend 방식으로 획득했을 때만 [action]을 실행합니다.
+ * 경합이면 null을 반환하고 취소 뒤에도 session과 KV ownership을 정리합니다.
  */
 suspend fun <T> ConsulEndpoint.suspendRunIfLeader(
     lockName: String,

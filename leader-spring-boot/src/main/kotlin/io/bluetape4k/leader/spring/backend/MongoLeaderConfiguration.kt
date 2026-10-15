@@ -20,11 +20,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import com.mongodb.kotlin.client.coroutine.MongoDatabase as CoroutineMongoDatabase
 
-/**
- * `MongoLeaderConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- */
+/** MongoDB database bean이 있을 때 configured collection을 사용하는 blocking과 coroutine elector를 등록합니다. */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(com.mongodb.client.MongoCollection::class)
 class MongoLeaderConfiguration {

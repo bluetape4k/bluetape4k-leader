@@ -43,12 +43,11 @@ import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * `ExposedJdbcLeaderGroupElector`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ExposedJdbcLeaderGroupElector`는 JDBC slot 행을 이용해 여러 leader의 blocking/async 실행과 slot lease를 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property historyRecorder Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property db 그룹 슬롯 테이블을 조회·변경하고 트랜잭션을 실행할 Exposed JDBC 데이터베이스입니다.
+ * @property options maxLeaders, 대기·lease 시간, 재시도, owner, DB 시간 사용 여부를 담은 그룹 선거 설정입니다.
+ * @property historyRecorder null이면 그룹 슬롯의 획득·완료·실패 이력을 기록하지 않고, 값이 있으면 안전한 history recorder로 기록합니다.
  */
 class ExposedJdbcLeaderGroupElector private constructor(
     private val db: Database,
@@ -63,9 +62,8 @@ class ExposedJdbcLeaderGroupElector private constructor(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedJdbcBackendErrorClassifier)
 
         /**
-         * `invoke` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-         *
-         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+         * 데이터베이스 스키마를 한 번 보장한 뒤 그룹 elector를 생성합니다.
+         * [options]의 [ExposedJdbcLeaderGroupElectionOptions.maxLeaders] 슬롯 범위에서 선거를 수행합니다.
          */
         @JvmStatic
         @JvmOverloads
@@ -80,14 +78,13 @@ class ExposedJdbcLeaderGroupElector private constructor(
     }
 
     /**
-     * `maxLeaders` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * 이 elector가 동시에 보유할 수 있는 활성 슬롯의 상한입니다. 값은 생성 시 1 이상으로 검증됩니다.
      */
     override val maxLeaders: Int get() = options.maxLeaders
 
     /**
-     * `activeCount` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [lockName]에서 현재 lease가 만료되지 않은 슬롯의 수를 DB 시간 기준으로 조회합니다.
+     * DB 시간 조회가 실패하면 fail-closed로 [maxLeaders]를 반환합니다.
      */
     override fun activeCount(lockName: String): Int =
         try {
@@ -111,24 +108,20 @@ class ExposedJdbcLeaderGroupElector private constructor(
         }
 
     /**
-     * `availableSlots` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [lockName]에서 사용할 수 있는 슬롯 수를 `maxLeaders - activeCount(lockName)`으로 계산합니다.
      */
     override fun availableSlots(lockName: String): Int = maxLeaders - activeCount(lockName)
 
     /**
-     * `state` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [lockName]의 최대 슬롯 수와 현재 활성 슬롯 수를 [LeaderGroupState]로 묶어 반환합니다.
      */
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     /**
-     * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [lockName]의 슬롯을 순회하며 하나를 [options]의 대기 시간 안에 획득합니다.
+     * 획득한 슬롯에서 [action]을 실행하고, 경합으로 슬롯을 얻지 못하면 null을 반환합니다.
+     * action 예외는 전파하며 취소·예외 뒤에도 watchdog과 슬롯을 정리합니다.
      */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         lockName.validateExposedLockName()
@@ -260,9 +253,8 @@ class ExposedJdbcLeaderGroupElector private constructor(
     }
 
     /**
-     * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [lockName]의 그룹 슬롯 획득과 [action] 실행을 [executor]에 비동기로 위임합니다.
+     * 획득하지 못하면 null을 완료값으로 반환하고, 취소·실패 시 획득한 슬롯과 history를 정리합니다.
      */
     override fun <T> runAsyncIfLeader(
         lockName: String,

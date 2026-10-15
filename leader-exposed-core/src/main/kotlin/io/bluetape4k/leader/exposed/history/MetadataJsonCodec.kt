@@ -1,16 +1,14 @@
 package io.bluetape4k.leader.exposed.history
 
 /**
- * `MetadataJsonCodec`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `MetadataJsonCodec`는 leader history metadata를 저장용 JSON 문자열로 인코딩하고 다시 map으로 복원합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 object MetadataJsonCodec {
 
     /**
-     * `encode` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * 문자열 map을 JSON object로 인코딩합니다. 빈 map은 저장할 metadata가 없다는 뜻으로 `null`을 반환하며,
+     * 큰따옴표·역슬래시·개행·CR·탭은 JSON escape로 기록합니다.
      */
     fun encode(map: Map<String, String>): String? {
         if (map.isEmpty()) return null
@@ -29,9 +27,8 @@ object MetadataJsonCodec {
     }
 
     /**
-     * `decode` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * 이력 metadata JSON object를 문자열 map으로 복원합니다. `null`, 공백, `{}` 또는 object가 아닌 입력은 빈 map으로
+     * 처리하고, 파싱할 수 있는 항목까지만 반환합니다.
      */
     fun decode(json: String?): Map<String, String> {
         if (json.isNullOrBlank()) return emptyMap()

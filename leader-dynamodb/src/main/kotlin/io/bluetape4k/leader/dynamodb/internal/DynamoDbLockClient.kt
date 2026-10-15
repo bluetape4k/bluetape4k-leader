@@ -34,13 +34,12 @@ import kotlin.random.Random
 import kotlin.time.Duration
 
 /**
- * `DynamoDbLockClient`는 DynamoDB backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 class입니다.
+ * `DynamoDbLockClient`는 conditional write로 DynamoDB lock item을 acquire/release/extend/read하는 내부 client입니다.
  *
- * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
- * @property tableName DynamoDB backend 계약에서 `tableName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property syncClient DynamoDB backend 계약에서 `syncClient` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property asyncClient DynamoDB backend 계약에서 `asyncClient` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property nowMillis DynamoDB backend 계약에서 `nowMillis` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property tableName lock item을 저장할 DynamoDB 테이블 이름입니다.
+ * @property syncClient blocking acquire/release/extend/read에 사용하는 client이며 asyncClient와 둘 중 하나가 필요합니다.
+ * @property asyncClient asynchronous acquire/release/extend/read에 사용하는 client이며 syncClient와 둘 중 하나가 필요합니다.
+ * @property nowMillis lease 계산에 사용할 epoch milliseconds 시계입니다.
  * @property batchRetrySleep 미처리 키 재시도 사이의 대기 함수입니다. 테스트에서 실제 대기를 대체합니다.
  */
 internal class DynamoDbLockClient(

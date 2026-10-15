@@ -9,12 +9,11 @@ import java.time.Instant
 /**
  * `LeaderLease`는 leader가 lock을 보유한 기간과 audit identity를 담는 lease snapshot입니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property auditLeaderId `auditLeaderId` 호출 또는 상태 계산에 필요한 값입니다.
- * @property electedAt `electedAt` 호출 또는 상태 계산에 필요한 값입니다.
- * @property leaseUntil `leaseUntil` 호출 또는 상태 계산에 필요한 값입니다.
- * @property slot group election slot과 audit leader id를 함께 전달하는 값입니다.
- * @property nodeId 상태 조회와 audit에 노출되는 노드 또는 인스턴스 식별자입니다.
+ * @property auditLeaderId lease 기록에 연결할 leader ID입니다. 공백 값은 허용되지 않습니다.
+ * @property electedAt 이 lease를 획득한 절대 시각입니다. backend가 시각을 제공하지 않으면 `null`입니다.
+ * @property leaseUntil backend가 보고한 lease 만료 절대 시각입니다. `electedAt`과 둘 다 있으면 이 값은 더 이르지 않아야 합니다.
+ * @property slot group election에서 점유한 0부터 시작하는 slot 번호입니다. 단일 election 또는 알 수 없는 경우 `null`이며, 지정하면 음수일 수 없습니다.
+ * @property nodeId lease를 획득한 노드 ID입니다. 알 수 없으면 `null`이고, 지정할 때 공백 값은 허용되지 않습니다.
  */
 data class LeaderLease(
     val auditLeaderId: String,

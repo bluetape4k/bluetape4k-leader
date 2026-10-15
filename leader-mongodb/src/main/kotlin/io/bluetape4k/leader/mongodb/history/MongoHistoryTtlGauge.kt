@@ -6,10 +6,9 @@ import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
 
 /**
- * `MongoHistoryTtlGauge`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `MongoHistoryTtlGauge`는 MongoDB history TTL index가 비활성(`ttlDays <= 0`)인지 Micrometer gauge로 노출하며, 비활성일 때 1.0을 기록합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property config MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property config history collection 이름과 TTL 보존 일수를 제공하며, `ttlDays <= 0`이면 disabled gauge를 1.0으로 만듭니다.
  */
 class MongoHistoryTtlGauge(
     private val config: MongoHistoryConfig,

@@ -4,11 +4,7 @@ import io.bluetape4k.leader.validateLockName
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 
 
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
+/** [this]에서 [lockName]을 suspend 방식으로 획득했을 때만 [action]을 실행하며 경합 시 null입니다. */
 suspend fun <T> DynamoDbAsyncClient.suspendRunIfLeader(
     lockName: String,
     options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
@@ -19,11 +15,7 @@ suspend fun <T> DynamoDbAsyncClient.suspendRunIfLeader(
         .runIfLeader(lockName, action)
 }
 
-/**
- * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
- */
+/** [this]의 그룹 슬롯을 suspend 방식으로 획득했을 때만 [action]을 실행하며 슬롯 경합 시 null입니다. */
 suspend fun <T> DynamoDbAsyncClient.suspendRunIfLeaderGroup(
     lockName: String,
     options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,

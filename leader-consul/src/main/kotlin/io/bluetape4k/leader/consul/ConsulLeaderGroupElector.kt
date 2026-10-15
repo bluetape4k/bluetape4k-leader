@@ -40,11 +40,10 @@ import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * `ConsulLeaderGroupElector`는 Consul backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `ConsulLeaderGroupElector`는 Consul KV slot key와 session을 이용해 여러 leader의 blocking/async 실행을 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property lockClient Consul backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options Consul backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockClient session 생성·그룹 KV acquire/release·renew/read/destroy를 Consul API에 위임하는 클라이언트입니다.
+ * @property options maxLeaders, lease 범위(10초~24시간), KV prefix, session prefix, lock delay를 포함한 그룹 설정입니다.
  */
 // Group elector는 sync/async, 상태 조회, lease lifecycle, diagnostics 계약을 함께 구현합니다.
 @Suppress("TooManyFunctions")
@@ -451,9 +450,8 @@ private fun Throwable?.unwrapCompletionException(): Throwable? =
     if (this is CompletionException && cause != null) cause else this
 
 /**
- * `선언` 호출은 Consul backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
+ * [this] Consul endpoint에서 그룹 [lockName]의 슬롯을 획득했을 때만 [action]을 실행합니다.
+ * 사용할 슬롯이 없으면 null을 반환하고, action 종료 후 session과 슬롯 ownership을 정리합니다.
  */
 fun <T> ConsulEndpoint.runIfLeaderGroup(
     lockName: String,
@@ -462,9 +460,8 @@ fun <T> ConsulEndpoint.runIfLeaderGroup(
 ): T? = ConsulLeaderGroupElector(this, options).runIfLeader(lockName, action)
 
 /**
- * `선언` 호출은 Consul backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
+ * [this] Consul endpoint에서 그룹 [lockName]의 슬롯을 비동기로 획득한 뒤 [action]을 실행합니다.
+ * 기본 [executor]에서 처리하며 슬롯을 얻지 못하면 null로 완료합니다.
  */
 fun <T> ConsulEndpoint.runAsyncIfLeaderGroup(
     lockName: String,

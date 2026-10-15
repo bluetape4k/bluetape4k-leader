@@ -25,11 +25,11 @@ import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2
 import java.util.concurrent.TimeUnit
 
 /**
- * `ZooKeeperSuspendLeaderGroupElector`는 ZooKeeper backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ZooKeeperSuspendLeaderGroupElector`는 ZooKeeper의 suspend 그룹 선출을 제공하며 `maxLeaders` 슬롯을 acquire·extend·release합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property basePath ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * lock 또는 slot을 획득하지 못한 `runIfLeader` 호출은 예외 대신 `null`/skip 결과를 반환합니다.
+ * @property client semaphore participant ephemeral node를 생성·조회·해제하는 `CuratorFramework`입니다.
+ * @property basePath 그룹 lockName을 붙일 ZooKeeper root path이며 기본값은 `/leader-group-election`입니다.
  */
 class ZooKeeperSuspendLeaderGroupElector private constructor(
     private val client: CuratorFramework,

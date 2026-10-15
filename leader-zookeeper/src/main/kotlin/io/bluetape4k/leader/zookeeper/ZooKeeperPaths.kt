@@ -6,10 +6,10 @@ import org.apache.curator.utils.PathUtils
 import java.io.Serializable
 
 /**
- * `ZooKeeperElectionPath`는 ZooKeeper leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * `ZooKeeperElectionPath`는 논리적 lockName과 정규화된 root path를 묶어 single/group election 경로를 만드는 값 객체입니다.
  *
- * @property lockName ZooKeeper backend 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property basePath ZooKeeper backend 계약에서 `basePath` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockName ZooKeeper path 마지막 segment가 될 논리적 lock 이름입니다. blank·잘못된 path 문자는 검증에서 거부됩니다.
+ * @property basePath lock 이름을 붙일 root path입니다. trailing `/`를 제거하고 `/` 자체는 유지합니다.
  */
 data class ZooKeeperElectionPath(
     val lockName: String,
@@ -22,11 +22,7 @@ data class ZooKeeperElectionPath(
     }
 
     companion object {
-        /**
-         * `single` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
-         *
-         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-         */
+        /** single 선출 기본 root(`/leader-election`)와 lock 이름을 담은 경로 값을 만듭니다. */
         @JvmStatic
         fun single(
             lockName: String,
@@ -34,11 +30,7 @@ data class ZooKeeperElectionPath(
         ): ZooKeeperElectionPath =
             ZooKeeperElectionPath(lockName, basePath)
 
-        /**
-         * `group` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
-         *
-         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-         */
+        /** 그룹 선출 기본 root(`/leader-group-election`)와 lock 이름을 담은 경로 값을 만듭니다. */
         @JvmStatic
         fun group(
             lockName: String,

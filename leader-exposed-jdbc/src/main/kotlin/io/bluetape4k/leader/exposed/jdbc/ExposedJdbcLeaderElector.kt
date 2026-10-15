@@ -32,12 +32,11 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * `ExposedJdbcLeaderElector`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ExposedJdbcLeaderElector`는 JDBC lock 행을 이용해 단일 leader의 blocking/async 실행과 lease 수명을 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property historyRecorder Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property db 락 테이블을 조회·변경하고 트랜잭션을 실행할 Exposed JDBC 데이터베이스입니다.
+ * @property options 대기 시간, lease/minimum lease 시간, 재시도, owner, DB 시간 사용 여부를 담은 전역 선거 설정입니다.
+ * @property historyRecorder null이면 이 elector가 획득·완료·실패 이력을 기록하지 않고, 값이 있으면 안전한 history recorder로 기록합니다.
  */
 class ExposedJdbcLeaderElector private constructor(
     private val db: Database,
@@ -57,9 +56,9 @@ class ExposedJdbcLeaderElector private constructor(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedJdbcBackendErrorClassifier)
 
         /**
-         * `invoke` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-         *
-         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+         * 데이터베이스 스키마를 한 번 보장한 뒤 JDBC elector를 생성합니다.
+         * [options]를 생략하면 [ExposedJdbcLeaderElectionOptions.Default]를 사용하고,
+         * [historyRecorder]가 null이면 영속 history 기록을 끕니다.
          */
         @JvmStatic
         @JvmOverloads
@@ -74,9 +73,9 @@ class ExposedJdbcLeaderElector private constructor(
     }
 
     /**
-     * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [lockName]의 JDBC 락을 [ExposedJdbcLeaderElectionOptions.leaderOptions.waitTime] 동안 시도합니다.
+     * 획득하지 못하면 예외 없이 null을 반환하고, 획득하면 [action]을 실행한 뒤 lease를 반납합니다.
+     * action의 반환값은 그대로 전달하며 action 예외는 호출자에게 전파됩니다.
      */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         lockName.validateExposedLockName()
@@ -163,9 +162,10 @@ class ExposedJdbcLeaderElector private constructor(
     }
 
     /**
-     * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [lockName]의 JDBC 락 획득과 [action] 실행을 [executor]에 비동기로 위임합니다.
+     * 경합으로 획득하지 못한 경우 완료된 future의 값은 null이며, action future의 성공·실패와
+     * lease 해제 결과를 최종 future에 반영합니다. 반환 future가 취소되면 대기 또는 action을 취소하고
+     * 이미 획득한 락을 정리합니다.
      */
     @Suppress("CyclomaticComplexMethod", "LongMethod", "TooGenericExceptionCaught")
     override fun <T> runAsyncIfLeader(

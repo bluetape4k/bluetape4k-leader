@@ -5,10 +5,10 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import java.io.Serializable
 
 /**
- * `FactoryCacheKey`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * 단일 leader advice에서 elector factory를 재사용하기 위한 cache key입니다.
  *
- * @property factoryBeanName Spring Boot integration 계약에서 `factoryBeanName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property options Spring Boot integration 계약에서 `options` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property factoryBeanName 사용할 `LeaderElectorFactory` bean 이름입니다.
+ * @property options 해당 factory 생성에 영향을 주는 단일 leader 옵션 전체입니다.
  */
 data class FactoryCacheKey(
     val factoryBeanName: String,
@@ -20,10 +20,10 @@ data class FactoryCacheKey(
 }
 
 /**
- * `GroupFactoryCacheKey`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * group leader advice에서 elector factory를 재사용하기 위한 cache key입니다.
  *
- * @property factoryBeanName Spring Boot integration 계약에서 `factoryBeanName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property options Spring Boot integration 계약에서 `options` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property factoryBeanName 사용할 `LeaderGroupElectorFactory` bean 이름입니다.
+ * @property options 해당 factory 생성에 영향을 주는 group leader 옵션 전체입니다.
  */
 data class GroupFactoryCacheKey(
     val factoryBeanName: String,

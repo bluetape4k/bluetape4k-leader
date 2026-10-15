@@ -4,9 +4,8 @@ import kotlin.time.Duration
 import io.bluetape4k.leader.internal.MonotonicDeadline as CoreMonotonicDeadline
 
 /**
- * `MonotonicDeadline`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `MonotonicDeadline`는 monotonic clock 기준으로 MongoDB 호출의 남은 deadline과 delay 상한을 계산해 wall-clock 변경의 영향을 피합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal class MonotonicDeadline private constructor(
     private val deadlineNanos: Long,

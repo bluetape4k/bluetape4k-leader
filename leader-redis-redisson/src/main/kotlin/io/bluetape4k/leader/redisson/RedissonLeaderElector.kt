@@ -43,11 +43,11 @@ import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 
 /**
- * `RedissonLeaderElector`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `RedissonLeaderElector`는 Redis Redisson의 blocking 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property redissonClient Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
+ * lock 또는 slot을 획득하지 못한 `runIfLeader` 호출은 예외 대신 `null`/skip 결과를 반환합니다.
+ * @property redissonClient `lockName`별 `RLock`을 만들고 lease 연산을 실행하는 Redisson client입니다.
+ * @property options lock 대기·lease·최소 lease·auto-extend 동작을 정하는 단일 선출 정책입니다.
  */
 // Single elector는 sync/async, lease lifecycle, diagnostics 계약을 함께 구현합니다.
 @Suppress("TooManyFunctions")
@@ -326,11 +326,7 @@ class RedissonLeaderElector private constructor(
         }
     }
 
-    /**
-     * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 비동기 lock 획득 후 lease watchdog과 action future를 정리하고, 경합이면 완료값 `null`을 반환합니다. */
     private fun <T> executeActionAsync(
         lock: RLock,
         auditLeaderId: String?,

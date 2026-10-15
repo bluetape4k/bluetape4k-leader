@@ -26,12 +26,12 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 
 /**
- * `LettuceSuspendLock`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `LettuceSuspendLock`는 Redis Lettuce lock key의 token 기반 tryLock·ownership 확인·unlock·lease 연장을 suspend 경로로 수행합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property connection Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lockKey Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property defaultLeaseTime Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * `tryLock`이 경합·timeout으로 ownership을 획득하지 못하면 `false`를 반환하며, unlock/extend는 backend token 일치 여부를 확인해 불일치·만료를 성공으로 처리하지 않습니다.
+ * @property connection suspend lock key의 token을 저장하고 Lua script를 실행하는 Redis 연결입니다.
+ * @property lockKey token을 저장하는 Redis string key입니다. 그룹 선출에서는 슬롯별 key가 전달됩니다.
+ * @property defaultLeaseTime `tryLock`·`extend` 등 lease 인자를 생략했을 때 적용하는 기본 TTL이며, 단위는 `Duration`입니다.
  */
 class LettuceSuspendLock(
     private val connection: StatefulRedisConnection<String, String>,
@@ -79,11 +79,7 @@ end"""
         return asyncCommands.get(lockKey).await() == token
     }
 
-    /**
-     * `currentToken` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 이 인스턴스가 마지막으로 성공한 획득에서 발급받은 소유 token을 반환하며, 미획득 상태는 `null`입니다. token은 ownership 비밀값입니다. */
     fun currentToken(): String? = tokenRef.value
 
     suspend fun tryLock(
@@ -155,19 +151,11 @@ end"""
         log.debug { "Lock 해제 성공 (suspend): lockKey=$lockKey" }
     }
 
-    /**
-     * `extend` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** Lua 소유 검증 결과를 `Boolean`으로 축약해 반환합니다. token 불일치·만료면 `false`입니다. */
     suspend fun extend(leaseTime: Duration = defaultLeaseTime): Boolean =
         extendDetailed(leaseTime).isExtended
 
-    /**
-     * `extendDetailed` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** Lua에서 현재 token을 검증해 TTL을 갱신하고 `Extended` 또는 `NotHeld`를 반환합니다. */
     suspend fun extendDetailed(leaseTime: Duration = defaultLeaseTime): ExtendOutcome {
         currentCoroutineContext().ensureActive()
         val token = tokenRef.value ?: return ExtendOutcome.NotHeld

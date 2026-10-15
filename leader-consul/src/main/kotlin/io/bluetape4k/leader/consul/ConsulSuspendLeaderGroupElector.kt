@@ -36,11 +36,10 @@ import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * `ConsulSuspendLeaderGroupElector`는 Consul backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `ConsulSuspendLeaderGroupElector`는 Consul KV slot key와 session을 이용해 여러 leader의 suspend 실행을 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property lockClient Consul backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options Consul backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockClient suspend session 생성·그룹 KV acquire/release·renew/read/destroy를 Consul API에 위임하는 클라이언트입니다.
+ * @property options maxLeaders, lease 범위(10초~24시간), KV prefix, session prefix, lock delay를 포함한 그룹 설정입니다.
  */
 // Suspend group elector는 상태 조회, lease lifecycle, diagnostics 계약을 함께 구현합니다.
 @Suppress("TooManyFunctions")
@@ -299,9 +298,8 @@ class ConsulSuspendLeaderGroupElector private constructor(
 }
 
 /**
- * `선언` 호출은 Consul backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
+ * [this] Consul endpoint에서 그룹 [lockName]의 슬롯을 suspend 방식으로 획득했을 때만 [action]을 실행합니다.
+ * 슬롯을 얻지 못하면 null을 반환하고 취소 뒤에도 session과 ownership을 정리합니다.
  */
 suspend fun <T> ConsulEndpoint.suspendRunIfLeaderGroup(
     lockName: String,

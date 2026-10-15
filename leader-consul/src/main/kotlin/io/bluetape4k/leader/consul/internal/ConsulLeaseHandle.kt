@@ -6,19 +6,18 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * `ConsulLeaseHandle`는 Consul backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 class입니다.
+ * `ConsulLeaseHandle`는 Consul KV key와 session, owner payload, lease 시각 및 반납 상태를 묶습니다.
  *
- * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
- * @property lockName Consul backend 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property key Consul backend 계약에서 `key` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property sessionId Consul backend 계약에서 `sessionId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property ownerToken Consul backend 계약에서 `ownerToken` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property auditLeaderId Consul backend 계약에서 `auditLeaderId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property nodeId Consul backend 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property electedAt Consul backend 계약에서 `electedAt` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property leaseUntil Consul backend 계약에서 `leaseUntil` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property slotId Consul backend 계약에서 `slotId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property acquiredAtNanos Consul backend 계약에서 `acquiredAtNanos` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockName 검증된 최대 255자 lock 이름입니다.
+ * @property key Consul KV에서 획득한 lock key입니다.
+ * @property sessionId ownership을 보유하고 lease를 갱신할 Consul session ID입니다.
+ * @property ownerToken KV owner payload에 저장해 동일 획득자의 상태를 식별하는 token입니다. 외부 로그에 노출하지 않습니다.
+ * @property auditLeaderId audit 결과에 노출할 leader ID입니다.
+ * @property nodeId payload에 기록하는 현재 노드 식별자입니다.
+ * @property electedAt Consul ownership을 획득한 시각입니다.
+ * @property leaseUntil payload에 기록한 lease 예정 만료 시각입니다. [electedAt]보다 빠를 수 없습니다.
+ * @property slotId 단일 선거에서는 null이고 그룹 선거에서는 슬롯 문자열입니다.
+ * @property acquiredAtNanos monotonic nanoTime 기반 획득 시각으로 최소 lease 남은 시간을 계산합니다.
  */
 internal class ConsulLeaseHandle(
     val lockName: String,

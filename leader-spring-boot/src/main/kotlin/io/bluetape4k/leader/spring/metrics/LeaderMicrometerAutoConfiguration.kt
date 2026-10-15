@@ -26,11 +26,7 @@ import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Role
 import org.springframework.core.type.AnnotatedTypeMetadata
 
-/**
- * `선언`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- */
+/** AOP metric 설정이 활성화되고 Micrometer가 classpath에 있을 때 tag sanitizer와 recorder를 등록합니다. */
 @AutoConfiguration(
     after = [LeaderAopFactoryAutoConfiguration::class],
     before = [LeaderAopAutoConfiguration::class],
@@ -50,22 +46,14 @@ import org.springframework.core.type.AnnotatedTypeMetadata
 @EnableConfigurationProperties(LeaderAopProperties::class)
 class LeaderMicrometerAutoConfiguration {
 
-    /**
-     * `leaderMetricTagSanitizer` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** Spring Boot tag rule을 Micrometer sanitizer로 변환해 infrastructure bean으로 등록합니다. */
     @Bean
     @ConditionalOnMissingBean(LeaderMetricTagSanitizer::class)
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     fun leaderMetricTagSanitizer(props: LeaderAopProperties): LeaderMetricTagSanitizer =
         LeaderMetricTagSanitizer.from(props.metrics.tags.toMicrometerOptions())
 
-    /**
-     * `micrometerLeaderAopMetricsRecorder` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** `MeterRegistry`와 sanitizer를 사용하는 AOP metric recorder를 등록합니다. */
     @Bean
     @ConditionalOnBean(MeterRegistry::class)
     @ConditionalOnMissingBean(MicrometerLeaderAopMetricsRecorder::class)

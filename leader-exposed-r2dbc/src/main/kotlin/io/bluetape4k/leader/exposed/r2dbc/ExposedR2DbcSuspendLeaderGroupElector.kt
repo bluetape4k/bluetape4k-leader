@@ -42,12 +42,11 @@ import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * `ExposedR2DbcSuspendLeaderGroupElector`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ExposedR2DbcSuspendLeaderGroupElector`는 R2DBC slot 행을 이용해 여러 leader의 suspend 실행과 slot lease를 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property historyRecorder Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property db 그룹 슬롯을 조회·변경하고 suspend transaction을 실행할 Exposed R2DBC 데이터베이스입니다.
+ * @property options maxLeaders, 대기·lease 시간, 재시도, owner, DB 시간 사용 여부를 담은 그룹 설정입니다.
+ * @property historyRecorder null이면 그룹 history를 기록하지 않고, 값이 있으면 suspend-safe recorder로 기록합니다.
  */
 // The suspend group elector intentionally implements the complete group-election contract,
 // including blocking state queries, coroutine execution, history, and lease lifecycle hooks.
@@ -55,9 +54,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     private val db: R2dbcDatabase,
     val options: ExposedR2dbcLeaderGroupElectionOptions,
-    /**
-     * `historyRecorder` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-     */
+    /** 그룹 슬롯의 획득·완료·실패 이력을 기록하며 null이면 기록을 생략합니다. */
     @Suppress("unused")
     private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
 ): SuspendLeaderGroupElector,
@@ -69,9 +66,8 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedR2dbcBackendErrorClassifier)
 
         /**
-         * `invoke` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-         *
-         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+         * 데이터베이스 스키마를 한 번 보장한 뒤 suspend group elector를 생성합니다.
+         * [options]의 [ExposedR2dbcLeaderGroupElectionOptions.maxLeaders] 슬롯 범위에서 선거합니다.
          */
         suspend operator fun invoke(
             db: R2dbcDatabase,
@@ -84,7 +80,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     }
 
     /**
-     * `maxLeaders` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * lock name별로 동시에 보유할 수 있는 활성 슬롯의 상한입니다. 생성 시 1 이상으로 검증됩니다.
      */
     override val maxLeaders: Int get() = options.maxLeaders
 
@@ -179,38 +175,27 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     }?.value?.get() ?: 0
 
     /**
-     * `activeCount` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * DB time 조회 실패 후에는 해당 `lockName`에서 더 최신인 DB 성공이 확인될 때까지 `maxLeaders`를 반환합니다.
-     * 따라서 `availableSlots`와 `state`도 장애 구간에 사용 가능한 슬롯을 노출하지 않습니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * 마지막 DB 조회와 로컬 캐시를 기준으로 [lockName]의 활성 슬롯 수를 반환합니다.
+     * DB time 조회 실패가 남아 있는 동안에는 fail-closed로 [maxLeaders]를 반환합니다.
      */
     override fun activeCount(lockName: String): Int =
         if (unavailableLockEpochs.containsKey(lockName)) maxLeaders else cachedActiveCounts[lockName]?.value?.get() ?: 0
 
     /**
-     * `availableSlots` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [lockName]에서 사용할 수 있는 슬롯 수를 `maxLeaders - activeCount(lockName)`으로 계산합니다.
      */
     override fun availableSlots(lockName: String): Int = maxLeaders - activeCount(lockName)
 
     /**
-     * `state` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [lockName]의 최대 슬롯 수와 활성 슬롯 수를 [LeaderGroupState]로 묶어 반환합니다.
      */
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     /**
-     * `activeCountSuspend` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * DB time 모드의 오류는 JDBC `activeCount`와 동일하게 `maxLeaders`로 fail-closed 처리합니다.
-     * 조회 시작 이후 다른 작업에서 발생한 최신 DB 오류는 오래된 조회 성공으로 해제하지 않습니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * DB에서 [lockName]의 만료되지 않은 슬롯 수를 suspend transaction으로 새로 조회합니다.
+     * DB time 모드에서 조회가 실패하면 [maxLeaders]를 반환하고, 조회 중 발생한 더 최신 오류는
+     * 오래된 성공 결과로 해제하지 않습니다.
      */
     @Suppress("ReturnCount")
     suspend fun activeCountSuspend(lockName: String): Int {
@@ -245,9 +230,8 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     }
 
     /**
-     * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [lockName]의 슬롯을 순회하며 하나를 대기 시간 안에 suspend 방식으로 획득합니다.
+     * 획득하지 못하거나 DB 오류가 있으면 null을 반환하고, action 종료·취소 뒤 슬롯과 캐시를 정리합니다.
      */
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {

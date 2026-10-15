@@ -4,25 +4,22 @@ import io.bluetape4k.leader.identity.LeaderIdSource
 import io.bluetape4k.support.requireNotBlank
 
 /**
- * `LeaderAopMetricsContext` 선언은 leader election 계약에서 사용되는 interface입니다.
+ * metrics event에 연결된 leader ID가 있는지 전달합니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 sealed interface LeaderAopMetricsContext {
 
     /**
-     * `Unknown` 선언은 leader election 계약에서 사용되는 object입니다.
+     * metrics 실행에서 leader ID를 확인할 수 없음을 나타냅니다.
      *
-     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
      */
     data object Unknown: LeaderAopMetricsContext
 
     /**
-     * `Identified` 선언은 leader election 계약에서 사용되는 data class입니다.
+     * 확인된 leader ID와 그 값을 얻은 경로를 나타냅니다.
      *
-     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
-     * @property leaderId audit에 기록할 leader identity입니다.
-     * @property leaderIdSource `leaderIdSource` 호출 또는 상태 계산에 필요한 값입니다.
+     * @property leaderId metrics event에 기록할 leader ID입니다. 공백 문자열은 허용되지 않습니다.
+     * @property leaderIdSource ID가 literal, SpEL, property 또는 자동 식별 중 어떤 경로에서 왔는지 나타냅니다.
      */
     data class Identified(
         val leaderId: String,
@@ -34,9 +31,7 @@ sealed interface LeaderAopMetricsContext {
     }
 
     companion object {
-        /**
-         * `Empty` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
-         */
+        /** ID가 확인되지 않은 `Unknown` 문맥과 같은 sentinel입니다. */
         @JvmField
         val Empty: LeaderAopMetricsContext = Unknown
     }

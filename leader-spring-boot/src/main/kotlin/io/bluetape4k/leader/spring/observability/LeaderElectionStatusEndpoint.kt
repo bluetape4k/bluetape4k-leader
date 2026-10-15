@@ -14,12 +14,9 @@ import java.util.concurrent.Executor
 import kotlin.jvm.internal.DefaultConstructorMarker
 
 /**
- * `LeaderElectionStatusEndpoint`는 Spring Boot integration의 leader election,
- * route guard, metric, example workflow 계약을 설명합니다.
+ * Actuator `leaderElection` read endpoint로 등록된 lock의 상태와 최근 획득 실패 aggregate를 반환합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property selectedState 관측에 사용할 backend와 상태 제공자입니다.
- * @property registry Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property registry 관찰할 lock 이름을 제공하는 status registry입니다.
  */
 @Endpoint(id = "leaderElection")
 class LeaderElectionStatusEndpoint private constructor(
@@ -86,11 +83,7 @@ class LeaderElectionStatusEndpoint private constructor(
     private val selectedStateProviderBean: String =
         (leaderElector as? SelectedStateLeaderElector)?.beanName.orEmpty()
 
-    /**
-     * `leaderElectionStatus` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 현재 backend, state provider, lock별 상태와 bounded acquisition-failure view를 반환합니다. */
     @ReadOperation
     fun leaderElectionStatus(): LeaderElectionStatusResponse {
         val acquisitionFailures = runCatching {
@@ -158,13 +151,12 @@ private class SelectedStateLeaderElector(
     }
 }
 
-/**
- * `LeaderElectionStatusResponse`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+/** Actuator status endpoint의 전체 응답입니다.
  *
- * @property locks Spring Boot integration 계약에서 `locks` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property backend 선택된 leader election backend입니다.
- * @property stateProviderBean 선택된 상태 제공자 Bean 이름입니다.
- * @property stateSupported backend가 상태 감사를 지원하는지 나타냅니다.
+ * @property locks registry snapshot 순서의 lock 상태 목록입니다.
+ * @property backend 선택된 leader election backend 이름이며 알 수 없으면 `unknown`입니다.
+ * @property stateProviderBean 선택된 state provider bean 이름이며 미지정이면 빈 문자열입니다.
+ * @property stateSupported backend가 audit state를 지원하는지 여부입니다.
  * @property acquisitionFailures 최근 backend 획득 실패의 bounded aggregate입니다.
  */
 data class LeaderElectionStatusResponse(
@@ -274,13 +266,12 @@ data class LeaderElectionStatusResponse(
     }
 }
 
-/**
- * `LeaderElectionLockStatus`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+/** Actuator status endpoint가 반환하는 하나의 lock 상태입니다.
  *
- * @property name Spring Boot integration 계약에서 `name` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property status Spring Boot integration 계약에서 `status` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property leaderId Spring Boot integration 계약에서 `leaderId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property leaseExpiry Spring Boot integration 계약에서 `leaseExpiry` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property name lock registry key입니다.
+ * @property status backend state의 이름이며 audit state 미지원이면 `Unsupported`입니다.
+ * @property leaderId 현재 leader의 audit ID이며 leader가 없거나 backend가 지원하지 않으면 `null`입니다.
+ * @property leaseExpiry 현재 leader lease의 만료 시각이며 알 수 없으면 `null`입니다.
  */
 data class LeaderElectionLockStatus(
     val name: String,

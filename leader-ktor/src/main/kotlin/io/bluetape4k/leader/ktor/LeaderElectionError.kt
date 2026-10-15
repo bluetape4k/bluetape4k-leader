@@ -8,8 +8,6 @@ import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Ktor leader-election error의 machine-readable code입니다.
- *
- * 정상 lock contention은 이 오류로 변환하지 않고 기존 `null`/skip 계약을 유지합니다.
  */
 enum class LeaderElectionErrorCode {
     INVALID_LOCK_NAME,

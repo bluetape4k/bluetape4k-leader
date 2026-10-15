@@ -6,22 +6,14 @@ import io.bluetape4k.support.requireGt
 import io.bluetape4k.support.requireNotBlank
 import java.time.Duration
 
-/**
- * `DurationParser`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- */
+/** ISO-8601 또는 `500ms`/`10s`/`5m`/`1h`/`1d` 형식의 양수 duration을 파싱합니다. */
 object DurationParser {
 
     private val log = KotlinLogging.logger {}
 
     private val SIMPLE_PATTERN = Regex("^(\\d+)\\s*(ms|s|m|h|d)$", RegexOption.IGNORE_CASE)
 
-    /**
-     * `parse` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 양수 duration을 파싱하며 형식 오류와 0 이하 값은 `IllegalArgumentException`으로 거부합니다. */
     fun parse(text: String): Duration {
         text.requireNotBlank("text")
         val trimmed = text.trim()
@@ -51,19 +43,11 @@ object DurationParser {
         return duration
     }
 
-    /**
-     * `parseOrDefault` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** blank 입력이면 `default`를 반환하고, 그 외 입력은 [parse]와 같은 양수 규칙으로 파싱합니다. */
     fun parseOrDefault(text: String, default: Duration): Duration =
         if (text.isBlank()) default else parse(text)
 
-    /**
-     * `parseNonNegativeOrDefault` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** blank 입력은 `default`, 명시적 `0` 또는 `PT0S`는 `Duration.ZERO`, 그 외 입력은 [parse] 결과를 반환합니다. */
     fun parseNonNegativeOrDefault(text: String, default: Duration): Duration {
         if (text.isBlank()) return default
         val duration = runCatching {

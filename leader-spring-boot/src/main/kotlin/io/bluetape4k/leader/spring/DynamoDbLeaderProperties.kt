@@ -4,13 +4,13 @@ import java.io.Serializable
 import java.time.Duration
 
 /**
- * `DynamoDbLeaderProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * Spring Boot의 DynamoDB leader backend가 lock item과 TTL을 계산하는 설정입니다.
  *
- * @property tableName Spring Boot integration 계약에서 `tableName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property keyPrefix Spring Boot integration 계약에서 `keyPrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property retryDelay Spring Boot integration 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property ttlPadding Spring Boot integration 계약에서 `ttlPadding` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property clockSkewTolerance Spring Boot integration 계약에서 `clockSkewTolerance` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property tableName lock item을 저장할 DynamoDB table 이름입니다. 기본값은 `bluetape4k_leader_locks`입니다.
+ * @property keyPrefix DynamoDB partition key 앞에 붙이는 prefix입니다. 기본값은 `leader`입니다.
+ * @property retryDelay conditional write 재시도 사이의 지연 시간입니다. 기본값은 50밀리초입니다.
+ * @property ttlPadding lease TTL 계산에 clock skew 여유로 더하는 시간입니다. 기본값은 60초입니다.
+ * @property clockSkewTolerance local clock과 DynamoDB server time 차이를 허용하는 시간입니다. 기본값은 5초입니다.
  */
 data class DynamoDbLeaderProperties(
     val tableName: String = DefaultTableName,

@@ -32,14 +32,13 @@ import java.time.ZonedDateTime
 import kotlin.time.Duration
 
 /**
- * `ExposedJdbcLock`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ExposedJdbcLock`는 lock 이름과 owner token을 조건에 포함해 단일 JDBC lock 행을 획득·연장·반납합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lockName Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property retryStrategy Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lockOwner Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property useDbTime Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property db 단일 lock 행을 조회·변경할 Exposed JDBC 데이터베이스입니다.
+ * @property lockName 영숫자로 시작하고 영숫자·`_`·`-`·`:`만 사용하는 최대 255자의 lock 키입니다.
+ * @property retryStrategy 경합 또는 일시적 DB 오류 뒤 다음 시도까지의 지연을 계산합니다.
+ * @property lockOwner 선택적 owner 식별자이며 null일 수 있고 저장 시 최대 255자입니다.
+ * @property useDbTime true이면 lease 만료·연장 판정에 DB `CURRENT_TIMESTAMP`를 사용하고, false이면 애플리케이션 시계를 사용합니다.
  */
 internal class ExposedJdbcLock internal constructor(
     private val db: Database,
@@ -50,15 +49,12 @@ internal class ExposedJdbcLock internal constructor(
 ) {
     companion object: KLoggingChannel()
 
-    /**
-     * `token` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-     */
+    /** 이 lock 인스턴스가 행 소유권을 확인할 때 사용하는 16자 Base58 임시 token입니다. 외부 식별자로 사용하지 않습니다. */
     val token: String = Base58.randomString(16)
 
     /**
-     * `tryLock` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [waitTime] 동안 retry strategy를 적용해 lease를 획득합니다.
+     * 획득하면 true, timeout·취소·정상 경합이면 false를 반환하며, blocking DB 오류는 retry 후에도 false로 처리합니다.
      */
     // The retry loop must distinguish cancellation, interruption, transient database errors,
     // and the sleep interruption path to preserve the blocking API contract.
@@ -171,11 +167,7 @@ internal class ExposedJdbcLock internal constructor(
         }
     }
 
-    /**
-     * `isHeldByCurrentInstance` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 현재 [lockName] 행이 이 인스턴스의 token을 가지고 있고 lease가 아직 유효한지 확인합니다. DB 오류는 false입니다. */
     fun isHeldByCurrentInstance(): Boolean =
         try {
             transaction(db) {
@@ -197,9 +189,8 @@ internal class ExposedJdbcLock internal constructor(
         }
 
     /**
-     * `unlock` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * 이 인스턴스 token과 일치하는 행만 해제합니다.
+     * [minLeaseTime]이 남아 있으면 삭제하지 않고 그 시간까지 lease를 유지하며, DB 오류는 로그 후 반환합니다.
      */
     fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -237,9 +228,8 @@ internal class ExposedJdbcLock internal constructor(
     }
 
     /**
-     * `extendDetailed` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * token이 일치하고 현재 lease가 만료되지 않은 행의 만료 시각을 [leaseTime]만큼 갱신합니다.
+     * 갱신된 시각은 [ExtendOutcome.Extended]로, 소유하지 않거나 이미 만료된 경우 [ExtendOutcome.NotHeld]로 반환합니다.
      */
     fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val lockNameVal = this@ExposedJdbcLock.lockName

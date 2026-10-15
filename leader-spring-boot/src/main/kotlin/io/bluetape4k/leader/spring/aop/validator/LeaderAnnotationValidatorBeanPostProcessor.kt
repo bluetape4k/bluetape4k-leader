@@ -15,11 +15,10 @@ import java.lang.reflect.Method
 import java.time.Duration
 
 /**
- * Annotation 설정 검증을 수행하는 Spring BeanPostProcessor입니다.
+ * 초기화된 bean의 `@LeaderElection`/`@LeaderGroupElection` 메서드를 찾아 startup 계약을 검증합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property strict Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property spel Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property strict 위반을 startup exception으로 승격할지 여부입니다. `false`이면 warning으로 남깁니다.
+ * @property spel annotation name expression을 pre-parse하는 evaluator입니다.
  */
 class LeaderAnnotationValidatorBeanPostProcessor(
     private val strict: Boolean,

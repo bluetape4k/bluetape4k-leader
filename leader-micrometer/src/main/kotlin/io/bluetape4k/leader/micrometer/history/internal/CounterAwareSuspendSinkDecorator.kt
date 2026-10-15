@@ -11,10 +11,9 @@ import kotlinx.coroutines.CancellationException
 import java.time.Instant
 
 /**
- * `CounterAwareSuspendSinkDecorator`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * suspend `SuspendLeaderHistorySink` 호출을 감싸 sink 실패와 acquisition 결과 누락을 Micrometer counter로 기록합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property delegate Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property delegate 실제 history 저장을 수행하는 suspend sink입니다. 예외와 반환값은 이 객체가 변경하지 않고 그대로 전달합니다.
  */
 internal class CounterAwareSuspendSinkDecorator(
     private val delegate: SuspendLeaderHistorySink,

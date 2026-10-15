@@ -10,9 +10,9 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * `EtcdLeaderElectionOptions`는 etcd backend leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * @property leaderOptions etcd backend 계약에서 `leaderOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property keyPrefix etcd backend 계약에서 `keyPrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property retryDelay etcd backend 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaderOptions lease·대기·최소 lease·자동 연장과 owner를 포함한 공통 단일 선거 설정입니다.
+ * @property keyPrefix etcd 키의 루트 경로입니다. `/`로 시작하고 끝의 `/`는 정규화되며 기본값은 `/bluetape4k/leader`입니다.
+ * @property retryDelay 경합 또는 transient 오류 뒤 재시도까지의 지연입니다. 양수 duration이어야 하며 기본값은 50ms입니다.
  */
 data class EtcdLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -26,9 +26,7 @@ data class EtcdLeaderElectionOptions(
     }
 
     companion object {
-        /**
-         * `Default` 값은 etcd backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** 공통 기본 선거 설정과 `/bluetape4k/leader` 경로, 50ms retry delay를 사용하는 인스턴스입니다. */
         @JvmField
         val Default = EtcdLeaderElectionOptions()
 

@@ -13,15 +13,13 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * `LeaderLeaseAutoExtenderLifecycle`는 Spring Boot integration의 leader election,
- * route guard, metric, example workflow 계약을 설명합니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property watchdogThreads Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property watchdogAsyncExtend Spring Boot integration 계약에서 사용하는 속성입니다.
+ * Spring context의 수명에 맞춰 JVM-global [LeaderLeaseAutoExtender] scheduler를 등록ㆍ재시작ㆍ종료합니다.
  *
  * JVM-global scheduler는 live Spring context 전체가 공유합니다. 첫 번째 명시 설정이 ownership을 가지며,
  * 다른 live context의 상충하는 명시 설정은 기존 scheduler를 변경하기 전에 거부됩니다.
+ *
+ * @property watchdogThreads 명시할 watchdog thread 수이며 `null`이면 core 기본 thread 수를 사용합니다.
+ * @property watchdogAsyncExtend 명시할 async lease extension 여부이며 `null`이면 `false`를 사용합니다.
  */
 class LeaderLeaseAutoExtenderLifecycle(
     private val watchdogThreads: Int? = null,
