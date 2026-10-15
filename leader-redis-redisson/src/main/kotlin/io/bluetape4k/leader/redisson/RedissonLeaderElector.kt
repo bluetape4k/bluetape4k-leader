@@ -259,7 +259,9 @@ class RedissonLeaderElector private constructor(
                             } catch (error: Throwable) {
                                 releaseAcquiredLockAsync(lock, currentThreadId, rejectionCleanup.acquiredAtNanos)
                                     .handle { _, releaseError ->
-                                        if (releaseError != null) error.addSuppressed(releaseError.unwrapCompletionException())
+                                        if (releaseError != null) {
+                                            error.addSuppressed(releaseError.unwrapCompletionException())
+                                        }
                                     }
                                     .thenCompose { failedCompletableFutureOf(error) }
                             }

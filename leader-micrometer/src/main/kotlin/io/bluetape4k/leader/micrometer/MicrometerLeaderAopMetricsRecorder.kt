@@ -155,7 +155,10 @@ class MicrometerLeaderAopMetricsRecorder private constructor(
     // 카디널리티 WARN 은 여기에서만 발생 — registerMetricsFor 는 의도적으로 우회한다.
     private fun attemptCounter(name: String): Counter =
         attemptCounters.computeIfAbsent(name) {
-            log.warn { "leader-micrometer: new lock.name='$name' registered — beware tag cardinality if using dynamic SpEL" }
+            log.warn {
+                "leader-micrometer: new lock.name='$name' registered — " +
+                    "beware tag cardinality if using dynamic SpEL"
+            }
             buildAttemptCounter(name)
         }
 

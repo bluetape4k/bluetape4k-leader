@@ -81,6 +81,8 @@ class LeaderBeanSelector(
     ): Selected<SuspendLeaderGroupElectorFactory> =
         select(explicitBeanName, method, SuspendLeaderGroupElectorFactory::class.java)
 
+    // 선택 우선순위와 누락·모호성 예외를 분리해 Spring 진단 정보를 보존합니다.
+    @Suppress("ReturnCount", "ThrowsCount")
     private fun <T: Any> select(explicitBeanName: String, method: Method?, type: Class<T>): Selected<T> {
         // Step 1: 어노테이션 bean 필드 명시
         if (explicitBeanName.isNotBlank()) {

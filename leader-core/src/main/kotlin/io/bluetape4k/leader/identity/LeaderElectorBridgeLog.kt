@@ -71,7 +71,8 @@ class LeaderElectorBridgeLog(val cacheSize: Int = DEFAULT_CACHE_SIZE) {
         if (isNew) {
             log.warn {
                 "[BRIDGE-SLOT-DROP] ${implClass.qualifiedName} uses bridge default for slot " +
-                        "lockName='${slot.lockName.sanitizeForLog()}'. Override runIfLeader(LeaderSlot, action) to stamp " +
+                        "lockName='${slot.lockName.sanitizeForLog()}'. Override runIfLeader(LeaderSlot, action) " +
+                        "to stamp " +
                         "slot.leaderId into LeaderLease.auditLeaderId and avoid audit identity loss."
             }
         }

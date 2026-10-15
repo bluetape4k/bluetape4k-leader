@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions") // 실행 변형을 하나의 안정적인 JVM facade로 제공하는 공개 파일입니다.
+
 package io.bluetape4k.leader.zookeeper
 
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor

@@ -80,6 +80,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
     override fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? =
         runImpl(slot.lockName, auditLeaderId = slot.leaderId, action)
 
+    @Suppress("ThrowsCount")
     override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
         var elected = false
         val value = try {

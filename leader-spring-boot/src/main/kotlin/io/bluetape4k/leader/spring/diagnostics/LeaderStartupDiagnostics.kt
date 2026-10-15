@@ -67,6 +67,8 @@ class LeaderStartupDiagnostics(
     fun lastReport(): Report? =
         report
 
+    // 독립적인 설정 조건을 한 startup snapshot에서 판정해 경고 누락을 방지합니다.
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun inspect(): Report {
         val stateProviderCandidates = stateSelector.candidates()
         val stateProviderBeans = stateProviderCandidates
@@ -110,7 +112,8 @@ class LeaderStartupDiagnostics(
                 add(
                     Warning(
                         WarningCode.MANAGEMENT_ENDPOINT_NOT_EXPOSED,
-                        "management.endpoint.leaderElection.enabled=true but management.endpoints.web.exposure.include " +
+                        "management.endpoint.leaderElection.enabled=true but " +
+                                "management.endpoints.web.exposure.include " +
                                 "does not include leaderElection or *.",
                     )
                 )
@@ -119,7 +122,8 @@ class LeaderStartupDiagnostics(
                 add(
                     Warning(
                         WarningCode.MANAGEMENT_REGISTRY_NOT_SEEDED,
-                        "management.endpoint.leaderElection.enabled=true but bluetape4k.leader.observability.lock-names " +
+                        "management.endpoint.leaderElection.enabled=true but " +
+                                "bluetape4k.leader.observability.lock-names " +
                                 "is empty. Runtime events can still populate the endpoint.",
                     )
                 )

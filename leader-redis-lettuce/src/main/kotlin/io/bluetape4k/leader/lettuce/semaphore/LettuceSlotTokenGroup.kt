@@ -384,7 +384,10 @@ return 0
             asyncCommands, RELEASE_SCRIPT, ScriptOutputType.INTEGER,
             arrayOf(slotKey, metaKey), token, remainingMinLeaseMs.toString()
         )
-        log.debug { "슬롯 해제 (suspend). slotKey=$slotKey, token=$token, remainingMinLeaseMs=$remainingMinLeaseMs, ret=$ret" }
+        log.debug {
+            "슬롯 해제 (suspend). slotKey=$slotKey, token=$token, " +
+                    "remainingMinLeaseMs=$remainingMinLeaseMs, ret=$ret"
+        }
     }
 
     suspend fun activeCountSuspending(): Int = statusSuspending().first

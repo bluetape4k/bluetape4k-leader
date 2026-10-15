@@ -79,7 +79,10 @@ class MigrationGate(
             throw e
         } catch (e: Exception) {
             val elapsed = System.currentTimeMillis() - started
-            log.warn(e) { "[${options.nodeId}] migration=$migrationId: 마이그레이션 또는 in-lock isApplied() 실패 (${elapsed}ms)" }
+            log.warn(e) {
+                "[${options.nodeId}] migration=$migrationId: " +
+                        "마이그레이션 또는 in-lock isApplied() 실패 (${elapsed}ms)"
+            }
             return Outcome.Failed(migrationId, e, elapsed)
         }
 

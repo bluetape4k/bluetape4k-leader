@@ -85,7 +85,8 @@ class SpelExpressionEvaluator(
                 expressionCache.get(resolved) { parser.parseExpression(it) }
             }.onFailure { ex ->
                 throw IllegalStateException(
-                    "Invalid SpEL expression '$resolved' on ${method.declaringClass.name}#${method.name}: ${ex.message}",
+                    "Invalid SpEL expression '$resolved' on " +
+                            "${method.declaringClass.name}#${method.name}: ${ex.message}",
                     ex,
                 )
             }

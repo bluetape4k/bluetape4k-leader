@@ -34,6 +34,7 @@ internal class ZooKeeperSuspendLockExtendDelegate(
 
     override fun extend(lockAtMostFor: Duration): ExtendOutcome = doExtend()
 
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
         try {
             doExtend()
@@ -44,6 +45,7 @@ internal class ZooKeeperSuspendLockExtendDelegate(
             ExtendOutcome.BackendError(e)
         }
 
+    @Suppress("TooGenericExceptionCaught")
     override fun isHeld(): Boolean =
         try {
             isBackendHeld()
@@ -52,6 +54,7 @@ internal class ZooKeeperSuspendLockExtendDelegate(
             false
         }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun doExtend(): ExtendOutcome =
         try {
             if (isBackendHeld()) ExtendOutcome.Extended(Instant.MAX)

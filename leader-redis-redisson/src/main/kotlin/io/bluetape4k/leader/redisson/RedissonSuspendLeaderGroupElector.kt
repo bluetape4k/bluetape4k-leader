@@ -201,7 +201,8 @@ class RedissonSuspendLeaderGroupElector private constructor(
                     if (remainingMs > 0) {
                         semaphore.updateLeaseTimeAsync(permitId, remainingMs, TimeUnit.MILLISECONDS).await()
                         log.debug {
-                            "minLease 유지를 위해 leaseTime 갱신. lockName=$lockName, permitId=$permitId, remainingMs=$remainingMs"
+                            "minLease 유지를 위해 leaseTime 갱신. " +
+                                    "lockName=$lockName, permitId=$permitId, remainingMs=$remainingMs"
                         }
                     } else {
                         semaphore.releaseAsync(permitId).await()

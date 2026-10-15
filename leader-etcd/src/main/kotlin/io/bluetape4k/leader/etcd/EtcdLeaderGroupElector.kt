@@ -160,7 +160,9 @@ class EtcdLeaderGroupElector private constructor(
                     handle == null ->
                         completableFutureOf(null)
                     !lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED) ->
-                        failedCompletableFutureOf(CancellationException("leader result future was cancelled before action"))
+                        failedCompletableFutureOf(
+                            CancellationException("leader result future was cancelled before action"),
+                        )
                     else ->
                         runAcquiredAsync(
                             handle,

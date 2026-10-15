@@ -42,7 +42,10 @@ class LeaderHistoryAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(LeaderHistorySink::class)
     fun leaderHistorySink(): LeaderHistorySink {
-        log.info { "Leader history audit disabled (NoopLeaderHistorySink). Provide a LeaderHistorySink bean to enable." }
+        log.info {
+            "Leader history audit disabled (NoopLeaderHistorySink). " +
+                    "Provide a LeaderHistorySink bean to enable."
+        }
         return NoopLeaderHistorySink
     }
 
@@ -86,7 +89,10 @@ class LeaderHistoryAutoConfiguration {
         return when {
             sinks.isEmpty() -> null
             sinks.size > 1 -> {
-                log.warn { "Multiple SuspendLeaderHistorySink beans found; use @Primary to disambiguate. Suspend history recorder not created." }
+                log.warn {
+                    "Multiple SuspendLeaderHistorySink beans found; use @Primary to disambiguate. " +
+                            "Suspend history recorder not created."
+                }
                 null
             }
             else -> SuspendSafeLeaderHistoryRecorder(sinks.single())
@@ -140,7 +146,10 @@ class LeaderHistoryAutoConfiguration {
             return when {
                 sinks.isEmpty() -> null
                 sinks.size > 1 -> {
-                    log.warn { "Multiple SuspendLeaderHistorySink beans found; use @Primary to disambiguate. Suspend history recorder not created." }
+                    log.warn {
+                        "Multiple SuspendLeaderHistorySink beans found; use @Primary to disambiguate. " +
+                                "Suspend history recorder not created."
+                    }
                     null
                 }
                 else -> {

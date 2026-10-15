@@ -128,7 +128,7 @@ class LeaderLeaseAutoExtenderLifecycle(
         val asyncExtend: Boolean,
     ): Serializable {
         companion object {
-            private val serialVersionUID = 1L
+            private const val serialVersionUID: Long = 1L
         }
     }
 }

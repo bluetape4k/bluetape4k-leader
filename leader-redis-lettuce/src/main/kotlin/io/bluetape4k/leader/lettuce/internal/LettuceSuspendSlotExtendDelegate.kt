@@ -27,6 +27,7 @@ internal class LettuceSuspendSlotExtendDelegate(
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
         try {
             group.extendSlotSuspending(token, lockAtMostFor)
@@ -37,6 +38,7 @@ internal class LettuceSuspendSlotExtendDelegate(
             ExtendOutcome.BackendError(e)
         }
 
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun isHeldSuspend(): Boolean =
         try {
             group.isSlotHeldSuspending(token)

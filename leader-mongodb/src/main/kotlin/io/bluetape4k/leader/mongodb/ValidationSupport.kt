@@ -10,5 +10,5 @@ internal fun validateMongoLockName(lockName: String) {
 
 fun String.validateMonoLockName(parameterName: String = "lockName") {
     validateLockName()
-    require(!contains(":slot:")) { "lockName must not contain ':slot:': $this" }
+    require(!contains(":slot:")) { "$parameterName must not contain ':slot:': $this" }
 }

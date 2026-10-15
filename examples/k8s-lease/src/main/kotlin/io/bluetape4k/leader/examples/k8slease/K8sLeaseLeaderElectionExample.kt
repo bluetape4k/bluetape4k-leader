@@ -159,6 +159,8 @@ class K8sLeaseLeaderElectionExample(
     private fun lease(leaseName: String): Lease? =
         client.leases().inNamespace(namespace).withName(leaseName).get()
 
+    // 빈 임대, 자기 소유 임대, 만료 임대의 획득 조건을 분리해 조기 반환합니다.
+    @Suppress("ReturnCount")
     private fun canAcquire(
         lease: Lease,
         holderIdentity: String,

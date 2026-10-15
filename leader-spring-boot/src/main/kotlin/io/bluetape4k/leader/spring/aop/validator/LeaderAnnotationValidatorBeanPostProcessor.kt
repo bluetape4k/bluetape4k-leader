@@ -15,7 +15,7 @@ import java.lang.reflect.Method
 import java.time.Duration
 
 /**
- * `LeaderAnnotationValidatorBeanPostProcessor`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * Annotation 설정 검증을 수행하는 Spring BeanPostProcessor입니다.
  *
  * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  * @property strict Spring Boot integration 계약에서 사용하는 속성입니다.
@@ -30,6 +30,8 @@ class LeaderAnnotationValidatorBeanPostProcessor(
 
     private val validation = LeaderMethodValidationSupport(spel)
 
+    // 수집 실패나 비대상 bean은 그대로 반환하고, 검증 실패만 fail-fast로 전달합니다.
+    @Suppress("ReturnCount")
     override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
         // [Step 3-P-Rel] reflection 자체 throw (ClassNotFound, NPE 등) 는 격리 — validation 결과는 그대로 전파
         val collected = runCatching {
@@ -47,13 +49,16 @@ class LeaderAnnotationValidatorBeanPostProcessor(
         // [R-31] best-effort self-invocation WARN
         if (annotated.size >= 2) {
             log.warn {
-                "leader.aop.self-inv-risk bean='$beanName' class=${targetClass.name} methods=${annotated.map { it.name }} " +
+                "leader.aop.self-inv-risk bean='$beanName' class=${targetClass.name} " +
+                        "methods=${annotated.map { it.name }} " +
                         "(2+ annotated methods — proxy bypass via self-invocation possible)"
             }
         }
         return bean
     }
 
+    // 각 Spring 인프라 bean 제외 조건을 분리해 의도치 않은 proxy 검증을 막습니다.
+    @Suppress("ReturnCount")
     private fun collectAnnotatedMethods(bean: Any): Pair<Class<*>, List<Method>>? {
         val targetClass = AopUtils.getTargetClass(bean)
         // Skip AOP infrastructure beans — interceptors, BPP, @Aspect classes, and Spring internals

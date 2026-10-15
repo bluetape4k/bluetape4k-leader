@@ -22,7 +22,10 @@ class MongoHistoryTtlGauge(
 
     init {
         if (config.ttlDays <= 0) {
-            log.warn { "MongoDB leader history TTL index is disabled (ttlDays=${config.ttlDays}). Data will accumulate indefinitely." }
+            log.warn {
+                "MongoDB leader history TTL index is disabled (ttlDays=${config.ttlDays}). " +
+                    "Data will accumulate indefinitely."
+            }
         }
 
         Gauge.builder(GAUGE_TTL_DISABLED) { if (config.ttlDays <= 0) 1.0 else 0.0 }

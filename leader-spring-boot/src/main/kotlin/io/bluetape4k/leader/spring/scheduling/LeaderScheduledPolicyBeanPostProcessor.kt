@@ -107,9 +107,15 @@ class LeaderScheduledPolicyBeanPostProcessor(
         val leaseTime = policy.leaseTime ?: aopProperties.defaultLeaseTime
 
         check(!waitTime.isNegative) { "Scheduled policy '$selector' property 'wait-time' must be zero or positive" }
-        check(!leaseTime.isZero && !leaseTime.isNegative) { "Scheduled policy '$selector' property 'lease-time' must be positive" }
-        check(!policy.minLeaseTime.isNegative) { "Scheduled policy '$selector' property 'min-lease-time' must be zero or positive" }
-        check(policy.minLeaseTime <= leaseTime) { "Scheduled policy '$selector' property 'min-lease-time' must not exceed 'lease-time'" }
+        check(!leaseTime.isZero && !leaseTime.isNegative) {
+            "Scheduled policy '$selector' property 'lease-time' must be positive"
+        }
+        check(!policy.minLeaseTime.isNegative) {
+            "Scheduled policy '$selector' property 'min-lease-time' must be zero or positive"
+        }
+        check(policy.minLeaseTime <= leaseTime) {
+            "Scheduled policy '$selector' property 'min-lease-time' must not exceed 'lease-time'"
+        }
 
         val violations = try {
             validation.validateSingle(

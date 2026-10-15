@@ -438,6 +438,17 @@ subprojects {
         }
     }
 
+    if (detektRequested) {
+        configurations.matching { it.name == "detekt" }.configureEach {
+            resolutionStrategy.eachDependency {
+                if (requested.group == "org.jetbrains.kotlin") {
+                    useVersion(dev.detekt.gradle.plugin.getSupportedKotlinVersion())
+                    because("Detekt runtime must use the Kotlin version supported by its Gradle plugin")
+                }
+            }
+        }
+    }
+
     if (path in legacyKubernetesCompatibilityPaths) {
         dependencyManagement {
             imports {

@@ -15,6 +15,8 @@ object AnnotationLookup {
      *
      * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    // 메서드 → 대상 메서드 순서의 조기 종료로 기존 어노테이션 우선순위를 보존합니다.
+    @Suppress("ReturnCount")
     inline fun <reified A: Annotation> findAnnotationWithTargetFallback(
         method: Method,
         target: Any,
