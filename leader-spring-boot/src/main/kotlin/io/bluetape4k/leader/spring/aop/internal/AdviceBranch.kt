@@ -1,23 +1,19 @@
 package io.bluetape4k.leader.spring.aop.internal
 
-/**
- * `AdviceBranch`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- */
+/** `LeaderElectionAspect`가 대상 메서드의 반환 모델에 따라 사용하는 실행 경로입니다. */
 internal enum class AdviceBranch {
     /**
-     * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
+     * 일반 blocking 반환값을 처리하는 경로입니다.
      */
     SYNC,
 
     /**
-     * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
+     * Kotlin `suspend` 반환값을 처리하는 coroutine 경로입니다.
      */
     COROUTINES,
 
     /**
-     * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
+     * Reactor `Mono`/`Flux` 또는 Kotlin `Flow` 반환값을 처리하는 reactive 경로입니다.
      */
     REACTIVE,
 }

@@ -58,9 +58,8 @@ private fun publishLeaderLeaseWatchdogEvent(
 }
 
 /**
- * `LeaderLeaseAutoExtender` 선언은 leader election 계약에서 사용되는 object입니다.
+ * 획득한 lease를 주기적으로 연장하는 shared watchdog scheduler를 관리합니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 @Suppress("TooManyFunctions")
 object LeaderLeaseAutoExtender: KLogging() {
@@ -68,7 +67,7 @@ object LeaderLeaseAutoExtender: KLogging() {
     private val threadSeq = AtomicInteger()
 
     /**
-     * `DEFAULT_WATCHDOG_THREADS` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     * 기본 watchdog scheduler thread 수입니다. 사용 가능한 processor 수와 `2` 중 큰 값입니다.
      */
     internal val DEFAULT_WATCHDOG_THREADS: Int = Runtimex.availableProcessors.coerceAtLeast(2)
 
@@ -82,20 +81,14 @@ object LeaderLeaseAutoExtender: KLogging() {
     private var scheduler: ScheduledThreadPoolExecutor = newScheduler()
 
     /**
-     * `watchdogThreadCount` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 현재 watchdog scheduler의 thread 수를 반환합니다.
      */
     fun watchdogThreadCount(): Int = configuredThreadCount
 
     /**
-     * `configure` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param watchdogThreads `watchdogThreads` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param asyncExtend `asyncExtend` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * scheduler 크기와 이후 watchdog이 사용할 연장 실행 모드를 설정합니다.
+     * @param watchdogThreads scheduler thread 수입니다. `1` 이상이어야 하며 실행 중인 scheduler에도 즉시 적용됩니다.
+     * @param asyncExtend `true`이면 다음 `start` 호출에서 연장을 별도 비동기 경로로 수행합니다. 이미 시작한 watchdog에는 적용되지 않습니다.
      */
     fun configure(
         watchdogThreads: Int = configuredThreadCount,
@@ -113,10 +106,7 @@ object LeaderLeaseAutoExtender: KLogging() {
     }
 
     /**
-     * `shutdown` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * scheduler를 종료하고 최대 5초간 기다립니다. 그 안에 종료되지 않으면 실행 중인 작업을 중단하도록 요청합니다.
      */
     fun shutdown() {
         val current = scheduler
@@ -127,10 +117,7 @@ object LeaderLeaseAutoExtender: KLogging() {
     }
 
     /**
-     * `restart` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 종료된 경우 새 scheduler를 만듭니다. 아직 실행 중이면 아무 작업도 하지 않습니다.
      */
     fun restart() {
         if (!scheduler.isShutdown) return
@@ -138,10 +125,7 @@ object LeaderLeaseAutoExtender: KLogging() {
     }
 
     /**
-     * `isShutdown` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * scheduler가 종료되었는지 반환합니다.
      */
     fun isShutdown(): Boolean = scheduler.isShutdown
 
@@ -153,14 +137,13 @@ object LeaderLeaseAutoExtender: KLogging() {
         }.apply { removeOnCancelPolicy = true }
 
     /**
-     * `start` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param enabled `enabled` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param leaseTime leadership을 보유할 수 있는 lease TTL입니다.
-     * @param delegate 실제 leader election 동작을 수행하는 위임 객체입니다.
-     * @param classifier `classifier` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * enabled이면 blocking backend 연장을 예약하고, handle을 닫으면 예약을 취소하고 진행 중 연장을 기다립니다.
+     * disabled이면 동작하지 않는 closeable을 반환합니다.
+     * @param enabled watchdog을 예약할지 결정합니다.
+     * @param leaseTime backend에 유지할 lease TTL입니다. renewal 간격은 이 값의 약 1/3이며 최소 25ms입니다.
+     * @param delegate 현재 lock의 backend 연장 및 소유권 확인 구현입니다.
+     * @param classifier backend 오류의 일시성·중단 여부를 판정합니다. 생략하면 core 기본 classifier를 사용합니다.
+     * @return 예약된 watchdog을 취소하고 진행 중 연장을 정리하는 handle입니다.
      */
     fun start(
         enabled: Boolean,
@@ -326,14 +309,13 @@ object LeaderLeaseAutoExtender: KLogging() {
     }
 
     /**
-     * `start` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param enabled `enabled` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param leaseTime leadership을 보유할 수 있는 lease TTL입니다.
-     * @param delegate 실제 leader election 동작을 수행하는 위임 객체입니다.
-     * @param classifier `classifier` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * enabled이면 suspend backend 연장을 예약하고, handle을 닫으면 예약을 취소하고 진행 중 연장을 기다립니다.
+     * disabled이면 동작하지 않는 closeable을 반환합니다.
+     * @param enabled watchdog을 예약할지 결정합니다.
+     * @param leaseTime backend에 유지할 lease TTL입니다. renewal 간격은 이 값의 약 1/3이며 최소 25ms입니다.
+     * @param delegate suspend backend의 연장 및 소유권 확인 구현입니다.
+     * @param classifier backend 오류의 일시성·중단 여부를 판정합니다. 생략하면 core 기본 classifier를 사용합니다.
+     * @return 예약된 watchdog을 취소하고 진행 중 연장을 정리하는 handle입니다.
      */
     fun start(
         enabled: Boolean,
@@ -470,11 +452,9 @@ object LeaderLeaseAutoExtender: KLogging() {
     }
 
     /**
-     * `renewalPeriod` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param leaseTime leadership을 보유할 수 있는 lease TTL입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * lease TTL의 1/3을 계산하되 연장 주기를 25ms보다 짧게 설정하지 않습니다.
+     * @param leaseTime 연장 대상 lease TTL입니다.
+     * @return `leaseTime / 3`과 25ms 중 큰 기간입니다.
      */
     fun renewalPeriod(leaseTime: Duration): Duration {
         val third = leaseTime / 3

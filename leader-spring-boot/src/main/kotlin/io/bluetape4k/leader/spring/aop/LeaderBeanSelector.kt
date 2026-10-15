@@ -19,10 +19,12 @@ import java.io.Serializable
 import java.lang.reflect.Method
 
 /**
- * `LeaderBeanSelector`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * annotation과 bean 이름을 기준으로 leader elector factory bean을 선택합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property beanFactory Spring Boot integration 계약에서 사용하는 속성입니다.
+ * 명시된 bean 이름, 메서드ㆍ클래스ㆍ패키지의 `@LeaderElectionBackend`, 단일 bean 또는
+ * Spring `@Primary` 순서로 자동 선택합니다.
+ *
+ * @property beanFactory 선택 대상 bean을 조회하는 Spring `BeanFactory`입니다.
  */
 class LeaderBeanSelector(
     private val beanFactory: BeanFactory,
@@ -40,41 +42,25 @@ class LeaderBeanSelector(
                 )
             }
 
-    /**
-     * `selectElectionFactory` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** blocking `LeaderElectorFactory`를 선택하며 bean을 찾지 못하거나 모호하면 Spring 예외를 전달합니다. */
     fun selectElectionFactory(explicitBeanName: String, method: Method? = null): Selected<LeaderElectorFactory> =
         select(explicitBeanName, method, LeaderElectorFactory::class.java)
 
-    /**
-     * `selectGroupElectionFactory` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** blocking `LeaderGroupElectorFactory`를 선택하며 bean을 찾지 못하거나 모호하면 Spring 예외를 전달합니다. */
     fun selectGroupElectionFactory(
         explicitBeanName: String,
         method: Method? = null,
     ): Selected<LeaderGroupElectorFactory> =
         select(explicitBeanName, method, LeaderGroupElectorFactory::class.java)
 
-    /**
-     * `selectSuspendElectorFactory` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** coroutine `SuspendLeaderElectorFactory`를 선택하며 bean을 찾지 못하거나 모호하면 Spring 예외를 전달합니다. */
     fun selectSuspendElectorFactory(
         explicitBeanName: String,
         method: Method? = null,
     ): Selected<SuspendLeaderElectorFactory> =
         select(explicitBeanName, method, SuspendLeaderElectorFactory::class.java)
 
-    /**
-     * `selectSuspendGroupElectorFactory` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** coroutine `SuspendLeaderGroupElectorFactory`를 선택하며 bean을 찾지 못하거나 모호하면 Spring 예외를 전달합니다. */
     fun selectSuspendGroupElectorFactory(
         explicitBeanName: String,
         method: Method? = null,
@@ -124,11 +110,7 @@ class LeaderBeanSelector(
         }
     }
 
-    /**
-     * `resolveFromBackendAnnotation` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 메서드, 선언 클래스, 패키지에 붙은 `@LeaderElectionBackend`의 첫 번째 비어 있지 않은 bean 이름을 반환합니다. */
     private fun resolveFromBackendAnnotation(method: Method): String? {
         // Step 2: 메서드 @LeaderElectionBackend
         method.findMergedAnnotationOrNull<LeaderElectionBackend>()
@@ -149,11 +131,10 @@ class LeaderBeanSelector(
         return null
     }
 
-    /**
-     * `Selected`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+    /** 선택 결과로 사용한 Spring bean 이름과 실제 factory 인스턴스입니다.
      *
-     * @property beanName Spring Boot integration 계약에서 `beanName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property bean Spring Boot integration 계약에서 `bean` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property beanName 선택된 bean 이름이며 bean type으로 자동 선택한 경우에도 실제 이름을 보존합니다.
+     * @property bean 선택된 factory bean 인스턴스입니다.
      */
     data class Selected<T>(val beanName: String, val bean: T): Serializable {
         companion object {

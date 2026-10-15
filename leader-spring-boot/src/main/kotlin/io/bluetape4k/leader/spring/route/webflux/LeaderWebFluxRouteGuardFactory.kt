@@ -34,12 +34,12 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-/**
- * `LeaderWebFluxRouteGuardFactory`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+/** Spring WebFlux `WebFilter`를 만들어 leader 권한이 없는 요청을 reject 또는 redirect합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property runtime Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property properties Spring Boot integration 계약에서 사용하는 속성입니다.
+ * blocking authority 평가는 `evaluationScheduler`에서 실행하고, `LEASE` mode에서는 reactive resource lifecycle로 handle을 release합니다.
+ *
+ * @property runtime route authority를 평가하는 runtime입니다.
+ * @property properties mode, rejection status, redirect, lease 정책입니다.
  * @property evaluationScheduler blocking authority 평가를 실행할 scheduler입니다.
  */
 @Suppress("TooManyFunctions")
@@ -70,11 +70,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
 
     private val lock = ReentrantLock()
 
-    /**
-     * `filter` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** slot을 검사하는 WebFlux filter를 반환합니다. */
     fun filter(slot: LeaderSlot): WebFilter = filterInternal(slot, null, null)
 
     /** resolver를 route owner가 직접 제공하는 additive overload입니다. */

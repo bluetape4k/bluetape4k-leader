@@ -11,14 +11,12 @@ import org.springframework.beans.factory.InitializingBean
 import org.springframework.beans.factory.annotation.Value
 import java.time.Instant
 
-/**
- * `LeaderHistoryRetentionJob`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+/** 매일 scheduled leader task로 오래된 blocking history row를 chunk 단위로 삭제합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property sink Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property retentionDays Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property chunkSize Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property maxDurationMs Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property sink 삭제할 history row를 제공하는 sink입니다.
+ * @property retentionDays 현재 시각에서 이 일수보다 오래된 row를 삭제하며 기본값은 30일입니다.
+ * @property chunkSize 한 번의 sink 호출에서 삭제할 최대 row 수이며 기본값은 1000입니다.
+ * @property maxDurationMs 한 실행에서 cleanup loop가 사용할 최대 시간이며 기본값은 300000ms입니다.
  */
 class LeaderHistoryRetentionJob(
     private val sink: LeaderHistorySink,

@@ -30,12 +30,11 @@ import kotlin.time.TimeSource
 import kotlin.time.toJavaDuration
 
 /**
- * `InstrumentedLeaderElector`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * 위임한 `LeaderElector`의 선출 결과와 실행 시간을 `MeterRegistry`에 기록하는 래퍼입니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property delegate Micrometer observability 계약에서 사용하는 속성입니다.
- * @property lockName Micrometer observability 계약에서 사용하는 속성입니다.
- * @property tagOptions Micrometer observability 계약에서 registry와 tag policy를 비교하는 속성입니다.
+ * @property delegate 실제 lock 획득과 작업 실행을 수행하는 elector입니다. 모든 선출 API 호출은 이 객체에 위임합니다.
+ * @property lockName 메트릭의 `lock.name` tag를 덮어쓸 선택적 이름입니다. `null`이면 호출 API에 전달된 lock 이름을 사용합니다.
+ * @property tagOptions lock 이름, leader ID, backend 이름을 메트릭 tag로 내보낼 때 적용할 마스킹·허용 목록 정책입니다.
  */
 class InstrumentedLeaderElector private constructor(
     private val delegate: LeaderElector,
@@ -124,12 +123,11 @@ class InstrumentedLeaderElector private constructor(
 }
 
 /**
- * `InstrumentedLeaderGroupElector`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * 위임한 `LeaderGroupElector`의 group 선출 결과와 실행 시간을 `MeterRegistry`에 기록하는 래퍼입니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property delegate Micrometer observability 계약에서 사용하는 속성입니다.
- * @property lockName Micrometer observability 계약에서 사용하는 속성입니다.
- * @property tagOptions Micrometer observability 계약에서 registry와 tag policy를 비교하는 속성입니다.
+ * @property delegate 실제 group lock 획득과 작업 실행을 수행하는 elector입니다. 모든 선출 API 호출은 이 객체에 위임합니다.
+ * @property lockName 메트릭의 `lock.name` tag를 덮어쓸 선택적 이름입니다. `null`이면 호출 API에 전달된 lock 이름을 사용합니다.
+ * @property tagOptions lock 이름, leader ID, backend 이름을 메트릭 tag로 내보낼 때 적용할 마스킹·허용 목록 정책입니다.
  */
 class InstrumentedLeaderGroupElector private constructor(
     private val delegate: LeaderGroupElector,
@@ -206,12 +204,11 @@ class InstrumentedLeaderGroupElector private constructor(
 }
 
 /**
- * `InstrumentedSuspendLeaderElector`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * 위임한 `SuspendLeaderElector`의 선출 결과와 suspend 작업 실행 시간을 `MeterRegistry`에 기록하는 래퍼입니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property delegate Micrometer observability 계약에서 사용하는 속성입니다.
- * @property lockName Micrometer observability 계약에서 사용하는 속성입니다.
- * @property tagOptions Micrometer observability 계약에서 registry와 tag policy를 비교하는 속성입니다.
+ * @property delegate 실제 suspend lock 획득과 작업 실행을 수행하는 elector입니다. 모든 선출 API 호출은 이 객체에 위임합니다.
+ * @property lockName 메트릭의 `lock.name` tag를 덮어쓸 선택적 이름입니다. `null`이면 호출 API에 전달된 lock 이름을 사용합니다.
+ * @property tagOptions lock 이름, leader ID, backend 이름을 메트릭 tag로 내보낼 때 적용할 마스킹·허용 목록 정책입니다.
  */
 class InstrumentedSuspendLeaderElector private constructor(
     private val delegate: SuspendLeaderElector,

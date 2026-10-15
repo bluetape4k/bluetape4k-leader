@@ -22,13 +22,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * `LeaderElectionEventPublisher` 호출은 leader election 계약의 일부 동작을 수행합니다.
- *
- * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
- * @param scope `scope` 호출 또는 상태 계산에 필요한 값입니다.
- * @param started `started` 호출 또는 상태 계산에 필요한 값입니다.
- * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+ * 지정한 lock의 lifecycle event를 단일 leader 상태 `StateFlow`로 접습니다.
+ * @param lockName 상태를 집계할 event의 lock 이름입니다.
+ * @param scope 파생 `StateFlow` collector coroutine의 수명주기를 소유하는 scope입니다.
+ * @param started upstream collection을 시작·중지할 `SharingStarted` 정책입니다. 기본값은 `Eagerly`입니다.
+ * @return 마지막 `Elected` 또는 `Revoked` event로 갱신되는 현재 lock 상태입니다.
  */
 fun LeaderElectionEventPublisher.leaderStateFlow(
     lockName: String,
@@ -39,14 +37,12 @@ fun LeaderElectionEventPublisher.leaderStateFlow(
         .toStateFlow(LeaderState.empty(lockName), scope, started)
 
 /**
- * `LeaderElectionEventPublisher` 호출은 leader election 계약의 일부 동작을 수행합니다.
- *
- * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
- * @param maxLeaders 동시에 leadership을 획득할 수 있는 최대 슬롯 수입니다.
- * @param scope `scope` 호출 또는 상태 계산에 필요한 값입니다.
- * @param started `started` 호출 또는 상태 계산에 필요한 값입니다.
- * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+ * 지정한 lock의 lifecycle event를 group leader 상태 `StateFlow`로 접습니다.
+ * @param lockName 상태를 집계할 event의 lock 이름입니다.
+ * @param maxLeaders 동시에 점유할 수 있는 slot 수입니다. `1` 이상이어야 합니다.
+ * @param scope 파생 `StateFlow` collector coroutine의 수명주기를 소유하는 scope입니다.
+ * @param started upstream collection을 시작·중지할 `SharingStarted` 정책입니다. 기본값은 `Eagerly`입니다.
+ * @return 획득·해제 event 수에 따라 갱신되는 group slot 상태입니다.
  */
 fun LeaderElectionEventPublisher.leaderGroupStateFlow(
     lockName: String,

@@ -36,10 +36,9 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * `LocalSuspendLeaderGroupElector` 선언은 leader election 계약에서 사용되는 class입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property options `options` 호출 또는 상태 계산에 필요한 값입니다.
+ * JVM 프로세스 안에서 lock별 coroutine `Semaphore`로 그룹 slot을 조정하고 상태와 이벤트를 기록합니다.
+ * 이 elector가 제공하는 slot은 다른 프로세스와 공유되지 않습니다.
+ * @property options node ID, 허용 slot 수, 대기 시간 및 lease 설정
  */
 class LocalSuspendLeaderGroupElector private constructor(
     private val options: LeaderGroupElectionOptions,
@@ -50,11 +49,9 @@ class LocalSuspendLeaderGroupElector private constructor(
 
     companion object: KLoggingChannel() {
         /**
-         * `invoke` 호출은 leader election 계약의 일부 동작을 수행합니다.
-         *
-         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-         * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
-         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+         * 양수의 `maxLeaders`를 가진 local group elector를 생성합니다.
+         * @param options node ID, 허용 slot 수, 대기 시간 및 lease 설정
+         * @return 전달한 옵션으로 구성한 JVM 내부 그룹 elector
          */
         operator fun invoke(
             options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -85,31 +82,25 @@ class LocalSuspendLeaderGroupElector private constructor(
     override val maxLeaders: Int = options.maxLeaders
 
     /**
-     * `activeCount`는 현재 점유된 group leader slot 수를 조회합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 해당 JVM semaphore에서 사용 중인 permit 수를 계산합니다.
+     * @param lockName 점유 slot 수를 조회할 그룹 lock 이름
+     * @return `maxLeaders`에서 현재 남은 permit 수를 뺀 값
      */
     override fun activeCount(lockName: String): Int =
         maxLeaders - getSemaphore(lockName).availablePermits
 
     /**
-     * `availableSlots`는 아직 획득 가능한 group leader slot 수를 조회합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 해당 JVM semaphore에 남아 있는 permit 수를 반환합니다.
+     * @param lockName 획득 가능한 slot 수를 조회할 그룹 lock 이름
+     * @return 현재 남은 permit 수
      */
     override fun availableSlots(lockName: String): Int =
         getSemaphore(lockName).availablePermits
 
     /**
-     * `state`는 현재 leader election 상태 snapshot을 조회합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 최대 slot 수와 현재 점유 수, 기록된 leader 정보를 담은 snapshot을 반환합니다.
+     * @param lockName 상태 snapshot을 조회할 그룹 lock 이름
+     * @return 해당 그룹 lock의 상태 snapshot
      */
     override fun state(lockName: String): LeaderGroupState =
         states.groupState(lockName, maxLeaders, activeCount(lockName))
@@ -117,10 +108,10 @@ class LocalSuspendLeaderGroupElector private constructor(
     /**
      * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * `options.waitTime`은 semaphore permit 획득에만 적용되고 `action` 실행 시간은 제한하지 않습니다.
+     * @param lockName 획득할 JVM 그룹 semaphore 이름
+     * @param action permit을 보유한 동안 실행할 suspend 작업
+     * @return permit을 얻으면 작업 결과, 대기 시간 안에 얻지 못하면 `null`
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? =
         tryWithPermit(
@@ -133,10 +124,10 @@ class LocalSuspendLeaderGroupElector private constructor(
     /**
      * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
-     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * `slot.leaderId`를 상태와 이벤트에 기록합니다. 대기 시간은 semaphore 획득에만 적용됩니다.
+     * @param slot 그룹 lock 이름과 audit leader ID를 담은 slot
+     * @param action permit을 보유한 동안 실행할 suspend 작업
+     * @return permit을 얻으면 작업 결과, 대기 시간 안에 얻지 못하면 `null`
      */
     override suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? =
         tryWithPermit(
@@ -147,12 +138,10 @@ class LocalSuspendLeaderGroupElector private constructor(
         )
 
     /**
-     * `runIfLeaderResultSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
-     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * action에서 발생한 `Exception`은 `ActionFailed`로 반환하고 coroutine 취소는 전파합니다.
+     * @param slot 그룹 lock 이름과 결과에 포함할 leader ID를 담은 slot
+     * @param action permit을 보유한 동안 실행할 suspend 작업
+     * @return 획득 결과, contention skip, action 실패를 구분하는 `LeaderRunResult`
      */
     override suspend fun <T> runIfLeaderResultSuspend(
         slot: LeaderSlot,

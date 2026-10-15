@@ -12,11 +12,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * `ZooKeeperSuspendSlotExtendDelegate`는 ZooKeeper backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ZooKeeperSuspendSlotExtendDelegate`는 ZooKeeper 그룹 slot/permit의 lease 연장과 현재 ownership 확인을 elector에서 분리해 위임합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property slotKey ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client 그룹 lease의 participant ephemeral node가 살아 있는지 확인할 Curator client입니다.
+ * @property slotKey semaphore가 participant node를 만드는 그룹 path입니다.
  */
 internal class ZooKeeperSuspendSlotExtendDelegate(
     private val client: CuratorFramework,

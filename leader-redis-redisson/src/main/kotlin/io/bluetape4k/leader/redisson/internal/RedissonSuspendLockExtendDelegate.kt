@@ -15,12 +15,11 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * `RedissonSuspendLockExtendDelegate`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `RedissonSuspendLockExtendDelegate`는 Redis Redisson 단일 lock의 lease 연장과 현재 ownership 확인을 elector에서 분리해 위임합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property redissonClient Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lock Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property acquiringThreadId Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property redissonClient owner-aware atomic lease extension script를 실행하는 Redisson client입니다.
+ * @property lock 현재 suspend elector가 보유한 `RLock`입니다.
+ * @property acquiringThreadId suspend 경로에서 owner를 구분할 synthetic thread ID입니다.
  */
 internal class RedissonSuspendLockExtendDelegate(
     private val redissonClient: RedissonClient,

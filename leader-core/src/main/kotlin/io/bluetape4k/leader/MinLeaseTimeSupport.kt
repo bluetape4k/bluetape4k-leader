@@ -5,12 +5,10 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
 
 /**
- * `remainingMinLeaseTime` 호출은 leader election 계약의 일부 동작을 수행합니다.
- *
- * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @param startedAtNanos `startedAtNanos` 호출 또는 상태 계산에 필요한 값입니다.
- * @param minLeaseTime 작업이 빨리 끝나더라도 lease를 최소로 유지할 시간입니다.
- * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+ * 단조 시계 기준 경과 시간만큼 `minLeaseTime`에서 차감해 아직 기다려야 할 시간을 계산합니다.
+ * @param startedAtNanos 작업 시작 시 `System.nanoTime()`으로 기록한 값
+ * @param minLeaseTime lock을 최소 보유해야 하는 기간
+ * @return 남은 기간. 이미 경과했거나 `minLeaseTime`이 0 이하이면 0
  */
 fun remainingMinLeaseTime(startedAtNanos: Long, minLeaseTime: Duration): Duration {
     if (minLeaseTime <= Duration.ZERO) {
@@ -22,12 +20,9 @@ fun remainingMinLeaseTime(startedAtNanos: Long, minLeaseTime: Duration): Duratio
 }
 
 /**
- * `parkRemainingMinLeaseTime` 호출은 leader election 계약의 일부 동작을 수행합니다.
- *
- * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @param startedAtNanos `startedAtNanos` 호출 또는 상태 계산에 필요한 값입니다.
- * @param minLeaseTime 작업이 빨리 끝나더라도 lease를 최소로 유지할 시간입니다.
- * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+ * 최소 보유 시간이 남아 있으면 현재 thread를 남은 시간만큼 park합니다.
+ * @param startedAtNanos 작업 시작 시 `System.nanoTime()`으로 기록한 값
+ * @param minLeaseTime lock을 최소 보유해야 하는 기간
  */
 internal fun parkRemainingMinLeaseTime(startedAtNanos: Long, minLeaseTime: Duration) {
     val remaining = remainingMinLeaseTime(startedAtNanos, minLeaseTime)

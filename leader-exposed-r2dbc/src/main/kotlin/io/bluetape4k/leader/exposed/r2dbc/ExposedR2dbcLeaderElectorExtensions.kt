@@ -3,9 +3,8 @@ package io.bluetape4k.leader.exposed.r2dbc
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 
 /**
- * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+ * [this] 데이터베이스의 [lockName]을 suspend 방식으로 획득했을 때만 [action]을 실행합니다.
+ * 경합으로 획득하지 못하면 null을 반환합니다.
  */
 suspend fun <T> R2dbcDatabase.suspendRunIfLeader(
     lockName: String,
@@ -15,9 +14,8 @@ suspend fun <T> R2dbcDatabase.suspendRunIfLeader(
     ExposedR2DbcSuspendLeaderElector(this, options).runIfLeader(lockName, action)
 
 /**
- * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+ * [this] 데이터베이스의 그룹 슬롯을 suspend 방식으로 획득했을 때만 [action]을 실행합니다.
+ * 모든 슬롯이 사용 중이면 null을 반환하며 취소 시 획득한 슬롯을 정리합니다.
  */
 suspend fun <T> R2dbcDatabase.suspendRunIfLeaderGroup(
     lockName: String,

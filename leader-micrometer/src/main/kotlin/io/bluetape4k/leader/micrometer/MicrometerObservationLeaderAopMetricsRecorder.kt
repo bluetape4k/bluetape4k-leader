@@ -11,12 +11,10 @@ import java.util.concurrent.CancellationException
 import kotlin.time.Duration
 
 /**
- * `MicrometerObservationLeaderAopMetricsRecorder`는 Micrometer observability의 leader election,
- * route guard, metric, example workflow 계약을 설명합니다.
+ * `LeaderAopMetricsRecorder` 이벤트를 Micrometer `Observation`으로 기록하는 구현입니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property registry Micrometer observability 계약에서 사용하는 속성입니다.
- * @property options Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property registry observation을 생성할 `ObservationRegistry`입니다. No-op registry이면 이벤트를 기록하지 않습니다.
+ * @property options lock 이름·leader ID·예외 상세를 observation에 포함할지와 tag sanitization을 정하는 옵션입니다.
  */
 class MicrometerObservationLeaderAopMetricsRecorder(
     private val registry: ObservationRegistry,

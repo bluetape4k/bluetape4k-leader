@@ -28,12 +28,12 @@ import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 /**
- * `ZooKeeperLeaderElector`는 ZooKeeper backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ZooKeeperLeaderElector`는 ZooKeeper의 blocking 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property basePath ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * lock 또는 slot을 획득하지 못한 `runIfLeader` 호출은 예외 대신 `null`/skip 결과를 반환합니다.
+ * @property client Curator session과 ephemeral lock node를 생성·조회·해제하는 `CuratorFramework`입니다.
+ * @property basePath lockName을 붙일 ZooKeeper root path이며 trailing slash는 정규화됩니다. 기본값은 `/leader-election`입니다.
+ * @property options lock 대기·lease 정책입니다. ZooKeeper는 TTL을 지원하지 않아 `autoExtend`는 무시되고 session keepalive가 lease 역할을 합니다.
  */
 class ZooKeeperLeaderElector private constructor(
     private val client: CuratorFramework,

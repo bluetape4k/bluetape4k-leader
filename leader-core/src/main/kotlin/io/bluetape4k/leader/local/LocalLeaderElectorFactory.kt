@@ -5,9 +5,7 @@ import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectorFactory
 
 /**
- * `LocalLeaderElectorFactory`는 backend별 leader elector 인스턴스를 생성하는 factory 계약입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * 현재 JVM 내부에서만 동작하는 단일 lock elector를 생성합니다.
  */
 class LocalLeaderElectorFactory: LeaderElectorFactory {
 

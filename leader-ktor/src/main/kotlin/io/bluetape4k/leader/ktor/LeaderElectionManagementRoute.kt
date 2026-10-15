@@ -12,9 +12,7 @@ import java.util.concurrent.ConcurrentSkipListSet
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * `LeaderElectionManagementRegistry`는 Ktor integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * management route가 조회할 유효한 lock 이름을 중복 없이 정렬하여 보관합니다.
  */
 class LeaderElectionManagementRegistry(
     initialLockNames: Iterable<String> = emptyList(),
@@ -25,29 +23,19 @@ class LeaderElectionManagementRegistry(
         initialLockNames.forEach(::register)
     }
 
-    /**
-     * `register` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** lock 이름을 검증한 뒤 registry에 추가합니다. 이미 등록된 이름은 한 번만 보관됩니다. */
     fun register(lockName: String) {
         lockName.validateLockName()
         lockNames.add(lockName)
     }
 
-    /**
-     * `snapshot` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 현재 등록된 lock 이름을 정렬된 불변 snapshot으로 반환합니다. */
     fun snapshot(): List<String> =
         lockNames.toList()
 }
 
 /**
- * `Application` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+ * 등록된 lock의 leader 상태를 JSON으로 반환하는 read-only management route를 설치합니다.
  */
 fun Application.leaderElectionManagementRoute(
     path: String = LeaderElectionPluginConfig.DefaultManagementRoutePath,

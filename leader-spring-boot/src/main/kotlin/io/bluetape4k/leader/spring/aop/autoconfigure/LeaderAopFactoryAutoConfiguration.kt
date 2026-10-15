@@ -71,9 +71,9 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import kotlin.time.toKotlinDuration
 
 /**
- * `LeaderAopFactoryAutoConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * classpath와 client bean이 존재하는 backend별 `LeaderElectorFactory`와 suspend factory를 조건부로 등록합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * local factory는 항상 fallback으로 제공하고, RedisㆍMongoDBㆍSQLㆍDynamoDB 등 외부 backend는 해당 client bean이 있을 때만 등록합니다.
  */
 @AutoConfiguration
 @ConditionalOnClass(Aspect::class)

@@ -27,11 +27,11 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 /**
- * `HazelcastSuspendLeaderElector`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `HazelcastSuspendLeaderElector`는 Hazelcast의 suspend 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property hazelcast Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
+ * lock 또는 slot을 획득하지 못한 `runIfLeader` 호출은 예외 대신 `null`/skip 결과를 반환합니다.
+ * @property hazelcast suspend lock map을 조회하고 transaction context를 만드는 `HazelcastInstance`입니다.
+ * @property options lock 대기 시간, lease 기간, 최소 lease 보존, auto-extend 여부를 정하는 단일 선출 정책입니다.
  */
 class HazelcastSuspendLeaderElector private constructor(
     private val hazelcast: HazelcastInstance,

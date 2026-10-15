@@ -3,84 +3,82 @@ package io.bluetape4k.leader.micrometer
 // ========= Public constants — importable from leader-spring-boot =========
 
 /**
- * `TAG_LEADER_ID` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * observation과 meter에서 leader 식별자를 담는 tag key입니다.
  */
 const val TAG_LEADER_ID: String = "leader.id"
 
 /**
- * `TAG_LEADER_ID_SOURCE` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * leader 식별자의 출처를 담는 low-cardinality tag key입니다.
  */
 const val TAG_LEADER_ID_SOURCE: String = "leader.id.source"
 
 /**
- * `GAUGE_BRIDGE_DROPPED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * AOP bridge가 observation을 전달하지 못한 건수를 나타내는 gauge 이름입니다.
  */
 const val GAUGE_BRIDGE_DROPPED: String = "leader.aop.bridge.dropped"
 
 /**
- * `GAUGE_BRIDGE_RESULT_DROPPED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * AOP bridge가 결과를 버린 건수를 나타내는 gauge 이름입니다.
  */
 const val GAUGE_BRIDGE_RESULT_DROPPED: String = "leader.aop.bridge.result-dropped"
 
 /**
- * `COUNTER_LEADER_ID_RESOLUTION_FAILED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * AOP에서 leader ID 해석에 실패한 횟수를 세는 counter 이름입니다.
  */
 const val COUNTER_LEADER_ID_RESOLUTION_FAILED: String = "leader.aop.leader_id.resolution_failed"
 
 /**
- * `OBSERVATION_LEADER_AOP_ACQUIRE` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * AOP lock 획득 observation의 이름입니다.
  */
 const val OBSERVATION_LEADER_AOP_ACQUIRE: String = "leader.aop.acquire"
 
 /**
- * `OBSERVATION_LEADER_AOP_EXECUTION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * AOP 작업 실행 observation의 이름입니다.
  */
 const val OBSERVATION_LEADER_AOP_EXECUTION: String = "leader.aop.execution"
 
 /**
- * `OBSERVATION_LEADER_ELECTION_EVENT` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * elected, revoked, skipped 선출 이벤트 observation의 이름입니다.
  */
 const val OBSERVATION_LEADER_ELECTION_EVENT: String = "leader.election.event"
 
 /**
- * `OBSERVATION_TAG_OPERATION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * observation에서 수행한 operation을 나타내는 tag key입니다.
  */
 const val OBSERVATION_TAG_OPERATION: String = "leader.operation"
 
 /**
- * `OBSERVATION_TAG_OUTCOME` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * observation의 종료 결과를 나타내는 tag key입니다.
  */
 const val OBSERVATION_TAG_OUTCOME: String = "outcome"
 
 /**
- * `OBSERVATION_TAG_REASON` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * observation의 skip 원인을 나타내는 tag key입니다.
  */
 const val OBSERVATION_TAG_REASON: String = "reason"
 
 /**
- * `OBSERVATION_TAG_EXCEPTION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * 작업 실패 예외의 단순 클래스명을 담는 tag key입니다.
  */
 const val OBSERVATION_TAG_EXCEPTION: String = "exception"
 
 /**
- * `OBSERVATION_TAG_EVENT` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * leader election 이벤트 종류를 담는 tag key입니다.
  */
 const val OBSERVATION_TAG_EVENT: String = "event"
 
 /**
- * `OBSERVATION_TAG_ACQUIRE_ELAPSED_MS` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * lock 획득에 걸린 밀리초를 담는 high-cardinality tag key입니다.
  */
 const val OBSERVATION_TAG_ACQUIRE_ELAPSED_MS: String = "acquire.elapsed.ms"
 
 /**
- * `OBSERVATION_TAG_EXECUTION_ELAPSED_MS` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * 작업 실행에 걸린 밀리초를 담는 high-cardinality tag key입니다.
  */
 const val OBSERVATION_TAG_EXECUTION_ELAPSED_MS: String = "execution.elapsed.ms"
 
 /**
- * `MicrometerNames`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * leader 모듈이 생성하는 meter·observation·tag 이름을 한 곳에서 정의합니다.
  */
 internal object MicrometerNames {
 
@@ -146,59 +144,59 @@ internal object MicrometerNames {
     // --- Meter names ---
 
     /**
-     * `METER_ATTEMPTS` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * AOP lock 획득 시도 횟수를 세는 counter 이름입니다.
      */
     const val METER_ATTEMPTS = "leader.aop.attempts"
 
     /**
-     * `METER_ACQUIRED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * AOP lock 획득 성공 횟수를 세는 counter 이름입니다.
      */
     const val METER_ACQUIRED = "leader.aop.acquired"
 
     /**
-     * `METER_ACQUIRE_DURATION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * AOP lock 획득 소요 시간을 기록하는 timer 이름입니다.
      */
     const val METER_ACQUIRE_DURATION = "leader.aop.acquire.duration"
 
     /**
-     * `METER_NOT_ACQUIRED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * lock을 획득하지 못한 결과를 원인별로 세는 counter 이름입니다.
      */
     const val METER_NOT_ACQUIRED = "leader.aop.lock.not.acquired"
 
     /**
-     * `METER_EXECUTION_DURATION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * leader 작업 실행 시간을 기록하는 timer 이름입니다.
      */
     const val METER_EXECUTION_DURATION = "leader.aop.execution.duration"
 
     /**
-     * `METER_TASK_FAILED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * leader 작업 실패 횟수를 예외 종류별로 세는 counter 이름입니다.
      */
     const val METER_TASK_FAILED = "leader.aop.task.failed"
 
     /**
-     * `METER_ACTIVE` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * 현재 실행 중인 leader 작업 수를 나타내는 gauge 이름입니다.
      */
     const val METER_ACTIVE = "leader.aop.active"
 
     // --- Tag keys ---
 
     /**
-     * `TAG_LOCK_NAME` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * lock 이름을 담는 meter·observation tag key입니다. 동적 값은 sanitization 정책을 거칩니다.
      */
     const val TAG_LOCK_NAME = "lock.name"
 
     /**
-     * `TAG_REASON` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * lock 미획득 또는 backend connectivity 결과의 bounded reason tag key입니다.
      */
     const val TAG_REASON = "reason"
 
     /**
-     * `TAG_EXCEPTION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * 작업 실패의 예외 클래스명 tag key입니다.
      */
     const val TAG_EXCEPTION = "exception"
 
     /**
-     * `TAG_EVENT` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * leader election 이벤트 종류를 담는 tag key입니다.
      */
     const val TAG_EVENT = "event"
 
@@ -211,34 +209,34 @@ internal object MicrometerNames {
     // --- Sentinel values ---
 
     /**
-     * `UNKNOWN_EXCEPTION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * 예외에 단순 클래스명이 없을 때 사용하는 fallback 문자열입니다.
      */
     const val UNKNOWN_EXCEPTION = "Unknown"
 
     // --- Decorator meter names ---
 
     /**
-     * `METER_LEADER_ACQUIRED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * decorator가 leader 획득 성공을 세는 legacy counter 이름입니다.
      */
     const val METER_LEADER_ACQUIRED = "shedlock.leader.acquired"
 
     /**
-     * `METER_LEADER_NOT_ACQUIRED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * decorator가 leader 미획득 결과를 세는 legacy counter 이름입니다.
      */
     const val METER_LEADER_NOT_ACQUIRED = "shedlock.leader.not_acquired"
 
     /**
-     * `METER_LEADER_DURATION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * decorator가 leader 작업 시간을 기록하는 legacy timer 이름입니다.
      */
     const val METER_LEADER_DURATION = "shedlock.leader.duration"
 
     /**
-     * `METER_LEADER_ACTIVE` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * decorator가 현재 실행 중인 leader 작업 수를 기록하는 legacy gauge 이름입니다.
      */
     const val METER_LEADER_ACTIVE = "shedlock.leader.active"
 
     /**
-     * `METER_LEADER_EVENTS` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * elected, revoked, skipped leader 이벤트를 세는 counter 이름입니다.
      */
     const val METER_LEADER_EVENTS = "leader.election.events"
 
@@ -248,22 +246,22 @@ internal object MicrometerNames {
     // --- History / Audit meter names ---
 
     /**
-     * `HISTORY_SINK_FAILURES` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * history sink 호출에서 예외가 발생한 횟수를 세는 counter 이름입니다.
      */
     const val HISTORY_SINK_FAILURES = "leader.history.sink.failures"
 
     /**
-     * `HISTORY_ACQUIRE_MISSING` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * history sink가 acquisition key를 반환하지 않은 횟수를 세는 counter 이름입니다.
      */
     const val HISTORY_ACQUIRE_MISSING = "leader.history.acquire.missing"
 
     /**
-     * `HISTORY_MONGODB_INDEX_STATE` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * MongoDB history index 상태를 나타내는 gauge 이름입니다.
      */
     const val HISTORY_MONGODB_INDEX_STATE = "leader.history.mongodb.index.state"
 
     /**
-     * `HISTORY_MONGODB_TTL_DISABLED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * MongoDB history TTL이 비활성화된 상태를 나타내는 gauge 이름입니다.
      */
     const val HISTORY_MONGODB_TTL_DISABLED = "leader.history.mongodb.ttl.disabled"
 }

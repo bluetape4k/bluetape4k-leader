@@ -18,12 +18,11 @@ private typealias NotAcquiredKey = Pair<String, SkipReason>
 private typealias FailedKey = Pair<String, String>
 
 /**
- * `MicrometerLeaderAopMetricsRecorder`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * `LeaderAopMetricsRecorder` 이벤트를 counter, timer, gauge로 기록하는 Micrometer 구현입니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property registry Micrometer observability 계약에서 사용하는 속성입니다.
- * @property tagSanitizer Micrometer observability 계약에서 사용하는 속성입니다.
- * @property removeUnregisteredMeters Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property registry recorder가 생성한 meter를 등록하고 제거하는 `MeterRegistry`입니다.
+ * @property tagSanitizer `lock.name` tag에 적용할 sanitization 정책입니다. 동적 lock 이름의 민감정보와 cardinality를 줄입니다.
+ * @property removeUnregisteredMeters 명시적으로 등록하지 않은 lock 이름의 meter도 deregister 시 제거할지 나타냅니다. `Raw` lock-name 정책에서만 `true`가 됩니다.
  */
 class MicrometerLeaderAopMetricsRecorder private constructor(
     private val registry: MeterRegistry,
@@ -101,11 +100,7 @@ class MicrometerLeaderAopMetricsRecorder private constructor(
         }
     }
 
-    /**
-     * `registerMetricsFor` 호출은 Micrometer observability 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 지정한 lock 이름의 기본 counter, timer, gauge를 미리 등록합니다. */
     fun registerMetricsFor(vararg lockNames: String) {
         lockNames.forEach { name ->
             val tag = sanitizeLockName(name)
@@ -122,11 +117,7 @@ class MicrometerLeaderAopMetricsRecorder private constructor(
         }
     }
 
-    /**
-     * `deregisterMetricsFor` 호출은 Micrometer observability 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 지정한 lock 이름의 meter를 유휴 상태에서 registry와 내부 cache에서 제거합니다. */
     fun deregisterMetricsFor(vararg lockNames: String) {
         lockNames.forEach { name ->
             val tag = sanitizeLockName(name)

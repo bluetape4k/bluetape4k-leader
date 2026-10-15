@@ -1,21 +1,17 @@
 package io.bluetape4k.leader.internal
 
 /**
- * `CompositeBackendErrorClassifier` 선언은 leader election 계약에서 사용되는 class입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property backendSpecific `backendSpecific` 호출 또는 상태 계산에 필요한 값입니다.
+ * backend 전용 분류를 먼저 적용하고 core 분류로 보완하는 오류 분류기입니다.
+ * 두 분류기가 모두 알 수 없는 예외는 `NON_TRANSIENT`로 처리합니다.
+ * @property backendSpecific 현재 backend 예외 유형을 분류하는 우선 적용 classifier
  */
 class CompositeBackendErrorClassifier(
     private val backendSpecific: BackendErrorClassifier,
 ): BackendErrorClassifier {
 
     /**
-     * `classify` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param cause 실패 결과를 만든 원본 예외입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * @param cause 분류할 backend 예외
+     * @return backend 분류, core 분류 순으로 적용한 결과. 두 분류기가 모르면 `NON_TRANSIENT`
      */
     override fun classify(cause: Throwable): BackendErrorKind =
         backendSpecific.classify(cause)

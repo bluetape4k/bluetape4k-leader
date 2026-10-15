@@ -4,11 +4,10 @@ import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
 
 /**
- * `TenantLockNamespace`는 tenant별 lock 이름을 안정적으로 분리하는 계약입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property tenantId tenant scope를 구분하는 식별자입니다.
- * @property prefix `prefix` 호출 또는 상태 계산에 필요한 값입니다.
+ * tenant ID와 원래 lock 이름 사이에 공통 prefix를 넣어 tenant별 lock key를 만듭니다.
+ * 각 구성 요소는 비어 있을 수 없고 `:`를 포함할 수 없으며, 최종 이름은 255자 이하여야 합니다.
+ * @property tenantId lock key namespace를 구분하는 tenant 식별자
+ * @property prefix namespace 앞에 붙일 문자열. 기본값은 `tenant`입니다.
  */
 data class TenantLockNamespace(
     val tenantId: String,
@@ -21,11 +20,10 @@ data class TenantLockNamespace(
     }
 
     /**
-     * `lockName` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * `prefix:tenantId:lockName` 형식의 lock 이름을 만들고 공통 lock-name 규칙으로 검증합니다.
+     * @param lockName tenant namespace 안에서 사용할 원래 lock 이름
+     * @return tenant 식별자가 포함된 최대 255자의 lock 이름
+     * @throws IllegalArgumentException 구성 요소가 비어 있거나 `:`를 포함하거나 최종 이름이 255자를 넘으면
      */
     fun lockName(lockName: String): String {
         validatePart(lockName, "lockName")

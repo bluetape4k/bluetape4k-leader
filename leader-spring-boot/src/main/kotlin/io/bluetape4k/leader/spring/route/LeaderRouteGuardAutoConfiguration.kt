@@ -23,9 +23,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import kotlin.time.toKotlinDuration
 
-/**
- * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
- */
+/** route guard가 활성화되면 선택한 authority mode에 맞는 runtime과 MVC/WebFlux guard factory를 등록합니다. */
 @AutoConfiguration(after = [LeaderElectionAutoConfiguration::class, LocalLeaderConfiguration::class])
 @ConditionalOnProperty(
     prefix = "bluetape4k.leader.route-guard",

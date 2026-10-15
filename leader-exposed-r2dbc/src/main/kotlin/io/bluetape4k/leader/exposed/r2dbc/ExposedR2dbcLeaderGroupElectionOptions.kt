@@ -8,12 +8,12 @@ import io.bluetape4k.support.requirePositiveNumber
 import java.io.Serializable
 
 /**
- * `ExposedR2dbcLeaderGroupElectionOptions`는 Exposed database leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * `ExposedR2dbcLeaderGroupElectionOptions`는 Exposed R2DBC group election의 슬롯, lease, 재시도, 이력, owner 정책을 설정합니다.
  *
- * @property leaderGroupOptions Exposed database backend 계약에서 `leaderGroupOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property retryStrategy Exposed database backend 계약에서 `retryStrategy` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property recordHistory Exposed database backend 계약에서 `recordHistory` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property lockOwner Exposed database backend 계약에서 `lockOwner` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaderGroupOptions 동시에 허용할 슬롯 수와 각 슬롯의 대기·lease 정책을 정하는 공통 group 옵션입니다. 기본값은 `LeaderGroupElectionOptions.Default`입니다.
+ * @property retryStrategy 슬롯 획득을 반복할 때 사용할 재시도 지연 계산기입니다. 기본값은 50ms jitter입니다.
+ * @property recordHistory `true`이면 획득·완료·실패 이력을 `LeaderLockHistoryTable`에 기록합니다. 기본값은 `false`입니다.
+ * @property lockOwner 각 group lock 행과 history에 기록할 선택적 owner 식별자입니다. `null`이면 owner를 저장하지 않으며, 지정하면 최대 255자입니다.
  */
 data class ExposedR2dbcLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -22,9 +22,7 @@ data class ExposedR2dbcLeaderGroupElectionOptions(
     val lockOwner: String? = null,
 ): Serializable {
 
-    /**
-     * `maxLeaders` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-     */
+    /** 공통 group 옵션이 허용하는 동시 leadership 슬롯 수입니다. `1` 이상으로 검증됩니다. */
     val maxLeaders: Int get() = leaderGroupOptions.maxLeaders
 
     init {
@@ -35,9 +33,7 @@ data class ExposedR2dbcLeaderGroupElectionOptions(
     }
 
     companion object {
-        /**
-         * `Default` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** 공통 기본 group 옵션과 50ms jitter를 사용하고 이력 기록을 끄며 owner를 저장하지 않는 R2DBC 옵션입니다. */
         @JvmField
         val Default = ExposedR2dbcLeaderGroupElectionOptions()
     }

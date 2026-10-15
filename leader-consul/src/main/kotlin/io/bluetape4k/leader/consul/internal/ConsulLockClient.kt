@@ -5,9 +5,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
-/**
- * Consul backend leader election 계약을 설명하는 한국어 KDoc입니다.
- */
+/** Consul session 생성/갱신/삭제와 KV lock acquire/release/read를 추상화한 클라이언트입니다. */
 internal interface ConsulLockClient {
 
     val requestTimeout: Duration
@@ -45,10 +43,9 @@ internal fun <T> CompletableFuture<T>.getWithinRequestTimeout(lockClient: Consul
 
 @JvmInline
 /**
- * `ConsulSessionId`는 Consul backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 value class입니다.
+ * `ConsulSessionId`는 Consul API가 반환한 non-blank session ID를 감싼 value class입니다.
  *
- * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
- * @property value Consul backend 계약에서 `value` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property value Consul API가 반환한 non-blank session ID 문자열입니다.
  */
 internal value class ConsulSessionId(val value: String) {
     init {
@@ -57,11 +54,10 @@ internal value class ConsulSessionId(val value: String) {
 }
 
 /**
- * `ConsulSessionRenewal`는 Consul backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 data class입니다.
+ * `ConsulSessionRenewal`는 갱신한 session ID와 로컬 갱신 시각을 보관합니다.
  *
- * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
- * @property sessionId Consul backend 계약에서 `sessionId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property renewedAt Consul backend 계약에서 `renewedAt` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property sessionId 갱신한 Consul session ID입니다.
+ * @property renewedAt renew 요청이 성공한 로컬 시각입니다.
  */
 internal data class ConsulSessionRenewal(
     val sessionId: ConsulSessionId,
@@ -69,14 +65,13 @@ internal data class ConsulSessionRenewal(
 )
 
 /**
- * `ConsulKvEntry`는 Consul backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 data class입니다.
+ * `ConsulKvEntry`는 Consul KV 응답의 key, payload, session 및 operation index를 보관합니다.
  *
- * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
- * @property key Consul backend 계약에서 `key` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property value Consul backend 계약에서 `value` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property sessionId Consul backend 계약에서 `sessionId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property lockIndex Consul backend 계약에서 `lockIndex` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property modifyIndex Consul backend 계약에서 `modifyIndex` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property key Consul KV entry의 경로입니다.
+ * @property value Base64 decoding 후의 optional KV payload 문자열입니다.
+ * @property sessionId 해당 KV를 acquire한 optional Consul session ID입니다.
+ * @property lockIndex Consul이 반환한 lock operation index입니다.
+ * @property modifyIndex Consul이 반환한 마지막 수정 index입니다.
  */
 internal data class ConsulKvEntry(
     val key: String,

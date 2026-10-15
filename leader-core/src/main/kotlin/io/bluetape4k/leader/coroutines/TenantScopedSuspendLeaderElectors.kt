@@ -12,41 +12,33 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.support.requireNotNull
 
 /**
- * `SuspendLeaderElector`는 coroutine suspend leader election 실행자입니다.
- *
- * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @param tenantId tenant scope를 구분하는 식별자입니다.
- * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+ * 모든 lock 이름에 기본 prefix를 사용하는 tenant namespace를 적용한 elector wrapper를 반환합니다.
+ * @param tenantId lock key에 포함할 tenant 식별자
+ * @return 호출마다 tenant namespace를 적용하는 suspend elector
  */
 fun SuspendLeaderElector.forTenant(tenantId: String): SuspendLeaderElector =
     forTenant(TenantLockNamespace(tenantId))
 
 /**
- * `SuspendLeaderElector`는 coroutine suspend leader election 실행자입니다.
- *
- * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @param namespace tenant별 lock 이름을 구성하는 namespace 규칙입니다.
- * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+ * 지정한 tenant namespace를 모든 lock name, slot, 상태 조회 및 request-lease 호출에 적용한 wrapper를 반환합니다.
+ * @param namespace tenant별 lock key를 만드는 규칙
+ * @return namespace를 적용하는 suspend elector
  */
 fun SuspendLeaderElector.forTenant(namespace: TenantLockNamespace): SuspendLeaderElector =
     TenantScopedSuspendLeaderElector(this, namespace)
 
 /**
- * `SuspendLeaderGroupElector`는 여러 slot을 허용하는 coroutine group leader election 실행자입니다.
- *
- * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @param tenantId tenant scope를 구분하는 식별자입니다.
- * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+ * 모든 group lock 이름에 기본 prefix를 사용하는 tenant namespace를 적용한 elector wrapper를 반환합니다.
+ * @param tenantId lock key에 포함할 tenant 식별자
+ * @return 호출마다 tenant namespace를 적용하는 suspend group elector
  */
 fun SuspendLeaderGroupElector.forTenant(tenantId: String): SuspendLeaderGroupElector =
     forTenant(TenantLockNamespace(tenantId))
 
 /**
- * `SuspendLeaderGroupElector`는 여러 slot을 허용하는 coroutine group leader election 실행자입니다.
- *
- * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @param namespace tenant별 lock 이름을 구성하는 namespace 규칙입니다.
- * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+ * 지정한 tenant namespace를 모든 group lock name, slot, 상태 조회에 적용한 wrapper를 반환합니다.
+ * @param namespace tenant별 lock key를 만드는 규칙
+ * @return namespace를 적용하는 suspend group elector
  */
 fun SuspendLeaderGroupElector.forTenant(namespace: TenantLockNamespace): SuspendLeaderGroupElector =
     TenantScopedSuspendLeaderGroupElector(this, namespace)

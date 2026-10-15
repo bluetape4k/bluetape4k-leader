@@ -9,9 +9,8 @@ import java.io.Serializable
 import kotlin.time.Duration
 
 /**
- * `LeaderLockHandle`는 실행 컨텍스트에 캡처되는 lock handle입니다.
+ * `LeaderLockHandle`은 현재 blocking, coroutine 또는 virtual-thread 실행 문맥이 가진 lock 소유권을 나타냅니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 sealed class LeaderLockHandle: Serializable {
 
@@ -21,26 +20,22 @@ sealed class LeaderLockHandle: Serializable {
     val isReentrant: Boolean get() = reentryDepth > 0
 
     /**
-     * `matchesIdentity` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param other `other` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 이 handle의 election identity가 지정한 identity와 같은지 비교합니다.
+     * @param other 비교할 lock 이름·kind·slot 식별자입니다.
+     * @return identity가 같으면 `true`입니다.
      */
     fun matchesIdentity(other: LockIdentity): Boolean = identity == other
 
     /**
-     * `Real` 선언은 leader election 계약에서 사용되는 class입니다.
-     *
-     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     * backend에서 실제로 획득한 lock을 연장하고 소유권을 확인할 수 있는 handle입니다.
      * @property identity lock 이름, token, kind, slot 정보를 묶은 소유권 식별자입니다.
-     * @property token backend lock을 해제하거나 검증할 때 사용하는 소유권 token입니다.
-     * @property acquiredAtNanos `acquiredAtNanos` 호출 또는 상태 계산에 필요한 값입니다.
-     * @property slotId group election backend가 slot을 식별할 때 쓰는 값입니다.
-     * @property acquiringThreadId `acquiringThreadId` 호출 또는 상태 계산에 필요한 값입니다.
-     * @property reentryDepth 같은 실행 컨텍스트에서 재진입한 깊이입니다.
-     * @property extendDelegate `extendDelegate` 호출 또는 상태 계산에 필요한 값입니다.
-     * @property auditLeaderId `auditLeaderId` 호출 또는 상태 계산에 필요한 값입니다.
+     * @property token backend가 이 lock 소유권을 확인하는 token입니다. 문자열 출력 시 가려집니다.
+     * @property acquiredAtNanos lock 획득 시점의 monotonic clock 값(나노초)입니다. 절대 시각으로 해석하면 안 됩니다.
+     * @property slotId group election에서 획득한 slot 식별자입니다. 단일 election이면 `null`입니다.
+     * @property acquiringThreadId lock 획득 스레드 ID입니다. thread-bound 소유권이 없으면 `null`입니다.
+     * @property reentryDepth 이 실행 문맥에서 중첩 획득한 횟수입니다. 최초 획득은 `0`이며 음수는 허용되지 않습니다.
+     * @property extendDelegate backend의 lease 연장·소유권 확인 구현입니다.
+     * @property auditLeaderId audit에 연결할 leader ID입니다. 식별 정보가 없으면 `null`입니다.
      */
     class Real internal constructor(
         override val identity: LockIdentity,
@@ -49,45 +44,38 @@ sealed class LeaderLockHandle: Serializable {
         val slotId: String? = null,
         val acquiringThreadId: Long? = null,
         override val reentryDepth: Int = 0,
-        /**
-         * `extendDelegate` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
-         */
         val extendDelegate: ExtendDelegate,
         val auditLeaderId: String? = null,
     ): LeaderLockHandle() {
 
         /**
-         * `extend`는 현재 lock 소유권을 확인한 뒤 lease를 연장합니다.
+         * 현재 lock의 lease를 지정한 TTL로 연장합니다.
          *
-         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-         * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
-         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+         * @param lockAtMostFor 연장 후 유지할 lease TTL입니다.
+         * @return 연장 결과를 `Extended`, `NotHeld`, `Rejected` 등의 상태로 반환합니다.
          */
         fun extend(lockAtMostFor: Duration): ExtendOutcome = extendDelegate.extend(lockAtMostFor)
 
         /**
-         * `extendSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
+         * suspend backend를 통해 현재 lock의 lease를 지정한 TTL로 연장합니다.
          *
-         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-         * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
-         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+         * @param lockAtMostFor 연장 후 유지할 lease TTL입니다.
+         * @return 연장 결과를 `Extended`, `NotHeld`, `Rejected` 등의 상태로 반환합니다.
          */
         suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
             extendDelegate.extendSuspend(lockAtMostFor)
 
         /**
-         * `isStillHeld` 호출은 leader election 계약의 일부 동작을 수행합니다.
+         * backend에 현재 lock 소유권이 남아 있는지 조회합니다.
          *
-         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+         * @return backend가 lock을 계속 보유한다고 확인하면 `true`입니다.
          */
         fun isStillHeld(): Boolean = extendDelegate.isHeld()
 
         /**
-         * `isStillHeldSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
+         * suspend backend를 사용하거나 동기 fallback으로 현재 lock 소유권을 조회합니다.
          *
-         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+         * @return backend가 lock을 계속 보유한다고 확인하면 `true`입니다.
          */
         suspend fun isStillHeldSuspend(): Boolean =
             if (extendDelegate is SuspendExtendDelegate)
@@ -95,11 +83,10 @@ sealed class LeaderLockHandle: Serializable {
             else extendDelegate.isHeld()
 
         /**
-         * `withReentryDepth` 호출은 leader election 계약의 일부 동작을 수행합니다.
+         * 기존 소유권 정보는 유지하고 재진입 깊이만 바꾼 handle을 반환합니다.
          *
-         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-         * @param n `n` 호출 또는 상태 계산에 필요한 값입니다.
-         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+         * @param n 새 재진입 깊이입니다. `0` 이상이어야 합니다.
+         * @return 지정한 깊이를 가진 새 handle입니다.
          */
         internal fun withReentryDepth(n: Int): Real {
             n.requireGe(0, "n")
@@ -133,10 +120,9 @@ sealed class LeaderLockHandle: Serializable {
     }
 
     /**
-     * `FailOpen` 선언은 leader election 계약에서 사용되는 class입니다.
+     * fail-open 경로가 활성화된 실행 문맥의 sentinel handle입니다. 실제 backend lock을 보유하지 않습니다.
      *
-     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
-     * @property identity lock 이름, token, kind, slot 정보를 묶은 소유권 식별자입니다.
+     * @property identity fail-open 처리를 적용한 lock의 이름·kind·slot 식별자입니다.
      */
     class FailOpen internal constructor(
         override val identity: LockIdentity,
@@ -162,18 +148,17 @@ sealed class LeaderLockHandle: Serializable {
         private const val serialVersionUID = 1L
 
         /**
-         * `real` 호출은 leader election 계약의 일부 동작을 수행합니다.
+         * backend lock 소유권을 나타내는 실제 handle을 생성합니다.
          *
-         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-         * @param identity lock 이름, token, kind, slot 정보를 묶은 소유권 식별자입니다.
-         * @param token backend lock을 해제하거나 검증할 때 사용하는 소유권 token입니다.
-         * @param acquiredAtNanos `acquiredAtNanos` 호출 또는 상태 계산에 필요한 값입니다.
-         * @param slotId group election backend가 slot을 식별할 때 쓰는 값입니다.
-         * @param acquiringThreadId `acquiringThreadId` 호출 또는 상태 계산에 필요한 값입니다.
-         * @param reentryDepth 같은 실행 컨텍스트에서 재진입한 깊이입니다.
-         * @param extendDelegate `extendDelegate` 호출 또는 상태 계산에 필요한 값입니다.
-         * @param auditLeaderId `auditLeaderId` 호출 또는 상태 계산에 필요한 값입니다.
-         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+         * @param identity lock 이름, election kind, slot 식별자를 묶은 값입니다.
+         * @param token backend가 lock 소유권을 검증하는 값입니다.
+         * @param acquiredAtNanos lock 획득 시점의 monotonic clock 값(나노초)입니다.
+         * @param slotId group election에서 획득한 slot ID입니다. 단일 election이면 `null`입니다.
+         * @param acquiringThreadId 소유권이 thread-bound인 경우의 획득 스레드 ID입니다.
+         * @param reentryDepth 같은 문맥에서 중첩 획득한 횟수입니다. 기본값은 `0`입니다.
+         * @param extendDelegate backend의 lease 연장·소유권 확인 구현입니다.
+         * @param auditLeaderId audit에 연결할 leader ID입니다. 기본값은 `null`입니다.
+         * @return 전달한 소유권과 delegate를 보유한 `Real` handle입니다.
          */
         fun real(
             identity: LockIdentity,
@@ -196,11 +181,10 @@ sealed class LeaderLockHandle: Serializable {
         )
 
         /**
-         * `failOpen` 호출은 leader election 계약의 일부 동작을 수행합니다.
+         * fail-open 경로에서 실제 lock 대신 사용할 sentinel handle을 만듭니다.
          *
-         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-         * @param identity lock 이름, token, kind, slot 정보를 묶은 소유권 식별자입니다.
-         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+         * @param identity fail-open 처리를 적용한 lock의 이름·kind·slot 식별자입니다.
+         * @return 실제 backend 소유권이 없는 `FailOpen` sentinel입니다.
          */
         fun failOpen(identity: LockIdentity): FailOpen = FailOpen(identity)
     }

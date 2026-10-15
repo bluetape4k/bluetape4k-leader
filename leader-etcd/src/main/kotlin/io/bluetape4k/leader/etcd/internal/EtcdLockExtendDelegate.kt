@@ -13,11 +13,10 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * `EtcdLockExtendDelegate`는 etcd backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 class입니다.
+ * `EtcdLockExtendDelegate`는 etcd lease keep-alive 결과를 동기 watchdog의 연장/보유 상태로 변환합니다.
  *
- * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
- * @property lockClient etcd backend 계약에서 `lockClient` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property handle etcd backend 계약에서 `handle` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockClient keep-alive 요청을 etcd에 전달하는 클라이언트입니다.
+ * @property handle lease ID·ownership key·반납 상태를 가진 현재 획득 핸들입니다.
  */
 internal class EtcdLockExtendDelegate(
     private val lockClient: EtcdLockClient,
@@ -52,11 +51,10 @@ internal class EtcdLockExtendDelegate(
 }
 
 /**
- * `EtcdSuspendLockExtendDelegate`는 etcd backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 class입니다.
+ * `EtcdSuspendLockExtendDelegate`는 etcd lease keep-alive 결과를 suspend watchdog의 연장/보유 상태로 변환합니다.
  *
- * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
- * @property lockClient etcd backend 계약에서 `lockClient` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property handle etcd backend 계약에서 `handle` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockClient suspend keep-alive 요청을 etcd에 전달하는 클라이언트입니다.
+ * @property handle lease ID·ownership key·반납 상태를 가진 현재 획득 핸들입니다.
  */
 internal class EtcdSuspendLockExtendDelegate(
     private val lockClient: EtcdLockClient,

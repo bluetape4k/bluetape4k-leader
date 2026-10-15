@@ -5,9 +5,8 @@ import java.io.ByteArrayOutputStream
 
 
 /**
- * `EtcdKeyEncoder`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `EtcdKeyEncoder`는 etcd 경로 segment를 UTF-8 byte 기준으로 percent encode/decode합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object EtcdKeyEncoder: KLogging() {
 

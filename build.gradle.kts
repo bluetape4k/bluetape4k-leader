@@ -355,9 +355,7 @@ subprojects {
             dokkaPublications.html {
                 outputDirectory.set(layout.buildDirectory.asFile.get().resolve("javadoc"))
             }
-            dokkaSourceSets.configureEach {
-                includes.from(project.files("README.md"))
-            }
+            // README는 독자용 안내 문서이며 Dokka module/package include 형식을 따르지 않습니다.
         }
 
         clean {

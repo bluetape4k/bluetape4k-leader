@@ -42,9 +42,8 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * `EtcdLeaderElectionEventPublisher`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `EtcdLeaderElectionEventPublisher`는 etcd key prefix를 watch하고 변경을 [LeaderElectionEvent] Flow로 발행합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
     client: Client,

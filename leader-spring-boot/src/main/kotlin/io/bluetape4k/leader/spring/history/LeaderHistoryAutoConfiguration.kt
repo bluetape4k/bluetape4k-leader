@@ -19,11 +19,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
-/**
- * `LeaderHistoryAutoConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- */
+/** history sink가 없을 때 Noop sink를 제공하고, sink와 MeterRegistry에 맞는 safe recorder를 구성합니다. */
 @AutoConfiguration(before = [LeaderElectionAutoConfiguration::class])
 @ConditionalOnProperty(prefix = "bluetape4k.leader.history", name = ["enabled"], matchIfMissing = true)
 class LeaderHistoryAutoConfiguration {
@@ -34,11 +30,7 @@ class LeaderHistoryAutoConfiguration {
     // Noop fallbacks — registered when no real sink bean is present
     // ----------------------------------------------------------------
 
-    /**
-     * `leaderHistorySink` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 사용자 sink가 없을 때 이벤트를 버리는 [NoopLeaderHistorySink]를 fallback으로 등록합니다. */
     @Bean
     @ConditionalOnMissingBean(LeaderHistorySink::class)
     fun leaderHistorySink(): LeaderHistorySink {
@@ -49,11 +41,7 @@ class LeaderHistoryAutoConfiguration {
         return NoopLeaderHistorySink
     }
 
-    /**
-     * `suspendLeaderHistorySink` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 사용자 suspend sink가 없을 때 이벤트를 버리는 [NoopSuspendLeaderHistorySink]를 fallback으로 등록합니다. */
     @Bean
     @ConditionalOnMissingBean(SuspendLeaderHistorySink::class)
     fun suspendLeaderHistorySink(): SuspendLeaderHistorySink = NoopSuspendLeaderHistorySink
@@ -62,11 +50,7 @@ class LeaderHistoryAutoConfiguration {
     // Recorder beans — plain (no Micrometer)
     // ----------------------------------------------------------------
 
-    /**
-     * `safeLeaderHistoryRecorder` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 일반 sink를 감싸는 safe recorder를 등록하며 MeterRegistry가 있으면 micrometer 구현이 우선됩니다. */
     @Bean
     @ConditionalOnMissingBean(SafeLeaderHistoryRecorder::class)
     @ConditionalOnBean(LeaderHistorySink::class)
@@ -75,11 +59,7 @@ class LeaderHistoryAutoConfiguration {
         return SafeLeaderHistoryRecorder(sink)
     }
 
-    /**
-     * `suspendSafeLeaderHistoryRecorder` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 단일 suspend sink가 있을 때 safe recorder를 등록하고, sink가 없거나 여러 개면 등록하지 않습니다. */
     @Bean
     @ConditionalOnMissingBean(SuspendSafeLeaderHistoryRecorder::class)
     fun suspendSafeLeaderHistoryRecorder(
@@ -109,9 +89,7 @@ class LeaderHistoryAutoConfiguration {
     // Micrometer-instrumented recorders (conditional on MeterRegistry)
     // ----------------------------------------------------------------
 
-    /**
-     * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
-     */
+    /** MeterRegistry가 있을 때 history recorder에 실패/누락 카운터를 추가하는 configuration입니다. */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(
         name = [

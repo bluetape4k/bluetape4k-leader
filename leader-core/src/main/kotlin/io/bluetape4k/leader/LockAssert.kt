@@ -6,17 +6,17 @@ import io.bluetape4k.logging.KLogging
 import kotlin.coroutines.coroutineContext
 
 /**
- * `LockAssert` 선언은 leader election 계약에서 사용되는 object입니다.
+ * 현재 thread 또는 coroutine의 leader lock 실행 scope를 검사하고 조회합니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * `assertLocked` 계열은 활성 scope가 실제 lock을 보유하는지 확인하며,
+ * `isLocked` 계열은 현재 scope의 lock 보유 여부를 반환합니다.
  */
 object LockAssert: KLogging() {
 
     /**
-     * `assertLocked` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     * 현재 동기 실행 scope가 실제 lock을 보유하는지 확인합니다.
      *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * `@LeaderElection` 또는 `@LeaderGroupElection` scope가 없거나 fail-open scope이면 `IllegalStateException`을 던집니다.
      */
     @JvmStatic
     fun assertLocked() {
@@ -29,11 +29,10 @@ object LockAssert: KLogging() {
     }
 
     /**
-     * `assertLocked` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     * 지정한 lock의 동기 실행 scope가 실제 lock을 보유하는지 확인합니다.
      *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 활성 scope가 없거나 `lockName`이 현재 scope의 lock 이름과 다르거나 fail-open scope이면 `IllegalStateException`을 던집니다.
+     * @param lockName 현재 동기 실행 scope와 일치해야 하는 lock 이름
      */
     @JvmStatic
     fun assertLocked(lockName: String) {
@@ -46,10 +45,10 @@ object LockAssert: KLogging() {
     }
 
     /**
-     * `isLocked` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     * 현재 동기 실행 scope가 실제 lock을 보유하는지 조회합니다.
      *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 현재 thread에 활성 scope가 없거나 실제 lock을 보유하지 않은 scope이면 `false`를 반환합니다.
+     * @return 현재 동기 실행 scope가 실제 lock을 보유하면 `true`
      */
     @JvmStatic
     fun isLocked(): Boolean {
@@ -58,11 +57,11 @@ object LockAssert: KLogging() {
     }
 
     /**
-     * `isLocked` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     * 지정한 lock의 동기 실행 scope가 실제 lock을 보유하는지 조회합니다.
      *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 일치하는 활성 scope가 없거나 실제 lock을 보유하지 않은 scope이면 `false`를 반환합니다.
+     * @param lockName 현재 동기 실행 scope와 비교할 lock 이름
+     * @return 지정한 lock의 현재 동기 실행 scope가 실제 lock을 보유하면 `true`
      */
     @JvmStatic
     fun isLocked(lockName: String): Boolean {
@@ -71,10 +70,9 @@ object LockAssert: KLogging() {
     }
 
     /**
-     * `assertLockedSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     * 현재 coroutine 실행 scope가 실제 lock을 보유하는지 확인합니다.
      *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 활성 `@LeaderElection` scope가 없거나 fail-open scope이면 `IllegalStateException`을 던집니다.
      */
     suspend fun assertLockedSuspend() {
         val handle = coroutineContext[LockHandleElement]?.handle
@@ -85,11 +83,10 @@ object LockAssert: KLogging() {
     }
 
     /**
-     * `assertLockedSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     * 지정한 lock의 coroutine 실행 scope가 실제 lock을 보유하는지 확인합니다.
      *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 활성 scope가 없거나 `lockName`이 현재 scope의 lock 이름과 다르거나 fail-open scope이면 `IllegalStateException`을 던집니다.
+     * @param lockName 현재 coroutine 실행 scope와 일치해야 하는 lock 이름
      */
     suspend fun assertLockedSuspend(lockName: String) {
         val handle = coroutineContext[LockHandleElement]?.handle
@@ -103,10 +100,10 @@ object LockAssert: KLogging() {
     }
 
     /**
-     * `isLockedSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     * 현재 coroutine 실행 scope가 실제 lock을 보유하는지 조회합니다.
      *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 현재 coroutine context에 활성 scope가 없거나 실제 lock을 보유하지 않은 scope이면 `false`를 반환합니다.
+     * @return 현재 coroutine 실행 scope가 실제 lock을 보유하면 `true`
      */
     suspend fun isLockedSuspend(): Boolean {
         val handle = coroutineContext[LockHandleElement]?.handle ?: return false
@@ -114,11 +111,11 @@ object LockAssert: KLogging() {
     }
 
     /**
-     * `isLockedSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     * 지정한 lock의 coroutine 실행 scope가 실제 lock을 보유하는지 조회합니다.
      *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 현재 coroutine context에 일치하는 활성 scope가 없거나 실제 lock을 보유하지 않은 scope이면 `false`를 반환합니다.
+     * @param lockName 현재 coroutine 실행 scope와 비교할 lock 이름
+     * @return 지정한 lock의 현재 coroutine 실행 scope가 실제 lock을 보유하면 `true`
      */
     suspend fun isLockedSuspend(lockName: String): Boolean {
         val handle = coroutineContext[LockHandleElement]?.handle ?: return false

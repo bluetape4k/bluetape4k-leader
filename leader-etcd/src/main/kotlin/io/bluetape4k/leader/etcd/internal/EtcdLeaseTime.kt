@@ -8,10 +8,9 @@ import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.DurationUnit
 
 /**
- * `EtcdLeaseTime`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `EtcdLeaseTime`는 etcd TTL 초 단위 변환과 기본 jitter 범위를 계산합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property DefaultJitterRatio etcd backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property DefaultJitterRatio keep-alive cadence에 적용할 기본 jitter의 절대 비율 상한입니다. 값은 0.10(±10%)입니다.
  */
 internal object EtcdLeaseTime {
 

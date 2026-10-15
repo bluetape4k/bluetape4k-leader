@@ -6,12 +6,10 @@ import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationRegistry
 
 /**
- * `MicrometerObservationLeaderElectionListener`는 Micrometer observability의 leader election,
- * route guard, metric, example workflow 계약을 설명합니다.
+ * leader election의 elected, revoked, skipped 이벤트를 Micrometer `Observation`으로 기록합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property registry Micrometer observability 계약에서 사용하는 속성입니다.
- * @property options Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property registry observation을 생성할 `ObservationRegistry`입니다. No-op registry이면 이벤트를 기록하지 않습니다.
+ * @property options lock 이름을 observation에 포함할지와 해당 tag sanitization을 정하는 옵션입니다.
  */
 class MicrometerObservationLeaderElectionListener(
     private val registry: ObservationRegistry,

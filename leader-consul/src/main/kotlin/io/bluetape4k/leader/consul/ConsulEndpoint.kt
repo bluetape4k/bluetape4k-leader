@@ -8,10 +8,10 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * `ConsulEndpoint`는 Consul backend leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * @property baseUrl Consul backend 계약에서 `baseUrl` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property datacenter Consul backend 계약에서 `datacenter` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property aclToken Consul backend 계약에서 `aclToken` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property requestTimeout Consul backend 계약에서 `requestTimeout` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property baseUrl Consul HTTP API의 `http` 또는 `https` 기본 URI이며 host를 포함하고 query/fragment/user-info는 가질 수 없습니다.
+ * @property datacenter 요청 query의 `dc` 값입니다. null이면 Consul 기본 datacenter를 사용하고, 값은 공백일 수 없습니다.
+ * @property aclToken Consul ACL 인증 token입니다. null일 수 있으며 `toString()`에서는 항상 `***`로 가립니다.
+ * @property requestTimeout 각 HTTP 요청의 양수 timeout이며 기본값은 5초입니다.
  */
 data class ConsulEndpoint(
     val baseUrl: URI,

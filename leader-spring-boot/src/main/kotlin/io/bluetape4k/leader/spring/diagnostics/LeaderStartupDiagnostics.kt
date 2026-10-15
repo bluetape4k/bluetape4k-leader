@@ -13,14 +13,12 @@ import org.springframework.core.env.getProperty
 import java.io.Serializable
 
 /**
- * `LeaderStartupDiagnostics`는 Spring Boot integration의 leader election,
- * route guard, metric, example workflow 계약을 설명합니다.
+ * 모든 singleton이 생성된 뒤 active backend, state provider, Actuator exposure, raw tag 위험을 검사합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property beanFactory Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property environment Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property leaderProperties Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property aopProperties Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property beanFactory leader state provider와 elector bean을 조회하는 factory입니다.
+ * @property environment Actuator endpoint와 web exposure 설정을 읽는 Spring environment입니다.
+ * @property leaderProperties observability와 diagnostics 설정입니다.
+ * @property aopProperties AOP metric tag redaction 설정입니다.
  */
 class LeaderStartupDiagnostics(
     private val beanFactory: ConfigurableListableBeanFactory,
@@ -59,11 +57,7 @@ class LeaderStartupDiagnostics(
         }
     }
 
-    /**
-     * `lastReport` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 마지막 startup inspection report이며 아직 검사하지 않았으면 `null`입니다. */
     fun lastReport(): Report? =
         report
 
@@ -185,19 +179,18 @@ class LeaderStartupDiagnostics(
         }
     }
 
-    /**
-     * `Report`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+    /** startup diagnostics 결과입니다.
      *
-     * @property activeBackends Spring Boot integration 계약에서 `activeBackends` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property leaderElectorBeans Spring Boot integration 계약에서 `leaderElectorBeans` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property leaderElectorCount Spring Boot integration 계약에서 `leaderElectorCount` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property stateProviderBeans blocking과 suspend 상태 provider bean 이름입니다.
-     * @property stateProviderCount local fallback 제외 정책을 적용한 상태 provider 수입니다.
-     * @property selectedStateProviderBean 운영 상태에 선택된 bean이며 multi-backend ambiguity에서는 null입니다.
-     * @property actuatorEndpoint Spring Boot integration 계약에서 `actuatorEndpoint` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property webExposure Spring Boot integration 계약에서 `webExposure` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property strict Spring Boot integration 계약에서 `strict` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property warnings Spring Boot integration 계약에서 `warnings` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property activeBackends 발견된 backend 이름의 중복 제거 목록입니다.
+     * @property leaderElectorBeans diagnostics 설정이 허용할 때 발견된 blocking elector bean 이름입니다.
+     * @property leaderElectorCount 발견된 blocking elector 수이며 bean 이름 노출 여부와 무관하게 유지됩니다.
+     * @property actuatorEndpoint `enabled` 또는 `disabled`인 leaderElection Actuator endpoint 상태입니다.
+     * @property webExposure `exposed` 또는 `hidden`인 management web exposure 상태입니다.
+     * @property strict warning이 있으면 startup failure로 승격하는지 여부입니다.
+     * @property warnings 발견된 warning 코드와 사람이 읽을 message입니다.
+     * @property stateProviderBeans diagnostics 설정이 허용할 때 발견된 state provider bean 이름입니다.
+     * @property stateProviderCount 발견된 state provider 수입니다.
+     * @property selectedStateProviderBean 선택된 state provider 이름이며 ambiguity 또는 미선택이면 `null`입니다.
      */
     data class Report(
         val activeBackends: List<String>,
@@ -218,11 +211,10 @@ class LeaderStartupDiagnostics(
         }
     }
 
-    /**
-     * `Warning`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+    /** startup diagnostics에서 보고한 하나의 warning입니다.
      *
-     * @property code Spring Boot integration 계약에서 `code` 값을 계산하거나 전달할 때 사용하는 속성입니다.
-     * @property message Spring Boot integration 계약에서 `message` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property code machine-readable warning 종류입니다.
+     * @property message 동일 warning의 사람이 읽을 수 있는 설명입니다.
      */
     data class Warning(
         val code: WarningCode,
@@ -233,11 +225,7 @@ class LeaderStartupDiagnostics(
         }
     }
 
-    /**
-     * `WarningCode`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
-     *
-     * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
-     */
+    /** startup diagnostics가 분류하는 warning 종류입니다. */
     enum class WarningCode {
         NO_LEADER_ELECTOR,
         MULTIPLE_NON_LOCAL_BACKENDS,

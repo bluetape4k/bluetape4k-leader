@@ -1,24 +1,22 @@
 package io.bluetape4k.leader
 
 /**
- * `LeaderElectionState`는 leader election의 현재 상태를 표현합니다.
+ * 개별 lock의 관측 가능한 leader 상태를 조회하는 계약입니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * backend가 owner 정보를 제공하지 않으면 `supportsAuditLeaderState`를 `false`로 두고 빈 상태 snapshot을 반환할 수 있습니다.
  */
 interface LeaderElectionState {
 
     /**
-     * `supportsAuditLeaderState`는 leader election의 현재 상태를 표현합니다.
+     * backend가 상태 snapshot에 현재 owner의 audit leader ID를 포함할 수 있는지 나타냅니다.
      */
     val supportsAuditLeaderState: Boolean
         get() = false
 
     /**
-     * `state`는 현재 leader election 상태 snapshot을 조회합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 지정한 lock에 대해 backend가 관측한 상태 snapshot을 반환합니다. 기본 구현은 owner가 없는 빈 snapshot입니다.
+     * @param lockName 상태를 조회할 lock 이름
+     * @return `lockName`을 포함하는 상태 snapshot이며, 반환값은 `null`이 아닙니다.
      */
     fun state(lockName: String): LeaderState =
         LeaderState.empty(lockName)

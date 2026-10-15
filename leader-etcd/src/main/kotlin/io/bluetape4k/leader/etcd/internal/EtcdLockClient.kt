@@ -10,9 +10,7 @@ import io.etcd.jetcd.options.GetOption.SortTarget
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletableFuture
 
-/**
- * etcd backend leader election 계약을 설명하는 한국어 KDoc입니다.
- */
+/** etcd 단일/group key 계산, lease 부여, lock acquire/release, keep-alive를 추상화한 클라이언트입니다. */
 internal interface EtcdLockClient {
 
     fun singleLockKey(lockName: String): ByteSequence
@@ -33,10 +31,9 @@ internal interface EtcdLockClient {
 }
 
 /**
- * `JetcdEtcdLockClient`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `JetcdEtcdLockClient`는 jetcd의 lease, lock, KV API를 [EtcdLockClient] 계약으로 연결합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client etcd backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client lease·lock·KV API를 호출하는 jetcd client입니다. 인증과 endpoint 설정은 client가 소유합니다.
  */
 internal class JetcdEtcdLockClient(
     private val client: Client,

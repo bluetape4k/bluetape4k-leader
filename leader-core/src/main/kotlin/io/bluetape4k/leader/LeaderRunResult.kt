@@ -4,20 +4,16 @@ import io.bluetape4k.logging.KLogging
 import java.io.Serializable
 
 /**
- * `LeaderRunResult`는 leader election 실행 결과를 null ambiguity 없이 표현하는 sealed result입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * lock 획득 성공, contention skip, 사용자 action 실패를 서로 다른 타입으로 구분합니다.
  */
 sealed interface LeaderRunResult<out T>: Serializable {
 
     companion object: KLogging()
 
     /**
-     * `Elected` 선언은 leader election 계약에서 사용되는 data class입니다.
-     *
-     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
-     * @property value leadership 획득 후 실행한 작업의 반환값입니다.
-     * @property leaderId audit에 기록할 leader identity입니다.
+     * lock 획득에 성공해 action을 실행한 결과입니다.
+     * @property value action 반환값. action이 null을 반환할 수 있습니다.
+     * @property leaderId 결과와 함께 제공할 leader ID. overload에 따라 null일 수 있습니다.
      */
     data class Elected<out T> @JvmOverloads constructor(
         val value: T?,
@@ -29,17 +25,13 @@ sealed interface LeaderRunResult<out T>: Serializable {
     }
 
     /**
-     * `Skipped` 선언은 leader election 계약에서 사용되는 object입니다.
-     *
-     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     * lock contention으로 획득하지 못해 action을 실행하지 않았습니다.
      */
     data object Skipped: LeaderRunResult<Nothing>
 
     /**
-     * `ActionFailed` 선언은 leader election 계약에서 사용되는 data class입니다.
-     *
-     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
-     * @property cause 실패 결과를 만든 원본 예외입니다.
+     * lock 획득 후 action이 예외를 던졌습니다. cancellation은 이 결과 대신 호출자에게 전파됩니다.
+     * @property cause action에서 발생한 원본 예외
      */
     data class ActionFailed(val cause: Throwable): LeaderRunResult<Nothing> {
         companion object {

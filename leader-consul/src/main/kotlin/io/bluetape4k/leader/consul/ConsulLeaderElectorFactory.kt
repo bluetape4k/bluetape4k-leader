@@ -12,11 +12,10 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 
 /**
- * `ConsulLeaderElectorFactory`는 Consul backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `ConsulLeaderElectorFactory`는 endpoint와 기본 옵션으로 Consul 단일 elector를 생성합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property endpoint Consul backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property baseOptions Consul backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property endpoint Consul API base URI와 optional datacenter/ACL token/HTTP timeout입니다.
+ * @property baseOptions create 때 leader 옵션만 교체해 사용할 기본 단일 설정입니다.
  */
 class ConsulLeaderElectorFactory(
     private val endpoint: ConsulEndpoint,
@@ -31,11 +30,10 @@ class ConsulLeaderElectorFactory(
 }
 
 /**
- * `ConsulLeaderGroupElectorFactory`는 Consul backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `ConsulLeaderGroupElectorFactory`는 endpoint와 그룹 기본 옵션으로 Consul slot elector를 생성합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property endpoint Consul backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property baseOptions Consul backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property endpoint Consul API base URI와 optional datacenter/ACL token/HTTP timeout입니다.
+ * @property baseOptions create 때 그룹 옵션만 교체해 사용할 기본 그룹 설정입니다.
  */
 class ConsulLeaderGroupElectorFactory(
     private val endpoint: ConsulEndpoint,
@@ -50,11 +48,10 @@ class ConsulLeaderGroupElectorFactory(
 }
 
 /**
- * `ConsulSuspendLeaderElectorFactory`는 Consul backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `ConsulSuspendLeaderElectorFactory`는 endpoint와 기본 옵션으로 Consul suspend 단일 elector를 생성합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property endpoint Consul backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property baseOptions Consul backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property endpoint suspend Consul API 호출에 공유할 endpoint 설정입니다.
+ * @property baseOptions create 때 leader 옵션만 교체해 사용할 기본 단일 설정입니다.
  */
 class ConsulSuspendLeaderElectorFactory(
     private val endpoint: ConsulEndpoint,
@@ -69,11 +66,10 @@ class ConsulSuspendLeaderElectorFactory(
 }
 
 /**
- * `ConsulSuspendLeaderGroupElectorFactory`는 Consul backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `ConsulSuspendLeaderGroupElectorFactory`는 endpoint와 그룹 기본 옵션으로 Consul suspend slot elector를 생성합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property endpoint Consul backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property baseOptions Consul backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property endpoint suspend Consul API 호출에 공유할 endpoint 설정입니다.
+ * @property baseOptions create 때 그룹 옵션만 교체해 사용할 기본 그룹 설정입니다.
  */
 class ConsulSuspendLeaderGroupElectorFactory(
     private val endpoint: ConsulEndpoint,

@@ -4,11 +4,9 @@ import io.bluetape4k.leader.LeaderSlot
 import java.time.Clock
 import java.util.concurrent.CancellationException
 
-/**
- * `LeaderRouteAuthorityRuntime`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+/** route authority 평가를 cancellation/interruption과 분리하고 실패를 `Unavailable`로 정규화합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property authority Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property authority state 기반 또는 사용자 제공 route authority입니다.
  */
 internal class LeaderRouteAuthorityRuntime(
     internal val authority: LeaderRouteAuthority,

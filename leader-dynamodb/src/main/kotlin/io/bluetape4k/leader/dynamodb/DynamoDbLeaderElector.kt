@@ -32,11 +32,10 @@ import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * `DynamoDbLeaderElector`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `DynamoDbLeaderElector`는 conditional DynamoDB item으로 단일 leader의 blocking/async 실행과 lease를 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property dynamoDb DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property dynamoDb 조건부 put/update/delete와 일관된 read를 수행할 synchronous DynamoDB client입니다.
+ * @property options table/key prefix, lease 대기, retry, TTL padding, clock skew를 포함한 단일 설정입니다.
  */
 class DynamoDbLeaderElector(
     private val dynamoDb: DynamoDbClient,

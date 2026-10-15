@@ -7,10 +7,10 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * `MongoLeaderElectionOptions`는 MongoDB leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * `MongoLeaderElectionOptions`는 MongoDB 단일 선출에 전달할 core 정책과 lock 경합 재시도 상한을 묶는 직렬화 가능한 옵션 모델입니다.
  *
- * @property leaderOptions MongoDB backend 계약에서 `leaderOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property retryDelay MongoDB backend 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaderOptions MongoDB 단일 lock에 전달할 core 대기·lease·node·최소 lease·auto-extend 정책입니다.
+ * @property retryDelay lock 경합 재시도 사이의 양의 지연 상한입니다. 기본값은 `50.milliseconds`이며 실제 sleep은 이 범위의 jitter입니다.
  */
 data class MongoLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -21,9 +21,7 @@ data class MongoLeaderElectionOptions(
     }
 
     companion object {
-        /**
-         * `Default` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-         */
+        /** core 기본 선출 정책과 50ms retry 상한을 사용하는 MongoDB 옵션입니다. */
         @JvmField
         val Default = MongoLeaderElectionOptions()
 

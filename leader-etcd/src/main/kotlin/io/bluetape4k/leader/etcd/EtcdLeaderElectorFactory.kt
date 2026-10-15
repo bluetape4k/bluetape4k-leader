@@ -13,11 +13,10 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import io.etcd.jetcd.Client
 
 /**
- * `EtcdLeaderElectorFactory`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `EtcdLeaderElectorFactory`는 jetcd client와 기본 옵션으로 단일 blocking elector를 생성합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client etcd backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property baseOptions etcd backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client lease와 lock API를 호출할 jetcd client입니다.
+ * @property baseOptions create 호출에 복사해 쓰는 기본 단일 선거 설정입니다.
  */
 class EtcdLeaderElectorFactory(
     private val client: Client,
@@ -32,11 +31,10 @@ class EtcdLeaderElectorFactory(
 }
 
 /**
- * `EtcdLeaderGroupElectorFactory`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `EtcdLeaderGroupElectorFactory`는 jetcd client와 그룹 기본 옵션으로 slot elector를 생성합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client etcd backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property baseOptions etcd backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client lease와 group slot lock API를 호출할 jetcd client입니다.
+ * @property baseOptions create 호출에 복사해 쓰는 기본 그룹 선거 설정입니다.
  */
 class EtcdLeaderGroupElectorFactory(
     private val client: Client,
@@ -51,11 +49,10 @@ class EtcdLeaderGroupElectorFactory(
 }
 
 /**
- * `EtcdSuspendLeaderElectorFactory`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `EtcdSuspendLeaderElectorFactory`는 jetcd client와 기본 옵션으로 suspend 단일 elector를 생성합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client etcd backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property baseOptions etcd backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client suspend lease와 lock API를 호출할 jetcd client입니다.
+ * @property baseOptions create 호출에 복사해 쓰는 기본 단일 선거 설정입니다.
  */
 class EtcdSuspendLeaderElectorFactory(
     private val client: Client,
@@ -70,11 +67,10 @@ class EtcdSuspendLeaderElectorFactory(
 }
 
 /**
- * `EtcdSuspendLeaderGroupElectorFactory`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `EtcdSuspendLeaderGroupElectorFactory`는 jetcd client와 그룹 기본 옵션으로 suspend slot elector를 생성합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client etcd backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property baseOptions etcd backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client suspend group slot lock API를 호출할 jetcd client입니다.
+ * @property baseOptions create 호출에 복사해 쓰는 기본 그룹 선거 설정입니다.
  */
 class EtcdSuspendLeaderGroupElectorFactory(
     private val client: Client,

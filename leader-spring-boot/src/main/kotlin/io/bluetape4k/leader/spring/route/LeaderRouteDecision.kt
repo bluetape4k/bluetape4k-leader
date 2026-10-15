@@ -1,28 +1,14 @@
 package io.bluetape4k.leader.spring.route
 
-/**
- * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
- */
+/** route guard가 반환하는 세 가지 authority 결정입니다. */
 sealed interface LeaderRouteDecision {
 
-    /**
-     * `Allowed`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
-     *
-     * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
-     */
+    /** 현재 slot이 leader로 확인되어 route 실행을 허용합니다. */
     data object Allowed: LeaderRouteDecision
 
-    /**
-     * `NotLeader`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
-     *
-     * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
-     */
+    /** 현재 slot의 leader ID가 state와 일치하지 않아 route 실행을 거부합니다. */
     data object NotLeader: LeaderRouteDecision
 
-    /**
-     * `Unavailable`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
-     *
-     * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
-     */
+    /** backend 또는 authority 평가 실패로 판단할 수 없어 route 실행을 거부합니다. */
     data object Unavailable: LeaderRouteDecision
 }

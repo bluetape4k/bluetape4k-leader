@@ -3,12 +3,12 @@ package io.bluetape4k.leader.micrometer
 import java.io.Serializable
 
 /**
- * `LeaderObservationOptions`는 Micrometer observability에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * Micrometer `Observation`에 leader election 정보를 어느 범위까지 기록할지 정합니다.
  *
- * @property includeLockName Micrometer observability 계약에서 `includeLockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property includeLeaderId Micrometer observability 계약에서 `includeLeaderId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property includeExceptionDetails Micrometer observability 계약에서 `includeExceptionDetails` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property tagOptions Micrometer observability 계약에서 `tagOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property includeLockName `true`이면 observation의 high-cardinality `lock.name`에 lock 이름을 추가합니다. 기본값은 `false`입니다.
+ * @property includeLeaderId `true`이면 식별 가능한 context의 leader ID와 출처를 observation에 추가합니다. 기본값은 `false`입니다.
+ * @property includeExceptionDetails `true`이면 취소가 아닌 작업 실패의 throwable을 `Observation.error`로 기록합니다. 기본값은 `false`입니다.
+ * @property tagOptions lock 이름과 leader ID를 observation tag로 기록할 때 적용할 sanitization 규칙입니다. 기본값은 민감한 값의 노출을 막는 `LeaderMetricTagOptions.Default`입니다.
  */
 data class LeaderObservationOptions(
     val includeLockName: Boolean = false,
@@ -17,9 +17,7 @@ data class LeaderObservationOptions(
     val tagOptions: LeaderMetricTagOptions = LeaderMetricTagOptions.Default,
 ): Serializable {
 
-    /**
-     * Micrometer observability 계약을 설명하는 한국어 KDoc입니다.
-     */
+    /** 세 가지 boolean 설정을 지정하고 기본 tag options를 사용하는 호환 생성자입니다. */
     constructor(
         includeLockName: Boolean,
         includeLeaderId: Boolean,

@@ -17,7 +17,7 @@ import io.ktor.server.application.pluginOrNull
 import io.ktor.util.AttributeKey
 
 /**
- * `LeaderElectionPlugin` 값은 Ktor integration 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * `LeaderElectionPluginConfig`로 elector와 선택한 management/diagnostics/event route를 Application에 설치합니다.
  */
 @Suppress("TooGenericExceptionCaught")
 val LeaderElectionPlugin = createApplicationPlugin(
@@ -138,7 +138,7 @@ private fun Any.resolveBackendDiagnosticsProvider(): LeaderBackendDiagnosticsPro
     }
 
 /**
- * `LeaderElectionConfigKey` 값은 Ktor integration 계약에서 사용하는 설정 또는 상태 항목입니다.
+ * 설치된 plugin 설정을 Application attributes에서 조회하는 key입니다.
  */
 internal val LeaderElectionConfigKey: AttributeKey<LeaderElectionPluginConfig> =
     AttributeKey("io.bluetape4k.leader.ktor.LeaderElectionPluginConfig")
@@ -156,9 +156,7 @@ internal fun Application.leaderElectionResourceRegistryOrNull(): LeaderElectionR
     attributes.getOrNull(LeaderElectionResourceRegistryKey)
 
 /**
- * `Application` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+ * 현재 Application에 설치된 `LeaderElectionPluginConfig`를 반환합니다. plugin이 없으면 예외를 던집니다.
  */
 fun Application.leaderElectionPluginConfig(): LeaderElectionPluginConfig {
     return attributes.getOrNull(LeaderElectionConfigKey)
@@ -166,9 +164,7 @@ fun Application.leaderElectionPluginConfig(): LeaderElectionPluginConfig {
 }
 
 /**
- * `LeaderElectionPluginInternals`는 Ktor integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * plugin 이름과 logger를 보관하는 내부 공용 객체입니다.
  */
 internal object LeaderElectionPluginInternals: KLogging() {
     const val NAME: String = "LeaderElection"

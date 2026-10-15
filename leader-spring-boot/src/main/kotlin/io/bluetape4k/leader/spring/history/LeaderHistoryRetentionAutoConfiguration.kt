@@ -13,11 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.scheduling.annotation.EnableScheduling
 
-/**
- * `LeaderHistoryRetentionAutoConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
- *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- */
+/** history retention property와 elector/sink bean이 있을 때 scheduled cleanup job을 등록합니다. */
 @AutoConfiguration(after = [LeaderAopAutoConfiguration::class])
 @ConditionalOnProperty(prefix = "bluetape4k.leader.history.retention", name = ["enabled"], matchIfMissing = true)
 @EnableScheduling

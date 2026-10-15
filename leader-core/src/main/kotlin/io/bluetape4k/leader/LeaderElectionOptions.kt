@@ -9,15 +9,14 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * `LeaderElectionOptions`는 single leader election 옵션입니다.
+ * `LeaderElectionOptions`는 단일 leadership 획득과 lease 유지 정책을 설정합니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property waitTime leader lock 획득을 기다리는 최대 시간입니다.
- * @property leaseTime leadership을 보유할 수 있는 lease TTL입니다.
- * @property nodeId 상태 조회와 audit에 노출되는 노드 또는 인스턴스 식별자입니다.
- * @property minLeaseTime 작업이 빨리 끝나더라도 lease를 최소로 유지할 시간입니다.
- * @property autoExtend 작업 실행 중 lease를 주기적으로 연장할지 결정합니다.
- * @property useDbTime DB backend가 lease 만료 계산에 database server clock을 사용할지 결정합니다.
+ * @property waitTime lock 획득을 기다릴 최대 시간입니다. `0`이면 추가로 기다리지 않으며, 기본값은 5초입니다.
+ * @property leaseTime 획득한 lock의 lease TTL입니다. 양수여야 하며 기본값은 60초입니다.
+ * @property nodeId 이 프로세스의 leader 후보 식별자입니다. 공백은 허용되지 않으며 기본값은 `LeaderNodeId.Default`입니다.
+ * @property minLeaseTime 작업이 일찍 끝나도 획득 시점부터 유지할 최소 시간입니다. `0` 이상 `leaseTime` 이하이며 기본값은 `0`입니다.
+ * @property autoExtend `true`이면 작업이 실행되는 동안 watchdog이 lease를 연장합니다. 기본값은 `false`입니다.
+ * @property useDbTime Exposed JDBC/R2DBC backend가 만료 시각 계산에 DB server clock을 사용할지 정합니다. 다른 backend는 이 옵션을 사용하지 않으며 기본값은 `false`입니다.
  */
 data class LeaderElectionOptions(
     val waitTime: Duration = DefaultWaitTime,
@@ -42,7 +41,7 @@ data class LeaderElectionOptions(
         val DefaultLeaseTime: Duration = 60.seconds
 
         /**
-         * `Default` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+         * 기본 대기 시간 5초, lease TTL 60초, 자동 연장 비활성화로 구성한 기본 옵션입니다.
          */
         @JvmField
         val Default = LeaderElectionOptions()

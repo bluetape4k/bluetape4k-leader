@@ -31,9 +31,9 @@ import org.springframework.context.annotation.Role
 import org.springframework.core.annotation.Order
 
 /**
- * `LeaderAopAutoConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * `LeaderElectorFactory`와 AspectJ가 존재하고 `bluetape4k.leader.aop.enabled=true`일 때 AOP infrastructure bean을 등록합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * factory selector, SpEL evaluator, lock validator, single/group aspect, annotation validator를 구성합니다.
  */
 @AutoConfiguration(after = [LeaderAopFactoryAutoConfiguration::class])
 @ConditionalOnClass(name = ["org.aspectj.lang.annotation.Aspect"])

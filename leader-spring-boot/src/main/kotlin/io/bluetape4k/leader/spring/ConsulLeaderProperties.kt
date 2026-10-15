@@ -4,11 +4,11 @@ import java.io.Serializable
 import java.time.Duration
 
 /**
- * `ConsulLeaderProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * Spring Boot의 Consul leader backend가 lock key와 session 이름을 만드는 설정입니다.
  *
- * @property keyPrefix Spring Boot integration 계약에서 `keyPrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property sessionNamePrefix Spring Boot integration 계약에서 `sessionNamePrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property lockDelay Spring Boot integration 계약에서 `lockDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property keyPrefix Consul KV lock key 앞에 붙이는 prefix입니다. 기본값은 `bluetape4k/leader`입니다.
+ * @property sessionNamePrefix Consul session 이름 앞에 붙이는 prefix입니다. 기본값은 `bluetape4k-leader`입니다.
+ * @property lockDelay Consul lock release 후 재획득을 지연하는 시간입니다. 기본값은 `Duration.ZERO`입니다.
  */
 data class ConsulLeaderProperties(
     val keyPrefix: String = DefaultKeyPrefix,

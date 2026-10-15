@@ -33,12 +33,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * `MongoSuspendLock`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `MongoSuspendLock`는 MongoDB lock key의 token 기반 tryLock·ownership 확인·unlock·lease 연장을 suspend 경로로 수행합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property collection MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lockKey MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property retryDelay MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * `tryLock`이 경합·timeout으로 ownership을 획득하지 못하면 `false`를 반환하며, unlock/extend는 backend token 일치 여부를 확인해 불일치·만료를 성공으로 처리하지 않습니다.
+ * @property collection `_id`, `token`, `expireAt` lock 문서를 저장하는 coroutine MongoDB collection입니다.
+ * @property lockKey lock 문서의 `_id`입니다. 그룹 elector는 `$lockName:slot:n` 형식의 슬롯 키를 전달합니다.
+ * @property retryDelay 경합 재시도 사이의 양의 jitter 상한이며 실제 delay는 `1ms` 이상 이 값 미만으로 선택됩니다.
  */
 class MongoSuspendLock private constructor(
     private val collection: MongoCollection<Document>,
@@ -48,11 +48,7 @@ class MongoSuspendLock private constructor(
     companion object: KLoggingChannel() {
         private val ensuredNamespaces: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
-        /**
-         * `ensureIndexes` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
-         *
-         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-         */
+        /** namespace별로 `expireAt` TTL index를 한 번 만들며, 생성 실패 시 다음 호출이 재시도할 수 있게 marker를 제거합니다. */
         suspend fun ensureIndexes(collection: MongoCollection<Document>) {
             val namespace = collection.namespace.fullName
             if (ensuredNamespaces.add(namespace)) {
@@ -68,11 +64,7 @@ class MongoSuspendLock private constructor(
             }
         }
 
-        /**
-         * `resetEnsuredFor` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
-         *
-         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-         */
+        /** 테스트·복구용으로 namespace의 index-created marker를 제거해 다음 `ensureIndexes`가 다시 실행되게 합니다. */
         internal fun resetEnsuredFor(namespace: String) {
             ensuredNamespaces.remove(namespace)
         }
@@ -89,11 +81,7 @@ class MongoSuspendLock private constructor(
 
     internal val token: String = Base58.randomString(MongoLock.DEFAULT_TOKEN_LENGTH)
 
-    /**
-     * `tryLock` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** atomic upsert로 lock 문서를 획득하고, 경합이면 jitter 재시도를 `waitTime` deadline까지 수행합니다. 오류·시간 초과는 `false`입니다. */
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
         val deadline = MonotonicDeadline.fromNow(waitTime)
 
@@ -160,11 +148,7 @@ class MongoSuspendLock private constructor(
         return false
     }
 
-    /**
-     * `isHeldByCurrentInstance` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** `_id`와 `token`이 현재 인스턴스 값과 일치하는 문서가 있는지 coroutine query로 검사합니다. */
     suspend fun isHeldByCurrentInstance(): Boolean =
         collection.countDocuments(
             Filters.and(
@@ -173,11 +157,7 @@ class MongoSuspendLock private constructor(
             )
         ) > 0
 
-    /**
-     * `unlock` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 소유 token을 검증한 뒤 남은 `minLeaseTime`이 있으면 `expireAt`만 갱신하고, 없으면 문서를 삭제합니다. */
     suspend fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
         acquiredAtNanos: Long = System.nanoTime(),
@@ -206,11 +186,7 @@ class MongoSuspendLock private constructor(
         }
     }
 
-    /**
-     * `extendDetailed` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** `_id`·token이 일치하고 기존 `expireAt`이 아직 유효할 때만 lease를 갱신하며 `Extended` 또는 `NotHeld`를 반환합니다. */
     suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val nowMs = System.currentTimeMillis()
         val leaseMs = leaseTime.inWholeMilliseconds

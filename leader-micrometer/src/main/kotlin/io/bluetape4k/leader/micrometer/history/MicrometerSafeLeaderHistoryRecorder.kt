@@ -7,9 +7,9 @@ import io.bluetape4k.logging.KLogging
 import io.micrometer.core.instrument.MeterRegistry
 
 /**
- * `MicrometerSafeLeaderHistoryRecorder`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * 동기 history sink를 Micrometer counter로 감싸는 `SafeLeaderHistoryRecorder`입니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * sink 예외는 원래 호출자에게 다시 전달하면서 실패 횟수와 acquisition key 누락을 기록합니다.
  */
 open class MicrometerSafeLeaderHistoryRecorder(
     sink: LeaderHistorySink,

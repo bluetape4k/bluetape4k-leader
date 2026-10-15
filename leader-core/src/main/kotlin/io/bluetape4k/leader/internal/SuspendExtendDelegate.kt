@@ -4,9 +4,7 @@ import io.bluetape4k.leader.ExtendOutcome
 import kotlin.time.Duration
 
 /**
- * `SuspendExtendDelegate` 선언은 leader election 계약에서 사용되는 interface입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * suspend 전용 backend를 위한 delegate입니다. 잘못된 blocking 호출은 `BackendError`로 보고하며 lock을 보유했다고 답하지 않습니다.
  */
 interface SuspendExtendDelegate: ExtendDelegate {
 

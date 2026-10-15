@@ -14,11 +14,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * `LettuceSlotExtendDelegate`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `LettuceSlotExtendDelegate`는 Redis Lettuce 그룹 slot/permit의 lease 연장과 현재 ownership 확인을 elector에서 분리해 위임합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property group Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property token Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property group lockName의 slot sorted-set과 metadata hash를 관리하는 그룹 객체입니다.
+ * @property token 해당 그룹에서 이 delegate가 소유한 slot token입니다. Redis ownership 확인에 사용되므로 민감한 값입니다.
  */
 internal class LettuceSlotExtendDelegate(
     private val group: LettuceSlotTokenGroup,

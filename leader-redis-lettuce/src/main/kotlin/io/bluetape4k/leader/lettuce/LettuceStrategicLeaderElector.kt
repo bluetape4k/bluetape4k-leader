@@ -17,10 +17,10 @@ import kotlinx.coroutines.CancellationException
 import kotlin.time.Duration
 
 /**
- * `LettuceStrategicLeaderElector`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `LettuceStrategicLeaderElector`는 Redis Lettuce 후보 registry와 전략 점수를 사용해 단일 leader 후보를 선택하고 lease를 실행합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property nodeId Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * lock 또는 slot을 획득하지 못한 `runIfLeader` 호출은 예외 대신 `null`/skip 결과를 반환합니다.
+ * @property nodeId 후보 registry에서 이 인스턴스를 식별할 값입니다. 기본값은 `Uuid.V7.nextBase62()`로 생성합니다.
  */
 class LettuceStrategicLeaderElector @JvmOverloads constructor(
     connection: StatefulRedisConnection<String, String>,
@@ -60,11 +60,7 @@ class LettuceStrategicLeaderElector @JvmOverloads constructor(
     override fun updateResult(lockName: String, nodeId: String, result: CandidateResult) =
         registry.updateResult(lockName, nodeId, result)
 
-    /**
-     * `선언` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 후보 목록을 strategy로 선출해 이 인스턴스가 winner일 때만 `action`을 실행하고 결과 통계를 갱신합니다. winner가 아니면 `null`입니다. */
     @Suppress("ReturnCount", "TooGenericExceptionCaught", "ThrowsCount")
     override fun <T> runIfLeader(
         lockName: String,

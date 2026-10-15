@@ -10,11 +10,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.ForkJoinPool
 
-/**
- * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
+/** `jobName`의 `RLock`을 획득한 경우에만 동기 `action`을 실행하고, 정상 경합이면 `null`을 반환합니다. */
 inline fun <T> RedissonClient.runIfLeader(
     jobName: String,
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -25,11 +21,7 @@ inline fun <T> RedissonClient.runIfLeader(
     return leaderElection.runIfLeader(jobName) { action() }
 }
 
-/**
- * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
+/** `RLock` 획득과 action future 정리를 `executor`에서 수행하며, 경합이면 완료값 `null`을 반환합니다. */
 inline fun <T> RedissonClient.runAsyncIfLeader(
     jobName: String,
     executor: Executor = ForkJoinPool.commonPool(),
@@ -41,11 +33,7 @@ inline fun <T> RedissonClient.runAsyncIfLeader(
     return leaderElection.runAsyncIfLeader(jobName, executor) { action() }
 }
 
-/**
- * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
+/** `lg:{$lockName}` permit semaphore에서 한 슬롯을 획득한 경우에만 동기 `action`을 실행합니다. 슬롯이 없으면 `null`입니다. */
 inline fun <T> RedissonClient.runIfLeaderGroup(
     lockName: String,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -58,11 +46,7 @@ inline fun <T> RedissonClient.runIfLeaderGroup(
         }
 }
 
-/**
- * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
+/** coroutine에서 `RLock`을 획득한 경우에만 suspend `action`을 실행하고, 정상 경합이면 `null`을 반환합니다. */
 suspend inline fun <T> RedissonClient.suspendRunIfLeader(
     jobName: String,
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -74,11 +58,7 @@ suspend inline fun <T> RedissonClient.suspendRunIfLeader(
     return leaderElection.runIfLeader(jobName) { action() }
 }
 
-/**
- * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
- */
+/** coroutine에서 `lg:{$lockName}` permit을 획득해 suspend `action`을 실행하고, 슬롯이 없으면 `null`을 반환합니다. */
 suspend fun <T> RedissonClient.runSuspendIfLeaderGroup(
     lockName: String,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,

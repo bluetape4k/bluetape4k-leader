@@ -7,27 +7,29 @@ import org.springframework.scheduling.annotation.Scheduled
 import java.util.concurrent.TimeUnit
 
 /**
- * `LeaderScheduled`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * Spring `@Scheduled`와 leader election을 하나의 annotation으로 결합합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property name Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property cron Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property zone Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property fixedRate Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property fixedRateString Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property fixedDelay Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property fixedDelayString Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property initialDelay Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property initialDelayString Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property timeUnit Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property scheduler Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property waitTime Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property leaseTime Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property minLeaseTime Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property autoExtend Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property streamBounded Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property bean Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property failureMode Spring Boot integration 계약에서 사용하는 속성입니다.
+ * `cron`, fixed rate/delay, initial delay, time unit, scheduler는 Spring `@Scheduled`로 alias되고,
+ * wait/lease와 failure 정책은 `@LeaderElection`으로 alias됩니다.
+ *
+ * @property name leader lock 이름이며 비워 둘 수 없습니다.
+ * @property cron Spring cron 표현식이며 기본값은 빈 문자열입니다.
+ * @property zone cron이 해석될 시간대이며 기본값은 JVM default입니다.
+ * @property fixedRate 이전 invocation 시작부터의 고정 주기이며 기본값 `-1`은 미설정 sentinel입니다.
+ * @property fixedRateString property 또는 duration 문자열로 지정하는 fixed rate이며 기본값은 빈 문자열입니다.
+ * @property fixedDelay 이전 invocation 완료부터의 고정 지연이며 기본값 `-1`은 미설정 sentinel입니다.
+ * @property fixedDelayString property 또는 duration 문자열로 지정하는 fixed delay이며 기본값은 빈 문자열입니다.
+ * @property initialDelay 첫 invocation 전 지연이며 기본값 `-1`은 미설정 sentinel입니다.
+ * @property initialDelayString property 또는 duration 문자열로 지정하는 initial delay이며 기본값은 빈 문자열입니다.
+ * @property timeUnit 숫자 schedule 값의 단위이며 기본값은 milliseconds입니다.
+ * @property scheduler schedule 실행에 사용할 Spring `TaskScheduler` bean 이름이며 기본값은 빈 문자열입니다.
+ * @property waitTime lock 획득 대기 기간이며 빈 문자열이면 공통 AOP 기본값을 사용합니다.
+ * @property leaseTime lease 기간이며 빈 문자열이면 공통 AOP 기본값을 사용합니다.
+ * @property minLeaseTime 허용할 최소 lease 기간이며 기본값은 `PT0S`입니다.
+ * @property autoExtend 실행 중 lease 자동 연장 여부이며 기본값은 `false`입니다.
+ * @property streamBounded stream 결과가 lease 안에 종료된다고 선언할지 여부이며 기본값은 `false`입니다.
+ * @property bean 사용할 elector factory bean 이름이며 빈 문자열이면 selector 자동 선택을 사용합니다.
+ * @property failureMode backend 오류 또는 lock 미획득 처리 정책이며 기본값 `INHERIT`는 AOP 공통 설정을 따릅니다.
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)

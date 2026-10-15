@@ -1,9 +1,7 @@
 package io.bluetape4k.leader
 
 /**
- * `LeaderElectionException` 선언은 leader election 계약에서 사용되는 class입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * 단일 leader election 처리 중 발생한 오류를 나타내는 기본 예외입니다.
  */
 open class LeaderElectionException: RuntimeException {
     constructor(): super()
@@ -13,9 +11,7 @@ open class LeaderElectionException: RuntimeException {
 }
 
 /**
- * `LeaderGroupElectionException` 선언은 leader election 계약에서 사용되는 class입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * 그룹 leader election 처리 중 발생한 오류를 구분하는 `LeaderElectionException` 하위 타입입니다.
  */
 open class LeaderGroupElectionException: LeaderElectionException {
     constructor(): super()

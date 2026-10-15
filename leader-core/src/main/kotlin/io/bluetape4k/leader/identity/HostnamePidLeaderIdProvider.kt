@@ -6,10 +6,8 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireGt
 
 /**
- * `HostnamePidLeaderIdProvider` 선언은 leader election 계약에서 사용되는 class입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property suffixLength `suffixLength` 호출 또는 상태 계산에 필요한 값입니다.
+ * 기본 node ID와 임의 Base58 suffix를 결합해 실행마다 다른 leader ID를 생성합니다.
+ * @property suffixLength 임의 suffix의 문자 수. 0보다 커야 합니다.
  */
 class HostnamePidLeaderIdProvider(val suffixLength: Int = 8): LeaderIdProvider {
 

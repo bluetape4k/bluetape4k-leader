@@ -35,11 +35,10 @@ import java.util.concurrent.CompletableFuture
 import kotlin.time.Duration
 
 /**
- * `EtcdSuspendLeaderElector`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `EtcdSuspendLeaderElector`는 jetcd lease/lock 호출을 suspend 방식으로 수행해 단일 leader 실행을 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property lockClient etcd backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options etcd backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockClient suspend lease 발급·lock/unlock·keep-alive·revoke를 etcd에 위임하는 클라이언트입니다.
+ * @property options lease 대기·연장과 키 prefix, retry delay를 포함한 단일 선거 설정입니다.
  */
 class EtcdSuspendLeaderElector private constructor(
     private val lockClient: EtcdLockClient,

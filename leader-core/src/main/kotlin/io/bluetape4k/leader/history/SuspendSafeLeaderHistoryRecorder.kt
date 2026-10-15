@@ -7,10 +7,9 @@ import kotlinx.coroutines.CancellationException
 import java.time.Instant
 
 /**
- * `SuspendSafeLeaderHistoryRecorder`는 leader election audit/history 저장 계약을 표현합니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property sink `sink` 호출 또는 상태 계산에 필요한 값입니다.
+ * suspend history sink 오류를 기록하고 election 작업에 전파하지 않는 best-effort recorder입니다.
+ * cancellation과 interrupt는 삼키지 않고 전파합니다.
+ * @property sink 정리한 record를 저장할 suspend history sink
  */
 open class SuspendSafeLeaderHistoryRecorder(protected val sink: SuspendLeaderHistorySink) {
 

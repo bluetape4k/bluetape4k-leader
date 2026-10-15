@@ -18,15 +18,12 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 
 /**
- * `RedisScript`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `RedisScript`는 Redis `EVAL`/`EVALSHA` 실행에 사용할 Lua 원문과 소문자 SHA-1 식별자를 함께 제공합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property source Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property source Redis에 `EVAL`로 전송할 Lua 원문입니다. key와 인자는 실행 메서드가 별도로 전달합니다.
  */
 class RedisScript(val source: String) {
-    /**
-     * `sha1` 값은 Redis Lettuce backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-     */
+    /** `EVALSHA`에 사용할 source의 소문자 hexadecimal SHA-1 digest입니다. `NOSCRIPT`이면 원문 fallback을 실행합니다. */
     val sha1: String = sha1Hex(source)
 
     companion object: KLogging() {
@@ -45,18 +42,13 @@ class RedisScript(val source: String) {
 }
 
 /**
- * `RedisScriptRunner`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `RedisScriptRunner`는 Redis Lua script를 sync/async/suspend 경로로 실행하고 `NOSCRIPT`일 때만 원문 `EVAL`로 재시도합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 @Suppress("TooManyFunctions")
 object RedisScriptRunner: KLogging() {
 
-    /**
-     * `선언` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** 먼저 `EVALSHA`를 실행하고 `RedisNoScriptException`일 때만 source를 `EVAL`로 재전송합니다. */
     fun <T> run(
         commands: RedisCommands<String, String>,
         script: RedisScript,
@@ -98,11 +90,7 @@ object RedisScriptRunner: KLogging() {
         }
     }
 
-    /**
-     * `선언` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** async `EVALSHA`를 실행하며 `NOSCRIPT`만 source `EVAL`로 대체하고 그 밖의 오류는 failed future로 전달합니다. */
     fun <T> runAsync(
         commands: RedisAsyncCommands<String, String>,
         script: RedisScript,
@@ -148,11 +136,7 @@ object RedisScriptRunner: KLogging() {
         }
     }
 
-    /**
-     * `선언` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** suspend `EVALSHA`를 실행하며 `NOSCRIPT`일 때 source `EVAL`로 대체하고 나머지 오류는 호출자에게 전파합니다. */
     suspend fun <T> runSuspending(
         commands: RedisAsyncCommands<String, String>,
         script: RedisScript,

@@ -13,10 +13,10 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * `ConsulLeaderElectionOptions`는 Consul backend leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * @property leaderOptions Consul backend 계약에서 `leaderOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property keyPrefix Consul backend 계약에서 `keyPrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property sessionNamePrefix Consul backend 계약에서 `sessionNamePrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property lockDelay Consul backend 계약에서 `lockDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaderOptions lease·대기·최소 lease·자동 연장과 owner를 포함한 공통 단일 선거 설정입니다.
+ * @property keyPrefix Consul KV lock 키의 루트 경로이며 Consul 경로 규칙으로 검증됩니다.
+ * @property sessionNamePrefix Consul session 이름 앞부분이며 공백 문자만 포함한 값은 허용하지 않습니다.
+ * @property lockDelay session 해제 뒤 Consul이 lock을 재획득 가능하게 하기 전 지연이며 0 이상입니다.
  */
 data class ConsulLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -50,10 +50,10 @@ data class ConsulLeaderElectionOptions(
 /**
  * `ConsulLeaderGroupElectionOptions`는 Consul backend leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * @property leaderGroupOptions Consul backend 계약에서 `leaderGroupOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property keyPrefix Consul backend 계약에서 `keyPrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property sessionNamePrefix Consul backend 계약에서 `sessionNamePrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property lockDelay Consul backend 계약에서 `lockDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaderGroupOptions maxLeaders·lease·대기·최소 lease를 포함한 공통 그룹 선거 설정입니다.
+ * @property keyPrefix Consul KV group lock 키의 루트 경로이며 Consul 경로 규칙으로 검증됩니다.
+ * @property sessionNamePrefix Consul group session 이름 앞부분이며 공백 문자만 포함한 값은 허용하지 않습니다.
+ * @property lockDelay session 해제 뒤 Consul이 lock을 재획득 가능하게 하기 전 지연이며 0 이상입니다.
  */
 data class ConsulLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -62,9 +62,7 @@ data class ConsulLeaderGroupElectionOptions(
     val lockDelay: Duration = Duration.ZERO,
 ): Serializable {
 
-    /**
-     * `maxLeaders` 값은 Consul backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-     */
+    /** lock name별로 동시에 허용되는 활성 슬롯의 상한입니다. 공통 그룹 옵션에서 가져옵니다. */
     val maxLeaders: Int get() = leaderGroupOptions.maxLeaders
 
     init {

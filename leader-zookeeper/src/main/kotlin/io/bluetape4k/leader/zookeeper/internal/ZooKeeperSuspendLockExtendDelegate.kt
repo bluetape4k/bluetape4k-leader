@@ -12,13 +12,12 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * `ZooKeeperSuspendLockExtendDelegate`는 ZooKeeper backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ZooKeeperSuspendLockExtendDelegate`는 ZooKeeper 단일 lock의 lease 연장과 현재 ownership 확인을 elector에서 분리해 위임합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property mutex ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lockKey ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lockPath ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client 현재 ephemeral lock node가 살아 있는지 확인할 Curator client입니다.
+ * @property mutex 이 process가 `InterProcessMutex`를 보유했는지 확인할 Curator mutex입니다.
+ * @property lockKey 논리적 election path이며 진단용 lock identity입니다.
+ * @property lockPath 현재 owner가 획득한 정확한 ephemeral node path입니다.
  */
 internal class ZooKeeperSuspendLockExtendDelegate(
     private val client: CuratorFramework,

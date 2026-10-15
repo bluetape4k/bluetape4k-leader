@@ -24,17 +24,16 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
 
 /**
- * `KubernetesLeaseLock`는 Kubernetes Lease backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 class입니다.
+ * `KubernetesLeaseLock`는 namespaced Kubernetes Lease resource를 조건부로 획득·연장·반납합니다.
  *
- * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
- * @property client Kubernetes Lease backend 계약에서 `client` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property namespace Kubernetes Lease backend 계약에서 `namespace` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property lockName Kubernetes Lease backend 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property ownerToken Kubernetes Lease backend 계약에서 `ownerToken` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property auditLeaderId Kubernetes Lease backend 계약에서 `auditLeaderId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property nodeId Kubernetes Lease backend 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property retryDelay Kubernetes Lease backend 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property clock Kubernetes Lease backend 계약에서 `clock` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property client 지정 namespace의 Kubernetes Lease resource를 읽고 생성/갱신/삭제하는 Fabric8 client입니다.
+ * @property namespace Lease resource가 속한 Kubernetes Namespace입니다. 생성 경로에서 DNS-1123 label 검증을 통과한 값입니다.
+ * @property lockName 대상 Lease resource 이름입니다. 획득 시 DNS-1123 label 형식과 63자 이하인지 검증합니다.
+ * @property ownerToken 현재 시도의 소유자 식별자입니다. Lease `holderIdentity`에 기록하고 해제/연장 때 동일한 값인지 비교합니다.
+ * @property auditLeaderId Lease annotation `leader.bluetape4k.io/audit-leader-id`에 기록하는 감사용 리더 ID입니다.
+ * @property nodeId Lease annotation `leader.bluetape4k.io/node-id`에 기록하는 노드 ID입니다.
+ * @property retryDelay 다른 holder와 충돌했을 때 다음 Lease 조회까지 사용할 양의 지연 시간입니다. 실제 재시도에는 이 값보다 짧은 jitter가 적용됩니다.
+ * @property clock acquire/renew 시각을 기록하고 Lease 만료를 판단하는 시계이며, 상위 elector의 기본값은 UTC 시계입니다.
  */
 internal class KubernetesLeaseLock(
     private val client: KubernetesClient,

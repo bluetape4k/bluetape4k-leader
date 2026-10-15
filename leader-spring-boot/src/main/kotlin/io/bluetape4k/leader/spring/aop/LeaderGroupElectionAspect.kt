@@ -54,15 +54,16 @@ import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.toKotlinDuration
 
 /**
- * `LeaderGroupElectionAspect`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * `@LeaderGroupElection` 대상 메서드에 semaphore-style group lock 획득, 실행, skip, metric 기록을 적용합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property beanSelector Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property props Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property spel Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property lockNameValidator Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property recorders Spring Boot integration 계약에서 사용하는 속성입니다.
- * @property groupProperties 공통 Spring group 정책과 annotation 정책을 결합하는 설정입니다.
+ * blocking, `suspend`, `Mono` 반환 모델을 지원하며 `Flux`와 `Flow`는 slot별 lease 연장이 정의되지 않아 거부합니다.
+ *
+ * @property beanSelector annotation과 type으로 group elector factory bean을 선택합니다.
+ * @property props AOP 기본 wait/lease, lock prefix, failure mode, metric 설정입니다.
+ * @property spel lock 이름 SpEL을 해석합니다.
+ * @property lockNameValidator 해석된 lock 이름의 공백과 길이 계약을 검증합니다.
+ * @property recorders lock 시도ㆍ획득ㆍ실행 결과를 기록하는 recorder 목록입니다.
+ * @property groupProperties annotation에 없는 group wait/lease와 `maxLeaders` 기본 정책입니다.
  */
 @Suppress("ReactiveStreamsUnusedPublisher", "TooManyFunctions")
 @Aspect
@@ -262,11 +263,7 @@ class LeaderGroupElectionAspect(
         }
     }
 
-    /**
-     * `aroundLeaderSuspend` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** suspend group 대상에서 coroutine group elector를 사용해 slot 획득과 body 실행을 연결합니다. */
     // Coroutine advice의 획득·실행·fail-open·오류 처리는 lease 수명 순서를 보존하도록 한 흐름입니다.
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ThrowsCount")
     private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any? {
@@ -431,11 +428,7 @@ class LeaderGroupElectionAspect(
         return scopedSuspendBlock.startCoroutineUninterceptedOrReturn(continuation)
     }
 
-    /**
-     * `aroundLeaderMono` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** `Mono` subscription 시점에 group slot을 획득하고 publisher를 실행합니다. */
     // Mono advice는 취소·backend 오류 처리와 lease cleanup 순서를 하나의 scoped 흐름으로 유지합니다.
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ThrowsCount")
     private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any? {
@@ -725,11 +718,7 @@ class LeaderGroupElectionAspect(
         val suspendElectorFactoryBeanName: String,
     ): Serializable {
 
-        /**
-         * `resolveLockIdentity` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-         *
-         * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-         */
+        /** 실행 branch에 맞는 factory bean과 group kind를 포함한 `LockIdentity`를 생성합니다. */
         fun resolveLockIdentity(lockName: String, branch: AdviceBranch): LockIdentity {
             val beanName = when (branch) {
                 AdviceBranch.SYNC -> factoryBeanName

@@ -37,11 +37,11 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * `HazelcastLeaderElector`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `HazelcastLeaderElector`는 Hazelcast의 blocking 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property hazelcast Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
+ * lock 또는 slot을 획득하지 못한 `runIfLeader` 호출은 예외 대신 `null`/skip 결과를 반환합니다.
+ * @property hazelcast 단일 lock map을 조회하고, transaction-aware lock 연산에 사용할 `HazelcastInstance`입니다.
+ * @property options lock 대기 시간, lease 기간, 최소 lease 보존, auto-extend 여부를 정하는 단일 선출 정책입니다.
  */
 class HazelcastLeaderElector private constructor(
     private val hazelcast: HazelcastInstance,
@@ -117,11 +117,7 @@ class HazelcastLeaderElector private constructor(
         }
     }
 
-    /**
-     * `선언` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** `lockName` 키의 lock을 `options` 시간만큼 기다려 획득한 경우에만 동기 `action`을 실행하고, 경합이면 `null`을 반환합니다. */
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ThrowsCount", "TooGenericExceptionCaught")
     override fun <T> runAsyncIfLeader(
         lockName: String,

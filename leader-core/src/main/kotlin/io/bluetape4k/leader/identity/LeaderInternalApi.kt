@@ -1,9 +1,7 @@
 package io.bluetape4k.leader.identity
 
 /**
- * `LeaderInternalApi` 선언은 leader election 계약에서 사용되는 annotation입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * application 코드가 직접 의존하지 않아야 하는 leader module SPI에 opt-in 경고를 표시합니다.
  */
 @RequiresOptIn(
     message = "This API is internal to the leader module SPI and is not intended for application code.",

@@ -12,9 +12,7 @@ import org.springframework.boot.health.contributor.HealthIndicator
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Role
 
-/**
- * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
- */
+/** Micrometer AOP recorder가 있을 때 metric health indicator를 등록합니다. */
 @AutoConfiguration(after = [LeaderMicrometerAutoConfiguration::class])
 @ConditionalOnClass(
     name = [
@@ -31,11 +29,7 @@ import org.springframework.context.annotation.Role
 )
 class LeaderMicrometerHealthAutoConfiguration {
 
-    /**
-     * `leaderMetricsHealthIndicator` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** `MeterRegistry`의 active gauge를 읽는 [LeaderMetricsHealthIndicator]를 등록합니다. */
     @Bean("leaderMetricsHealthIndicator")
     @ConditionalOnMissingBean(name = ["leaderMetricsHealthIndicator"])
     @Role(BeanDefinition.ROLE_APPLICATION)

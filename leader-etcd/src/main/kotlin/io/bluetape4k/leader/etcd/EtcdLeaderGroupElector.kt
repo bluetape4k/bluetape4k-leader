@@ -46,11 +46,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * `EtcdLeaderGroupElector`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ * `EtcdLeaderGroupElector`는 etcd의 slot lock key와 lease를 이용해 여러 leader의 blocking/async 실행을 관리합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property lockClient etcd backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options etcd backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockClient lease 발급·그룹 slot lock/unlock·keep-alive·revoke를 etcd에 위임하는 클라이언트입니다.
+ * @property options maxLeaders, lease 대기·연장, 키 prefix, retry delay를 포함한 그룹 설정입니다.
  */
 // Group elector는 sync/async, 상태 조회, lease lifecycle, diagnostics 계약을 함께 구현합니다.
 @Suppress("TooManyFunctions")

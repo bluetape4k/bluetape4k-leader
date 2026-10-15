@@ -6,11 +6,10 @@ import io.bluetape4k.leader.LeaderGroupElectorFactory
 import org.apache.curator.framework.CuratorFramework
 
 /**
- * `ZooKeeperLeaderGroupElectorFactory`는 ZooKeeper backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ZooKeeperLeaderGroupElectorFactory`는 공유 ZooKeeper `CuratorFramework`와 그룹 옵션으로 그룹 elector를 생성하며, 호출마다 동일 client를 재사용합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property client ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property basePath ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property client 각 그룹 elector가 participant ephemeral node에 사용할 `CuratorFramework`입니다.
+ * @property basePath 각 그룹 lockName을 붙일 기본 ZooKeeper root path입니다.
  */
 class ZooKeeperLeaderGroupElectorFactory(
     private val client: CuratorFramework,

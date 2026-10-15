@@ -12,12 +12,11 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * `DynamoDbLockExtendDelegate`는 DynamoDB backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 class입니다.
+ * `DynamoDbLockExtendDelegate`는 conditional DynamoDB 요청으로 단일 lock lease를 연장하고 owner를 확인합니다.
  *
- * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
- * @property client DynamoDB backend 계약에서 `client` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property lock DynamoDB backend 계약에서 `lock` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property ttlPadding DynamoDB backend 계약에서 `ttlPadding` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property client conditional DynamoDB 요청을 실행할 내부 lock client입니다.
+ * @property lock owner ID와 lease 만료를 포함한 획득 snapshot입니다.
+ * @property ttlPadding TTL epoch seconds를 lease 만료 뒤로 미루는 양수 여유 시간입니다.
  */
 internal class DynamoDbLockExtendDelegate(
     private val client: DynamoDbLockClient,
@@ -48,12 +47,11 @@ internal class DynamoDbLockExtendDelegate(
 }
 
 /**
- * `DynamoDbSuspendLockExtendDelegate`는 DynamoDB backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 class입니다.
+ * `DynamoDbSuspendLockExtendDelegate`는 asynchronous conditional 요청으로 lock lease를 연장하고 owner를 확인합니다.
  *
- * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
- * @property client DynamoDB backend 계약에서 `client` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property lock DynamoDB backend 계약에서 `lock` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property ttlPadding DynamoDB backend 계약에서 `ttlPadding` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property client asynchronous conditional DynamoDB 요청을 실행할 내부 lock client입니다.
+ * @property lock owner ID와 lease 만료를 포함한 획득 snapshot입니다.
+ * @property ttlPadding TTL epoch seconds를 lease 만료 뒤로 미루는 양수 여유 시간입니다.
  */
 internal class DynamoDbSuspendLockExtendDelegate(
     private val client: DynamoDbLockClient,

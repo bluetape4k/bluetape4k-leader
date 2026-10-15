@@ -7,9 +7,8 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
 /**
- * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+ * [this] 데이터베이스에서 [lockName]을 획득했을 때만 [action]을 실행합니다.
+ * 경합으로 획득하지 못하면 null을 반환하며, 스키마가 아직 없으면 elector 생성 중 보장합니다.
  */
 fun <T> Database.runIfLeader(
     lockName: String,
@@ -18,9 +17,8 @@ fun <T> Database.runIfLeader(
 ): T? = ExposedJdbcLeaderElector(this, options).runIfLeader(lockName, action)
 
 /**
- * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+ * [this] 데이터베이스에서 [lockName]을 비동기로 획득한 뒤 [action]을 실행합니다.
+ * 기본 [executor]는 virtual thread executor이며, 경합 시 null로 완료합니다.
  */
 fun <T> Database.runAsyncIfLeader(
     lockName: String,
@@ -30,9 +28,8 @@ fun <T> Database.runAsyncIfLeader(
 ): CompletableFuture<T?> = ExposedJdbcLeaderElector(this, options).runAsyncIfLeader(lockName, executor, action)
 
 /**
- * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+ * [this] 데이터베이스에서 virtual thread로 [lockName]을 획득하고 [action]을 실행합니다.
+ * 경합으로 획득하지 못하면 null을 반환합니다.
  */
 fun <T> Database.runVirtualIfLeader(
     lockName: String,
@@ -44,9 +41,8 @@ fun <T> Database.runVirtualIfLeader(
 }
 
 /**
- * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+ * [this] 데이터베이스의 그룹 슬롯을 획득했을 때만 [action]을 실행합니다.
+ * 동시에 허용된 슬롯이 없으면 null을 반환하고, 획득한 슬롯은 action 종료 후 반납합니다.
  */
 fun <T> Database.runIfLeaderGroup(
     lockName: String,
@@ -55,9 +51,8 @@ fun <T> Database.runIfLeaderGroup(
 ): T? = ExposedJdbcLeaderGroupElector(this, options).runIfLeader(lockName, action)
 
 /**
- * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
- *
- * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+ * [this] 데이터베이스에서 그룹 슬롯을 비동기로 획득한 뒤 [action]을 실행합니다.
+ * 기본 [executor]에서 대기·작업을 진행하며 슬롯을 얻지 못하면 null로 완료합니다.
  */
 fun <T> Database.runAsyncIfLeaderGroup(
     lockName: String,

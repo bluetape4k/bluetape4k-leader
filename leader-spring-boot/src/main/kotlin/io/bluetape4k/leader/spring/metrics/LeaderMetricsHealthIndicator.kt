@@ -6,11 +6,9 @@ import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.boot.health.contributor.AbstractHealthIndicator
 import org.springframework.boot.health.contributor.Health
 
-/**
- * `LeaderMetricsHealthIndicator`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+/** micrometer의 `leader.aop.active` gauge를 합산해 leader AOP metric 상태를 Actuator health에 제공합니다.
  *
- * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
- * @property registry Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property registry active gauge를 조회할 `MeterRegistry`입니다.
  */
 class LeaderMetricsHealthIndicator(
     private val registry: MeterRegistry,

@@ -7,10 +7,8 @@ import io.bluetape4k.leader.strategy.Elimination
 import kotlin.random.Random
 
 /**
- * `RandomElectionStrategy`는 전략 기반 leader 선출에서 후보 평가 규칙을 제공합니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property seed random 선출을 재현 가능하게 만드는 optional seed입니다.
+ * 후보를 `nodeId` 순으로 정렬한 뒤 하나를 무작위로 뽑습니다. seed를 지정하면 같은 입력에서 선택을 재현할 수 있습니다.
+ * @property seed 반복 실행 간 선택을 재현할 optional seed. `null`이면 기본 random generator를 사용합니다.
  */
 class RandomElectionStrategy(val seed: Long? = null): ElectionStrategy {
 

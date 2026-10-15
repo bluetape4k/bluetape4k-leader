@@ -7,14 +7,14 @@ import kotlin.jvm.internal.DefaultConstructorMarker
 import kotlin.time.toKotlinDuration
 
 /**
- * `LeaderObservabilityProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * leader 상태, tracing, health endpoint를 노출하는 Spring Boot observability 설정입니다.
  *
- * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property lockNames Spring Boot integration 계약에서 `lockNames` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property stateProviderBean Actuator와 readiness가 조회할 blocking 또는 suspend `LeaderElectionState` bean 이름입니다.
- * @property tracing Spring Boot integration 계약에서 `tracing` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property health Spring Boot integration 계약에서 `health` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property backendHealth backend connectivity health probe 설정입니다.
+ * @property enabled observability 자동 구성을 활성화할지 여부이며 기본값은 `true`입니다.
+ * @property lockNames 상태 endpoint와 readiness가 관찰할 lock 이름 집합이며 기본값은 빈 집합입니다. 빈 집합이면 lock을 자동으로 추측하지 않습니다.
+ * @property tracing leader election observation 설정이며 기본값은 `LeaderTracingProperties()`입니다.
+ * @property health lease 경고와 획득 실패를 health에 반영하는 설정이며 기본값은 `LeaderObservabilityHealthProperties()`입니다.
+ * @property stateProviderBean Actuator와 readiness가 조회할 blocking 또는 suspend `LeaderElectionState` bean 이름입니다. 빈 문자열이면 자동 선택 경로를 사용합니다.
+ * @property backendHealth backend connectivity health probe 설정이며 기본값은 비활성화된 `LeaderBackendHealthProperties()`입니다.
  */
 data class LeaderObservabilityProperties(
     val enabled: Boolean = true,
@@ -196,11 +196,11 @@ data class LeaderBackendHealthProperties(
 }
 
 /**
- * `LeaderObservabilityHealthProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * lease 만료 임박과 최근 backend 획득 실패를 health에 반영하는 설정입니다.
  *
- * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property leaseWarningThreshold Spring Boot integration 계약에서 `leaseWarningThreshold` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property acquisitionFailureWindow 최근 backend 획득 실패를 health에 반영하는 관찰 시간 범위입니다.
+ * @property enabled health indicator를 활성화할지 여부이며 기본값은 `false`입니다.
+ * @property leaseWarningThreshold 남은 lease 시간이 이 값 이하일 때 경고 상태로 판단하는 비음수 기간이며 기본값은 10초입니다.
+ * @property acquisitionFailureWindow 최근 backend 획득 실패를 health에 반영하는 양수 유한 관찰 기간이며 기본값은 5분입니다.
  */
 data class LeaderObservabilityHealthProperties(
     val enabled: Boolean = false,
@@ -298,12 +298,12 @@ data class LeaderObservabilityHealthProperties(
 }
 
 /**
- * `LeaderTracingProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * leader election observation에 포함할 metric과 오류 세부 정보의 Spring Boot 설정입니다.
  *
- * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property includeLockName Spring Boot integration 계약에서 `includeLockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property includeLeaderId Spring Boot integration 계약에서 `includeLeaderId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property includeExceptionDetails Spring Boot integration 계약에서 `includeExceptionDetails` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property enabled tracing recorder를 활성화할지 여부이며 기본값은 `true`입니다.
+ * @property includeLockName observation tag에 lock 이름을 포함할지 여부이며 기본값은 `false`입니다. 포함하더라도 micrometer tag sanitization 규칙을 따릅니다.
+ * @property includeLeaderId observation tag에 leader ID를 포함할지 여부이며 기본값은 `false`입니다.
+ * @property includeExceptionDetails observation 오류에 예외 세부 정보를 포함할지 여부이며 기본값은 `false`입니다.
  */
 data class LeaderTracingProperties(
     val enabled: Boolean = true,

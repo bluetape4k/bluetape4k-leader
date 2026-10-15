@@ -36,15 +36,14 @@ import kotlin.time.Duration.Companion.seconds
 
 
 /**
- * `ExposedR2dbcGroupLock`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ExposedR2dbcGroupLock`는 `(lockName, slot)` 행을 조건부로 획득·연장·반납하는 suspend R2DBC group lock입니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lockName Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property slot Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property retryStrategy Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property lockOwner Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property useDbTime Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property db 그룹 슬롯 행을 조회·변경할 Exposed R2DBC 데이터베이스입니다.
+ * @property lockName 영숫자로 시작하고 영숫자·`_`·`-`·`:`만 사용하는 최대 255자의 그룹 키입니다.
+ * @property slot 그룹 내 슬롯 번호이며 0 이상이어야 합니다.
+ * @property retryStrategy 경합 뒤 다음 시도까지의 지연을 계산합니다.
+ * @property lockOwner 선택적 owner 식별자이며 null일 수 있고 저장 시 최대 255자입니다.
+ * @property useDbTime true이면 lease 판정에 DB `CURRENT_TIMESTAMP`를 사용하고, false이면 생성자에서 받은 시계를 사용합니다.
  */
 @Suppress("LongParameterList")
 internal class ExposedR2dbcGroupLock internal constructor(
@@ -90,15 +89,12 @@ internal class ExposedR2dbcGroupLock internal constructor(
         if (useDbTime) onAvailabilityChanged(true)
     }
 
-    /**
-     * `token` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-     */
+    /** 이 슬롯 인스턴스가 소유권을 확인할 때 사용하는 8자 Base58 임시 token입니다. 외부 식별자로 사용하지 않습니다. */
     val token: String = Base58.randomString(length = 8)
 
     /**
-     * `tryLock` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * [waitTime] 동안 이 [slot]의 lease를 suspend retry로 획득합니다.
+     * true는 획득, false는 timeout·취소·경합, null은 DB 오류로 슬롯 순회를 중단해야 함을 뜻합니다.
      */
     @Suppress("TooGenericExceptionCaught", "ReturnCount") // 획득·경합·unavailable을 구분하고 Error와 취소는 전파합니다.
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean? {
@@ -209,11 +205,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
         }
     }
 
-    /**
-     * `isHeldByCurrentInstance` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** [lockName], [slot], token이 일치하고 lease가 유효한지 확인하며 DB 오류는 false로 처리합니다. */
     @Suppress("TooGenericExceptionCaught")
     suspend fun isHeldByCurrentInstance(): Boolean {
         val held = runR2dbcLockOperationPreservingCancellation(
@@ -242,9 +234,8 @@ internal class ExposedR2dbcGroupLock internal constructor(
     }
 
     /**
-     * `unlock` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * 이 슬롯의 token과 일치하는 행만 해제합니다.
+     * [minLeaseTime]이 남아 있으면 그 시간까지 lease를 유지하고, 공개 메서드는 상세 결과를 버립니다.
      */
     suspend fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -310,9 +301,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
     }
 
     /**
-     * `extendDetailed` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * 현재 소유 중이고 lease가 유효한 [slot]의 만료 시각을 [leaseTime]만큼 갱신합니다.
+     * 갱신 시 [ExtendOutcome.Extended], 소유하지 않으면 [ExtendOutcome.NotHeld]를 반환합니다.
+     * DB 오류는 R2DBC transaction 예외로 전달됩니다.
      */
     @Suppress("TooGenericExceptionCaught")
     suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome {

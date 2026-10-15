@@ -15,10 +15,9 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * `ExposedJdbcLockExtendDelegate`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `ExposedJdbcLockExtendDelegate`는 단일 JDBC lock의 lease 연장과 현재 owner 확인을 watchdog에 제공합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property lock Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lock 단일 JDBC 락의 lease 연장·소유권 조회를 위임받는 실제 락 객체입니다.
  */
 internal class ExposedJdbcLockExtendDelegate(
     private val lock: ExposedJdbcLock,
@@ -38,9 +37,8 @@ internal class ExposedJdbcLockExtendDelegate(
         }
 
     /**
-     * `extendSuspend` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     * JDBC blocking lease 연장을 IO dispatcher에서 수행합니다.
+     * 코루틴 취소는 그대로 전파하고, 그 밖의 DB 오류는 [ExtendOutcome.BackendError]로 반환합니다.
      */
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         coroutineContext.ensureActive()

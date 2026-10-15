@@ -6,25 +6,19 @@ import io.bluetape4k.leader.strategy.ElectionStrategy
 import kotlin.time.Duration
 
 /**
- * `StrategicLeaderElector` 선언은 leader election 계약에서 사용되는 interface입니다.
+ * 후보 정보를 등록·갱신하고 전략에 따라 단일 leader 작업을 실행하는 interface입니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface StrategicLeaderElector {
 
-    /**
-     * `nodeId` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
-     */
+    /** 이 elector가 후보를 등록할 때 사용하는 노드 식별자입니다. */
     val nodeId: String
 
     /**
-     * `registerCandidate` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param info `info` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param ttl `ttl` 호출 또는 상태 계산에 필요한 값입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 후보를 등록하거나 같은 node ID의 기존 후보 정보를 갱신합니다.
+     * @param lockName 후보 집합을 구분하는 leader lock 이름입니다.
+     * @param info 등록할 node ID, 실행 이력, metadata입니다.
+     * @param ttl backend가 후보 만료에 적용할 TTL입니다. 기본값은 `Duration.ZERO`이며 실제 만료 처리는 backend 계약을 따릅니다.
      */
     fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration = Duration.ZERO)
 
@@ -44,44 +38,34 @@ interface StrategicLeaderElector {
     }
 
     /**
-     * `unregisterCandidate` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param nodeId 상태 조회와 audit에 노출되는 노드 또는 인스턴스 식별자입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 지정한 후보를 등록 집합에서 제거합니다.
+     * @param lockName 후보가 등록된 leader lock 이름입니다.
+     * @param nodeId 제거할 후보의 식별자입니다.
      */
     fun unregisterCandidate(lockName: String, nodeId: String)
 
     /**
-     * `listCandidates` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 지정한 lock 이름으로 등록된 후보 snapshot을 조회합니다.
+     * @param lockName 후보 집합을 조회할 leader lock 이름입니다.
+     * @return 등록된 후보 정보 목록입니다. 후보가 없으면 빈 목록입니다.
      */
     fun listCandidates(lockName: String): List<CandidateInfo>
 
     /**
-     * `updateResult` 호출은 leader election 계약의 일부 동작을 수행합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param nodeId 상태 조회와 audit에 노출되는 노드 또는 인스턴스 식별자입니다.
-     * @param result 후보 작업의 성공 또는 실패 결과입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * 지정한 후보의 최근 작업 완료 시각과 성공·실패 횟수를 갱신합니다.
+     * @param lockName 후보가 등록된 leader lock 이름입니다.
+     * @param nodeId 결과를 기록할 후보 식별자입니다.
+     * @param result 기록할 성공 또는 실패 결과입니다.
      */
     fun updateResult(lockName: String, nodeId: String, result: CandidateResult)
 
     /**
-     * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
-     *
-     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
-     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
-     * @param strategy `strategy` 호출 또는 상태 계산에 필요한 값입니다.
-     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
+     * strategy가 선택한 후보만 작업을 실행합니다. 선택한 후보가 현재 노드가 아니면 `null`을 반환합니다.
+     * @param lockName 후보 집합과 lock을 구분하는 이름입니다.
+     * @param strategy 후보 정보로 실행 주체를 고르는 전략입니다.
+     * @param options lock 획득 대기 시간, lease TTL 등 실행 정책입니다. 기본값은 `LeaderElectionOptions.Default`입니다.
      * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     * @return 선택한 후보가 현재 노드라면 작업 결과이고, 아니면 `null`입니다.
      */
     fun <T> runIfLeader(
         lockName: String,

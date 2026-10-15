@@ -1,11 +1,10 @@
 package io.bluetape4k.leader.identity
 
 /**
- * `LeaderIdResolutionException` 선언은 leader election 계약에서 사용되는 class입니다.
+ * leader ID 공급자에서 복구할 수 없는 오류가 발생했을 때 원인을 보존해 전달하는 예외입니다.
  *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
- * @property message `message` 호출 또는 상태 계산에 필요한 값입니다.
- * @property cause 실패 결과를 만든 원본 예외입니다.
+ * @param message 오류 원인을 설명하는 메시지
+ * @param cause 실패를 일으킨 원본 예외. 없을 수 있습니다.
  */
 class LeaderIdResolutionException(
     message: String,

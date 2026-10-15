@@ -6,12 +6,12 @@ import kotlin.jvm.internal.DefaultConstructorMarker
 import kotlin.time.toKotlinDuration
 
 /**
- * `LeaderGroupProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ * Spring Boot group election의 동시 leadership 슬롯과 공통 lease 정책입니다.
  *
- * @property maxLeaders Spring Boot integration 계약에서 `maxLeaders` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property waitTime Spring Boot integration 계약에서 `waitTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property leaseTime Spring Boot integration 계약에서 `leaseTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property useDbTime Exposed JDBC/R2DBC group ownership에 DB server time을 사용할지 여부입니다.
+ * @property maxLeaders 동시에 leadership을 보유할 수 있는 최대 슬롯 수입니다. 기본값은 `2`이며 core options가 유효 범위를 검증합니다.
+ * @property waitTime 슬롯 획득을 기다릴 최대 시간입니다. 기본값은 5초입니다.
+ * @property leaseTime 슬롯 lease TTL입니다. 기본값은 60초입니다.
+ * @property useDbTime Exposed JDBC/R2DBC group ownership에서 DB server clock으로 만료 시각을 계산할지 정합니다. 기본값은 `false`입니다.
  */
 data class LeaderGroupProperties(
     val maxLeaders: Int = DefaultMaxLeaders,

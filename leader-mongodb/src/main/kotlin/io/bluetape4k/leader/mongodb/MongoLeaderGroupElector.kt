@@ -40,20 +40,18 @@ import kotlin.random.Random
 import kotlin.time.Duration
 
 /**
- * `MongoLeaderGroupElector`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ * `MongoLeaderGroupElector`는 MongoDB의 blocking 그룹 선출을 제공하며 `maxLeaders` 슬롯을 acquire·extend·release합니다.
  *
- * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
- * @property groupCollection MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property options MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
- * @property historyRecorder MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * lock 또는 slot을 획득하지 못한 `runIfLeader` 호출은 예외 대신 `null`/skip 결과를 반환합니다.
+ * @property groupCollection `$lockName:slot:n` 문서를 저장하고 `expireAt`이 현재보다 큰 슬롯을 세는 collection입니다.
+ * @property options `maxLeaders`와 core 대기·lease·최소 lease 정책, MongoDB 재시도 지연 상한을 담는 그룹 옵션입니다.
+ * @property historyRecorder 슬롯 획득·완료·실패 이력을 best-effort로 기록할 선택적 recorder입니다. `null`이면 기록하지 않습니다.
  */
 @Suppress("TooManyFunctions")
 class MongoLeaderGroupElector private constructor(
     private val groupCollection: MongoCollection<Document>,
     val options: MongoLeaderGroupElectionOptions,
-    /**
-     * `historyRecorder` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
-     */
+    /** 슬롯 이력을 전달할 선택적 recorder입니다. 기록 실패는 선출 결과를 대신하지 않습니다. */
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
 ): LeaderGroupElector,
    LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics {
@@ -77,11 +75,7 @@ class MongoLeaderGroupElector private constructor(
 
     private fun slotKey(lockName: String, slot: Int) = "$lockName:slot:$slot"
 
-    /**
-     * `activeCount` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
-     */
+    /** `0 until maxLeaders` 슬롯 중 `_id`가 존재하고 `expireAt`이 현재보다 큰 live 문서 수를 반환합니다. */
     override fun activeCount(lockName: String): Int {
         val ids = (0 until maxLeaders).map { slotKey(lockName, it) }
         return groupCollection.countDocuments(

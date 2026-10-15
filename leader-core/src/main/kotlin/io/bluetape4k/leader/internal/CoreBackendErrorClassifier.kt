@@ -7,9 +7,8 @@ import java.sql.SQLRecoverableException
 import java.sql.SQLTransientException
 
 /**
- * `CoreBackendErrorClassifier` 선언은 leader election 계약에서 사용되는 object입니다.
- *
- * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * JDBC 및 socket 계층에서 공통으로 알아볼 수 있는 예외를 분류합니다.
+ * 알 수 없는 예외는 `null`을 반환해 backend별 분류기가 추가로 판단하게 합니다.
  */
 internal object CoreBackendErrorClassifier: BackendErrorClassifier {
 

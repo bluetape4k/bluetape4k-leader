@@ -15,11 +15,10 @@ import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 
 /**
- * `JavaHttpConsulLockClient`는 Consul backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 class입니다.
+ * `JavaHttpConsulLockClient`는 Java HTTP 요청으로 Consul session과 KV lock API를 호출합니다.
  *
- * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
- * @property endpoint Consul backend 계약에서 `endpoint` 값을 계산하거나 전달할 때 사용하는 속성입니다.
- * @property httpClient Consul backend 계약에서 `httpClient` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property endpoint base URI, optional datacenter/ACL token, 요청 timeout을 제공하는 endpoint 설정입니다.
+ * @property httpClient endpoint timeout으로 구성한 Java HTTP client이며 실제 Consul API 요청을 전송합니다.
  */
 internal class JavaHttpConsulLockClient(
     private val endpoint: ConsulEndpoint,
