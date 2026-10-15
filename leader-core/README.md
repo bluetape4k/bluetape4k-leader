@@ -199,6 +199,16 @@ phase** (strategy application), enabling flexible leader selection policies.
 registerCandidate() → elect(strategy) → 1 winner, rest skipped
 ```
 
+The local strategic single and group electors (`LocalStrategicLeaderElector`,
+`LocalStrategicLeaderGroupElector`, `LocalStrategicSuspendLeaderElector`, and
+`LocalStrategicSuspendLeaderGroupElector`) keep candidates in an in-process
+registry. A positive `ttl` expires a candidate from listing and election after
+registration or refresh; `Duration.ZERO` keeps it until explicit unregister or
+process shutdown. `refreshCandidate` updates metadata and TTL only for a live
+candidate, preserves result statistics and execution timestamps, and does not
+recreate a missing or expired candidate. This TTL is local to the process and
+does not provide distributed expiry.
+
 ### Built-in Strategies
 
 | Strategy                         | Description                                                        |

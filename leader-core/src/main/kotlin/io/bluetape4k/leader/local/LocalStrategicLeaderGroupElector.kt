@@ -18,8 +18,8 @@ import kotlin.concurrent.withLock
 import kotlin.time.Duration
 
 /**
- * `LocalStrategicLeaderGroupElector`는 JVM 메모리에서 후보를 등록하고 전략적으로
- * 여러 leader를 선택하는 blocking elector입니다.
+ * `LocalStrategicLeaderGroupElector`는 JVM 메모리 후보 중 여러 leader를 전략적으로 선택하는 blocking elector입니다.
+ * 양수 `ttl`은 후보 만료에 적용되며, `Duration.ZERO`는 만료되지 않는 후보를 뜻합니다.
  */
 class LocalStrategicLeaderGroupElector(
     override val nodeId: String = Uuid.V7.nextIdAsString(),
@@ -27,36 +27,34 @@ class LocalStrategicLeaderGroupElector(
 
     companion object: KLogging()
 
-    private val registry = ConcurrentHashMap<String, ConcurrentHashMap<String, CandidateInfo>>()
+    private val registry = ConcurrentHashMap<String, LocalStrategicCandidateRegistry>()
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
 
-    private fun candidatesFor(lockName: String): ConcurrentHashMap<String, CandidateInfo> {
+    private fun candidatesFor(lockName: String): LocalStrategicCandidateRegistry {
         lockName.validateLockName()
-        return registry.computeIfAbsent(lockName) { ConcurrentHashMap() }
+        return registry.computeIfAbsent(lockName) { LocalStrategicCandidateRegistry() }
     }
 
     private fun lockFor(lockName: String): ReentrantLock =
         locks.computeIfAbsent(lockName) { ReentrantLock() }
 
     override fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
-        candidatesFor(lockName)[info.nodeId] = info
+        candidatesFor(lockName).register(info, ttl)
     }
 
     override fun refreshCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
-        candidatesFor(lockName).computeIfPresent(info.nodeId) { _, current ->
-            current.copy(metadata = info.metadata)
-        }
+        candidatesFor(lockName).refresh(info, ttl)
     }
 
     override fun unregisterCandidate(lockName: String, nodeId: String) {
-        candidatesFor(lockName).remove(nodeId)
+        candidatesFor(lockName).unregister(nodeId)
     }
 
     override fun listCandidates(lockName: String): List<CandidateInfo> =
-        candidatesFor(lockName).values.toList()
+        candidatesFor(lockName).list()
 
     override fun updateResult(lockName: String, nodeId: String, result: CandidateResult) {
-        candidatesFor(lockName).computeIfPresent(nodeId) { _, current -> current.withResult(result) }
+        candidatesFor(lockName).updateResult(nodeId, result)
     }
 
     @Suppress("ReturnCount", "TooGenericExceptionCaught")
