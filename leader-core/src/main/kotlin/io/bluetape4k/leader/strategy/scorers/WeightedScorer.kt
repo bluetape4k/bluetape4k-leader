@@ -7,6 +7,7 @@ import io.bluetape4k.support.requireNotEmpty
 /**
  * `WeightedScorer`는 전략 기반 leader 선출에서 후보 평가 규칙을 제공합니다.
  *
+ * 각 가중치는 유한한 양수여야 합니다. 무한대 가중치는 0점 scorer와 곱해질 때 `NaN`을 만들 수 있습니다.
  * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  * @property scorers 가중치와 함께 조합할 후보 점수 계산기 목록입니다.
  */
@@ -16,8 +17,8 @@ class WeightedScorer(
 
     init {
         scorers.requireNotEmpty("scorers")
-        require(scorers.all { (_, w) -> w > 0.0 }) {
-            "All scorer weights must be positive: ${scorers.map { it.second }}"
+        require(scorers.all { (_, weight) -> weight.isFinite() && weight > 0.0 }) {
+            "All scorer weights must be finite and positive: ${scorers.map { it.second }}"
         }
     }
 

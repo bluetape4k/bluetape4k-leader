@@ -309,4 +309,19 @@ class ElectionStrategyTest {
             WeightedScorer(IdleTimeScorer to 0.0)
         }
     }
+
+    @Test
+    fun `WeightedScorer - 양의 무한대 weight 는 require 실패`() {
+        assertFailsWith<IllegalArgumentException> {
+            WeightedScorer(RecentSuccessScorer to Double.POSITIVE_INFINITY)
+        }
+    }
+
+    @Test
+    fun `WeightedScorer - 0점 후보도 선출 결과를 만든다`() {
+        val only = candidate("only")
+        val strategy = ScoredElectionStrategy(WeightedScorer(RecentSuccessScorer to 1.0))
+
+        strategy.elect(listOf(only)).winner?.nodeId shouldBeEqualTo only.nodeId
+    }
 }
