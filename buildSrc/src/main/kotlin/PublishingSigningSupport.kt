@@ -155,7 +155,7 @@ internal fun normalizeManagedDependencies(pomFile: File) {
         val type = dependency.childText("type").ifBlank { "jar" }
         val classifier = dependency.childText("classifier")
         val key = "$groupId:$artifactId:$type:$classifier"
-        val fingerprint = dependency.canonicalFingerprint()
+        val fingerprint = dependency.canonicalManagedDependencyFingerprint()
         val previous = fingerprints.putIfAbsent(key, fingerprint)
 
         when {
@@ -187,6 +187,13 @@ private fun Element.childElements(name: String): List<Element> =
     }
 
 private fun Element.childText(name: String): String = childElements(name).firstOrNull()?.textContent?.trim().orEmpty()
+
+private fun Element.canonicalManagedDependencyFingerprint(): String {
+    // Maven defaults an omitted dependency type to jar, and type is already part of the deduplication key.
+    val normalized = cloneNode(true) as Element
+    normalized.childElements("type").forEach(normalized::removeChild)
+    return normalized.canonicalFingerprint()
+}
 
 private fun org.w3c.dom.Node.canonicalFingerprint(): String = when (nodeType) {
     org.w3c.dom.Node.ELEMENT_NODE -> {
