@@ -154,6 +154,63 @@ require(bluetape4kDependenciesCatalogFile.isFile) {
             "Checkout bluetape4k-dependencies at the release-train tag or set bluetape4kDependenciesCatalogPath."
 }
 
+// 플러그인 DSL 해석 시점에는 Project 버전 카탈로그가 주입되기 전이므로, 동일한 고정 카탈로그에서 버전을 읽는다.
+val sharedCatalogVersions = bluetape4kDependenciesCatalogFile.readText()
+    .substringAfter("[versions]")
+    .substringBefore("\n[")
+fun sharedCatalogVersion(alias: String): String {
+    val version = Regex("(?m)^\\s*${Regex.escape(alias)}\\s*=\\s*\"([^\"]+)\"")
+        .find(sharedCatalogVersions)
+        ?.groupValues
+        ?.get(1)
+    return requireNotNull(version) { "Version '$alias' is missing from the shared catalog." }
+}
+
+val pluginJackson2Version = sharedCatalogVersion("jackson2")
+val pluginJackson2AnnotationsVersion = pluginJackson2Version.substringBeforeLast(".")
+val pluginJackson3Version = sharedCatalogVersion("jackson3")
+val pluginFreemarkerVersion = sharedCatalogVersion("freemarker")
+gradle.beforeProject {
+    val classpathResolutionStrategy = buildscript.configurations
+        .getByName(org.gradle.api.initialization.dsl.ScriptHandler.CLASSPATH_CONFIGURATION)
+        .resolutionStrategy
+    classpathResolutionStrategy.force(
+        "com.fasterxml.jackson.core:jackson-annotations:$pluginJackson2AnnotationsVersion",
+        "com.fasterxml.jackson.core:jackson-core:$pluginJackson2Version",
+        "com.fasterxml.jackson.core:jackson-databind:$pluginJackson2Version",
+        "tools.jackson.core:jackson-core:$pluginJackson3Version",
+        "tools.jackson.core:jackson-databind:$pluginJackson3Version",
+    )
+    classpathResolutionStrategy.eachDependency {
+            if (requested.group == "com.fasterxml.jackson" && requested.name == "jackson-bom") {
+                useVersion(pluginJackson2Version)
+                because("플러그인 classpath의 Jackson 2 BOM을 중앙 보안 버전에 정렬한다.")
+            }
+            if (requested.group == "tools.jackson" && requested.name == "jackson-bom") {
+                useVersion(pluginJackson3Version)
+                because("플러그인 classpath의 Jackson 3 BOM을 중앙 보안 버전에 정렬한다.")
+            }
+            if (requested.group == "com.fasterxml.jackson.core" &&
+                requested.name in setOf("jackson-core", "jackson-databind")) {
+                useVersion(pluginJackson2Version)
+                because("플러그인 classpath의 Jackson 2 핵심 모듈을 중앙 보안 버전에 정렬한다.")
+            }
+            if (requested.group == "com.fasterxml.jackson.core" && requested.name == "jackson-annotations") {
+                useVersion(pluginJackson2AnnotationsVersion)
+                because("플러그인 classpath의 Jackson annotations를 Databind와 호환되는 릴리스에 정렬한다.")
+            }
+            if (requested.group == "tools.jackson.core" &&
+                requested.name in setOf("jackson-core", "jackson-databind")) {
+                useVersion(pluginJackson3Version)
+                because("플러그인 classpath의 Jackson 3 핵심 모듈을 중앙 보안 버전에 정렬한다.")
+            }
+            if (requested.group == "org.freemarker" && requested.name == "freemarker") {
+                useVersion(pluginFreemarkerVersion)
+                because("플러그인 classpath의 FreeMarker를 중앙 보안 버전에 정렬한다.")
+            }
+        }
+}
+
 dependencyResolutionManagement {
     repositories {
         mavenCentral()

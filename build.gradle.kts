@@ -120,11 +120,56 @@ allprojects {
     configurations.all {
         resolutionStrategy.cacheChangingModulesFor(0, TimeUnit.DAYS)
     }
-    configurations.matching { it.name.startsWith("dokka") }.configureEach {
+}
+
+// Spring Dependency Management가 구성한 BOM 규칙 이후에 도구 전이 의존성을 중앙 카탈로그에 맞춘다.
+gradle.afterProject {
+    configurations.configureEach {
+        val isDokkaConfiguration = name.startsWith("dokka")
+        val isKotlinBouncyCastleConfiguration = name == "kotlinBouncyCastleConfiguration"
         resolutionStrategy.eachDependency {
-            if (requested.group == "org.jsoup" && requested.name == "jsoup") {
-                useVersion("1.23.1")
-                because("CVE-2026-71497: Dokka tooling must use the first patched jsoup release")
+            val dependencyGroup = requested.group.orEmpty()
+            if (dependencyGroup == "com.fasterxml.jackson" && requested.name == "jackson-bom") {
+                useVersion(bt4kVersion("jackson2"))
+                because("모든 프로젝트 구성의 Jackson 2 BOM을 중앙 보안 버전에 정렬한다.")
+            }
+            if (dependencyGroup.startsWith("com.fasterxml.jackson.")) {
+                val version = if (requested.name == "jackson-annotations") {
+                    bt4kVersion("jackson2").substringBeforeLast(".")
+                } else {
+                    bt4kVersion("jackson2")
+                }
+                useVersion(version)
+                because("모든 프로젝트 구성의 Jackson 2 모듈을 중앙 보안 버전에 정렬한다.")
+            }
+            if (dependencyGroup == "tools.jackson" && requested.name == "jackson-bom") {
+                useVersion(bt4kVersion("jackson3"))
+                because("모든 프로젝트 구성의 Jackson 3 BOM을 중앙 보안 버전에 정렬한다.")
+            }
+            if (dependencyGroup.startsWith("tools.jackson.")) {
+                useVersion(bt4kVersion("jackson3"))
+                because("모든 프로젝트 구성의 Jackson 3 모듈을 중앙 보안 버전에 정렬한다.")
+            }
+            if (isDokkaConfiguration && dependencyGroup == "org.freemarker" && requested.name == "freemarker") {
+                useVersion(bt4kVersion("freemarker"))
+                because("빌드 도구의 FreeMarker 전이 의존성을 중앙 보안 버전에 정렬한다.")
+            }
+            if (isKotlinBouncyCastleConfiguration && dependencyGroup == "org.bouncycastle") {
+                val versionAlias = when (requested.name) {
+                    "bcpg-jdk18on" -> "bouncycastle-bcpg"
+                    "bcpkix-jdk18on" -> "bouncycastle-bcpkix"
+                    "bcprov-jdk18on" -> "bouncycastle-bcprov"
+                    "bcutil-jdk18on" -> "bouncycastle-bcpkix"
+                    else -> null
+                }
+                if (versionAlias != null) {
+                    useVersion(bt4kVersion(versionAlias))
+                    because("Kotlin publishing 검증 의존성을 중앙의 Bouncy Castle 보안 버전에 정렬한다.")
+                }
+            }
+            if (isDokkaConfiguration && dependencyGroup == "org.jsoup" && requested.name == "jsoup") {
+                useVersion(bt4kVersion("jsoup"))
+                because("Dokka 도구 의존성을 중앙의 jsoup 보안 버전에 정렬한다.")
             }
         }
     }
