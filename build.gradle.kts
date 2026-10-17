@@ -42,6 +42,26 @@ fun bt4kVersion(alias: String): String {
         .ifBlank { version.strictVersion }
 }
 
+// Spring Dependency Management의 detached 설정에는 등록된 project configuration 규칙이 적용되지 않는다.
+dependencyManagement {
+    resolutionStrategy {
+        force(
+            "com.fasterxml.jackson:jackson-bom:${bt4kVersion("jackson2")}",
+            "com.fasterxml.jackson.core:jackson-annotations:${bt4kVersion("jackson2").substringBeforeLast(".")}",
+            "com.fasterxml.jackson.core:jackson-core:${bt4kVersion("jackson2")}",
+            "com.fasterxml.jackson.core:jackson-databind:${bt4kVersion("jackson2")}",
+            "com.fasterxml.jackson.module:jackson-module-kotlin:${bt4kVersion("jackson2")}",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:${bt4kVersion("jackson2")}",
+            "org.jsoup:jsoup:${bt4kVersion("jsoup")}",
+            "org.freemarker:freemarker:${bt4kVersion("freemarker")}",
+            "org.bouncycastle:bcpkix-jdk18on:${bt4kVersion("bouncycastle-bcpkix")}",
+            "org.bouncycastle:bcutil-jdk18on:${bt4kVersion("bouncycastle-bcpkix")}",
+            "org.bouncycastle:bcpg-jdk18on:${bt4kVersion("bouncycastle-bcpg")}",
+            "org.bouncycastle:bcprov-jdk18on:${bt4kVersion("bouncycastle-bcprov")}",
+        )
+    }
+}
+
 val requestedTaskNames = gradle.startParameter.taskNames + gradle.startParameter.excludedTaskNames
 fun isRequestedTask(token: String): Boolean =
     requestedTaskNames.any { it.substringAfterLast(':').contains(token, ignoreCase = true) }
