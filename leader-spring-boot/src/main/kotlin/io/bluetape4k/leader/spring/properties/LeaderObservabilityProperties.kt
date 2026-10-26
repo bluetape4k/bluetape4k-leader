@@ -13,7 +13,8 @@ import kotlin.time.toKotlinDuration
  * @property lockNames 상태 endpoint와 readiness가 관찰할 lock 이름 집합이며 기본값은 빈 집합입니다. 빈 집합이면 lock을 자동으로 추측하지 않습니다.
  * @property tracing leader election observation 설정이며 기본값은 `LeaderTracingProperties()`입니다.
  * @property health lease 경고와 획득 실패를 health에 반영하는 설정이며 기본값은 `LeaderObservabilityHealthProperties()`입니다.
- * @property stateProviderBean Actuator와 readiness가 조회할 blocking 또는 suspend `LeaderElectionState` bean 이름입니다. 빈 문자열이면 자동 선택 경로를 사용합니다.
+ * @property stateProviderBean Actuator와 readiness가 조회할 blocking 또는 suspend `LeaderElectionState` bean 이름입니다. 빈
+ * 문자열이면 자동 선택 경로를 사용합니다.
  * @property backendHealth backend connectivity health probe 설정이며 기본값은 비활성화된 `LeaderBackendHealthProperties()`입니다.
  */
 data class LeaderObservabilityProperties(
@@ -301,7 +302,8 @@ data class LeaderObservabilityHealthProperties(
  * leader election observation에 포함할 metric과 오류 세부 정보의 Spring Boot 설정입니다.
  *
  * @property enabled tracing recorder를 활성화할지 여부이며 기본값은 `true`입니다.
- * @property includeLockName observation tag에 lock 이름을 포함할지 여부이며 기본값은 `false`입니다. 포함하더라도 micrometer tag sanitization 규칙을 따릅니다.
+ * @property includeLockName observation tag에 lock 이름을 포함할지 여부이며 기본값은 `false`입니다. 포함하더라도 micrometer tag
+ * sanitization 규칙을 따릅니다.
  * @property includeLeaderId observation tag에 leader ID를 포함할지 여부이며 기본값은 `false`입니다.
  * @property includeExceptionDetails observation 오류에 예외 세부 정보를 포함할지 여부이며 기본값은 `false`입니다.
  */

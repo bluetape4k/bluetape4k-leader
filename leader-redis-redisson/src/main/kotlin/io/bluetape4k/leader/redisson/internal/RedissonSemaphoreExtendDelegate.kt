@@ -20,7 +20,8 @@ import kotlin.time.Duration
  * `RedissonSemaphoreExtendDelegate`는 Redis Redisson 그룹 slot/permit의 lease 연장과 현재 ownership 확인을 elector에서 분리해 위임합니다.
  *
  * @property semaphore 그룹 lease를 갱신하는 Redisson expirable permit semaphore입니다.
- * @property permitId semaphore가 발급한 slot ownership token입니다. Redis ownership 확인과 release/lease 연장에 사용되므로 외부 계약에서는 민감한 값으로 취급해야 합니다.
+ * @property permitId semaphore가 발급한 slot ownership token입니다. Redis ownership 확인과 release/lease 연장에 사용되므로 외부
+ * 계약에서는 민감한 값으로 취급해야 합니다.
  */
 internal class RedissonSemaphoreExtendDelegate(
     private val semaphore: RPermitExpirableSemaphore,

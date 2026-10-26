@@ -19,7 +19,8 @@ import kotlin.time.Duration.Companion.seconds
  * @property leaseTime 획득한 슬롯의 lease TTL입니다. 양수여야 하며 기본값은 60초입니다.
  * @property nodeId 이 프로세스의 leader 후보 식별자입니다. 공백은 허용되지 않으며 기본값은 `LeaderNodeId.Default`입니다.
  * @property minLeaseTime 작업이 일찍 끝나도 획득 시점부터 유지할 최소 시간입니다. `0` 이상 `leaseTime` 이하이며 기본값은 `0`입니다.
- * @property useDbTime Exposed JDBC/R2DBC backend가 만료 시각 계산에 DB server clock을 사용할지 정합니다. 다른 backend는 이 옵션을 사용하지 않으며 기본값은 `false`입니다.
+ * @property useDbTime Exposed JDBC/R2DBC backend가 만료 시각 계산에 DB server clock을 사용할지 정합니다. 다른 backend는 이 옵션을 사용하지
+ * 않으며 기본값은 `false`입니다.
  */
 data class LeaderGroupElectionOptions(
     val maxLeaders: Int = DefaultMaxLeaders,

@@ -37,7 +37,8 @@ enum class MongoLeaderHistoryIndexState(val metricValue: Int) {
 }
 
 /**
- * `MongoLeaderHistoryIndexer`는 MongoDB history collection에 lockName/startedAt 복합 index, token index, 선택적 TTL index를 비동기로 생성하고 수명 주기를 기록합니다.
+ * `MongoLeaderHistoryIndexer`는 MongoDB history collection에 lockName/startedAt 복합 index, token index, 선택적 TTL
+ * index를 비동기로 생성하고 수명 주기를 기록합니다.
  *
  * @property database 설정된 history collection에 복합·token·선택적 TTL index를 생성하는 coroutine MongoDatabase입니다.
  * @property config index 대상 collection 이름과 `ttlDays > 0`일 때만 만드는 TTL 보존 기간입니다.
