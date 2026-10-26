@@ -14,7 +14,8 @@ import org.bson.Document
 import java.time.Instant
 
 /**
- * `MongoLeaderHistorySink`는 MongoDB history collection에 획득·완료·실패 기록을 저장하고, history key로 종료 상태를 갱신하거나 cutoff 이전 문서를 삭제합니다.
+ * `MongoLeaderHistorySink`는 MongoDB history collection에 획득·완료·실패 기록을 저장하고, history key로 종료 상태를 갱신하거나 cutoff 이전
+ * 문서를 삭제합니다.
  *
  * @property database 설정된 history collection을 조회하고 문서를 기록·갱신·삭제하는 coroutine MongoDatabase입니다.
  * @property config 사용할 collection 이름과 TTL 보존 정책입니다.

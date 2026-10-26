@@ -4,7 +4,8 @@ import io.bluetape4k.leader.strategy.CandidateInfo
 import java.time.Instant
 
 /**
- * `LettuceCandidateInfoCodec`는 `CandidateInfo`의 nodeId·시각·성공/실패 카운터·metadata를 Redis 문자열로 직렬화하고 복원하며, 구분자를 포함한 값은 encode 시 escape합니다.
+ * `LettuceCandidateInfoCodec`는 `CandidateInfo`의 nodeId·시각·성공/실패 카운터·metadata를 Redis 문자열로 직렬화하고 복원하며, 구분자를 포함한
+ * 값은 encode 시 escape합니다.
  *
  */
 internal object LettuceCandidateInfoCodec {

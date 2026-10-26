@@ -46,7 +46,8 @@ interface VirtualThreadLeaderElector: LeaderElectionState {
      *
      * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
      * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 획득 성공은 `Elected`, lock contention은 `Skipped`, 실행 중 예외는 `ActionFailed`로 전달하는 future입니다. cancellation은 예외 완료됩니다.
+     * @return 획득 성공은 `Elected`, lock contention은 `Skipped`, 실행 중 예외는 `ActionFailed`로 전달하는 future입니다. cancellation은
+     * 예외 완료됩니다.
      */
     fun <T> runAsyncIfLeaderResult(
         slot: LeaderSlot,

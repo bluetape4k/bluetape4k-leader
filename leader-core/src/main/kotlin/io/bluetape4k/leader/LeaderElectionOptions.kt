@@ -18,7 +18,8 @@ import kotlin.time.Duration.Companion.seconds
  * @property nodeId 이 프로세스의 leader 후보 식별자입니다. 공백은 허용되지 않으며 기본값은 `LeaderNodeId.Default`입니다.
  * @property minLeaseTime 작업이 일찍 끝나도 획득 시점부터 유지할 최소 시간입니다. `0` 이상 `leaseTime` 이하이며 기본값은 `0`입니다.
  * @property autoExtend `true`이면 작업이 실행되는 동안 watchdog이 lease를 연장합니다. 기본값은 `false`입니다.
- * @property useDbTime Exposed JDBC/R2DBC backend가 만료 시각 계산에 DB server clock을 사용할지 정합니다. 다른 backend는 이 옵션을 사용하지 않으며 기본값은 `false`입니다.
+ * @property useDbTime Exposed JDBC/R2DBC backend가 만료 시각 계산에 DB server clock을 사용할지 정합니다. 다른 backend는 이 옵션을 사용하지
+ * 않으며 기본값은 `false`입니다.
  */
 data class LeaderElectionOptions(
     val waitTime: Duration = DefaultWaitTime,

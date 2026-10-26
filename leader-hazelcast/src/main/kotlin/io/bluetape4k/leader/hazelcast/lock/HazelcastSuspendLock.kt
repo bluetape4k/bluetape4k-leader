@@ -22,11 +22,13 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * `HazelcastSuspendLock`는 Hazelcast lock key의 token 기반 tryLock·ownership 확인·unlock·lease 연장을 suspend 경로로 수행합니다.
  *
- * `tryLock`이 경합·timeout으로 ownership을 획득하지 못하면 `false`를 반환하며, unlock/extend는 backend token 일치 여부를 확인해 불일치·만료를 성공으로 처리하지 않습니다.
+ * `tryLock`이 경합·timeout으로 ownership을 획득하지 못하면 `false`를 반환하며, unlock/extend는 backend token 일치 여부를 확인해 불일치·만료를
+ * 성공으로 처리하지 않습니다.
  * @property lockMap lock key와 소유 token을 저장하며 TTL을 적용하는 Hazelcast `IMap`입니다.
  * @property lockKey `lockMap`에서 이 인스턴스의 소유 token을 조회할 문자열 키입니다. 그룹 선출에서는 슬롯 키가 됩니다.
  * @property transactionMapName transaction-aware 연산에서 사용할 map 이름이며, `null`이면 `lockMap.name`을 사용합니다.
- * @property transactionContextProvider lock 해제·연장 시 소유 검증을 원자적으로 수행할 transaction context 공급자입니다. `null`이면 직접 map 연산을 사용합니다.
+ * @property transactionContextProvider lock 해제·연장 시 소유 검증을 원자적으로 수행할 transaction context 공급자입니다. `null`이면 직접
+ * map 연산을 사용합니다.
  */
 class HazelcastSuspendLock(
     private val lockMap: IMap<String, String>,

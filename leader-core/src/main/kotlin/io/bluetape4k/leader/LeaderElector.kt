@@ -28,7 +28,8 @@ interface LeaderElector: AsyncLeaderElector {
      *
      * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
      * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 획득 성공은 `LeaderRunResult.Elected`, lock contention은 `LeaderRunResult.Skipped`, 작업의 일반 `Exception`은 `LeaderRunResult.ActionFailed`로 반환합니다. `CancellationException`과 `InterruptedException`은 다시 던집니다.
+     * @return 획득 성공은 `LeaderRunResult.Elected`, lock contention은 `LeaderRunResult.Skipped`, 작업의 일반 `Exception`은
+     * `LeaderRunResult.ActionFailed`로 반환합니다. `CancellationException`과 `InterruptedException`은 다시 던집니다.
      */
     fun <T> runIfLeaderResult(lockName: String, action: () -> T): LeaderRunResult<T> {
         var elected = false
@@ -69,7 +70,8 @@ interface LeaderElector: AsyncLeaderElector {
      *
      * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
      * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
-     * @return 획득 성공은 `LeaderRunResult.Elected`, lock contention은 `LeaderRunResult.Skipped`, 작업의 일반 `Exception`은 `LeaderRunResult.ActionFailed`로 반환합니다. `CancellationException`과 `InterruptedException`은 다시 던집니다.
+     * @return 획득 성공은 `LeaderRunResult.Elected`, lock contention은 `LeaderRunResult.Skipped`, 작업의 일반 `Exception`은
+     * `LeaderRunResult.ActionFailed`로 반환합니다. `CancellationException`과 `InterruptedException`은 다시 던집니다.
      */
     fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
         log.debug { "runIfLeaderResult. slot=$slot" }

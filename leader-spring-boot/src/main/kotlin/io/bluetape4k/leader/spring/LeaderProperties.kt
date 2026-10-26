@@ -16,7 +16,8 @@ import java.time.Duration
  *
  * @property waitTime 공통 lock 획득 대기 시간입니다. 기본값은 5초이며 실제 범위 검증은 core options가 담당합니다.
  * @property leaseTime 공통 lease TTL입니다. 기본값은 60초이며 양수 여부 검증은 core options가 담당합니다.
- * @property watchdogThreads lease auto-extension에 사용할 thread 수 override입니다. `null`이면 `LeaderLeaseAutoExtender`의 기본 thread 수를 사용합니다.
+ * @property watchdogThreads lease auto-extension에 사용할 thread 수 override입니다. `null`이면
+ * `LeaderLeaseAutoExtender`의 기본 thread 수를 사용합니다.
  * @property watchdogAsyncExtend watchdog이 lease를 asynchronous 방식으로 연장할지 정합니다. 기본값은 `false`입니다.
  * @property diagnostics startup/backend diagnostics 설정입니다. 기본값은 `LeaderDiagnosticsProperties()`입니다.
  * @property routeGuard HTTP route guard 설정입니다. 기본값은 `LeaderRouteGuardProperties()`입니다.

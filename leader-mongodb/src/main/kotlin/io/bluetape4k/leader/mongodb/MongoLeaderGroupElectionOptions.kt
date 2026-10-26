@@ -10,8 +10,10 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * `MongoLeaderGroupElectionOptions`는 MongoDB group election의 공통 슬롯 정책과 재시도 간격을 설정합니다.
  *
- * @property leaderGroupOptions 슬롯 수, 대기 시간, lease TTL을 정하는 공통 group 옵션입니다. 기본값은 `LeaderGroupElectionOptions.Default`입니다.
- * @property retryDelay `MongoLock`과 `MongoSuspendLock`의 재시도 사이 지연을 계산할 때 사용하는 값입니다. 양수여야 하며 기본값은 50밀리초입니다. 지연은 밀리초 단위 jitter로 정하고, 설정이 2밀리초보다 짧으면 1밀리초를 사용합니다.
+ * @property leaderGroupOptions 슬롯 수, 대기 시간, lease TTL을 정하는 공통 group 옵션입니다. 기본값은
+ * `LeaderGroupElectionOptions.Default`입니다.
+ * @property retryDelay `MongoLock`과 `MongoSuspendLock`의 재시도 사이 지연을 계산할 때 사용하는 값입니다. 양수여야 하며 기본값은 50밀리초입니다. 지연은
+ * 밀리초 단위 jitter로 정하고, 설정이 2밀리초보다 짧으면 1밀리초를 사용합니다.
  */
 data class MongoLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,

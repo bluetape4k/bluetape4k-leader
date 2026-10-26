@@ -10,7 +10,8 @@ import java.io.Serializable
  * @property id Exposed history table에서 생성한 행 ID입니다. 다른 저장소가 별도 ID를 사용하면 `null`입니다.
  * @property historyId 저장소가 발급한 이력 식별자입니다. MongoDB는 UUID v7 문자열을 사용하며, 별도 식별자가 없으면 `null`입니다.
  * @property lockName 이 이력이 가리키는 lock 이름입니다. 공백 문자열은 허용되지 않습니다.
- * @property token backend가 해당 lock의 소유권을 확인하고 이력을 연결하는 token입니다. 공백 문자열은 허용되지 않으며 민감정보이므로 로그에 직접 남기지 마세요. `toString()`은 값을 가립니다.
+ * @property token backend가 해당 lock의 소유권을 확인하고 이력을 연결하는 token입니다. 공백 문자열은 허용되지 않으며 민감정보이므로 로그에 직접 남기지 마세요.
+ * `toString()`은 값을 가립니다.
  * @property slotId group election에서 획득한 슬롯 식별자입니다. 단일 leader 이력처럼 슬롯이 없으면 `null`입니다.
  */
 data class LeaderHistoryKey(

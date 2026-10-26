@@ -14,7 +14,8 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property lastCompletionTime 마지막 작업 완료 시각입니다. 완료 이력이 없으면 `null`입니다.
  * @property successCount 기록된 성공 횟수입니다. 기본값은 `0`이며 이 클래스는 입력 범위를 검증하지 않습니다.
  * @property failureCount 기록된 실패 횟수입니다. 기본값은 `0`이며 이 클래스는 입력 범위를 검증하지 않습니다.
- * @property metadata caller가 후보 등록·갱신 때 제공하는 key-value 문맥입니다. 전략 elector의 메모리 레지스트리에 보관하고 `listCandidates`가 반환합니다. 자동 마스킹하지 않으므로 민감정보를 넣지 마세요.
+ * @property metadata caller가 후보 등록·갱신 때 제공하는 key-value 문맥입니다. 전략 elector의 메모리 레지스트리에 보관하고 `listCandidates`가
+ * 반환합니다. 자동 마스킹하지 않으므로 민감정보를 넣지 마세요.
  */
 data class CandidateInfo(
     val nodeId: String,

@@ -29,7 +29,8 @@ import kotlin.time.Duration.Companion.minutes
 /**
  * `LettuceLock`는 Redis Lettuce lock key의 token 기반 tryLock·ownership 확인·unlock·lease 연장을 blocking 경로로 수행합니다.
  *
- * `tryLock`이 경합·timeout으로 ownership을 획득하지 못하면 `false`를 반환하며, unlock/extend는 backend token 일치 여부를 확인해 불일치·만료를 성공으로 처리하지 않습니다.
+ * `tryLock`이 경합·timeout으로 ownership을 획득하지 못하면 `false`를 반환하며, unlock/extend는 backend token 일치 여부를 확인해 불일치·만료를
+ * 성공으로 처리하지 않습니다.
  * @property connection lock key의 token을 저장하고 Lua script를 실행하는 Redis 연결입니다.
  * @property lockKey token을 저장하는 Redis string key입니다. 그룹 선출에서는 슬롯별 key가 전달됩니다.
  * @property defaultLeaseTime `tryLock`·`extend` 등 lease 인자를 생략했을 때 적용하는 기본 TTL이며, 단위는 `Duration`입니다.

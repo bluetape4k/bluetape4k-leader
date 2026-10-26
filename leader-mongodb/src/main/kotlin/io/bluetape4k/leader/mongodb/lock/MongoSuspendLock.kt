@@ -35,7 +35,8 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * `MongoSuspendLock`는 MongoDB lock key의 token 기반 tryLock·ownership 확인·unlock·lease 연장을 suspend 경로로 수행합니다.
  *
- * `tryLock`이 경합·timeout으로 ownership을 획득하지 못하면 `false`를 반환하며, unlock/extend는 backend token 일치 여부를 확인해 불일치·만료를 성공으로 처리하지 않습니다.
+ * `tryLock`이 경합·timeout으로 ownership을 획득하지 못하면 `false`를 반환하며, unlock/extend는 backend token 일치 여부를 확인해 불일치·만료를
+ * 성공으로 처리하지 않습니다.
  * @property collection `_id`, `token`, `expireAt` lock 문서를 저장하는 coroutine MongoDB collection입니다.
  * @property lockKey lock 문서의 `_id`입니다. 그룹 elector는 `$lockName:slot:n` 형식의 슬롯 키를 전달합니다.
  * @property retryDelay 경합 재시도 사이의 양의 jitter 상한이며 실제 delay는 `1ms` 이상 이 값 미만으로 선택됩니다.
