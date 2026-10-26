@@ -4,6 +4,8 @@ import io.bluetape4k.support.requireGe
 import io.bluetape4k.support.requireGt
 import io.bluetape4k.support.requireLe
 import io.bluetape4k.support.requireNotBlank
+import java.io.InvalidObjectException
+import java.io.ObjectInputStream
 import java.io.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -27,12 +29,29 @@ data class LeaderElectionOptions(
     val useDbTime: Boolean = false,
 ): Serializable {
     init {
+        validateInvariants()
+    }
+
+    private fun validateInvariants() {
         waitTime.requireGe(Duration.ZERO, "waitTime")
         leaseTime.requireGt(Duration.ZERO, "leaseTime")
         nodeId.requireNotBlank("nodeId")
         minLeaseTime.requireGe(Duration.ZERO, "minLeaseTime")
         minLeaseTime.requireLe(leaseTime) {
             "minLeaseTime must not exceed leaseTime: minLeaseTime=$minLeaseTime, leaseTime=$leaseTime"
+        }
+    }
+
+    /**
+     * Java serialization은 생성자와 [init]을 우회하므로 복원 경계에서도
+     * 불변식을 확인합니다.
+     */
+    private fun readObject(input: ObjectInputStream) {
+        try {
+            input.defaultReadObject()
+            validateInvariants()
+        } catch (cause: IllegalArgumentException) {
+            throw InvalidObjectException(cause.message).also { it.initCause(cause) }
         }
     }
 

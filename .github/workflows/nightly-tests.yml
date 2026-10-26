@@ -789,7 +789,8 @@ jobs:
     name: Test / leader-mongodb (Testcontainers)
     if: ${{ (github.event_name == 'schedule' && github.event.schedule == '19 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
 
-    runs-on: ubuntu-latest
+    # MongoDB 8.0.28 rejects Ubuntu 26.04's 7.0.0 kernel (SERVER-121912).
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: build
     steps:
@@ -1143,7 +1144,8 @@ jobs:
     name: Test / leader-spring-boot (Testcontainers)
     if: ${{ (github.event_name == 'schedule' && github.event.schedule == '19 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
 
-    runs-on: ubuntu-latest
+    # MongoDB 8.0.28 rejects Ubuntu 26.04's 7.0.0 kernel (SERVER-121912).
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: build
     steps:
