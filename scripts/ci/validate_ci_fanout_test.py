@@ -9,10 +9,30 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from validate_ci_fanout import job_specs, runtime_errors, static_errors
+from validate_ci_fanout import job_blocks, job_specs, runtime_errors, static_errors
 
 
 class ValidateCiFanoutContractTest(unittest.TestCase):
+    def test_mongodb_test_lanes_are_pinned_to_ubuntu_2404(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        workflow_jobs = {
+            ".github/workflows/ci.yml": (
+                "test-examples-webhook-poller",
+                "test-spring-boot",
+                "test-mongodb",
+            ),
+            ".github/workflows/examples.yml": ("test-examples",),
+            ".github/workflows/nightly-tests.yml": ("test-mongodb", "test-spring-boot"),
+        }
+
+        for workflow_path, job_ids in workflow_jobs.items():
+            workflow = root.joinpath(workflow_path).read_text(encoding="utf-8")
+            blocks = job_blocks(workflow)
+            for job_id in job_ids:
+                with self.subTest(workflow=workflow_path, job=job_id):
+                    self.assertIn(job_id, blocks)
+                    self.assertRegex(blocks[job_id], r"(?m)^    runs-on:\s*ubuntu-24\.04\s*$")
+
     def test_benchmark_tasks_are_excluded_from_ci_and_nightly(self) -> None:
         root = Path(__file__).resolve().parents[2]
         ci = root.joinpath(".github/workflows/ci.yml").read_text(encoding="utf-8")
