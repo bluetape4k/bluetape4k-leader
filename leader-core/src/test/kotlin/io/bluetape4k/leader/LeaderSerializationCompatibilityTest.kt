@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InvalidClassException
+import java.io.InvalidObjectException
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.io.ObjectStreamClass
@@ -58,6 +59,74 @@ class LeaderSerializationCompatibilityTest {
         val bytes = BinarySerializers.FastFory.serialize(original)
         val restored = BinarySerializers.FastFory.deserialize<ExtendOutcome>(bytes)
         restored shouldBeEqualTo original
+    }
+
+    @Test
+    fun `current options remain serializable after validation`() {
+        listOf<Any>(LeaderElectionOptions.Default, LeaderGroupElectionOptions.Default).forEach { original ->
+            deserialize(serialize(original)) shouldBeEqualTo original
+        }
+    }
+
+    @Test
+    fun `LeaderElectionOptions rejects invalid serialized invariants`() {
+        assertInvalidSerializedFields(
+            LeaderElectionOptions.Default,
+            listOf(
+                "waitTime" to -1_000_000L,
+                "leaseTime" to 0L,
+                "nodeId" to " ",
+                "minLeaseTime" to -1_000_000L,
+                "minLeaseTime" to Long.MAX_VALUE,
+            ),
+        )
+    }
+
+    @Test
+    fun `LeaderGroupElectionOptions rejects invalid serialized invariants`() {
+        assertInvalidSerializedFields(
+            LeaderGroupElectionOptions.Default,
+            listOf(
+                "maxLeaders" to 0,
+                "waitTime" to -1_000_000L,
+                "leaseTime" to 0L,
+                "nodeId" to " ",
+                "minLeaseTime" to -1_000_000L,
+                "minLeaseTime" to Long.MAX_VALUE,
+            ),
+        )
+    }
+
+    private fun deserialize(bytes: ByteArray): Any =
+        ObjectInputStream(ByteArrayInputStream(bytes)).use { input -> input.readObject() }
+
+    private fun serialize(value: Any): ByteArray =
+        ByteArrayOutputStream().use { output ->
+            ObjectOutputStream(output).use { stream -> stream.writeObject(value) }
+            output.toByteArray()
+        }
+
+    private fun assertInvalidSerializedFields(value: Any, replacements: List<Pair<String, Any>>) {
+        replacements.forEach { (fieldName, replacement) ->
+            try {
+                assertFailsWith<InvalidObjectException> {
+                    deserialize(serializeWithField(value, fieldName, replacement))
+                }
+            } catch (cause: AssertionError) {
+                throw AssertionError("Expected invalid serialized field: $fieldName", cause)
+            }
+        }
+    }
+
+    private fun serializeWithField(value: Any, fieldName: String, replacement: Any): ByteArray {
+        val field = value.javaClass.getDeclaredField(fieldName).apply { isAccessible = true }
+        val original = field.get(value)
+        return try {
+            field.set(value, replacement)
+            serialize(value)
+        } finally {
+            field.set(value, original)
+        }
     }
 
     companion object: KLogging() {
