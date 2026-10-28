@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.logging.KLogging
+import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -14,6 +15,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
@@ -24,9 +26,16 @@ class HazelcastMonotonicWaitTest {
 
     companion object: KLogging()
 
+    private val lockMap = mockk<IMap<String, String>>(relaxed = true)
+
+    @BeforeEach
+    fun beforeEach() {
+        clearMocks(lockMap)
+        every { lockMap.putIfAbsent(any(), any(), any<Long>(), TimeUnit.MILLISECONDS) } returns "owner"
+    }
+
     @Test
     fun `blocking wait budget은 주입한 monotonic ticker를 따른다`() {
-        val lockMap = contendedMap()
         val lock = HazelcastLock(lockMap, "blocking-clock-jump")
         var tickerNanos = 1.seconds.inWholeNanoseconds
         val sleeps = mutableListOf<Long>()
@@ -43,12 +52,12 @@ class HazelcastMonotonicWaitTest {
 
         acquired.shouldBeFalse()
         sleeps shouldBeEqualTo listOf(50L, 50L)
+
         verify(exactly = 2) { lockMap.putIfAbsent(any(), any(), any<Long>(), TimeUnit.MILLISECONDS) }
     }
 
     @Test
     fun `blocking zero negative wait은 한 번만 시도하고 sleep 하지 않는다`() {
-        val lockMap = contendedMap()
         var sleepCount = 0
 
         listOf(Duration.ZERO, (-1).milliseconds).forEachIndexed { index, waitTime ->
@@ -66,7 +75,7 @@ class HazelcastMonotonicWaitTest {
 
     @Test
     fun `blocking wait interruption은 호출자에게 전파한다`() {
-        val lock = HazelcastLock(contendedMap(), "blocking-interruption")
+        val lock = HazelcastLock(lockMap, "blocking-interruption")
 
         assertFailsWith<InterruptedException> {
             lock.tryLock(
@@ -80,7 +89,6 @@ class HazelcastMonotonicWaitTest {
 
     @Test
     fun `suspend wait budget은 주입한 monotonic ticker를 따른다`() = runTest {
-        val lockMap = contendedMap()
         val lock = HazelcastSuspendLock(lockMap, "suspend-clock-jump")
         var tickerNanos = 1.seconds.inWholeNanoseconds
         val delays = mutableListOf<Long>()
@@ -102,7 +110,6 @@ class HazelcastMonotonicWaitTest {
 
     @Test
     fun `suspend zero negative wait은 한 번만 시도하고 delay 하지 않는다`() = runTest {
-        val lockMap = contendedMap()
         var delayCount = 0
 
         listOf(Duration.ZERO, (-1).milliseconds).forEachIndexed { index, waitTime ->
@@ -120,7 +127,7 @@ class HazelcastMonotonicWaitTest {
 
     @Test
     fun `suspend wait cancellation은 호출자에게 전파한다`() = runTest {
-        val lock = HazelcastSuspendLock(contendedMap(), "suspend-cancellation")
+        val lock = HazelcastSuspendLock(lockMap, "suspend-cancellation")
         val waiting = CompletableDeferred<Unit>()
         val contender = async {
             lock.tryLock(
@@ -143,9 +150,5 @@ class HazelcastMonotonicWaitTest {
         } catch (_: CancellationException) {
             contender.isCancelled.shouldBeTrue()
         }
-    }
-
-    private fun contendedMap(): IMap<String, String> = mockk<IMap<String, String>>(relaxed = true).also { lockMap ->
-        every { lockMap.putIfAbsent(any(), any(), any<Long>(), TimeUnit.MILLISECONDS) } returns "owner"
     }
 }

@@ -17,7 +17,6 @@ import io.bluetape4k.leader.hazelcast.lock.HazelcastSuspendLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
-import io.bluetape4k.leader.hazelcast.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -25,6 +24,7 @@ import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import io.bluetape4k.leader.hazelcast.suspendRunIfLeader as currentSuspendRunIfLeader
 
 /**
  * `HazelcastSuspendLeaderElector`는 Hazelcast의 suspend 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.

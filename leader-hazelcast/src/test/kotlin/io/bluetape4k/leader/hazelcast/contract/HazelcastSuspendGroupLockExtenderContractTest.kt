@@ -14,9 +14,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HazelcastSuspendGroupLockExtenderContractTest: AbstractSuspendGroupLockExtenderContractTest() {
 
-    companion object: KLoggingChannel() {
-        val server = AbstractHazelcastLeaderTest.hazelcastServer
-    }
+    companion object: KLoggingChannel()
 
     override val elector: SuspendLeaderGroupElector =
         HazelcastSuspendLeaderGroupElector(

@@ -145,6 +145,7 @@ class HazelcastLock(
         val provider = transactionContextProvider ?: return onTransactionUnavailable()
         val context = provider()
         context.beginTransaction()
+
         return try {
             val txMap = context.getMap<String, String>(transactionMapName ?: lockMap.name)
             if (txMap.getForUpdate(lockKey) != token) {

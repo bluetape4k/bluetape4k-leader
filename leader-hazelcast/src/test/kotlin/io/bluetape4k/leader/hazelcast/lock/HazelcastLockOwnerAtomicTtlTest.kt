@@ -47,7 +47,9 @@ class HazelcastLockOwnerAtomicTtlTest {
         val acquiredAtNanos = System.nanoTime()
 
         prepareTransaction(lockKey, token)
-        every { transactionMap.put(lockKey, token, any<Long>(), TimeUnit.MILLISECONDS) } returns token
+        every {
+            transactionMap.put(lockKey, token, any<Long>(), TimeUnit.MILLISECONDS)
+        } returns token
 
         lock.unlock(30.seconds, acquiredAtNanos)
 
@@ -77,6 +79,7 @@ class HazelcastLockOwnerAtomicTtlTest {
             transactionMap.getForUpdate(lockKey)
             transactionContext.commitTransaction()
         }
+
         verify(exactly = 0) { transactionMap.put(lockKey, any<String>(), any<Long>(), TimeUnit.MILLISECONDS) }
         verify(exactly = 0) { transactionMap.remove(lockKey) }
         verify(exactly = 0) { lockMap.set(lockKey, any<String>(), any<Long>(), TimeUnit.MILLISECONDS) }

@@ -19,7 +19,6 @@ import io.bluetape4k.leader.hazelcast.internal.HazelcastSlotExtendDelegate
 import io.bluetape4k.leader.hazelcast.lock.HazelcastLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import io.bluetape4k.leader.hazelcast.runIfLeaderGroup as currentRunIfLeaderGroup
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -32,6 +31,7 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import io.bluetape4k.leader.hazelcast.runIfLeaderGroup as currentRunIfLeaderGroup
 
 /**
  * `HazelcastLeaderGroupElector`는 Hazelcast의 blocking 그룹 선출을 제공하며 `maxLeaders` 슬롯을 acquire·extend·release합니다.
@@ -156,6 +156,7 @@ class HazelcastLeaderGroupElector private constructor(
         lockName.validateLockName()
 
         val slotWaitTime = waitTime / maxLeaders
+        log.debug { "리더 그룹 슬롯 획득을 요청합니다. lockName=$lockName, maxLeaders=$maxLeaders" }
 
         val acquiredRef = AtomicReference<Pair<HazelcastLock, Int>?>(null)
         val acquiredAtNanosRef = AtomicLong()
@@ -186,12 +187,13 @@ class HazelcastLeaderGroupElector private constructor(
                     ) to slot
                 }
                 .firstOrNull { (lock, slot) ->
-                    lock.tryLock(slotWaitTime, leaseTime).also { acquired ->
-                        if (acquired) {
-                            acquiredAtNanosRef.set(System.nanoTime())
-                            acquiredRef.set(lock to slot)
+                    lock.tryLock(slotWaitTime, leaseTime)
+                        .also { acquired ->
+                            if (acquired) {
+                                acquiredAtNanosRef.set(System.nanoTime())
+                                acquiredRef.set(lock to slot)
+                            }
                         }
-                    }
                 }
         }
         val pipelineFuture: CompletableFuture<T?> = try {

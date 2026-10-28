@@ -49,7 +49,9 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
         waitTime = 10.seconds,
         leaseTime = 60.seconds,
     )
-    private val elector by lazy { HazelcastLeaderGroupElector(hazelcastClient, options) }
+    private val elector by lazy {
+        HazelcastLeaderGroupElector(hazelcastClient, options)
+    }
 
     @Test
     fun `runIfLeader - 리더로 선출되어 action 을 실행하고 결과를 반환한다`() {

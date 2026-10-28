@@ -10,6 +10,7 @@ import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.utils.Runtimex
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
@@ -101,7 +102,8 @@ class HazelcastSuspendLeaderGroupElectorTest: AbstractHazelcastLeaderTest() {
         val peakConcurrent = AtomicInteger(0)
 
         SuspendedJobTester()
-            .rounds(options.maxLeaders * 8)
+            .workers(Runtimex.availableProcessors)
+            .rounds(options.maxLeaders * 2 * Runtimex.availableProcessors)
             .add {
                 elector.runIfLeader(lockName) {
                     val current = currentConcurrent.incrementAndGet()

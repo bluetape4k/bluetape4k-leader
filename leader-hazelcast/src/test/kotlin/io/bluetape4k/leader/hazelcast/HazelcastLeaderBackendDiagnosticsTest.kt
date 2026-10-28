@@ -52,7 +52,7 @@ class HazelcastLeaderBackendDiagnosticsTest {
 
     @Test
     fun `descriptor는 Hazelcast 실행 모델과 server TTL 계약을 보고한다`() {
-        val provider = HazelcastLeaderBackendDiagnostics(mockk(relaxed = true))
+        val provider = HazelcastLeaderBackendDiagnostics(hazelcast)
         val descriptor = provider.backendDescriptor
         val capabilities = descriptor.capabilities
         val executionModels = setOf(

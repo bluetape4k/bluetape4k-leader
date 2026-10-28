@@ -2,6 +2,7 @@ package io.bluetape4k.leader.hazelcast.contract
 
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.AopScopeAccess
@@ -15,6 +16,7 @@ import io.bluetape4k.leader.hazelcast.HazelcastLeaderGroupElector
 import io.bluetape4k.leader.hazelcast.HazelcastSuspendLeaderElector
 import io.bluetape4k.leader.hazelcast.HazelcastSuspendLeaderGroupElector
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds
@@ -36,9 +38,9 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HazelcastExtendDelegateReferenceTest: AbstractHazelcastLeaderTest() {
 
-    companion object: KLoggingChannel()
-
-    private fun randomLockName(): String = "extdelref-hz-${Base58.randomString(8)}"
+    companion object: KLoggingChannel() {
+        private fun randomLockName(): String = "extdelref-hz-${Base58.randomString(8)}"
+    }
 
     @Test
     fun `sync single — extendActiveLockDetailed returns Extended inside body`() {
@@ -51,6 +53,7 @@ class HazelcastExtendDelegateReferenceTest: AbstractHazelcastLeaderTest() {
             outcome = LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         AopScopeAccess.pollCapture().shouldBeNull()
     }
@@ -66,6 +69,7 @@ class HazelcastExtendDelegateReferenceTest: AbstractHazelcastLeaderTest() {
             outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
         }
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }
 
@@ -83,6 +87,7 @@ class HazelcastExtendDelegateReferenceTest: AbstractHazelcastLeaderTest() {
             outcome = LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         AopScopeAccess.pollCapture().shouldBeNull()
     }
@@ -101,6 +106,7 @@ class HazelcastExtendDelegateReferenceTest: AbstractHazelcastLeaderTest() {
             outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
         }
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         AopScopeAccess.pollCapture().shouldBeNull()
     }
@@ -117,7 +123,11 @@ class HazelcastExtendDelegateReferenceTest: AbstractHazelcastLeaderTest() {
             outcomes += LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
-        outcomes.forEach { it.shouldBeInstanceOf<ExtendOutcome.Extended>() }
+        outcomes.forEach {
+            log.debug { "outcome=$it" }
+            it.shouldBeInstanceOf<ExtendOutcome.Extended>()
+        }
+        outcomes shouldHaveSize 3
     }
 
     @Test
@@ -133,6 +143,8 @@ class HazelcastExtendDelegateReferenceTest: AbstractHazelcastLeaderTest() {
             postExtend = LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
+        log.debug { "preExtend=$preExtend" }
+        log.debug { "postExtend=$postExtend" }
         preExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
         postExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }

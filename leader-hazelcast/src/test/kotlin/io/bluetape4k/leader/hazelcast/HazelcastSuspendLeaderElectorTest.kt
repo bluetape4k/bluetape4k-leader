@@ -87,7 +87,7 @@ class HazelcastSuspendLeaderElectorTest: AbstractHazelcastLeaderTest() {
         val task1 = AtomicInteger(0)
         val task2 = AtomicInteger(0)
         val numThreads = Runtimex.availableProcessors
-        val roundsPerThread = 2
+        val roundsPerThread = 4
 
         SuspendedJobTester()
             .workers(numThreads)
