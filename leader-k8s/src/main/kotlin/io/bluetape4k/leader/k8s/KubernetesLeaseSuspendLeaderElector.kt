@@ -11,7 +11,6 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
-import io.bluetape4k.leader.k8s.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -25,6 +24,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.time.Clock
+import io.bluetape4k.leader.k8s.suspendRunIfLeader as currentSuspendRunIfLeader
 
 /**
  * `KubernetesLeaseSuspendLeaderElector`는 namespaced Kubernetes Lease로 단일 leader의 suspend 실행과 lease 수명을 관리합니다.
@@ -81,10 +81,10 @@ class KubernetesLeaseSuspendLeaderElector @JvmOverloads constructor(
 
     override val supportsAuditLeaderState: Boolean = true
 
-    private suspend fun <T> runWithLock(
+    private suspend inline fun <T> runWithLock(
         lockName: String,
         auditLeaderId: String?,
-        action: suspend () -> T,
+        crossinline action: suspend () -> T,
     ): T? {
         currentCoroutineContext().ensureActive()
         val lock = newLock(lockName, auditLeaderId)

@@ -2,6 +2,7 @@ package io.bluetape4k.leader.k8s.contract
 
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.contract.AbstractSyncLockExtenderContractTest
+import io.bluetape4k.leader.k8s.KubernetesContainers
 import io.bluetape4k.leader.k8s.KubernetesLeaseLeaderElector
 import io.bluetape4k.leader.k8s.KubernetesLeaseOptions
 import io.bluetape4k.logging.KLogging
@@ -20,7 +21,7 @@ class KubernetesLeaseLockExtenderContractTest: AbstractSyncLockExtenderContractT
 
     companion object: KLogging()
 
-    private val client: KubernetesClient = KubernetesContractSupport.newClient()
+    private val client: KubernetesClient = KubernetesContainers.newClient()
 
     override val elector: LeaderElector =
         KubernetesLeaseLeaderElector(client, KubernetesLeaseOptions(namespace = "default"))

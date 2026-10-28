@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.k8s.internal
 
 import io.bluetape4k.support.requireInRange
+import io.bluetape4k.support.requireMatches
 import io.bluetape4k.support.requireNotBlank
 
 internal object KubernetesLeaseNames {
@@ -22,7 +23,7 @@ internal object KubernetesLeaseNames {
         require(lockName.length <= 63) {
             "lockName must be at most 63 characters for Kubernetes Lease name. lockName=$lockName"
         }
-        require(Dns1123Label.matches(lockName)) {
+        lockName.requireMatches(Dns1123Label, "lockName") {
             "lockName must be a DNS-1123 label for Kubernetes Lease name. lockName=$lockName"
         }
     }

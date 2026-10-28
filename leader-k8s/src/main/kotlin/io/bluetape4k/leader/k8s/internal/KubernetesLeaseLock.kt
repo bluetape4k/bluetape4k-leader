@@ -85,8 +85,7 @@ internal class KubernetesLeaseLock(
 
         val now = now()
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
-        val specBuilder = LeaseSpecBuilder(current.spec)
-            .withRenewTime(now)
+        val specBuilder = LeaseSpecBuilder(current.spec).withRenewTime(now)
         if (remaining > Duration.ZERO) {
             specBuilder.withHolderIdentity(ownerToken)
                 .withLeaseDurationSeconds(remaining.toLeaseDurationSeconds("remainingMinLeaseTime"))

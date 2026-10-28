@@ -17,8 +17,6 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import io.bluetape4k.leader.k8s.runAsyncIfLeader as currentRunAsyncIfLeader
-import io.bluetape4k.leader.k8s.runIfLeader as currentRunIfLeader
 import io.bluetape4k.leader.k8s.internal.KubernetesBackendErrorClassifier
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
@@ -33,6 +31,8 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicReference
+import io.bluetape4k.leader.k8s.runAsyncIfLeader as currentRunAsyncIfLeader
+import io.bluetape4k.leader.k8s.runIfLeader as currentRunIfLeader
 
 /**
  * `KubernetesLeaseLeaderElector`는 namespaced Kubernetes Lease로 단일 leader의 blocking/async 실행과 lease 수명을 관리합니다.
@@ -116,9 +116,9 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
             when {
                 cause is CancellationException -> throw cause
                 cause != null && elected -> LeaderRunResult.ActionFailed(cause)
-                cause != null -> throw cause
-                elected -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                cause != null            -> throw cause
+                elected                  -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else                     -> LeaderRunResult.Skipped
             }
         }
     }
@@ -128,7 +128,11 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
 
     override val supportsAuditLeaderState: Boolean = true
 
-    private fun <T> runWithLock(lockName: String, auditLeaderId: String?, action: () -> T): T? {
+    private inline fun <T> runWithLock(
+        lockName: String,
+        auditLeaderId: String?,
+        crossinline action: () -> T,
+    ): T? {
         val lock = newLock(lockName, auditLeaderId)
         log.debug { "Kubernetes Lease leadership requested. lockName=$lockName" }
         if (!lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime)) {
@@ -166,11 +170,11 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
     }
 
     @Suppress("TooGenericExceptionCaught")
-    private fun <T> runAsyncWithLock(
+    private inline fun <T> runAsyncWithLock(
         lockName: String,
         auditLeaderId: String?,
         executor: Executor,
-        action: () -> CompletableFuture<T>,
+        crossinline action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val lock = newLock(lockName, auditLeaderId)
 
@@ -183,7 +187,7 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
             when {
                 lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
                 lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else -> completableFutureOf(Unit)
+                else                                      -> completableFutureOf(Unit)
             }
         }
 
@@ -208,7 +212,7 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
                     failedCompletableFutureOf(CancellationException("leader result future was cancelled before action"))
                 } else {
                     try {
-                        runAcquiredAsync(lockName, lock, acquiredAtNanos, cancellationRelay, action)
+                        runAcquiredAsync(lockName, lock, acquiredAtNanos, cancellationRelay) { action() }
                     } catch (error: Throwable) {
                         AsyncLeaseCleanupDispatcher.failAfter(error) {
                             release(lock, acquiredAtNanos, lockName)
@@ -233,12 +237,12 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
     }
 
     @Suppress("ReturnCount", "TooGenericExceptionCaught")
-    private fun <T> runAcquiredAsync(
+    private inline fun <T> runAcquiredAsync(
         lockName: String,
         lock: KubernetesLeaseLock,
         acquiredAtNanos: Long,
         cancellationRelay: LeaderFutureBridge.CancellationRelay,
-        action: () -> CompletableFuture<T>,
+        crossinline action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val delegate = KubernetesLeaseLockExtendDelegate(lock)
         val watchdog = try {

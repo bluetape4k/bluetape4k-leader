@@ -10,34 +10,28 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.k8s.KubernetesContainers.newClient
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.logging.coroutines.KLoggingChannel
-import io.bluetape4k.testcontainers.infra.K3sServer
 import io.fabric8.kubernetes.client.KubernetesClient
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import java.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @Tag("k8s")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class KubernetesLeaseSuspendLeaderElectorK3sTest {
+class KubernetesLeaseSuspendLeaderElectorK3sTest: AbstractKubernetesTest() {
 
-    companion object: KLoggingChannel() {
-        private const val NAMESPACE = "default"
-
-        private val k3s: K3sServer by lazy { K3sServer.Launcher.k3s }
-    }
+    companion object: KLoggingChannel()
 
     @Test
     fun `runIfLeader blocks concurrent suspend holder and releases for reacquire`() = runSuspendIO {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val first = elector(client, nodeId = "node-a")
@@ -57,7 +51,7 @@ class KubernetesLeaseSuspendLeaderElectorK3sTest {
 
     @Test
     fun `cancellation releases lease in NonCancellable cleanup`() = runSuspendIO {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val election = elector(client, nodeId = "node-a")
@@ -81,7 +75,7 @@ class KubernetesLeaseSuspendLeaderElectorK3sTest {
 
     @Test
     fun `runIfLeaderResultSuspend writes slot leader id as audit identity`() = runSuspendIO {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val leaderId = "audit-node-a"
@@ -106,7 +100,7 @@ class KubernetesLeaseSuspendLeaderElectorK3sTest {
 
     @Test
     fun `expired lease is taken over by another suspend owner`() = runSuspendIO {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val staleLock = KubernetesLeaseLock(
@@ -131,7 +125,7 @@ class KubernetesLeaseSuspendLeaderElectorK3sTest {
 
     @Test
     fun `action failure releases lease for next suspend attempt`() = runSuspendIO {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val election = elector(client, nodeId = "node-a")
@@ -150,7 +144,7 @@ class KubernetesLeaseSuspendLeaderElectorK3sTest {
 
     @Test
     fun `watchdog auto extends lease during long suspend action`() = runSuspendIO {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val first = elector(
@@ -202,20 +196,4 @@ class KubernetesLeaseSuspendLeaderElectorK3sTest {
                 ),
             ),
         )
-
-    private fun randomLockName(): String =
-        "k8s-${Base58.randomString(10).lowercase()}"
-
-    private inline fun withCleanLease(
-        client: KubernetesClient,
-        lockName: String,
-        block: () -> Unit,
-    ) {
-        client.leases().inNamespace(NAMESPACE).withName(lockName).delete()
-        try {
-            block()
-        } finally {
-            client.leases().inNamespace(NAMESPACE).withName(lockName).delete()
-        }
-    }
 }

@@ -11,6 +11,7 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.k8s.KubernetesContainers
 import io.bluetape4k.leader.k8s.KubernetesLeaseGroupOptions
 import io.bluetape4k.leader.k8s.KubernetesLeaseLeaderElector
 import io.bluetape4k.leader.k8s.KubernetesLeaseLeaderGroupElector
@@ -39,7 +40,7 @@ class KubernetesLeaseExecutorOverloadContractTest {
 
     companion object: KLogging()
 
-    private val client: KubernetesClient = KubernetesContractSupport.newClient()
+    private val client: KubernetesClient = KubernetesContainers.newClient()
 
     @AfterAll
     fun closeClient() {

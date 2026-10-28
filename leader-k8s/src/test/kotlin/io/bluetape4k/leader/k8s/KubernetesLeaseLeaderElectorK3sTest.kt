@@ -14,13 +14,12 @@ import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.k8s.KubernetesContainers.newClient
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.testcontainers.infra.K3sServer
 import io.fabric8.kubernetes.client.KubernetesClient
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import java.time.Clock
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
@@ -33,17 +32,13 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @Tag("k8s")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class KubernetesLeaseLeaderElectorK3sTest {
+class KubernetesLeaseLeaderElectorK3sTest: AbstractKubernetesTest() {
 
-    companion object: KLogging() {
-        private const val NAMESPACE = "default"
-        private val k3s: K3sServer by lazy { K3sServer.Launcher.k3s }
-    }
+    companion object: KLogging()
 
     @Test
     fun `runIfLeader blocks concurrent holder and releases for reacquire`() {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val first = elector(client, nodeId = "node-a")
@@ -63,7 +58,7 @@ class KubernetesLeaseLeaderElectorK3sTest {
 
     @Test
     fun `same node still uses acquisition token so concurrent body is skipped`() {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val first = elector(client, nodeId = "same-node")
@@ -80,7 +75,7 @@ class KubernetesLeaseLeaderElectorK3sTest {
 
     @Test
     fun `slot leader id is written as audit identity while owner token fences release`() {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val leaderId = "audit-node-a"
@@ -105,7 +100,7 @@ class KubernetesLeaseLeaderElectorK3sTest {
 
     @Test
     fun `expired lease is taken over by another owner`() {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val staleLock = KubernetesLeaseLock(
@@ -131,7 +126,7 @@ class KubernetesLeaseLeaderElectorK3sTest {
 
     @Test
     fun `action failure releases lease for next attempt`() {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val election = elector(client, nodeId = "node-a")
@@ -150,7 +145,7 @@ class KubernetesLeaseLeaderElectorK3sTest {
 
     @Test
     fun `async failure releases lease for next attempt`() {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val election = elector(client, nodeId = "node-a")
@@ -171,7 +166,7 @@ class KubernetesLeaseLeaderElectorK3sTest {
 
     @Test
     fun `async cleanup runs after caller executor shutdown`() {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val election = elector(client, nodeId = "node-a", autoExtend = true)
@@ -202,7 +197,7 @@ class KubernetesLeaseLeaderElectorK3sTest {
 
     @Test
     fun `async result propagates cancellation and releases lease`() {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanLease(client, lockName) {
                 val election = elector(client, nodeId = "node-a")
@@ -241,19 +236,5 @@ class KubernetesLeaseLeaderElectorK3sTest {
             ),
         )
 
-    private fun randomLockName(): String =
-        "k8s-${Base58.randomString(10).lowercase()}"
 
-    private inline fun withCleanLease(
-        client: KubernetesClient,
-        lockName: String,
-        block: () -> Unit,
-    ) {
-        client.leases().inNamespace(NAMESPACE).withName(lockName).delete()
-        try {
-            block()
-        } finally {
-            client.leases().inNamespace(NAMESPACE).withName(lockName).delete()
-        }
-    }
 }

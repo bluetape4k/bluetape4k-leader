@@ -23,7 +23,7 @@ class KubernetesAsyncLeaseCleanupContractTest: AbstractAsyncLeaseCleanupContract
             cleanup,
             transform = transform
         )
-        else -> AsyncLeaseCleanupDispatcher.completeAfter(
+        else             -> AsyncLeaseCleanupDispatcher.completeAfter(
             source,
             executor,
             cleanup,

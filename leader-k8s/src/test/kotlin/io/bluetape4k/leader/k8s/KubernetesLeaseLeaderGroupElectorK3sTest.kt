@@ -13,14 +13,13 @@ import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.k8s.KubernetesContainers.newClient
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseNames
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.testcontainers.infra.K3sServer
 import io.fabric8.kubernetes.client.KubernetesClient
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import java.time.Clock
 import java.util.concurrent.CompletionException
 import kotlin.time.Duration
@@ -28,17 +27,13 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @Tag("k8s")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class KubernetesLeaseLeaderGroupElectorK3sTest {
+class KubernetesLeaseLeaderGroupElectorK3sTest: AbstractKubernetesTest() {
 
-    companion object: KLogging() {
-        private const val NAMESPACE = "default"
-        private val k3s: K3sServer by lazy { K3sServer.Launcher.k3s }
-    }
+    companion object: KLogging()
 
     @Test
     fun `runIfLeader acquires up to max leaders and releases for reacquire`() {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanGroupLeases(client, lockName, maxLeaders = 2) {
                 val first = elector(client, nodeId = "node-a", maxLeaders = 2)
@@ -68,7 +63,7 @@ class KubernetesLeaseLeaderGroupElectorK3sTest {
 
     @Test
     fun `slot leader id is written as group audit identity`() {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanGroupLeases(client, lockName, maxLeaders = 2) {
                 val leaderId = "audit-node-a"
@@ -93,7 +88,7 @@ class KubernetesLeaseLeaderGroupElectorK3sTest {
 
     @Test
     fun `expired group slot is taken over by another owner`() {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanGroupLeases(client, lockName, maxLeaders = 1) {
                 val staleLock = KubernetesLeaseLock(
@@ -119,7 +114,7 @@ class KubernetesLeaseLeaderGroupElectorK3sTest {
 
     @Test
     fun `async failure releases group slot for next attempt`() {
-        k3s.kubernetesClient().use { client ->
+        newClient().use { client ->
             val lockName = randomLockName()
             withCleanGroupLeases(client, lockName, maxLeaders = 1) {
                 val election = elector(client, nodeId = "node-a", maxLeaders = 1)
@@ -158,29 +153,4 @@ class KubernetesLeaseLeaderGroupElectorK3sTest {
             ),
         )
 
-    private fun randomLockName(): String =
-        "k8s-${Base58.randomString(10).lowercase()}"
-
-    private inline fun withCleanGroupLeases(
-        client: KubernetesClient,
-        lockName: String,
-        maxLeaders: Int,
-        block: () -> Unit,
-    ) {
-        deleteGroupLeases(client, lockName, maxLeaders)
-        try {
-            block()
-        } finally {
-            deleteGroupLeases(client, lockName, maxLeaders)
-        }
-    }
-
-    private fun deleteGroupLeases(client: KubernetesClient, lockName: String, maxLeaders: Int) {
-        repeat(maxLeaders) { slot ->
-            client.leases()
-                .inNamespace(NAMESPACE)
-                .withName(KubernetesLeaseNames.groupSlotLeaseName(lockName, slot, maxLeaders))
-                .delete()
-        }
-    }
 }

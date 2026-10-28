@@ -14,7 +14,6 @@ import io.bluetape4k.leader.k8s.internal.KubernetesLeaseGroupAcquisitionDeadline
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseNames
-import io.bluetape4k.leader.k8s.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -29,6 +28,7 @@ import java.time.Clock
 import java.util.concurrent.ThreadLocalRandom
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import io.bluetape4k.leader.k8s.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 
 /**
  * `KubernetesLeaseSuspendLeaderGroupElector`는 namespaced slot Lease로 여러 leader의 suspend 실행과 lease 수명을 관리합니다.
@@ -90,10 +90,10 @@ class KubernetesLeaseSuspendLeaderGroupElector @JvmOverloads constructor(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
-    private suspend fun <T> runWithGroupSlot(
+    private suspend inline fun <T> runWithGroupSlot(
         lockName: String,
         auditLeaderId: String?,
-        action: suspend () -> T,
+        crossinline action: suspend () -> T,
     ): T? {
         currentCoroutineContext().ensureActive()
         val acquired = withContext(Dispatchers.IO) {
