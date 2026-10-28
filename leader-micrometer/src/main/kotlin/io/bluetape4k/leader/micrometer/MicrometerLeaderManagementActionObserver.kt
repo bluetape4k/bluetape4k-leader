@@ -78,8 +78,9 @@ class MicrometerLeaderManagementActionObserver(
 
     private fun LeaderManagementActionPhase.toMetricValue(): String = when (this) {
         LeaderManagementActionPhase.RELEASE_STARTED -> "release"
-        else -> name.lowercase(Locale.ROOT).replace('_', '-')
+        else -> name.toMetricValue()
     }
 
-    private fun String.toMetricValue(): String = lowercase(Locale.ROOT).replace('_', '-')
+    private fun String.toMetricValue(): String =
+        lowercase(Locale.ROOT).replace('_', '-')
 }

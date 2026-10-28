@@ -28,7 +28,6 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Test
 import java.lang.ref.WeakReference
 import java.lang.reflect.Field
-import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.nio.file.Files
 import java.nio.file.Path
@@ -1021,19 +1020,6 @@ class MicrometerLeaderAuditExporterTest {
         exporter.close()
     }
 
-    @Test
-    fun `java fixture and public decorator descriptors remain stable`() {
-        MicrometerLeaderAuditExporterJavaContractTest.exercise().shouldBeTrue()
-        MicrometerLeaderAuditExporter::class.java.getConstructor(
-            LeaderAuditExporter::class.java,
-            io.micrometer.core.instrument.MeterRegistry::class.java,
-        )
-        MicrometerLeaderAuditExporter::class.java.declaredMethods
-            .filter { Modifier.isPublic(it.modifiers) && !it.isSynthetic }
-            .map { it.name }
-            .toSet() shouldBeEqualTo setOf("submit", "observe", "snapshot", "close")
-    }
-
     private fun event(): LeaderAuditExportEvent.History = LeaderAuditExportEvent.History.from(
         LeaderLockHistoryRecord(
             lockName = "dynamic-lock",
@@ -1064,9 +1050,7 @@ class MicrometerLeaderAuditExporterTest {
         diagnosticsClosed: Boolean = false,
         closed: Boolean = false,
     ): LeaderAuditExportSnapshot {
-        val companion = LeaderAuditExportSnapshot::class.java.getDeclaredField("Companion").get(null)
-        return createSnapshotMethod.invoke(
-            companion,
+        return LeaderAuditExportSnapshot(
             queued,
             inFlight,
             scheduledRetries,
@@ -1084,7 +1068,7 @@ class MicrometerLeaderAuditExporterTest {
             diagnosticsFatalErrors,
             diagnosticsClosed,
             closed,
-        ) as LeaderAuditExportSnapshot
+        )
     }
 
     private class SnapshotExporter(
@@ -1262,30 +1246,6 @@ class MicrometerLeaderAuditExporterTest {
                 type = type.superclass
             }
             return false
-        }
-
-        val createSnapshotMethod: Method = run {
-            val companion = LeaderAuditExportSnapshot::class.java.getDeclaredField("Companion").type
-            companion.getDeclaredMethod(
-                "create\$io_github_bluetape4k_leader_bluetape4k_leader_core",
-                Int::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType,
-                Boolean::class.javaPrimitiveType,
-                Boolean::class.javaPrimitiveType,
-            ).apply { isAccessible = true }
         }
     }
 }

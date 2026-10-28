@@ -77,7 +77,7 @@ class MicrometerSuspendSafeLeaderHistoryRecorderTest {
     fun `recordAcquired increments failure counter when sink throws Exception`() = runTest {
         val registry = SimpleMeterRegistry()
         val sink = object: SuspendLeaderHistorySink {
-            override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? =
+            override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey =
                 throw RuntimeException("storage down")
 
             override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
@@ -122,7 +122,7 @@ class MicrometerSuspendSafeLeaderHistoryRecorderTest {
     fun `recordAcquired does not increment counter on CancellationException and rethrows`() = runTest {
         val registry = SimpleMeterRegistry()
         val sink = object: SuspendLeaderHistorySink {
-            override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? =
+            override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey =
                 throw CancellationException("cancelled")
 
             override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit

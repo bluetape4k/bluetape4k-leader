@@ -282,7 +282,7 @@ private fun Any.resolveBackendDiagnosticsProvider(): LeaderBackendDiagnosticsPro
     when (this) {
         is LeaderBackendDiagnosticsProvider -> this
         is LeaderBackendDiagnosticsAware -> backendDiagnosticsProvider
-        else -> null
+        else                             -> null
     }
 
 private fun LeaderBackendDiagnosticsProvider.instrumented(
@@ -404,7 +404,7 @@ private class InstrumentedLeaderMetrics(
     private val durationTimers = ConcurrentHashMap<String, Timer>()
     private val activeGauges = ConcurrentHashMap<String, AtomicInteger>()
 
-    fun <T> recordAcquired(lockName: String, action: () -> T): T {
+    inline fun <T> recordAcquired(lockName: String, action: () -> T): T {
         acquiredCounter(lockName).increment()
         val active = activeGauge(lockName)
         active.incrementAndGet()
@@ -417,7 +417,7 @@ private class InstrumentedLeaderMetrics(
         }
     }
 
-    fun <T> recordAsyncAcquired(lockName: String, action: () -> CompletableFuture<T>): CompletableFuture<T> {
+    inline fun <T> recordAsyncAcquired(lockName: String, action: () -> CompletableFuture<T>): CompletableFuture<T> {
         acquiredCounter(lockName).increment()
         val active = activeGauge(lockName)
         active.incrementAndGet()
@@ -434,7 +434,7 @@ private class InstrumentedLeaderMetrics(
         }
     }
 
-    suspend fun <T> recordSuspendAcquired(lockName: String, action: suspend () -> T): T {
+    suspend inline fun <T> recordSuspendAcquired(lockName: String, action: suspend () -> T): T {
         acquiredCounter(lockName).increment()
         val active = activeGauge(lockName)
         active.incrementAndGet()

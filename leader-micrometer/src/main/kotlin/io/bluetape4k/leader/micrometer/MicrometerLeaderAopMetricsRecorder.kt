@@ -148,7 +148,7 @@ class MicrometerLeaderAopMetricsRecorder private constructor(
         attemptCounters.computeIfAbsent(name) {
             log.warn {
                 "leader-micrometer: new lock.name='$name' registered — " +
-                    "beware tag cardinality if using dynamic SpEL"
+                        "beware tag cardinality if using dynamic SpEL"
             }
             buildAttemptCounter(name)
         }

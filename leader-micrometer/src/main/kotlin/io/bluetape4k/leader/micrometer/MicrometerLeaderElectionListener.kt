@@ -16,6 +16,12 @@ class MicrometerLeaderElectionListener(
     private val tagSanitizer: LeaderMetricTagSanitizer,
 ): LeaderElectionListener {
 
+    private companion object {
+        private const val EVENT_ELECTED = "elected"
+        private const val EVENT_REVOKED = "revoked"
+        private const val EVENT_SKIPPED = "skipped"
+    }
+
     constructor(registry: MeterRegistry): this(
         registry = registry,
         tagSanitizer = LeaderMetricTagSanitizer.Default,
@@ -51,9 +57,4 @@ class MicrometerLeaderElectionListener(
     private fun sanitizeLockName(lockName: String): String =
         tagSanitizer.sanitize(MicrometerNames.TAG_LOCK_NAME, lockName)
 
-    private companion object {
-        private const val EVENT_ELECTED = "elected"
-        private const val EVENT_REVOKED = "revoked"
-        private const val EVENT_SKIPPED = "skipped"
-    }
 }

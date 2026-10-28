@@ -16,6 +16,12 @@ class MicrometerObservationLeaderElectionListener(
     val options: LeaderObservationOptions = LeaderObservationOptions(),
 ): LeaderElectionListener {
 
+    private companion object: KLogging() {
+        const val EVENT_ELECTED = "elected"
+        const val EVENT_REVOKED = "revoked"
+        const val EVENT_SKIPPED = "skipped"
+    }
+
     private val tagSanitizer = LeaderMetricTagSanitizer.from(options.tagOptions)
 
     override fun onElected(lockName: String) {
@@ -44,11 +50,5 @@ class MicrometerObservationLeaderElectionListener(
         }
 
         observation.start().stop()
-    }
-
-    private companion object: KLogging() {
-        const val EVENT_ELECTED = "elected"
-        const val EVENT_REVOKED = "revoked"
-        const val EVENT_SKIPPED = "skipped"
     }
 }

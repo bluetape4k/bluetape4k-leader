@@ -19,6 +19,14 @@ class MicrometerObservationLeaderLeaseExtensionObserver(
     val options: LeaderObservationOptions = LeaderObservationOptions(),
 ): LeaderLeaseExtensionObserver {
 
+    private companion object: KLogging() {
+        private const val OBSERVATION_NAME = "bluetape4k.leader.lease.extension"
+        private const val TAG_SOURCE = "source"
+        private const val TAG_EXECUTION = "execution"
+        private const val TAG_OUTCOME = "outcome"
+        private const val TAG_RESULT = "result"
+    }
+
     private val tagSanitizer = LeaderMetricTagSanitizer.from(options.tagOptions)
 
     override fun onExtension(event: LeaderLeaseExtensionEvent) {
@@ -54,14 +62,6 @@ class MicrometerObservationLeaderLeaseExtensionObserver(
 
         observation.start().stop()
     }
-
-    private companion object: KLogging() {
-        private const val OBSERVATION_NAME = "bluetape4k.leader.lease.extension"
-        private const val TAG_SOURCE = "source"
-        private const val TAG_EXECUTION = "execution"
-        private const val TAG_OUTCOME = "outcome"
-        private const val TAG_RESULT = "result"
-    }
 }
 
 private data class LeaseExtensionObservationMapping(
@@ -71,8 +71,8 @@ private data class LeaseExtensionObservationMapping(
 
 private fun ExtendOutcome.toObservationMapping(): LeaseExtensionObservationMapping = when (this) {
     is ExtendOutcome.Extended -> LeaseExtensionObservationMapping("extended", "success")
-    ExtendOutcome.Rejected -> LeaseExtensionObservationMapping("rejected", "skipped")
-    ExtendOutcome.NotHeld -> LeaseExtensionObservationMapping("not_held", "skipped")
+    ExtendOutcome.Rejected    -> LeaseExtensionObservationMapping("rejected", "skipped")
+    ExtendOutcome.NotHeld     -> LeaseExtensionObservationMapping("not_held", "skipped")
     ExtendOutcome.WrongThread -> LeaseExtensionObservationMapping("wrong_thread", "error")
     is ExtendOutcome.BackendError -> LeaseExtensionObservationMapping("backend_error", "error")
 }
