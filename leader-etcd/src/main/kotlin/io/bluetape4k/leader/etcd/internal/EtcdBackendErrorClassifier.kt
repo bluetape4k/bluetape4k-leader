@@ -35,16 +35,16 @@ internal object EtcdBackendErrorClassifier: BackendErrorClassifier {
             root is ClosedChannelException -> EtcdBackendErrorKind.TRANSIENT
             root is StatusRuntimeException -> classifyStatus(root.status)
             root is StatusException -> classifyStatus(root.status)
-            else -> null
+            else                    -> null
         }
     }
 
     override fun classify(cause: Throwable): BackendErrorKind? =
         when (classifyEtcd(cause)) {
             EtcdBackendErrorKind.EXPECTED_CLEANUP -> BackendErrorKind.NON_TRANSIENT
-            EtcdBackendErrorKind.TRANSIENT -> BackendErrorKind.TRANSIENT
+            EtcdBackendErrorKind.TRANSIENT     -> BackendErrorKind.TRANSIENT
             EtcdBackendErrorKind.NON_TRANSIENT -> BackendErrorKind.NON_TRANSIENT
-            null -> null
+            null                               -> null
         }
 
     fun isExpectedCleanup(cause: Throwable): Boolean {
@@ -61,10 +61,10 @@ internal object EtcdBackendErrorClassifier: BackendErrorClassifier {
 
     private tailrec fun Throwable.unwrapFutureFailure(): Throwable {
         val nested = cause
-        return when {
-            this is CompletionException && nested != null -> nested.unwrapFutureFailure()
-            this is ExecutionException && nested != null -> nested.unwrapFutureFailure()
-            else -> this
+        return when (this) {
+            is CompletionException if nested != null -> nested.unwrapFutureFailure()
+            is ExecutionException if nested != null  -> nested.unwrapFutureFailure()
+            else                                     -> this
         }
     }
 

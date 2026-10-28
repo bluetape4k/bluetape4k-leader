@@ -121,6 +121,7 @@ sealed interface LeaderAuditExportEvent {
 
         /** sanitizer가 적용된 예외 message입니다. */
         val errorMessage: String? = snapshot.errorMessage
+
         override val attributes: Map<String, String> = snapshot.attributes
 
         companion object {
@@ -284,14 +285,13 @@ private fun bounded(
     value: String,
     maxBytes: Int,
 ): String {
-    val sanitized = if (sanitizer is LeaderAuditValueSanitizer.Raw &&
-        field !in LeaderAuditValueSanitizer.RAW_ALLOWED_FIELDS
-    ) {
-        // Raw는 KIND만 직접 허용하므로 event의 민감한 문자열은 안전한 기본 redaction으로 처리합니다.
-        LeaderAuditValueSanitizer.Default.sanitize(field, value)
-    } else {
-        sanitizer.sanitize(field, value)
-    }
+    val sanitized =
+        if (sanitizer is LeaderAuditValueSanitizer.Raw && field !in LeaderAuditValueSanitizer.RAW_ALLOWED_FIELDS) {
+            // Raw는 KIND만 직접 허용하므로 event의 민감한 문자열은 안전한 기본 redaction으로 처리합니다.
+            LeaderAuditValueSanitizer.Default.sanitize(field, value)
+        } else {
+            sanitizer.sanitize(field, value)
+        }
     return sanitized.truncateUtf8(maxBytes)
 }
 
@@ -305,6 +305,7 @@ private fun sanitizeAttributes(
         .takeWhile { entry ->
             val entryBytes = entry.key.utf8SizeAtMost(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES) +
                     entry.value.utf8SizeAtMost(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES)
+
             if (entryBytes > LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES - inputBytes) {
                 false
             } else {
@@ -328,13 +329,14 @@ private fun sanitizeAttributes(
             Triple(entry.key, sanitizedKey, sanitizedValue)
         }
         .toCollection(ArrayList(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES))
+
     candidates.sortWith { left, right ->
-        compareUtf8(left.second, right.second).takeUnless { it == 0 }
-            ?: compareUtf8(left.first, right.first)
+        compareUtf8(left.second, right.second).takeUnless { it == 0 } ?: compareUtf8(left.first, right.first)
     }
 
     val result = LinkedHashMap<String, String>()
     var totalBytes = 0
+
     candidates.forEach { (_, sanitizedKey, sanitizedValue) ->
         if (result.size >= LeaderAuditExportEvent.MAX_ATTRIBUTES || result.containsKey(sanitizedKey)) return@forEach
         val entryBytes = sanitizedKey.utf8Size() + sanitizedValue.utf8Size()
@@ -342,7 +344,7 @@ private fun sanitizeAttributes(
         result[sanitizedKey] = sanitizedValue
         totalBytes += entryBytes
     }
-    return Collections.unmodifiableMap(LinkedHashMap(result))
+    return Collections.unmodifiableMap(result)
 }
 
 private fun String.utf8Size(): Int = toUtf8Bytes().size
@@ -353,10 +355,10 @@ private fun String.utf8SizeAtMost(limit: Int): Int {
     while (index < length) {
         val codePoint = codePointAt(index)
         val byteCount = when {
-            codePoint <= 0x7f -> 1
+            codePoint <= 0x7f  -> 1
             codePoint <= 0x7ff -> 2
             codePoint <= 0xffff -> 3
-            else -> 4
+            else               -> 4
         }
         if (total > limit - byteCount) return limit + 1
         total += byteCount
@@ -366,8 +368,8 @@ private fun String.utf8SizeAtMost(limit: Int): Int {
 }
 
 private fun compareUtf8(left: String, right: String): Int {
-    val leftBytes = left.toByteArray(Charsets.UTF_8)
-    val rightBytes = right.toByteArray(Charsets.UTF_8)
+    val leftBytes = left.toUtf8Bytes()
+    val rightBytes = right.toUtf8Bytes()
     val commonLength = minOf(leftBytes.size, rightBytes.size)
     for (index in 0 until commonLength) {
         val comparison = (leftBytes[index].toInt() and 0xff) - (rightBytes[index].toInt() and 0xff)

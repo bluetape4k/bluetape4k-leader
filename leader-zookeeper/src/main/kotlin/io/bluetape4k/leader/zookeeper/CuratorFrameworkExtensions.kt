@@ -8,6 +8,8 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import org.apache.curator.framework.CuratorFramework
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
 
 
 /** 검증된 `path`의 ZooKeeper ephemeral lock을 획득한 경우에만 동기 `action`을 실행하고, 경합이면 `null`을 반환합니다. */
@@ -121,3 +123,6 @@ suspend inline fun <T> CuratorFramework.suspendRunIfLeaderGroup(
     crossinline action: suspend () -> T,
 ): T? =
     suspendRunIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), options, action)
+
+fun CuratorFramework.blockUntilConnected(timeout: Duration) =
+    blockUntilConnected(timeout.inWholeMilliseconds.toInt(), TimeUnit.MILLISECONDS)

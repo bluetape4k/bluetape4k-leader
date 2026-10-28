@@ -145,7 +145,7 @@ class DynamoDbSuspendLeaderGroupElector(
                     try {
                         lockClient
                             .releaseAsync(lock, options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
-                            .awaitWithoutCancellingFuture { }
+                            .awaitWithoutCancellingFuture()
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {

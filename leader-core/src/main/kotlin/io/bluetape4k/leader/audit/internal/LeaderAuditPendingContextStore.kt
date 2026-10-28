@@ -7,7 +7,9 @@ import io.bluetape4k.leader.history.sanitizeForLog
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireGt
 import io.bluetape4k.support.requireInRange
+import io.bluetape4k.support.toUtf8Bytes
 import io.bluetape4k.support.truncateUtf8
+import kotlinx.atomicfu.locks.withLock
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.Duration
@@ -60,8 +62,7 @@ internal class LeaderAuditPendingContextStore(
             slotId = record.slotId,
             metadata = boundedMetadata(record),
         )
-        lock.lock()
-        try {
+        lock.withLock {
             evictExpired(Instant.now(clock))
             entries[fingerprint] = Entry(context, Instant.now(clock))
             while (entries.size > maxEntries) {
@@ -72,31 +73,23 @@ internal class LeaderAuditPendingContextStore(
                     }
                 }
             }
-        } finally {
-            lock.unlock()
         }
     }
 
     /** terminal history context를 exactly-once로 꺼내 제거합니다. */
     fun remove(key: LeaderHistoryKey): PendingContext? {
         val fingerprint = fingerprint(key)
-        lock.lock()
-        return try {
+        return lock.withLock {
             evictExpired(Instant.now(clock))
             entries.remove(fingerprint)?.context
-        } finally {
-            lock.unlock()
         }
     }
 
     /** 테스트와 운영 진단을 위한 현재 entry 수입니다. */
     fun size(): Int {
-        lock.lock()
-        return try {
+        return lock.withLock {
             evictExpired(Instant.now(clock))
             entries.size
-        } finally {
-            lock.unlock()
         }
     }
 
@@ -112,6 +105,7 @@ internal class LeaderAuditPendingContextStore(
 
         val bounded = LinkedHashMap<String, String>(LeaderLockHistoryRecord.MAX_METADATA_KEYS)
         var totalBytes = 0
+
         sanitized.entries
             .sortedWith(compareBy<Map.Entry<String, String>> { it.key }.thenBy { it.value })
             .take(LeaderLockHistoryRecord.MAX_METADATA_KEYS)
@@ -122,14 +116,15 @@ internal class LeaderAuditPendingContextStore(
                     return@forEach
                 }
 
-                val keyBytes = key.toByteArray(Charsets.UTF_8).size
+                val keyBytes = key.toUtf8Bytes().size
                 val remainingValueBytes = LeaderAuditExportEvent.MAX_ATTRIBUTES_TOTAL_BYTES - totalBytes - keyBytes
                 if (remainingValueBytes < 0) return@forEach
 
                 val boundedValue = value.truncateUtf8(remainingValueBytes)
                 bounded[key] = boundedValue
-                totalBytes += keyBytes + boundedValue.toByteArray(Charsets.UTF_8).size
+                totalBytes += keyBytes + boundedValue.toUtf8Bytes().size
             }
+
         return bounded.toMap()
     }
 
@@ -140,6 +135,7 @@ internal class LeaderAuditPendingContextStore(
             LeaderLockHistoryRecord.MAX_METADATA_KEYS,
             PENDING_METADATA_ORDER.reversed(),
         )
+
         metadata.entries.forEach { entry ->
             val candidate = PendingMetadataCandidate(
                 key = entry.key.take(MAX_METADATA_KEY_LENGTH).sanitizeForLog(),
@@ -166,16 +162,19 @@ internal class LeaderAuditPendingContextStore(
         digest.updateField(key.lockName)
         digest.updateField(key.token)
         digest.updateField(key.slotId)
+
         return digest.digest().joinToString(HEX_SEPARATOR) { byte ->
             "%02x".format(byte.toInt() and BYTE_MASK)
         }
     }
 
     private fun MessageDigest.updateField(value: String?) {
-        val bytes = value?.toByteArray(Charsets.UTF_8)
+        val bytes = value?.toUtf8Bytes()
         val length = bytes?.size ?: NULL_LENGTH
-        update(length.toString().toByteArray(Charsets.UTF_8))
+
+        update(length.toString().toUtf8Bytes())
         update(FIELD_SEPARATOR)
+
         if (bytes != null) update(bytes)
         update(FIELD_SEPARATOR)
     }

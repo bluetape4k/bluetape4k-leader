@@ -7,7 +7,10 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeInstanceOf
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.identity.LeaderIdSource
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.BeforeEach
@@ -16,7 +19,7 @@ import org.junit.jupiter.api.TestInstance
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderRecorderContextDropLogTest {
@@ -106,9 +109,9 @@ class LeaderRecorderContextDropLogTest {
                         tiny.warnOnDrop(FakeRecorder::class, ctx)
                     }
                 }
-                ready.await(5, TimeUnit.SECONDS) shouldBe true
+                ready.await(5.seconds).shouldBeTrue()
                 start.countDown()
-                tasks.forEach { it.get(5, TimeUnit.SECONDS) }
+                tasks.forEach { it.get(5.seconds) }
             }
         } finally {
             executor.shutdownNow()

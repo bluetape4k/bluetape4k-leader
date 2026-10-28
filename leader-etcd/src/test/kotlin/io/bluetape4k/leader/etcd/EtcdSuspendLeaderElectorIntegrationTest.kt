@@ -7,6 +7,7 @@ import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -75,7 +76,7 @@ class EtcdSuspendLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
                     release.await()
                     "holder"
                 }
-            }
+            }.log("Holder Job")
 
             started.await()
             contender.runIfLeader(lockName) { "contender" }.shouldBeNull()
@@ -143,7 +144,7 @@ class EtcdSuspendLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
             result.shouldBeInstanceOf<ExtendOutcome.Extended>()
 
             val observedMillis = Duration.between(outcome.first, result.observedExpireAt).toMillis()
-            observedMillis.shouldBeInRange(0L..6_0000L)
+            observedMillis shouldBeInRange 0L..6_0000L
         }
     }
 }

@@ -6,6 +6,7 @@ import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
+import io.bluetape4k.leader.AsyncLifecycle
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAcquirer
@@ -30,6 +31,7 @@ import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -39,7 +41,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * `ConsulLeaderElector`는 Consul KV key와 session을 이용해 단일 leader의 blocking/async 실행 수명을 관리합니다.
@@ -74,12 +75,6 @@ class ConsulLeaderElector private constructor(
             options: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
         ): ConsulLeaderElector =
             ConsulLeaderElector(lockClient, options)
-    }
-
-    private enum class AsyncLifecycle {
-        WAITING,
-        STARTED,
-        CLEANUP,
     }
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
@@ -138,14 +133,15 @@ class ConsulLeaderElector private constructor(
             when {
                 cause is CancellationException -> throw cause
                 cause != null && elected -> LeaderRunResult.ActionFailed(cause)
-                cause != null -> throw CompletionException(cause)
-                elected -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                cause != null            -> throw CompletionException(cause)
+                elected                  -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else                     -> LeaderRunResult.Skipped
             }
         }
     }
 
     override fun state(lockName: String): LeaderState {
+        lockName.validateLockName("lockName")
         val key = lockClient.singleLockKey(lockName)
         val entry = lockClient.read(key).getWithinRequestTimeout(lockClient) ?: return LeaderState.empty(lockName)
         val sessionId = entry.sessionId ?: return LeaderState.empty(lockName)
@@ -205,7 +201,7 @@ class ConsulLeaderElector private constructor(
             when {
                 lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
                 lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else -> completableFutureOf(
+                else                                      -> completableFutureOf(
                     Unit
                 )
             }
@@ -376,7 +372,7 @@ class ConsulLeaderElector private constructor(
                     lockClient.renewSession(sessionId).getWithinRequestTimeout(lockClient)
                     lastRenewNanos = now
                 }
-                Thread.sleep(minOf(50.milliseconds.inWholeMilliseconds, remainingMillis(deadline)).coerceAtLeast(1))
+                Thread.sleep(minOf(50, remainingMillis(deadline)).coerceAtLeast(1))
             } catch (e: InterruptedException) {
                 throw e
             }

@@ -5,7 +5,6 @@ import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import io.bluetape4k.support.requireZeroOrPositiveNumber
 import java.io.Serializable
-import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
 /**
@@ -135,7 +134,7 @@ data class LeaderMetricTagRule private constructor(
 
         private fun sha256Hex(value: String): String {
             val messageDigest = SHA256.get().apply { reset() }
-            val digest = messageDigest.digest(value.toByteArray(StandardCharsets.UTF_8))
+            val digest = messageDigest.digest(value.toByteArray(Charsets.UTF_8))
             val chars = CharArray(digest.size * 2)
             digest.forEachIndexed { index, byte ->
                 val unsigned = byte.toInt() and 0xff

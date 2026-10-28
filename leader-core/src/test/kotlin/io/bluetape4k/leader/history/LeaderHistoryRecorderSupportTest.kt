@@ -66,7 +66,7 @@ class LeaderHistoryRecorderSupportTest {
     fun `sanitizeForLog leaves normal ASCII unchanged`() {
         val input = "Hello, World! 123"
         input.sanitizeForLog() shouldBeEqualTo input
-        (input.sanitizeForLog() === input) shouldBe true
+        input.sanitizeForLog() shouldBe input
     }
 
     // ── sanitize record ───────────────────────────────────────────────────
@@ -109,7 +109,7 @@ class LeaderHistoryRecorderSupportTest {
     fun `sanitize returns equivalent record when no changes are needed`() {
         val r = record(errorMessage = "simple error", metadata = mapOf("k" to "v"))
         val sanitized = sanitize(r)
-        (sanitized === r) shouldBe true
+        sanitized shouldBe r
         sanitized.errorMessage shouldBeEqualTo r.errorMessage
         sanitized.metadata shouldBeEqualTo r.metadata
     }

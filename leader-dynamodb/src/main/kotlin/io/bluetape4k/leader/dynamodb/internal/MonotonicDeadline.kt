@@ -20,7 +20,7 @@ internal class MonotonicDeadline private constructor(
         }
     }
 
-    private var delegate = CoreMonotonicDeadline.fromStart(deadlineNanos, 0L, ticker)
+    private lateinit var delegate: CoreMonotonicDeadline // = CoreMonotonicDeadline.fromStart(deadlineNanos, 0L, ticker)
 
     private fun withTimeout(timeoutNanos: Long): MonotonicDeadline {
         delegate = CoreMonotonicDeadline.fromStart(deadlineNanos, timeoutNanos, ticker)

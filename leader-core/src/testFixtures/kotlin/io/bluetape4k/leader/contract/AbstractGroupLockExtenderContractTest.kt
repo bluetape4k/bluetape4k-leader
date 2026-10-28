@@ -11,6 +11,7 @@ import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds
@@ -125,6 +126,7 @@ abstract class AbstractGroupLockExtenderContractTest {
             outcome = LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }
 

@@ -25,6 +25,7 @@ object FifoGroupElectionStrategy: GroupElectionStrategy {
         )
         val winners = ordered.take(maxLeaders)
         val boundary = winners.last()
+
         val eliminations = ordered.drop(maxLeaders).map { candidate ->
             val reason = if (candidate.registeredAt > boundary.registeredAt) {
                 "registered later (${candidate.registeredAt} > ${boundary.registeredAt})"
@@ -33,6 +34,7 @@ object FifoGroupElectionStrategy: GroupElectionStrategy {
             }
             Elimination(candidate, reason)
         }
+
         return StrategicGroupElectionResult(winners, eliminations)
     }
 }

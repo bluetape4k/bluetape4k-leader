@@ -18,13 +18,14 @@ data class LeaderSlot(
 ): Serializable {
 
     init {
-        lockName.requireNotBlank("lockName")
-        require(lockName.none { it == '{' || it == '}' }) {
-            "lockName must not contain '{' or '}' (Redis Cluster hashtag injection risk): '$lockName'"
-        }
-        require(lockName.none { it.code < 0x20 || it.code == 0x7F }) {
-            "lockName must not contain control characters (log injection risk)"
-        }
+        lockName.validateLockName("lockName")
+//        lockName.requireNotBlank("lockName")
+//        require(lockName.none { it == '{' || it == '}' }) {
+//            "lockName must not contain '{' or '}' (Redis Cluster hashtag injection risk): '$lockName'"
+//        }
+//        require(lockName.none { it.code < 0x20 || it.code == 0x7F }) {
+//            "lockName must not contain control characters (log injection risk)"
+//        }
         leaderId.requireNotBlank("leaderId")
         require(leaderId.none { it.code < 0x20 || it.code == 0x7F }) {
             "leaderId must not contain control characters (log injection risk)"
@@ -49,9 +50,7 @@ data class LeaderSlot(
          * @param provider `lockName`에 대응하는 leader ID를 생성하는 공급자
          * @return 생성한 `LeaderSlot`
          */
-        operator fun invoke(lockName: String, provider: LeaderIdProvider): LeaderSlot {
-            lockName.requireNotBlank(lockName)
-            return LeaderSlot(lockName, provider.nextLeaderId(lockName))
-        }
+        operator fun invoke(lockName: String, provider: LeaderIdProvider): LeaderSlot =
+            LeaderSlot(lockName, provider.nextLeaderId(lockName))
     }
 }

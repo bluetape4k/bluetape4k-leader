@@ -23,6 +23,7 @@ import io.bluetape4k.leader.mongodb.MongoSuspendLeaderElector
 import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperSuspendLeaderElector
+import io.bluetape4k.leader.zookeeper.blockUntilConnected
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import io.bluetape4k.testcontainers.aws.DynamoDbLocalServer
@@ -65,7 +66,6 @@ import software.amazon.awssdk.services.dynamodb.model.KeyType
 import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType
 import software.amazon.awssdk.services.dynamodb.model.TimeToLiveSpecification
 import java.time.Duration
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
 @State(Scope.Benchmark)
@@ -227,7 +227,7 @@ class SuspendBackendLeaderElectorBenchmark {
     private fun createZooKeeperElector(): SuspendLeaderElector {
         val client = ZooKeeperServer.Launcher.getCuratorFramework(ZooKeeperServer.Launcher.zookeeper).also {
             it.start()
-            require(it.blockUntilConnected(30, TimeUnit.SECONDS)) {
+            require(it.blockUntilConnected(30.seconds)) {
                 "ZooKeeper benchmark client did not connect within 30 seconds."
             }
         }

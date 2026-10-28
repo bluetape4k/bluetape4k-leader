@@ -27,26 +27,20 @@ class ExportingLeaderHistorySink private constructor(
     private val contexts: LeaderAuditPendingContextStore,
 ): LeaderHistorySink {
 
-    private companion object: KLogging() {
-        const val TOKEN_PLACEHOLDER: String = "audit-context"
-        const val CONTEXT_ATTRIBUTE: String = "audit_context"
-        const val CONTEXT_MISSING: String = "missing"
+    companion object: KLogging() {
+        private const val TOKEN_PLACEHOLDER: String = "audit-context"
+        private const val CONTEXT_ATTRIBUTE: String = "audit_context"
+        private const val CONTEXT_MISSING: String = "missing"
+
+        /** 기본 redaction 정책을 사용하는 wrapper입니다. */
+        operator fun invoke(
+            delegate: LeaderHistorySink,
+            exporter: LeaderAuditExporter,
+            sanitizer: LeaderAuditValueSanitizer = LeaderAuditValueSanitizer.Default,
+        ): ExportingLeaderHistorySink {
+            return ExportingLeaderHistorySink(delegate, exporter, sanitizer, LeaderAuditPendingContextStore())
+        }
     }
-
-    /** 기본 redaction 정책을 사용하는 wrapper입니다. */
-    constructor(delegate: LeaderHistorySink, exporter: LeaderAuditExporter): this(
-        delegate,
-        exporter,
-        LeaderAuditValueSanitizer.Default,
-        LeaderAuditPendingContextStore(),
-    )
-
-    /** 지정한 redaction 정책을 사용하는 wrapper입니다. */
-    constructor(
-        delegate: LeaderHistorySink,
-        exporter: LeaderAuditExporter,
-        sanitizer: LeaderAuditValueSanitizer,
-    ): this(delegate, exporter, sanitizer, LeaderAuditPendingContextStore())
 
     override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
         val key = delegate.recordAcquired(record)
@@ -105,7 +99,8 @@ class ExportingLeaderHistorySink private constructor(
         }
     }
 
-    override fun deleteOlderThan(cutoff: Instant, limit: Int): Int = delegate.deleteOlderThan(cutoff, limit)
+    override fun deleteOlderThan(cutoff: Instant, limit: Int): Int =
+        delegate.deleteOlderThan(cutoff, limit)
 
     private fun historyEvent(
         key: LeaderHistoryKey,
@@ -116,15 +111,17 @@ class ExportingLeaderHistorySink private constructor(
         errorType: String? = null,
         errorMessage: String? = null,
     ): LeaderAuditExportEvent.History {
-        val source = context ?: LeaderAuditPendingContextStore.PendingContext(
-            lockName = key.lockName,
-            kind = io.bluetape4k.leader.LockIdentity.AnnotationKind.SINGLE,
-            acquiredAt = finishedAt,
-            lockedUntil = finishedAt,
-            nodeId = null,
-            slotId = key.slotId,
-            metadata = mapOf(CONTEXT_ATTRIBUTE to CONTEXT_MISSING),
-        )
+        val source = context
+            ?: LeaderAuditPendingContextStore.PendingContext(
+                lockName = key.lockName,
+                kind = io.bluetape4k.leader.LockIdentity.AnnotationKind.SINGLE,
+                acquiredAt = finishedAt,
+                lockedUntil = finishedAt,
+                nodeId = null,
+                slotId = key.slotId,
+                metadata = mapOf(CONTEXT_ATTRIBUTE to CONTEXT_MISSING),
+            )
+
         return LeaderAuditExportEvent.History.from(
             LeaderLockHistoryRecord(
                 lockName = source.lockName,

@@ -3,7 +3,9 @@ package io.bluetape4k.leader.etcd
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.AopScopeAccess
+import io.bluetape4k.leader.AsyncLifecycle
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAcquirer
 import io.bluetape4k.leader.LeaderLeaseAcquirerSupport
@@ -23,8 +25,6 @@ import io.bluetape4k.leader.etcd.internal.getWithinEtcdCleanupTimeout
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import io.bluetape4k.leader.etcd.runAsyncIfLeader as currentRunAsyncIfLeader
-import io.bluetape4k.leader.etcd.runIfLeader as currentRunIfLeader
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -35,10 +35,12 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import io.bluetape4k.leader.etcd.runAsyncIfLeader as currentRunAsyncIfLeader
+import io.bluetape4k.leader.etcd.runIfLeader as currentRunIfLeader
 
 /**
  * `EtcdLeaderElector`는 jetcd lock key와 lease를 이용해 단일 leader의 blocking/async 실행 수명을 관리합니다.
@@ -52,12 +54,6 @@ class EtcdLeaderElector private constructor(
 ): LeaderElector,
    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics,
    LeaderLeaseAcquirerSupport {
-
-    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
-        LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
-    }
-
-    private val cleanupTimeout = etcdCleanupTimeout(options.leaderOptions.waitTime, options.retryDelay)
 
     companion object: KLogging() {
         internal const val ETCD_FACTORY_BEAN_NAME = "etcd-leader-elector"
@@ -77,10 +73,10 @@ class EtcdLeaderElector private constructor(
             EtcdLeaderElector(lockClient, options)
     }
 
-    private enum class AsyncLifecycle {
-        WAITING,
-        STARTED,
-        CLEANUP,
+    private val cleanupTimeout = etcdCleanupTimeout(options.leaderOptions.waitTime, options.retryDelay)
+
+    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
+        LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
@@ -130,7 +126,7 @@ class EtcdLeaderElector private constructor(
                     cleanupBarrier.request()
                 lifecycle.get() == AsyncLifecycle.CLEANUP ->
                     cleanupBarrier.request()
-                else ->
+                else                                      ->
                     completableFutureOf(Unit)
             }
         }
@@ -146,20 +142,17 @@ class EtcdLeaderElector private constructor(
 
         val pipelineFuture = acquisitionFuture.thenComposeAsync(
             { handle ->
-                when {
-                    handle == null ->
-                        completableFutureOf(null)
-                    !lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED) ->
-                        failedCompletableFutureOf(
-                            CancellationException("leader result future was cancelled before action"),
-                        )
-                    else ->
-                        runAcquiredAsync(
-                            handle,
-                            cancellationRelay,
-                            action
-                        )
-                }
+                if (handle == null)
+                    completableFutureOf(null)
+                else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED))
+                    failedCompletableFutureOf(
+                        CancellationException("leader result future was cancelled before action"),
+                    )
+                else runAcquiredAsync(
+                    handle,
+                    cancellationRelay,
+                    action
+                )
             },
             executor
         )
@@ -246,7 +239,7 @@ class EtcdLeaderElector private constructor(
         val deadline = EtcdAcquisitionDeadline.fromNow(options.leaderOptions.waitTime)
 
         val leaseId = try {
-            lockClient.grantLease(ttlSeconds).get(deadline.remainingMillis(), TimeUnit.MILLISECONDS)
+            lockClient.grantLease(ttlSeconds).get(deadline.remainingMillis().milliseconds)
         } catch (e: CancellationException) {
             throw e
         } catch (e: InterruptedException) {
@@ -266,7 +259,7 @@ class EtcdLeaderElector private constructor(
         val lockFuture = lockClient.lock(lockKey, leaseId)
 
         val ownershipKey = try {
-            lockFuture.get(deadline.remainingMillis(), TimeUnit.MILLISECONDS)
+            lockFuture.get(deadline.remainingMillis().milliseconds)
         } catch (e: CancellationException) {
             revokeLease(leaseId)
             throw e

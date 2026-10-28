@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.consul.internal
 
+import io.bluetape4k.support.requireNotBlank
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
@@ -49,7 +50,7 @@ internal fun <T> CompletableFuture<T>.getWithinRequestTimeout(lockClient: Consul
  */
 internal value class ConsulSessionId(val value: String) {
     init {
-        require(value.isNotBlank()) { "Consul session id must not be blank." }
+        value.requireNotBlank { "Consul session id must not be blank." }
     }
 }
 

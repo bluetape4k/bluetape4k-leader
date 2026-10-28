@@ -121,6 +121,7 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
             val release = CountDownLatch(1)
             val executor = Executors.newSingleThreadExecutor()
 
+            log.debug { "empty=$empty" }
             empty.lockName shouldBeEqualTo slot.lockName
             empty.maxLeaders shouldBeEqualTo 1
             empty.activeCount shouldBeEqualTo 0

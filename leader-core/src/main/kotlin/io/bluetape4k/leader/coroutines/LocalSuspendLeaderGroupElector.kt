@@ -23,6 +23,7 @@ import io.bluetape4k.leader.local.LocalLeaderStateRegistry
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.support.requirePositiveNumber
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -55,10 +56,10 @@ class LocalSuspendLeaderGroupElector private constructor(
          */
         operator fun invoke(
             options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-        ): LocalSuspendLeaderGroupElector =
-            options
-                .also { it.maxLeaders.requirePositiveNumber("maxLeaders") }
-                .let(::LocalSuspendLeaderGroupElector)
+        ): LocalSuspendLeaderGroupElector {
+            options.maxLeaders.requirePositiveNumber("maxLeaders")
+            return LocalSuspendLeaderGroupElector(options)
+        }
     }
 
     private val semaphores = ConcurrentHashMap<String, Semaphore>()
@@ -193,7 +194,7 @@ class LocalSuspendLeaderGroupElector private constructor(
             leaseTime = options.leaseTime,
             maxLeaders = maxLeaders,
         )
-        val slot = requireNotNull(lease.slot) {
+        val slot = lease.slot.requireNotNull {
             "Group lease.slot must be non-null for lockName=$lockName, kind=GROUP"
         }
 
@@ -204,6 +205,7 @@ class LocalSuspendLeaderGroupElector private constructor(
             groupParams = LockIdentity.GroupParams(maxLeaders),
         )
         val lastExtendDeadlineRef = AtomicReference(Instant.EPOCH)
+
         val delegate = object: ExtendDelegate {
             private val _lastExtendDeadline = lastExtendDeadlineRef
             override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline

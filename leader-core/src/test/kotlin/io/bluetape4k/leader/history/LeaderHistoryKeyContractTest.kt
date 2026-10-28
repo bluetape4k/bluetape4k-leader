@@ -8,6 +8,8 @@ class LeaderHistoryKeyContractTest {
     @Test
     fun `id retains the Long JVM descriptors`() {
         val type = LeaderHistoryKey::class.java
+
+        @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
         val boxedLong = java.lang.Long::class.java
 
         type.getDeclaredMethod("getId").returnType shouldBeEqualTo boxedLong

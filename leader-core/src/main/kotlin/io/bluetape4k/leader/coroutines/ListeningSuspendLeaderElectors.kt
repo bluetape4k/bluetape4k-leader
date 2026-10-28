@@ -63,6 +63,7 @@ class ListeningSuspendLeaderElector(
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         var elected = false
+
         val result = delegate.runIfLeader(lockName) {
             elected = true
             val leader = delegate.state(lockName).leader
@@ -75,15 +76,18 @@ class ListeningSuspendLeaderElector(
                 eventSubject.emit(LeaderElectionEvent.Revoked(lockName))
             }
         }
+
         if (!elected) {
             listeners.notifySkipped(lockName)
             eventSubject.emit(LeaderElectionEvent.Skipped(lockName))
         }
+
         return result
     }
 
     override suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? {
         var elected = false
+
         val result = delegate.runIfLeader(slot) {
             elected = true
             val leader = delegate.state(slot.lockName).leader
@@ -96,10 +100,12 @@ class ListeningSuspendLeaderElector(
                 eventSubject.emit(LeaderElectionEvent.Revoked(slot.lockName))
             }
         }
+
         if (!elected) {
             listeners.notifySkipped(slot.lockName)
             eventSubject.emit(LeaderElectionEvent.Skipped(slot.lockName))
         }
+
         return result
     }
 
@@ -108,6 +114,7 @@ class ListeningSuspendLeaderElector(
         action: suspend () -> T,
     ): LeaderRunResult<T> {
         var elected = false
+
         val result = delegate.runIfLeaderResultSuspend(slot) {
             elected = true
             val leader = delegate.state(slot.lockName).leader
@@ -120,10 +127,12 @@ class ListeningSuspendLeaderElector(
                 eventSubject.emit(LeaderElectionEvent.Revoked(slot.lockName))
             }
         }
+
         if (!elected && result is LeaderRunResult.Skipped) {
             listeners.notifySkipped(slot.lockName)
             eventSubject.emit(LeaderElectionEvent.Skipped(slot.lockName))
         }
+
         return result
     }
 }
@@ -167,6 +176,7 @@ class ListeningSuspendLeaderGroupElector(
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         var elected = false
+
         val result = delegate.runIfLeader(lockName) {
             elected = true
             listeners.notifyElected(lockName, null)
@@ -178,10 +188,12 @@ class ListeningSuspendLeaderGroupElector(
                 eventSubject.emit(LeaderElectionEvent.Revoked(lockName))
             }
         }
+
         if (!elected) {
             listeners.notifySkipped(lockName)
             eventSubject.emit(LeaderElectionEvent.Skipped(lockName))
         }
+
         return result
     }
 }

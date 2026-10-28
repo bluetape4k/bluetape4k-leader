@@ -88,6 +88,7 @@ class LocalStrategicSuspendLeaderElector(
         val winner = result.winner ?: return null
         val total = result.eliminations.size + 1
         log.info { "[$lockName] 선출: ${winner.nodeId} (전략: ${strategy::class.simpleName}, 후보: ${total}명)" }
+
         if (result.scores.isNotEmpty()) {
             log.debug {
                 val scoreText = result.scores.entries

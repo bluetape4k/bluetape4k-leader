@@ -11,7 +11,8 @@ import io.bluetape4k.leader.LeaseCleanupReservation
 import io.bluetape4k.leader.LeaseCleanupResult
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.parkRemainingMinLeaseTime
-import io.bluetape4k.support.requireGt
+import io.bluetape4k.leader.utils.safePlus
+import io.bluetape4k.support.requirePositiveDuration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
@@ -27,7 +28,7 @@ internal class LeaderLeaseLifecycle(
 
     fun tryAcquire(slot: LeaderSlot, waitTime: Duration = options.waitTime): LeaderLeaseHandle? {
         val now = monotonicNanos()
-        val waitDeadline = safePlus(now, waitTime.inWholeNanoseconds.coerceAtLeast(0L))
+        val waitDeadline = now safePlus waitTime.inWholeNanoseconds.coerceAtLeast(0L)
         val backend = callbacks.acquire(slot, waitDeadline, waitDeadline) ?: return null
         return ManagedLeaseHandle(backend, options, callbacks, cleanupBoundary, monotonicNanos)
     }
@@ -65,12 +66,16 @@ internal class LeaderLeaseLifecycle(
         @Suppress("TooGenericExceptionCaught")
         override fun extend(lockAtMostFor: Duration): ExtendOutcome {
             if (state.get() != State.LIVE) return ExtendOutcome.NotHeld
-            lockAtMostFor.requireGt(Duration.ZERO, "lockAtMostFor")
+            lockAtMostFor.requirePositiveDuration("lockAtMostFor")
             val bounded = lockAtMostFor.coerceAtMost(options.leaseTime)
+
             return try {
-                callbacks.extend(backend, bounded, releaseDeadline()).also { outcome ->
-                    if (outcome is ExtendOutcome.NotHeld) status.set(LeaseOwnershipStatus.NOT_HELD)
-                }
+                callbacks.extend(backend, bounded, releaseDeadline())
+                    .also { outcome ->
+                        if (outcome is ExtendOutcome.NotHeld) {
+                            status.set(LeaseOwnershipStatus.NOT_HELD)
+                        }
+                    }
             } catch (ex: Exception) {
                 status.set(LeaseOwnershipStatus.UNKNOWN)
                 ExtendOutcome.BackendError(ex)
@@ -80,7 +85,8 @@ internal class LeaderLeaseLifecycle(
         override fun ownershipStatus(): LeaseOwnershipStatus {
             if (state.get() != State.LIVE) return status.get()
             return try {
-                callbacks.isHeld(backend, releaseDeadline()).also { status.set(it) }
+                callbacks.isHeld(backend, releaseDeadline())
+                    .also { status.set(it) }
             } catch (_: Exception) {
                 status.set(LeaseOwnershipStatus.UNKNOWN)
                 LeaseOwnershipStatus.UNKNOWN
@@ -101,41 +107,40 @@ internal class LeaderLeaseLifecycle(
                     }
                 }
                 watchdog.close()
+
                 parkRemainingMinLeaseTime(backend.acquiredAtNanos, options.minLeaseTime)
+
                 val result = cleanupBoundary?.releaseWithin(
                     (deadline - monotonicNanos()).coerceAtLeast(0L).nanoseconds,
                     NoopReservation,
-                ) ?: runCatching { callbacks.release(backend, deadline) }
-                    .getOrElse { BackendReleaseOutcome.ERROR }
+                ) ?: runCatching { callbacks.release(backend, deadline) }.getOrElse { BackendReleaseOutcome.ERROR }
+
                 when (result) {
-                    LeaseCleanupResult.RELEASED, BackendReleaseOutcome.RELEASED ->
-                        status.set(LeaseOwnershipStatus.NOT_HELD)
-                    LeaseCleanupResult.NOT_HELD, BackendReleaseOutcome.NOT_HELD ->
-                        status.set(LeaseOwnershipStatus.NOT_HELD)
-                    LeaseCleanupResult.RESIDUAL_TRANSFERRED, BackendReleaseOutcome.ERROR,
+                    LeaseCleanupResult.RELEASED,
+                    BackendReleaseOutcome.RELEASED,
+                        -> status.set(LeaseOwnershipStatus.NOT_HELD)
+
+                    LeaseCleanupResult.NOT_HELD,
+                    BackendReleaseOutcome.NOT_HELD,
+                        -> status.set(LeaseOwnershipStatus.NOT_HELD)
+
+                    LeaseCleanupResult.RESIDUAL_TRANSFERRED,
+                    BackendReleaseOutcome.ERROR,
                     BackendReleaseOutcome.TIMEOUT,
-                        ->
-                        status.set(LeaseOwnershipStatus.UNKNOWN)
+                        -> status.set(LeaseOwnershipStatus.UNKNOWN)
                 }
             } finally {
                 state.set(State.CLOSED)
             }
         }
 
-        private fun releaseDeadline(): Long = safePlus(
-            monotonicNanos(),
-            minOf(LeaderLeaseDefaults.PUBLIC_RELEASE_TIMEOUT, options.leaseTime).inWholeNanoseconds,
-        )
-
-        private fun safePlus(first: Long, second: Long): Long =
-            if (second > 0 && first > Long.MAX_VALUE - second) Long.MAX_VALUE else first + second
+        private fun releaseDeadline(): Long =
+            monotonicNanos() safePlus
+                    minOf(LeaderLeaseDefaults.PUBLIC_RELEASE_TIMEOUT, options.leaseTime).inWholeNanoseconds
     }
 
     private object NoopReservation: LeaseCleanupReservation {
         override val isTerminal: Boolean = false
         override fun terminalize() = Unit
     }
-
-    private fun safePlus(first: Long, second: Long): Long =
-        if (second > 0 && first > Long.MAX_VALUE - second) Long.MAX_VALUE else first + second
 }

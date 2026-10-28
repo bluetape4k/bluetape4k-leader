@@ -1,10 +1,13 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.internal.LeaderManagementActionStore
 import io.bluetape4k.leader.internal.LeaseOperationScheduler
 import io.bluetape4k.leader.internal.MonotonicDeadline
-import io.bluetape4k.support.requireGt
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.checkNotNull
 import io.bluetape4k.support.requireLe
+import io.bluetape4k.support.requirePositiveDuration
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.CancellationException
 import java.util.concurrent.ExecutionException
@@ -33,7 +36,7 @@ class LeaderManagementActionRegistry(
     private val closeTimeout: Duration = 5.seconds,
 ): AutoCloseable {
 
-    private companion object {
+    private companion object: KLogging() {
         const val MAX_TIMEOUT_SECONDS = 30L
         const val MAX_IN_FLIGHT_ACTIONS = 256
         const val MAX_ACTION_QUEUE_CAPACITY = 1_024
@@ -114,7 +117,7 @@ class LeaderManagementActionRegistry(
         }
 
         when (val selection = store.select(lockName)) {
-            LeaderManagementActionStore.Selection.Closed ->
+            LeaderManagementActionStore.Selection.Closed    ->
                 return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
             LeaderManagementActionStore.Selection.NotRegistered ->
@@ -126,13 +129,13 @@ class LeaderManagementActionRegistry(
             is LeaderManagementActionStore.Selection.Record -> {
                 val (beginOutcome, action) = store.beginRecord(selection.value, surface)
                 when (beginOutcome) {
-                    LeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED ->
+                    LeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED    ->
                         return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
-                    LeaderManagementActionStore.BeginOutcome.NOT_REGISTERED ->
+                    LeaderManagementActionStore.BeginOutcome.NOT_REGISTERED     ->
                         return immediate(LeaderManagementActionOutcome.NOT_REGISTERED, surface)
 
-                    LeaderManagementActionStore.BeginOutcome.AMBIGUOUS ->
+                    LeaderManagementActionStore.BeginOutcome.AMBIGUOUS          ->
                         return immediate(LeaderManagementActionOutcome.AMBIGUOUS, surface)
 
                     LeaderManagementActionStore.BeginOutcome.ACTION_IN_PROGRESS ->
@@ -141,11 +144,13 @@ class LeaderManagementActionRegistry(
                     LeaderManagementActionStore.BeginOutcome.ACTION_ADMISSION_REJECTED ->
                         return immediate(LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED, surface)
 
-                    LeaderManagementActionStore.BeginOutcome.STARTED -> Unit
+                    LeaderManagementActionStore.BeginOutcome.STARTED            -> Unit
                 }
 
-                val actionRecord = checkNotNull(action)
-                val future = scheduler.submit { runAction(actionRecord, deadline) }
+                val actionRecord = action.checkNotNull("actionRecord")
+                val future = scheduler.submit {
+                    runAction(actionRecord, deadline)
+                }
                 if (future == null) {
                     store.finish(actionRecord)
                     return immediate(LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED, surface)
@@ -168,6 +173,7 @@ class LeaderManagementActionRegistry(
         if (!store.beginQuiescing()) return true
         val deadline = MonotonicDeadline.fromNow(closeTimeout)
         var interrupted = false
+
         while (store.activeActionCount() > 0 && deadline.hasTimeRemaining()) {
             try {
                 Thread.sleep(WATCHER_POLL_MILLIS)
@@ -198,8 +204,7 @@ class LeaderManagementActionRegistry(
 
         val schedulerClosed = scheduler.close(deadline.remainingDuration())
         store.closeLifecycle()
-        if (interrupted) return false
-        return drained && schedulerClosed
+        return !interrupted && drained && schedulerClosed
     }
 
     override fun close() {
@@ -273,7 +278,7 @@ class LeaderManagementActionRegistry(
                         ),
                     )
 
-                LeaseOwnershipStatus.HELD -> Unit
+                LeaseOwnershipStatus.HELD    -> Unit
             }
 
             if (action.timedOut.get() || !deadline.hasTimeRemaining() || !action.phase.compareAndSet(
@@ -299,7 +304,8 @@ class LeaderManagementActionRegistry(
                     ),
                 )
             } catch (error: Error) {
-                val result = if (action.timedOut.get()) timeoutResult(action) else LeaderManagementActionResult(
+                val result = if (action.timedOut.get()) timeoutResult(action)
+                else LeaderManagementActionResult(
                     LeaderManagementAction.RELEASE,
                     LeaderManagementActionOutcome.RELEASE_FAILED,
                     mutationAttempted = true,
@@ -325,14 +331,16 @@ class LeaderManagementActionRegistry(
             } catch (_: RuntimeException) {
                 return terminalResult(
                     action,
-                    if (action.timedOut.get()) timeoutResult(action) else LeaderManagementActionResult(
+                    if (action.timedOut.get()) timeoutResult(action)
+                    else LeaderManagementActionResult(
                         LeaderManagementAction.RELEASE,
                         LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
                         mutationAttempted = true,
                     ),
                 )
             } catch (error: Error) {
-                val result = if (action.timedOut.get()) timeoutResult(action) else LeaderManagementActionResult(
+                val result = if (action.timedOut.get()) timeoutResult(action)
+                else LeaderManagementActionResult(
                     LeaderManagementAction.RELEASE,
                     LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
                     mutationAttempted = true,
@@ -344,18 +352,21 @@ class LeaderManagementActionRegistry(
             return terminalResult(
                 action,
                 when {
-                    action.timedOut.get() -> timeoutResult(action)
-                    postCheck == LeaseOwnershipStatus.NOT_HELD -> LeaderManagementActionResult(
-                        LeaderManagementAction.RELEASE,
-                        LeaderManagementActionOutcome.RELEASED,
-                        mutationAttempted = true,
-                    )
+                    action.timedOut.get()                      -> timeoutResult(action)
 
-                    else -> LeaderManagementActionResult(
-                        LeaderManagementAction.RELEASE,
-                        LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
-                        mutationAttempted = true,
-                    )
+                    postCheck == LeaseOwnershipStatus.NOT_HELD ->
+                        LeaderManagementActionResult(
+                            LeaderManagementAction.RELEASE,
+                            LeaderManagementActionOutcome.RELEASED,
+                            mutationAttempted = true,
+                        )
+
+                    else                                       ->
+                        LeaderManagementActionResult(
+                            LeaderManagementAction.RELEASE,
+                            LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
+                            mutationAttempted = true,
+                        )
                 },
             )
         } finally {
@@ -374,7 +385,7 @@ class LeaderManagementActionRegistry(
         return try {
             val remaining = deadline.remainingNanos()
             if (remaining <= 0L) throw TimeoutException()
-            future.get(remaining, TimeUnit.NANOSECONDS)
+            future.get(remaining.nanoseconds)
         } catch (_: TimeoutException) {
             timeoutAction(action)
         } catch (_: CancellationException) {
@@ -568,7 +579,7 @@ class LeaderManagementActionRegistry(
 
     private fun Duration.requireBoundedPositive(name: String) {
         require(isFinite()) { "$name must be finite: $this" }
-        requireGt(Duration.ZERO, name)
+        requirePositiveDuration(name)
         requireLe(MAX_TIMEOUT_SECONDS.seconds, name)
     }
 

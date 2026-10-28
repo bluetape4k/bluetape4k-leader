@@ -3,6 +3,7 @@ package io.bluetape4k.leader.audit
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.logging.KLogging
+import kotlinx.atomicfu.locks.withLock
 import kotlinx.coroutines.CoroutineScope
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
@@ -21,48 +22,42 @@ class LeaderElectionEventExportSubscription private constructor(
     private val attributes: Map<String, String>,
 ): AutoCloseable {
 
-    companion object: KLogging()
+    companion object: KLogging() {
+
+        /** 지정한 attributes와 redaction 정책으로 publisher를 구독합니다. */
+        operator fun invoke(
+            publisher: LeaderElectionEventPublisher,
+            scope: CoroutineScope,
+            exporter: LeaderAuditExporter,
+            attributes: Map<String, String> = emptyMap(),
+            sanitizer: LeaderAuditValueSanitizer = LeaderAuditValueSanitizer.Default,
+        ): LeaderElectionEventExportSubscription {
+            return LeaderElectionEventExportSubscription(
+                exporter = exporter,
+                sanitizer = sanitizer,
+                attributes = attributes,
+            ).apply {
+                upstream = publisher.onEvent(scope) { event -> submitIfOpen(event) }
+            }
+        }
+    }
 
     private val gate = ReentrantLock()
     private val closed = AtomicBoolean(false)
     private var upstream: AutoCloseable? = null
 
-    /** publisher를 구독하고 subscription handle을 반환합니다. */
-    constructor(
-        publisher: LeaderElectionEventPublisher,
-        scope: CoroutineScope,
-        exporter: LeaderAuditExporter,
-    ): this(publisher, scope, exporter, emptyMap(), LeaderAuditValueSanitizer.Default)
-
-    /** 지정한 attributes와 redaction 정책으로 publisher를 구독합니다. */
-    constructor(
-        publisher: LeaderElectionEventPublisher,
-        scope: CoroutineScope,
-        exporter: LeaderAuditExporter,
-        attributes: Map<String, String>,
-        sanitizer: LeaderAuditValueSanitizer,
-    ): this(exporter, sanitizer, attributes.toMap()) {
-        upstream = publisher.onEvent(scope) { event -> submitIfOpen(event) }
-    }
-
     override fun close() {
-        gate.lock()
-        try {
-            if (!closed.compareAndSet(false, true)) return
+        gate.withLock {
+            if (!closed.compareAndSet(false, true)) return@close
             upstream?.close()
             upstream = null
-        } finally {
-            gate.unlock()
         }
     }
 
     private fun submitIfOpen(event: LeaderElectionEvent) {
-        gate.lock()
-        try {
-            if (closed.get()) return
+        gate.withLock {
+            if (closed.get()) return@submitIfOpen
             exporter.submit(LeaderAuditExportEvent.Lifecycle.from(event, attributes, sanitizer))
-        } finally {
-            gate.unlock()
         }
     }
 }

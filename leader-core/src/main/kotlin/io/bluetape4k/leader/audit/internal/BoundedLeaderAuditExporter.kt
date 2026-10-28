@@ -11,6 +11,8 @@
 
 package io.bluetape4k.leader.audit.internal
 
+import io.bluetape4k.javatimes.minutes
+import io.bluetape4k.javatimes.requireZeroOrPositiveDuration
 import io.bluetape4k.leader.audit.LeaderAuditDelivery
 import io.bluetape4k.leader.audit.LeaderAuditDeliveryResult
 import io.bluetape4k.leader.audit.LeaderAuditExportEvent
@@ -22,10 +24,10 @@ import io.bluetape4k.leader.audit.LeaderAuditExporter
 import io.bluetape4k.leader.audit.LeaderAuditSubmitResult
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
-import io.bluetape4k.support.requireGe
 import io.bluetape4k.support.requireLe
 import io.bluetape4k.support.requirePositiveNumber
 import java.time.Duration
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -55,8 +57,8 @@ internal class BoundedLeaderAuditExporter(
     private companion object: KLogging() {
         const val MAX_DIAGNOSTICS_CAPACITY: Int = 1024
         const val MAX_OBSERVERS: Int = 16
-        val MAX_ATTEMPT_TIMEOUT: Duration = Duration.ofMinutes(5)
-        val MAX_BACKOFF: Duration = Duration.ofMinutes(1)
+        val MAX_ATTEMPT_TIMEOUT: Duration = 5.minutes()
+        val MAX_BACKOFF: Duration = 1.minutes()
     }
 
     private val attemptTimeoutNanos = options.attemptTimeout.toBoundedPositiveNanos(
@@ -159,7 +161,7 @@ internal class BoundedLeaderAuditExporter(
         }
     }
 
-    override fun snapshot(): LeaderAuditExportSnapshot = LeaderAuditExportSnapshot.create(
+    override fun snapshot(): LeaderAuditExportSnapshot = LeaderAuditExportSnapshot(
         queued = queued.get(),
         inFlight = inFlight.get(),
         scheduledRetries = scheduledRetries.get(),
@@ -193,18 +195,16 @@ internal class BoundedLeaderAuditExporter(
         }
 
         awaitSchedulingQuiescence()
+
         // Serialize cancellation with the short attempt-start gate. This prevents a
         // timeout/close crossing from admitting a delivery after the exporter has
         // already published CLOSED.
-        admissionLock.lock()
-        try {
+        admissionLock.withLock {
             // ConcurrentHashMap key-set의 `toList()`는 크기 추정과 iterator 순회가
             // 동시에 축소될 때 `NoSuchElementException`을 던질 수 있습니다. close와
             // 완료 경합에서는 weakly-consistent 순회로 이미 종료된 항목만 건너뛰면
             // terminalized CAS가 나머지 항목의 취소를 멱등하게 보장합니다.
             active.forEach(::cancelWork)
-        } finally {
-            admissionLock.unlock()
         }
 
         diagnosticsAdmissionLock.lock()
@@ -232,6 +232,7 @@ internal class BoundedLeaderAuditExporter(
         // 호출에 대해 중복 dispatch를 만들지 않습니다.
         if (workerHandoffState.get() != WorkerHandoffState.IDLE) return
         if (!workerRunning.compareAndSet(false, true)) return
+
         // An Executor is allowed to run inline. Invoke it from a dedicated virtual
         // thread so submit() remains an admission-only, non-blocking boundary even
         // with DirectExecutor/CallerRunsPolicy implementations.
@@ -272,7 +273,7 @@ internal class BoundedLeaderAuditExporter(
     private fun claimCloseHandoff(): Boolean {
         while (true) {
             when (workerHandoffState.get()) {
-                WorkerHandoffState.IDLE -> {
+                WorkerHandoffState.IDLE    -> {
                     if (workerHandoffState.compareAndSet(WorkerHandoffState.IDLE, WorkerHandoffState.CLOSED)) {
                         closed.set(true)
                         return true
@@ -290,7 +291,7 @@ internal class BoundedLeaderAuditExporter(
                     return closed.compareAndSet(false, true)
                 }
 
-                WorkerHandoffState.CLOSED -> return false
+                WorkerHandoffState.CLOSED  -> return false
             }
         }
     }
@@ -340,11 +341,13 @@ internal class BoundedLeaderAuditExporter(
         val attempt = Attempt(item.attempts + 1)
         item.attempts = attempt.number
         item.currentAttempt = attempt
+
         if (!beginScheduling()) {
             releaseAttempt(item, attempt)
             finishWork(item, LeaderAuditExportObservation.CANCELLED)
             return
         }
+
         try {
             attempt.timeout = options.scheduler.schedule(
                 { timeout(item, attempt) },
@@ -369,6 +372,7 @@ internal class BoundedLeaderAuditExporter(
             if (!attempt.done.compareAndSet(false, true)) return
             attempt.timeout?.cancel(false)
             releaseAttempt(item, attempt)
+
             if (e is Error) {
                 finishWork(item, LeaderAuditExportObservation.TERMINAL_FAILURE)
                 throw e
@@ -376,6 +380,7 @@ internal class BoundedLeaderAuditExporter(
             completeFailure(item, attempt, e)
             return
         }
+
         attempt.future = future
         if (attempt.done.get() || closed.get()) {
             if (attempt.done.compareAndSet(false, true)) {
@@ -399,8 +404,10 @@ internal class BoundedLeaderAuditExporter(
         failure: Throwable?,
     ) {
         if (!attempt.done.compareAndSet(false, true)) return
+
         attempt.timeout?.cancel(false)
-        if (failure is java.util.concurrent.CancellationException) {
+
+        if (failure is CancellationException) {
             releaseAttempt(item, attempt)
             finishWork(item, LeaderAuditExportObservation.CANCELLED)
             return
@@ -411,23 +418,20 @@ internal class BoundedLeaderAuditExporter(
             return
         }
         when {
-            failure is Error -> {
+            failure is Error                            -> {
                 finishWork(item, LeaderAuditExportObservation.TERMINAL_FAILURE)
                 rethrowOnUncaughtBoundary(failure)
             }
-            failure != null -> completeFailure(item, attempt, failure)
+            failure != null                             -> completeFailure(item, attempt, failure)
             result == LeaderAuditDeliveryResult.SUCCESS -> finishWork(item, null)
             result == LeaderAuditDeliveryResult.RETRYABLE_FAILURE -> retryOrFail(item)
-            else -> finishWork(
-                item,
-                LeaderAuditExportObservation.TERMINAL_FAILURE
-            )
+            else                                        ->
+                finishWork(item, LeaderAuditExportObservation.TERMINAL_FAILURE)
         }
     }
 
     private fun prepareAttemptDelivery(item: WorkItem, attempt: Attempt): Boolean {
-        admissionLock.lock()
-        return try {
+        return admissionLock.withLock {
             if (!closed.get() && !attempt.done.get()) {
                 attempt.deliveryStarted.set(true)
                 true
@@ -439,13 +443,11 @@ internal class BoundedLeaderAuditExporter(
                 }
                 false
             }
-        } finally {
-            admissionLock.unlock()
         }
     }
 
     private fun completeFailure(item: WorkItem, attempt: Attempt, failure: Throwable) {
-        if (failure is java.util.concurrent.CancellationException) {
+        if (failure is CancellationException) {
             finishWork(item, LeaderAuditExportObservation.CANCELLED)
         } else {
             retryOrFail(item)
@@ -454,8 +456,10 @@ internal class BoundedLeaderAuditExporter(
 
     private fun timeout(item: WorkItem, attempt: Attempt) {
         if (!attempt.done.compareAndSet(false, true)) return
+
         attempt.future?.cancel(true)
         releaseAttempt(item, attempt)
+
         if (closed.get()) {
             finishWork(item, LeaderAuditExportObservation.CANCELLED)
         } else {
@@ -483,6 +487,7 @@ internal class BoundedLeaderAuditExporter(
         item.retryClaimed.set(false)
         scheduledRetries.incrementAndGet()
         val delay = saturatingBackoff(initialBackoffNanos, item.attempts)
+
         if (!beginScheduling()) {
             if (item.retryClaimed.compareAndSet(false, true)) {
                 scheduledRetries.decrementAndGet()
@@ -569,11 +574,11 @@ internal class BoundedLeaderAuditExporter(
         if (!item.terminalized.compareAndSet(false, true)) return
         if (observation != null) {
             when (observation) {
-                LeaderAuditExportObservation.TERMINAL_FAILURE -> terminalFailures.incrementAndGet()
-                LeaderAuditExportObservation.CANCELLED -> cancellations.incrementAndGet()
+                LeaderAuditExportObservation.TERMINAL_FAILURE  -> terminalFailures.incrementAndGet()
+                LeaderAuditExportObservation.CANCELLED         -> cancellations.incrementAndGet()
                 LeaderAuditExportObservation.EXECUTOR_REJECTED -> executorRejections.incrementAndGet()
                 LeaderAuditExportObservation.SCHEDULER_REJECTED -> schedulerRejections.incrementAndGet()
-                else -> Unit
+                else                                           -> Unit
             }
         }
         active.remove(item)
@@ -632,7 +637,12 @@ internal class BoundedLeaderAuditExporter(
         val thread = Thread.ofVirtual()
             .name("bluetape4k-leader-audit-observer")
             .unstarted(::runDiagnostics)
-        if (diagnosticsWorker.compareAndSet(existing, thread)) thread.start() else thread.interrupt()
+
+        if (diagnosticsWorker.compareAndSet(existing, thread)) {
+            thread.start()
+        } else {
+            thread.interrupt()
+        }
     }
 
     private fun runDiagnostics() {
@@ -685,8 +695,7 @@ internal class BoundedLeaderAuditExporter(
     }
 
     private fun closeObserver(slot: ObserverSlot) {
-        diagnosticsAdmissionLock.lock()
-        try {
+        diagnosticsAdmissionLock.withLock {
             if (!slot.active.getAndSet(false)) return
             observerSlots.remove(slot)
             diagnostics.removeIf { work ->
@@ -694,8 +703,6 @@ internal class BoundedLeaderAuditExporter(
                 diagnosticsQueued.decrementAndGet()
                 true
             }
-        } finally {
-            diagnosticsAdmissionLock.unlock()
         }
     }
 
@@ -748,35 +755,28 @@ internal class BoundedLeaderAuditExporter(
     }
 
     private fun beginScheduling(): Boolean {
-        schedulingLock.lock()
-        return try {
+        return schedulingLock.withLock {
             if (closed.get()) {
                 false
             } else {
                 schedulingCalls++
                 true
             }
-        } finally {
-            schedulingLock.unlock()
         }
     }
 
     private fun endScheduling() {
-        schedulingLock.lock()
-        try {
+        schedulingLock.withLock {
             schedulingCalls--
             if (schedulingCalls == 0) schedulingComplete.signalAll()
-        } finally {
-            schedulingLock.unlock()
         }
     }
 
     private fun awaitSchedulingQuiescence() {
-        schedulingLock.lock()
-        try {
-            while (schedulingCalls > 0) schedulingComplete.awaitUninterruptibly()
-        } finally {
-            schedulingLock.unlock()
+        schedulingLock.withLock {
+            while (schedulingCalls > 0) {
+                schedulingComplete.awaitUninterruptibly()
+            }
         }
     }
 
@@ -789,14 +789,14 @@ internal class BoundedLeaderAuditExporter(
 private object BoundedLeaderAuditExporterLogger: KLogging()
 
 private fun Duration.toBoundedPositiveNanos(name: String, maximum: Duration): Long {
-    this.requireGe(Duration.ZERO) { "$name must be positive: $this" }
+    this.requireZeroOrPositiveDuration(name)
     val nanos = try {
         toNanos()
     } catch (e: ArithmeticException) {
         throw IllegalArgumentException("$name does not fit in nanoseconds: $this", e)
     }
-    nanos.requirePositiveNumber { "$name must be positive: $this" }
+    nanos.requirePositiveNumber(name)
     val maximumNanos = maximum.toNanos()
-    nanos.requireLe(maximumNanos) { "$name must be <= $maximum: $this" }
+    nanos.requireLe(maximumNanos, name)
     return nanos
 }

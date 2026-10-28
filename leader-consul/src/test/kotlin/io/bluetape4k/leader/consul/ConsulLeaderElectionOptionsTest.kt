@@ -2,9 +2,8 @@ package io.bluetape4k.leader.consul
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInRange
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
-import io.bluetape4k.assertions.shouldBeLessThan
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.consul.internal.ConsulLeaderPaths
@@ -98,8 +97,8 @@ class ConsulLeaderElectionOptionsTest {
         ConsulSessionTtl.renewDelay(30.seconds) shouldBeEqualTo 10.seconds
 
         val minimumDelay = ConsulSessionTtl.renewDelay(10.seconds)
-        minimumDelay shouldBeGreaterOrEqualTo 1.seconds
-        minimumDelay shouldBeLessThan 10.seconds
+        log.debug { "minimumDelay=$minimumDelay" }
+        minimumDelay shouldBeInRange 1.seconds..10.seconds
         minimumDelay shouldBeLessOrEqualTo (10.seconds / 3)
     }
 }

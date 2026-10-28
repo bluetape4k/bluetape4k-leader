@@ -25,6 +25,7 @@ import io.bluetape4k.leader.redisson.RedissonLeaderElector
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperLeaderElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperSuspendLeaderElector
+import io.bluetape4k.leader.zookeeper.blockUntilConnected
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import io.bluetape4k.testcontainers.infra.ZooKeeperServer
@@ -59,7 +60,6 @@ import java.io.Serializable
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -209,7 +209,7 @@ class BlockingLeaderContentionElectorBenchmark {
             "zookeeper" -> {
                 val client = ZooKeeperServer.Launcher.getCuratorFramework(ZooKeeperServer.Launcher.zookeeper).also {
                     it.start()
-                    require(it.blockUntilConnected(30, TimeUnit.SECONDS)) {
+                    require(it.blockUntilConnected(30.seconds)) {
                         "ZooKeeper contention benchmark client did not connect within 30 seconds."
                     }
                 }
@@ -470,7 +470,7 @@ class SuspendLeaderContentionElectorBenchmark {
             "zookeeper" -> {
                 val client = ZooKeeperServer.Launcher.getCuratorFramework(ZooKeeperServer.Launcher.zookeeper).also {
                     it.start()
-                    require(it.blockUntilConnected(30, TimeUnit.SECONDS)) {
+                    require(it.blockUntilConnected(30.seconds)) {
                         "ZooKeeper suspend contention benchmark client did not connect within 30 seconds."
                     }
                 }

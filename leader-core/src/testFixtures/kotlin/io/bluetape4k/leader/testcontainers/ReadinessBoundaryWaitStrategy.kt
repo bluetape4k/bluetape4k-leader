@@ -1,6 +1,9 @@
 package io.bluetape4k.leader.testcontainers
 
 import com.github.dockerjava.api.model.ExposedPort
+import io.bluetape4k.support.requireInRange
+import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.requireStartsWith
 import org.testcontainers.containers.ContainerLaunchException
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.startupcheck.OneShotStartupCheckStrategy
@@ -33,9 +36,9 @@ class ReadinessEndpoint(
     val path: String,
 ) {
     init {
-        require(name.isNotBlank()) { "name must not be blank" }
-        require(containerPort in 1..65535) { "containerPort must be between 1 and 65535" }
-        require(path.startsWith('/')) { "path must start with '/'" }
+        name.requireNotBlank { "name must not be blank" }
+        containerPort.requireInRange(1, 65535, "containerPort")
+        path.requireStartsWith("/", "path")
         require(path.none { it.isWhitespace() || it == '\'' }) { "path must not contain whitespace or single quotes" }
     }
 }
@@ -68,12 +71,14 @@ internal class ReadinessBoundaryDiagnostic(
     val containerState: String = containerState.toDiagnosticDetail()
 
     val boundary: ReadinessFailureBoundary = when {
-        mapping.status == ReadinessProbeStatus.FAILURE -> ReadinessFailureBoundary.PORT_MAPPING
+        mapping.status == ReadinessProbeStatus.FAILURE  -> ReadinessFailureBoundary.PORT_MAPPING
         internal.status == ReadinessProbeStatus.FAILURE -> ReadinessFailureBoundary.CONTAINER_SERVICE
+
         internal.status == ReadinessProbeStatus.SUCCESS &&
                 host.status == ReadinessProbeStatus.FAILURE &&
                 mapping.status == ReadinessProbeStatus.SUCCESS -> ReadinessFailureBoundary.HOST_FORWARDING
-        else -> ReadinessFailureBoundary.UNKNOWN
+
+        else                                            -> ReadinessFailureBoundary.UNKNOWN
     }
 
     fun render(): String =
@@ -159,6 +164,7 @@ private object DockerReadinessBoundaryDiagnosticCollector: ReadinessBoundaryDiag
         val marker = "__BLUETAPE_READINESS_PROBE_EXIT__="
         val url = "http://127.0.0.1:${endpoint.containerPort}${endpoint.path}"
         val command = "wget -qO- -T 2 '$url' || { code=\$?; echo; echo '$marker'\$code; exit 0; }"
+
         val helper = AlpineHttpProbeContainer()
             .withNetworkMode("container:${target.containerId}")
             .withCommand("sh", "-c", command)
@@ -194,11 +200,14 @@ private object DockerReadinessBoundaryDiagnosticCollector: ReadinessBoundaryDiag
                 connection.connectTimeout = HOST_PROBE_TIMEOUT_MILLIS
                 connection.readTimeout = HOST_PROBE_TIMEOUT_MILLIS
                 connection.requestMethod = "GET"
+
                 val status = connection.responseCode
+
                 val body = (if (status in 200..399) connection.inputStream else connection.errorStream)
                     ?.reader()
                     ?.use { it.readDiagnosticDetail() }
                     .orEmpty()
+
                 if (status == HttpURLConnection.HTTP_OK) {
                     ReadinessProbeObservation.success("HTTP $status $body")
                 } else {
@@ -218,6 +227,7 @@ private object DockerReadinessBoundaryDiagnosticCollector: ReadinessBoundaryDiag
         try {
             val exposedPort = ExposedPort.tcp(endpoint.containerPort)
             val bindings = target.currentContainerInfo.networkSettings?.ports?.bindings?.get(exposedPort)
+
             if (bindings.isNullOrEmpty()) {
                 ReadinessProbeObservation.failure("$exposedPort is not mapped")
             } else {
@@ -260,6 +270,7 @@ private fun String.toDiagnosticDetail(): String =
 private fun java.io.Reader.readDiagnosticDetail(): String {
     val buffer = CharArray(MAX_DIAGNOSTIC_DETAIL_LENGTH + 1)
     var offset = 0
+
     while (offset < buffer.size) {
         val count = read(buffer, offset, buffer.size - offset)
         if (count < 0) break

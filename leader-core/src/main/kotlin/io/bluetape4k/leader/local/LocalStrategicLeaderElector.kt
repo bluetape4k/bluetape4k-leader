@@ -88,6 +88,7 @@ class LocalStrategicLeaderElector(
         val winner = result.winner ?: return null
         val total = result.eliminations.size + 1
         log.info { "[$lockName] 선출: ${winner.nodeId} (전략: ${strategy::class.simpleName}, 후보: ${total}명)" }
+
         if (result.scores.isNotEmpty()) {
             log.debug {
                 val scoreText = result.scores.entries
@@ -103,14 +104,20 @@ class LocalStrategicLeaderElector(
 
         return try {
             val value = action()
-            runCatching { updateResult(lockName, nodeId, CandidateResult.SUCCESS) }
-                .onFailure { log.warn(it) { "[$lockName] successCount 업데이트 실패 — 무시됨" } }
+            runCatching {
+                updateResult(lockName, nodeId, CandidateResult.SUCCESS)
+            }.onFailure {
+                log.warn(it) { "[$lockName] successCount 업데이트 실패 — 무시됨" }
+            }
             value
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
-            runCatching { updateResult(lockName, nodeId, CandidateResult.FAILURE) }
-                .onFailure { log.warn(it) { "[$lockName] failureCount 업데이트 실패 — 무시됨" } }
+            runCatching {
+                updateResult(lockName, nodeId, CandidateResult.FAILURE)
+            }.onFailure {
+                log.warn(it) { "[$lockName] failureCount 업데이트 실패 — 무시됨" }
+            }
             throw e
         }
     }

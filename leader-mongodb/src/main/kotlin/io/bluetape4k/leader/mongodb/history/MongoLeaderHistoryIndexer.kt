@@ -3,6 +3,7 @@ package io.bluetape4k.leader.mongodb.history
 import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.model.Indexes
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
+import com.mongodb.kotlin.client.coroutine.expireAfter
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
@@ -22,8 +23,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.bson.Document
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val SHUTDOWN_TIMEOUT_METRIC_VALUE = -2
@@ -106,7 +107,7 @@ class MongoLeaderHistoryIndexer(
                         Indexes.ascending("startedAt"),
                         IndexOptions()
                             .name(INDEX_TTL_STARTED)
-                            .expireAfter(config.ttlDays * 86400L, TimeUnit.SECONDS)
+                            .expireAfter(config.ttlDays.days.inWholeSeconds)
                             .background(true),
                     )
                     log.info { "MongoDB history TTL index created: ttlDays=${config.ttlDays}" }

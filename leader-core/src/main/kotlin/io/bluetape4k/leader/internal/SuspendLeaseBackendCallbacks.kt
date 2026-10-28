@@ -7,6 +7,7 @@ import kotlin.time.Duration
 
 /** [LeaseBackendCallbacks]의 coroutine 대응 callback 표입니다. */
 interface SuspendLeaseBackendCallbacks {
+
     suspend fun acquire(slot: LeaderSlot, waitDeadlineNanos: Long, transportDeadlineNanos: Long): BackendLease?
 
     suspend fun extend(lease: BackendLease, duration: Duration, deadlineNanos: Long): ExtendOutcome

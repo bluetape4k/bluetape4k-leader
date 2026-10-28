@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
@@ -30,7 +31,6 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
@@ -62,7 +62,7 @@ class LeaderElectionListenerTest {
 
         try {
             threads.forEach(Thread::start)
-            check(ready.await(5, TimeUnit.SECONDS))
+            check(ready.await(5.seconds))
             start.countDown()
             threads.forEach { worker ->
                 worker.join(5_000)

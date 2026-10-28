@@ -24,10 +24,7 @@ class EtcdLeaderElectorFactory(
 ): LeaderElectorFactory {
 
     override fun create(options: LeaderElectionOptions): LeaderElector =
-        EtcdLeaderElector(
-            client,
-            baseOptions.copy(leaderOptions = options),
-        )
+        EtcdLeaderElector(client, baseOptions.copy(leaderOptions = options))
 }
 
 /**
@@ -42,10 +39,7 @@ class EtcdLeaderGroupElectorFactory(
 ): LeaderGroupElectorFactory {
 
     override fun create(options: LeaderGroupElectionOptions): LeaderGroupElector =
-        EtcdLeaderGroupElector(
-            client,
-            baseOptions.copy(leaderGroupOptions = options),
-        )
+        EtcdLeaderGroupElector(client, baseOptions.copy(leaderGroupOptions = options))
 }
 
 /**
@@ -60,10 +54,7 @@ class EtcdSuspendLeaderElectorFactory(
 ): SuspendLeaderElectorFactory {
 
     override suspend fun create(options: LeaderElectionOptions): SuspendLeaderElector =
-        EtcdSuspendLeaderElector(
-            client,
-            baseOptions.copy(leaderOptions = options),
-        )
+        EtcdSuspendLeaderElector(client, baseOptions.copy(leaderOptions = options))
 }
 
 /**
@@ -78,8 +69,5 @@ class EtcdSuspendLeaderGroupElectorFactory(
 ): SuspendLeaderGroupElectorFactory {
 
     override suspend fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
-        EtcdSuspendLeaderGroupElector(
-            client,
-            baseOptions.copy(leaderGroupOptions = options),
-        )
+        EtcdSuspendLeaderGroupElector(client, baseOptions.copy(leaderGroupOptions = options))
 }

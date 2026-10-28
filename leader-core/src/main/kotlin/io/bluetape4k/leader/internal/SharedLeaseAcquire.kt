@@ -1,12 +1,14 @@
 package io.bluetape4k.leader.internal
 
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Future
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -14,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.nanoseconds
 
 /**
  * 동일한 [LeaderSlot]에 대한 backend acquire 시도를 하나로 합치는 bounded shared attempt입니다.
@@ -46,7 +49,7 @@ class SharedLeaseAcquire(
             if (timeout == Duration.INFINITE) {
                 attempt.future.get()
             } else {
-                attempt.future.get(timeout.inWholeNanoseconds.coerceAtLeast(0L), TimeUnit.NANOSECONDS)
+                attempt.future.get(timeout.inWholeNanoseconds.coerceAtLeast(0L).nanoseconds)
             }
         } catch (_: TimeoutException) {
             releaseWaiter(attempt)
@@ -55,10 +58,10 @@ class SharedLeaseAcquire(
             Thread.currentThread().interrupt()
             releaseWaiter(attempt)
             throw interrupted
-        } catch (failure: java.util.concurrent.ExecutionException) {
+        } catch (failure: ExecutionException) {
             releaseWaiter(attempt)
             throw failure.cause ?: failure
-        } catch (cancelled: java.util.concurrent.CancellationException) {
+        } catch (cancelled: CancellationException) {
             releaseWaiter(attempt)
             throw cancelled
         }
@@ -99,26 +102,26 @@ class SharedLeaseAcquire(
                 continue
             }
 
-            var retry = false
+            // var retry = false
             existing.lock.withLock {
                 when {
                     closed.get() || existing.closed.get() || existing.terminal.get() -> {
                         attempts.remove(slot, existing)
-                        retry = true
+                        // retry = true
                     }
-                    existing.future.isDone && existing.delegate.get() != null -> {
+                    existing.future.isDone && existing.delegate.get() != null        -> {
                         // 공개된 attempt는 물리 handle이 release될 때까지 매핑을 유지합니다.
                         // 후속 요청은 이 매핑을 교체하거나 두 번째 backend acquire 구간을
                         // 열지 않고 정상적으로 경합합니다.
                         return completedAttempt(slot)
                     }
-                    else -> {
+                    else                                                             -> {
                         existing.waiters.incrementAndGet()
                         return existing
                     }
                 }
             }
-            if (retry) continue
+            // if (retry) continue
         }
     }
 
@@ -277,10 +280,13 @@ class SharedLeaseAcquire(
         private val delegate: LeaderLeaseHandle,
         private val onRelease: () -> Unit,
     ): LeaderLeaseHandle by delegate {
+
         private val released = AtomicBoolean(false)
 
         override fun release() {
-            if (released.compareAndSet(false, true)) onRelease()
+            if (released.compareAndSet(false, true)) {
+                onRelease()
+            }
         }
 
         override fun close() = release()

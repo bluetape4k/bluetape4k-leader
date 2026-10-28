@@ -5,10 +5,10 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
-import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.get
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderSlot
@@ -16,10 +16,10 @@ import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.consul.internal.ConsulOwnerPayload
 import io.bluetape4k.leader.consul.internal.JavaHttpConsulLockClient
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.testcontainers.infra.ConsulServer
+import io.bluetape4k.logging.debug
+import io.bluetape4k.logging.info
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.Timeout
 import java.time.Instant
 import java.util.concurrent.CountDownLatch
@@ -28,12 +28,9 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @Tag("integration")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ConsulLeaderElectorIntegrationTest {
+class ConsulLeaderElectorIntegrationTest: AbstractConsulTest() {
 
     companion object: KLogging()
-
-    private val consul: ConsulServer by lazy { ConsulServer.Launcher.consul }
 
     @Test
     fun `runIfLeader acquires releases and allows sequential reacquire`() {
@@ -68,7 +65,7 @@ class ConsulLeaderElectorIntegrationTest {
             val holderFuture = executor.submit<String?> {
                 holder.runIfLeader(lockName) {
                     started.countDown()
-                    release.await(10.seconds)
+                    release.await(10.seconds).shouldBeTrue()
                     "holder"
                 }
             }
@@ -114,6 +111,7 @@ class ConsulLeaderElectorIntegrationTest {
                 holder.runIfLeader(slot) {
                     val state = holder.state(slot.lockName)
 
+                    log.debug { "state=$state" }
                     state.lockName shouldBeEqualTo slot.lockName
                     state.isOccupied.shouldBeTrue()
                     state.leader.shouldNotBeNull()
@@ -121,7 +119,7 @@ class ConsulLeaderElectorIntegrationTest {
                     state.leader?.nodeId shouldBeEqualTo "consul-state-node-a"
                     state.leader?.leaseUntil.shouldNotBeNull()
                     started.countDown()
-                    release.await(10.seconds)
+                    release.await(10.seconds).shouldBeTrue()
                     "holder"
                 }
             }
@@ -156,6 +154,7 @@ class ConsulLeaderElectorIntegrationTest {
         elector.runIfLeader(slot) {
             val state = elector.state(slot.lockName)
 
+            log.debug { "state=$state" }
             state.leader.shouldNotBeNull()
             state.leader?.auditLeaderId shouldBeEqualTo "audit-node-a"
             state.leader?.nodeId shouldBeEqualTo "consul-node-a"
@@ -194,8 +193,10 @@ class ConsulLeaderElectorIntegrationTest {
         val keyPrefix = keyPrefix()
         val lockName = randomName()
         val client = JavaHttpConsulLockClient(endpoint(), keyPrefix)
-        val sessionId = client.createSession("consul-expiry-test", 10.seconds, kotlin.time.Duration.ZERO)
+        val sessionId = client
+            .createSession("consul-expiry-test", 10.seconds, kotlin.time.Duration.ZERO)
             .get(10.seconds)
+
         val key = client.singleLockKey(lockName)
         val now = Instant.now()
 
@@ -204,7 +205,7 @@ class ConsulLeaderElectorIntegrationTest {
             auditLeaderId = "expired-audit",
             nodeId = "expired-node",
             electedAt = now,
-            leaseUntil = now.plusSeconds(10),
+            leaseUntil = now + 10.seconds(),
         )
 
         client.acquire(
@@ -224,21 +225,15 @@ class ConsulLeaderElectorIntegrationTest {
     private fun newElector(
         keyPrefix: String = keyPrefix(),
         leaderOptions: LeaderElectionOptions = LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 10.seconds),
-    ): ConsulLeaderElector =
-        ConsulLeaderElector(
+    ): ConsulLeaderElector {
+        log.info { "create ConsulLeaderElector. keyPrefix=$keyPrefix, leaderOptions=$leaderOptions" }
+
+        return ConsulLeaderElector(
             endpoint(),
             ConsulLeaderElectionOptions(
                 keyPrefix = keyPrefix,
                 leaderOptions = leaderOptions,
             ),
         )
-
-    private fun endpoint(): ConsulEndpoint =
-        ConsulEndpoint(consul.url)
-
-    private fun keyPrefix(): String =
-        "bluetape4k/leader/test/${Base58.randomString(8)}"
-
-    private fun randomName(): String =
-        "leader-test:${Base58.randomString(8)}"
+    }
 }

@@ -47,6 +47,7 @@ class LeaderElectorLeaseAdapter(
         val elected = CompletableFuture<SyncSession?>()
         val admission = LeaderLeaseWatchdogAdmission.current()
         val observationScope = LeaderLeaseExtensionObservationScope.currentOrNull()
+
         val owner = Thread.startVirtualThread {
             val runElection = {
                 LeaderLeaseWatchdogAdmission.withOptionalProvider(admission) {
@@ -78,9 +79,8 @@ class LeaderElectorLeaseAdapter(
         }
 
         return try {
-            elected.get(acquireTimeoutNanos(), TimeUnit.NANOSECONDS)?.let {
-                AdapterLeaseHandle(session, configuredOptions.leaseTime)
-            }
+            elected.get(acquireTimeoutNanos(), TimeUnit.NANOSECONDS)
+                ?.let { AdapterLeaseHandle(session, configuredOptions.leaseTime) }
         } catch (_: TimeoutException) {
             session.cancelled.set(true)
             owner.interrupt()
@@ -115,9 +115,9 @@ class LeaderElectorLeaseAdapter(
         private val terminalStatus = AtomicReference<LeaseOwnershipStatus?>(null)
 
         @Volatile
-        private var raw: io.bluetape4k.leader.LeaderLockHandle? = null
+        private var raw: LeaderLockHandle? = null
 
-        fun install(handle: io.bluetape4k.leader.LeaderLockHandle?) {
+        fun install(handle: LeaderLockHandle?) {
             raw = handle
         }
 
@@ -146,17 +146,16 @@ class LeaderElectorLeaseAdapter(
 
         private fun extendRaw(duration: Duration): ExtendOutcome =
             when (val handle = raw) {
-                is io.bluetape4k.leader.LeaderLockHandle.Real -> handle.extend(duration)
-                null -> ExtendOutcome.NotHeld
-                else -> ExtendOutcome.Rejected
+                is LeaderLockHandle.Real -> handle.extend(duration)
+                null                     -> ExtendOutcome.NotHeld
+                else                     -> ExtendOutcome.Rejected
             }
 
         private fun statusRaw(): LeaseOwnershipStatus =
             when (val handle = raw) {
-                is io.bluetape4k.leader.LeaderLockHandle.Real ->
-                    if (handle.isStillHeld()) LeaseOwnershipStatus.HELD else LeaseOwnershipStatus.NOT_HELD
-                null -> LeaseOwnershipStatus.UNKNOWN
-                else -> LeaseOwnershipStatus.UNKNOWN
+                is LeaderLockHandle.Real -> if (handle.isStillHeld()) LeaseOwnershipStatus.HELD else LeaseOwnershipStatus.NOT_HELD
+                null                     -> LeaseOwnershipStatus.UNKNOWN
+                else                     -> LeaseOwnershipStatus.UNKNOWN
             }
 
         @Suppress("ReturnCount")

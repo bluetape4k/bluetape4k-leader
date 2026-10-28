@@ -122,7 +122,6 @@ object LeaderFutureBridge {
         private val cancellationTarget: CompletableFuture<*>,
         private val onCancellation: (Boolean) -> Unit,
     ): CompletableFuture<T>() {
-
         override fun cancel(mayInterruptIfRunning: Boolean): Boolean {
             val cancelled = super.cancel(mayInterruptIfRunning)
             if (cancelled) {

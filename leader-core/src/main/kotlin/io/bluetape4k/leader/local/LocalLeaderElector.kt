@@ -52,6 +52,7 @@ class LocalLeaderElector(
         log.debug { "runAsyncIfLeader... lockName=$lockName" }
 
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+
         return LeaderFutureBridge.propagateCancellation(
             futureOf(executor) {
                 tryWithLeaderLock(lockName, options.waitTime) {
@@ -70,6 +71,7 @@ class LocalLeaderElector(
         log.debug { "runAsyncIfLeader... slot=$slot" }
 
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+
         return LeaderFutureBridge.propagateCancellation(
             futureOf(executor) {
                 runIfLeader(slot) {
@@ -100,8 +102,8 @@ class LocalLeaderElector(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                elected.get()   -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else            -> LeaderRunResult.Skipped
             }
         }
     }

@@ -79,12 +79,12 @@ class LocalLeaderBackendDiagnosticsTest {
         val zero = assertFailsWith<IllegalArgumentException> {
             LocalLeaderBackendDiagnostics.checkConnectivity(Duration.ZERO)
         }
-        zero.message shouldContain "probe timeout[0s] must be greater than 0s."
+        zero.message shouldContain "probe timeout must be positive."
 
         val negative = assertFailsWith<IllegalArgumentException> {
             LocalLeaderBackendDiagnostics.checkConnectivity((-1).milliseconds)
         }
-        negative.message shouldContain "probe timeout[-1ms] must be greater than 0s."
+        negative.message shouldContain "probe timeout must be positive."
 
         val infinite = assertFailsWith<IllegalArgumentException> {
             LocalLeaderBackendDiagnostics.checkConnectivity(Duration.INFINITE)

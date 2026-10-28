@@ -55,6 +55,7 @@ object LeaderBackendDiagnosticsProbe {
             "unknownReason must describe an UNKNOWN connectivity result: $unknownReason"
         }
         val checkedAt = clock.instant()
+
         val status = try {
             probe(validTimeout)
         } catch (cancellation: CancellationException) {
@@ -70,10 +71,12 @@ object LeaderBackendDiagnosticsProbe {
         }
 
         return when (status) {
-            LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivity.up(checkedAt)
+            LeaderBackendConnectivityStatus.UP      -> LeaderBackendConnectivity.up(checkedAt)
             LeaderBackendConnectivityStatus.DOWN -> LeaderBackendConnectivity.down(checkedAt)
-            LeaderBackendConnectivityStatus.UNKNOWN ->
-                LeaderBackendConnectivity.unknown(checkedAt, reason = unknownReason)
+            LeaderBackendConnectivityStatus.UNKNOWN -> LeaderBackendConnectivity.unknown(
+                checkedAt,
+                reason = unknownReason
+            )
             LeaderBackendConnectivityStatus.NOT_CHECKED -> invalidProbeStatus()
         }
     }

@@ -1,6 +1,6 @@
 package io.bluetape4k.leader.strategy
 
-import io.bluetape4k.support.requireGe
+import io.bluetape4k.support.requirePositiveNumber
 
 /**
  * `GroupElectionStrategy`는 후보 목록에서 전략적으로 복수 leader를 선택합니다.
@@ -30,7 +30,7 @@ fun GroupElectionStrategy.electValidated(
     candidates: List<CandidateInfo>,
     maxLeaders: Int,
 ): StrategicGroupElectionResult {
-    maxLeaders.requireGe(1, "maxLeaders")
+    maxLeaders.requirePositiveNumber("maxLeaders")
     return elect(candidates, maxLeaders).also {
         it.validateAgainst(candidates, maxLeaders)
     }

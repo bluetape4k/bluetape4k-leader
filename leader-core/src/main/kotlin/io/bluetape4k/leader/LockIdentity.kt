@@ -1,5 +1,6 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.support.hashOf
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import java.io.Serializable
@@ -39,17 +40,13 @@ class LockIdentity(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is LockIdentity) return false
+
         return lockName == other.lockName &&
-            kind == other.kind &&
-            groupParams == other.groupParams
+                kind == other.kind &&
+                groupParams == other.groupParams
     }
 
-    override fun hashCode(): Int {
-        var result = lockName.hashCode()
-        result = 31 * result + kind.hashCode()
-        result = 31 * result + (groupParams?.hashCode() ?: 0)
-        return result
-    }
+    override fun hashCode(): Int = hashOf(lockName, kind, groupParams)
 
     override fun toString(): String =
         "LockIdentity(lockName='$lockName', kind=$kind, factoryBeanName='$factoryBeanName', groupParams=$groupParams)"

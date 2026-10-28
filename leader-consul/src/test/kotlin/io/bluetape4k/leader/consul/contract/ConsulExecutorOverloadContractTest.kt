@@ -12,6 +12,7 @@ import io.bluetape4k.leader.consul.ConsulLeaderElector
 import io.bluetape4k.leader.consul.ConsulLeaderGroupElectionOptions
 import io.bluetape4k.leader.consul.ConsulLeaderGroupElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 
@@ -38,6 +39,7 @@ class ConsulExecutorOverloadContractTest {
             completableFutureOf("single-ok")
         }.join()
 
+        log.debug { "first=$first" }
         first.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
         first.value shouldBeEqualTo "single-ok"
         first.leaderId shouldBeEqualTo "consul-single-a"
@@ -49,6 +51,7 @@ class ConsulExecutorOverloadContractTest {
             completableFutureOf("single-reacquired")
         }.join()
 
+        log.debug { "second=$second" }
         second.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
         second.value shouldBeEqualTo "single-reacquired"
         second.leaderId shouldBeEqualTo "consul-single-b"
@@ -72,6 +75,7 @@ class ConsulExecutorOverloadContractTest {
             completableFutureOf("group-ok")
         }.join()
 
+        log.debug { "first=$first" }
         first.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
         first.value shouldBeEqualTo "group-ok"
         first.leaderId shouldBeEqualTo "consul-group-a"
@@ -83,6 +87,7 @@ class ConsulExecutorOverloadContractTest {
             completableFutureOf("group-reacquired")
         }.join()
 
+        log.debug { "second=$second" }
         second.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
         second.value shouldBeEqualTo "group-reacquired"
         second.leaderId shouldBeEqualTo "consul-group-b"

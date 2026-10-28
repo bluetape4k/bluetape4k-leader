@@ -10,6 +10,7 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -47,8 +48,9 @@ abstract class AbstractSuspendLeaderElectorLeaderIdContractTest {
         val s = slot("audit-node")
         val result = defaultElector.runIfLeaderResultSuspend(s) { "done" }
 
-        result shouldBeInstanceOf LeaderRunResult.Elected::class
-        (result as LeaderRunResult.Elected).value shouldBeEqualTo "done"
+        log.debug { "result=$result" }
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        result.value shouldBeEqualTo "done"
         result.leaderId shouldBeEqualTo "audit-node"
     }
 
@@ -57,6 +59,7 @@ abstract class AbstractSuspendLeaderElectorLeaderIdContractTest {
         val s = slot("null-node")
         val result = defaultElector.runIfLeaderResultSuspend(s) { null }
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
         result.leaderId shouldBeEqualTo "null-node"
     }
@@ -81,6 +84,8 @@ abstract class AbstractSuspendLeaderElectorLeaderIdContractTest {
         val r1 = defaultElector.runIfLeaderResultSuspend(s1) { 1 }
         val r2 = defaultElector.runIfLeaderResultSuspend(s2) { 2 }
 
+        log.debug { "r1=$r1" }
+        log.debug { "r2=$r2" }
         r1.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "leader-1"
         r2.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "leader-2"
     }

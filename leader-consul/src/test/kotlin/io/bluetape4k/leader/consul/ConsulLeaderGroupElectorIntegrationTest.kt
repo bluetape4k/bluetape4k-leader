@@ -5,16 +5,13 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
-import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.LeaderGroupElectionOptions
-import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.testcontainers.infra.ConsulServer
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -25,11 +22,9 @@ import kotlin.time.Duration.Companion.seconds
 
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ConsulLeaderGroupElectorIntegrationTest {
+class ConsulLeaderGroupElectorIntegrationTest: AbstractConsulTest() {
 
     companion object: KLogging()
-
-    private val consul: ConsulServer by lazy { ConsulServer.Launcher.consul }
 
     @Test
     fun `runIfLeaderGroup acquires releases and allows sequential reacquire`() {
@@ -217,18 +212,4 @@ class ConsulLeaderGroupElectorIntegrationTest {
                 leaderGroupOptions = groupOptions,
             ),
         )
-
-    private fun endpoint(): ConsulEndpoint =
-        ConsulEndpoint(consul.url)
-
-    private fun keyPrefix(): String =
-        "bluetape4k/leader/test/${Base58.randomString(8)}"
-
-    private fun randomName(): String =
-        "leader-group-test:${Base58.randomString(8)}"
-}
-
-private infix fun List<LeaderLease>.shouldHaveSingleLeader(auditLeaderId: String) {
-    singleOrNull().shouldNotBeNull()
-    single().auditLeaderId shouldBeEqualTo auditLeaderId
 }

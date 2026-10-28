@@ -13,6 +13,8 @@ import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
+import io.bluetape4k.utils.Runtimex
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -193,6 +195,7 @@ abstract class AbstractSuspendLockExtenderContractTest {
             outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
         }
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }
 
@@ -200,6 +203,7 @@ abstract class AbstractSuspendLockExtenderContractTest {
     fun `extendActiveLockDetailedSuspend returns NotHeld outside runIfLeader body`() = runSuspendIO {
         val outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 
@@ -221,13 +225,12 @@ abstract class AbstractSuspendLockExtenderContractTest {
         val maxConcurrent = AtomicInteger(0)
 
         SuspendedJobTester()
-            .workers(8)
-            .rounds(4)
+            .rounds(4 * Runtimex.availableProcessors)
             .add {
                 elector.runIfLeader(lockName) {
                     val n = currentHolders.incrementAndGet()
                     maxConcurrent.getAndUpdate { max(it, n) }
-                    delay(5.milliseconds)
+                    delay(Random.nextInt(10).milliseconds)
                     currentHolders.decrementAndGet()
                 }
             }
@@ -256,14 +259,15 @@ abstract class AbstractSuspendLockExtenderContractTest {
 
         val rounds = 10
         SuspendedJobTester()
-            .workers(8)
             .rounds(rounds)
             .add {
                 val lockName = randomLockName()
                 elector.runIfLeader(lockName) {
                     repeat(extendsPerRound) { i ->
                         val outcome = LockExtender.extendActiveLockDetailedSuspend((10 + i * 5).seconds)
-                        if (outcome is ExtendOutcome.Extended) successCount.incrementAndGet()
+                        if (outcome is ExtendOutcome.Extended) {
+                            successCount.incrementAndGet()
+                        }
                     }
                 }
             }

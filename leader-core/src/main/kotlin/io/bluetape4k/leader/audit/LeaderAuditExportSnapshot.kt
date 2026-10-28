@@ -71,8 +71,8 @@ class LeaderAuditExportSnapshot private constructor(payload: Payload) {
 
     companion object {
         /** 내부 counter state를 immutable public snapshot으로 만듭니다. */
-        @JvmSynthetic
-        internal fun create(
+        @JvmStatic
+        internal operator fun invoke(
             queued: Int,
             inFlight: Int,
             scheduledRetries: Int,

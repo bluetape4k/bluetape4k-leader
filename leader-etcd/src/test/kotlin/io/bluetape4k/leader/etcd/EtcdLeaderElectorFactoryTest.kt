@@ -7,6 +7,8 @@ import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.etcd.jetcd.Client
 import io.mockk.clearMocks
 import io.mockk.mockk
@@ -20,6 +22,8 @@ import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class EtcdLeaderElectorFactoryTest {
+
+    companion object: KLogging()
 
     private val client = mockk<Client>(relaxed = true)
 
@@ -51,6 +55,7 @@ class EtcdLeaderElectorFactoryTest {
                 .shouldBeInstanceOf<EtcdSuspendLeaderElector>()
         }
 
+        log.debug { "elector options=${suspendElector.options}" }
         suspendElector.options.keyPrefix shouldBeEqualTo "/apps/orders/leader"
         suspendElector.options.leaderOptions shouldBeEqualTo leaderOptions
         verify(exactly = 0) { client.close() }
@@ -77,6 +82,7 @@ class EtcdLeaderElectorFactoryTest {
                 .create(groupOptions)
                 .shouldBeInstanceOf<EtcdSuspendLeaderGroupElector>()
 
+        log.debug { "elector options=${suspendElector.options}" }
         suspendElector.options.keyPrefix shouldBeEqualTo "/apps/orders/leader"
         suspendElector.options.leaderGroupOptions shouldBeEqualTo groupOptions
 

@@ -38,8 +38,9 @@ data class CandidateInfo(
      * 전체 결과 중 성공 결과의 비율입니다. 성공 횟수와 실패 횟수의 합이 `0`이면 `0.0`을 반환합니다.
      */
     val successRate: Double
-        get() = if (successCount + failureCount == 0L) 0.0
-        else successCount.toDouble() / (successCount + failureCount)
+        get() =
+            if (successCount + failureCount == 0L) 0.0
+            else successCount.toDouble() / (successCount + failureCount)
 
     /** 성공과 실패로 기록된 결과 횟수의 합입니다. */
     val totalCount: Long get() = successCount + failureCount

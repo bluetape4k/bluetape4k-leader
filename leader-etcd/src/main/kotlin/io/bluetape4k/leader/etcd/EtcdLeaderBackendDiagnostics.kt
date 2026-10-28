@@ -16,10 +16,12 @@ object EtcdLeaderBackendDiagnostics: LeaderBackendDiagnosticsProvider {
         single = LeaderBackendSupport.SUPPORTED,
         group = LeaderBackendSupport.SUPPORTED,
     )
+
     private val AuditModes = LeaderBackendModeSupport(
         single = LeaderBackendSupport.SUPPORTED,
         group = LeaderBackendSupport.UNSUPPORTED,
     )
+
     override val backendDescriptor: LeaderBackendDescriptor = LeaderBackendDescriptor(
         backendId = "etcd",
         displayName = "etcd",

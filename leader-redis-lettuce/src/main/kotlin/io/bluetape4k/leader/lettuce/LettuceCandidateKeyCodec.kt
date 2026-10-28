@@ -1,7 +1,6 @@
 package io.bluetape4k.leader.lettuce
 
 import io.lettuce.core.RedisCommandExecutionException
-import java.nio.charset.StandardCharsets
 
 /**
  * Lettuce strategic 후보 Redis key를 논리적 구성 요소별로 인코딩합니다.
@@ -51,7 +50,7 @@ internal object LettuceCandidateKeyCodec {
         "${legacyIndexKey(keyPrefix, lockName)}:$nodeId"
 
     private fun lengthDelimited(value: String): String {
-        val byteLength = value.toByteArray(StandardCharsets.UTF_8).size
+        val byteLength = value.toByteArray(Charsets.UTF_8).size
         return "$byteLength:$value"
     }
 

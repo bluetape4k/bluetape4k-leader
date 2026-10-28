@@ -32,10 +32,10 @@ class LocalAsyncLeaderGroupElector private constructor(
          */
         operator fun invoke(
             options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-        ): AsyncLeaderGroupElector =
-            options
-                .also { it.maxLeaders.requirePositiveNumber("maxLeaders") }
-                .let(::LocalAsyncLeaderGroupElector)
+        ): AsyncLeaderGroupElector {
+            options.maxLeaders.requirePositiveNumber("options.maxLeaders")
+            return LocalAsyncLeaderGroupElector(options)
+        }
     }
 
     /**
@@ -54,9 +54,12 @@ class LocalAsyncLeaderGroupElector private constructor(
         log.debug { "runAsyncIfLeader... lockName=$lockName" }
 
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+
         return LeaderFutureBridge.propagateCancellation(
             futureOf(executor) {
-                tryWithPermit(lockName) { cancellationRelay.invoke(action).join() }
+                tryWithPermit(lockName) {
+                    cancellationRelay.invoke(action).join()
+                }
             },
             cancellationRelay,
         )
@@ -84,7 +87,9 @@ class LocalAsyncLeaderGroupElector private constructor(
                     lockName = slot.lockName,
                     auditLeaderId = slot.leaderId,
                     nodeId = options.nodeId,
-                ) { cancellationRelay.invoke(action).join() }
+                ) {
+                    cancellationRelay.invoke(action).join()
+                }
             },
             cancellationRelay,
         )
@@ -123,8 +128,8 @@ class LocalAsyncLeaderGroupElector private constructor(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                elected.get()   -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else            -> LeaderRunResult.Skipped
             }
         }
     }

@@ -10,6 +10,7 @@ import io.bluetape4k.leader.etcd.AbstractEtcdLeaderTest
 import io.bluetape4k.leader.etcd.support.toByteSequence
 import io.bluetape4k.leader.etcd.support.toUtf8String
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.etcd.jetcd.ByteSequence
 import io.etcd.jetcd.Client
 import io.etcd.jetcd.Watch
@@ -137,16 +138,17 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
         val option = WatchOption.builder()
             .withCreateNotify(true)
             .build()
+
         val watcher = watchClient.watch(
             key,
             option,
             Watch.listener(
                 { response ->
+                    log.debug { "response=$response" }
                     if (response.isCreatedNotify) {
                         ready.complete(Unit)
                     } else {
-                        runCatching { response.events.forEach(onEvent) }
-                            .onFailure(onFailure)
+                        runCatching { response.events.forEach(onEvent) }.onFailure(onFailure)
                     }
                 },
                 { error ->
@@ -160,7 +162,7 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
 
     private fun WatchEvent.label(): String =
         when (eventType) {
-            WatchEvent.EventType.PUT -> "PUT:${keyValue.value.toUtf8String()}"
+            WatchEvent.EventType.PUT    -> "PUT:${keyValue.value.toUtf8String()}"
             WatchEvent.EventType.DELETE -> "DELETE"
             WatchEvent.EventType.UNRECOGNIZED -> "UNRECOGNIZED"
         }

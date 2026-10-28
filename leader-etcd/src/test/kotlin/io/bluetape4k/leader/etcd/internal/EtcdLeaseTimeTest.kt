@@ -53,7 +53,7 @@ class EtcdLeaseTimeTest {
 
         repeat(100) {
             val factor = EtcdLeaseTime.randomJitterFactor(random)
-            factor.shouldBeInRange(-0.10..0.10)
+            factor shouldBeInRange -0.10..0.10
         }
     }
 

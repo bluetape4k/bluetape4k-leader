@@ -18,6 +18,7 @@ import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.andWhere
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -117,7 +118,7 @@ internal class ExposedJdbcGroupLock internal constructor(
                     Thread.sleep(retryStrategy.delayMs(attempt++, remaining))
                 } catch (e: InterruptedException) {
                     Thread.currentThread().interrupt()
-                    log.debug { "sleep interrupted; 재시도 중단: lockName=$lockName, slot=$slot" }
+                    log.warn { "sleep interrupted; 재시도 중단: lockName=$lockName, slot=$slot" }
                     throw e
                 }
             }
@@ -175,12 +176,10 @@ internal class ExposedJdbcGroupLock internal constructor(
             // SELECT으로 token 소유 + lease 유효성 확인 (R2DBC 형제 모듈과 대칭)
             LeaderGroupLockTable
                 .selectAll()
-                .where {
-                    (LeaderGroupLockTable.lockName eq lockNameVal) and
-                            (LeaderGroupLockTable.slot eq slotVal) and
-                            (LeaderGroupLockTable.token eq tokenVal) and
-                            (LeaderGroupLockTable.lockedUntil greater now)
-                }
+                .andWhere { LeaderGroupLockTable.lockName eq lockNameVal }
+                .andWhere { LeaderGroupLockTable.slot eq slotVal }
+                .andWhere { LeaderGroupLockTable.token eq tokenVal }
+                .andWhere { LeaderGroupLockTable.lockedUntil greater now }
                 .empty()
                 .not()
         }
@@ -194,15 +193,14 @@ internal class ExposedJdbcGroupLock internal constructor(
             val tokenVal = token
             transaction(db) {
                 val now = currentTime(useDbTime, clock)
-                !LeaderGroupLockTable
+                LeaderGroupLockTable
                     .selectAll()
-                    .where {
-                        (LeaderGroupLockTable.lockName eq lockNameVal) and
-                                (LeaderGroupLockTable.slot eq slotVal) and
-                                (LeaderGroupLockTable.token eq tokenVal) and
-                                (LeaderGroupLockTable.lockedUntil greater now)
-                    }
+                    .andWhere { LeaderGroupLockTable.lockName eq lockNameVal }
+                    .andWhere { LeaderGroupLockTable.slot eq slotVal }
+                    .andWhere { LeaderGroupLockTable.token eq tokenVal }
+                    .andWhere { LeaderGroupLockTable.lockedUntil greater now }
                     .empty()
+                    .not()
             }
         } catch (e: CancellationException) {
             throw e

@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.examples.zookeeperscheduler
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.zookeeper.blockUntilConnected
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.infra.ZooKeeperServer
 import org.apache.curator.framework.CuratorFramework
@@ -8,7 +9,6 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestInstance
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -27,7 +27,7 @@ abstract class AbstractZooKeeperSchedulerTest {
     fun startZooKeeper() {
         curator = ZooKeeperServer.Launcher.getCuratorFramework(zookeeper)
         curator.start()
-        check(curator.blockUntilConnected(10, TimeUnit.SECONDS)) {
+        check(curator.blockUntilConnected(10.seconds)) {
             "Curator did not connect to ZooKeeper within 10 seconds"
         }
     }

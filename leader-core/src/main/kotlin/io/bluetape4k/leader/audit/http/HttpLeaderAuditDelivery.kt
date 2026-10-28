@@ -104,12 +104,12 @@ internal class HttpLeaderAuditDelivery(
                 when (val cause = failure.unwrapCompletionFailure()) {
                     is CancellationException -> result.cancel(false)
                     is Error -> result.completeExceptionally(cause)
-                    else -> {
+                    else     -> {
                         val classification = classifyFailure(cause)
                         if (classification == LeaderAuditDeliveryResult.RETRYABLE_FAILURE) {
-                            log.warn { "Leader audit HTTP I/O failure; delivery is retryable" }
+                            log.warn(failure) { "Leader audit HTTP I/O failure; delivery is retryable" }
                         } else {
-                            log.warn { "Leader audit HTTP failure; delivery is terminal" }
+                            log.warn(failure) { "Leader audit HTTP failure; delivery is terminal" }
                         }
                         result.complete(classification)
                     }
@@ -142,7 +142,7 @@ internal class HttpLeaderAuditDelivery(
             LeaderAuditDeliveryResult.SUCCESS
         HTTP_REQUEST_TIMEOUT_STATUS, HTTP_TOO_MANY_REQUESTS_STATUS, in HTTP_SERVER_ERROR_STATUSES ->
             LeaderAuditDeliveryResult.RETRYABLE_FAILURE
-        else ->
+        else                     ->
             LeaderAuditDeliveryResult.TERMINAL_FAILURE
     }
 
@@ -190,7 +190,7 @@ private fun normalizeHeaders(input: Map<String, String>): Map<String, String> {
         val canonical = when (lowerName) {
             "content-type" -> "Content-Type"
             "authorization" -> "Authorization"
-            else -> error("unreachable header allow-list branch")
+            else           -> error("unreachable header allow-list branch")
         }
         require(normalized.put(canonical, value) == null) {
             "duplicate header name: $canonical"

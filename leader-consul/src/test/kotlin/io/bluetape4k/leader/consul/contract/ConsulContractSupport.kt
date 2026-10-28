@@ -10,5 +10,5 @@ internal object ConsulContractSupport {
 
     fun endpoint(): ConsulEndpoint = ConsulEndpoint(server.url)
 
-    fun keyPrefix(): String = "bluetape4k/contract-" + Base58.randomString(8)
+    fun keyPrefix(): String = "bluetape4k/contract-" + Base58.randomString(8).lowercase()
 }

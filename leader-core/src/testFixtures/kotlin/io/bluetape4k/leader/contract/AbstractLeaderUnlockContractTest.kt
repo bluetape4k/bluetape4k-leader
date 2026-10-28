@@ -3,7 +3,6 @@ package io.bluetape4k.leader.contract
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.logging.KLogging
@@ -70,7 +69,6 @@ abstract class AbstractLeaderUnlockContractTest {
 
         // re-acquire immediately — no waiting for lease expiry
         val second = election.runIfLeader(lockName) { SAMPLE_RESULT }
-        second.shouldNotBeNull()
         second shouldBeEqualTo SAMPLE_RESULT
     }
 
@@ -86,8 +84,9 @@ abstract class AbstractLeaderUnlockContractTest {
         }
 
         // re-acquire immediately — try-finally unlock guaranteed
-        val second = election.runIfLeader(lockName) { SAMPLE_RESULT }
-        second.shouldNotBeNull()
+        val second = election.runIfLeader(lockName) {
+            SAMPLE_RESULT
+        }
         second shouldBeEqualTo SAMPLE_RESULT
     }
 

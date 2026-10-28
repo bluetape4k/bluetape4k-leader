@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.diagnostics
 
-import io.bluetape4k.support.requireGt
 import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.requirePositiveDuration
 import java.io.Serializable
 import java.time.Instant
 import kotlin.time.Duration
@@ -194,16 +194,16 @@ data class LeaderBackendConnectivity @JvmOverloads constructor(
                 "$status connectivity must not use NOT_CHECKED reason"
             }
             val allowedReasons = when (status) {
-                LeaderBackendConnectivityStatus.UP ->
+                LeaderBackendConnectivityStatus.UP      ->
                     setOf(LeaderBackendConnectivityReason.CONNECTED)
-                LeaderBackendConnectivityStatus.DOWN ->
+                LeaderBackendConnectivityStatus.DOWN    ->
                     setOf(LeaderBackendConnectivityReason.DISCONNECTED)
                 LeaderBackendConnectivityStatus.UNKNOWN -> setOf(
                     LeaderBackendConnectivityReason.PROVIDER_UNSUPPORTED,
                     LeaderBackendConnectivityReason.PROVIDER_EXCEPTION,
                     LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED,
                 )
-                LeaderBackendConnectivityStatus.NOT_CHECKED -> emptySet()
+                // LeaderBackendConnectivityStatus.NOT_CHECKED -> emptySet()
             }
             require(reason in allowedReasons) {
                 "$status connectivity does not support reason $reason"
@@ -272,8 +272,8 @@ data class LeaderBackendConnectivity @JvmOverloads constructor(
 
 private fun LeaderBackendConnectivityStatus.defaultReason(): LeaderBackendConnectivityReason =
     when (this) {
-        LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivityReason.CONNECTED
-        LeaderBackendConnectivityStatus.DOWN -> LeaderBackendConnectivityReason.DISCONNECTED
+        LeaderBackendConnectivityStatus.UP      -> LeaderBackendConnectivityReason.CONNECTED
+        LeaderBackendConnectivityStatus.DOWN    -> LeaderBackendConnectivityReason.DISCONNECTED
         LeaderBackendConnectivityStatus.UNKNOWN -> LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED
         LeaderBackendConnectivityStatus.NOT_CHECKED -> LeaderBackendConnectivityReason.NOT_CHECKED
     }
@@ -351,11 +351,11 @@ internal fun Any.resolveLeaderBackendDiagnosticsProvider(): LeaderBackendDiagnos
     when (this) {
         is LeaderBackendDiagnosticsProvider -> this
         is LeaderBackendDiagnosticsAware -> backendDiagnosticsProvider
-        else -> null
+        else                             -> null
     }
 
 internal fun Duration.requirePositiveFiniteProbeTimeout(): Duration {
-    val validTimeout = requireGt(Duration.ZERO, "probe timeout")
+    val validTimeout = requirePositiveDuration("probe timeout")
     require(validTimeout.isFinite()) { "probe timeout must be finite: $validTimeout" }
     return validTimeout
 }

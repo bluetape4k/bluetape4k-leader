@@ -85,9 +85,9 @@ class LockHandleElementTest {
         val element = LockHandleElement(handle)
 
         withContext(element) {
-            val found = currentCoroutineContext()[LockHandleElement]
+            val found = currentCoroutineContext()[LockHandleElement].shouldNotBeNull()
             found shouldBe element
-            found.shouldNotBeNull().handle shouldBe handle
+            found.handle shouldBe handle
         }
     }
 

@@ -1,8 +1,10 @@
 package io.bluetape4k.leader.audit
 
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.support.requireNotEmpty
+import io.bluetape4k.support.requirePositiveNumber
+import io.bluetape4k.support.toUtf8Bytes
 import io.bluetape4k.support.truncateUtf8
-import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.*
 
@@ -80,11 +82,11 @@ sealed interface LeaderAuditValueSanitizer {
         private val copiedAllowList: Set<LeaderAuditField>
 
         init {
-            require(allowList.isNotEmpty()) { "allowList must not be empty" }
+            allowList.requireNotEmpty("allowList")
             require(allowList.all { it in RAW_ALLOWED_FIELDS }) {
                 "Raw export is only allowed for $RAW_ALLOWED_FIELDS: $allowList"
             }
-            require(maxBytes > 0) { "maxBytes must be positive: $maxBytes" }
+            maxBytes.requirePositiveNumber("maxBytes")
             copiedAllowList = Collections.unmodifiableSet(allowList.toSet())
         }
 
@@ -113,7 +115,8 @@ enum class LeaderAuditField {
 }
 
 private fun sha256Hex(value: String): String {
-    val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(StandardCharsets.UTF_8))
+    val digest = MessageDigest.getInstance("SHA-256").digest(value.toUtf8Bytes())
+
     return buildString(digest.size * 2) {
         digest.forEach { byte ->
             append(HEX_DIGITS[(byte.toInt() ushr NIBBLE_SHIFT) and NIBBLE_MASK])
@@ -124,10 +127,7 @@ private fun sha256Hex(value: String): String {
 
 private fun requireValidKind(field: LeaderAuditField, value: String) {
     if (field == LeaderAuditField.KIND) {
-        require(
-            value == LockIdentity.AnnotationKind.SINGLE.name ||
-                    value == LockIdentity.AnnotationKind.GROUP.name,
-        ) {
+        require(value == LockIdentity.AnnotationKind.SINGLE.name || value == LockIdentity.AnnotationKind.GROUP.name) {
             "KIND must be SINGLE or GROUP"
         }
     }

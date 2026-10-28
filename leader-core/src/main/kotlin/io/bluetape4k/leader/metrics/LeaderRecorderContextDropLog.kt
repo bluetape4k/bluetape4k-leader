@@ -3,8 +3,7 @@ package io.bluetape4k.leader.metrics
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
-import io.bluetape4k.support.requireGt
-import java.util.LinkedHashMap
+import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -21,7 +20,7 @@ import kotlin.reflect.KClass
 class LeaderRecorderContextDropLog(val cacheSize: Int = 256) {
 
     init {
-        cacheSize.requireGt(0, "cacheSize")
+        cacheSize.requirePositiveNumber("cacheSize")
     }
 
     private val lock = ReentrantLock()

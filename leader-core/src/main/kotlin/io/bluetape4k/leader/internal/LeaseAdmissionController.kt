@@ -132,7 +132,7 @@ class LeaseAdmissionController(
         watchdogCount.decrementAndGet()
     }
 
-    sealed class Reservation protected constructor(): AutoCloseable {
+    sealed class Reservation: AutoCloseable {
         private val terminal = AtomicBoolean(false)
 
         final override fun close() {

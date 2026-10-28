@@ -2,7 +2,7 @@ package io.bluetape4k.leader.etcd
 
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.etcd.internal.EtcdLeaderPaths
-import io.bluetape4k.support.requireGt
+import io.bluetape4k.support.requirePositiveDuration
 import java.io.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -22,7 +22,7 @@ data class EtcdLeaderElectionOptions(
 
     init {
         EtcdLeaderPaths(keyPrefix)
-        retryDelay.requireGt(Duration.ZERO, "retryDelay")
+        retryDelay.requirePositiveDuration("retryDelay")
     }
 
     companion object {

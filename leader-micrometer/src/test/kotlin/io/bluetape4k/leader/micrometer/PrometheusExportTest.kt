@@ -24,7 +24,7 @@ import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.nio.charset.StandardCharsets.UTF_8
+import java.nio.charset.Charsets.UTF_8
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture

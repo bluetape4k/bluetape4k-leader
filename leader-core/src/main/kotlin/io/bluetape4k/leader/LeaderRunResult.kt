@@ -27,7 +27,9 @@ sealed interface LeaderRunResult<out T>: Serializable {
     /**
      * lock contention으로 획득하지 못해 action을 실행하지 않았습니다.
      */
-    data object Skipped: LeaderRunResult<Nothing>
+    data object Skipped: LeaderRunResult<Nothing> {
+        private fun readResolve(): Any = Skipped
+    }
 
     /**
      * lock 획득 후 action이 예외를 던졌습니다. cancellation은 이 결과 대신 호출자에게 전파됩니다.

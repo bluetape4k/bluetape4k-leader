@@ -14,7 +14,6 @@ import io.bluetape4k.logging.KLogging
 import io.etcd.jetcd.ByteSequence
 import io.etcd.jetcd.lease.LeaseKeepAliveResponse
 import org.junit.jupiter.api.Test
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
@@ -154,7 +153,7 @@ class EtcdLeaderCleanupTimeoutTest {
         var revokeCalls: Int = 0
             private set
 
-        private val ownershipKey = ByteSequence.from("/locks/owner-a", StandardCharsets.UTF_8)
+        private val ownershipKey = ByteSequence.from("/locks/owner-a", Charsets.UTF_8)
 
         override fun singleLockKey(lockName: String): ByteSequence =
             "/bluetape4k/leader/single/$lockName".toByteSequence()
@@ -169,7 +168,7 @@ class EtcdLeaderCleanupTimeoutTest {
             when {
                 interruptLock -> InterruptingFuture()
                 cancelLock -> CompletableFuture<ByteSequence>().also { it.cancel(false) }
-                else -> completableFutureOf(ownershipKey)
+                else       -> completableFutureOf(ownershipKey)
             }
 
         override fun unlock(ownershipKey: ByteSequence): CompletableFuture<Unit> =

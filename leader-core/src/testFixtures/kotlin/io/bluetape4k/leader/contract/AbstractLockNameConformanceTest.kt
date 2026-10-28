@@ -2,6 +2,7 @@ package io.bluetape4k.leader.contract
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -35,27 +36,31 @@ abstract class AbstractLockNameConformanceTest {
         ],
     )
     fun `유효한 lockName은 공통 검증을 통과한다`(lockName: String) {
-        validateLockName(lockName)
+        lockName.validateLockName()
     }
 
     @Test
     fun `255자 lockName은 공통 경계를 통과한다`() {
         val lockName = "a" + "b".repeat(254)
         lockName.length shouldBeEqualTo 255
-        validateLockName(lockName)
+        lockName.validateLockName()
     }
 
     @Test
     fun `빈 lockName은 공통 검증에서 거부된다`() {
         assertFailsWith<IllegalArgumentException> { validateLockName("") }
         assertFailsWith<IllegalArgumentException> { validateLockName("   ") }
+        assertFailsWith<IllegalArgumentException> { validateLockName(" \t ") }
     }
 
     @Test
     fun `256자 lockName은 공통 검증에서 거부된다`() {
         val tooLong = "a" + "b".repeat(255)
         tooLong.length shouldBeEqualTo 256
-        assertFailsWith<IllegalArgumentException> { validateLockName(tooLong) }
+
+        assertFailsWith<IllegalArgumentException> {
+            tooLong.validateLockName()
+        }
     }
 
     @ParameterizedTest
@@ -72,6 +77,8 @@ abstract class AbstractLockNameConformanceTest {
         ],
     )
     fun `허용되지 않는 문자와 시작 패턴은 공통 검증에서 거부된다`(lockName: String) {
-        assertFailsWith<IllegalArgumentException> { validateLockName(lockName) }
+        assertFailsWith<IllegalArgumentException> {
+            lockName.validateLockName()
+        }
     }
 }

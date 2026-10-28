@@ -1,15 +1,17 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.coroutines.support.log
+import io.bluetape4k.coroutines.flow.extensions.log
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
+import kotlinx.atomicfu.locks.withLock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import java.io.Serializable
 import java.time.Instant
-import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Consumer
 
 /**
@@ -161,17 +163,17 @@ private fun <T: LeaderElectionEvent> LeaderElectionEventPublisher.subscribeToEve
             if (eventType.isInstance(event)) {
                 val typedEvent = eventType.cast(event)
 
-                runCatching { listener.accept(typedEvent) }
-                    .onFailure { e ->
-                        LeaderElectionEventPublisherCallbackLogger.log.warn(e) {
-                            "LeaderElectionEventPublisher $callbackName callback failed and was ignored. " +
-                                    "lockName=${event.lockName}"
-                        }
+                runCatching {
+                    listener.accept(typedEvent)
+                }.onFailure { e ->
+                    LeaderElectionEventPublisherCallbackLogger.log.warn(e) {
+                        "LeaderElectionEventPublisher $callbackName callback failed and was ignored. lockName=${event.lockName}"
                     }
+                }
             }
         }
-        .launchIn(scope)
         .log("Event")
+        .launchIn(scope)
 
     return AutoCloseable { job.cancel() }
 }
@@ -201,15 +203,23 @@ interface LeaderElectionListenerRegistry {
  */
 open class LeaderElectionListenerSupport: LeaderElectionListenerRegistry {
 
-    private val listeners = CopyOnWriteArrayList<LeaderElectionListener>()
+    private companion object: KLogging()
+
+    private val lock = ReentrantLock()
+    private val listeners = ConcurrentLinkedQueue<LeaderElectionListener>()
 
     override fun addListener(listener: LeaderElectionListener): AutoCloseable {
-        listeners.addIfAbsent(listener)
-        return AutoCloseable { removeListener(listener) }
+        lock.withLock {
+            if (!listeners.contains(listener)) {
+                listeners.add(listener)
+            }
+            return AutoCloseable { removeListener(listener) }
+        }
     }
 
-    override fun removeListener(listener: LeaderElectionListener): Boolean =
+    override fun removeListener(listener: LeaderElectionListener): Boolean = lock.withLock {
         listeners.remove(listener)
+    }
 
     /**
      * 등록된 listener 각각에 획득 callback을 보냅니다. callback 예외는 기록하고 다음 listener로 계속합니다.
@@ -242,14 +252,13 @@ open class LeaderElectionListenerSupport: LeaderElectionListenerRegistry {
         callback: (LeaderElectionListener) -> Unit,
     ) {
         listeners.forEach { listener ->
-            runCatching { callback(listener) }
-                .onFailure { e ->
-                    log.warn(e) {
-                        "LeaderElectionListener $callbackName failed and was ignored. lockName=$lockName"
-                    }
+            runCatching {
+                callback(listener)
+            }.onFailure { e ->
+                log.warn(e) {
+                    "LeaderElectionListener $callbackName failed and was ignored. lockName=$lockName"
                 }
+            }
         }
     }
-
-    private companion object: KLogging()
 }

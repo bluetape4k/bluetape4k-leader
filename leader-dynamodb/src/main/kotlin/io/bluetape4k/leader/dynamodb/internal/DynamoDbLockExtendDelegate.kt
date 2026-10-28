@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.dynamodb.internal
 
+import io.bluetape4k.coroutines.support.awaitUntil
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
@@ -33,7 +34,7 @@ internal class DynamoDbLockExtendDelegate(
         try {
             client.extend(lock, lockAtMostFor, ttlPadding)
         } catch (e: Exception) {
-            log.warn(e) { "DynamoDB extend failed. key=${lock.key}" }
+            log.warn(e) { "DynamoDB extend failed. lock=$lock" }
             ExtendOutcome.BackendError(e)
         }
 
@@ -41,7 +42,7 @@ internal class DynamoDbLockExtendDelegate(
         try {
             client.isHeld(lock)
         } catch (e: Exception) {
-            log.warn(e) { "DynamoDB isHeld failed. key=${lock.key}" }
+            log.warn(e) { "DynamoDB isHeld failed. lock=$lock" }
             false
         }
 }
@@ -66,11 +67,11 @@ internal class DynamoDbSuspendLockExtendDelegate(
 
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
         try {
-            client.extendAsync(lock, lockAtMostFor, ttlPadding).await()
+            client.extendAsync(lock, lockAtMostFor, ttlPadding).awaitUntil(lockAtMostFor)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            log.warn(e) { "DynamoDB suspend extend failed. key=${lock.key}" }
+            log.warn(e) { "DynamoDB suspend extend failed. lock=$lock" }
             ExtendOutcome.BackendError(e)
         }
 
@@ -80,7 +81,7 @@ internal class DynamoDbSuspendLockExtendDelegate(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            log.warn(e) { "DynamoDB suspend isHeld failed. key=${lock.key}" }
+            log.warn(e) { "DynamoDB suspend isHeld failed. lock=$lock" }
             false
         }
 }

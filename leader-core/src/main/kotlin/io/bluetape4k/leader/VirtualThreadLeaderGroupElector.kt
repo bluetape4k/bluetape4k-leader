@@ -63,8 +63,8 @@ interface VirtualThreadLeaderGroupElector: LeaderGroupElectionState {
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value) as LeaderRunResult<T>
-                else -> LeaderRunResult.Skipped as LeaderRunResult<T>
+                elected.get()   -> LeaderRunResult.Elected(value) as LeaderRunResult<T>
+                else            -> LeaderRunResult.Skipped as LeaderRunResult<T>
             }
         }
     }

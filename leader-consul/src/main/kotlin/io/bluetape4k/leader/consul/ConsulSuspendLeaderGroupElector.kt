@@ -105,10 +105,10 @@ class ConsulSuspendLeaderGroupElector private constructor(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
-    private suspend fun <T> runWithSlot(
+    private suspend inline fun <T> runWithSlot(
         lockName: String,
         auditLeaderId: String?,
-        action: suspend () -> T,
+        crossinline action: suspend () -> T,
     ): T? {
         currentCoroutineContext().ensureActive()
         val handle = acquire(lockName, auditLeaderId) ?: return null
@@ -161,6 +161,7 @@ class ConsulSuspendLeaderGroupElector private constructor(
             electedAt = electedAt,
             leaseUntil = leaseUntil,
         )
+
         val sessionId = try {
             lockClient.createSession(
                 name = "${options.sessionNamePrefix}-${options.leaderGroupOptions.nodeId}",
@@ -271,30 +272,29 @@ class ConsulSuspendLeaderGroupElector private constructor(
         }
     }
 
-    private fun currentLeaders(lockName: String): List<LeaderLease> =
-        List(maxLeaders) { slot ->
-            runCatching {
-                val entry = lockClient.read(lockClient.groupLockKey(lockName, slot)).getWithinRequestTimeout(lockClient)
-                    ?: return@runCatching null
-                if (entry.sessionId == null) {
-                    return@runCatching null
-                }
-                val lease = entry.value?.let { ConsulOwnerPayload.fromJson(it)?.toLeaderLease(slot) }
-                if (lease == null) {
-                    log.warn {
-                        "Consul suspend group state ignored because owner payload is missing or invalid. " +
-                                "lockName=$lockName, slot=$slot, sessionId=${entry.sessionId.value}"
-                    }
-                }
-                lease
-            }.getOrElse { e ->
-                if (e is InterruptedException) {
-                    Thread.currentThread().interrupt()
-                }
-                log.warn(e) { "Consul suspend group state query failed. lockName=$lockName, slot=$slot" }
-                null
+    private fun currentLeaders(lockName: String): List<LeaderLease> = List(maxLeaders) { slot ->
+        runCatching {
+            val entry = lockClient.read(lockClient.groupLockKey(lockName, slot)).getWithinRequestTimeout(lockClient)
+                ?: return@runCatching null
+            if (entry.sessionId == null) {
+                return@runCatching null
             }
-        }.filterNotNull()
+            val lease = entry.value?.let { ConsulOwnerPayload.fromJson(it)?.toLeaderLease(slot) }
+            if (lease == null) {
+                log.warn {
+                    "Consul suspend group state ignored because owner payload is missing or invalid. " +
+                            "lockName=$lockName, slot=$slot, sessionId=${entry.sessionId.value}"
+                }
+            }
+            lease
+        }.getOrElse { e ->
+            if (e is InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+            log.warn(e) { "Consul suspend group state query failed. lockName=$lockName, slot=$slot" }
+            null
+        }
+    }.filterNotNull()
 }
 
 /**

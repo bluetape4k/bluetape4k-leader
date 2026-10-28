@@ -9,6 +9,7 @@ import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbKeys
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbLockClient
@@ -35,7 +36,7 @@ class DynamoDbSuspendLeaderElector(
     val options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
 ): SuspendLeaderElector,
    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics,
-   io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+   SuspendLeaderLeaseAcquirerSupport {
 
     override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
         SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
@@ -79,7 +80,11 @@ class DynamoDbSuspendLeaderElector(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
-    private suspend fun <T> runWithLock(lockName: String, auditLeaderId: String?, action: suspend () -> T): T? {
+    private suspend inline fun <T> runWithLock(
+        lockName: String,
+        auditLeaderId: String?,
+        crossinline action: suspend () -> T,
+    ): T? {
         DynamoDbKeys.validateUserLockName(lockName)
         val key = DynamoDbKeys.single(options.keyPrefix, lockName)
         val ownerId = DynamoDbLockClient.newOwnerId()
@@ -137,8 +142,9 @@ class DynamoDbSuspendLeaderElector(
                     log.warn(e) { "DynamoDB suspend leader watchdog close failed. lockName=$lockName" }
                 }
                 try {
-                    lockClient.releaseAsync(lock, options.leaderOptions.minLeaseTime, acquiredAtNanos)
-                        .awaitWithoutCancellingFuture { }
+                    lockClient
+                        .releaseAsync(lock, options.leaderOptions.minLeaseTime, acquiredAtNanos)
+                        .awaitWithoutCancellingFuture()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {

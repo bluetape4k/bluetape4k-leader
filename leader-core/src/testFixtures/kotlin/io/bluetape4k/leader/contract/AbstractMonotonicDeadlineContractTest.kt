@@ -24,6 +24,34 @@ import kotlin.time.Duration.Companion.seconds
  */
 abstract class AbstractMonotonicDeadlineContractTest {
 
+    companion object: KLogging() {
+        @JvmStatic
+        fun waitOutcomeCases(): Stream<WaitOutcomeCase> = LockTarget.entries
+            .flatMap { target ->
+                listOf(
+                    WaitOutcomeCase(target, WaitBoundary.ZERO, Duration.ZERO, WaitOutcome.SKIPPED),
+                    WaitOutcomeCase(target, WaitBoundary.NEGATIVE, (-1).milliseconds, WaitOutcome.SKIPPED),
+                    WaitOutcomeCase(target, WaitBoundary.TIMEOUT, 25.milliseconds, WaitOutcome.SKIPPED),
+                    WaitOutcomeCase(target, WaitBoundary.CANCELLATION, 1.seconds, WaitOutcome.CANCELLED),
+                )
+            }
+            .stream()
+
+        private val deadlineCases = listOf(
+            DeadlineCase(0.milliseconds, 42L, 0L, 0L, 0L, false),
+            DeadlineCase((-1).milliseconds, 42L, 0L, 0L, 0L, false),
+            DeadlineCase(1.milliseconds, 1_000_000L, 999_500L, 500L, 1L, true),
+            DeadlineCase(
+                waitTime = 100.milliseconds,
+                startNanos = -5_000_000_000L,
+                elapsedNanos = 40.milliseconds.inWholeNanoseconds,
+                expectedRemainingNanos = 60.milliseconds.inWholeNanoseconds,
+                expectedSleepMillis = 60L,
+                hasTimeRemaining = true,
+            ),
+        )
+    }
+
     protected abstract fun createDeadline(
         waitTime: Duration,
         ticker: () -> Long,
@@ -155,33 +183,5 @@ abstract class AbstractMonotonicDeadlineContractTest {
         override fun withZone(zone: ZoneId): Clock = MutableClockTicker(tickerNanos, wallInstant, zone)
 
         override fun instant(): Instant = wallInstant
-    }
-
-    companion object: KLogging() {
-        @JvmStatic
-        fun waitOutcomeCases(): Stream<WaitOutcomeCase> = LockTarget.entries
-            .flatMap { target ->
-                listOf(
-                    WaitOutcomeCase(target, WaitBoundary.ZERO, Duration.ZERO, WaitOutcome.SKIPPED),
-                    WaitOutcomeCase(target, WaitBoundary.NEGATIVE, (-1).milliseconds, WaitOutcome.SKIPPED),
-                    WaitOutcomeCase(target, WaitBoundary.TIMEOUT, 25.milliseconds, WaitOutcome.SKIPPED),
-                    WaitOutcomeCase(target, WaitBoundary.CANCELLATION, 1.seconds, WaitOutcome.CANCELLED),
-                )
-            }
-            .stream()
-
-        private val deadlineCases = listOf(
-            DeadlineCase(0.milliseconds, 42L, 0L, 0L, 0L, false),
-            DeadlineCase((-1).milliseconds, 42L, 0L, 0L, 0L, false),
-            DeadlineCase(1.milliseconds, 1_000_000L, 999_500L, 500L, 1L, true),
-            DeadlineCase(
-                waitTime = 100.milliseconds,
-                startNanos = -5_000_000_000L,
-                elapsedNanos = 40.milliseconds.inWholeNanoseconds,
-                expectedRemainingNanos = 60.milliseconds.inWholeNanoseconds,
-                expectedSleepMillis = 60L,
-                hasTimeRemaining = true,
-            ),
-        )
     }
 }

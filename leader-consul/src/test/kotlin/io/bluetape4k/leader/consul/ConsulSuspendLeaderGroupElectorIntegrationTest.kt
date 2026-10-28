@@ -4,31 +4,25 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
-import io.bluetape4k.codec.Base58
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
-import io.bluetape4k.testcontainers.infra.ConsulServer
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @Tag("integration")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ConsulSuspendLeaderGroupElectorIntegrationTest {
+class ConsulSuspendLeaderGroupElectorIntegrationTest: AbstractConsulTest() {
 
-    companion object: KLogging()
-
-    private val consul: ConsulServer by lazy { ConsulServer.Launcher.consul }
+    companion object: KLoggingChannel()
 
     @Test
     fun `runIfLeaderGroup acquires releases and allows sequential reacquire`() = runSuspendIO {
@@ -146,12 +140,4 @@ class ConsulSuspendLeaderGroupElectorIntegrationTest {
             ),
         )
 
-    private fun endpoint(): ConsulEndpoint =
-        ConsulEndpoint(consul.url)
-
-    private fun keyPrefix(): String =
-        "bluetape4k/leader/test/${Base58.randomString(8)}"
-
-    private fun randomName(): String =
-        "leader-suspend-group-test:${Base58.randomString(8)}"
 }

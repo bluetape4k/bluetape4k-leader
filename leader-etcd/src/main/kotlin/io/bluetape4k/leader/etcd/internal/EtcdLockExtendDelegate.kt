@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.etcd.internal
 
 import io.bluetape4k.concurrent.get
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
@@ -100,7 +101,7 @@ private fun Throwable.asException(): Exception =
 private fun LeaseKeepAliveResponse.toExtendOutcome(): ExtendOutcome {
     val ttlSeconds = ttl
     return if (ttlSeconds > 0L) {
-        ExtendOutcome.Extended(Instant.now().plusSeconds(ttlSeconds))
+        ExtendOutcome.Extended(Instant.now() + ttlSeconds.seconds())
     } else {
         ExtendOutcome.NotHeld
     }

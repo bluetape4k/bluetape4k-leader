@@ -348,7 +348,7 @@ class ExportingLeaderHistorySinkTest {
 
         override fun observe(observer: LeaderAuditExportObserver): AutoCloseable = AutoCloseable { }
 
-        override fun snapshot(): LeaderAuditExportSnapshot = LeaderAuditExportSnapshot.create(
+        override fun snapshot(): LeaderAuditExportSnapshot = LeaderAuditExportSnapshot(
             queued = 0,
             inFlight = 0,
             scheduledRetries = 0,

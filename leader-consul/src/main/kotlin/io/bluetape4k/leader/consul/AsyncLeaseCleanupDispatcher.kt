@@ -22,7 +22,10 @@ internal object AsyncLeaseCleanupDispatcher: KLogging() {
     private val cleanupThreadFactory = Thread.ofVirtual()
         .name("bluetape4k-leader-consul-cleanup-", 0)
         .factory()
-    private val cleanupExecutor = Executor { task -> cleanupThreadFactory.newThread(task).start() }
+
+    private val cleanupExecutor = Executor { task ->
+        cleanupThreadFactory.newThread(task).start()
+    }
 
     @Suppress("TooGenericExceptionCaught")
     fun <T, R> completeAfter(
@@ -52,6 +55,7 @@ internal object AsyncLeaseCleanupDispatcher: KLogging() {
         transform: (T?, Throwable?) -> R,
     ): CompletableFuture<R> {
         val result = CompletableFuture<R>()
+
         source.whenComplete { value, failure ->
             val started = AtomicBoolean()
             val cleanupTask = Runnable {
@@ -132,14 +136,19 @@ internal class AsyncLeaseCleanupBarrier<T: Any>(
     }
 
     private fun dispatchIfReady() {
-        if (cleanupRequested.get() && acquisitionCompleted.get() && cleanupStarted.compareAndSet(false, true)) {
+        val canCompleted = cleanupRequested.get() &&
+                acquisitionCompleted.get() &&
+                cleanupStarted.compareAndSet(false, true)
+
+        if (canCompleted) {
             val value = acquired.get()
             if (value == null) {
                 completion.complete(Unit)
             } else {
                 AsyncLeaseCleanupDispatcher.execute { cleanup(value) }
                     .whenComplete { _, failure ->
-                        if (failure == null) completion.complete(Unit) else completion.completeExceptionally(failure)
+                        if (failure == null) completion.complete(Unit)
+                        else completion.completeExceptionally(failure)
                     }
             }
         }

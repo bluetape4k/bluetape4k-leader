@@ -31,10 +31,10 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
          */
         operator fun invoke(
             options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-        ): VirtualThreadLeaderGroupElector =
-            options
-                .also { it.maxLeaders.requirePositiveNumber("maxLeaders") }
-                .let(::LocalVirtualThreadLeaderGroupElector)
+        ): VirtualThreadLeaderGroupElector {
+            options.maxLeaders.requirePositiveNumber("options.maxLeaders")
+            return LocalVirtualThreadLeaderGroupElector(options)
+        }
     }
 
     /**
@@ -81,6 +81,7 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
     ): VirtualFuture<LeaderRunResult<T>> {
         log.debug { "runAsyncIfLeaderResult... slot=$slot" }
         val elected = AtomicBoolean(false)
+
         val source: VirtualFuture<T?> = virtualFuture {
             tryWithPermit(
                 lockName = slot.lockName,
@@ -91,15 +92,16 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
                 action()
             }
         }
+
         return LeaderFutureBridge.map(source) { value, failure ->
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(
+                elected.get()   -> LeaderRunResult.Elected(
                     value,
                     leaderId = slot.leaderId
                 ) as LeaderRunResult<T>
-                else -> LeaderRunResult.Skipped as LeaderRunResult<T>
+                else            -> LeaderRunResult.Skipped as LeaderRunResult<T>
             }
         }
     }

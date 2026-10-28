@@ -2,12 +2,12 @@ package io.bluetape4k.leader.consul.internal
 
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.consul.ConsulEndpoint
+import io.bluetape4k.support.requireNotBlank
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -43,7 +43,8 @@ internal class JavaHttpConsulLockClient(
         ttl: Duration,
         lockDelay: Duration,
     ): CompletableFuture<ConsulSessionId> {
-        require(name.isNotBlank()) { "name must not be blank." }
+        name.requireNotBlank("name")
+        
         val payload = buildString {
             append('{')
             appendJsonField("Name", name)
@@ -63,8 +64,10 @@ internal class JavaHttpConsulLockClient(
 
         return sendString(request).thenApply { response ->
             response.requireStatus(200, "create Consul session")
+
             val id = JSON_STRING_FIELD.find(response.body())?.groupValues?.get(1)
                 ?: throw LeaderElectionException("Consul session create response did not include ID.")
+
             ConsulSessionId(id)
         }
     }
@@ -74,7 +77,7 @@ internal class JavaHttpConsulLockClient(
         sessionId: ConsulSessionId,
         ownerPayload: String,
     ): CompletableFuture<Boolean> {
-        require(key.isNotBlank()) { "key must not be blank." }
+        key.requireNotBlank("key")
         return putBoolean("/v1/kv/$key", mapOf("acquire" to sessionId.value), ownerPayload, "acquire Consul KV lock")
     }
 
@@ -82,7 +85,7 @@ internal class JavaHttpConsulLockClient(
         key: String,
         sessionId: ConsulSessionId,
     ): CompletableFuture<Boolean> {
-        require(key.isNotBlank()) { "key must not be blank." }
+        key.requireNotBlank("key")
         return putBoolean("/v1/kv/$key", mapOf("release" to sessionId.value), "", "release Consul KV lock")
     }
 
@@ -109,7 +112,8 @@ internal class JavaHttpConsulLockClient(
     }
 
     override fun read(key: String): CompletableFuture<ConsulKvEntry?> {
-        require(key.isNotBlank()) { "key must not be blank." }
+        key.requireNotBlank("key")
+
         val request = requestBuilder("/v1/kv/$key")
             .GET()
             .build()
@@ -143,7 +147,7 @@ internal class JavaHttpConsulLockClient(
     }
 
     private fun sendString(request: HttpRequest): CompletableFuture<HttpResponse<String>> =
-        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString(Charsets.UTF_8))
 
     private fun requestBuilder(path: String, params: Map<String, String> = emptyMap()): HttpRequest.Builder {
         val uri = uri(path, params + datacenterParams())
@@ -171,7 +175,7 @@ internal class JavaHttpConsulLockClient(
         }
         val key = stringField(objectBody, "Key") ?: return null
         val value = stringField(objectBody, "Value")?.let {
-            String(Base64.getDecoder().decode(it), StandardCharsets.UTF_8)
+            String(Base64.getDecoder().decode(it), Charsets.UTF_8)
         }
         val session = stringField(objectBody, "Session")?.takeIf { it.isNotBlank() }?.let(::ConsulSessionId)
         return ConsulKvEntry(
@@ -218,12 +222,12 @@ private fun String.jsonUnescape(): String {
             index++
             when (val escaped = this[index]) {
                 '"', '\\', '/' -> result.append(escaped)
-                'b' -> result.append('\b')
-                'f' -> result.append('\u000C')
-                'n' -> result.append('\n')
-                'r' -> result.append('\r')
-                't' -> result.append('\t')
-                'u' -> {
+                'b'  -> result.append('\b')
+                'f'  -> result.append('\u000C')
+                'n'  -> result.append('\n')
+                'r'  -> result.append('\r')
+                't'  -> result.append('\t')
+                'u'  -> {
                     val hex = substring(index + 1, index + 5)
                     result.append(hex.toInt(16).toChar())
                     index += 4
@@ -239,4 +243,4 @@ private fun String.jsonUnescape(): String {
 }
 
 private fun urlEncode(value: String): String =
-    URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20")
+    URLEncoder.encode(value, Charsets.UTF_8).replace("+", "%20")
