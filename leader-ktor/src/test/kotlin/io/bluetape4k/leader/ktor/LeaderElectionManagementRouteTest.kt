@@ -171,6 +171,7 @@ class LeaderElectionManagementRouteTest {
     private fun LeaderElectionManagementRegistry.addInvalidLockForTest(lockName: String) {
         val field = LeaderElectionManagementRegistry::class.java.getDeclaredField("lockNames")
         field.isAccessible = true
+
         @Suppress("UNCHECKED_CAST")
         val names = field.get(this) as MutableSet<String>
         names.add(lockName)

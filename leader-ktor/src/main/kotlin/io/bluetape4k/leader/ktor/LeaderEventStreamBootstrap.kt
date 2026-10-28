@@ -109,6 +109,7 @@ private fun invokeAdapter(
     val classLoader = Thread.currentThread().contextClassLoader
         ?: LeaderEventStreamBootstrap::class.java.classLoader
     val adapter = Class.forName(className, true, classLoader)
+
     val method = adapter.methods.firstOrNull { candidate ->
         candidate.name == "install" &&
                 Modifier.isStatic(candidate.modifiers) &&

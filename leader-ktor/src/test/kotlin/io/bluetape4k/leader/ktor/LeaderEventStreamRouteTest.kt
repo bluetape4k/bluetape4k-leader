@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.codec.encodeBase64String
+import io.bluetape4k.coroutines.support.awaitUntil
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionEvent
@@ -151,7 +152,7 @@ class LeaderEventStreamRouteTest {
                 hub.awaitSubscriberCount(1)
                 publisher.emit(LeaderElectionEvent.Elected("job", leaderId = "node-a"))
 
-                val frame = withTimeout(5.seconds) { response.await() }
+                val frame = response.awaitUntil(5.seconds)
                 log.debug { "frame=$frame" }
                 frame shouldContain "id: 1"
                 frame shouldContain "event: Elected"
@@ -188,7 +189,7 @@ class LeaderEventStreamRouteTest {
                 }
                 hub.awaitSubscriberCount(1)
 
-                val frame = withTimeout(5.seconds) { responseJob.await() }
+                val frame = responseJob.awaitUntil(5.seconds)
                 log.debug { "frame=$frame" }
                 frame shouldContain "event: heartbeat"
 
@@ -281,7 +282,7 @@ class LeaderEventStreamRouteTest {
                 hub.awaitSubscriberCount(1)
                 publisher.emit(LeaderElectionEvent.Skipped("all-lock-job"))
 
-                val frame = withTimeout(5.seconds) { response.await() }
+                val frame = response.awaitUntil(5.seconds)
                 log.debug { "frame=$frame" }
                 frame shouldContain "\"lockName\":\"all-lock-job\""
             }

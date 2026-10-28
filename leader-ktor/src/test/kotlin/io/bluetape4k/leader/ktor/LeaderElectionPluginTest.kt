@@ -106,7 +106,7 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
                     leaderElection = FakeSuspendLeaderElector()
                 }
                 leaderRegistry = leaderElectionResourceRegistryOrNull()!!
-                leaderRegistry.register(AutoCloseable { closeCount.incrementAndGet() })
+                leaderRegistry.register { closeCount.incrementAndGet() }
             }
             startApplication()
         }
@@ -134,13 +134,13 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
                     leaderElection = FakeSuspendLeaderElector()
                 }
                 leaderRegistry = leaderElectionResourceRegistryOrNull()!!
-                leaderRegistry.register(AutoCloseable { regularCloseCount.incrementAndGet() })
+                leaderRegistry.register { regularCloseCount.incrementAndGet() }
             }
             startApplication()
 
             applicationRegistry.close()
             applicationRegistry.close()
-            leaderRegistry.register(AutoCloseable { lateCloseCount.incrementAndGet() })
+            leaderRegistry.register { lateCloseCount.incrementAndGet() }
         }
 
         leaderRegistry.awaitClosed()
