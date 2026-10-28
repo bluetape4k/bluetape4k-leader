@@ -19,6 +19,7 @@ import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElector
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
 import org.jetbrains.exposed.v1.core.Transaction
 import org.jetbrains.exposed.v1.core.and
@@ -54,6 +55,7 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
     fun `DB 시간 tryLock은 CURRENT_TIMESTAMP를 정확히 한 번 읽는다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lock = ExposedJdbcGroupLock(
             db,
             randomName(),
@@ -61,14 +63,15 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
             retryStrategy = RetryStrategy.Jitter(),
             useDbTime = true,
         )
-
-        val sql = recordSql {
-            lock.tryLock(Duration.ZERO, 10.seconds)
+        try {
+            val sql = recordSql {
+                lock.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
+            }
+            sql.currentTimestampCount() shouldBeEqualTo 1
+            sql.size shouldBeEqualTo 4
+        } finally {
+            lock.unlock()
         }
-
-        sql.currentTimestampCount() shouldBeEqualTo 1
-        sql.size shouldBeEqualTo 4
-        lock.unlock()
     }
 
     @ParameterizedTest
@@ -76,6 +79,7 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
     fun `DB 시간 isHeld는 CURRENT_TIMESTAMP를 정확히 한 번 읽는다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lock = ExposedJdbcGroupLock(
             db,
             randomName(),
@@ -83,13 +87,15 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
             retryStrategy = RetryStrategy.Jitter(),
             useDbTime = true,
         )
-        lock.tryLock(Duration.ZERO, 10.seconds)
+        lock.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
 
-        val sql = recordSql { lock.isHeldByCurrentInstance() }
-
-        sql.currentTimestampCount() shouldBeEqualTo 1
-        sql.size shouldBeEqualTo 2
-        lock.unlock()
+        try {
+            val sql = recordSql { lock.isHeldByCurrentInstance() }
+            sql.currentTimestampCount() shouldBeEqualTo 1
+            sql.size shouldBeEqualTo 2
+        } finally {
+            lock.unlock()
+        }
     }
 
     @ParameterizedTest
@@ -104,13 +110,15 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
             retryStrategy = RetryStrategy.Jitter(),
             useDbTime = true,
         )
-        lock.tryLock(Duration.ZERO, 10.seconds)
+        lock.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
 
-        val sql = recordSql { lock.extendDetailed(10.seconds) }
-
-        sql.currentTimestampCount() shouldBeEqualTo 1
-        sql.size shouldBeEqualTo 2
-        lock.unlock()
+        try {
+            val sql = recordSql { lock.extendDetailed(10.seconds) }
+            sql.currentTimestampCount() shouldBeEqualTo 1
+            sql.size shouldBeEqualTo 2
+        } finally {
+            lock.unlock()
+        }
     }
 
     @ParameterizedTest
@@ -125,15 +133,17 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
             retryStrategy = RetryStrategy.Jitter(),
             useDbTime = true,
         )
-        lock.tryLock(Duration.ZERO, 10.seconds)
+        lock.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
 
-        val sql = recordSql {
-            lock.unlock(minLeaseTime = 1.seconds, acquiredAtNanos = System.nanoTime())
+        try {
+            val sql = recordSql {
+                lock.unlock(minLeaseTime = 1.seconds, acquiredAtNanos = System.nanoTime())
+            }
+            sql.currentTimestampCount() shouldBeEqualTo 1
+            sql.size shouldBeEqualTo 2
+        } finally {
+            lock.unlock()
         }
-
-        sql.currentTimestampCount() shouldBeEqualTo 1
-        sql.size shouldBeEqualTo 2
-        lock.unlock()
     }
 
     @ParameterizedTest
@@ -141,6 +151,7 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
     fun `DB 시간 delete-only 해제는 CURRENT_TIMESTAMP를 읽지 않는다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lock = ExposedJdbcGroupLock(
             db,
             randomName(),
@@ -148,10 +159,9 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
             retryStrategy = RetryStrategy.Jitter(),
             useDbTime = true,
         )
-        lock.tryLock(Duration.ZERO, 10.seconds)
+        lock.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
 
         val sql = recordSql { lock.unlock() }
-
         sql.currentTimestampCount() shouldBeEqualTo 0
         sql.size shouldBeEqualTo 1
     }
@@ -161,6 +171,7 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
     fun `DB 시간 activeCount는 CURRENT_TIMESTAMP와 조회를 한 번씩 실행한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val election = ExposedJdbcLeaderGroupElector(
             db,
             ExposedJdbcLeaderGroupElectionOptions(
@@ -169,7 +180,6 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
         )
 
         val sql = recordSql { election.activeCount(randomName()) }
-
         sql.currentTimestampCount() shouldBeEqualTo 1
         sql.size shouldBeEqualTo 2
     }
@@ -179,6 +189,7 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
     fun `JVM 시간 모드의 소유권 연산은 CURRENT_TIMESTAMP를 조회하지 않는다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lock = ExposedJdbcGroupLock(
             db,
             randomName(),
@@ -186,14 +197,15 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
             retryStrategy = RetryStrategy.Jitter(),
             useDbTime = false,
         )
-
-        val sql = recordSql {
-            lock.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
+        try {
+            val sql = recordSql {
+                lock.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
+            }
+            sql.currentTimestampCount() shouldBeEqualTo 0
+            sql.size shouldBeEqualTo 3
+        } finally {
+            lock.unlock()
         }
-
-        sql.currentTimestampCount() shouldBeEqualTo 0
-        sql.size shouldBeEqualTo 3
-        lock.unlock()
     }
 
     @ParameterizedTest
@@ -202,6 +214,7 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lockName = randomName()
+
         val first = ExposedJdbcGroupLock(
             db,
             lockName,
@@ -210,6 +223,7 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
             useDbTime = true,
         )
         first.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
+
         transaction(db) {
             LeaderGroupLockTable.update(
                 where = {
@@ -231,9 +245,9 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
         val sql = recordSql {
             takeover.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
         }
-
         sql.currentTimestampCount() shouldBeEqualTo 1
         sql.size shouldBeEqualTo 3
+
         takeover.unlock()
         first.unlock()
     }
@@ -270,6 +284,7 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
             lock.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
         }
         recoveredSql.currentTimestampCount() shouldBeEqualTo 1
+
         lock.unlock()
     }
 
@@ -292,6 +307,7 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
             val db = Database.connect(dataSource)
             ExposedJdbcSchemaInitializer.ensureSchema(db)
             cleanTables(db)
+
             val holder = ExposedJdbcGroupLock(
                 db,
                 lockName,
@@ -337,12 +353,14 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
         }
     }
 
-    private fun recordSql(block: () -> Any?): List<String> {
+    private inline fun recordSql(block: () -> Any?): List<String> {
         val recorder = SqlRecorder()
         JdbcTransaction.globalInterceptors += recorder
         return try {
             block()
-            recorder.sql.toList()
+            recorder.sql.toList().apply {
+                forEach { log.debug { "sql=$it" } }
+            }
         } finally {
             JdbcTransaction.globalInterceptors.remove(recorder)
         }

@@ -17,18 +17,11 @@ import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
-import java.sql.Timestamp
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
-import java.time.ZonedDateTime
 import kotlin.time.Duration
 
 /**
@@ -115,9 +108,9 @@ internal class ExposedJdbcLock internal constructor(
     }
 
     private fun tryAcquireOnce(leaseTime: Duration): Boolean {
-        val lockNameVal = this@ExposedJdbcLock.lockName
-        val lockOwnerVal = this@ExposedJdbcLock.lockOwner
-        val tokenVal = this@ExposedJdbcLock.token
+        val lockNameVal = this.lockName
+        val lockOwnerVal = this.lockOwner
+        val tokenVal = this.token
 
         return transaction(db) {
             val now = currentTime(useDbTime)
@@ -125,7 +118,10 @@ internal class ExposedJdbcLock internal constructor(
 
             // Step 1: 만료된 락 갱신 시도
             val updated = LeaderLockTable.update(
-                where = { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.lockedUntil less now) }
+                where = {
+                    (LeaderLockTable.lockName eq lockNameVal) and
+                            (LeaderLockTable.lockedUntil less now)
+                }
             ) {
                 it[LeaderLockTable.lockOwner] = lockOwnerVal
                 it[LeaderLockTable.token] = tokenVal
@@ -196,8 +192,8 @@ internal class ExposedJdbcLock internal constructor(
         minLeaseTime: Duration = Duration.ZERO,
         acquiredAtNanos: Long = System.nanoTime(),
     ) {
-        val lockNameVal = this@ExposedJdbcLock.lockName
-        val tokenVal = this@ExposedJdbcLock.token
+        val lockNameVal = this.lockName
+        val tokenVal = this.token
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
         try {
@@ -205,13 +201,17 @@ internal class ExposedJdbcLock internal constructor(
                 if (remaining > Duration.ZERO) {
                     val now = currentTime(useDbTime)
                     LeaderLockTable.update(
-                        where = { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal) }
+                        where = {
+                            (LeaderLockTable.lockName eq lockNameVal) and
+                                    (LeaderLockTable.token eq tokenVal)
+                        }
                     ) {
                         it[LeaderLockTable.lockedUntil] = now.plusMillis(remaining.inWholeMilliseconds)
                     }
                 } else {
                     LeaderLockTable.deleteWhere {
-                        (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal)
+                        (LeaderLockTable.lockName eq lockNameVal) and
+                                (LeaderLockTable.token eq tokenVal)
                     }
                 }
             }
@@ -232,8 +232,8 @@ internal class ExposedJdbcLock internal constructor(
      * 갱신된 시각은 [ExtendOutcome.Extended]로, 소유하지 않거나 이미 만료된 경우 [ExtendOutcome.NotHeld]로 반환합니다.
      */
     fun extendDetailed(leaseTime: Duration): ExtendOutcome {
-        val lockNameVal = this@ExposedJdbcLock.lockName
-        val tokenVal = this@ExposedJdbcLock.token
+        val lockNameVal = this.lockName
+        val tokenVal = this.token
 
         return transaction(db) {
             val now = currentTime(useDbTime)
@@ -265,26 +265,3 @@ internal class ExposedJdbcLock internal constructor(
             .toString()
     }
 }
-
-// Keep the 1.0.0 private file-facade helpers while current-time behavior lives in
-// ExposedJdbcCurrentTime.kt. These declarations add no public API.
-@Suppress("unused")
-private fun JdbcTransaction.currentTime(): Instant = dbCurrentTimestamp()
-
-private fun JdbcTransaction.dbCurrentTimestamp(): Instant =
-    exec("SELECT CURRENT_TIMESTAMP") { resultSet ->
-        if (!resultSet.next()) {
-            error("SELECT CURRENT_TIMESTAMP returned no rows")
-        }
-        resultSet.getObject(1).toInstant()
-    } ?: error("SELECT CURRENT_TIMESTAMP returned no result set")
-
-private fun Any?.toInstant(): Instant =
-    when (this) {
-        is Instant -> this
-        is Timestamp -> toInstant()
-        is OffsetDateTime -> toInstant()
-        is ZonedDateTime -> toInstant()
-        is LocalDateTime -> toInstant(ZoneOffset.UTC)
-        else -> error("Unsupported CURRENT_TIMESTAMP value: ${this?.javaClass?.name ?: "null"}")
-    }

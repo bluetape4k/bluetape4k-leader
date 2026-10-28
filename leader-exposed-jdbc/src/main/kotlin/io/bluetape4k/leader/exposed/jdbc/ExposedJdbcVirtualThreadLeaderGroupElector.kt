@@ -14,9 +14,8 @@ class ExposedJdbcVirtualThreadLeaderGroupElector(
     override fun <T> runAsyncIfLeader(
         lockName: String,
         action: () -> T,
-    ): VirtualFuture<T?> = virtualFuture {
-        delegate.runIfLeader(lockName, action)
-    }
+    ): VirtualFuture<T?> =
+        virtualFuture { delegate.runIfLeader(lockName, action) }
 
     override val maxLeaders: Int
         get() = delegate.maxLeaders

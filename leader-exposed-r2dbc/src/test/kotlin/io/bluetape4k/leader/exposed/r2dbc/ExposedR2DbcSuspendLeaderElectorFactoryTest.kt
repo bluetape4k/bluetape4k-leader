@@ -45,6 +45,7 @@ class ExposedR2DbcSuspendLeaderElectorFactoryTest: AbstractExposedR2dbcLeaderTes
         val factory = makeFactory(testDB)
         val opts = LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 10.seconds)
         val elector = factory.create(opts)
+
         elector.shouldNotBeNull()
         elector.shouldBeInstanceOf<ExposedR2DbcSuspendLeaderElector>()
         log.debug { "elector options=${elector.options}" }

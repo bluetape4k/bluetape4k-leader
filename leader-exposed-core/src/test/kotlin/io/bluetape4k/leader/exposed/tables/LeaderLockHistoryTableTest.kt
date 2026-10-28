@@ -20,7 +20,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.*
 
 class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
 
@@ -31,7 +30,6 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
     fun `테이블 생성 및 삭제가 성공한다`(testDB: TestDB) {
         withTables(testDB, LeaderLockHistoryTable) {
             LeaderLockHistoryTable.exists().shouldBeTrue()
-
         }
     }
 

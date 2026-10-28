@@ -129,10 +129,10 @@ internal class ExposedJdbcGroupLock internal constructor(
     }
 
     private fun tryAcquireOnce(leaseTime: Duration): Boolean {
-        val lockNameVal = this@ExposedJdbcGroupLock.lockName
-        val slotVal = this@ExposedJdbcGroupLock.slot
-        val lockOwnerVal = this@ExposedJdbcGroupLock.lockOwner
-        val tokenVal = this@ExposedJdbcGroupLock.token
+        val lockNameVal = this.lockName
+        val slotVal = this.slot
+        val lockOwnerVal = this.lockOwner
+        val tokenVal = this.token
 
         return transaction(db) {
             val now = currentTime(useDbTime, clock)
@@ -230,9 +230,9 @@ internal class ExposedJdbcGroupLock internal constructor(
         minLeaseTime: Duration = Duration.ZERO,
         acquiredAtNanos: Long = System.nanoTime(),
     ): ExposedJdbcUnlockOutcome {
-        val lockNameVal = this@ExposedJdbcGroupLock.lockName
-        val slotVal = this@ExposedJdbcGroupLock.slot
-        val tokenVal = this@ExposedJdbcGroupLock.token
+        val lockNameVal = this.lockName
+        val slotVal = this.slot
+        val tokenVal = this.token
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
         return try {
@@ -277,9 +277,9 @@ internal class ExposedJdbcGroupLock internal constructor(
      * 갱신 시 [ExtendOutcome.Extended], 소유하지 않으면 [ExtendOutcome.NotHeld]를 반환합니다.
      */
     fun extendDetailed(leaseTime: Duration): ExtendOutcome {
-        val lockNameVal = this@ExposedJdbcGroupLock.lockName
-        val slotVal = this@ExposedJdbcGroupLock.slot
-        val tokenVal = this@ExposedJdbcGroupLock.token
+        val lockNameVal = this.lockName
+        val slotVal = this.slot
+        val tokenVal = this.token
 
         return transaction(db) {
             val now = currentTime(useDbTime, clock)

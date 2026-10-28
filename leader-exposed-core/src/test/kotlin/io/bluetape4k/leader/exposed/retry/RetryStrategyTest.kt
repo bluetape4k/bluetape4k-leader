@@ -53,7 +53,7 @@ class RetryStrategyTest {
         val s = RetryStrategy.Jitter(baseDelayMs = 50L)
         repeat(100) {
             val delay = s.delayMs(0, 200L)
-            delay shouldBeInRange (1L..49L)
+            delay shouldBeInRange 1L..49L
         }
     }
 
@@ -86,7 +86,9 @@ class RetryStrategyTest {
 
     @Test
     fun `Exponential - baseDelayMs 0이면 IllegalArgumentException`() {
-        assertFailsWith<IllegalArgumentException> { RetryStrategy.Exponential(baseDelayMs = 0L) }
+        assertFailsWith<IllegalArgumentException> {
+            RetryStrategy.Exponential(baseDelayMs = 0L)
+        }
     }
 
     @Test

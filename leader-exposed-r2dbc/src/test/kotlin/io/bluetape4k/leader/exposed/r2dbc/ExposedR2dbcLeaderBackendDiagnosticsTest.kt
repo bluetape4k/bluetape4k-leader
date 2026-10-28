@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.r2dbc
 
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
@@ -10,6 +11,7 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -31,15 +33,19 @@ class ExposedR2dbcLeaderBackendDiagnosticsTest {
         val descriptor = ExposedR2dbcLeaderBackendDiagnostics.backendDescriptor
         val capabilities = descriptor.capabilities
 
+        log.debug { "descriptor=$descriptor" }
+        log.debug { "capabilities=$capabilities" }
+
         descriptor.backendId shouldBeEqualTo "exposed-r2dbc"
         descriptor.displayName shouldBeEqualTo "Exposed R2DBC"
+
         capabilities.singleExecutionModels shouldBeEqualTo setOf(LeaderExecutionModel.SUSPEND)
         capabilities.groupExecutionModels shouldBeEqualTo setOf(LeaderExecutionModel.SUSPEND)
         capabilities.leaseExtension shouldBeEqualTo supportedModes
         capabilities.auditState shouldBeEqualTo unsupportedModes
         capabilities.clockSource shouldBeEqualTo LeaderBackendClockSource.CONFIGURABLE
         capabilities.ttlMode shouldBeEqualTo LeaderBackendTtlMode.DATABASE_TIMESTAMP
-        capabilities.limitations shouldBeEqualTo emptyList()
+        capabilities.limitations.shouldBeEmpty()
     }
 
     @Test

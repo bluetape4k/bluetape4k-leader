@@ -32,6 +32,7 @@ import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
 import java.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 
@@ -131,7 +132,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
             val remaining = deadline.remainingMillisForSleep()
             if (remaining > 0L) {
                 // delay는 suspendTransaction 바깥에서 호출 (R2DBC 커넥션 풀 점유 방지)
-                delay(timeMillis = retryStrategy.delayMs(attempt++, remaining))
+                delay(retryStrategy.delayMs(attempt++, remaining).milliseconds)
             }
         } while (deadline.hasTimeRemaining())
 
@@ -253,9 +254,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
         minLeaseTime: Duration = Duration.ZERO,
         acquiredAtNanos: Long = System.nanoTime(),
     ): ExposedR2dbcUnlockOutcome {
-        val lockNameVal = this@ExposedR2dbcGroupLock.lockName
-        val slotVal = this@ExposedR2dbcGroupLock.slot
-        val tokenVal = this@ExposedR2dbcGroupLock.token
+        val lockNameVal = this.lockName
+        val slotVal = this.slot
+        val tokenVal = this.token
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
         val unlockResult = runR2dbcLockOperationPreservingCancellation(
@@ -307,9 +308,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
      */
     @Suppress("TooGenericExceptionCaught")
     suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome {
-        val lockNameVal = this@ExposedR2dbcGroupLock.lockName
-        val slotVal = this@ExposedR2dbcGroupLock.slot
-        val tokenVal = this@ExposedR2dbcGroupLock.token
+        val lockNameVal = this.lockName
+        val slotVal = this.slot
+        val tokenVal = this.token
 
         val outcome = runR2dbcLockOperationPreservingCancellation(
             onFailure = { e ->
@@ -363,21 +364,18 @@ internal class ExposedR2dbcGroupLock internal constructor(
             return
         }
         when (outcome) {
-            ExposedR2dbcUnlockOutcome.FAILED -> failure.addSuppressedSafely(
-                IllegalStateException(
-                    "availability callback 보상 슬롯 해제 실패: " +
-                            "lockName=$lockName, slot=$slot",
-                ),
-            )
-            null -> failure.addSuppressedSafely(
-                IllegalStateException(
-                    "availability callback 보상 슬롯 해제 시간 초과: " +
-                            "lockName=$lockName, slot=$slot",
-                ),
-            )
+            ExposedR2dbcUnlockOutcome.FAILED ->
+                failure.addSuppressedSafely(
+                    IllegalStateException("availability callback 보상 슬롯 해제 실패: lockName=$lockName, slot=$slot")
+                )
+            null                             ->
+                failure.addSuppressedSafely(
+                    IllegalStateException("availability callback 보상 슬롯 해제 시간 초과: lockName=$lockName, slot=$slot")
+                )
+            
             ExposedR2dbcUnlockOutcome.RELEASED,
             ExposedR2dbcUnlockOutcome.NOT_HELD,
-                -> Unit
+                                             -> Unit
         }
     }
 

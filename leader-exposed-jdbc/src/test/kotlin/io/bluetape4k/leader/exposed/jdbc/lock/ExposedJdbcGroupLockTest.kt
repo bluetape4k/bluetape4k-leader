@@ -34,6 +34,7 @@ class ExposedJdbcGroupLockTest: AbstractExposedJdbcLeaderTest() {
     fun `tryLock - 빈 DB에서 slot 0 락 획득이 성공한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lock = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
 
         lock.tryLock(2.seconds, 10.seconds).shouldBeTrue()
@@ -45,9 +46,10 @@ class ExposedJdbcGroupLockTest: AbstractExposedJdbcLeaderTest() {
     fun `tryLock - 동일 lockName+slot에 이미 활성 락이 있으면 실패한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val holder = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
-        holder.tryLock(1.seconds, 30.seconds)
+        holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
 
         val contender = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 10L))
         contender.tryLock(100.milliseconds, 5.seconds).shouldBeFalse()
@@ -63,10 +65,10 @@ class ExposedJdbcGroupLockTest: AbstractExposedJdbcLeaderTest() {
 
         val lockName = randomName()
         val holder = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
-        holder.tryLock(1.seconds, 30.seconds)
+
+        holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
 
         val contender = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 10L))
-
         try {
             Thread.currentThread().interrupt()
 
@@ -129,6 +131,7 @@ class ExposedJdbcGroupLockTest: AbstractExposedJdbcLeaderTest() {
     fun `tryLock - DB 시간 모드에서는 JVM clock skew가 슬롯 소유권을 깨뜨리지 않는다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val oldJvmClock = Clock.fixed(Instant.parse("2000-01-01T00:00:00Z"), ZoneOffset.UTC)
         val futureJvmClock = Clock.fixed(Instant.parse("2100-01-01T00:00:00Z"), ZoneOffset.UTC)
@@ -234,7 +237,9 @@ class ExposedJdbcGroupLockTest: AbstractExposedJdbcLeaderTest() {
             lock.unlockAndReport() shouldBeEqualTo ExposedJdbcUnlockOutcome.RELEASED
             lock.unlockAndReport() shouldBeEqualTo ExposedJdbcUnlockOutcome.NOT_HELD
 
-            transaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+            transaction(db) {
+                exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
+            }
             ExposedJdbcSchemaInitializer.resetFor(db)
 
             val failed = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
@@ -250,8 +255,9 @@ class ExposedJdbcGroupLockTest: AbstractExposedJdbcLeaderTest() {
     fun `isHeldByCurrentInstance - 락 획득 후 true를 반환한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lock = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
-        lock.tryLock(1.seconds, 30.seconds)
+        lock.tryLock(1.seconds, 30.seconds).shouldBeTrue()
 
         lock.isHeldByCurrentInstance().shouldBeTrue()
         lock.unlock()
@@ -262,9 +268,11 @@ class ExposedJdbcGroupLockTest: AbstractExposedJdbcLeaderTest() {
     fun `isHeldByCurrentInstance - 다른 인스턴스 token으로는 false를 반환한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lockName = randomName()
         val holder = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
-        holder.tryLock(1.seconds, 30.seconds)
+
+        holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
 
         val other = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
         other.isHeldByCurrentInstance().shouldBeFalse()
@@ -277,8 +285,9 @@ class ExposedJdbcGroupLockTest: AbstractExposedJdbcLeaderTest() {
     fun `isHeldByCurrentInstance - unlock 후 false를 반환한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
+
         val lock = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
-        lock.tryLock(1.seconds, 30.seconds)
+        lock.tryLock(1.seconds, 30.seconds).shouldBeTrue()
         lock.unlock()
 
         lock.isHeldByCurrentInstance().shouldBeFalse()

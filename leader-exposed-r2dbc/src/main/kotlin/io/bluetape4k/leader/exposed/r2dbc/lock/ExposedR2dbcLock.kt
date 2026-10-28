@@ -17,7 +17,6 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -25,6 +24,7 @@ import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
+import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
 import org.jetbrains.exposed.v1.r2dbc.deleteWhere
 import org.jetbrains.exposed.v1.r2dbc.insertIgnore
 import org.jetbrains.exposed.v1.r2dbc.selectAll
@@ -94,9 +94,9 @@ internal class ExposedR2dbcLock internal constructor(
     }
 
     private suspend fun tryAcquireOnce(leaseTime: Duration): Boolean {
-        val lockNameVal = this@ExposedR2dbcLock.lockName
-        val lockOwnerVal = this@ExposedR2dbcLock.lockOwner
-        val tokenVal = this@ExposedR2dbcLock.token
+        val lockNameVal = this.lockName
+        val lockOwnerVal = this.lockOwner
+        val tokenVal = this.token
 
         return try {
             suspendTransaction(db) {
@@ -305,24 +305,3 @@ private suspend fun R2dbcTransaction.currentTime(): Instant = currentTime(useDbT
 
 @Suppress("unused")
 private suspend fun R2dbcTransaction.dbCurrentTimestamp(): Instant = currentTime(useDbTime = true)
-
-//// Keep the 0.4.x file-facade ABI while the shared current-time implementation lives in
-//// ExposedR2dbcCurrentTime.kt. This private declaration intentionally retains compiler-generated
-//// accessors used by already-compiled callers.
-//@Suppress("unused")
-//private suspend fun R2dbcTransaction.currentTime(): Instant = dbCurrentTimestamp()
-//
-//private suspend fun R2dbcTransaction.dbCurrentTimestamp(): Instant =
-//    exec("SELECT CURRENT_TIMESTAMP") { row -> row.get(0).toInstant() }
-//        ?.firstOrNull()
-//        ?: error("SELECT CURRENT_TIMESTAMP returned no rows")
-//
-//private fun Any?.toInstant(): Instant =
-//    when (this) {
-//        is Instant -> this
-//        is OffsetDateTime -> toInstant()
-//        is ZonedDateTime -> toInstant()
-//        is LocalDateTime -> toInstant(ZoneOffset.UTC)
-//        else -> error("Unsupported CURRENT_TIMESTAMP value: ${this?.javaClass?.name ?: "null"}")
-//    }
-//

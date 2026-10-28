@@ -9,6 +9,7 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.junit.jupiter.api.TestInstance
+import org.testcontainers.utility.Base58
 
 /**
  * [AbstractSuspendLockExtenderContractTest] 의 Exposed R2DBC backend 구현 — T11 PR 6 (Issue #79).
@@ -22,11 +23,13 @@ class ExposedR2dbcSuspendLockExtenderContractTest: AbstractSuspendLockExtenderCo
     companion object: KLoggingChannel() {
         private val db: R2dbcDatabase by lazy {
             val database = R2dbcDatabase.connect(
-                "r2dbc:h2:mem:///leader_contract_${System.nanoTime()};MODE=MySQL;DB_CLOSE_DELAY=-1",
+                "r2dbc:h2:mem:///leader_contract_${Base58.randomString(8)};MODE=MySQL;DB_CLOSE_DELAY=-1",
                 user = "",
                 password = "",
             )
-            runSuspendIO { ExposedR2dbcSchemaInitializer.ensureSchema(database) }
+            runSuspendIO {
+                ExposedR2dbcSchemaInitializer.ensureSchema(database)
+            }
             database
         }
     }

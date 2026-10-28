@@ -66,10 +66,13 @@ class ExposedJdbcLeaderBackendDiagnosticsTest {
     fun `canonical JDBC elector는 diagnostics provider를 구현한다`() {
         LeaderBackendDiagnosticsProvider::class.java
             .isAssignableFrom(ExposedJdbcLeaderElector::class.java).shouldBeTrue()
+
         LeaderBackendDiagnosticsProvider::class.java
             .isAssignableFrom(ExposedJdbcLeaderGroupElector::class.java).shouldBeTrue()
+
         LeaderBackendDiagnosticsProvider::class.java
             .isAssignableFrom(ExposedJdbcVirtualThreadLeaderElector::class.java).shouldBeTrue()
+
         LeaderBackendDiagnosticsProvider::class.java
             .isAssignableFrom(ExposedJdbcVirtualThreadLeaderGroupElector::class.java).shouldBeTrue()
     }

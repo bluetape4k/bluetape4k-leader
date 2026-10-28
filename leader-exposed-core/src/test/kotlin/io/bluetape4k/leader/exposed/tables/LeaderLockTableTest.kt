@@ -8,6 +8,7 @@ import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.exposed.tests.withTables
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.exposed.AbstractExposedTableTest
 import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.core.and
@@ -47,7 +48,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
                 it[lockOwner] = "owner-1"
                 it[token] = tok
                 it[lockedAt] = now
-                it[lockedUntil] = now.plusSeconds(60)
+                it[lockedUntil] = now + 60.seconds()
             }
 
             val row = LeaderLockTable.selectAll()
@@ -71,7 +72,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
                 it[lockName] = name
                 it[token] = Base58.randomString(8)
                 it[lockedAt] = now
-                it[lockedUntil] = now.plusSeconds(60)
+                it[lockedUntil] = now + 60.seconds()
             }
 
             assertFailsWith<Exception> {
@@ -79,7 +80,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
                     it[lockName] = name
                     it[token] = Base58.randomString(8)
                     it[lockedAt] = now
-                    it[lockedUntil] = now.plusSeconds(60)
+                    it[lockedUntil] = now + 60.seconds()
                 }
             }
         }
@@ -97,7 +98,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
                 it[lockName] = name
                 it[token] = Base58.randomString(8)
                 it[lockedAt] = expired
-                it[lockedUntil] = expired.plusSeconds(30) // 이미 만료
+                it[lockedUntil] = expired + 30.seconds() // 이미 만료
             }
 
             val newToken = Base58.randomString(8)
@@ -106,7 +107,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
             ) {
                 it[token] = newToken
                 it[lockedAt] = now
-                it[lockedUntil] = now.plusSeconds(60)
+                it[lockedUntil] = now + 60.seconds()
             }
 
             updated shouldBeGreaterThan 0
@@ -131,7 +132,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
                 it[lockName] = name
                 it[token] = correctToken
                 it[lockedAt] = now
-                it[lockedUntil] = now.plusSeconds(60)
+                it[lockedUntil] = now + 60.seconds()
             }
 
             val deleted = LeaderLockTable.deleteWhere {
@@ -145,6 +146,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
             val row = LeaderLockTable.selectAll()
                 .where { LeaderLockTable.lockName eq name }
                 .singleOrNull()
+
             row.shouldNotBeNull()
         }
     }
@@ -161,7 +163,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
                 it[lockName] = name
                 it[token] = Base58.randomString(8)
                 it[lockedAt] = now
-                it[lockedUntil] = now.plusSeconds(60)
+                it[lockedUntil] = now + 60.seconds()
             }
 
             val row = LeaderLockTable.selectAll()

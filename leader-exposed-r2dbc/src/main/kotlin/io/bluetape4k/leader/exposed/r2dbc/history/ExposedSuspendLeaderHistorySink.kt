@@ -29,7 +29,7 @@ class ExposedSuspendLeaderHistorySink(
 
     companion object: KLoggingChannel()
 
-    override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
+    override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey {
         val id = suspendTransaction(database) {
             LeaderLockHistoryTable.insert {
                 it[lockName] = record.lockName

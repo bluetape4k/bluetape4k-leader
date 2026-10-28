@@ -1,6 +1,5 @@
 package io.bluetape4k.leader.exposed.jdbc.internal
 
-import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcLock
 import io.bluetape4k.leader.internal.ExtendDelegate
@@ -60,9 +59,6 @@ internal class ExposedJdbcLockExtendDelegate(
             false
         }
 
-    override fun toString(): String {
-        return ToStringBuilder(this)
-            .add("lock", lock)
-            .toString()
-    }
+    override fun toString(): String =
+        "ExposedJdbcLockExtendDelegate(lastExtendDeadline=$lastExtendDeadline)"
 }

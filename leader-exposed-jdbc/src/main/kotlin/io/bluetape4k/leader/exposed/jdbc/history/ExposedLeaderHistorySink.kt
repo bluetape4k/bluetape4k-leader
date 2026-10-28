@@ -29,7 +29,7 @@ class ExposedLeaderHistorySink(
 
     companion object: KLogging()
 
-    override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
+    override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey {
         val id = transaction(database) {
             LeaderLockHistoryTable.insert {
                 it[lockName] = record.lockName
@@ -58,7 +58,14 @@ class ExposedLeaderHistorySink(
         errorType: String?,
         errorMessage: String?,
     ) {
-        updateFinished(key, finishedAt, durationMs, LeaderHistoryStatus.FAILED, errorType, errorMessage)
+        updateFinished(
+            key,
+            finishedAt,
+            durationMs,
+            LeaderHistoryStatus.FAILED,
+            errorType,
+            errorMessage
+        )
     }
 
     /**
@@ -82,12 +89,12 @@ class ExposedLeaderHistorySink(
     ) {
         val keyId = key.id
         val updated = transaction(database) {
-            val where = if (keyId != null) {
+            val whereOp = if (keyId != null) {
                 { (LeaderLockHistoryTable.id eq keyId) and (LeaderLockHistoryTable.token eq key.token) }
             } else {
                 { (LeaderLockHistoryTable.lockName eq key.lockName) and (LeaderLockHistoryTable.token eq key.token) }
             }
-            LeaderLockHistoryTable.update(where = where) { row ->
+            LeaderLockHistoryTable.update(where = whereOp) { row ->
                 row[LeaderLockHistoryTable.status] = status
                 row[LeaderLockHistoryTable.finishedAt] = finishedAt
                 row[LeaderLockHistoryTable.durationMs] = durationMs

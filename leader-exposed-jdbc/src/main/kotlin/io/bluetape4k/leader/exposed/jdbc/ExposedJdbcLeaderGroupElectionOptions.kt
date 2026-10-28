@@ -26,9 +26,7 @@ data class ExposedJdbcLeaderGroupElectionOptions(
 
     init {
         maxLeaders.requirePositiveNumber("maxLeaders")
-        lockOwner?.let {
-            it.length.requireLe(ExposedLeaderConstants.LOCK_OWNER_LENGTH, "lockOwner.length")
-        }
+        lockOwner?.length?.requireLe(ExposedLeaderConstants.LOCK_OWNER_LENGTH, "lockOwner.length")
     }
 
     companion object {

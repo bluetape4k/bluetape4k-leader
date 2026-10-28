@@ -12,7 +12,7 @@ import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import java.util.*
+import org.testcontainers.utility.Base58
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -50,7 +50,9 @@ class MonotonicDeadlineTest: AbstractMonotonicDeadlineContractTest() {
         val contender = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 1L))
 
         return try {
-            observeContender(case) { contender.tryLock(case.waitTime, 5.seconds) }
+            observeContender(case) {
+                contender.tryLock(case.waitTime, 5.seconds)
+            }
         } finally {
             holder.unlock()
         }
@@ -64,7 +66,9 @@ class MonotonicDeadlineTest: AbstractMonotonicDeadlineContractTest() {
 
         val contender = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 1L))
         return try {
-            observeContender(case) { contender.tryLock(case.waitTime, 5.seconds) == true }
+            observeContender(case) {
+                contender.tryLock(case.waitTime, 5.seconds) == true
+            }
         } finally {
             holder.unlock()
         }
@@ -95,5 +99,5 @@ class MonotonicDeadlineTest: AbstractMonotonicDeadlineContractTest() {
         }
     }
 
-    private fun randomLockName(): String = "deadline-${UUID.randomUUID()}"
+    private fun randomLockName(): String = "deadline-${Base58.randomString(12)}"
 }

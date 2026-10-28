@@ -25,30 +25,29 @@ class ExposedSuspendLeaderHistorySinkTest: AbstractExposedR2dbcLeaderTest() {
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `recordCompleted requires token match when id is present`(testDB: TestR2dbcDB) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
+        withTestDB(testDB) { database ->
+            val sink = ExposedSuspendLeaderHistorySink(database)
+            val record = historyRecord(lockName = randomName(), token = "token-1")
+            val key = sink.recordAcquired(record).shouldNotBeNull()
+            val keyId = key.id.shouldNotBeNull()
 
-        val sink = ExposedSuspendLeaderHistorySink(db)
-        val record = historyRecord(lockName = randomName(), token = "token-1")
-        val key = sink.recordAcquired(record).shouldNotBeNull()
-        val keyId = key.id.shouldNotBeNull()
+            sink.recordCompleted(key.copy(token = "wrong-token"), Instant.now(), 10L)
 
-        sink.recordCompleted(key.copy(token = "wrong-token"), Instant.now(), 10L)
-
-        val acquiredCount = suspendTransaction(db) {
-            LeaderLockHistoryTable.selectAll()
-                .andWhere { LeaderLockHistoryTable.id eq keyId }
-                .andWhere { LeaderLockHistoryTable.status eq LeaderHistoryStatus.ACQUIRED }
-                .count()
+            val acquiredCount = suspendTransaction(database) {
+                LeaderLockHistoryTable.selectAll()
+                    .andWhere { LeaderLockHistoryTable.id eq keyId }
+                    .andWhere { LeaderLockHistoryTable.status eq LeaderHistoryStatus.ACQUIRED }
+                    .count()
+            }
+            val completedCount = suspendTransaction(database) {
+                LeaderLockHistoryTable.selectAll()
+                    .andWhere { LeaderLockHistoryTable.id eq keyId }
+                    .andWhere { LeaderLockHistoryTable.status eq LeaderHistoryStatus.COMPLETED }
+                    .count()
+            }
+            acquiredCount shouldBeEqualTo 1L
+            completedCount shouldBeEqualTo 0L
         }
-        val completedCount = suspendTransaction(db) {
-            LeaderLockHistoryTable.selectAll()
-                .andWhere { LeaderLockHistoryTable.id eq keyId }
-                .andWhere { LeaderLockHistoryTable.status eq LeaderHistoryStatus.COMPLETED }
-                .count()
-        }
-        acquiredCount shouldBeEqualTo 1L
-        completedCount shouldBeEqualTo 0L
     }
 
     private fun historyRecord(lockName: String, token: String): LeaderLockHistoryRecord {

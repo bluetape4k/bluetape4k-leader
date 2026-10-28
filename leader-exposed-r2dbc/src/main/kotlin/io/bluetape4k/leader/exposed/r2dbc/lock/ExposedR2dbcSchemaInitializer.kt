@@ -2,7 +2,6 @@ package io.bluetape4k.leader.exposed.r2dbc.lock
 
 import io.bluetape4k.leader.exposed.ExposedLeaderSchema
 import io.bluetape4k.leader.exposed.internal.redactDatabaseUrlForLog
-import io.bluetape4k.leader.exposed.r2dbc.internal.validateExposedR2dbcLockName as validateInternalExposedR2dbcLockName
 import io.bluetape4k.leader.identity.LeaderInternalApi
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -13,11 +12,13 @@ import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.SchemaUtils
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import java.util.concurrent.ConcurrentHashMap
+import io.bluetape4k.leader.exposed.r2dbc.internal.validateExposedR2dbcLockName as validateInternalExposedR2dbcLockName
 
 /**
  * `ExposedR2dbcSchemaInitializer`는 R2DBC URL별로 leader 테이블을 한 번 생성하고 누락 열을 보완합니다.
  *
  */
+@PublishedApi
 internal object ExposedR2dbcSchemaInitializer: KLoggingChannel() {
 
     private val initializedDbs = ConcurrentHashMap<String, Boolean>()
@@ -57,9 +58,7 @@ internal object ExposedR2dbcSchemaInitializer: KLoggingChannel() {
 
     internal fun logInitializationFailure(url: String, error: Throwable) {
         val errorType = error::class.qualifiedName ?: error::class.simpleName ?: "unknown"
-        log.warn {
-            "리더 선출 스키마 초기화 실패 (다음 호출 시 재시도): ${sanitizeUrl(url)}, errorType=$errorType"
-        }
+        log.warn { "리더 선출 스키마 초기화 실패 (다음 호출 시 재시도): ${sanitizeUrl(url)}, errorType=$errorType" }
     }
 
     /**
