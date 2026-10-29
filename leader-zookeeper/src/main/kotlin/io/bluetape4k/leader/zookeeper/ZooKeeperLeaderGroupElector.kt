@@ -12,8 +12,6 @@ import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import io.bluetape4k.leader.zookeeper.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
-import io.bluetape4k.leader.zookeeper.runIfLeaderGroup as currentRunIfLeaderGroup
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperSlotExtendDelegate
 import io.bluetape4k.logging.KLogging
@@ -25,6 +23,8 @@ import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
+import io.bluetape4k.leader.zookeeper.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
+import io.bluetape4k.leader.zookeeper.runIfLeaderGroup as currentRunIfLeaderGroup
 
 /**
  * `ZooKeeperLeaderGroupElector`는 ZooKeeper의 blocking 그룹 선출을 제공하며 `maxLeaders` 슬롯을 acquire·extend·release합니다.

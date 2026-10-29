@@ -9,7 +9,6 @@ import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
-import io.bluetape4k.leader.zookeeper.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperSuspendSlotExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -23,6 +22,7 @@ import kotlinx.coroutines.withContext
 import org.apache.curator.framework.CuratorFramework
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2
 import java.util.concurrent.TimeUnit
+import io.bluetape4k.leader.zookeeper.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 
 /**
  * `ZooKeeperSuspendLeaderGroupElector`는 ZooKeeper의 suspend 그룹 선출을 제공하며 `maxLeaders` 슬롯을 acquire·extend·release합니다.

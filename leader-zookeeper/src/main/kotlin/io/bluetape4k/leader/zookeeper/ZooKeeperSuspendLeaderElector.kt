@@ -6,9 +6,11 @@ import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
-import io.bluetape4k.leader.zookeeper.suspendRunIfLeader as currentSuspendRunIfLeader
+import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperOwnedInterProcessMutex
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperSuspendLockExtendDelegate
@@ -26,6 +28,7 @@ import org.apache.curator.framework.CuratorFramework
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import io.bluetape4k.leader.zookeeper.suspendRunIfLeader as currentSuspendRunIfLeader
 
 /**
  * `ZooKeeperSuspendLeaderElector`는 ZooKeeper의 suspend 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.
@@ -42,10 +45,10 @@ class ZooKeeperSuspendLeaderElector private constructor(
 ): SuspendLeaderElector,
    LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client),
    AutoCloseable,
-   io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+   SuspendLeaderLeaseAcquirerSupport {
 
-    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options)
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        SuspendLeaderElectorLeaseAdapter({ this }, options)
     }
 
     private val ownerDispatchers = ZooKeeperOwnerDispatcherPool(

@@ -13,9 +13,8 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ZooKeeperLockExtenderContractTest: AbstractSyncLockExtenderContractTest() {
 
-    companion object: KLogging() {
-        val server by lazy { AbstractZooKeeperLeaderTest.zookeeper }
-    }
+    companion object: KLogging()
 
-    override val elector: LeaderElector = ZooKeeperLeaderElector(AbstractZooKeeperLeaderTest.curator)
+    override val elector: LeaderElector =
+        ZooKeeperLeaderElector(AbstractZooKeeperLeaderTest.curator)
 }

@@ -27,6 +27,7 @@ abstract class AbstractZooKeeperLeaderTest {
 
     protected fun randomName(): String = "leader-test-${Base58.randomString(8)}"
 
+    protected fun randomLockName(): String = "extdelref-zk-${Base58.randomString(8)}"
 
     protected suspend fun randomDelay(from: Long = 10L, to: Long = 20L) {
         delay(timeMillis = Random.nextLong(from, to))
@@ -35,5 +36,4 @@ abstract class AbstractZooKeeperLeaderTest {
     protected fun randomSleep(from: Long = 10L, to: Long = 20L) {
         Thread.sleep(Random.nextLong(from, to))
     }
-
 }

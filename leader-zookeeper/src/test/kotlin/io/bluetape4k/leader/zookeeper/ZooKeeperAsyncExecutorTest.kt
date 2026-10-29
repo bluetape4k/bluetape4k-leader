@@ -116,18 +116,25 @@ class ZooKeeperAsyncExecutorTest: AbstractZooKeeperLeaderTest() {
         }
     }
 
-    private fun runAsync(
+    private inline fun runAsync(
         group: Boolean,
         name: String,
         executor: Executor,
-        action: () -> CompletableFuture<String>,
-    ): CompletableFuture<String?> = if (group) {
-        ZooKeeperLeaderGroupElector(curator, LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 100.milliseconds))
-            .runAsyncIfLeader(name, executor, action)
-    } else {
-        ZooKeeperLeaderElector(curator, options = LeaderElectionOptions(waitTime = 100.milliseconds))
-            .runAsyncIfLeader(name, executor, action)
-    }
+        crossinline action: () -> CompletableFuture<String>,
+    ): CompletableFuture<String?> =
+        if (group) {
+            ZooKeeperLeaderGroupElector(
+                curator,
+                LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 100.milliseconds)
+            )
+                .runAsyncIfLeader(name, executor) { action() }
+        } else {
+            ZooKeeperLeaderElector(
+                curator,
+                options = LeaderElectionOptions(waitTime = 100.milliseconds)
+            )
+                .runAsyncIfLeader(name, executor) { action() }
+        }
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])

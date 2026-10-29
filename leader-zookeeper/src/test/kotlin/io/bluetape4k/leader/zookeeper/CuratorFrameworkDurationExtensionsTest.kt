@@ -82,6 +82,7 @@ class CuratorFrameworkDurationExtensionsTest {
         }
 
         thrown.message shouldBeEqualTo "timeout must be <= ${Int.MAX_VALUE} milliseconds: $timeout"
+
         verify(exactly = 0) { curator.blockUntilConnected(any(), any()) }
         verify(exactly = 0) { curator.blockUntilConnected() }
     }
