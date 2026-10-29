@@ -53,7 +53,7 @@ internal class ConsulSuspendLockExtendDelegate(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    log.warn(e) { "Failed to verify Consul suspend leader session ownership. lockName=${handle.lockName}" }
+                    log.warn(e) { "Consul suspend leader ownership check failed. lockName=${handle.lockName}" }
                     false
                 }
 

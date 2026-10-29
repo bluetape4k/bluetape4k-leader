@@ -360,7 +360,7 @@ class MongoLock private constructor(
 /**
  * 1.0.0에서 노출된 JVM facade를 유지하는 호환용 lock name 검증 함수입니다.
  */
-@Deprecated("use String.validateMonoLockName() instead")
+@Deprecated("use String.validateMongoLockName() instead")
 @Suppress("DEPRECATION")
 fun validateMongoLockName(lockName: String) {
     io.bluetape4k.leader.mongodb.validateMongoLockName(lockName)

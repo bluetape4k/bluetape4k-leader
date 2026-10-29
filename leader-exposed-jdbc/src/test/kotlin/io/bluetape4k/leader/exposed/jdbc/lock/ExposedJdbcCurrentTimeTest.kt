@@ -27,6 +27,7 @@ class ExposedJdbcCurrentTimeTest {
             LocalDateTime.ofInstant(expected, ZoneOffset.UTC),
         ).forEach { value ->
             value.asInstant() shouldBeEqualTo expected
+            value.toExposedJdbcInstant() shouldBeEqualTo expected
         }
     }
 

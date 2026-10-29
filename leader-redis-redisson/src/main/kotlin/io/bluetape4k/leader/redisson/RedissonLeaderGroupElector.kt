@@ -124,7 +124,7 @@ class RedissonLeaderGroupElector private constructor(
     private fun getAuditMap(lockName: String): RMap<String, String> =
         redissonClient.getMap("lg:{$lockName}:audit")
 
-    private inline fun <T> runImpl(lockName: String, auditLeaderId: String?, crossinline action: () -> T): T? {
+    private fun <T> runImpl(lockName: String, auditLeaderId: String?, action: () -> T): T? {
         lockName.requireNotBlank("lockName")
         val semaphore = try {
             getPermitSemaphore(lockName)

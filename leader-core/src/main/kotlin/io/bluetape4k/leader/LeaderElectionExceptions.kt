@@ -1,11 +1,9 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.exceptions.BluetapeException
-
 /**
  * 단일 leader election 처리 중 발생한 오류를 나타내는 기본 예외입니다.
  */
-open class LeaderElectionException: BluetapeException {
+open class LeaderElectionException: RuntimeException {
     constructor(): super()
     constructor(message: String): super(message)
     constructor(message: String, cause: Throwable?): super(message, cause)

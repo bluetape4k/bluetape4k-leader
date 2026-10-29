@@ -778,7 +778,7 @@ class LeaderElectionAspect(
     }.flowOn(observationCoroutineContext()).buffer(Channel.RENDEZVOUS)
 
     /** `Mono` subscription 시점에 leader lock을 획득하고 publisher를 실행합니다. */
-    private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any {
+    private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
         val method = (pjp.signature as MethodSignature).method
 
         return Mono.defer {

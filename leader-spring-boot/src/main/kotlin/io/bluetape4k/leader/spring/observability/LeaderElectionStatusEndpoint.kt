@@ -28,7 +28,7 @@ class LeaderElectionStatusEndpoint private constructor(
     constructorMarker: Any?,
 ) {
 
-    companion object: KLogging() {
+    companion object {
         /** `0.5.0`에서 공개된 내부 JVM descriptor를 새 failure window 경계 뒤로 연결합니다. */
         @JvmSynthetic
         internal fun fromSelectedState(

@@ -1,6 +1,5 @@
 package io.bluetape4k.leader.spring.properties
 
-import io.bluetape4k.logging.KLogging
 import java.io.Serializable
 import java.net.InetAddress
 import java.time.Duration
@@ -44,7 +43,7 @@ data class LeaderRouteRedirectProperties(
         )
     }
 
-    companion object: KLogging() {
+    companion object {
         private const val serialVersionUID = 1L
 
         private fun validateAllowedHost(value: String) {

@@ -1,7 +1,7 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.KotlinLogging
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.hashOf
 import io.bluetape4k.support.requireNotBlank
@@ -14,7 +14,7 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
-private object LeaderLeaseExtensionObserverLogger: KLogging()
+private val log = KotlinLogging.logger {}
 
 @JvmSynthetic
 @Volatile
@@ -253,8 +253,9 @@ object LeaderLeaseExtensionObservers {
 
         try {
             leaderLeaseExtensionDispatcher.execute {
-                LeaderLeaseExtensionObserverLogger.log.warn {
-                    "LeaderLeaseExtensionObserver delivery dropped due to bounded admission. observer=${registration.safeName}"
+                log.warn {
+                    "LeaderLeaseExtensionObserver delivery dropped due to bounded admission. " +
+                            "observer=${registration.safeName}"
                 }
             }
         } catch (_: Throwable) {
@@ -268,7 +269,7 @@ object LeaderLeaseExtensionObservers {
         if (previous != 0L && now - previous < WARNING_INTERVAL_NANOS) return
         if (!registration.lastCallbackWarningNanos.compareAndSet(previous, now)) return
 
-        LeaderLeaseExtensionObserverLogger.log.warn {
+        log.warn {
             "LeaderLeaseExtensionObserver callback failed and was ignored. observer=${registration.safeName}"
         }
     }

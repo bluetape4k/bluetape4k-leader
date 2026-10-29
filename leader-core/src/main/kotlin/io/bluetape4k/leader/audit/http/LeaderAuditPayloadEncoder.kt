@@ -65,7 +65,7 @@ class LeaderAuditHttpPayload private constructor(
     override fun toString(): String =
         ToStringBuilder(this)
             .add("contentType", contentType)
-            .add("bytes", bytes.contentToString())
+            .add("byteLength", bytes.size)
             .toString()
 }
 

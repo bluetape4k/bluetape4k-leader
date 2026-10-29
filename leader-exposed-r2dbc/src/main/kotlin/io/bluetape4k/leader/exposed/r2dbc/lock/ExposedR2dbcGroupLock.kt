@@ -254,9 +254,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
         minLeaseTime: Duration = Duration.ZERO,
         acquiredAtNanos: Long = System.nanoTime(),
     ): ExposedR2dbcUnlockOutcome {
-        val lockNameVal = this.lockName
-        val slotVal = this.slot
-        val tokenVal = this.token
+        val lockNameVal = this@ExposedR2dbcGroupLock.lockName
+        val slotVal = this@ExposedR2dbcGroupLock.slot
+        val tokenVal = this@ExposedR2dbcGroupLock.token
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
         val unlockResult = runR2dbcLockOperationPreservingCancellation(
@@ -308,9 +308,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
      */
     @Suppress("TooGenericExceptionCaught")
     suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome {
-        val lockNameVal = this.lockName
-        val slotVal = this.slot
-        val tokenVal = this.token
+        val lockNameVal = this@ExposedR2dbcGroupLock.lockName
+        val slotVal = this@ExposedR2dbcGroupLock.slot
+        val tokenVal = this@ExposedR2dbcGroupLock.token
 
         val outcome = runR2dbcLockOperationPreservingCancellation(
             onFailure = { e ->

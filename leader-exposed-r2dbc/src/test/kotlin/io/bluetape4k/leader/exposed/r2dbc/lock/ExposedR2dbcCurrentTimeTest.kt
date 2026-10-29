@@ -26,6 +26,7 @@ class ExposedR2dbcCurrentTimeTest {
             LocalDateTime.ofInstant(expected, ZoneOffset.UTC),
         ).forEach { value ->
             value.asInstantOrNull() shouldBeEqualTo expected
+            value.toExposedR2dbcInstant() shouldBeEqualTo expected
         }
     }
 

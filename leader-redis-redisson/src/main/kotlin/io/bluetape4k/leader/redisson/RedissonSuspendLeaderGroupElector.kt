@@ -116,10 +116,10 @@ class RedissonSuspendLeaderGroupElector private constructor(
     private fun getAuditMap(lockName: String): RMap<String, String> =
         redissonClient.getMap("lg:{$lockName}:audit")
 
-    private suspend inline fun <T> runImpl(
+    private suspend fun <T> runImpl(
         lockName: String,
         auditLeaderId: String?,
-        crossinline action: suspend () -> T,
+        action: suspend () -> T,
     ): T? {
         lockName.requireNotBlank("lockName")
 

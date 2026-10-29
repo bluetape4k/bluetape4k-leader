@@ -153,7 +153,12 @@ class LeaderElectorLeaseAdapter(
 
         private fun statusRaw(): LeaseOwnershipStatus =
             when (val handle = raw) {
-                is LeaderLockHandle.Real -> if (handle.isStillHeld()) LeaseOwnershipStatus.HELD else LeaseOwnershipStatus.NOT_HELD
+                is LeaderLockHandle.Real ->
+                    if (handle.isStillHeld()) {
+                        LeaseOwnershipStatus.HELD
+                    } else {
+                        LeaseOwnershipStatus.NOT_HELD
+                    }
                 null                     -> LeaseOwnershipStatus.UNKNOWN
                 else                     -> LeaseOwnershipStatus.UNKNOWN
             }

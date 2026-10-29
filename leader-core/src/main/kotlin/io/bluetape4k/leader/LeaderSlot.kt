@@ -18,14 +18,13 @@ data class LeaderSlot(
 ): Serializable {
 
     init {
-        lockName.validateLockName("lockName")
-//        lockName.requireNotBlank("lockName")
-//        require(lockName.none { it == '{' || it == '}' }) {
-//            "lockName must not contain '{' or '}' (Redis Cluster hashtag injection risk): '$lockName'"
-//        }
-//        require(lockName.none { it.code < 0x20 || it.code == 0x7F }) {
-//            "lockName must not contain control characters (log injection risk)"
-//        }
+        lockName.requireNotBlank("lockName")
+        require(lockName.none { it == '{' || it == '}' }) {
+            "lockName must not contain '{' or '}' (Redis Cluster hashtag injection risk): '$lockName'"
+        }
+        require(lockName.none { it.code < 0x20 || it.code == 0x7F }) {
+            "lockName must not contain control characters (log injection risk)"
+        }
         leaderId.requireNotBlank("leaderId")
         require(leaderId.none { it.code < 0x20 || it.code == 0x7F }) {
             "leaderId must not contain control characters (log injection risk)"

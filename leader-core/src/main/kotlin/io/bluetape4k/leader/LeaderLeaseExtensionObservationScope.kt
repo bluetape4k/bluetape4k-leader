@@ -1,6 +1,5 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.publicLazy
 import kotlinx.coroutines.ThreadContextElement
 import kotlinx.coroutines.asContextElement
@@ -62,7 +61,7 @@ class LeaderLeaseExtensionObservationScope private constructor(
 
     override fun toString(): String = "LeaderLeaseExtensionObservationScope(<opaque>)"
 
-    companion object: KLogging() {
+    companion object {
         private val scopes = ThreadLocal<LeaderLeaseExtensionObservationScope?>()
 
         @JvmSynthetic

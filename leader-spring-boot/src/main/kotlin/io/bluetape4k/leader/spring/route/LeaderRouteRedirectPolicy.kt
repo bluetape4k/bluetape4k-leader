@@ -4,7 +4,6 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.spring.properties.LeaderRouteRedirectNormalizedProperties
 import io.bluetape4k.leader.spring.properties.LeaderRouteRedirectProperties
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.equalsIgnoreCase
 import java.net.URI
 import java.time.Instant
@@ -141,7 +140,7 @@ internal class LeaderRouteRedirectPolicy(
     }
 }
 
-internal object LeaderRouteRedirectUriValidator: KLogging() {
+internal object LeaderRouteRedirectUriValidator {
 
     fun isSafe(uri: URI, allowedHosts: Set<String>): Boolean =
         !hasUnsafeRawComponent(uri) &&

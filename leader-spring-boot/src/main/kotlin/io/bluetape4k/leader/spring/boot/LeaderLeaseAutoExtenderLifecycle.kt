@@ -2,7 +2,6 @@ package io.bluetape4k.leader.spring.boot
 
 import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.KotlinLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
@@ -27,7 +26,9 @@ class LeaderLeaseAutoExtenderLifecycle(
     private val watchdogAsyncExtend: Boolean? = null,
 ): InitializingBean, DisposableBean {
 
-    companion object: KLogging() {
+    companion object {
+
+        private val log = KotlinLogging.logger {}
 
         internal val activeContextCount = atomic(0)
         internal var activeConfiguration: Configuration? = null

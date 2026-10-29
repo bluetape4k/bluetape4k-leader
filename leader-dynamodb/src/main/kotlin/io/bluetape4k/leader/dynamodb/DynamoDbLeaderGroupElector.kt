@@ -89,10 +89,10 @@ class DynamoDbLeaderGroupElector(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
-    private inline fun <T> runWithLock(
+    private fun <T> runWithLock(
         lockName: String,
         auditLeaderId: String?,
-        crossinline action: () -> T,
+        action: () -> T,
     ): T? {
         DynamoDbKeys.validateUserLockName(lockName)
         val start = Random.nextInt(maxLeaders)

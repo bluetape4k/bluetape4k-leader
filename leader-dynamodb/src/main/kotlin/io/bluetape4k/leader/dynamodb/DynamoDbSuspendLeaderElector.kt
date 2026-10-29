@@ -80,10 +80,10 @@ class DynamoDbSuspendLeaderElector(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
-    private suspend inline fun <T> runWithLock(
+    private suspend fun <T> runWithLock(
         lockName: String,
         auditLeaderId: String?,
-        crossinline action: suspend () -> T,
+        action: suspend () -> T,
     ): T? {
         DynamoDbKeys.validateUserLockName(lockName)
         val key = DynamoDbKeys.single(options.keyPrefix, lockName)

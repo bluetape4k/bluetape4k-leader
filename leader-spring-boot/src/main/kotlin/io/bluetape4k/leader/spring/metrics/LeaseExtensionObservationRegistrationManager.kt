@@ -5,7 +5,7 @@ import io.bluetape4k.leader.LeaderLeaseExtensionObservationScope
 import io.bluetape4k.leader.LeaderLeaseExtensionObservers
 import io.bluetape4k.leader.micrometer.LeaderObservationOptions
 import io.bluetape4k.leader.micrometer.MicrometerObservationLeaderLeaseExtensionObserver
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.KotlinLogging
 import io.bluetape4k.logging.debug
 import io.micrometer.observation.ObservationRegistry
 import java.util.*
@@ -20,7 +20,9 @@ import kotlin.concurrent.withLock
  * 때만 해당 observer registration을 제거합니다. registry identity와 옵션 비교는 하나의
  * reentrant lock 안에서 선형화됩니다.
  */
-internal object LeaseExtensionObservationRegistrationManager: KLogging() {
+internal object LeaseExtensionObservationRegistrationManager {
+
+    private val log = KotlinLogging.logger {}
 
     internal data class ManagedRegistration(
         val scope: LeaderLeaseExtensionObservationScope,

@@ -46,6 +46,24 @@ class LeaderElectionEventExportSubscription private constructor(
     private val closed = AtomicBoolean(false)
     private var upstream: AutoCloseable? = null
 
+    /** publisher를 구독하고 subscription handle을 반환합니다. */
+    constructor(
+        publisher: LeaderElectionEventPublisher,
+        scope: CoroutineScope,
+        exporter: LeaderAuditExporter,
+    ): this(publisher, scope, exporter, emptyMap(), LeaderAuditValueSanitizer.Default)
+
+    /** 지정한 attributes와 redaction 정책으로 publisher를 구독합니다. */
+    constructor(
+        publisher: LeaderElectionEventPublisher,
+        scope: CoroutineScope,
+        exporter: LeaderAuditExporter,
+        attributes: Map<String, String>,
+        sanitizer: LeaderAuditValueSanitizer,
+    ): this(exporter, sanitizer, attributes.toMap()) {
+        upstream = publisher.onEvent(scope) { event -> submitIfOpen(event) }
+    }
+
     override fun close() {
         gate.withLock {
             if (!closed.compareAndSet(false, true)) return@close

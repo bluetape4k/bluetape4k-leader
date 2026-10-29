@@ -19,4 +19,23 @@ class ValidationSupportTest {
         log.debug { "exception=$exception" }
         exception.message shouldBeEqualTo "resourceName must not contain ':slot:': resource:slot:0"
     }
+
+    @Test
+    fun `legacy validateMonoLockName JVM facade remains available`() {
+        val facade = Class.forName("io.bluetape4k.leader.mongodb.ValidationSupportKt")
+        val method = facade.getMethod(
+            "validateMonoLockName",
+            String::class.java,
+            String::class.java,
+        )
+
+        method.invoke(null, "legacy-lock", "lockName")
+        facade.getMethod(
+            "validateMonoLockName\$default",
+            String::class.java,
+            String::class.java,
+            Integer.TYPE,
+            Any::class.java,
+        )
+    }
 }

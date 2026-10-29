@@ -202,7 +202,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
         }
     }
 
-    @Suppress("TooGenericExceptionCaught")
+    @Suppress("LongMethod", "TooGenericExceptionCaught")
     private inline fun <T> runAsyncImpl(
         lockName: String,
         auditLeaderId: String?,

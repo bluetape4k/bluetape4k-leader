@@ -7,7 +7,6 @@ import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.backend.LocalLeaderConfiguration
 import io.bluetape4k.leader.spring.route.mvc.LeaderMvcRouteGuardFactory
 import io.bluetape4k.leader.spring.route.webflux.LeaderWebFluxRouteGuardFactory
-import io.bluetape4k.logging.KLogging
 import org.springframework.beans.factory.BeanNotOfRequiredTypeException
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
@@ -248,7 +247,7 @@ class LeaderRouteGuardAutoConfiguration {
         ): LeaderWebFluxRouteGuardFactory = LeaderWebFluxRouteGuardFactory(runtime, properties.routeGuard)
     }
 
-    companion object: KLogging() {
+    companion object {
         // Bean lookup별 오류 원인을 유지해 설정 실패 진단을 구분합니다.
         @Suppress("ThrowsCount")
         private fun selectElector(

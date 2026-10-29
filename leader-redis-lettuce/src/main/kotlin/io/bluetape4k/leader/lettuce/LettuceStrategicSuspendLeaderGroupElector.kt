@@ -108,7 +108,10 @@ class LettuceStrategicSuspendLeaderGroupElector @JvmOverloads constructor(
         }
 
         if (result.winners.none { it.nodeId == nodeId }) {
-            log.debug { "선출된 nodeId 들과 일치하지 않아서 탈락. nodeId=$nodeId, winners=${result.winners.joinToString { it.nodeId }}" }
+            log.debug {
+                "선출된 nodeId 들과 일치하지 않아서 탈락. " +
+                        "nodeId=$nodeId, winners=${result.winners.joinToString { it.nodeId }}"
+            }
             return null
         }
 

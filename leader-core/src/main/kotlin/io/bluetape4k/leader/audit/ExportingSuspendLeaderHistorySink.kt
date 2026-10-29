@@ -26,6 +26,21 @@ class ExportingSuspendLeaderHistorySink private constructor(
     private val contexts: LeaderAuditPendingContextStore,
 ): SuspendLeaderHistorySink {
 
+    /** 기본 redaction 정책을 사용하는 wrapper입니다. */
+    constructor(delegate: SuspendLeaderHistorySink, exporter: LeaderAuditExporter): this(
+        delegate,
+        exporter,
+        LeaderAuditValueSanitizer.Default,
+        LeaderAuditPendingContextStore(),
+    )
+
+    /** 지정한 redaction 정책을 사용하는 wrapper입니다. */
+    constructor(
+        delegate: SuspendLeaderHistorySink,
+        exporter: LeaderAuditExporter,
+        sanitizer: LeaderAuditValueSanitizer,
+    ): this(delegate, exporter, sanitizer, LeaderAuditPendingContextStore())
+
     companion object: KLogging() {
         private const val TOKEN_PLACEHOLDER: String = "audit-context"
         private const val CONTEXT_ATTRIBUTE: String = "audit_context"

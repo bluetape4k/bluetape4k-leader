@@ -205,12 +205,12 @@ class MongoLeaderElector private constructor(
         )
     }
 
-    private inline fun <T> runAcquiredAsync(
+    private fun <T> runAcquiredAsync(
         lock: MongoLock,
         lockName: String,
         acquiredAtNanos: Long,
         cancellationRelay: LeaderFutureBridge.CancellationRelay,
-        crossinline action: () -> CompletableFuture<T>,
+        action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val startedAt = Instant.now()
         val delegate = MongoLockExtendDelegate(lock)
@@ -234,7 +234,7 @@ class MongoLeaderElector private constructor(
 
         log.debug { "리더로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
         val actionFuture = runCatching {
-            cancellationRelay.invoke { action() }
+            cancellationRelay.invoke(action)
         }.getOrElse { error ->
             watchdog.close()
             val finishedAt = Instant.now()

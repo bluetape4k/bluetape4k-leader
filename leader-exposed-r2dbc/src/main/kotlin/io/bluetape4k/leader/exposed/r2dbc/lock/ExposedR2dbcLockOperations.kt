@@ -7,7 +7,7 @@ import kotlinx.coroutines.CancellationException
  * 코루틴 취소는 DB 실패로 바꾸지 않도록 먼저 재전파합니다.
  */
 @Suppress("TooGenericExceptionCaught")
-internal suspend inline fun <T> runR2dbcLockOperationPreservingCancellation(
+internal suspend fun <T> runR2dbcLockOperationPreservingCancellation(
     onFailure: (Exception) -> T,
     operation: suspend () -> T,
 ): T =

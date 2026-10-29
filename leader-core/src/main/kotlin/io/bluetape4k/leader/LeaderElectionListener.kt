@@ -167,7 +167,8 @@ private fun <T: LeaderElectionEvent> LeaderElectionEventPublisher.subscribeToEve
                     listener.accept(typedEvent)
                 }.onFailure { e ->
                     LeaderElectionEventPublisherCallbackLogger.log.warn(e) {
-                        "LeaderElectionEventPublisher $callbackName callback failed and was ignored. lockName=${event.lockName}"
+                        "LeaderElectionEventPublisher $callbackName callback failed and was ignored. " +
+                                "lockName=${event.lockName}"
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.support.requireNull
 import java.io.Serializable
@@ -37,9 +38,7 @@ data class LeaderState(
     }
 
     init {
-        // lockName.requireNotBlank("lockName")
-        lockName.validateLockName("lockName")
-
+        lockName.requireNotBlank("lockName")
         when (status) {
             LeaderStatus.Empty -> leader.requireNull { "leader must be null when status is Empty" }
             LeaderStatus.Occupied -> leader.requireNotNull { "leader must not be null when status is Occupied" }

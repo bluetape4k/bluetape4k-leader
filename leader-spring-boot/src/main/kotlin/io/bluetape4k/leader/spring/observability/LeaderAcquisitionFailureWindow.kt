@@ -4,7 +4,6 @@ import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
 import io.bluetape4k.leader.metrics.SkipReason
-import io.bluetape4k.logging.KLogging
 import java.io.Serializable
 import java.time.Clock
 import java.time.Duration
@@ -55,7 +54,7 @@ internal class LeaderAcquisitionFailureWindow(
     private val capacity: Int = LeaderAcquisitionFailureView.DefaultCapacity,
 ): LeaderAopMetricsRecorder {
 
-    internal companion object: KLogging() {
+    internal companion object {
         val DefaultWindow: Duration = LeaderAcquisitionFailureView.DefaultWindow
         const val DefaultCapacity: Int = LeaderAcquisitionFailureView.DefaultCapacity
     }

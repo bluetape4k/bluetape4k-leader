@@ -36,7 +36,7 @@ class LeaderScheduledPolicyBeanPostProcessor(
     spel: SpelExpressionEvaluator,
 ): BeanPostProcessor, SmartInitializingSingleton, PriorityOrdered {
 
-    private companion object: KLogging() {
+    companion object: KLogging() {
         private const val POLICY_BPP_ORDER_OFFSET = 100
         private const val MONO_RETURN_TYPE = "reactor.core.publisher.Mono"
         private const val FLUX_RETURN_TYPE = "reactor.core.publisher.Flux"

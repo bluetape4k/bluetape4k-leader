@@ -70,6 +70,46 @@ class LeaderAuditExportSnapshot private constructor(payload: Payload) {
     )
 
     companion object {
+        /** 기존 내부 JVM 호출자를 위해 snapshot을 생성합니다. */
+        @JvmSynthetic
+        internal fun create(
+            queued: Int,
+            inFlight: Int,
+            scheduledRetries: Int,
+            admitted: Int,
+            accepted: Long,
+            droppedQueueFull: Long,
+            droppedClosed: Long,
+            retries: Long,
+            terminalFailures: Long,
+            cancellations: Long,
+            executorRejections: Long,
+            schedulerRejections: Long,
+            observerDrops: Long,
+            observerRegistrationDrops: Long,
+            diagnosticsFatalErrors: Long,
+            diagnosticsClosed: Boolean,
+            closed: Boolean,
+        ): LeaderAuditExportSnapshot = invoke(
+            queued = queued,
+            inFlight = inFlight,
+            scheduledRetries = scheduledRetries,
+            admitted = admitted,
+            accepted = accepted,
+            droppedQueueFull = droppedQueueFull,
+            droppedClosed = droppedClosed,
+            retries = retries,
+            terminalFailures = terminalFailures,
+            cancellations = cancellations,
+            executorRejections = executorRejections,
+            schedulerRejections = schedulerRejections,
+            observerDrops = observerDrops,
+            observerRegistrationDrops = observerRegistrationDrops,
+            diagnosticsFatalErrors = diagnosticsFatalErrors,
+            diagnosticsClosed = diagnosticsClosed,
+            closed = closed,
+        )
+
         /** 내부 counter state를 immutable public snapshot으로 만듭니다. */
         @JvmStatic
         operator fun invoke(

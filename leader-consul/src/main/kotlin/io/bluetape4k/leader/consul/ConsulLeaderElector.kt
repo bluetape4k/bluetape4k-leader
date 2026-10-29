@@ -67,6 +67,8 @@ class ConsulLeaderElector private constructor(
     ): this(JavaHttpConsulLockClient(endpoint, options.keyPrefix), options)
 
     companion object: KLogging() {
+        private const val ACQUIRE_POLL_INTERVAL_MILLIS = 50L
+
         internal const val CONSUL_FACTORY_BEAN_NAME = "consul-leader-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ConsulBackendErrorClassifier)
 
@@ -372,7 +374,7 @@ class ConsulLeaderElector private constructor(
                     lockClient.renewSession(sessionId).getWithinRequestTimeout(lockClient)
                     lastRenewNanos = now
                 }
-                Thread.sleep(minOf(50, remainingMillis(deadline)).coerceAtLeast(1))
+                Thread.sleep(minOf(ACQUIRE_POLL_INTERVAL_MILLIS, remainingMillis(deadline)).coerceAtLeast(1))
             } catch (e: InterruptedException) {
                 throw e
             }
