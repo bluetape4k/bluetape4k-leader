@@ -14,6 +14,8 @@ import io.bluetape4k.leader.ktor.stream.LeaderStreamItem
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.ktor.client.plugins.websocket.webSocket
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO as ClientCIO
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.prepareGet
@@ -21,6 +23,7 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.application.plugin
 import io.ktor.server.auth.Authentication
@@ -28,6 +31,8 @@ import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.basic
 import io.ktor.server.routing.routing
+import io.ktor.server.cio.CIO as ServerCIO
+import io.ktor.server.engine.embeddedServer
 import io.ktor.server.sse.SSE
 import io.ktor.server.testing.testApplication
 import io.ktor.server.websocket.WebSockets
@@ -36,14 +41,16 @@ import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Test
+import java.net.Socket
+import java.net.URI
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import io.ktor.client.plugins.websocket.WebSockets as ClientWebSockets
@@ -114,10 +121,9 @@ class LeaderEventStreamRouteTest {
     @Test
     fun `SSE는 authenticated caller route에서 event frame을 전달한다`() = runSuspendIO {
         val publisher = PublishingElector()
-        lateinit var hub: LeaderEventStreamHub
 
-        testApplication {
-            application {
+        withEmbeddedLeaderServer(
+            applicationModule = {
                 install(SSE)
                 install(Authentication) {
                     basic("test") {
@@ -134,13 +140,11 @@ class LeaderEventStreamRouteTest {
                         leaderElectionEventStream()
                     }
                 }
-                hub = plugin(LeaderEventStreamRuntimePlugin).hub
-            }
-            startApplication()
-
+            },
+        ) { client, baseUrl, hub ->
             coroutineScope {
                 val response = async {
-                    client.prepareGet("/management/leaderElection/events?lockName=job") {
+                    client.prepareGet("$baseUrl/management/leaderElection/events?lockName=job") {
                         header(HttpHeaders.Authorization, basicAuth("user", "password"))
                     }.execute { received ->
                         received.status shouldBeEqualTo HttpStatusCode.OK
@@ -163,10 +167,8 @@ class LeaderEventStreamRouteTest {
     @Test
     fun `SSE heartbeat와 peer disconnect는 connection lifecycle을 정리한다`() = runSuspendIO {
         val publisher = PublishingElector()
-        lateinit var hub: LeaderEventStreamHub
-
-        testApplication {
-            application {
+        withEmbeddedLeaderServer(
+            applicationModule = {
                 install(SSE)
                 install(LeaderElectionPlugin) {
                     leaderElection = publisher
@@ -175,13 +177,11 @@ class LeaderEventStreamRouteTest {
                     eventStreamHeartbeat = 25.milliseconds
                 }
                 routing { leaderElectionEventStream() }
-                hub = plugin(LeaderEventStreamRuntimePlugin).hub
-            }
-            startApplication()
-
+            },
+        ) { client, baseUrl, hub ->
             coroutineScope {
                 val responseJob = async {
-                    client.prepareGet("/management/leaderElection/events?lockName=job").execute { received ->
+                    client.prepareGet("$baseUrl/management/leaderElection/events?lockName=job").execute { received ->
                         received.status shouldBeEqualTo HttpStatusCode.OK
                         readSseFrame(received.bodyAsChannel())
                     }
@@ -202,10 +202,8 @@ class LeaderEventStreamRouteTest {
     @Test
     fun `SSE는 Last-Event-ID 이후 replay와 stale cursor gap을 전달한다`() = runSuspendIO {
         val publisher = PublishingElector()
-        lateinit var hub: LeaderEventStreamHub
-
-        testApplication {
-            application {
+        withEmbeddedLeaderServer(
+            applicationModule = {
                 install(SSE)
                 install(LeaderElectionPlugin) {
                     leaderElection = publisher
@@ -213,14 +211,13 @@ class LeaderEventStreamRouteTest {
                     eventStreamReplayCapacity = 2
                 }
                 routing { leaderElectionEventStream() }
-                hub = plugin(LeaderEventStreamRuntimePlugin).hub
-            }
-            startApplication()
+            },
+        ) { client, baseUrl, hub ->
             publisher.emit(LeaderElectionEvent.Skipped("job"))
             publisher.emit(LeaderElectionEvent.Revoked("job"))
             awaitReplaySequence(hub, 2L)
 
-            val response = client.prepareGet("/management/leaderElection/events?lockName=job") {
+            val response = client.prepareGet("$baseUrl/management/leaderElection/events?lockName=job") {
                 header("Last-Event-ID", "1")
             }.execute { received ->
                 received.status shouldBeEqualTo HttpStatusCode.OK
@@ -240,7 +237,7 @@ class LeaderEventStreamRouteTest {
                     yield()
                 }
             }
-            val staleResponse = client.prepareGet("/management/leaderElection/events?lockName=job") {
+            val staleResponse = client.prepareGet("$baseUrl/management/leaderElection/events?lockName=job") {
                 header("Last-Event-ID", "0")
             }.execute { received ->
                 received.status shouldBeEqualTo HttpStatusCode.OK
@@ -255,10 +252,8 @@ class LeaderEventStreamRouteTest {
     @Test
     fun `all-lock stream은 lockName 없이도 명시적으로 연결된다`() = runSuspendIO {
         val publisher = PublishingElector()
-        lateinit var hub: LeaderEventStreamHub
-
-        testApplication {
-            application {
+        withEmbeddedLeaderServer(
+            applicationModule = {
                 install(SSE)
                 install(LeaderElectionPlugin) {
                     leaderElection = publisher
@@ -267,13 +262,11 @@ class LeaderEventStreamRouteTest {
                     eventStreamExposeLockName = true
                 }
                 routing { leaderElectionEventStream() }
-                hub = plugin(LeaderEventStreamRuntimePlugin).hub
-            }
-            startApplication()
-
+            },
+        ) { client, baseUrl, hub ->
             coroutineScope {
                 val response = async {
-                    client.prepareGet("/management/leaderElection/events").execute { received ->
+                    client.prepareGet("$baseUrl/management/leaderElection/events").execute { received ->
                         received.status shouldBeEqualTo HttpStatusCode.OK
                         readSseFrame(received.bodyAsChannel())
                     }
@@ -333,44 +326,56 @@ class LeaderEventStreamRouteTest {
     @Test
     fun `SSE admission 상한과 disconnect 이후 permit 반환을 보장한다`() = runSuspendIO {
         val publisher = PublishingElector()
-        lateinit var hub: LeaderEventStreamHub
-
-        testApplication {
-            application {
+        withEmbeddedLeaderServer(
+            applicationModule = {
                 install(SSE)
                 install(LeaderElectionPlugin) {
                     leaderElection = publisher
                     eventStreamRouteEnabled = true
                     eventStreamMaxConnections = 1
-                    eventStreamHeartbeat = 5.seconds
+                    eventStreamHeartbeat = 25.milliseconds
                 }
                 routing { leaderElectionEventStream() }
-                hub = plugin(LeaderEventStreamRuntimePlugin).hub
-            }
-            startApplication()
-
+            },
+        ) { client, baseUrl, hub ->
             coroutineScope {
-                val first = async {
-                    client.prepareGet("/management/leaderElection/events?lockName=job").execute { received ->
-                        received.status shouldBeEqualTo HttpStatusCode.OK
-                        received.bodyAsChannel().readLine()
+                // HttpClient 취소만으로는 pooled CIO 연결이 즉시 닫히지 않을 수 있으므로
+                // 실제 peer close를 사용한다.
+                val socket = Socket("127.0.0.1", URI(baseUrl).port)
+                val first = async(Dispatchers.IO) {
+                    runCatching {
+                        socket.getOutputStream().bufferedWriter().apply {
+                            write(
+                                "GET /management/leaderElection/events?lockName=job HTTP/1.1\r\n" +
+                                        "Host: 127.0.0.1\r\n" +
+                                        "Connection: keep-alive\r\n\r\n",
+                            )
+                            flush()
+                        }
+                        socket.getInputStream().bufferedReader().let { reader ->
+                            while (reader.readLine()?.isNotEmpty() == true) {
+                                // Consume response headers before waiting for the stream body.
+                            }
+                            reader.readLine()
+                        }
                     }
                 }
                 hub.awaitSubscriberCount(1)
 
-                val rejected = client.get("/management/leaderElection/events?lockName=job")
+                val rejected = client.get("$baseUrl/management/leaderElection/events?lockName=job")
                 log.debug { "rejected=$rejected" }
                 rejected.status shouldBeEqualTo HttpStatusCode.ServiceUnavailable
                 rejected.bodyAsText() shouldContain "\"code\":\"BACKEND_UNAVAILABLE\""
 
-                first.cancelAndJoin()
+                socket.close()
+                first.await()
                 publisher.emit(LeaderElectionEvent.Skipped("job"))
                 withTimeout(5.seconds) {
                     hub.awaitSubscriberCount(0)
                 }
 
                 val second = async {
-                    client.prepareGet("/management/leaderElection/events?lockName=job").execute { received ->
+                    client.prepareGet("$baseUrl/management/leaderElection/events?lockName=job").execute { received ->
                         received.status shouldBeEqualTo HttpStatusCode.OK
                         readSseFrame(received.bodyAsChannel())
                     }
@@ -489,6 +494,37 @@ class LeaderEventStreamRouteTest {
             io.bluetape4k.leader.LeaderState.empty(lockName)
 
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = action()
+    }
+
+    /**
+     * SSE streaming과 peer disconnect lifecycle은 Ktor `testApplication`의 in-process
+     * engine 대신 실제 CIO 연결에서 검증한다.
+     */
+    private suspend fun <T> withEmbeddedLeaderServer(
+        applicationModule: Application.() -> Unit,
+        block: suspend (client: HttpClient, baseUrl: String, hub: LeaderEventStreamHub) -> T,
+    ): T {
+        lateinit var hub: LeaderEventStreamHub
+        val server = embeddedServer(ServerCIO, host = "127.0.0.1", port = 0) {
+            applicationModule()
+            hub = plugin(LeaderEventStreamRuntimePlugin).hub
+        }
+        var started = false
+        try {
+            server.start(wait = false)
+            started = true
+            val port = server.engine.resolvedConnectors().single().port
+            val client = HttpClient(ClientCIO)
+            try {
+                return block(client, "http://127.0.0.1:$port", hub)
+            } finally {
+                client.close()
+            }
+        } finally {
+            if (started) {
+                server.stop(gracePeriodMillis = 100, timeoutMillis = 1_000)
+            }
+        }
     }
 
     private suspend fun readSseFrame(channel: io.ktor.utils.io.ByteReadChannel): String {
