@@ -73,7 +73,7 @@ internal class RedissonCandidateRegistry(
          * RMapCache의 live entry 확인과 metadata/TTL 갱신을 하나의 Redis 연산으로 묶습니다.
          * GET 후 PUT을 분리하면 두 명령 사이에 timeout zset이 만료되어 PUT이 후보를 부활시킬 수 있습니다.
          */
-        private const val REFRESH_CANDIDATE_SCRIPT = """
+        private val REFRESH_CANDIDATE_SCRIPT = """
             local mapKey = ARGV[1]
             local currentTime = redis.call('time')
             local currentTimeMillis = tonumber(currentTime[1]) * 1000 + math.floor(tonumber(currentTime[2]) / 1000)
@@ -127,7 +127,7 @@ internal class RedissonCandidateRegistry(
             end
 
             return 1
-        """
+        """.trimIndent()
     }
 
     private class RefreshScriptMapKey(val value: String)
@@ -263,8 +263,8 @@ internal class RedissonCandidateRegistry(
                 when (value) {
                     is RefreshScriptMapKey -> delegate.mapKeyEncoder.encode(value.value)
                     is RefreshScriptMapValue -> delegate.mapValueEncoder.encode(value.value)
-                    is RefreshScriptTtl -> StringCodec.INSTANCE.valueEncoder.encode(value.value.toString())
-                    else -> error("지원하지 않는 refresh script 인자입니다: ${value::class.qualifiedName}")
+                    is RefreshScriptTtl    -> StringCodec.INSTANCE.valueEncoder.encode(value.value.toString())
+                    else                   -> error("지원하지 않는 refresh script 인자입니다: ${value::class.qualifiedName}")
                 }
             }
 
@@ -408,7 +408,7 @@ internal class RedissonCandidateRegistry(
                                 scheduleLateEntryLockCleanup(lock, threadId)
                                 return@invokeOnCancellation
                             }
-                            else -> return@invokeOnCancellation
+                            else         -> return@invokeOnCancellation
                         }
                     }
                 }

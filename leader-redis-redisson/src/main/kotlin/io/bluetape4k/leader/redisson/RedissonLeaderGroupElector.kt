@@ -17,7 +17,6 @@ import io.bluetape4k.leader.asCompletionException
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import io.bluetape4k.leader.redisson.runIfLeaderGroup as currentRunIfLeaderGroup
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonSemaphoreExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
@@ -41,6 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
+import io.bluetape4k.leader.redisson.runIfLeaderGroup as currentRunIfLeaderGroup
 
 /**
  * `RedissonLeaderGroupElector`는 Redis Redisson의 blocking 그룹 선출을 제공하며 `maxLeaders` 슬롯을 acquire·extend·release합니다.
@@ -54,7 +54,9 @@ import kotlin.time.Duration
 class RedissonLeaderGroupElector private constructor(
     private val redissonClient: RedissonClient,
     val options: LeaderGroupElectionOptions,
-): LeaderGroupElector, LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient) {
+): LeaderGroupElector,
+   LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient) {
+
     companion object: KLogging() {
         internal const val REDISSON_GROUP_FACTORY_BEAN_NAME = "redisson-leader-group-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(RedissonBackendErrorClassifier)
@@ -122,7 +124,7 @@ class RedissonLeaderGroupElector private constructor(
     private fun getAuditMap(lockName: String): RMap<String, String> =
         redissonClient.getMap("lg:{$lockName}:audit")
 
-    private fun <T> runImpl(lockName: String, auditLeaderId: String?, action: () -> T): T? {
+    private inline fun <T> runImpl(lockName: String, auditLeaderId: String?, crossinline action: () -> T): T? {
         lockName.requireNotBlank("lockName")
         val semaphore = try {
             getPermitSemaphore(lockName)
@@ -239,18 +241,18 @@ class RedissonLeaderGroupElector private constructor(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                elected.get()   -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else            -> LeaderRunResult.Skipped
             }
         }
     }
 
     @Suppress("LongMethod", "TooGenericExceptionCaught")
-    private fun <T> runAsyncImpl(
+    private inline fun <T> runAsyncImpl(
         lockName: String,
         auditLeaderId: String?,
         executor: Executor,
-        action: () -> CompletableFuture<T>,
+        crossinline action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         return try {
             lockName.requireNotBlank("lockName")
@@ -354,14 +356,14 @@ class RedissonLeaderGroupElector private constructor(
         }
     }
 
-    private fun <T> executeAsync(
+    private inline fun <T> executeAsync(
         semaphore: RPermitExpirableSemaphore,
         lockName: String,
         permitId: String,
         auditLeaderId: String?,
         startedAtNanos: Long,
         cancellationRelay: LeaderFutureBridge.CancellationRelay,
-        action: () -> CompletableFuture<T>,
+        crossinline action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         log.debug { "슬롯 획득 성공 (async). lockName=$lockName, permitId=$permitId" }
 

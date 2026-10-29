@@ -24,8 +24,8 @@ abstract class AbstractRedissonLeaderTest {
             val config = Config().apply {
                 useSingleServer()
                     .setAddress(redisUrl)
-                    .setConnectionPoolSize(8)
-                    .setConnectionMinimumIdleSize(2)
+                    .setConnectionPoolSize(16)
+                    .setConnectionMinimumIdleSize(4)
             }
             Redisson.create(config).apply {
                 ShutdownQueue.register { shutdown() }

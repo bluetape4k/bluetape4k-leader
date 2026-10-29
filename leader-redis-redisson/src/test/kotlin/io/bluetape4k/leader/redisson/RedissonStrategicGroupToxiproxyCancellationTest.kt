@@ -215,6 +215,7 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
                             yield()
                             delay(timeMillis = CANCEL_SETTLE_MILLIS / CANCEL_SETTLE_ROUNDS)
                         }
+
                         deferred.cancel(CancellationException("cancel during result update"))
 
                         assertFailsWith<CancellationException> {
@@ -231,7 +232,7 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
         }
     }
 
-    private suspend fun <T> withRedisProxy(block: suspend (RedisServer, ToxiproxyContainer, Proxy) -> T): T =
+    private suspend inline fun <T> withRedisProxy(block: suspend (RedisServer, ToxiproxyContainer, Proxy) -> T): T =
         Network.newNetwork().use { network ->
             RedisServer(reuse = false)
                 .withNetwork(network)
@@ -253,7 +254,7 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
                 }
         }
 
-    private suspend fun <T> withClients(
+    private suspend inline fun <T> withClients(
         redis: RedisServer,
         toxiproxy: ToxiproxyContainer,
         block: suspend (RedissonClient, RedissonClient) -> T,
@@ -279,10 +280,10 @@ class RedissonStrategicGroupToxiproxyCancellationTest {
         Redisson.create(
             RedisServer.Launcher.RedissonLib.getRedissonConfig(
                 address = address,
-                connectionPoolSize = 8,
-                minimumIdleSize = 2,
-                threads = 4,
-                nettyThreads = 4,
+                connectionPoolSize = 16,
+                minimumIdleSize = 4,
+                threads = 8,
+                nettyThreads = 8,
             ).apply {
                 useSingleServer().apply {
                     timeout = REDIS_COMMAND_TIMEOUT_MILLIS

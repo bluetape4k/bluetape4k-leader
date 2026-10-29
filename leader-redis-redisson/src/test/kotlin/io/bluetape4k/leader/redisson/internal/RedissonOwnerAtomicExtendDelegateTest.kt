@@ -6,6 +6,7 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.redisson.AbstractRedissonLeaderTest
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -57,6 +58,7 @@ class RedissonOwnerAtomicExtendDelegateTest: AbstractRedissonLeaderTest() {
         val outcome = RedissonLockExtendDelegate(scriptClient, lock, ownerId)
             .extend(30.seconds)
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.WrongThread>()
 
         verify(exactly = 0) { keys.expire(any<java.time.Duration>(), lockName) }
@@ -87,6 +89,7 @@ class RedissonOwnerAtomicExtendDelegateTest: AbstractRedissonLeaderTest() {
         val outcome = RedissonSuspendLockExtendDelegate(scriptClient, lock, ownerId)
             .extendSuspend(30.seconds)
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
 
         verify(exactly = 0) { keys.expireAsync(any<java.time.Duration>(), lockName) }

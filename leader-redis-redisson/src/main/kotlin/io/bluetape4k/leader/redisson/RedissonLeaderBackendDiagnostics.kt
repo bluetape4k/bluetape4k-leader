@@ -12,6 +12,7 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendModeSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
+import io.bluetape4k.logging.KLogging
 import org.redisson.api.RedissonClient
 import kotlin.time.Duration
 
@@ -36,7 +37,7 @@ class RedissonLeaderBackendDiagnostics(
         }
     }
 
-    private companion object {
+    private companion object: KLogging() {
         val NativeExecutionModels = setOf(
             LeaderExecutionModel.BLOCKING,
             LeaderExecutionModel.ASYNC,

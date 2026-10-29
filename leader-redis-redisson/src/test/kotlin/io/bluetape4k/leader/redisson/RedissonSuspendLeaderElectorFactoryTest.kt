@@ -4,7 +4,6 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBe
-import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
@@ -26,7 +25,6 @@ class RedissonSuspendLeaderElectorFactoryTest: AbstractRedissonLeaderTest() {
     @Test
     fun `create - 기본 옵션으로 RedissonSuspendLeaderElector 인스턴스 반환`() = runSuspendIO {
         val elector = factory.create(LeaderElectionOptions.Default)
-        elector.shouldNotBeNull()
         elector.shouldBeInstanceOf<RedissonSuspendLeaderElector>()
     }
 
@@ -34,7 +32,6 @@ class RedissonSuspendLeaderElectorFactoryTest: AbstractRedissonLeaderTest() {
     fun `create - 커스텀 옵션으로 인스턴스 반환`() = runSuspendIO {
         val opts = LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 10.seconds)
         val elector = factory.create(opts)
-        elector.shouldNotBeNull()
         elector.shouldBeInstanceOf<RedissonSuspendLeaderElector>()
     }
 

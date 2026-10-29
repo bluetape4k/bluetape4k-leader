@@ -2,6 +2,7 @@ package io.bluetape4k.leader.redisson.contract
 
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.AopScopeAccess
@@ -15,6 +16,7 @@ import io.bluetape4k.leader.redisson.RedissonLeaderGroupElector
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds
@@ -52,7 +54,7 @@ class RedissonExtendDelegateReferenceTest: AbstractRedissonLeaderTest() {
             LockAssert.assertLocked()
             outcome = LockExtender.extendActiveLockDetailed(60.seconds)
         }
-
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
 
         // capture 는 finally 에서 clear 되어야 함 (single elector 는 capture 미사용이지만 idempotent 검증)
@@ -69,7 +71,7 @@ class RedissonExtendDelegateReferenceTest: AbstractRedissonLeaderTest() {
             LockAssert.assertLockedSuspend()
             outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
         }
-
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }
 
@@ -86,7 +88,7 @@ class RedissonExtendDelegateReferenceTest: AbstractRedissonLeaderTest() {
             LockAssert.assertLocked()
             outcome = LockExtender.extendActiveLockDetailed(60.seconds)
         }
-
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
 
         // group elector 는 setCapture 를 호출했으므로 finally 에서 clearCapture() 가 호출되었어야 함
@@ -107,7 +109,7 @@ class RedissonExtendDelegateReferenceTest: AbstractRedissonLeaderTest() {
                 LockAssert.assertLockedSuspend()
                 outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
             }
-
+            log.debug { "outcome=$outcome" }
             outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         }
 
@@ -124,7 +126,11 @@ class RedissonExtendDelegateReferenceTest: AbstractRedissonLeaderTest() {
             outcomes += LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
-        outcomes.forEach { it.shouldBeInstanceOf<ExtendOutcome.Extended>() }
+        outcomes shouldHaveSize 3
+        outcomes.forEach {
+            log.debug { "outcome=$it" }
+            it.shouldBeInstanceOf<ExtendOutcome.Extended>()
+        }
     }
 
     /**
@@ -148,6 +154,8 @@ class RedissonExtendDelegateReferenceTest: AbstractRedissonLeaderTest() {
             postExtend = LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
+        log.debug { "preExtend=$preExtend" }
+        log.debug { "postExtend=$postExtend" }
         preExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
         postExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }

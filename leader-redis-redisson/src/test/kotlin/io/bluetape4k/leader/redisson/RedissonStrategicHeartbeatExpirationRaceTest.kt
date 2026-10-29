@@ -2,6 +2,8 @@ package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.coroutines.support.awaitUntil
+import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -12,14 +14,17 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import org.redisson.api.RedissonClient
 import org.redisson.client.codec.Codec
 import org.redisson.misc.CompletableFutureWrapper
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class RedissonStrategicHeartbeatExpirationRaceTest: AbstractRedissonLeaderTest() {
@@ -68,10 +73,10 @@ class RedissonStrategicHeartbeatExpirationRaceTest: AbstractRedissonLeaderTest()
         }
     }
 
-    private suspend fun assertRefreshDoesNotResurrectExpiredCandidate(
+    private suspend inline fun assertRefreshDoesNotResurrectExpiredCandidate(
         keyPrefix: String = RedissonCandidateRegistry.DEFAULT_KEY_PREFIX,
         gateAsyncRead: Boolean,
-        refresh: suspend (
+        crossinline refresh: suspend (
             client: RedissonClient,
             lockName: String,
             stale: CandidateInfo,
@@ -89,13 +94,17 @@ class RedissonStrategicHeartbeatExpirationRaceTest: AbstractRedissonLeaderTest()
         val operationEntered = CompletableDeferred<Unit>()
         val releaseOperation = CompletableDeferred<Unit>()
 
-        realCache.put(nodeId, stale, 2.seconds.inWholeMilliseconds, java.util.concurrent.TimeUnit.MILLISECONDS)
+        realCache.put(nodeId, stale, 2.seconds.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         every { client.getMapCache<String, CandidateInfo>(cacheName) } returns cache
-        every { client.getScript(any<Codec>()) } answers {
+        every {
+            client.getScript(any<Codec>())
+        } answers {
             redissonClient.getScript(firstArg<Codec>())
         }
         if (gateAsyncRead) {
-            every { cache.getAsync(nodeId) } answers {
+            every {
+                cache.getAsync(nodeId)
+            } answers {
                 val source = callOriginal()
                 val gated = java.util.concurrent.CompletableFuture<CandidateInfo>()
                 source.whenComplete { value, failure ->
@@ -109,7 +118,9 @@ class RedissonStrategicHeartbeatExpirationRaceTest: AbstractRedissonLeaderTest()
                 CompletableFutureWrapper(gated)
             }
         } else {
-            every { cache.get(nodeId) } answers {
+            every {
+                cache[nodeId]
+            } answers {
                 val value = callOriginal()
                 operationEntered.complete(Unit)
                 runBlocking { releaseOperation.await() }
@@ -123,16 +134,14 @@ class RedissonStrategicHeartbeatExpirationRaceTest: AbstractRedissonLeaderTest()
                     refresh(client, lockName, stale, fresh)
                 }
 
-                withTimeout(2.seconds) { operationEntered.await() }
-                withTimeout(5.seconds) {
-                    while (realCache.get(nodeId) != null) {
-                        delay(10)
-                    }
+                operationEntered.awaitUntil(2.seconds)
+                await atMost 5.seconds withPollInterval 100.milliseconds untilSuspending {
+                    realCache[nodeId] == null
                 }
                 releaseOperation.complete(Unit)
                 refreshJob.await()
 
-                realCache.get(nodeId).shouldBeNull()
+                realCache[nodeId].shouldBeNull()
                 realCache.readAllValues().shouldBeEmpty()
             }
         } finally {
