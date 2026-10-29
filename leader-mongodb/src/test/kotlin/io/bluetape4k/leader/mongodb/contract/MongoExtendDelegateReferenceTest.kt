@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.mongodb.contract
 
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.AopScopeAccess
@@ -16,6 +16,7 @@ import io.bluetape4k.leader.mongodb.MongoLeaderGroupElector
 import io.bluetape4k.leader.mongodb.MongoSuspendLeaderElector
 import io.bluetape4k.leader.mongodb.MongoSuspendLeaderGroupElector
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds
@@ -59,7 +60,7 @@ class MongoExtendDelegateReferenceTest: AbstractMongoLeaderTest() {
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         // capture 는 finally 에서 clear 되어야 함 (single elector 는 capture 미사용이지만 idempotent 검증)
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test
@@ -73,6 +74,7 @@ class MongoExtendDelegateReferenceTest: AbstractMongoLeaderTest() {
             outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
         }
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }
 
@@ -94,7 +96,7 @@ class MongoExtendDelegateReferenceTest: AbstractMongoLeaderTest() {
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         // group elector 는 setCapture 를 호출했으므로 finally 에서 clearCapture() 가 호출되었어야 함
-        (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+        AopScopeAccess.pollCapture().shouldBeNull()
     }
 
     @Test
@@ -115,6 +117,7 @@ class MongoExtendDelegateReferenceTest: AbstractMongoLeaderTest() {
                 outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
             }
 
+            log.debug { "outcome=$outcome" }
             outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         }
 
@@ -130,7 +133,10 @@ class MongoExtendDelegateReferenceTest: AbstractMongoLeaderTest() {
             outcomes += LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
-        outcomes.forEach { it.shouldBeInstanceOf<ExtendOutcome.Extended>() }
+        outcomes.forEach {
+            log.debug { "outcome=$it" }
+            it.shouldBeInstanceOf<ExtendOutcome.Extended>()
+        }
     }
 
     /**
@@ -153,6 +159,8 @@ class MongoExtendDelegateReferenceTest: AbstractMongoLeaderTest() {
             postExtend = LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
+        log.debug { "preExtend=$preExtend" }
+        log.debug { "postExtend=$postExtend" }
         preExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
         postExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }

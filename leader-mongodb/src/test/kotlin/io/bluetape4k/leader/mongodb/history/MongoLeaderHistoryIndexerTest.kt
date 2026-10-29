@@ -9,7 +9,9 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.await
+import io.bluetape4k.logging.KLogging
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -23,19 +25,29 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.bson.Document
 import org.bson.conversions.Bson
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class MongoLeaderHistoryIndexerTest {
 
+    companion object: KLogging()
+
+    private val database = mockk<MongoDatabase>(relaxed = true)
+    private val collection = mockk<MongoCollection<Document>>(relaxed = true)
+
+    @BeforeEach
+    fun beforeEach() {
+        clearMocks(database, collection)
+    }
+
     @Test
     fun `정상 close는 index build 완료 후 반환한다`() = runTest {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
         every { database.getCollection<Document>(any()) } returns collection
         coEvery { collection.createIndex(any<Bson>(), any<IndexOptions>()) } returns "index"
 
@@ -52,12 +64,13 @@ class MongoLeaderHistoryIndexerTest {
 
     @Test
     fun `동기 close bridge는 caller interrupt를 삼키지 않는다`() {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
         every { database.getCollection<Document>(any()) } returns collection
         val started = CountDownLatch(1)
         val release = CompletableDeferred<Unit>()
-        coEvery { collection.createIndex(any<Bson>(), any<IndexOptions>()) } coAnswers {
+
+        coEvery {
+            collection.createIndex(any<Bson>(), any<IndexOptions>())
+        } coAnswers {
             started.countDown()
             withContext(NonCancellable) {
                 release.await()
@@ -87,12 +100,13 @@ class MongoLeaderHistoryIndexerTest {
 
     @Test
     fun `suspend close는 caller cancellation을 전파한다`() = runTest {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
         every { database.getCollection<Document>(any()) } returns collection
         val started = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
-        coEvery { collection.createIndex(any<Bson>(), any<IndexOptions>()) } coAnswers {
+
+        coEvery {
+            collection.createIndex(any<Bson>(), any<IndexOptions>())
+        } coAnswers {
             started.complete(Unit)
             withContext(NonCancellable) {
                 release.await()
@@ -104,7 +118,7 @@ class MongoLeaderHistoryIndexerTest {
         try {
             started.await()
             assertFailsWith<TimeoutCancellationException> {
-                withTimeout(10) {
+                withTimeout(10.milliseconds) {
                     indexer.closeSuspend()
                 }
             }
@@ -118,10 +132,10 @@ class MongoLeaderHistoryIndexerTest {
 
     @Test
     fun `shutdown timeout은 양수여야 한다`() = runTest {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
         every { database.getCollection<Document>(any()) } returns collection
-        coEvery { collection.createIndex(any<Bson>(), any<IndexOptions>()) } returns "index"
+        coEvery {
+            collection.createIndex(any<Bson>(), any<IndexOptions>())
+        } returns "index"
 
         val indexer = MongoLeaderHistoryIndexer(database, MongoHistoryConfig(ttlDays = 0))
         try {
@@ -140,14 +154,14 @@ class MongoLeaderHistoryIndexerTest {
 
     @Test
     fun `suspend close는 내부 shutdown timeout 후 반환한다`() = runTest {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
         every { database.getCollection<Document>(any()) } returns collection
         val started = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
         val completed = AtomicBoolean(false)
         val registry = SimpleMeterRegistry()
-        coEvery { collection.createIndex(any<Bson>(), any<IndexOptions>()) } coAnswers {
+        coEvery {
+            collection.createIndex(any<Bson>(), any<IndexOptions>())
+        } coAnswers {
             started.complete(Unit)
             withContext(NonCancellable) {
                 release.await()
@@ -175,9 +189,9 @@ class MongoLeaderHistoryIndexerTest {
 
             release.complete(Unit)
             withContext(Dispatchers.Default.limitedParallelism(1)) {
-                withTimeout(1_000) {
+                withTimeout(1.seconds) {
                     while (!completed.get()) {
-                        delay(10)
+                        delay(10.milliseconds)
                     }
                 }
             }
@@ -198,7 +212,9 @@ class MongoLeaderHistoryIndexerTest {
         every { blockedDatabase.getCollection<Document>(any()) } returns blockedCollection
         val started = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
-        coEvery { blockedCollection.createIndex(any<Bson>(), any<IndexOptions>()) } coAnswers {
+        coEvery {
+            blockedCollection.createIndex(any<Bson>(), any<IndexOptions>())
+        } coAnswers {
             started.complete(Unit)
             withContext(NonCancellable) {
                 release.await()
@@ -234,8 +250,6 @@ class MongoLeaderHistoryIndexerTest {
 
     @Test
     fun `index build failure is observable through indexState`() = runTest {
-        val database = mockk<MongoDatabase>()
-        val collection = mockk<MongoCollection<Document>>()
         every { database.getCollection<Document>(any()) } returns collection
         coEvery { collection.createIndex(any<Bson>(), any<IndexOptions>()) } throws
                 IllegalStateException("index service unavailable")
@@ -252,9 +266,9 @@ class MongoLeaderHistoryIndexerTest {
 
     private suspend fun awaitIndexState(indexer: MongoLeaderHistoryIndexer, expected: Int) {
         withContext(Dispatchers.Default.limitedParallelism(1)) {
-            withTimeout(5_000) {
+            withTimeout(5.seconds) {
                 while (indexer.indexState != expected) {
-                    delay(25)
+                    delay(25.milliseconds)
                 }
             }
         }

@@ -1,11 +1,14 @@
 package io.bluetape4k.leader.mongodb.history
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MongoHistoryConfigTest {
+
+    companion object: KLogging()
 
     @Test
     fun `history collection name rejects reserved MongoDB namespaces`() {

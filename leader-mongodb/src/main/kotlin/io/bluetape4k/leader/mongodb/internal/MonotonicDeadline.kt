@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.mongodb.internal
 
+import io.bluetape4k.support.requirePositiveNumber
 import kotlin.time.Duration
 import io.bluetape4k.leader.internal.MonotonicDeadline as CoreMonotonicDeadline
 
@@ -12,8 +13,7 @@ internal class MonotonicDeadline private constructor(
     private val ticker: () -> Long,
 ) {
 
-    private var delegate = CoreMonotonicDeadline
-        .fromStart(deadlineNanos, 0L, ticker)
+    private lateinit var delegate: CoreMonotonicDeadline
 
     private fun withTimeout(timeoutNanos: Long): MonotonicDeadline = apply {
         delegate = CoreMonotonicDeadline.fromStart(deadlineNanos, timeoutNanos, ticker)
@@ -22,7 +22,7 @@ internal class MonotonicDeadline private constructor(
     fun remainingNanos(): Long = delegate.remainingNanos()
 
     fun remainingMillisForDelay(maxDelayMillis: Long): Long {
-        require(maxDelayMillis >= 1L) { "maxDelayMillis must be at least 1" }
+        maxDelayMillis.requirePositiveNumber { "maxDelayMillis must be at least 1" }
         return delegate.remainingMillisForDelay(maxDelayMillis)
     }
 

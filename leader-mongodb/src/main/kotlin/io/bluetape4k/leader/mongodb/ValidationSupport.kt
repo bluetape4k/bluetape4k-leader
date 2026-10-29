@@ -8,7 +8,7 @@ internal fun validateMongoLockName(lockName: String) {
     require(!lockName.contains(":slot:")) { "lockName must not contain ':slot:': $lockName" }
 }
 
-fun String.validateMonoLockName(parameterName: String = "lockName") {
+fun String.validateMongoLockName(parameterName: String = "lockName") {
     validateLockName()
     require(!contains(":slot:")) { "$parameterName must not contain ':slot:': $this" }
 }

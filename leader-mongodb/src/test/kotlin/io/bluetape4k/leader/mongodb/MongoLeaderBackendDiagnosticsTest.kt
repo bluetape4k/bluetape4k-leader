@@ -60,6 +60,7 @@ class MongoLeaderBackendDiagnosticsTest {
         val connectivity = MongoLeaderBackendDiagnostics
             .checkConnectivity(100.milliseconds)
 
+        log.debug { "connectivity=$connectivity" }
         connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
         connectivity.reason shouldBeEqualTo LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED
     }
@@ -69,12 +70,12 @@ class MongoLeaderBackendDiagnosticsTest {
         val zero = assertFailsWith<IllegalArgumentException> {
             MongoLeaderBackendDiagnostics.checkConnectivity(Duration.ZERO)
         }
-        zero.message shouldContain "probe timeout[0s] must be greater than 0s."
+        zero.message shouldContain "probe timeout must be positive."
 
         val negative = assertFailsWith<IllegalArgumentException> {
             MongoLeaderBackendDiagnostics.checkConnectivity((-1).milliseconds)
         }
-        negative.message shouldContain "probe timeout[-1ms] must be greater than 0s."
+        negative.message shouldContain "probe timeout must be positive."
 
         val infinite = assertFailsWith<IllegalArgumentException> {
             MongoLeaderBackendDiagnostics.checkConnectivity(Duration.INFINITE)

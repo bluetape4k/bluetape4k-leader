@@ -35,6 +35,7 @@ class MongoPreActionCleanupOrderingTest {
 
     companion object: KLogging()
 
+    private val collectionCodecRegistry = MongoClientSettings.getDefaultCodecRegistry()
     private val collection = mockk<MongoCollection<Document>>(relaxed = true)
 
     @BeforeEach
@@ -97,6 +98,4 @@ class MongoPreActionCleanupOrderingTest {
             allowCleanup.countDown()
         }
     }
-
-    private val collectionCodecRegistry = MongoClientSettings.getDefaultCodecRegistry()
 }

@@ -44,7 +44,7 @@ import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
+class MongoLeaderGroupElectorTest: AbstractMongoLeaderTest() {
 
     companion object: KLogging()
 

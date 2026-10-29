@@ -1,6 +1,7 @@
-package io.bluetape4k.leader.mongodb
+package io.bluetape4k.leader.mongodb.contract
 
 import io.bluetape4k.leader.contract.AbstractAsyncLeaseCleanupContractTest
+import io.bluetape4k.leader.mongodb.AsyncLeaseCleanupDispatcher
 import io.bluetape4k.logging.KLogging
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
@@ -23,7 +24,7 @@ class MongoAsyncLeaseCleanupContractTest: AbstractAsyncLeaseCleanupContractTest(
             cleanup,
             transform = transform
         )
-        else -> AsyncLeaseCleanupDispatcher.completeAfter(
+        else             -> AsyncLeaseCleanupDispatcher.completeAfter(
             source,
             executor,
             cleanup,
