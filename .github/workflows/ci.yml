@@ -33,7 +33,7 @@ env:
   JAVA_VERSION: '25'
   JAVA_DISTRIBUTION: 'temurin'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  BLUETAPE4K_DEPENDENCIES_CATALOG_REF: 'a9b7ca2d9beab65b67570f6fe7467e61b4778c12'
+  BLUETAPE4K_DEPENDENCIES_CATALOG_REF: '9bd4fa16e6d64677641b1babf4629ae5b4ef6d80'
 
 jobs:
   # ── 0. 시크릿 스캔 ────────────────────────────────────────────────────────
@@ -991,9 +991,9 @@ jobs:
   # ── examples-webhook-poller (Testcontainers MongoDB) ────────────────────────
   test-examples-webhook-poller:
     name: Test / examples-webhook-poller
-    # MongoDB 8.0.28 rejects Ubuntu 26.04's 7.0.0 kernel (SERVER-121912).
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # MongoDB 8.0.28은 Linux kernel 6.19+에서 시작하지 않으므로 임시로 22.04 runner를 사용한다 (SERVER-121912).
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
     needs: [ build, changes ]
     if: ${{ needs.changes.outputs['examples-webhook-poller'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
@@ -1560,9 +1560,9 @@ jobs:
   # ── leader-spring-boot 테스트 (Testcontainers: Redis + MongoDB + H2) ────────
   test-spring-boot:
     name: Test / leader-spring-boot (Testcontainers)
-    # MongoDB 8.0.28 rejects Ubuntu 26.04's 7.0.0 kernel (SERVER-121912).
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # MongoDB 8.0.28은 Linux kernel 6.19+에서 시작하지 않으므로 임시로 22.04 runner를 사용한다 (SERVER-121912).
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
     needs: [ build, changes ]
     if: ${{ needs.changes.outputs['leader-spring-boot'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
@@ -1649,9 +1649,9 @@ jobs:
   # ── leader-mongodb 테스트 (Testcontainers: MongoDB) ─────────────────────
   test-mongodb:
     name: Test / leader-mongodb
-    # MongoDB 8.0.28 rejects Ubuntu 26.04's 7.0.0 kernel (SERVER-121912).
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # MongoDB 8.0.28은 Linux kernel 6.19+에서 시작하지 않으므로 임시로 22.04 runner를 사용한다 (SERVER-121912).
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
     needs: [ build, changes ]
     if: ${{ needs.changes.outputs['leader-mongodb'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
