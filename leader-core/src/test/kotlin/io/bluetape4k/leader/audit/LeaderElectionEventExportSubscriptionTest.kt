@@ -37,6 +37,29 @@ class LeaderElectionEventExportSubscriptionTest {
         subscription.close()
     }
 
+    @Test
+    fun `factory snapshots attributes before publisher events`() = runTest {
+        val publisher = FakePublisher()
+        val exporter = RecordingExporter()
+        val attributes = mutableMapOf("tenant" to "before")
+        val subscription = LeaderElectionEventExportSubscription.Companion.invoke(
+            publisher = publisher,
+            scope = this,
+            exporter = exporter,
+            attributes = attributes,
+            sanitizer = LeaderAuditValueSanitizer.Truncate(maxBytes = 64),
+        )
+
+        attributes["tenant"] = "after"
+        runCurrent()
+        publisher.subject.emit(LeaderElectionEvent.Elected("job", leaderId = "node-1"))
+        runCurrent()
+
+        val event = exporter.events.single() as LeaderAuditExportEvent.Lifecycle
+        event.attributes["tenant"] shouldBeEqualTo "before"
+        subscription.close()
+    }
+
     private class FakePublisher: LeaderElectionEventPublisher {
         val subject = MutableSharedFlow<LeaderElectionEvent>(extraBufferCapacity = 8)
         override val events: Flow<LeaderElectionEvent>

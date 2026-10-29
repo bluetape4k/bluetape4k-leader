@@ -35,7 +35,7 @@ class LeaderElectionEventExportSubscription private constructor(
             return LeaderElectionEventExportSubscription(
                 exporter = exporter,
                 sanitizer = sanitizer,
-                attributes = attributes,
+                attributes = attributes.toMap(),
             ).apply {
                 upstream = publisher.onEvent(scope) { event -> submitIfOpen(event) }
             }
