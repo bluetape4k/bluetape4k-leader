@@ -8,6 +8,8 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import org.apache.curator.framework.CuratorFramework
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
 
 
 /** 검증된 `path`의 ZooKeeper ephemeral lock을 획득한 경우에만 동기 `action`을 실행하고, 경합이면 `null`을 반환합니다. */
@@ -121,3 +123,30 @@ suspend inline fun <T> CuratorFramework.suspendRunIfLeaderGroup(
     crossinline action: suspend () -> T,
 ): T? =
     suspendRunIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), options, action)
+
+/**
+ * Curator의 millisecond 기반 연결 대기 API를 Kotlin [Duration]으로 호출합니다.
+ *
+ * [Duration.INFINITE]는 Curator의 무한 대기 overload를 사용하고, 0 이하의 값은
+ * millisecond 정밀도의 즉시 반환으로 정규화합니다. 양의 sub-millisecond 값은
+ * 최소 1 millisecond로 올리며, `Int.MAX_VALUE`를 초과하는 유한 timeout은
+ * 암묵적인 정수 오버플로를 막기 위해 거부합니다.
+ */
+fun CuratorFramework.blockUntilConnected(timeout: Duration): Boolean {
+    if (timeout == Duration.INFINITE) {
+        blockUntilConnected()
+        return true
+    }
+
+    val timeoutMillis = if (timeout <= Duration.ZERO) {
+        0
+    } else {
+        val wholeMilliseconds = timeout.inWholeMilliseconds
+        require(wholeMilliseconds <= Int.MAX_VALUE) {
+            "timeout must be <= ${Int.MAX_VALUE} milliseconds: $timeout"
+        }
+        wholeMilliseconds.coerceAtLeast(1L).toInt()
+    }
+
+    return blockUntilConnected(timeoutMillis, TimeUnit.MILLISECONDS)
+}
