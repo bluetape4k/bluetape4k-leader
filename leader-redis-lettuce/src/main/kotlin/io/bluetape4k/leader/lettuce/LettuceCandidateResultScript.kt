@@ -2,6 +2,8 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.leader.lettuce.script.RedisScript
 import io.bluetape4k.leader.strategy.CandidateResult
+import io.bluetape4k.support.asLongOrNull
+import io.bluetape4k.support.asString
 
 /**
  * Redis 서버 안에서 후보 결과 카운터를 읽고 갱신하는 스크립트입니다.
@@ -174,9 +176,9 @@ internal object LettuceCandidateResultScript {
 
     /** 스크립트가 감지한 기존 codec 오류를 기존 예외 계약으로 다시 표면화합니다. */
     fun rethrowMalformed(reply: List<Any>) {
-        val status = reply.firstOrNull()?.toString()?.toLongOrNull()
+        val status = reply.firstOrNull().asLongOrNull()
         if (status == MALFORMED) {
-            LettuceCandidateInfoCodec.decode(reply.getOrNull(1)?.toString().orEmpty())
+            LettuceCandidateInfoCodec.decode(reply.getOrNull(1).asString())
         }
     }
 

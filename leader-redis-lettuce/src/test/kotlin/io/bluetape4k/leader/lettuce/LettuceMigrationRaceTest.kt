@@ -12,6 +12,7 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
+import io.bluetape4k.logging.KLogging
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.reactive.RedisReactiveCommands
@@ -28,6 +29,8 @@ import reactor.core.scheduler.Schedulers
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LettuceMigrationRaceTest: AbstractLettuceLeaderTest() {
+
+    companion object: KLogging()
 
     @TestFactory
     fun `blocking과 suspend의 실제 source 및 v3 writer 경합`() =
@@ -144,7 +147,7 @@ internal class MigrationRaceScenario(
                     actual.pttl(sourceKey) shouldBeEqualTo -2L
                 }
                 MigrationRace.SAME_BEFORE_TTL, MigrationRace.SAME_AFTER_COPY -> actual.set(sourceKey, raw)
-                else -> {
+                else                                                         -> {
                     // 복사 후 일반 writer와 source 삭제를 완료한 다음 이전 migration의 cleanup을 재개한다.
                     writeCurrent(race)
                     actual.get(token).shouldBeNull()
@@ -176,7 +179,7 @@ internal class MigrationRaceScenario(
                 when (race) {
                     MigrationRace.REGISTER_CHANGED_AFTER_COPY -> candidate shouldBeEqualTo changed
                     MigrationRace.RESULT_AFTER_COPY -> candidate.successCount shouldBeEqualTo 1L
-                    else -> candidate shouldBeEqualTo original
+                    else                            -> candidate shouldBeEqualTo original
                 }
                 actual.get(destination) shouldBeEqualTo LettuceCandidateInfoCodec.encode(candidate)
                 actual.sismember(destinationIndex, nodeId).shouldBeTrue()
@@ -270,23 +273,31 @@ internal class MigrationRaceScenario(
     private fun writeCurrent(race: MigrationRace) {
         val keys = arrayOf(destination, destinationIndex, tombstone, token)
         when (race) {
-            MigrationRace.REGISTER_SAME_AFTER_COPY, MigrationRace.REGISTER_CHANGED_AFTER_COPY ->
+            MigrationRace.REGISTER_SAME_AFTER_COPY,
+            MigrationRace.REGISTER_CHANGED_AFTER_COPY,
+                                                  ->
                 RedisScriptRunner.run(
-                    actual, LettuceCandidateWriteScript.WRITE, ScriptOutputType.MULTI,
+                    actual,
+                    LettuceCandidateWriteScript.WRITE,
+                    ScriptOutputType.MULTI,
                     keys, REGISTER,
                     if (race == MigrationRace.REGISTER_CHANGED_AFTER_COPY) changedRaw else raw, "0", nodeId,
                 )
             MigrationRace.REFRESH_SAME_AFTER_COPY ->
                 RedisScriptRunner.run(
-                    actual, LettuceCandidateRefreshScript.REFRESH, ScriptOutputType.MULTI,
+                    actual,
+                    LettuceCandidateRefreshScript.REFRESH,
+                    ScriptOutputType.MULTI,
                     arrayOf(destination, destinationIndex, token), raw, "0",
                 )
-            MigrationRace.RESULT_AFTER_COPY ->
+            MigrationRace.RESULT_AFTER_COPY       ->
                 RedisScriptRunner.run<List<Any>>(
-                    actual, LettuceCandidateResultScript.UPDATE, ScriptOutputType.MULTI,
+                    actual,
+                    LettuceCandidateResultScript.UPDATE,
+                    ScriptOutputType.MULTI,
                     arrayOf(destination, token), CandidateResult.SUCCESS.name, "123",
                 )
-            else ->
+            else                                  ->
                 error("v3 writer 시나리오가 아님: $race")
         }
     }

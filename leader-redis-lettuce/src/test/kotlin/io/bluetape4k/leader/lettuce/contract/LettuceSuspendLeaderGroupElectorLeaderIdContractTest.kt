@@ -16,9 +16,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LettuceSuspendLeaderGroupElectorLeaderIdContractTest: AbstractSuspendLeaderGroupElectorLeaderIdContractTest() {
 
-    companion object: KLoggingChannel() {
-        val redis = AbstractLettuceLeaderTest.redis
-    }
+    companion object: KLoggingChannel()
 
     override fun createElector(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
         LettuceSuspendLeaderGroupElector(AbstractLettuceLeaderTest.connection, options)

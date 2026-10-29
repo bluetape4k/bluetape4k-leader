@@ -173,7 +173,8 @@ class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
         counter.get() shouldBeGreaterOrEqualTo 1
     }
 
-    private object CancelOnAcquiredHistorySink: SuspendLeaderHistorySink {
+    private object CancelOnAcquiredHistorySink: SuspendLeaderHistorySink, KLoggingChannel() {
+
         override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
             throw CancellationException("cancel after acquire")
         }
@@ -188,6 +189,7 @@ class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
             errorType: String?,
             errorMessage: String?,
         ) {
+            log.debug { "record failed. key=$key, finishedAt=$finishedAt, durationMs=$durationMs, errorType=$errorType, errorMessage=$errorMessage" }
         }
     }
 }

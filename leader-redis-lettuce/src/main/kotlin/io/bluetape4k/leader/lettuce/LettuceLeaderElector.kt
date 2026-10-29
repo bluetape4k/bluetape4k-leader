@@ -3,6 +3,7 @@ package io.bluetape4k.leader.lettuce
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.AopScopeAccess
+import io.bluetape4k.leader.AsyncLifecycle
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAcquirer
@@ -61,13 +62,13 @@ class LettuceLeaderElector @JvmOverloads constructor(
    LeaderBackendDiagnosticsProvider by LettuceLeaderBackendDiagnostics(connection),
    LeaderLeaseAcquirerSupport {
 
-    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
-        LeaderElectorLeaseAdapter({ this }, options)
-    }
-
     companion object: KLogging() {
         internal const val LETTUCE_FACTORY_BEAN_NAME = "lettuce-leader-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(LettuceBackendErrorClassifier)
+    }
+
+    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
+        LeaderElectorLeaseAdapter({ this }, options)
     }
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
@@ -79,6 +80,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
     @Suppress("ThrowsCount")
     override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
         var elected = false
+
         val value = try {
             runImpl(slot.lockName, auditLeaderId = slot.leaderId) {
                 elected = true
@@ -194,18 +196,18 @@ class LettuceLeaderElector @JvmOverloads constructor(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                elected.get()   -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else            -> LeaderRunResult.Skipped
             }
         }
     }
 
     @Suppress("TooGenericExceptionCaught")
-    private fun <T> runAsyncImpl(
+    private inline fun <T> runAsyncImpl(
         lockName: String,
         auditLeaderId: String?,
         executor: Executor,
-        action: () -> CompletableFuture<T>,
+        crossinline action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         lockName.requireNotBlank("lockName")
 
@@ -228,32 +230,36 @@ class LettuceLeaderElector @JvmOverloads constructor(
                 failedCompletableFutureOf(failure)
             }
         }
-        val acquisitionFuture = lock.tryLockAsync(options.waitTime, options.leaseTime).thenApply { acquired ->
-            if (acquired) {
-                acquiredAtNanos.set(System.nanoTime())
-                lockAcquired.set(true)
-            }
-            acquired
-        }
-        val pipelineFuture = acquisitionFuture.thenComposeAsync({ acquired ->
-            if (!acquired) {
-                log.debug { "리더 선출 실패 (슬롯 없음, async): lockName=$lockName" }
-                completableFutureOf(null)
-            } else {
-                val acquiredAt = acquiredAtNanos.get()
-                if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
-                    failedCompletableFutureOf(CancellationException("leader action was cancelled before start"))
-                } else try {
-                    runAcquiredAsync(lock, lockName, auditLeaderId, acquiredAt, cancellationRelay, action)
-                } catch (error: Throwable) {
-                    lock.unlockAsync(options.minLeaseTime, acquiredAt)
-                        .exceptionally { releaseError ->
-                            error.addSuppressed(releaseError.unwrapCompletionCause())
-                        }
-                        .thenCompose { failedCompletableFutureOf(error) }
+        val acquisitionFuture = lock.tryLockAsync(options.waitTime, options.leaseTime)
+            .thenApply { acquired ->
+                if (acquired) {
+                    acquiredAtNanos.set(System.nanoTime())
+                    lockAcquired.set(true)
                 }
+                acquired
             }
-        }, executor)
+        val pipelineFuture = acquisitionFuture.thenComposeAsync(
+            { acquired ->
+                if (!acquired) {
+                    log.debug { "리더 선출 실패 (슬롯 없음, async): lockName=$lockName" }
+                    completableFutureOf(null)
+                } else {
+                    val acquiredAt = acquiredAtNanos.get()
+                    if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
+                        failedCompletableFutureOf(CancellationException("leader action was cancelled before start"))
+                    } else try {
+                        runAcquiredAsync(lock, lockName, auditLeaderId, acquiredAt, cancellationRelay, action)
+                    } catch (error: Throwable) {
+                        lock.unlockAsync(options.minLeaseTime, acquiredAt)
+                            .exceptionally { releaseError ->
+                                error.addSuppressed(releaseError.unwrapCompletionCause())
+                            }
+                            .thenCompose { failedCompletableFutureOf(error) }
+                    }
+                }
+            },
+            executor
+        )
         acquisitionFuture.whenComplete { acquired, _ ->
             if (acquired == true && pipelineFuture.isCancelled) {
                 releaseAfterRejection(CancellationException("leader result future was cancelled before action"))
@@ -268,17 +274,18 @@ class LettuceLeaderElector @JvmOverloads constructor(
         }
     }
 
-    private fun <T> runAcquiredAsync(
+    private inline fun <T> runAcquiredAsync(
         lock: LettuceLock,
         lockName: String,
         auditLeaderId: String?,
         acquiredAtNanos: Long,
         cancellationRelay: LeaderFutureBridge.CancellationRelay,
-        action: () -> CompletableFuture<T>,
+        crossinline action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val startedAt = Instant.now()
         val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
         val delegate = LettuceLockExtendDelegate(lock)
+
         val handle = LeaderLockHandle.real(
             identity = LockIdentity(lockName, LockIdentity.AnnotationKind.SINGLE, LETTUCE_FACTORY_BEAN_NAME),
             token = token,
@@ -286,6 +293,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
             extendDelegate = delegate,
             auditLeaderId = auditLeaderId,
         )
+
         val record = historyRecorder?.let {
             LeaderLockHistoryRecord(
                 lockName = lockName,
@@ -295,6 +303,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
                 lockedUntil = startedAt.plusMillis(options.leaseTime.inWholeMilliseconds),
             )
         }
+
         val key = record?.let { historyRecorder.recordAcquired(it) }
         val effectiveKey = key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
         val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
@@ -302,11 +311,12 @@ class LettuceLeaderElector @JvmOverloads constructor(
         log.debug { "리더 선출 성공 (async): lockName=$lockName" }
         val actionFuture = runCatching {
             cancellationRelay.invoke { AopScopeAccess.withPushedSync(handle) { action() } }
+        }.getOrElse { error ->
+            return releaseAndPropagate(lock, lockName, watchdog, acquiredAtNanos, effectiveKey, error, null)
         }
-            .getOrElse { error ->
-                return releaseAndPropagate(lock, lockName, watchdog, acquiredAtNanos, effectiveKey, error, null)
-            }
-        return actionFuture.handle<Pair<T?, Throwable?>> { value, error -> Pair(value, error) }
+
+        return actionFuture
+            .handle<Pair<T?, Throwable?>> { value, error -> Pair(value, error) }
             .thenCompose { (value, error) ->
                 releaseAndPropagate(lock, lockName, watchdog, acquiredAtNanos, effectiveKey, error, value)
             }
@@ -318,9 +328,6 @@ class LettuceLeaderElector @JvmOverloads constructor(
     private fun Throwable.toActionFailedResult(): LeaderRunResult.ActionFailed {
         val cause = unwrapCompletionCause()
         if (cause is CancellationException) {
-            throw cause
-        }
-        if (cause is java.util.concurrent.CancellationException) {
             throw cause
         }
         return LeaderRunResult.ActionFailed(cause)
@@ -346,17 +353,17 @@ class LettuceLeaderElector @JvmOverloads constructor(
                 }
                 val finishedAt = Instant.now()
                 val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-                when {
-                    error == null -> historyKey?.let {
+                when (error) {
+                    null                     -> historyKey?.let {
                         historyRecorder?.recordCompleted(
                             it,
                             finishedAt,
                             durationMs
                         )
                     }
-                    error is java.util.concurrent.CancellationException -> { /* cancelled — no audit */
+                    is CancellationException -> { /* cancelled — no audit */
                     }
-                    else -> historyKey?.let {
+                    else                     -> historyKey?.let {
                         historyRecorder?.recordFailed(
                             it,
                             finishedAt,
@@ -378,15 +385,9 @@ class LettuceLeaderElector @JvmOverloads constructor(
                         } else if (closeFailure != null) {
                             failedCompletableFutureOf(closeFailure)
                         } else {
-                            completableFutureOf<T?>(value)
+                            completableFutureOf(value)
                         }
                     }
             }
-    }
-
-    private enum class AsyncLifecycle {
-        WAITING,
-        STARTED,
-        CLEANUP,
     }
 }

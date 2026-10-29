@@ -149,6 +149,7 @@ class LettuceRedisClusterRecoveryTest {
         val lockName = (0..100_000).asSequence().map { "recovered-$it" }.first {
             SlotHash.getSlot(LettuceCandidateKeyCodec.indexKey(LettuceCandidateRegistry.DEFAULT_KEY_PREFIX, it)) == slot
         }
+
         val blocking = LettuceStrategicLeaderElector(connection, "blocking")
         blocking.registerCandidate(lockName, CandidateInfo("blocking"))
         blocking.refreshCandidate(lockName, CandidateInfo("blocking"))
@@ -156,6 +157,7 @@ class LettuceRedisClusterRecoveryTest {
         blocking.listCandidates(lockName).single().successCount shouldBeEqualTo 1L
         blocking.unregisterCandidate(lockName, "blocking")
         blocking.listCandidates(lockName).shouldBeEmpty()
+
         val suspending = LettuceStrategicSuspendLeaderElector(connection, "suspend")
         suspending.registerCandidate(lockName, CandidateInfo("suspend"))
         suspending.refreshCandidate(lockName, CandidateInfo("suspend"))
@@ -163,6 +165,7 @@ class LettuceRedisClusterRecoveryTest {
         suspending.listCandidates(lockName).single().successCount shouldBeEqualTo 1L
         suspending.unregisterCandidate(lockName, "suspend")
         suspending.listCandidates(lockName).shouldBeEmpty()
+
         connection.sync().ping() shouldBeEqualTo "PONG"
     }
 

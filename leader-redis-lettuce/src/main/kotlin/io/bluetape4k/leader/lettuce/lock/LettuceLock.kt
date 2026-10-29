@@ -4,6 +4,7 @@ import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.lettuce.DEFAULT_TOKEN_LENGTH
 import io.bluetape4k.leader.lettuce.DefaultLeaseTime
@@ -18,10 +19,10 @@ import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
-import kotlinx.atomicfu.atomic
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.LockSupport
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -49,28 +50,28 @@ class LettuceLock(
 
         private val UNLOCK_SCRIPT = RedisScript(
             """
-if redis.call('get', KEYS[1]) == ARGV[1] then
-  local ttl = tonumber(ARGV[2])
-  if ttl and ttl > 0 then
-    return redis.call('pexpire', KEYS[1], ttl)
-  end
-  return redis.call('del', KEYS[1])
-else
-  return 0
-end"""
+                if redis.call('get', KEYS[1]) == ARGV[1] then
+                  local ttl = tonumber(ARGV[2])
+                  if ttl and ttl > 0 then
+                    return redis.call('pexpire', KEYS[1], ttl)
+                  end
+                  return redis.call('del', KEYS[1])
+                else
+                  return 0
+                end""".trimIndent()
         )
 
         private val EXTEND_SCRIPT = RedisScript(
             """
-if redis.call('get', KEYS[1]) == ARGV[1] then
-  return redis.call('pexpire', KEYS[1], ARGV[2])
-else
-  return 0
-end"""
+            if redis.call('get', KEYS[1]) == ARGV[1] then
+              return redis.call('pexpire', KEYS[1], ARGV[2])
+            else
+              return 0
+            end""".trimIndent()
         )
     }
 
-    private val tokenRef = atomic<String?>(null)
+    private val tokenRef = AtomicReference<String?>(null)
 
     private val syncCommands: RedisCommands<String, String> by lazy { connection.sync() }
     private val asyncCommands: RedisAsyncCommands<String, String> by lazy { connection.async() }
@@ -78,12 +79,12 @@ end"""
     fun isLocked(): Boolean = syncCommands.get(lockKey) != null
 
     fun isHeldByCurrentInstance(): Boolean {
-        val token = tokenRef.value ?: return false
+        val token = tokenRef.get() ?: return false
         return syncCommands.get(lockKey) == token
     }
 
     /** 이 인스턴스가 마지막으로 성공한 획득에서 발급받은 소유 token을 반환하며, 미획득 상태는 `null`입니다. token은 ownership 비밀값입니다. */
-    fun currentToken(): String? = tokenRef.value
+    fun currentToken(): String? = tokenRef.get()
 
     // =========================================================================
     // 동기 API
@@ -96,12 +97,12 @@ end"""
         val token = newToken()
         val leaseMs = leaseTime.inWholeMilliseconds
         val deadline = MonotonicDeadline.fromNow(waitTime)
+        val args = SetArgs().nx().px(leaseMs)
 
         do {
-            val args = SetArgs().nx().px(leaseMs)
             val result = syncCommands.set(lockKey, token, args)
             if (result != null) {
-                tokenRef.value = token
+                tokenRef.set(token)
                 log.debug { "Lock 획득 성공: lockKey=$lockKey" }
                 return true
             }
@@ -125,7 +126,7 @@ end"""
         while (true) {
             val result = syncCommands.set(lockKey, token, args)
             if (result != null) {
-                tokenRef.value = token
+                tokenRef.set(token)
                 log.debug { "Lock 획득 성공: lockKey=$lockKey" }
                 return
             }
@@ -157,7 +158,7 @@ end"""
 
     /** Lua에서 현재 token을 검증해 TTL을 갱신하고 `Extended` 또는 `NotHeld`를 반환합니다. */
     fun extendDetailed(leaseTime: Duration = defaultLeaseTime): ExtendOutcome {
-        val token = tokenRef.value ?: return ExtendOutcome.NotHeld
+        val token = tokenRef.get() ?: return ExtendOutcome.NotHeld
         val leaseMs = leaseTime.inWholeMilliseconds
 
         val extended = RedisScriptRunner.run<Long>(
@@ -185,13 +186,13 @@ end"""
         val token = newToken()
         val leaseMs = leaseTime.inWholeMilliseconds
         val deadline = MonotonicDeadline.fromNow(waitTime)
+        val args = SetArgs().nx().px(leaseMs)
 
         fun attempt(): CompletableFuture<Boolean> {
-            val args = SetArgs().nx().px(leaseMs)
             return asyncCommands.set(lockKey, token, args).toCompletableFuture()
                 .thenCompose { result ->
                     if (result != null) {
-                        tokenRef.value = token
+                        tokenRef.set(token)
                         log.debug { "Lock 획득 성공 (async): lockKey=$lockKey" }
                         completableFutureOf(true)
                     } else if (deadline.hasTimeRemaining()) {
@@ -215,20 +216,20 @@ end"""
         val token = newToken()
         val leaseMs = leaseTime.inWholeMilliseconds
         val deadline = MonotonicDeadline.fromNow(maxWaitTime)
+        val args = SetArgs().nx().px(leaseMs)
 
         fun attempt(): CompletableFuture<Unit> {
-            val args = SetArgs().nx().px(leaseMs)
             return asyncCommands.set(lockKey, token, args)
                 .toCompletableFuture()
                 .thenCompose { result ->
                     if (result != null) {
-                        tokenRef.value = token
+                        tokenRef.set(token)
                         log.debug { "Lock 획득 성공 (async): lockKey=$lockKey" }
                         completableFutureOf(Unit)
                     } else if (deadline.hasTimeRemaining()) {
                         val delayMillis = deadline.remainingMillisForDelay(RETRY_DELAY_MS)
                         val delayed = CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS)
-                        CompletableFuture.runAsync({}, delayed).thenCompose { attempt() }
+                        futureOf(delayed) {}.thenCompose { attempt() }
                     } else {
                         failedCompletableFutureOf(IllegalStateException("Lock 획득 시간 초과 (async): lockKey=$lockKey"))
                     }
@@ -259,7 +260,7 @@ end"""
     }
 
     fun extendAsync(leaseTime: Duration = defaultLeaseTime): CompletableFuture<Boolean> {
-        val token = tokenRef.value ?: return completableFutureOf(false)
+        val token = tokenRef.get() ?: return completableFutureOf(false)
         val leaseMs = leaseTime.inWholeMilliseconds
 
         return RedisScriptRunner.runAsync<Long>(

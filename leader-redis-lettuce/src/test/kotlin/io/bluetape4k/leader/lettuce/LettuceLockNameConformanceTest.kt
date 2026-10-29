@@ -5,6 +5,8 @@ import io.bluetape4k.leader.contract.AbstractLockNameConformanceTest
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
+import org.testcontainers.utility.Base58
 
 /**
  * Lettuce blocking/suspend strategic registry가 실제 Redis key 생성 전에
@@ -17,7 +19,8 @@ class LettuceBlockingLockNameConformanceTest: AbstractLockNameConformanceTest() 
     private val node = LettuceStrategicLeaderElector(AbstractLettuceLeaderTest.connection, "contract-blocking")
 
     override fun validateLockName(lockName: String) {
-        val candidate = CandidateInfo("contract-${System.nanoTime()}")
+        val candidate = CandidateInfo("contract-${Base58.randomString(8)}")
+        log.debug { "candidate=$candidate" }
         var registered = false
         try {
             node.registerCandidate(lockName, candidate)
@@ -37,7 +40,7 @@ class LettuceSuspendLockNameConformanceTest: AbstractLockNameConformanceTest() {
     private val node = LettuceStrategicSuspendLeaderElector(AbstractLettuceLeaderTest.connection, "contract-suspend")
 
     override fun validateLockName(lockName: String) = runSuspendIO {
-        val candidate = CandidateInfo("contract-${System.nanoTime()}")
+        val candidate = CandidateInfo("contract-${Base58.randomString(8)}")
         var registered = false
         try {
             node.registerCandidate(lockName, candidate)

@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.javatimes.millis
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionException
@@ -54,8 +55,8 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         val t0 = Instant.now()
         val candidates = listOf(
             CandidateInfo("node-1", registeredAt = t0),
-            CandidateInfo("node-2", registeredAt = t0.plusMillis(10)),
-            CandidateInfo("node-3", registeredAt = t0.plusMillis(20)),
+            CandidateInfo("node-2", registeredAt = t0 + 10.millis()),
+            CandidateInfo("node-3", registeredAt = t0 + 20.millis()),
         )
         candidates.forEach { node1.registerCandidate(lockName, it) }
         candidates.forEach { node2.registerCandidate(lockName, it) }
@@ -130,9 +131,8 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("node-2"))
         node1.unregisterCandidate(lockName, "node-1")
 
-        val candidates = node1.listCandidates(lockName)
+        val candidates = node1.listCandidates(lockName).onEach { log.debug { "candidates: $it" } }
 
-        candidates.forEach { log.debug { "candidate=$it" } }
         candidates.size shouldBeEqualTo 1
         candidates.first().nodeId shouldBeEqualTo "node-2"
     }
@@ -189,7 +189,7 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
             lockName,
             "node-1",
         )
-        val raw = "node-1|${Instant.now().toEpochMilli()}|||1e3|0|"
+        val raw = "node-1|${System.currentTimeMillis()}|||1e3|0|"
         connection.sync().set(key, raw)
 
         assertFailsWith<NumberFormatException> {
@@ -206,7 +206,7 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
             lockName,
             "node-1",
         )
-        val raw = "node-1|${Instant.now().toEpochMilli()}|||0|0|brokenpair"
+        val raw = "node-1|${System.currentTimeMillis()}|||0|0|brokenpair"
         connection.sync().set(key, raw)
 
         assertFailsWith<IllegalArgumentException> {
@@ -222,6 +222,7 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         node1.runIfLeader(lockName, FifoElectionStrategy) { "ok" }
 
         val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        log.debug { "updated: $updated" }
         updated.successCount shouldBeEqualTo 1L
     }
 
@@ -255,8 +256,7 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("node-1", successCount = 3))
         node1.registerCandidate(lockName, CandidateInfo("node-1", successCount = 10))
 
-        val candidates = node1.listCandidates(lockName)
-        candidates.forEach { log.debug { "candidate=$it" } }
+        val candidates = node1.listCandidates(lockName).onEach { log.debug { "candidates: $it" } }
         candidates.size shouldBeEqualTo 1
         candidates.first().successCount shouldBeEqualTo 10L
     }
@@ -366,9 +366,9 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
                 .addAll(actions)
                 .run()
 
+            val expectedEach = (workers * rounds / 2).toLong()
             val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
             log.debug { "updated=$updated" }
-            val expectedEach = (workers * rounds / 2).toLong()
             updated.successCount shouldBeEqualTo expectedEach
             updated.failureCount shouldBeEqualTo expectedEach
             updated.successRate shouldBeEqualTo 0.5
@@ -400,13 +400,14 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
             val rounds = 20
 
             StructuredTaskScopeTester()
-                .rounds(rounds)
+                .rounds(rounds * workers / actions.size)
                 .addAll(*actions.toTypedArray())
                 .run()
 
+            val expectedEach = (workers * rounds / 2).toLong()
             val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
             log.debug { "updated=$updated" }
-            val expectedEach = (workers * rounds / 2).toLong()
+
             updated.successCount shouldBeEqualTo expectedEach
             updated.failureCount shouldBeEqualTo expectedEach
             updated.successRate shouldBeEqualTo 0.5

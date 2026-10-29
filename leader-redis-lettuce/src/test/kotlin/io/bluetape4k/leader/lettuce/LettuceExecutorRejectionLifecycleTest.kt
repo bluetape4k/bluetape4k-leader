@@ -13,6 +13,7 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
@@ -46,7 +47,8 @@ class LettuceExecutorRejectionLifecycleTest: AbstractLettuceLeaderTest() {
             actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             actionFuture.isCancelled.shouldBeTrue()
-            await.atMost(2.seconds).untilAsserted {
+
+            await atMost 2.seconds untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
         } finally {
@@ -72,7 +74,7 @@ class LettuceExecutorRejectionLifecycleTest: AbstractLettuceLeaderTest() {
             result.cancel(false).shouldBeTrue()
             actionFuture.isCancelled.shouldBeTrue()
 
-            await.atMost(2.seconds).untilAsserted {
+            await atMost 2.seconds untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
         } finally {
@@ -101,7 +103,7 @@ class LettuceExecutorRejectionLifecycleTest: AbstractLettuceLeaderTest() {
             result.cancel(false).shouldBeTrue()
             actionFuture.isCancelled.shouldBeTrue()
 
-            await.atMost(2.seconds).untilAsserted {
+            await atMost 2.seconds untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
         } finally {
@@ -130,7 +132,7 @@ class LettuceExecutorRejectionLifecycleTest: AbstractLettuceLeaderTest() {
             result.cancel(false).shouldBeTrue()
             actionFuture.isCancelled.shouldBeTrue()
 
-            await.atMost(2.seconds).untilAsserted {
+            await atMost 2.seconds untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
             }
         } finally {
