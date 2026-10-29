@@ -15,6 +15,7 @@ import org.springframework.beans.factory.DisposableBean
 import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.beans.factory.config.BeanDefinition
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
+import org.springframework.beans.factory.getBean
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -48,6 +49,8 @@ import kotlin.concurrent.withLock
 )
 @EnableConfigurationProperties(LeaderProperties::class, LeaderAopProperties::class)
 class LeaderObservationAutoConfiguration {
+
+    companion object: KLogging()
 
     @Bean(name = [LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME])
     @ConditionalOnBean(ObservationRegistry::class)
@@ -149,10 +152,8 @@ internal class ObservationRegistryLeaseExtensionCoordinator(
 
     override fun afterSingletonsInstantiated() {
         if (!beanFactory.containsLocalBean(LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME)) return
-        beanFactory.getBean(
-            LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME,
-            LeaseExtensionObservationScopeOwner::class.java,
-        ).let(::register)
+        beanFactory.getBean<LeaseExtensionObservationScopeOwner>(LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME)
+            .let(::register)
     }
 
     private fun register(owner: LeaseExtensionObservationScopeOwner) {

@@ -37,7 +37,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionAspectReentrantTest {
 
-    companion object: KLogging() {
+    private companion object: KLogging() {
         private const val LOCK_NAME = "reentrant-job"
         private const val FACTORY_BEAN = "testFactory"
         private const val SAMPLE_RESULT = "body-result"
@@ -53,10 +53,10 @@ class LeaderElectionAspectReentrantTest {
     }
 
     private val election: LeaderElector = mockk(relaxed = true)
-    private val factoryMock: LeaderElectorFactory = mockk()
-    private val beanSelector: LeaderBeanSelector = mockk()
-    private val signature: MethodSignature = mockk()
-    private val pjp: ProceedingJoinPoint = mockk()
+    private val factoryMock: LeaderElectorFactory = mockk(relaxed = true)
+    private val beanSelector: LeaderBeanSelector = mockk(relaxed = true)
+    private val signature: MethodSignature = mockk(relaxed = true)
+    private val pjp: ProceedingJoinPoint = mockk(relaxed = true)
 
     @BeforeEach
     fun setUp() {

@@ -4,12 +4,17 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.javatimes.millis
+import io.bluetape4k.javatimes.minutes
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.spring.properties.LeaderBackendHealthProperties
 import io.bluetape4k.leader.spring.properties.LeaderElectionProperties
 import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.leader.spring.properties.LeaderObservabilityHealthProperties
 import io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode
 import io.bluetape4k.leader.spring.properties.LeaderRouteRejectionStatus
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -18,6 +23,7 @@ import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.ConfigurationPropertySource
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import java.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 private inline fun <reified T: Any> Binder.bindAs(name: String): BindResult<T> =
@@ -28,6 +34,8 @@ private inline fun <reified T: Any> Binder.bindOrCreate(name: String): T =
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderPropertiesBindingTest {
+
+    private companion object: KLogging()
 
     @Test
     fun `yaml 형식 키를 LeaderProperties에 바인딩`() {
@@ -64,18 +72,20 @@ class LeaderPropertiesBindingTest {
         )
         val props = Binder(source).bindAs<LeaderProperties>("bluetape4k.leader").get()
 
-        props.waitTime shouldBeEqualTo Duration.ofSeconds(7)
-        props.leaseTime shouldBeEqualTo Duration.ofSeconds(120)
+        log.debug { "props=$props" }
+
+        props.waitTime shouldBeEqualTo 7.seconds()
+        props.leaseTime shouldBeEqualTo 120.seconds()
         props.group.maxLeaders shouldBeEqualTo 5
-        props.group.waitTime shouldBeEqualTo Duration.ofSeconds(3)
-        props.group.leaseTime shouldBeEqualTo Duration.ofSeconds(45)
+        props.group.waitTime shouldBeEqualTo 3.seconds()
+        props.group.leaseTime shouldBeEqualTo 45.seconds()
         props.group.useDbTime.shouldBeTrue()
         props.mongo.singleCollection shouldBeEqualTo "single_election"
         props.mongo.groupCollection shouldBeEqualTo "group_election"
         props.etcd.keyPrefix shouldBeEqualTo "/apps/orders/leader"
         props.consul.keyPrefix shouldBeEqualTo "apps/orders/leader"
         props.consul.sessionNamePrefix shouldBeEqualTo "orders-leader"
-        props.consul.lockDelay shouldBeEqualTo Duration.ofSeconds(2)
+        props.consul.lockDelay shouldBeEqualTo 2.seconds()
         props.diagnostics.enabled.shouldBeFalse()
 
         props.diagnostics.strict.shouldBeTrue()
@@ -88,11 +98,11 @@ class LeaderPropertiesBindingTest {
         props.routeGuard.redirect.enabled.shouldBeTrue()
         props.routeGuard.redirect.allowedHosts shouldBeEqualTo listOf("leader.example")
         props.routeGuard.redirect.trustedProxyAddresses shouldBeEqualTo listOf("10.0.0.10")
-        props.routeGuard.redirect.leaseSafetyWindow shouldBeEqualTo Duration.ofMillis(250)
+        props.routeGuard.redirect.leaseSafetyWindow shouldBeEqualTo 250.millis()
         props.observability.stateProviderBean shouldBeEqualTo "ordersSuspendLeaderElector"
         props.observability.backendHealth.enabled.shouldBeTrue()
-        props.observability.backendHealth.timeout shouldBeEqualTo Duration.ofMillis(275)
-        props.observability.health.acquisitionFailureWindow shouldBeEqualTo Duration.ofSeconds(45)
+        props.observability.backendHealth.timeout shouldBeEqualTo 275.millis()
+        props.observability.health.acquisitionFailureWindow shouldBeEqualTo 45.seconds()
     }
 
     @Test
@@ -100,8 +110,10 @@ class LeaderPropertiesBindingTest {
         val source: ConfigurationPropertySource = MapConfigurationPropertySource(emptyMap<String, String>())
         val props = Binder(source).bindOrCreate<LeaderProperties>("bluetape4k.leader")
 
-        props.waitTime shouldBeEqualTo Duration.ofSeconds(5)
-        props.leaseTime shouldBeEqualTo Duration.ofSeconds(60)
+        log.debug { "props=$props" }
+
+        props.waitTime shouldBeEqualTo 5.seconds()
+        props.leaseTime shouldBeEqualTo 60.seconds()
         props.group.maxLeaders shouldBeEqualTo 2
         props.group.useDbTime.shouldBeFalse()
         props.mongo.singleCollection shouldBeEqualTo "leader_election"
@@ -125,7 +137,7 @@ class LeaderPropertiesBindingTest {
         props.routeGuard.redirect.leaseSafetyWindow shouldBeEqualTo Duration.ZERO
         props.observability.stateProviderBean shouldBeEqualTo ""
         props.observability.backendHealth.enabled.shouldBeFalse()
-        props.observability.backendHealth.timeout shouldBeEqualTo Duration.ofMillis(500)
+        props.observability.backendHealth.timeout shouldBeEqualTo 500.millis()
     }
 
     @Test
@@ -167,8 +179,11 @@ class LeaderPropertiesBindingTest {
             ),
         )
         val props = Binder(source).bindAs<LeaderProperties>("bluetape4k.leader").get()
-        props.waitTime shouldBeEqualTo Duration.ofSeconds(10)
-        props.leaseTime shouldBeEqualTo Duration.ofSeconds(300)
+
+        log.debug { "props=$props" }
+
+        props.waitTime shouldBeEqualTo 10.seconds()
+        props.leaseTime shouldBeEqualTo 300.seconds()
         props.group.maxLeaders shouldBeEqualTo 8
     }
 
@@ -179,6 +194,9 @@ class LeaderPropertiesBindingTest {
         val props = LeaderElectionProperties()
         val opts = props.toOptions()
 
+        log.debug { "props=$props" }
+        log.debug { "opts=$opts" }
+
         opts.waitTime shouldBeEqualTo 5.seconds
         opts.leaseTime shouldBeEqualTo 60.seconds
         opts.useDbTime.shouldBeFalse()
@@ -187,13 +205,16 @@ class LeaderPropertiesBindingTest {
     @Test
     fun `LeaderElectionProperties toOptions - 커스텀 값이 LeaderElectionOptions 로 변환`() {
         val props = LeaderElectionProperties(
-            waitTime = Duration.ofSeconds(10),
-            leaseTime = Duration.ofMinutes(2),
+            waitTime = 10.seconds(),
+            leaseTime = 2.minutes(),
         )
         val opts = props.toOptions()
 
+        log.debug { "props=$props" }
+        log.debug { "opts=$opts" }
+
         opts.waitTime shouldBeEqualTo 10.seconds
-        opts.leaseTime shouldBeEqualTo 120.seconds
+        opts.leaseTime shouldBeEqualTo 2.minutes
     }
 
     // ── LeaderGroupProperties.toOptions() ─────────────────────────────────
@@ -202,6 +223,9 @@ class LeaderPropertiesBindingTest {
     fun `LeaderGroupProperties toOptions - default 값이 LeaderGroupElectionOptions 로 변환`() {
         val props = LeaderGroupProperties()
         val opts = props.toOptions()
+
+        log.debug { "props=$props" }
+        log.debug { "opts=$opts" }
 
         opts.maxLeaders shouldBeEqualTo 2
         opts.waitTime shouldBeEqualTo 5.seconds
@@ -213,15 +237,18 @@ class LeaderPropertiesBindingTest {
     fun `LeaderGroupProperties toOptions - 커스텀 값이 LeaderGroupElectionOptions 로 변환`() {
         val props = LeaderGroupProperties(
             maxLeaders = 5,
-            waitTime = Duration.ofSeconds(3),
-            leaseTime = Duration.ofMinutes(1),
+            waitTime = 3.seconds(),
+            leaseTime = 1.minutes(),
             useDbTime = true,
         )
         val opts = props.toOptions()
 
+        log.debug { "props=$props" }
+        log.debug { "opts=$opts" }
+
         opts.maxLeaders shouldBeEqualTo 5
         opts.waitTime shouldBeEqualTo 3.seconds
-        opts.leaseTime shouldBeEqualTo 60.seconds
+        opts.leaseTime shouldBeEqualTo 1.minutes
         opts.useDbTime.shouldBeTrue()
     }
 

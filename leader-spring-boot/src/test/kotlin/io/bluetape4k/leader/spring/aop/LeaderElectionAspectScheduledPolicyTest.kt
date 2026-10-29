@@ -31,7 +31,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class LeaderElectionAspectScheduledPolicyTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val election: LeaderElector = mockk(relaxed = true)
     private val factory: LeaderElectorFactory = mockk()

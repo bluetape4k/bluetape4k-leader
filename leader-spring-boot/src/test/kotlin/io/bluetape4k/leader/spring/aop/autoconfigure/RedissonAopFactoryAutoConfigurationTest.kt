@@ -11,6 +11,7 @@ import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElectorFactory
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.spring.AbstractRedissonAutoConfigurationTest
 import io.bluetape4k.leader.spring.LeaderTestApplication
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.redisson.api.RedissonClient
@@ -37,6 +38,8 @@ import org.springframework.context.annotation.Bean
 @ImportAutoConfiguration(LeaderAopFactoryAutoConfiguration::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RedissonAopFactoryAutoConfigurationTest: AbstractRedissonAutoConfigurationTest() {
+
+    private companion object: KLogging()
 
     @TestConfiguration
     class TestConfig {

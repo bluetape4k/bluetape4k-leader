@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.spring.LeaderElectionAutoConfiguration
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
+import io.bluetape4k.logging.KLogging
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.beans.factory.config.BeanDefinition
@@ -35,6 +36,8 @@ import org.springframework.context.annotation.Role
 )
 @EnableConfigurationProperties(LeaderProperties::class)
 class LeaderElectionObservabilityAutoConfiguration {
+
+    private companion object: KLogging()
 
     @Bean
     @ConditionalOnMissingBean

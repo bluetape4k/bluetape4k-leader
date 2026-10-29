@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.spring.observability
 
-import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.LeaderElectionListener
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotBlank
 import java.util.concurrent.ConcurrentSkipListSet
 
@@ -9,6 +9,8 @@ import java.util.concurrent.ConcurrentSkipListSet
 class LeaderElectionStatusRegistry(
     initialLockNames: Iterable<String> = emptyList(),
 ): LeaderElectionListener {
+
+    private companion object: KLogging()
 
     private val lockNames = ConcurrentSkipListSet<String>()
 
@@ -38,9 +40,6 @@ class LeaderElectionStatusRegistry(
         register(lockName)
     }
 
-    override fun toString(): String {
-        return ToStringBuilder(this)
-            .add("lockNames", lockNames)
-            .toString()
-    }
+    override fun toString(): String =
+        "LeaderElectionStatusRegistry(lockNames=$lockNames)"
 }

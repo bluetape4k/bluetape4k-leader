@@ -34,7 +34,7 @@ import org.springframework.context.annotation.Bean
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HazelcastAopFactoryAutoConfigurationTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     @TestConfiguration
     class TestConfig {

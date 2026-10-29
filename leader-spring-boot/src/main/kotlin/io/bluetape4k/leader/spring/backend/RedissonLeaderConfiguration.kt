@@ -6,6 +6,7 @@ import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
+import io.bluetape4k.logging.KLogging
 import org.redisson.api.RedissonClient
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -18,6 +19,8 @@ import org.springframework.context.annotation.Configuration
 @ConditionalOnClass(RedissonClient::class)
 @ConditionalOnBean(RedissonClient::class)
 class RedissonLeaderConfiguration {
+
+    companion object: KLogging()
 
     @Bean
     @ConditionalOnMissingBean(name = ["redissonLeaderElector"])

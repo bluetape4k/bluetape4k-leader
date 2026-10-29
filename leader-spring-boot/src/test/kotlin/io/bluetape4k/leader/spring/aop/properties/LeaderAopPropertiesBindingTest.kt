@@ -4,6 +4,8 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.javatimes.minutes
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -50,8 +52,8 @@ class LeaderAopPropertiesBindingTest {
         props.strict.shouldBeTrue()
 
         props.failureMode shouldBeEqualTo LeaderAspectFailureMode.SKIP
-        props.defaultWaitTime shouldBeEqualTo Duration.ofSeconds(7)
-        props.defaultLeaseTime shouldBeEqualTo Duration.ofMinutes(3)
+        props.defaultWaitTime shouldBeEqualTo 7.seconds()
+        props.defaultLeaseTime shouldBeEqualTo 3.minutes()
         props.lockNamePrefix shouldBeEqualTo "myapp:"
         props.metrics.enabled.shouldBeFalse()
 
@@ -63,7 +65,6 @@ class LeaderAopPropertiesBindingTest {
         props.metrics.tags.leaderId.redactedValue shouldBeEqualTo "leader"
         props.metrics.tags.backendName.mode shouldBeEqualTo LeaderAopProperties.Metrics.TagMode.RAW
         props.spel.allowMethodInvocation.shouldBeTrue()
-
     }
 
     @Test

@@ -65,19 +65,19 @@ class LeaderElectionAspectTest {
 
     private class SampleServiceImpl: SampleService {
         @LeaderElection(name = "static-job")
-        override fun runSync(): String? = SAMPLE_RESULT
+        override fun runSync(): String = SAMPLE_RESULT
 
         @LeaderElection(name = "'r-' + #region")
-        override fun runWithArg(region: String): String? = "result-$region"
+        override fun runWithArg(region: String): String = "result-$region"
 
         @LeaderElection(name = "min-job", leaseTime = "PT30S", minLeaseTime = "PT10S")
-        override fun runWithMinLease(): String? = SAMPLE_RESULT
+        override fun runWithMinLease(): String = SAMPLE_RESULT
 
         @LeaderElection(name = "auto-job", leaseTime = "PT30S", autoExtend = true)
-        override fun runWithAutoExtend(): String? = SAMPLE_RESULT
+        override fun runWithAutoExtend(): String = SAMPLE_RESULT
 
         @LeaderElection(name = "ns.subns.lock")
-        override fun runWithDotName(): String? = SAMPLE_RESULT
+        override fun runWithDotName(): String = SAMPLE_RESULT
     }
 
     // Class-level mocks — reused across all tests, cleared in @BeforeEach

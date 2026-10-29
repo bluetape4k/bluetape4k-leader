@@ -4,6 +4,7 @@ import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.LeaderElectionState
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotNull
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation
@@ -27,7 +28,7 @@ class LeaderElectionStatusEndpoint private constructor(
     constructorMarker: Any?,
 ) {
 
-    companion object {
+    companion object: KLogging() {
         /** `0.5.0`에서 공개된 내부 JVM descriptor를 새 failure window 경계 뒤로 연결합니다. */
         @JvmSynthetic
         internal fun fromSelectedState(
@@ -125,12 +126,15 @@ private class SelectedStateLeaderElector(
     val beanName: String,
     private val delegate: LeaderElectionState,
 ): LeaderElector {
+
+    private companion object: KLogging()
+
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
 
     override fun state(lockName: String) = delegate.state(lockName)
 
-    override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
+    override fun <T> runIfLeader(lockName: String, action: () -> T): T =
         error("The observability state adapter cannot execute leader work")
 
     override fun <T> runAsyncIfLeader(

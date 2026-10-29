@@ -30,7 +30,7 @@ import java.util.concurrent.Executor
 
 class LeaderElectionReadinessHealthIndicatorTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val now = Instant.parse("2026-07-15T00:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)

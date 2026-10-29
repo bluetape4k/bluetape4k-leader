@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.history
 
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElectorFactory
@@ -17,7 +18,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
 class LeaderHistoryRetentionAutoConfigurationTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(LeaderHistoryRetentionAutoConfiguration::class.java))
@@ -38,7 +39,7 @@ class LeaderHistoryRetentionAutoConfigurationTest {
             .withBean(SuspendLeaderHistorySink::class.java, { NoopSuspendLeaderHistorySink })
             .run { ctx ->
                 ctx.getBeanNamesForType(SuspendLeaderHistoryRetentionJob::class.java).size shouldBeEqualTo 1
-                ctx.getBeanNamesForType(LeaderHistoryRetentionJob::class.java).size shouldBeEqualTo 0
+                ctx.getBeanNamesForType(LeaderHistoryRetentionJob::class.java).shouldBeEmpty()
             }
     }
 
@@ -48,8 +49,8 @@ class LeaderHistoryRetentionAutoConfigurationTest {
             .withBean(SuspendLeaderHistorySink::class.java, { NoopSuspendLeaderHistorySink })
             .withBean(LeaderHistorySink::class.java, { NoopLeaderHistorySink })
             .run { ctx ->
-                ctx.getBeanNamesForType(SuspendLeaderHistoryRetentionJob::class.java).size shouldBeEqualTo 0
-                ctx.getBeanNamesForType(LeaderHistoryRetentionJob::class.java).size shouldBeEqualTo 0
+                ctx.getBeanNamesForType(SuspendLeaderHistoryRetentionJob::class.java).shouldBeEmpty()
+                ctx.getBeanNamesForType(LeaderHistoryRetentionJob::class.java).shouldBeEmpty()
             }
     }
 
@@ -59,7 +60,7 @@ class LeaderHistoryRetentionAutoConfigurationTest {
             .withBean(LeaderHistorySink::class.java, { NoopLeaderHistorySink })
             .run { ctx ->
                 ctx.getBeanNamesForType(LeaderHistoryRetentionJob::class.java).size shouldBeEqualTo 1
-                ctx.getBeanNamesForType(SuspendLeaderHistoryRetentionJob::class.java).size shouldBeEqualTo 0
+                ctx.getBeanNamesForType(SuspendLeaderHistoryRetentionJob::class.java).shouldBeEmpty()
             }
     }
 }

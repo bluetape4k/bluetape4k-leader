@@ -101,7 +101,7 @@ class LeaderRouteLeaseDiagnosticsTest {
     private class BlockingReleaseAcquirer: LeaderLeaseAcquirer {
         override val configuredOptions: LeaderElectionOptions = LeaderElectionOptions.Default
 
-        override fun tryAcquire(lockName: String): LeaderLeaseHandle? = tryAcquire(
+        override fun tryAcquire(lockName: String): LeaderLeaseHandle = tryAcquire(
             LeaderSlot(lockName, configuredOptions.nodeId),
         )
 

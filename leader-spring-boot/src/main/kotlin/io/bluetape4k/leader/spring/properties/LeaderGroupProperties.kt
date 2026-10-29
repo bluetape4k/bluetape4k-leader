@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.spring.properties
 
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.support.requireNotNull
 import java.time.Duration
 import kotlin.jvm.internal.DefaultConstructorMarker
 import kotlin.time.toKotlinDuration
@@ -55,8 +57,8 @@ data class LeaderGroupProperties(
 
     companion object {
         const val DefaultMaxLeaders: Int = 2
-        val DefaultWaitTime: Duration = Duration.ofSeconds(5)
-        val DefaultLeaseTime: Duration = Duration.ofSeconds(60)
+        val DefaultWaitTime: Duration = 5.seconds()
+        val DefaultLeaseTime: Duration = 60.seconds()
 
         /** `useDbTime` 추가 전에 공개된 세 인자 `copy$default` descriptor를 보존합니다. */
         @JvmStatic
@@ -70,8 +72,8 @@ data class LeaderGroupProperties(
             marker: Any?,
         ): LeaderGroupProperties = self.copy(
             maxLeaders = if (mask and 0x001 != 0) self.maxLeaders else maxLeaders,
-            waitTime = if (mask and 0x002 != 0) self.waitTime else requireNotNull(waitTime),
-            leaseTime = if (mask and 0x004 != 0) self.leaseTime else requireNotNull(leaseTime),
+            waitTime = if (mask and 0x002 != 0) self.waitTime else waitTime.requireNotNull("waitTime"),
+            leaseTime = if (mask and 0x004 != 0) self.leaseTime else leaseTime.requireNotNull("leaseTime"),
             useDbTime = self.useDbTime,
         )
     }

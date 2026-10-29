@@ -11,6 +11,7 @@ import io.bluetape4k.leader.mongodb.MongoSuspendLeaderElector
 import io.bluetape4k.leader.mongodb.MongoSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
+import io.bluetape4k.logging.KLogging
 import org.bson.Document
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -24,6 +25,8 @@ import com.mongodb.kotlin.client.coroutine.MongoDatabase as CoroutineMongoDataba
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(com.mongodb.client.MongoCollection::class)
 class MongoLeaderConfiguration {
+
+    companion object: KLogging()
 
     private fun electionOptions(props: LeaderProperties): MongoLeaderElectionOptions =
         MongoLeaderElectionOptions(leaderOptions = PropertiesAdapter.toCommonElection(props))

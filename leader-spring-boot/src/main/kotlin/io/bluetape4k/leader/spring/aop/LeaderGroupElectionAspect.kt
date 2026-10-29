@@ -231,7 +231,7 @@ class LeaderGroupElectionAspect(
                     fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                     throw wrapped
                 }
-                LeaderAspectFailureMode.SKIP -> {
+                LeaderAspectFailureMode.SKIP    -> {
                     fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
                     fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                     log.warn(backendEx) { "leader.aop.group.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
@@ -380,7 +380,7 @@ class LeaderGroupElectionAspect(
                         fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                         throw wrapped
                     }
-                    LeaderAspectFailureMode.SKIP -> {
+                    LeaderAspectFailureMode.SKIP    -> {
                         fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
                         fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                         log.warn(backendEx) { "leader.aop.group.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
@@ -431,7 +431,7 @@ class LeaderGroupElectionAspect(
     /** `Mono` subscription 시점에 group slot을 획득하고 publisher를 실행합니다. */
     // Mono advice는 취소·backend 오류 처리와 lease cleanup 순서를 하나의 scoped 흐름으로 유지합니다.
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ThrowsCount")
-    private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any? {
+    private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any {
         val method = (pjp.signature as MethodSignature).method
         val coreOpts = meta.options.toCoreOptions()
 
@@ -492,15 +492,14 @@ class LeaderGroupElectionAspect(
                         }
                     }
 
-                    if (result == null) {
-                        if (meta.failureMode == LeaderAspectFailureMode.FAIL_OPEN_RUN) {
+                    result
+                        ?: if (meta.failureMode == LeaderAspectFailureMode.FAIL_OPEN_RUN) {
                             val failOpenHandle = AopScopeAccess.createFailOpen(resolveIdentity(resolvedName))
                             fanOut {
                                 it.onLockNotAcquired(resolvedName, coreOpts, SkipReason.FAIL_OPEN_FORCED)
                                 it.onTaskStarted(resolvedName)
                             }
                             log.debug { "leader.aop.group.fail-open lockName=$resolvedName reason=CONTENTION" }
-                            @Suppress("UNCHECKED_CAST")
                             val failOpenResult = withContext(
                                 LeaderElectionInfo(lockName = resolvedName, wasElected = false) +
                                         AopScopeAccess.createLockHandleElement(failOpenHandle)
@@ -514,9 +513,6 @@ class LeaderGroupElectionAspect(
                             log.debug { "leader.aop.group.skipped lockName=$resolvedName reason=CONTENTION" }
                             null
                         }
-                    } else {
-                        result
-                    }
                 } catch (ce: CancellationException) {
                     throw ce
                 } catch (bm: BodyThrownMarker) {
@@ -539,7 +535,7 @@ class LeaderGroupElectionAspect(
                             }
                             throw wrapped
                         }
-                        LeaderAspectFailureMode.SKIP -> {
+                        LeaderAspectFailureMode.SKIP    -> {
                             fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
                             fanOut {
                                 it.onTaskFailed(
@@ -658,12 +654,13 @@ class LeaderGroupElectionAspect(
 
         val isSuspend = method.parameterTypes.lastOrNull() == Continuation::class.java
         val isMono = !isSuspend && method.returnType.name == "reactor.core.publisher.Mono"
-        val (suspendElectorFactory, suspendElectorFactoryBeanName) = if (isSuspend || isMono) {
-            val suspendSelected = beanSelector.selectSuspendGroupElectorFactory(ann.bean, method)
-            suspendSelected.bean to suspendSelected.beanName
-        } else {
-            null to ""
-        }
+        val (suspendElectorFactory, suspendElectorFactoryBeanName) =
+            if (isSuspend || isMono) {
+                val suspendSelected = beanSelector.selectSuspendGroupElectorFactory(ann.bean, method)
+                suspendSelected.bean to suspendSelected.beanName
+            } else {
+                null to ""
+            }
 
         return GroupAdviceMetadata(
             nameExpression = ann.name,

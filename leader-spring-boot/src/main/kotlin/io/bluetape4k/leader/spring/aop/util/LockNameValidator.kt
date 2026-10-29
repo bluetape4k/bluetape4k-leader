@@ -3,6 +3,7 @@ package io.bluetape4k.leader.spring.aop.util
 import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.support.requireLe
+import io.bluetape4k.support.requireMatches
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 
@@ -39,7 +40,7 @@ class LockNameValidator(
     fun validate(name: String) {
         name.requireNotBlank("name")
         name.length.requireLe(maxLength, "name.length")
-        require(NAME_PATTERN.matches(name)) {
+        name.requireMatches(NAME_PATTERN, "name") {
             "lock name contains invalid characters. Allowed: [A-Za-z0-9_:.\\-], got: '$name'"
         }
     }

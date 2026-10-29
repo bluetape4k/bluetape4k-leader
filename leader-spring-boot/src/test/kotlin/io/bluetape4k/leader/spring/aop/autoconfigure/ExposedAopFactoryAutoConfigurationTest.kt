@@ -40,7 +40,7 @@ import org.springframework.test.annotation.DirtiesContext
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExposedAopFactoryAutoConfigurationTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     @TestConfiguration
     @DirtiesContext

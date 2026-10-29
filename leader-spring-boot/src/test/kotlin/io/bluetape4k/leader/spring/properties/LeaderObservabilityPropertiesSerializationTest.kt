@@ -25,6 +25,12 @@ import java.util.*
 
 class LeaderObservabilityPropertiesSerializationTest {
 
+    private companion object: KLogging() {
+        val LEGACY_0_5_0_SERIALIZED_PROPERTIES = """
+            rO0ABXNyAERpby5ibHVldGFwZTRrLmxlYWRlci5zcHJpbmcucHJvcGVydGllcy5MZWFkZXJPYnNlcnZhYmlsaXR5UHJvcGVydGllcwAAAAAAAAABAgAFWgAHZW5hYmxlZEwABmhlYWx0aHQATExpby9ibHVldGFwZTRrL2xlYWRlci9zcHJpbmcvcHJvcGVydGllcy9MZWFkZXJPYnNlcnZhYmlsaXR5SGVhbHRoUHJvcGVydGllcztMAAlsb2NrTmFtZXN0AA9MamF2YS91dGlsL1NldDtMABFzdGF0ZVByb3ZpZGVyQmVhbnQAEkxqYXZhL2xhbmcvU3RyaW5nO0wAB3RyYWNpbmd0AEBMaW8vYmx1ZXRhcGU0ay9sZWFkZXIvc3ByaW5nL3Byb3BlcnRpZXMvTGVhZGVyVHJhY2luZ1Byb3BlcnRpZXM7eHABc3IASmlvLmJsdWV0YXBlNGsubGVhZGVyLnNwcmluZy5wcm9wZXJ0aWVzLkxlYWRlck9ic2VydmFiaWxpdHlIZWFsdGhQcm9wZXJ0aWVzAAAAAAAAAAECAAJaAAdlbmFibGVkTAAVbGVhc2VXYXJuaW5nVGhyZXNob2xkdAAUTGphdmEvdGltZS9EdXJhdGlvbjt4cAFzcgANamF2YS50aW1lLlNlcpVdhLobIkiyDAAAeHB3DQEAAAAAAAAAEQAAAAB4c3IAF2phdmEudXRpbC5MaW5rZWRIYXNoU2V02GzXWpXdKh4CAAB4cgARamF2YS51dGlsLkhhc2hTZXS6RIWVlri3NAMAAHhwdwwAAAAEP0AAAAAAAAJ0AAZvcmRlcnN0AAhwYXltZW50c3h0ABNsZWdhY3lTdGF0ZVByb3ZpZGVyc3IAPmlvLmJsdWV0YXBlNGsubGVhZGVyLnNwcmluZy5wcm9wZXJ0aWVzLkxlYWRlclRyYWNpbmdQcm9wZXJ0aWVzAAAAAAAAAAECAARaAAdlbmFibGVkWgAXaW5jbHVkZUV4Y2VwdGlvbkRldGFpbHNaAA9pbmNsdWRlTGVhZGVySWRaAA9pbmNsdWRlTG9ja05hbWV4cAEBAQE=
+        """.trimIndent()
+    }
+
     @Test
     fun `0_5_0 serialized properties restore backend health defaults`() {
         val restored = deserializeLegacyProperties()
@@ -98,14 +104,8 @@ class LeaderObservabilityPropertiesSerializationTest {
 
     @Suppress("DEPRECATION")
     private fun <T: Any> roundTrip(value: T): T {
-        val bytes = BinarySerializers.Jdk.serialize(value)
-        return BinarySerializers.Jdk.deserialize<T>(bytes).shouldNotBeNull()
-    }
-
-    private companion object: KLogging() {
-        val LEGACY_0_5_0_SERIALIZED_PROPERTIES = """
-            rO0ABXNyAERpby5ibHVldGFwZTRrLmxlYWRlci5zcHJpbmcucHJvcGVydGllcy5MZWFkZXJPYnNlcnZhYmlsaXR5UHJvcGVydGllcwAAAAAAAAABAgAFWgAHZW5hYmxlZEwABmhlYWx0aHQATExpby9ibHVldGFwZTRrL2xlYWRlci9zcHJpbmcvcHJvcGVydGllcy9MZWFkZXJPYnNlcnZhYmlsaXR5SGVhbHRoUHJvcGVydGllcztMAAlsb2NrTmFtZXN0AA9MamF2YS91dGlsL1NldDtMABFzdGF0ZVByb3ZpZGVyQmVhbnQAEkxqYXZhL2xhbmcvU3RyaW5nO0wAB3RyYWNpbmd0AEBMaW8vYmx1ZXRhcGU0ay9sZWFkZXIvc3ByaW5nL3Byb3BlcnRpZXMvTGVhZGVyVHJhY2luZ1Byb3BlcnRpZXM7eHABc3IASmlvLmJsdWV0YXBlNGsubGVhZGVyLnNwcmluZy5wcm9wZXJ0aWVzLkxlYWRlck9ic2VydmFiaWxpdHlIZWFsdGhQcm9wZXJ0aWVzAAAAAAAAAAECAAJaAAdlbmFibGVkTAAVbGVhc2VXYXJuaW5nVGhyZXNob2xkdAAUTGphdmEvdGltZS9EdXJhdGlvbjt4cAFzcgANamF2YS50aW1lLlNlcpVdhLobIkiyDAAAeHB3DQEAAAAAAAAAEQAAAAB4c3IAF2phdmEudXRpbC5MaW5rZWRIYXNoU2V02GzXWpXdKh4CAAB4cgARamF2YS51dGlsLkhhc2hTZXS6RIWVlri3NAMAAHhwdwwAAAAEP0AAAAAAAAJ0AAZvcmRlcnN0AAhwYXltZW50c3h0ABNsZWdhY3lTdGF0ZVByb3ZpZGVyc3IAPmlvLmJsdWV0YXBlNGsubGVhZGVyLnNwcmluZy5wcm9wZXJ0aWVzLkxlYWRlclRyYWNpbmdQcm9wZXJ0aWVzAAAAAAAAAAECAARaAAdlbmFibGVkWgAXaW5jbHVkZUV4Y2VwdGlvbkRldGFpbHNaAA9pbmNsdWRlTGVhZGVySWRaAA9pbmNsdWRlTG9ja05hbWV4cAEBAQE=
-        """.trimIndent()
+        val bytes = BinarySerializers.JdkUnfiltered.serialize(value)
+        return BinarySerializers.JdkUnfiltered.deserialize<T>(bytes).shouldNotBeNull()
     }
 
     private class LegacyDiagnosticsState: LeaderElectionState, LeaderBackendDiagnosticsProvider {

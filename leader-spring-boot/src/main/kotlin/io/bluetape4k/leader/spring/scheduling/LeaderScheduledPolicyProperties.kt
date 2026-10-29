@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.scheduling
 
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
+import io.bluetape4k.logging.KLogging
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.io.Serializable
 import java.time.Duration
@@ -17,7 +18,7 @@ data class LeaderScheduledPolicyProperties(
     val policies: List<Policy> = emptyList(),
 ): Serializable {
 
-    companion object {
+    companion object: KLogging() {
         private const val serialVersionUID = 1L
 
         const val PREFIX: String = "bluetape4k.leader.scheduling"

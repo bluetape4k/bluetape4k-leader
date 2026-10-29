@@ -7,6 +7,7 @@ import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderGroupElectionOptions
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
+import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -20,6 +21,8 @@ import org.springframework.context.annotation.Configuration
 @ConditionalOnClass(R2dbcDatabase::class)
 @ConditionalOnBean(R2dbcDatabase::class)
 class ExposedR2dbcLeaderConfiguration {
+
+    companion object: KLogging()
 
     @Bean
     @ConditionalOnMissingBean(name = ["exposedR2dbcSuspendLeaderElector"])

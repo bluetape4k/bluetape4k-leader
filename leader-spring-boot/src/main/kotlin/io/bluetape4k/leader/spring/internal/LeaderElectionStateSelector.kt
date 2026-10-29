@@ -6,7 +6,9 @@ import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.support.checkNotNull
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
+import org.springframework.beans.factory.getBean
 import org.springframework.beans.factory.getBeanNamesForType
 import java.io.Serializable
 
@@ -27,10 +29,11 @@ internal class LeaderElectionStateSelector(
     }
 
     fun candidates(): List<Candidate> {
-        val all = beanFactory.getBeanNamesForType<LeaderElectionState>(
-            includeNonSingletons = true,
-            allowEagerInit = false
-        )
+        val all = beanFactory
+            .getBeanNamesForType<LeaderElectionState>(
+                includeNonSingletons = true,
+                allowEagerInit = false
+            )
             .sorted()
             .map { beanName ->
                 val beanType = beanFactory.getType(beanName, false)
@@ -53,7 +56,7 @@ internal class LeaderElectionStateSelector(
         selectedCandidateOrNull()?.toSelected()
 
     fun selected(): Selected {
-        val candidate = checkNotNull(selectedCandidateOrNull()) {
+        val candidate = selectedCandidateOrNull().checkNotNull {
             "No LeaderElectionState bean is registered."
         }
         return candidate.toSelected()
@@ -76,7 +79,7 @@ internal class LeaderElectionStateSelector(
         Selected(
             beanName = beanName,
             backendName = backendName,
-            state = beanFactory.getBean(beanName, LeaderElectionState::class.java),
+            state = beanFactory.getBean<LeaderElectionState>(beanName),
         )
 
     private fun selectSingleBackend(candidates: List<Candidate>): Candidate {
@@ -85,10 +88,11 @@ internal class LeaderElectionStateSelector(
             "Multiple leader election backends are active: ${backends.joinToString()}. " +
                     "Set bluetape4k.leader.observability.state-provider-bean to select one state provider."
         }
-        return candidates.sortedWith(
-            compareByDescending<Candidate>(Candidate::blocking)
-                .thenBy(Candidate::beanName)
-        ).first()
+        return candidates
+            .sortedWith(
+                compareByDescending(Candidate::blocking)
+                    .thenBy(Candidate::beanName)
+            ).first()
     }
 
     private fun isLocalType(type: Class<*>): Boolean =

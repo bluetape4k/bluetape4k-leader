@@ -28,18 +28,16 @@ internal class ObservationRegistryNotNoopCondition: ConfigurationCondition {
     }
 
     private fun hasObservationRegistryDefinition(beanFactory: ConfigurableListableBeanFactory): Boolean {
-        if (beanFactory
-                .getBeanNamesForType<ObservationRegistry>(includeNonSingletons = false, allowEagerInit = false)
-                .isNotEmpty()) {
-            return true
-        }
+        val isNotEmpty = beanFactory
+            .getBeanNamesForType<ObservationRegistry>(includeNonSingletons = false, allowEagerInit = false)
+            .isNotEmpty()
 
-        return when (val parent = beanFactory.parentBeanFactory) {
+        return isNotEmpty || when (val parent = beanFactory.parentBeanFactory) {
             is ConfigurableListableBeanFactory -> hasObservationRegistryDefinition(parent)
             is ListableBeanFactory -> parent
                 .getBeanNamesForType<ObservationRegistry>(includeNonSingletons = false, allowEagerInit = false)
                 .isNotEmpty()
-            else -> false
+            else                   -> false
         }
     }
 }

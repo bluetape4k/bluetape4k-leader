@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.observability
 
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnostics
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.logging.KLogging
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation
 
@@ -10,6 +11,8 @@ import org.springframework.boot.actuate.endpoint.annotation.ReadOperation
 class LeaderBackendDiagnosticsEndpoint(
     private val provider: LeaderBackendDiagnosticsProvider,
 ) {
+
+    private companion object: KLogging()
 
     /** Backend descriptor와 `NOT_CHECKED` connectivity를 반환합니다. */
     @ReadOperation

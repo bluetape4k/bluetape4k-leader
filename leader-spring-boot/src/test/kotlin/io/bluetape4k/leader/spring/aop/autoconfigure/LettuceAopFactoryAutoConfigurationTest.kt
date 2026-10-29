@@ -41,7 +41,7 @@ import org.springframework.context.annotation.Bean
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LettuceAopFactoryAutoConfigurationTest {
 
-    companion object: KLogging() {
+    private companion object: KLogging() {
         val redis by lazy { RedisServer.Launcher.redis }
     }
 

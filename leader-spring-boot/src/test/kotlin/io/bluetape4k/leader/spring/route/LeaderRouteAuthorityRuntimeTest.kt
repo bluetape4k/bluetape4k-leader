@@ -74,7 +74,9 @@ class LeaderRouteAuthorityRuntimeTest {
         val advancingClock = AdvancingClock(now)
 
         every { elector.supportsAuditLeaderState } returns true
-        every { elector.state(slot.lockName) } answers {
+        every {
+            elector.state(slot.lockName)
+        } answers {
             advancingClock.advanceTo(now + 20.seconds())
             LeaderState.occupied(
                 slot.lockName,

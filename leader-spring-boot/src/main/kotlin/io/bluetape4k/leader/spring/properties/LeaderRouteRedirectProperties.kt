@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.properties
 
+import io.bluetape4k.logging.KLogging
 import java.io.Serializable
 import java.net.InetAddress
 import java.time.Duration
@@ -43,7 +44,7 @@ data class LeaderRouteRedirectProperties(
         )
     }
 
-    companion object {
+    companion object: KLogging() {
         private const val serialVersionUID = 1L
 
         private fun validateAllowedHost(value: String) {
@@ -95,10 +96,10 @@ data class LeaderRouteRedirectProperties(
         internal fun normalizeHost(value: String): String = value.lowercase()
 
         internal fun isValidHostSyntax(value: String): Boolean = when {
-            value.isEmpty() -> false
+            value.isEmpty()                    -> false
             !value.all(::isAsciiHostCharacter) -> false
             value.all { it.isDigit() || it == '.' } -> isCanonicalIpv4(value)
-            else -> isValidDnsHost(value)
+            else                               -> isValidDnsHost(value)
         }
 
         private fun isAsciiHostCharacter(value: Char): Boolean =

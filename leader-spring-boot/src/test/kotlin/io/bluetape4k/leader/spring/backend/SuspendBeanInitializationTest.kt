@@ -16,6 +16,7 @@ import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -175,7 +176,7 @@ class SuspendBeanInitializationTest {
 
             started.await(1.seconds).shouldBeTrue()
             cleanupStarted.await(1.seconds).shouldBeTrue()
-            bridgeReturned.await(100, TimeUnit.MILLISECONDS).shouldBeFalse()
+            bridgeReturned.await(100.milliseconds).shouldBeFalse()
 
             cleanupRelease.countDown()
             bridgeReturned.await(1.seconds).shouldBeTrue()
@@ -234,11 +235,13 @@ class SuspendBeanInitializationTest {
             cleanupStarted.await(1.seconds).shouldBeTrue()
             bridgeReturned.await(50.milliseconds).shouldBeFalse()
             bridgeReturned.await(2.seconds).shouldBeTrue()
+
             failure.get().shouldBeInstanceOf<TimeoutCancellationException>()
 
             val warning = appender.list.firstOrNull {
                 it.level == Level.WARN && "operationName=test-suspend-bean" in it.formattedMessage
             }.shouldNotBeNull()
+            log.debug { "warning=${warning.formattedMessage}" }
             warning.formattedMessage shouldContain "cleanup did not complete within"
         } finally {
             cleanupRelease.countDown()

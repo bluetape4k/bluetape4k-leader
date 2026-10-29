@@ -16,7 +16,7 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PropertiesAdapterTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     @Test
     fun `toCommonElection 가 properties로부터 LeaderElectionOptions 생성`() {

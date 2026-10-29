@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.metrics
 
 import io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder
+import io.bluetape4k.logging.KLogging
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.beans.factory.config.BeanDefinition
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -28,6 +29,8 @@ import org.springframework.context.annotation.Role
     matchIfMissing = true,
 )
 class LeaderMicrometerHealthAutoConfiguration {
+
+    companion object: KLogging()
 
     /** `MeterRegistry`의 active gauge를 읽는 [LeaderMetricsHealthIndicator]를 등록합니다. */
     @Bean("leaderMetricsHealthIndicator")

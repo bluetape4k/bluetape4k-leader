@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.route.mvc
 
 import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode
 import io.bluetape4k.leader.spring.properties.LeaderRouteGuardProperties
 import io.bluetape4k.leader.spring.route.LeaderRouteAuthorityRuntime
 import io.bluetape4k.leader.spring.route.LeaderRouteDecision
@@ -11,6 +12,7 @@ import io.bluetape4k.leader.spring.route.LeaderRouteRedirectPolicy
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectRequestMetadata
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectRequestMetadataProvider
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectResolver
+import io.bluetape4k.leader.spring.route.LeaseObservationCode
 import io.bluetape4k.logging.KLogging
 import jakarta.servlet.AsyncEvent
 import jakarta.servlet.AsyncListener
@@ -19,6 +21,7 @@ import jakarta.servlet.http.HttpServletResponse
 import org.springframework.web.servlet.AsyncHandlerInterceptor
 import org.springframework.web.servlet.HandlerInterceptor
 import java.io.IOException
+import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Spring MVC `HandlerInterceptor`를 만들어 leader 권한이 없는 요청을 reject 또는 redirect합니다.
@@ -112,26 +115,26 @@ class LeaderMvcRouteGuardFactory internal constructor(
         metadataProvider: LeaderRouteRedirectRequestMetadataProvider<HttpServletRequest>?,
     ): Boolean {
         val activeLeaseRuntime = leaseRuntime
-        if (properties.authorityMode == io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode.LEASE) {
+        if (properties.authorityMode == LeaderRouteAuthorityMode.LEASE) {
             if (activeLeaseRuntime == null || !activeLeaseRuntime.acceptsAcquire()) {
                 response.status = properties.rejectionStatus.value
                 return false
             }
             when (val current = request.getAttribute(LEASE_HANDLE_ATTRIBUTE)) {
-                null -> Unit
+                null                  -> Unit
                 is LeaseRequestHolder -> {
                     if (current.fingerprint == fingerprint(slot) && !current.terminal.get()) {
                         return true
                     }
-                    activeLeaseRuntime.observe(io.bluetape4k.leader.spring.route.LeaseObservationCode.STALE)
+                    activeLeaseRuntime.observe(LeaseObservationCode.STALE)
                     // The request may be re-entered with a different slot. Release the
                     // previously published lease before rejecting the stale invocation.
                     releaseLease(request)
                     response.status = properties.rejectionStatus.value
                     return false
                 }
-                else -> {
-                    activeLeaseRuntime.observe(io.bluetape4k.leader.spring.route.LeaseObservationCode.STALE)
+                else                  -> {
+                    activeLeaseRuntime.observe(LeaseObservationCode.STALE)
                     response.status = properties.rejectionStatus.value
                     return false
                 }
@@ -233,7 +236,7 @@ class LeaderMvcRouteGuardFactory internal constructor(
     ): MetadataCapture =
         try {
             MetadataCapture.Success(provider?.capture(request))
-        } catch (e: java.util.concurrent.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()

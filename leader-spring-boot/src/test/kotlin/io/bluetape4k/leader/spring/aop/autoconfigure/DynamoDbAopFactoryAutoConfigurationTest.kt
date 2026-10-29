@@ -38,7 +38,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 @ImportAutoConfiguration(LeaderAopFactoryAutoConfiguration::class)
 class DynamoDbAopFactoryAutoConfigurationTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     @TestConfiguration
     @DirtiesContext
@@ -55,20 +55,17 @@ class DynamoDbAopFactoryAutoConfigurationTest {
 
     @Test
     fun `dynamoDbLeaderElectionFactory 빈이 등록된다`() {
-        ctx.getBean("dynamoDbLeaderElectionFactory")
-            .shouldBeInstanceOf<DynamoDbLeaderElectorFactory>()
+        ctx.getBean("dynamoDbLeaderElectionFactory").shouldBeInstanceOf<DynamoDbLeaderElectorFactory>()
     }
 
     @Test
     fun `dynamoDbLeaderGroupElectionFactory 빈이 등록된다`() {
-        ctx.getBean("dynamoDbLeaderGroupElectionFactory")
-            .shouldBeInstanceOf<DynamoDbLeaderGroupElectorFactory>()
+        ctx.getBean("dynamoDbLeaderGroupElectionFactory").shouldBeInstanceOf<DynamoDbLeaderGroupElectorFactory>()
     }
 
     @Test
     fun `dynamoDbSuspendLeaderElectorFactory 빈이 등록된다`() {
-        ctx.getBean("dynamoDbSuspendLeaderElectorFactory")
-            .shouldBeInstanceOf<DynamoDbSuspendLeaderElectorFactory>()
+        ctx.getBean("dynamoDbSuspendLeaderElectorFactory").shouldBeInstanceOf<DynamoDbSuspendLeaderElectorFactory>()
     }
 
     @Test

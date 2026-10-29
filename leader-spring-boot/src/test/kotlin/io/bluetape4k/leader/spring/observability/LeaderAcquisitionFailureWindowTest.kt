@@ -28,7 +28,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class LeaderAcquisitionFailureWindowTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val now = Instant.parse("2026-07-15T00:00:00Z")
     private val options = LeaderElectionOptions()

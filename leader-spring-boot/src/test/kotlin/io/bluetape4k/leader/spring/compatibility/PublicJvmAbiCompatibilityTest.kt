@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.io.lookup
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.aop.LeaderBeanSelector
 import io.bluetape4k.leader.spring.aop.LeaderElectionAspect
@@ -33,10 +34,10 @@ import kotlin.jvm.internal.DefaultConstructorMarker
 
 class PublicJvmAbiCompatibilityTest {
 
-    companion object: KLogging() {
-        private val booleanType = Boolean::class.javaPrimitiveType ?: error("missing boolean type")
-        private val intType = Int::class.javaPrimitiveType ?: error("missing int type")
-        private const val LEGACY_ROUTE_GUARD_SERIAL_VERSION_UID = 2956475360686774009L
+    private companion object: KLogging() {
+        val booleanType = Boolean::class.javaPrimitiveType ?: error("missing boolean type")
+        val intType = Int::class.javaPrimitiveType ?: error("missing int type")
+        const val LEGACY_ROUTE_GUARD_SERIAL_VERSION_UID = 2956475360686774009L
     }
 
     @Test
@@ -122,7 +123,7 @@ class PublicJvmAbiCompatibilityTest {
 
         log.debug { "health=$health" }
         health.enabled.shouldBeFalse()
-        health.leaseWarningThreshold shouldBeEqualTo Duration.ofSeconds(10)
+        health.leaseWarningThreshold shouldBeEqualTo 10.seconds()
     }
 
     @Test
@@ -134,8 +135,8 @@ class PublicJvmAbiCompatibilityTest {
         )
         val legacy = legacyConstructor.newInstance(
             4,
-            Duration.ofSeconds(2),
-            Duration.ofSeconds(8),
+            2.seconds(),
+            8.seconds(),
         ) as LeaderGroupProperties
         legacy.useDbTime.shouldBeFalse()
 
@@ -165,14 +166,14 @@ class PublicJvmAbiCompatibilityTest {
         val copied = legacyCopy.invoke(
             LeaderGroupProperties(useDbTime = true),
             5,
-            Duration.ofSeconds(3),
-            Duration.ofSeconds(9),
+            3.seconds(),
+            9.seconds(),
         ) as LeaderGroupProperties
         copied.maxLeaders shouldBeEqualTo 5
         copied.useDbTime.shouldBeTrue()
 
         val legacyCopyDefault = LeaderGroupProperties::class.java.getMethod(
-            "copy\$default",
+            $$"copy$default",
             LeaderGroupProperties::class.java,
             intType,
             Duration::class.java,
@@ -182,7 +183,7 @@ class PublicJvmAbiCompatibilityTest {
         )
         val copiedWithDefaults = legacyCopyDefault.invoke(
             null,
-            *arrayOf<Any?>(LeaderGroupProperties(useDbTime = true), 7, null, null, 0b110, null),
+            *arrayOf(LeaderGroupProperties(useDbTime = true), 7, null, null, 0b110, null),
         ) as LeaderGroupProperties
 
         log.debug { "copiedWithDefaults=$copiedWithDefaults" }

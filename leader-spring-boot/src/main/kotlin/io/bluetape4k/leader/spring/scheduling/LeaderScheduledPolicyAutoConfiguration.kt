@@ -6,6 +6,7 @@ import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
+import io.bluetape4k.logging.KLogging
 import org.springframework.beans.factory.config.BeanDefinition
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -37,6 +38,8 @@ import org.springframework.context.annotation.Role
 )
 @EnableConfigurationProperties(LeaderScheduledPolicyProperties::class)
 class LeaderScheduledPolicyAutoConfiguration {
+
+    private companion object: KLogging()
 
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)

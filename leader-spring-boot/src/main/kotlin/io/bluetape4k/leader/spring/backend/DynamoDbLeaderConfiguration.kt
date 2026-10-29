@@ -10,6 +10,7 @@ import io.bluetape4k.leader.dynamodb.DynamoDbVirtualThreadLeaderElector
 import io.bluetape4k.leader.dynamodb.DynamoDbVirtualThreadLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
+import io.bluetape4k.logging.KLogging
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -78,7 +79,7 @@ class DynamoDbLeaderConfiguration {
     ): DynamoDbSuspendLeaderGroupElector =
         DynamoDbSuspendLeaderGroupElector(client, groupOptions(props))
 
-    companion object {
+    companion object: KLogging() {
         fun electionOptions(props: LeaderProperties): DynamoDbLeaderElectionOptions =
             DynamoDbLeaderElectionOptions(
                 leaderOptions = PropertiesAdapter.toCommonElection(props),

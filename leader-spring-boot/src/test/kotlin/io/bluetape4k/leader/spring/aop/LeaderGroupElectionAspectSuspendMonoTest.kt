@@ -65,23 +65,23 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
     private class SuspendGroupServiceImpl: SuspendGroupService {
         @LeaderGroupElection(name = "g-suspend-job", maxLeaders = 3)
-        override suspend fun runSuspend(): String? = SAMPLE_RESULT
+        override suspend fun runSuspend(): String = SAMPLE_RESULT
 
         @LeaderGroupElection(
             name = "g-suspend-fail-open",
             maxLeaders = 3,
             failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN
         )
-        override suspend fun runSuspendFailOpen(): String? = SAMPLE_RESULT
+        override suspend fun runSuspendFailOpen(): String = SAMPLE_RESULT
 
         @LeaderGroupElection(name = "g-suspend-skip", maxLeaders = 3, failureMode = LeaderAspectFailureMode.SKIP)
-        override suspend fun runSuspendSkip(): String? = SAMPLE_RESULT
+        override suspend fun runSuspendSkip(): String = SAMPLE_RESULT
 
         @LeaderGroupElection(name = "ns.subns.group-suspend", maxLeaders = 3)
-        override suspend fun runSuspendInvalidName(): String? = SAMPLE_RESULT
+        override suspend fun runSuspendInvalidName(): String = SAMPLE_RESULT
 
         @LeaderGroupElection(name = "g-suspend-db-time", maxLeaders = 3, useDbTime = true)
-        override suspend fun runSuspendDbTime(): String? = SAMPLE_RESULT
+        override suspend fun runSuspendDbTime(): String = SAMPLE_RESULT
     }
 
     // ── Mono 서비스 정의 ────────────────────────────────────────────────────

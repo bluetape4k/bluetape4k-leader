@@ -21,6 +21,7 @@ import kotlinx.coroutines.reactor.mono
 import org.springframework.http.HttpStatusCode
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
+import org.springframework.web.server.WebFilterChain
 import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
@@ -92,24 +93,25 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         if (properties.authorityMode == LeaderRouteAuthorityMode.LEASE) {
             return@WebFilter leaseFilter(slot, exchange, chain)
         }
-        Mono.fromCallable {
-            val evaluation = runtime.evaluateSnapshot(slot)
-            val metadata = if (
-                evaluation.decision == LeaderRouteDecision.NotLeader &&
-                resolver != null &&
-                redirectPolicy != null
-            ) {
-                metadataProvider?.capture(exchange)
-            } else {
-                null
+        Mono
+            .fromCallable {
+                val evaluation = runtime.evaluateSnapshot(slot)
+                val metadata = if (
+                    evaluation.decision == LeaderRouteDecision.NotLeader &&
+                    resolver != null &&
+                    redirectPolicy != null
+                ) {
+                    metadataProvider?.capture(exchange)
+                } else {
+                    null
+                }
+                val location = if (resolver != null && redirectPolicy != null) {
+                    redirectPolicy.redirect(slot, evaluation, resolver, metadata, LeaderRouteRedirectFramework.WEBFLUX)
+                } else {
+                    null
+                }
+                RedirectResult(evaluation, location)
             }
-            val location = if (resolver != null && redirectPolicy != null) {
-                redirectPolicy.redirect(slot, evaluation, resolver, metadata, LeaderRouteRedirectFramework.WEBFLUX)
-            } else {
-                null
-            }
-            RedirectResult(evaluation, location)
-        }
             .subscribeOn(evaluationScheduler)
             .onErrorResume { failure ->
                 val unwrapped = Exceptions.unwrap(failure)
@@ -119,8 +121,8 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
                         Thread.currentThread().interrupt()
                         Mono.error(unwrapped)
                     }
-                    is Error -> Mono.error(unwrapped)
-                    else -> Mono.just(
+                    is Error                -> Mono.error(unwrapped)
+                    else                    -> Mono.just(
                         RedirectResult(
                             LeaderRouteEvaluation(LeaderRouteDecision.Unavailable, null, java.time.Instant.now()),
                             null,
@@ -146,7 +148,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
     private fun leaseFilter(
         slot: LeaderSlot,
         exchange: ServerWebExchange,
-        chain: org.springframework.web.server.WebFilterChain,
+        chain: WebFilterChain,
     ): Mono<Void> {
         val activeRuntime = leaseRuntime
         val requestedFingerprint = fingerprint(slot)
@@ -170,11 +172,11 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         runtime: LeaderRouteLeaseRuntime?,
         requestedFingerprint: Int,
         exchange: ServerWebExchange,
-        chain: org.springframework.web.server.WebFilterChain,
+        chain: WebFilterChain,
     ): Mono<Void>? {
         val existing = lock.withLock { exchange.attributes[LEASE_HANDLE_ATTRIBUTE] }
         return when (existing) {
-            null -> null
+            null                  -> null
             is LeaseExchangeHolder -> if (
                 existing.fingerprint == requestedFingerprint && retainHolderUse(exchange, existing)
             ) {
@@ -195,7 +197,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
             } else {
                 staleRejection(runtime, exchange)
             }
-            else -> staleRejection(runtime, exchange)
+            else                  -> staleRejection(runtime, exchange)
         }
     }
 
@@ -216,14 +218,14 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
             when {
                 failure != null -> sink.error(failure)
                 holder != null -> sink.success(holder)
-                else -> sink.success()
+                else           -> sink.success()
             }
         }
     }
 
     private fun withRetainedHolder(
         exchange: ServerWebExchange,
-        chain: org.springframework.web.server.WebFilterChain,
+        chain: WebFilterChain,
         holder: LeaseExchangeHolder,
     ): Mono<Void> = Mono.usingWhen(
         Mono.just(holder),
@@ -241,9 +243,9 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         marker: LeaseAcquireMarker,
     ): Mono<LeaseResource> {
         val resource: Mono<LeaseResource> = if (runtime == null || !runtime.acceptsAcquire()) {
-            Mono.just<LeaseResource>(LeaseResource.Rejected)
+            Mono.just(LeaseResource.Rejected)
         } else if (runtime.suspendAcquirer != null) {
-            mono<LeaseResource> {
+            mono {
                 var acquired: SuspendLeaderLeaseHandle? = null
                 try {
                     acquired = runtime.tryAcquireSuspend(slot)
@@ -255,7 +257,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
                 }
             }
         } else {
-            Mono.fromCallable<LeaseResource> {
+            Mono.fromCallable {
                 var acquired: LeaderLeaseHandle? = null
                 try {
                     acquired = runtime.tryAcquire(slot)
@@ -284,7 +286,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
     private fun usingLeaseResource(
         resource: Mono<LeaseResource>,
         exchange: ServerWebExchange,
-        chain: org.springframework.web.server.WebFilterChain,
+        chain: WebFilterChain,
         runtime: LeaderRouteLeaseRuntime?,
         marker: LeaseAcquireMarker,
         fingerprint: Int,
@@ -299,12 +301,12 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
     private fun acquiredResource(
         resource: LeaseResource,
         exchange: ServerWebExchange,
-        chain: org.springframework.web.server.WebFilterChain,
+        chain: WebFilterChain,
         runtime: LeaderRouteLeaseRuntime?,
         marker: LeaseAcquireMarker,
         fingerprint: Int,
     ): Mono<Void> = when (resource) {
-        LeaseResource.Rejected -> {
+        LeaseResource.Rejected   -> {
             clearAcquireMarker(exchange, marker)
             reject(exchange)
         }
@@ -315,7 +317,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
     private fun handleBlockingResource(
         resource: LeaseResource.Blocking,
         exchange: ServerWebExchange,
-        chain: org.springframework.web.server.WebFilterChain,
+        chain: WebFilterChain,
         runtime: LeaderRouteLeaseRuntime?,
         marker: LeaseAcquireMarker,
         fingerprint: Int,
@@ -333,7 +335,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
     private fun handleSuspendResource(
         resource: LeaseResource.Suspend,
         exchange: ServerWebExchange,
-        chain: org.springframework.web.server.WebFilterChain,
+        chain: WebFilterChain,
         runtime: LeaderRouteLeaseRuntime?,
         marker: LeaseAcquireMarker,
         fingerprint: Int,
@@ -362,7 +364,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
         return when {
             !resource.released.compareAndSet(false, true) -> Mono.empty()
             resource is LeaseResource.Rejected -> Mono.empty()
-            else -> {
+            else                               -> {
                 val physical = lock.withLock {
                     if (!resource.published.get()) {
                         true
@@ -376,9 +378,9 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
     }
 
     private fun releasePhysicalResource(resource: LeaseResource): Mono<Void> = when (resource) {
-        LeaseResource.Rejected -> Mono.empty()
+        LeaseResource.Rejected   -> Mono.empty()
         is LeaseResource.Blocking -> Mono.fromRunnable { resource.handle.release() }
-        is LeaseResource.Suspend -> mono<Void> {
+        is LeaseResource.Suspend -> mono {
             resource.handle.release()
             null
         }

@@ -39,7 +39,7 @@ import org.springframework.context.annotation.Primary
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderObservationAutoConfigurationTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(

@@ -43,7 +43,7 @@ import java.util.concurrent.Executor
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionActuatorHttpPathTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     @LocalServerPort
     private var port: Int = 0

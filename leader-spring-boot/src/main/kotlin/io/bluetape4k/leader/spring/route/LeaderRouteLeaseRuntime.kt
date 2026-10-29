@@ -17,6 +17,7 @@ import io.bluetape4k.leader.internal.LeaseAdmissionController
 import io.bluetape4k.leader.internal.LeaseOperationScheduler
 import io.bluetape4k.leader.internal.ResidualLeaseRegistry
 import io.bluetape4k.leader.spring.properties.LeaderRouteLeaseProperties
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +29,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -60,6 +62,8 @@ internal class LeaderRouteLeaseRuntime(
             Thread(runnable, "bluetape4k-route-lease-lifetime").apply { isDaemon = true }
         },
 ): AutoCloseable {
+
+    private companion object: KLogging()
 
     init {
         // 내부 테스트/직접 생성 경로는 인위적으로 짧은 lifetime을 사용할 수 있다.
@@ -211,9 +215,9 @@ internal class LeaderRouteLeaseRuntime(
         } catch (failure: Throwable) {
             reservations.releaseAll()
             when (failure) {
-                is java.util.concurrent.CancellationException -> throw failure
-                is Error -> throw failure
-                else -> {
+                is CancellationException -> throw failure
+                is Error                 -> throw failure
+                else                     -> {
                     observe(LeaseObservationCode.ORDINARY_FAILURE)
                     return null
                 }
@@ -407,7 +411,8 @@ internal class LeaderRouteLeaseRuntime(
             }
 
         override fun ownershipStatus(): LeaseOwnershipStatus =
-            if (released.get()) terminalStatus.get() ?: LeaseOwnershipStatus.UNKNOWN else delegate.ownershipStatus()
+            if (released.get()) terminalStatus.get() ?: LeaseOwnershipStatus.UNKNOWN
+            else delegate.ownershipStatus()
 
         override fun isStillHeld(): Boolean = ownershipStatus() == LeaseOwnershipStatus.HELD
 
@@ -431,7 +436,7 @@ internal class LeaderRouteLeaseRuntime(
             } else {
                 val timeout = try {
                     scheduleCleanupTimeout(terminal, cleanup)
-                } catch (_: java.util.concurrent.RejectedExecutionException) {
+                } catch (_: RejectedExecutionException) {
                     if (terminal.compareAndSet(false, true)) {
                         observe(LeaseObservationCode.CLEANUP_TIMEOUT)
                         terminalStatus.set(LeaseOwnershipStatus.UNKNOWN)
@@ -466,7 +471,7 @@ internal class LeaderRouteLeaseRuntime(
                     scheduled.cancel(false)
                 }
                 !released.get()
-            } catch (_: java.util.concurrent.RejectedExecutionException) {
+            } catch (_: RejectedExecutionException) {
                 false
             }
         }
@@ -497,19 +502,20 @@ internal class LeaderRouteLeaseRuntime(
         private fun scheduleCleanupTimeout(
             terminal: AtomicBoolean,
             cleanup: java.util.concurrent.Future<*>?,
-        ): ScheduledFuture<*> = lifetimeScheduler.schedule(
-            {
-                if (terminal.compareAndSet(false, true)) {
-                    observe(LeaseObservationCode.CLEANUP_TIMEOUT)
-                    terminalStatus.set(LeaseOwnershipStatus.UNKNOWN)
-                    cleanup?.cancel(true)
-                    reservations.transferResidual()
-                    onTerminal()
-                }
-            },
-            cleanupTimeout.inWholeNanoseconds.coerceAtLeast(1L),
-            TimeUnit.NANOSECONDS,
-        )
+        ): ScheduledFuture<*> =
+            lifetimeScheduler.schedule(
+                {
+                    if (terminal.compareAndSet(false, true)) {
+                        observe(LeaseObservationCode.CLEANUP_TIMEOUT)
+                        terminalStatus.set(LeaseOwnershipStatus.UNKNOWN)
+                        cleanup?.cancel(true)
+                        reservations.transferResidual()
+                        onTerminal()
+                    }
+                },
+                cleanupTimeout.inWholeNanoseconds.coerceAtLeast(1L),
+                TimeUnit.NANOSECONDS,
+            )
 
         private fun safeDeadline(nowNanos: Long, durationNanos: Long): Long =
             if (durationNanos > 0L && nowNanos > Long.MAX_VALUE - durationNanos) Long.MAX_VALUE
@@ -646,7 +652,7 @@ internal class LeaderRouteLeaseRuntime(
                     scheduled.cancel(false)
                 }
                 !released.get() && !lifetimeExpired.get()
-            } catch (_: java.util.concurrent.RejectedExecutionException) {
+            } catch (_: RejectedExecutionException) {
                 false
             }
         }

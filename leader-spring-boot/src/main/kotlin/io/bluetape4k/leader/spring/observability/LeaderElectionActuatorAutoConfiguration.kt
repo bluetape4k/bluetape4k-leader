@@ -1,8 +1,10 @@
 package io.bluetape4k.leader.spring.observability
 
 import io.bluetape4k.leader.LeaderElectionState
+import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.internal.LeaderElectionStateSelector
+import io.bluetape4k.logging.KLogging
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanDefinition
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
@@ -31,6 +33,8 @@ import org.springframework.context.annotation.Role
 )
 @EnableConfigurationProperties(LeaderProperties::class)
 class LeaderElectionActuatorAutoConfiguration {
+
+    private companion object: KLogging()
 
     @Bean("leaderElectionStatusEndpoint")
     @ConditionalOnMissingBean
@@ -80,7 +84,7 @@ class LeaderElectionActuatorAutoConfiguration {
 
     /** Preserves the blocking-elector factory method published in 0.4.0. */
     fun leaderElectionStatusEndpoint(
-        leaderElector: io.bluetape4k.leader.LeaderElector,
+        leaderElector: LeaderElector,
         registry: LeaderElectionStatusRegistry,
     ): LeaderElectionStatusEndpoint = LeaderElectionStatusEndpoint(leaderElector, registry)
 }

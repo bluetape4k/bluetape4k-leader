@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.await
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectorFactory
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.reactive.asFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.aspectj.lang.ProceedingJoinPoint
@@ -47,10 +49,11 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+@Suppress("ReactiveStreamsUnusedPublisher")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionAspectStreamTest {
 
-    companion object: KLoggingChannel()
+    private companion object: KLoggingChannel()
 
     private interface StreamService {
         fun fluxBounded(): Flux<String>
@@ -188,12 +191,12 @@ class LeaderElectionAspectStreamTest {
     }
 
     @Test
-    fun `flux skip returns empty stream without body call`() {
+    fun `flux skip returns empty stream without body call`() = runSuspendIO {
         configureJoinPoint("fluxBounded")
         val elector = CountingSuspendElector(elected = false)
 
         val aspect = newAspect(fakeFactory(elector))
-        val values = (aspect.aroundLeader(pjp) as Flux<*>).collectList().block()
+        val values = (aspect.aroundLeader(pjp) as Flux<*>).asFlow().toList()
 
         values.shouldBeEmpty()
         elector.acquireCount.get() shouldBeEqualTo 0
@@ -201,19 +204,19 @@ class LeaderElectionAspectStreamTest {
     }
 
     @Test
-    fun `flux fail open executes body when not elected`() {
+    fun `flux fail open executes body when not elected`() = runTest {
         configureJoinPoint("fluxFailOpen")
         every { pjp.proceed() } returns Flux.just("fail-open")
 
         val aspect = newAspect(fakeFactory(CountingSuspendElector(elected = false)))
-        val values = (aspect.aroundLeader(pjp) as Flux<*>).collectList().block()
+        val values = (aspect.aroundLeader(pjp) as Flux<*>).asFlow().toList()
 
-        log.debug { "values=${values?.joinToString()}" }
+        log.debug { "values=${values.joinToString()}" }
         values shouldBeEqualTo listOf("fail-open")
     }
 
     @Test
-    fun `flux fail open body error propagates raw exception`() {
+    fun `flux fail open body error propagates raw exception`() = runTest {
         configureJoinPoint("fluxFailOpen")
         val bodyEx = IllegalStateException("flux fail-open body failed")
 
@@ -223,26 +226,26 @@ class LeaderElectionAspectStreamTest {
         val flux = aspect.aroundLeader(pjp) as Flux<*>
 
         val thrown = assertFailsWith<IllegalStateException> {
-            flux.collectList().block()
+            flux.asFlow().toList()
         }
         thrown shouldBeInstanceOf bodyEx::class
         thrown.message shouldBeEqualTo bodyEx.message
     }
 
     @Test
-    fun `flux backend error rethrows leader exception`() {
+    fun `flux backend error rethrows leader exception`() = runTest {
         configureJoinPoint("fluxBounded")
         val aspect = newAspect(fakeFactory(BackendErrorSuspendElector(RuntimeException("backend down"))))
 
         val flux = aspect.aroundLeader(pjp) as Flux<*>
 
         assertFailsWith<LeaderElectionException> {
-            flux.collectList().block()
+            flux.asFlow().toList()
         }
     }
 
     @Test
-    fun `flux body error propagates raw exception and releases lock`() {
+    fun `flux body error propagates raw exception and releases lock`() = runTest {
         configureJoinPoint("fluxBounded")
         val bodyEx = IllegalStateException("flux body failed")
 
@@ -253,7 +256,7 @@ class LeaderElectionAspectStreamTest {
         val flux = aspect.aroundLeader(pjp) as Flux<*>
 
         val thrown = assertFailsWith<IllegalStateException> {
-            flux.collectList().block()
+            flux.asFlow().toList()
         }
         thrown shouldBeEqualTo bodyEx
         thrown.message shouldBeEqualTo bodyEx.message
@@ -278,7 +281,7 @@ class LeaderElectionAspectStreamTest {
     }
 
     @Test
-    fun `flux subscribes acquire independently per subscription`() {
+    fun `flux subscribes acquire independently per subscription`() = runTest {
         configureJoinPoint("fluxBounded")
         every { pjp.proceed() } returns Flux.just("x")
 
@@ -286,23 +289,23 @@ class LeaderElectionAspectStreamTest {
         val aspect = newAspect(fakeFactory(elector))
         val flux = aspect.aroundLeader(pjp) as Flux<*>
 
-        flux.collectList().block()
-        flux.collectList().block()
+        flux.asFlow().toList()
+        flux.asFlow().toList()
 
         elector.acquireCount.get() shouldBeEqualTo 2
         elector.releaseCount.get() shouldBeEqualTo 2
     }
 
     @Test
-    fun `flux auto extend allows unbounded stream config`() {
+    fun `flux auto extend allows unbounded stream config`() = runTest {
         configureJoinPoint("fluxAutoExtend")
         every { pjp.proceed() } returns Flux.just("auto")
         val elector = CountingSuspendElector()
         val aspect = newAspect(fakeFactory(elector))
 
-        val values = (aspect.aroundLeader(pjp) as Flux<*>).collectList().block()
+        val values = (aspect.aroundLeader(pjp) as Flux<*>).asFlow().toList()
 
-        log.debug { "values=${values?.joinToString()}" }
+        log.debug { "values=${values.joinToString()}" }
         values shouldBeEqualTo listOf("auto")
         elector.acquireCount.get() shouldBeEqualTo 1
         elector.releaseCount.get() shouldBeEqualTo 1
@@ -443,6 +446,6 @@ class LeaderElectionAspectStreamTest {
         await atMost 10.seconds withPollInterval 20.milliseconds until {
             block()
         }
-        return block()
+        return true
     }
 }

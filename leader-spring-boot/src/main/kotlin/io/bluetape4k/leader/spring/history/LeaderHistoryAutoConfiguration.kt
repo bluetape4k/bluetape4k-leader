@@ -35,8 +35,7 @@ class LeaderHistoryAutoConfiguration {
     @ConditionalOnMissingBean(LeaderHistorySink::class)
     fun leaderHistorySink(): LeaderHistorySink {
         log.info {
-            "Leader history audit disabled (NoopLeaderHistorySink). " +
-                    "Provide a LeaderHistorySink bean to enable."
+            "Leader history audit disabled (NoopLeaderHistorySink). Provide a LeaderHistorySink bean to enable."
         }
         return NoopLeaderHistorySink
     }
@@ -75,7 +74,7 @@ class LeaderHistoryAutoConfiguration {
                 }
                 null
             }
-            else -> SuspendSafeLeaderHistoryRecorder(sinks.single())
+            else           -> SuspendSafeLeaderHistoryRecorder(sinks.single())
         }
     }
 
@@ -130,7 +129,7 @@ class LeaderHistoryAutoConfiguration {
                     }
                     null
                 }
-                else -> {
+                else           -> {
                     val sink = sinks.single()
                     val registry = registryProvider.ifAvailable
                     if (registry != null) {

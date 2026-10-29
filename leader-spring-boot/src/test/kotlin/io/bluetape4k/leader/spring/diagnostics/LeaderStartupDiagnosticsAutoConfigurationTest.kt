@@ -31,7 +31,7 @@ import java.util.concurrent.Executor
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderStartupDiagnosticsAutoConfigurationTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(

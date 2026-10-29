@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderManagementActionResult
 import io.bluetape4k.leader.LeaderManagementActionSurface
 import io.bluetape4k.leader.LeaderManagementHttpContract
 import io.bluetape4k.leader.isManagementActionLockName
+import io.bluetape4k.logging.KLogging
 import org.springframework.boot.actuate.endpoint.annotation.Selector
 import org.springframework.boot.actuate.endpoint.annotation.WriteOperation
 import org.springframework.boot.actuate.endpoint.web.WebEndpointResponse
@@ -24,6 +25,8 @@ class LeaderElectionActionWebEndpoint(
     private val registry: LeaderManagementActionRegistry,
 ) {
 
+    private companion object: KLogging()
+    
     /** lock selector를 검증하고 공통 HTTP status 계약으로 release 결과를 감쌉니다. */
     @WriteOperation
     fun release(@Selector lockName: String): WebEndpointResponse<LeaderManagementActionHttpResponse> {

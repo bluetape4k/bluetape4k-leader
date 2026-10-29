@@ -48,7 +48,7 @@ import kotlin.coroutines.resume
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionAspectSuspendMonoTest {
 
-    companion object: KLogging() {
+    private companion object: KLogging() {
         private const val SAMPLE_RESULT = "suspend-ok"
     }
 
@@ -63,16 +63,16 @@ class LeaderElectionAspectSuspendMonoTest {
 
     private class SuspendServiceImpl: SuspendService {
         @LeaderElection(name = "suspend-job")
-        override suspend fun runSuspend(): String? = SAMPLE_RESULT
+        override suspend fun runSuspend(): String = SAMPLE_RESULT
 
         @LeaderElection(name = "suspend-fail-open", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
-        override suspend fun runSuspendFailOpen(): String? = SAMPLE_RESULT
+        override suspend fun runSuspendFailOpen(): String = SAMPLE_RESULT
 
         @LeaderElection(name = "suspend-skip", failureMode = LeaderAspectFailureMode.SKIP)
-        override suspend fun runSuspendSkip(): String? = SAMPLE_RESULT
+        override suspend fun runSuspendSkip(): String = SAMPLE_RESULT
 
         @LeaderElection(name = "ns.subns.suspend")
-        override suspend fun runSuspendInvalidName(): String? = SAMPLE_RESULT
+        override suspend fun runSuspendInvalidName(): String = SAMPLE_RESULT
     }
 
     // ── Mono 서비스 정의 ────────────────────────────────────────────────────
@@ -108,7 +108,7 @@ class LeaderElectionAspectSuspendMonoTest {
 
     /** 백엔드 오류 throw */
     private class BackendErrorSuspendElector(private val error: Exception): SuspendLeaderElector {
-        override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = throw error
+        override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T = throw error
     }
 
     private fun fakeSuspendFactory(elector: SuspendLeaderElector): SuspendLeaderElectorFactory =

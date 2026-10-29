@@ -59,6 +59,7 @@ internal class LeaderRouteLeaseShutdownCoordinator(
         registered.forEach { release -> runCatching { release() } }
         runCatching { releaseHandles() }
         val deadline = System.nanoTime() + drainTimeout.inWholeNanoseconds.coerceAtLeast(0L)
+
         while (System.nanoTime() < deadline) {
             if (isDrained()) {
                 state.compareAndSet(State.DRAINING, State.DRAINED)
@@ -81,7 +82,7 @@ internal class LeaderRouteLeaseShutdownCoordinator(
 
     override fun close() {
         when (drain()) {
-            State.DRAINED -> {
+            State.DRAINED                         -> {
                 disposeSchedulers()
                 state.compareAndSet(State.DRAINED, State.CLOSED)
             }

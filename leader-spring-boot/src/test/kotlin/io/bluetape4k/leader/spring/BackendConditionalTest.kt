@@ -225,7 +225,6 @@ class BackendConditionalTest {
             .withPropertyValues("bluetape4k.leader.etcd.key-prefix=/apps/orders/leader")
             .run { ctx ->
                 ctx.getBean("etcdLeaderElector").shouldBeInstanceOf<EtcdLeaderElector>()
-
                 ctx.containsBean("etcdSuspendLeaderElector").shouldBeTrue()
                 ctx.containsBean("etcdLeaderGroupElector").shouldBeTrue()
                 ctx.containsBean("etcdSuspendLeaderGroupElector").shouldBeTrue()
@@ -247,7 +246,6 @@ class BackendConditionalTest {
             )
             .run { ctx ->
                 ctx.getBean("consulLeaderElector").shouldBeInstanceOf<ConsulLeaderElector>()
-
                 ctx.containsBean("consulSuspendLeaderElector").shouldBeTrue()
                 ctx.containsBean("consulLeaderGroupElector").shouldBeTrue()
                 ctx.containsBean("consulSuspendLeaderGroupElector").shouldBeTrue()

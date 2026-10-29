@@ -31,7 +31,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderGroupElectionAspectReentrantTest {
 
-    companion object: KLogging() {
+    private companion object: KLogging() {
         private const val LOCK_NAME = "group-reentrant-job"
         private const val FACTORY_BEAN = "testGroupFactory"
         private const val SAMPLE_RESULT = "group-body-result"

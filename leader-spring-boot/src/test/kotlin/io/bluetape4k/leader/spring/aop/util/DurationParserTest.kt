@@ -15,7 +15,7 @@ import java.time.Duration
  */
 class DurationParserTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     @ParameterizedTest
     @CsvSource(

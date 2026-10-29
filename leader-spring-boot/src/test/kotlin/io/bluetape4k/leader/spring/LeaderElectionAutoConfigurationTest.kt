@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
@@ -21,6 +22,7 @@ import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionAutoConfigurationTest: AbstractRedissonAutoConfigurationTest() {
@@ -81,8 +83,8 @@ class LeaderElectionAutoConfigurationTest: AbstractRedissonAutoConfigurationTest
             .run { ctx ->
                 val props = ctx.getBean<LeaderProperties>()
                 props.shouldNotBeNull()
-                props.waitTime.seconds shouldBeEqualTo 2L
-                props.leaseTime.seconds shouldBeEqualTo 15L
+                props.waitTime shouldBeEqualTo 2.seconds()
+                props.leaseTime shouldBeEqualTo 15.seconds()
             }
     }
 

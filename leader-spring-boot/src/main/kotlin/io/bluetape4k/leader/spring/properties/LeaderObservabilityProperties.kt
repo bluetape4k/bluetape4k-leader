@@ -263,7 +263,7 @@ data class LeaderObservabilityHealthProperties(
             leaseWarningThreshold = if (mask and 0x002 != 0) {
                 self.leaseWarningThreshold
             } else {
-                requireNotNull(leaseWarningThreshold)
+                leaseWarningThreshold.requireNotNull("leaseWarningThreshold")
             },
             acquisitionFailureWindow = self.acquisitionFailureWindow,
         )

@@ -8,6 +8,7 @@ import io.bluetape4k.leader.etcd.EtcdSuspendLeaderElector
 import io.bluetape4k.leader.etcd.EtcdSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
+import io.bluetape4k.logging.KLogging
 import io.etcd.jetcd.Client
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -20,6 +21,8 @@ import org.springframework.context.annotation.Configuration
 @ConditionalOnClass(Client::class, EtcdLeaderElector::class)
 @ConditionalOnBean(Client::class)
 class EtcdLeaderConfiguration {
+
+    companion object: KLogging()
 
     @Bean
     @ConditionalOnMissingBean(name = ["etcdLeaderElector"])

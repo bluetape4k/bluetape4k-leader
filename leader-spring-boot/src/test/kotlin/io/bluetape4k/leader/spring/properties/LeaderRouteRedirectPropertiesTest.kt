@@ -11,7 +11,7 @@ import java.time.Duration
 
 class LeaderRouteRedirectPropertiesTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     @Test
     fun `default redirect policy is disabled and empty`() {

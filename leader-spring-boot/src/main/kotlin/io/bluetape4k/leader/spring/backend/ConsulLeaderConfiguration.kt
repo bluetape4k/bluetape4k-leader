@@ -9,6 +9,7 @@ import io.bluetape4k.leader.consul.ConsulSuspendLeaderElector
 import io.bluetape4k.leader.consul.ConsulSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
+import io.bluetape4k.logging.KLogging
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -21,6 +22,8 @@ import kotlin.time.toKotlinDuration
 @ConditionalOnClass(ConsulEndpoint::class, ConsulLeaderElector::class)
 @ConditionalOnBean(ConsulEndpoint::class)
 class ConsulLeaderConfiguration {
+
+    companion object: KLogging()
 
     @Bean
     @ConditionalOnMissingBean(name = ["consulLeaderElector"])

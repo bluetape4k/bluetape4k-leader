@@ -1,9 +1,11 @@
 package io.bluetape4k.leader.spring.history
 
+import io.bluetape4k.javatimes.days
 import io.bluetape4k.leader.annotation.LeaderElection
 import io.bluetape4k.leader.history.NoopSuspendLeaderHistorySink
 import io.bluetape4k.leader.history.SuspendLeaderHistorySink
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
@@ -12,7 +14,6 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import reactor.core.publisher.Mono
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 
 /** scheduled coroutine leader task로 오래된 suspend history row를 chunk 단위로 삭제합니다.
  *
@@ -48,10 +49,12 @@ class SuspendLeaderHistoryRetentionJob(
         mono(Dispatchers.IO) { runRetentionInternal() }.then()
 
     private suspend fun runRetentionInternal() {
-        val cutoff = Instant.now().minus(retentionDays, ChronoUnit.DAYS)
+        val cutoff = Instant.now() - retentionDays.days()
         val deadline = System.currentTimeMillis() + maxDurationMs
         var deleted: Int
+
         do {
+            log.debug { "delete older than $cutoff, chunkSize=$chunkSize" }
             deleted = sink.deleteOlderThan(cutoff, chunkSize)
         } while (deleted >= chunkSize && System.currentTimeMillis() < deadline)
 

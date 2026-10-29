@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotBeEqualTo
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.springframework.expression.spel.SpelEvaluationException
 
@@ -21,7 +22,7 @@ import org.springframework.expression.spel.SpelEvaluationException
  */
 class SpelExpressionEvaluatorTest {
 
-    companion object: KLogging() {
+    private companion object: KLogging() {
         private const val SAMPLE_TENANT = "tenant-x"
     }
 
@@ -191,6 +192,7 @@ class SpelExpressionEvaluatorTest {
                 SampleService()
             )
         }
+        log.debug { "ex=$ex" }
         ex.message shouldContain "SampleService"
         ex.message shouldContain "process"
     }
@@ -277,6 +279,7 @@ class SpelExpressionEvaluatorTest {
         val ex = assertFailsWith<IllegalStateException> {
             sut.preParse("prefix-#{'unclosed}", method("process"))
         }
+        log.debug { "ex=$ex" }
         ex.message shouldContain "SpEL template"
     }
 
@@ -358,6 +361,7 @@ class SpelExpressionEvaluatorTest {
             arrayOf("EU"),
             SampleService()
         )
+        log.debug { "ctx=$ctx" }
         ctx.methodName shouldBeEqualTo "process"
     }
 }

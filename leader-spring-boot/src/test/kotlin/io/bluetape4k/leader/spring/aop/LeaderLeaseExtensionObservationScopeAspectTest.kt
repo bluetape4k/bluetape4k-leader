@@ -162,7 +162,7 @@ class LeaderLeaseExtensionObservationScopeAspectTest {
         val election = mockk<LeaderElector>()
         val action = slot<() -> Any?>()
         every {
-            election.runIfLeaderResult<Any?>(any<String>(), capture(action))
+            election.runIfLeaderResult(any<String>(), capture(action))
         } answers {
             LeaderRunResult.Elected(action.captured.invoke())
         }
@@ -282,7 +282,7 @@ class LeaderLeaseExtensionObservationScopeAspectTest {
     }
 
     private suspend inline fun withObservationScopes(
-        crossinline block: suspend (ScopeFixture, ScopeFixture, AtomicInteger) -> Unit,
+        block: suspend (ScopeFixture, ScopeFixture, AtomicInteger) -> Unit,
     ) {
         val first = scopeFixture()
         val second = scopeFixture()

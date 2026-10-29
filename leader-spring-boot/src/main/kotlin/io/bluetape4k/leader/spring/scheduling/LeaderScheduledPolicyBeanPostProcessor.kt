@@ -36,7 +36,7 @@ class LeaderScheduledPolicyBeanPostProcessor(
     spel: SpelExpressionEvaluator,
 ): BeanPostProcessor, SmartInitializingSingleton, PriorityOrdered {
 
-    companion object: KLogging() {
+    private companion object: KLogging() {
         private const val POLICY_BPP_ORDER_OFFSET = 100
         private const val MONO_RETURN_TYPE = "reactor.core.publisher.Mono"
         private const val FLUX_RETURN_TYPE = "reactor.core.publisher.Flux"
@@ -160,7 +160,7 @@ class LeaderScheduledPolicyBeanPostProcessor(
     private fun collectScheduledMethods(targetClass: Class<*>): List<Method> =
         MethodIntrospector.selectMethods(
             targetClass,
-            MethodIntrospector.MetadataLookup<Set<Scheduled>> { method ->
+            MethodIntrospector.MetadataLookup { method ->
                 AnnotatedElementUtils.getMergedRepeatableAnnotations(
                     method,
                     Scheduled::class.java,

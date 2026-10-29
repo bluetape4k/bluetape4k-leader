@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.metrics
 
 import io.bluetape4k.leader.LeaderLeaseExtensionObservationScope
+import io.bluetape4k.logging.KLogging
 import io.micrometer.observation.ObservationRegistry
 import java.util.concurrent.atomic.AtomicReference
 
@@ -10,6 +11,8 @@ internal const val LEASE_EXTENSION_OBSERVATION_SCOPE_OWNER_BEAN_NAME =
 internal class LeaseExtensionObservationScopeOwner(
     val registry: ObservationRegistry,
 ) {
+    private companion object: KLogging()
+
     private val scope = AtomicReference<LeaderLeaseExtensionObservationScope?>()
 
     fun activate(value: LeaderLeaseExtensionObservationScope) {

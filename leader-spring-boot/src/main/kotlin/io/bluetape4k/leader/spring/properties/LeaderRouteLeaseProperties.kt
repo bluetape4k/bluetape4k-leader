@@ -2,9 +2,9 @@ package io.bluetape4k.leader.spring.properties
 
 import io.bluetape4k.javatimes.hours
 import io.bluetape4k.javatimes.minutes
+import io.bluetape4k.javatimes.requirePositiveDuration
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.support.requireGe
-import io.bluetape4k.support.requireGt
 import io.bluetape4k.support.requireInRange
 import io.bluetape4k.support.requireLe
 import java.io.Serializable
@@ -103,7 +103,7 @@ data class LeaderRouteLeaseProperties(
     }
 
     private fun requirePositive(value: Duration, name: String) {
-        value.requireGt(Duration.ZERO, name)
+        value.requirePositiveDuration(name)
     }
 
     private fun requireBounded(value: Int, range: IntRange, name: String) {
