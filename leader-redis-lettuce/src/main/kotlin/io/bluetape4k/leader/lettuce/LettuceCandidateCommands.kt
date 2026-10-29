@@ -86,9 +86,10 @@ internal class StandaloneBlockingCandidateValueReader(
     private val commands: RedisCommands<String, String>,
 ): BlockingCandidateValueReader {
     override fun read(keys: List<String>): Map<String, String?> =
-        commands.mget(*keys.toTypedArray()).associate { value ->
-            value.key to if (value.hasValue()) value.value else null
-        }
+        commands.mget(*keys.toTypedArray())
+            .associate { value ->
+                value.key to value.getValueOrElse(null)
+            }
 }
 
 /** Cluster에서는 같은 lock hash-tag를 가진 v3 key만 MGET합니다. */
@@ -96,7 +97,8 @@ internal class ClusterBlockingCandidateValueReader(
     private val commands: io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands<String, String>,
 ): BlockingCandidateValueReader {
     override fun read(keys: List<String>): Map<String, String?> =
-        commands.mget(*keys.toTypedArray()).associate { value ->
-            value.key to if (value.hasValue()) value.value else null
-        }
+        commands.mget(*keys.toTypedArray())
+            .associate { value ->
+                value.key to value.getValueOrElse(null)
+            }
 }

@@ -14,6 +14,17 @@ import kotlin.reflect.jvm.jvmErasure
 
 class LettuceStrategicConstructorCompatibilityTest {
 
+    private companion object: KLogging() {
+        val expectedContracts = listOf(
+            ConstructorContract(LettuceStrategicLeaderElector::class),
+            ConstructorContract(LettuceStrategicLeaderGroupElector::class),
+            ConstructorContract(LettuceStrategicSuspendLeaderElector::class),
+            ConstructorContract(LettuceStrategicSuspendLeaderGroupElector::class),
+        )
+    }
+
+    private data class ConstructorContract(val type: KClass<*>)
+
     @Test
     fun `strategic electors retain standalone public primary constructors`() {
         expectedContracts.forEach { contract ->
@@ -46,14 +57,5 @@ class LettuceStrategicConstructorCompatibilityTest {
         }
     }
 
-    private data class ConstructorContract(val type: KClass<*>)
 
-    private companion object: KLogging() {
-        val expectedContracts = listOf(
-            ConstructorContract(LettuceStrategicLeaderElector::class),
-            ConstructorContract(LettuceStrategicLeaderGroupElector::class),
-            ConstructorContract(LettuceStrategicSuspendLeaderElector::class),
-            ConstructorContract(LettuceStrategicSuspendLeaderGroupElector::class),
-        )
-    }
 }

@@ -13,6 +13,7 @@ internal object LettuceCandidateInfoCodec {
     fun encode(info: CandidateInfo): String {
         val meta = info.metadata.entries
             .joinToString(",") { (k, v) -> "${k.esc()}=${v.esc()}" }
+
         return "${info.nodeId.esc()}|${info.registeredAt.toEpochMilli()}|" +
                 "${info.lastStartTime?.toEpochMilli() ?: ""}|" +
                 "${info.lastCompletionTime?.toEpochMilli() ?: ""}|" +
@@ -22,6 +23,7 @@ internal object LettuceCandidateInfoCodec {
     fun decode(encoded: String): CandidateInfo {
         val p = encoded.split("|", limit = 7)
         require(p.size == 7) { "CandidateInfo 인코딩 형식 오류: $encoded" }
+
         return CandidateInfo(
             nodeId = p[0].unesc(),
             registeredAt = Instant.ofEpochMilli(p[1].toLong()),
@@ -35,6 +37,7 @@ internal object LettuceCandidateInfoCodec {
 
     private fun decodeMeta(s: String): Map<String, String> {
         if (s.isEmpty()) return emptyMap()
+
         return s.split(",").associate { kv ->
             val idx = kv.indexOf("=")
             require(idx >= 0) { "metadata 항목에 '=' 가 없습니다: $kv" }

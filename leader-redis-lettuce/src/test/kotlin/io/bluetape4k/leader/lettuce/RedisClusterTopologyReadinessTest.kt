@@ -10,8 +10,9 @@ import io.lettuce.core.cluster.models.partitions.RedisClusterNode
 import io.lettuce.core.cluster.models.partitions.RedisClusterNode.NodeFlag
 import org.awaitility.core.ConditionTimeoutException
 import org.junit.jupiter.api.Test
-import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class RedisClusterTopologyReadinessTest {
 
@@ -24,7 +25,7 @@ class RedisClusterTopologyReadinessTest {
         val attempts = AtomicInteger()
         val evidence = mutableListOf<String>()
 
-        val actual = awaitReplicaTopology("source", evidence, Duration.ofSeconds(1)) {
+        val actual = awaitReplicaTopology("source", evidence, 1.seconds) {
             if (attempts.incrementAndGet() == 1) listOf(source) else listOf(source, replica)
         }
 
@@ -46,7 +47,7 @@ class RedisClusterTopologyReadinessTest {
         val evidence = mutableListOf<String>()
 
         val failure = assertFailsWith<ConditionTimeoutException> {
-            awaitReplicaTopology("source", evidence, Duration.ofMillis(250)) {
+            awaitReplicaTopology("source", evidence, 250.milliseconds) {
                 listOf(source, unrelated)
             }
         }

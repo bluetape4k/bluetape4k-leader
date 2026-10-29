@@ -66,6 +66,7 @@ class LettuceLockTest: AbstractLettuceLeaderTest() {
         owner.tryLock(leaseTime = 2.seconds).shouldBeTrue()
 
         contender.tryLock(waitTime = 100.milliseconds, leaseTime = 2.seconds).shouldBeFalse()
+
         assertFailsWith<IllegalStateException> {
             contender.lock(leaseTime = 2.seconds, maxWaitTime = 100.milliseconds)
         }

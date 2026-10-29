@@ -156,5 +156,4 @@ class LettuceLeaderBackendDiagnosticsTest {
             elector.backendDescriptor shouldBeEqualTo expected
         }
     }
-
 }

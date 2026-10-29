@@ -16,6 +16,6 @@ internal object LettuceBackendErrorClassifier: BackendErrorClassifier {
         is RedisCommandTimeoutException -> BackendErrorKind.TRANSIENT
         is RedisConnectionException -> BackendErrorKind.TRANSIENT
         is RedisCommandExecutionException -> BackendErrorKind.NON_TRANSIENT
-        else -> null
+        else                        -> null
     }
 }

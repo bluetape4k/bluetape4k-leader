@@ -3,11 +3,12 @@ package io.bluetape4k.leader.lettuce
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.validateLockName
+import io.bluetape4k.support.asLongOrNull
+import io.bluetape4k.support.asString
 import io.lettuce.core.RedisCommandExecutionException
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
-import java.time.Instant
 import java.util.*
 import kotlin.time.Duration
 
@@ -101,7 +102,7 @@ internal class LettuceCandidateRegistry private constructor(
                     observedTombstone.orEmpty(),
                 ),
             )
-            when (reply.firstOrNull()?.toString()?.toLongOrNull()) {
+            when (reply.firstOrNull().asLongOrNull()) {
                 REGISTERED -> return
                 TOMBSTONED -> Unit
                 else -> requireStatus(reply, REGISTERED)
@@ -115,6 +116,7 @@ internal class LettuceCandidateRegistry private constructor(
         val ttlMillis = candidateTtlMillis(ttl)
         if (commands.get(tombstoneKey(lockName, info.nodeId)) != null) return
         ensureCurrentCandidate(lockName, info.nodeId)
+
         val reply = commands.runScript<List<Any>>(
             LettuceCandidateRefreshScript.REFRESH,
             ScriptOutputType.MULTI,
@@ -131,6 +133,7 @@ internal class LettuceCandidateRegistry private constructor(
 
     fun unregisterCandidate(lockName: String, nodeId: String) {
         lockName.validateLockName()
+
         val reply = runWriteScript(
             operation = UNREGISTER,
             keys = arrayOf(
@@ -182,6 +185,7 @@ internal class LettuceCandidateRegistry private constructor(
         val legacySources = sourceNodeIds.associateWith { nodeId ->
             readLegacySources(lockName, nodeId, nodeId in v2NodeIds, nodeId in legacyNodeIds)
         }
+
         sourceNodeIds.forEach { nodeId ->
             if (candidates.containsKey(nodeId)) return@forEach
             if (commands.get(tombstoneKey(lockName, nodeId)) != null) return@forEach
@@ -214,7 +218,7 @@ internal class LettuceCandidateRegistry private constructor(
             LettuceCandidateResultScript.UPDATE,
             ScriptOutputType.MULTI,
             arrayOf(candidateKey(lockName, nodeId), migrationTokenKey(lockName, nodeId)),
-            *LettuceCandidateResultScript.resultArgs(result, Instant.now().toEpochMilli()),
+            *LettuceCandidateResultScript.resultArgs(result, System.currentTimeMillis()),
         )
         LettuceCandidateResultScript.rethrowMalformed(reply)
     }
@@ -308,7 +312,9 @@ internal class LettuceCandidateRegistry private constructor(
             if (!e.isWrongType()) throw e
             null
         }
-        return raw?.takeIf { encoded -> LettuceCandidateInfoCodec.decode(encoded).nodeId == expectedNodeId }
+        return raw?.takeIf { encoded ->
+            LettuceCandidateInfoCodec.decode(encoded).nodeId == expectedNodeId
+        }
     }
 
     private fun migrateLegacyCandidate(lockName: String, nodeId: String, source: LegacyCandidate): Boolean {
@@ -334,17 +340,17 @@ internal class LettuceCandidateRegistry private constructor(
                     ),
                     args = arrayOf(sourceRaw, observedTtl.toString(), nodeId, token),
                 )
-                when (reply.firstOrNull()?.toString()?.toLongOrNull()) {
-                    MIGRATED -> {
+                when (reply.firstOrNull().asLongOrNull()) {
+                    MIGRATED          -> {
                         cleanupExpiredMigration(lockName, nodeId, source.key, sourceRaw, observedTtl, token)
                         commands.get(candidateKey(lockName, nodeId)) != null
                     }
-                    EXISTING_REPAIRED -> true
-                    MALFORMED -> {
-                        LettuceCandidateInfoCodec.decode(reply.getOrNull(1)?.toString().orEmpty())
+                    MALFORMED         -> {
+                        LettuceCandidateInfoCodec.decode(reply.getOrNull(1).asString())
                         false
                     }
-                    else -> false
+                    EXISTING_REPAIRED -> true
+                    else              -> false
                 }
             }
         }
@@ -384,6 +390,7 @@ internal class LettuceCandidateRegistry private constructor(
                 add(migrationTokenKey(lockName, nodeId))
             }
         }.toTypedArray()
+
         commands.runScript<Long>(
             LettuceCandidateIndexCleanupScript.REMOVE_MISSING,
             ScriptOutputType.INTEGER,
@@ -404,7 +411,7 @@ internal class LettuceCandidateRegistry private constructor(
                 operation = REMOVE_LEGACY_IF_VALUE,
                 keys = arrayOf(candidateKey),
                 args = arrayOf(raw),
-            ).firstOrNull()?.toString()?.toLongOrNull() == REMOVED
+            ).firstOrNull().asLongOrNull() == REMOVED
         } ?: false
         if (observedRaw == null || removed) {
             removeLegacyIndexMembers(indexKey, listOf(nodeId))

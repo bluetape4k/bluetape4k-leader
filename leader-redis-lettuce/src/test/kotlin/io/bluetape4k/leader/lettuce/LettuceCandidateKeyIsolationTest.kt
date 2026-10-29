@@ -10,6 +10,7 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.toUtf8Bytes
 import org.junit.jupiter.api.Test
 import org.testcontainers.utility.Base58
 import kotlin.time.Duration
@@ -407,7 +408,7 @@ class LettuceCandidateKeyIsolationTest: AbstractLettuceLeaderTest() {
         LettuceCandidateKeyCodec.indexKey(LettuceCandidateRegistry.DEFAULT_KEY_PREFIX, lockName)
 
     private fun versionedIndexKey(lockName: String) =
-        "${LettuceCandidateRegistry.DEFAULT_KEY_PREFIX}|v2|i|${lockName.toByteArray(Charsets.UTF_8).size}:$lockName"
+        "${LettuceCandidateRegistry.DEFAULT_KEY_PREFIX}|v2|i|${lockName.toUtf8Bytes().size}:$lockName"
 
     private data class CollisionPair(
         val lockName: String,

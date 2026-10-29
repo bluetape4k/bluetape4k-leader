@@ -70,8 +70,7 @@ class LettuceStrategicHeartbeatTest: AbstractLettuceLeaderTest() {
         elector.refreshCandidate(lockName, node2.copy(metadata = mapOf("source" to "fresh-2")), ttl = 5.seconds)
         elector.updateResult(lockName, "node-2", CandidateResult.FAILURE)
 
-        val candidates = elector.listCandidates(lockName)
-        candidates.forEach { log.debug { "candidate=$it" } }
+        val candidates = elector.listCandidates(lockName).onEach { log.debug { "candidates: $it" } }
 
         assertHeartbeatResult(candidates.first { it.nodeId == "node-1" }, 5L, 1L, "fresh-1")
         assertHeartbeatResult(candidates.first { it.nodeId == "node-2" }, 2L, 4L, "fresh-2")
@@ -92,8 +91,7 @@ class LettuceStrategicHeartbeatTest: AbstractLettuceLeaderTest() {
         elector.refreshCandidate(lockName, node2.copy(metadata = mapOf("source" to "fresh-2")), ttl = 5.seconds)
         elector.updateResult(lockName, "node-2", CandidateResult.FAILURE)
 
-        val candidates = elector.listCandidates(lockName)
-        candidates.forEach { log.debug { "candidate=$it" } }
+        val candidates = elector.listCandidates(lockName).onEach { log.debug { "candidates: $it" } }
 
         assertHeartbeatResult(candidates.first { it.nodeId == "node-1" }, 5L, 1L, "fresh-1")
         assertHeartbeatResult(candidates.first { it.nodeId == "node-2" }, 2L, 4L, "fresh-2")
@@ -118,8 +116,7 @@ class LettuceStrategicHeartbeatTest: AbstractLettuceLeaderTest() {
         elector.refreshCandidate(lockName, node2.copy(metadata = mapOf("source" to "fresh-2")), ttl = 5.seconds)
         elector.updateResult(lockName, "node-2", CandidateResult.FAILURE)
 
-        val candidates = elector.listCandidates(lockName)
-        candidates.forEach { log.debug { "candidate=$it" } }
+        val candidates = elector.listCandidates(lockName).onEach { log.debug { "candidates: $it" } }
 
         assertHeartbeatResult(candidates.first { it.nodeId == "node-1" }, 5L, 1L, "fresh-1")
         assertHeartbeatResult(candidates.first { it.nodeId == "node-2" }, 2L, 4L, "fresh-2")
@@ -140,8 +137,7 @@ class LettuceStrategicHeartbeatTest: AbstractLettuceLeaderTest() {
         elector.refreshCandidate(lockName, node2.copy(metadata = mapOf("source" to "fresh-2")), ttl = 5.seconds)
         elector.updateResult(lockName, "node-2", CandidateResult.FAILURE)
 
-        val candidates = elector.listCandidates(lockName)
-        candidates.forEach { log.debug { "candidate=$it" } }
+        val candidates = elector.listCandidates(lockName).onEach { log.debug { "candidates: $it" } }
 
         assertHeartbeatResult(candidates.first { it.nodeId == "node-1" }, 5L, 1L, "fresh-1")
         assertHeartbeatResult(candidates.first { it.nodeId == "node-2" }, 2L, 4L, "fresh-2")

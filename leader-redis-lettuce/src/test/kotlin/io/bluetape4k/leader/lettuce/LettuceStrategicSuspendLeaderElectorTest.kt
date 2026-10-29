@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.coroutines.support.log
+import io.bluetape4k.javatimes.millis
 import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
@@ -60,8 +61,8 @@ class LettuceStrategicSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
         val t0 = Instant.now()
         val candidates = listOf(
             CandidateInfo("node-1", registeredAt = t0),
-            CandidateInfo("node-2", registeredAt = t0.plusMillis(10)),
-            CandidateInfo("node-3", registeredAt = t0.plusMillis(20)),
+            CandidateInfo("node-2", registeredAt = t0 + 10.millis()),
+            CandidateInfo("node-3", registeredAt = t0 + 20.millis()),
         )
         candidates.forEach { node1.registerCandidate(lockName, it) }
         candidates.forEach { node2.registerCandidate(lockName, it) }
@@ -244,7 +245,7 @@ class LettuceStrategicSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
         assertFailsWith<TimeoutCancellationException> {
             withTimeout(50L.milliseconds) {
                 node1.runIfLeader(lockName, FifoElectionStrategy) {
-                    delay(10_000L.milliseconds)
+                    delay(10.seconds)
                 }
             }
         }
@@ -384,7 +385,7 @@ class LettuceStrategicSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
         node1.registerCandidate(lockName, CandidateInfo("node-2", successCount = 1, failureCount = 9))
 
-        val connections = (1..8).map { client.connect(StringCodec.UTF8) }
+        val connections = List(8) { client.connect(StringCodec.UTF8) }
         try {
             val electors = connections.map { LettuceStrategicSuspendLeaderElector(it, "node-1") }
             val actions = electors.flatMap { elector ->
@@ -397,20 +398,21 @@ class LettuceStrategicSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
             val rounds = 20
             SuspendedJobTester()
                 .workers(workers)
-                .rounds(rounds)
+                .rounds(rounds * workers / actions.size)
                 .addAll(actions)
                 .run()
 
+            val expectedEach = (workers * rounds / 2).toLong()
             val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
             log.debug { "updated=$updated" }
-            val expectedEach = (workers * rounds / 2).toLong()
             updated.successCount shouldBeEqualTo expectedEach
             updated.failureCount shouldBeEqualTo expectedEach
             updated.successRate shouldBeEqualTo 0.5
 
             ScoredElectionStrategy(SuccessRateScorer)
                 .elect(node1.listCandidates(lockName))
-                .winner?.nodeId shouldBeEqualTo "node-1"
+                .winner
+                ?.nodeId shouldBeEqualTo "node-1"
         } finally {
             connections.forEach { it.closeSafe() }
         }

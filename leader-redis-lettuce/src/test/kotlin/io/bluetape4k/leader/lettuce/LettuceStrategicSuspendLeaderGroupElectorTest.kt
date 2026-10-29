@@ -240,17 +240,18 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
 
             SuspendedJobTester()
                 .workers(workers)
-                .rounds(rounds)
+                .rounds(rounds * workers / actions.size)
                 .addAll(actions)
                 .run()
 
             val candidates = node1.listCandidates(lockName)
             candidates.forEach { log.debug { "candidate=$it" } }
 
+            val expectedEach = (workers * rounds / 2).toLong()
+
             val updated = candidates.first { it.nodeId == "node-1" }
             log.debug { "updated=$updated" }
 
-            val expectedEach = (workers * rounds / 2).toLong()
             updated.successCount shouldBeEqualTo expectedEach
             updated.failureCount shouldBeEqualTo expectedEach
             updated.successRate shouldBeEqualTo 0.5
@@ -258,8 +259,8 @@ class LettuceStrategicSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest()
             ScoredGroupElectionStrategy(SuccessRateScorer)
                 .elect(candidates, maxLeaders = 1)
                 .winners
-                .first()
-                .nodeId shouldBeEqualTo "node-1"
+                .firstOrNull()
+                ?.nodeId shouldBeEqualTo "node-1"
 
         } finally {
             connections.forEach { it.closeSafe() }

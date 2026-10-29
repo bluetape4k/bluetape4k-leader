@@ -2,11 +2,12 @@ package io.bluetape4k.leader.lettuce.semaphore
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.lettuce.AbstractLettuceLeaderTest
@@ -58,6 +59,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
     @Test
     fun `단일 acquire 시 token 을 반환한다`() {
         val token = group.tryAcquire(waitTime = 1.seconds, leaseTime = 5.seconds)
+        log.debug { "token: $token" }
         token.shouldNotBeNull()
         token.length shouldBeEqualTo DEFAULT_TOKEN_LENGTH
 
@@ -67,9 +69,9 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
     @Test
     fun `maxLeaders 동시 acquire 모두 성공한다`() {
         val tokens = List(MAX_LEADERS) {
-            group.tryAcquire(waitTime = 1.seconds, leaseTime = 5.seconds)
-        }
-        tokens.forEach { it.shouldNotBeNull() }
+            group.tryAcquire(waitTime = 1.seconds, leaseTime = 5.seconds).shouldNotBeNull()
+        }.onEach { log.debug { "token: $it" } }
+
         group.activeCount() shouldBeEqualTo MAX_LEADERS
         group.availableSlots() shouldBeEqualTo 0
 
@@ -81,7 +83,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
     fun `maxLeaders+1 번째 acquire 는 null 을 반환한다`() {
         val tokens = List(MAX_LEADERS) {
             group.tryAcquire(waitTime = 1.seconds, leaseTime = 10.seconds).shouldNotBeNull()
-        }
+        }.onEach { log.debug { "token: $it" } }
 
         val overflow = group.tryAcquire(waitTime = 200.milliseconds, leaseTime = 10.seconds)
         overflow.shouldBeNull()
@@ -139,6 +141,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
         try {
             repeat(MAX_LEADERS) {
                 val token = shortLeaseGroup.tryAcquire(waitTime = 500.milliseconds, leaseTime = 300.milliseconds)
+                log.debug { "token: $token" }
                 token.shouldNotBeNull()
                 // intentional: release 호출 안 함
             }
@@ -151,6 +154,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
 
             // 다음 acquire 가 expired entry 를 정리하고 성공해야 함
             val recovered = shortLeaseGroup.tryAcquire(waitTime = 500.milliseconds, leaseTime = 5.seconds)
+            log.debug { "recovered: $recovered" }
             recovered.shouldNotBeNull()
             shortLeaseGroup.release(recovered, remainingMinLeaseMs = 0)
         } finally {
@@ -229,10 +233,43 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
 
         // 3×100 중 최소 일부는 성공해야 함
         log.debug { "success count=$successCount" }
-        successCount.get() shouldBeGreaterThan 0
+        successCount.get() shouldBeGreaterOrEqualTo MAX_LEADERS
         connection.sync().del(auditGroup.slotKey, auditGroup.metaKey)
     }
 
+    @Test
+    fun `StructuredTaskScopeTester 3×100 — auditLeaderId concurrent HSET_HDEL 원자성 검증`() {
+        val auditGroup = LettuceSlotTokenGroup(
+            connection,
+            "audit-concurrent:${Base58.randomString(8)}",
+            MAX_LEADERS,
+        )
+        val successCount = AtomicInteger(0)
+
+        StructuredTaskScopeTester()
+            .rounds(100 * MAX_LEADERS)
+            .add {
+                val leaderId = "node-${Thread.currentThread().threadId()}"
+                val token = auditGroup.tryAcquire(2.seconds, 10.seconds, auditLeaderId = leaderId)
+                if (token != null) {
+                    // meta hash에 leaderId 기록 확인
+                    val stored = connection.sync().hget(auditGroup.metaKey, token)
+                    if (stored == leaderId) {
+                        successCount.incrementAndGet()
+                    }
+                    auditGroup.release(token, remainingMinLeaseMs = 0)
+                    // release 후 meta에서 삭제 확인
+                    val afterRelease = connection.sync().hget(auditGroup.metaKey, token)
+                    afterRelease.shouldBeNull()
+                }
+            }
+            .run()
+
+        // 3×100 중 최소 일부는 성공해야 함
+        log.debug { "success count=$successCount" }
+        successCount.get() shouldBeGreaterOrEqualTo MAX_LEADERS
+        connection.sync().del(auditGroup.slotKey, auditGroup.metaKey)
+    }
 
     @Test
     fun `SuspendedJobTester 3×100 — auditLeaderId concurrent HSET_HDEL 원자성 검증`() = runSuspendIO {
@@ -265,7 +302,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
 
         // 3×100 중 최소 일부는 성공해야 함
         log.debug { "success count=$successCount" }
-        successCount.get() shouldBeGreaterThan 0
+        successCount.get() shouldBeGreaterOrEqualTo MAX_LEADERS
         connection.sync().del(auditGroup.slotKey, auditGroup.metaKey)
     }
 }

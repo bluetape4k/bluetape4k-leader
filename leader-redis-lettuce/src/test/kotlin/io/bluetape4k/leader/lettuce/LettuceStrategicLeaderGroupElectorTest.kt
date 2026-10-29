@@ -156,7 +156,7 @@ class LettuceStrategicLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("persistent-node"))
         node1.registerCandidate(lockName, CandidateInfo("finite-node"), 300.milliseconds)
 
-        await atMost 2.seconds withPollInterval 50.milliseconds until {
+        await atMost 2.seconds withPollInterval 100.milliseconds until {
             node1.listCandidates(lockName).map { it.nodeId } == listOf("persistent-node")
         }
     }
@@ -187,8 +187,9 @@ class LettuceStrategicLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
             val candidates = node1.listCandidates(lockName)
             candidates.forEach { log.debug { "candidate=$it" } }
 
-            val updated = candidates.first { it.nodeId == "node-1" }
             val expectedEach = (workers * rounds / 2).toLong()
+            val updated = candidates.first { it.nodeId == "node-1" }
+            log.debug { "updated=$updated" }
             updated.successCount shouldBeEqualTo expectedEach
             updated.failureCount shouldBeEqualTo expectedEach
             updated.successRate shouldBeEqualTo 0.5
@@ -196,8 +197,8 @@ class LettuceStrategicLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
             ScoredGroupElectionStrategy(SuccessRateScorer)
                 .elect(candidates, maxLeaders = 1)
                 .winners
-                .first()
-                .nodeId shouldBeEqualTo "node-1"
+                .firstOrNull()
+                ?.nodeId shouldBeEqualTo "node-1"
         } finally {
             connections.forEach { it.closeSafe() }
         }
@@ -222,15 +223,16 @@ class LettuceStrategicLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
             val rounds = 20
 
             StructuredTaskScopeTester()
-                .rounds(rounds)
+                .rounds(rounds * workers / actions.size)
                 .addAll(*actions.toTypedArray())
                 .run()
 
             val candidates = node1.listCandidates(lockName)
             candidates.forEach { log.debug { "candidate=$it" } }
 
-            val updated = candidates.first { it.nodeId == "node-1" }
             val expectedEach = (workers * rounds / 2).toLong()
+            val updated = candidates.first { it.nodeId == "node-1" }
+            log.debug { "updated=$updated" }
             updated.successCount shouldBeEqualTo expectedEach
             updated.failureCount shouldBeEqualTo expectedEach
             updated.successRate shouldBeEqualTo 0.5
@@ -238,8 +240,8 @@ class LettuceStrategicLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
             ScoredGroupElectionStrategy(SuccessRateScorer)
                 .elect(candidates, maxLeaders = 1)
                 .winners
-                .first()
-                .nodeId shouldBeEqualTo "node-1"
+                .firstOrNull()
+                ?.nodeId shouldBeEqualTo "node-1"
         } finally {
             connections.forEach { it.closeSafe() }
         }

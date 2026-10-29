@@ -1,10 +1,16 @@
 package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.support.checkNotNull
 import io.lettuce.core.cluster.models.partitions.RedisClusterNode
+import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
-import java.time.Duration
+import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withPollInterval
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * source primary에 연결된 replica가 Lettuce topology에 나타날 때까지 제한된 시간 동안 기다린다.
@@ -15,7 +21,7 @@ import java.util.concurrent.TimeUnit
 internal fun awaitReplicaTopology(
     sourceNodeId: String,
     evidence: MutableList<String>,
-    timeout: Duration = Duration.ofSeconds(10),
+    timeout: Duration = 10.seconds,
     topology: () -> Collection<RedisClusterNode>,
 ): RedisClusterNode {
     val started = System.nanoTime()
@@ -23,16 +29,15 @@ internal fun awaitReplicaTopology(
     var replica: RedisClusterNode? = null
     var snapshot = "[]"
     try {
-        await.atMost(timeout).pollInterval(Duration.ofMillis(100)).untilAsserted {
+        await atMost timeout withPollInterval 100.milliseconds untilAsserted {
             attempts++
             val nodes = topology().toList()
             snapshot = describeTopology(nodes)
             replica = nodes.firstOrNull { it.slaveOf == sourceNodeId }
-            val diagnosis = "Redis Cluster replica topology not ready: " +
-                    "sourceNodeId=$sourceNodeId; topology=$snapshot"
+            val diagnosis = "Redis Cluster replica topology not ready: sourceNodeId=$sourceNodeId; topology=$snapshot"
             diagnosis shouldContain "slaveOf=$sourceNodeId"
         }
-        return checkNotNull(replica)
+        return replica.checkNotNull("replica")
     } finally {
         evidence += "phase=replica-readiness;attempts=$attempts;elapsed_ms=${elapsedMillis(started)};" +
                 "source=$sourceNodeId;replica=${replica?.nodeId};topology=$snapshot"
