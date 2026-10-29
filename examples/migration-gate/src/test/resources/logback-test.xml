@@ -14,7 +14,7 @@
         </encoder>
     </appender>
     <!-- formatter:on -->
-    
+
     <logger name="io.bluetape4k.leader.examples.migration" level="DEBUG"/>
     <logger name="io.bluetape4k.leader.exposed" level="INFO"/>
     <logger name="org.testcontainers" level="WARN"/>

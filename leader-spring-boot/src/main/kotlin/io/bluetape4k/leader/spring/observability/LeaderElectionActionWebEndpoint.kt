@@ -26,7 +26,7 @@ class LeaderElectionActionWebEndpoint(
 ) {
 
     private companion object: KLogging()
-    
+
     /** lock selector를 검증하고 공통 HTTP status 계약으로 release 결과를 감쌉니다. */
     @WriteOperation
     fun release(@Selector lockName: String): WebEndpointResponse<LeaderManagementActionHttpResponse> {

@@ -44,7 +44,7 @@ internal class JavaHttpConsulLockClient(
         lockDelay: Duration,
     ): CompletableFuture<ConsulSessionId> {
         name.requireNotBlank("name")
-        
+
         val payload = buildString {
             append('{')
             appendJsonField("Name", name)

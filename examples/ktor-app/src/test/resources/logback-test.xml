@@ -14,7 +14,7 @@
         </encoder>
     </appender>
     <!-- formatter:on -->
-    
+
     <logger name="io.bluetape4k.leader.examples.ktor" level="DEBUG"/>
     <logger name="io.bluetape4k.leader" level="DEBUG"/>
     <logger name="bluetape4k" level="DEBUG"/>

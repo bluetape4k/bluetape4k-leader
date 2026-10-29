@@ -16,7 +16,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LettuceLeaderElectorLeaderIdContractTest: AbstractLeaderElectorLeaderIdContractTest() {
 
-    companion object: KLogging() 
+    companion object: KLogging()
 
     override fun createElector(options: LeaderElectionOptions): LeaderElector =
         LettuceLeaderElector(AbstractLettuceLeaderTest.connection, options)

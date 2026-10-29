@@ -41,7 +41,7 @@ class LeaderHistoryRetentionJob(
         autoExtend = true,
     )
     fun runRetention() {
-        val cutoff = Instant.now() - retentionDays.days() 
+        val cutoff = Instant.now() - retentionDays.days()
         val deadline = System.currentTimeMillis() + maxDurationMs
         var deleted: Int
 

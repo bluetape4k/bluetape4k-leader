@@ -372,7 +372,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
                 failure.addSuppressedSafely(
                     IllegalStateException("availability callback 보상 슬롯 해제 시간 초과: lockName=$lockName, slot=$slot")
                 )
-            
+
             ExposedR2dbcUnlockOutcome.RELEASED,
             ExposedR2dbcUnlockOutcome.NOT_HELD,
                                              -> Unit

@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicLong
 class LeaderRouteLeaseMetrics: SanitizedRouteLeaseObservationSink {
 
     private companion object: KLogging()
-    
+
     private val counts = EnumMap<LeaseObservationCode, AtomicLong>(LeaseObservationCode::class.java)
         .apply {
             LeaseObservationCode.entries.forEach { put(it, AtomicLong()) }

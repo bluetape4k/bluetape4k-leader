@@ -34,4 +34,4 @@ class ExposedJdbcCurrentTimeTest {
     fun `지원하지 않는 JDBC current timestamp 반환형은 null 을 반환한다`() {
         Any().asInstantOrNull().shouldBeNull()
     }
-}                                                 
+}

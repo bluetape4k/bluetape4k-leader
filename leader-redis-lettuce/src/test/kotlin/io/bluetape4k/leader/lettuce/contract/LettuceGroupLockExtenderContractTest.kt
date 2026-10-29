@@ -16,7 +16,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LettuceGroupLockExtenderContractTest: AbstractGroupLockExtenderContractTest() {
 
-    companion object: KLogging() 
+    companion object: KLogging()
 
     override val elector: LeaderGroupElector =
         LettuceLeaderGroupElector(

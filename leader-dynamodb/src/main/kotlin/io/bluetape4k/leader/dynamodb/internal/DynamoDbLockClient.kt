@@ -459,7 +459,7 @@ internal class DynamoDbLockClient(
     }
 
     private fun readAsync(key: String): CompletableFuture<LockRecord?> {
-        val client = safeAsyncClient 
+        val client = safeAsyncClient
         return client.getItem(readRequest(key)).thenApply { it.item().toLockRecord() }
     }
 
