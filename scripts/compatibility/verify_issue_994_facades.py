@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import csv
 import difflib
 import hashlib
+import io
 import json
 import re
 import shutil
@@ -15,6 +17,7 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE_HEAD = "ad4110a92afb0c3f40bc0e84e7e9da1e6b61c97f"
@@ -41,6 +44,25 @@ METHOD_REF = re.compile(r"// Method ([^./\s]+(?:/[^./\s]+)*)\.([^:]+):(\(.*)$")
 
 class VerificationError(RuntimeError):
     pass
+
+
+class AllowedAbiDifference(VerificationError):
+    pass
+
+
+class CleanupVerificationError(VerificationError):
+    pass
+
+
+ABI_LINKAGE_ERRORS = (
+    "NoSuchMethodError",
+    "NoSuchFieldError",
+    "NoClassDefFoundError",
+    "AbstractMethodError",
+    "IncompatibleClassChangeError",
+    "IllegalAccessError",
+    "VerifyError",
+)
 
 
 @dataclass(frozen=True)
@@ -643,7 +665,46 @@ suspend inline fun <T> DynamoDbAsyncClient.legacySuspendRunIfLeaderGroup(
     base_errors = validate_source_inventory(declarations)
     if base_errors:
         raise VerificationError("self-test source inventory failed:\n" + "\n".join(base_errors))
-    print("PASS: manifest hashes, source inventory, modifier mutation, overload addition, owner tamper, flags, generic Signature, annotation, and ABI baseline checksum self-tests")
+
+    def run_legacy_observation_test(failure: VerificationError) -> tuple[int, str, str]:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch.object(
+            sys,
+            "argv",
+            [str(ROOT / "verify_issue_994_facades.py"), "--dynamodb-legacy-abi-observation"],
+        ):
+            with mock.patch(f"{__name__}.run_legacy_consumer", side_effect=failure):
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                    exit_code = main()
+        return exit_code, stdout.getvalue(), stderr.getvalue()
+
+    injected_error = "historical consumer links through NoSuchMethodError"
+    exit_code, stdout, stderr = run_legacy_observation_test(AllowedAbiDifference(injected_error))
+    if (
+        exit_code != 0
+        or "INFORMATIONAL:" not in stdout
+        or "binary compatibility is unsupported" not in stdout
+        or injected_error not in stdout
+        or "PASS:" in stdout
+        or stderr
+    ):
+        raise VerificationError("self-test failed to label an allowed historical ABI mismatch as informational")
+
+    for failure in (
+        "injected historical Kotlin source compilation failure",
+        "injected historical consumer runtime assertion failure",
+    ):
+        exit_code, stdout, stderr = run_legacy_observation_test(VerificationError(failure))
+        if exit_code != 1 or failure not in stderr or stdout:
+            raise VerificationError(f"self-test failed to propagate historical consumer failure: {failure}")
+
+    cleanup_error = "temporary historical worktree cleanup is unverified"
+    exit_code, stdout, stderr = run_legacy_observation_test(CleanupVerificationError(cleanup_error))
+    if exit_code != 1 or cleanup_error not in stderr or stdout:
+        raise VerificationError("self-test failed to keep historical worktree cleanup failures fatal")
+
+    print("PASS: manifest hashes, source inventory, modifier mutation, overload addition, owner tamper, flags, generic Signature, annotation, ABI baseline checksum, informational ABI linkage mismatch, fatal source/runtime failures, and fatal cleanup failure self-tests")
 
 
 def run_legacy_consumer(declarations: list[dict[str, str]], callsites: list[dict[str, str]]) -> None:
@@ -680,22 +741,30 @@ def run_legacy_consumer(declarations: list[dict[str, str]], callsites: list[dict
 
             legacy_errors = verify_consumer_bytecode(callsites, kind="legacy")
             if legacy_errors:
-                raise VerificationError("historical callsite bytecode mismatch:\n" + "\n".join(legacy_errors))
-            run(
-                ["./gradlew", ":bluetape4k-leader-dynamodb:test", "--tests", class_name,
-                 "--console=plain", "--no-build-cache", "--no-parallel", "--rerun-tasks",
-                 "-x", ":bluetape4k-leader-dynamodb:compileTestKotlin",
-                 "-x", ":bluetape4k-leader-dynamodb:testClasses"],
-                cwd=ROOT,
+                raise AllowedAbiDifference("historical callsite bytecode mismatch:\n" + "\n".join(legacy_errors))
+            try:
+                run(
+                    ["./gradlew", ":bluetape4k-leader-dynamodb:test", "--tests", class_name,
+                     "--console=plain", "--no-build-cache", "--no-parallel", "--rerun-tasks",
+                     "-x", ":bluetape4k-leader-dynamodb:compileTestKotlin",
+                     "-x", ":bluetape4k-leader-dynamodb:testClasses"],
+                    cwd=ROOT,
+                )
+            except VerificationError as error:
+                if any(linkage_error in str(error) for linkage_error in ABI_LINKAGE_ERRORS):
+                    raise AllowedAbiDifference(f"historical consumer runtime linkage mismatch: {error}") from error
+                raise
+            print(
+                "OBSERVED: the historical Kotlin/JVM consumer compiled at its pinned revision and linked "
+                "against the candidate runtime (informational; binary compatibility is unsupported)"
             )
-            print("PASS: the historical source consumer compiles at its pinned revision and links against the candidate runtime")
         finally:
             for path in copied:
                 path.unlink(missing_ok=True)
             run(["git", "worktree", "remove", "--force", str(worktree)], check=False)
             remaining = run(["git", "worktree", "list", "--porcelain"], check=True).stdout
             if str(worktree) in remaining:
-                raise VerificationError(f"temporary historical worktree remains registered: {worktree}")
+                raise CleanupVerificationError(f"temporary historical worktree remains registered: {worktree}")
 
 
 def main() -> int:
@@ -704,7 +773,7 @@ def main() -> int:
     modes.add_argument("--self-test", action="store_true")
     modes.add_argument("--source-inventory", action="store_true")
     modes.add_argument("--consumer-bytecode", action="store_true")
-    modes.add_argument("--dynamodb-legacy-consumer", action="store_true")
+    modes.add_argument("--dynamodb-legacy-abi-observation", action="store_true")
     modes.add_argument("--library-abi", action="store_true")
     args = parser.parse_args()
 
@@ -722,16 +791,19 @@ def main() -> int:
             if errors:
                 raise VerificationError("consumer bytecode failed:\n" + "\n".join(errors))
             print("PASS: all 68 explicit and default Kotlin consumer callsites invoke the current public facade entries")
-        elif args.dynamodb_legacy_consumer:
+        elif args.dynamodb_legacy_abi_observation:
             try:
                 run_legacy_consumer(declarations, callsites)
-            except VerificationError as error:
+            except AllowedAbiDifference as error:
                 worktrees = run(["git", "worktree", "list", "--porcelain"], check=False)
                 if worktrees.returncode != 0 or "issue-994-legacy-consumer-" in worktrees.stdout:
-                    raise VerificationError(
-                        "supplemental consumer check failed and temporary worktree cleanup is unverified"
+                    raise CleanupVerificationError(
+                        "historical ABI observation failed and temporary worktree cleanup is unverified"
                     ) from error
-                print(f"NOTE: supplemental historical Kotlin bytecode check did not pass: {error}")
+                print(
+                    "INFORMATIONAL: historical Kotlin/JVM consumer ABI difference was observed; "
+                    f"binary compatibility is unsupported: {error}"
+                )
         elif args.library_abi:
             differences = verify_library_abi(declarations, callsites)
             if differences:

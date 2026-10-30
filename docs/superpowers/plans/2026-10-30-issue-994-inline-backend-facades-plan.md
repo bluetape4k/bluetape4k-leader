@@ -134,7 +134,7 @@ python3 scripts/compatibility/verify_issue_994_facades.py --consumer-bytecode
 python3 scripts/compatibility/verify_issue_994_facades.py --self-test
 python3 scripts/compatibility/verify_issue_994_facades.py --source-inventory
 python3 scripts/compatibility/verify_issue_994_facades.py --consumer-bytecode
-python3 scripts/compatibility/verify_issue_994_facades.py --dynamodb-legacy-consumer
+python3 scripts/compatibility/verify_issue_994_facades.py --dynamodb-legacy-abi-observation
 ```
 - [x] `./gradlew checkBinaryCompatibility --console=plain --no-build-cache`를 실행해 현재 source/API 결과를 보조 증거로 기록한다. Java API/JVM ABI 호환성은 사용자 지원 계약이 아니므로 이 task 결과를 ABI 보증으로 표현하지 않는다.
 
