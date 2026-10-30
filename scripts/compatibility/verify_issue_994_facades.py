@@ -54,15 +54,14 @@ class CleanupVerificationError(VerificationError):
     pass
 
 
-ABI_LINKAGE_ERRORS = (
-    "NoSuchMethodError",
-    "NoSuchFieldError",
-    "NoClassDefFoundError",
-    "AbstractMethodError",
-    "IncompatibleClassChangeError",
-    "IllegalAccessError",
-    "VerifyError",
+ABI_LINKAGE_EXCEPTION = re.compile(
+    r'(?m)^\s*(?:Caused by:\s*)?(?:Exception in thread "[^"]+"\s+)?'
+    r"java\.lang\.NoSuchMethodError(?::|\s*$)"
 )
+
+
+def is_historical_abi_linkage_failure(error: VerificationError) -> bool:
+    return ABI_LINKAGE_EXCEPTION.search(str(error)) is not None
 
 
 @dataclass(frozen=True)
@@ -679,6 +678,16 @@ suspend inline fun <T> DynamoDbAsyncClient.legacySuspendRunIfLeaderGroup(
                     exit_code = main()
         return exit_code, stdout.getvalue(), stderr.getvalue()
 
+    linkage_trace = VerificationError("command failed:\nCaused by: java.lang.NoSuchMethodError: expected facade entry")
+    if not is_historical_abi_linkage_failure(linkage_trace):
+        raise VerificationError("self-test failed to recognize a JVM NoSuchMethodError stack trace")
+    unrelated_failure = VerificationError("AssertionError: expected NoSuchMethodError in diagnostic text")
+    if is_historical_abi_linkage_failure(unrelated_failure):
+        raise VerificationError("self-test misclassified ordinary failure text as an ABI linkage error")
+    unqualified_linkage_name = VerificationError("NoSuchMethodError: diagnostic text")
+    if is_historical_abi_linkage_failure(unqualified_linkage_name):
+        raise VerificationError("self-test misclassified an unqualified diagnostic as an ABI linkage error")
+
     injected_error = "historical consumer links through NoSuchMethodError"
     exit_code, stdout, stderr = run_legacy_observation_test(AllowedAbiDifference(injected_error))
     if (
@@ -693,7 +702,8 @@ suspend inline fun <T> DynamoDbAsyncClient.legacySuspendRunIfLeaderGroup(
 
     for failure in (
         "injected historical Kotlin source compilation failure",
-        "injected historical consumer runtime assertion failure",
+        "injected runtime assertion failure mentioning NoSuchMethodError",
+        "NoSuchMethodError: unqualified diagnostic text",
     ):
         exit_code, stdout, stderr = run_legacy_observation_test(VerificationError(failure))
         if exit_code != 1 or failure not in stderr or stdout:
@@ -751,7 +761,7 @@ def run_legacy_consumer(declarations: list[dict[str, str]], callsites: list[dict
                     cwd=ROOT,
                 )
             except VerificationError as error:
-                if any(linkage_error in str(error) for linkage_error in ABI_LINKAGE_ERRORS):
+                if is_historical_abi_linkage_failure(error):
                     raise AllowedAbiDifference(f"historical consumer runtime linkage mismatch: {error}") from error
                 raise
             print(
