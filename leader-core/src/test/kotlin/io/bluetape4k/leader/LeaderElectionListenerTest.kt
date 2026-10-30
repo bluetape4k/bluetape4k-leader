@@ -31,6 +31,7 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
@@ -75,6 +76,66 @@ class LeaderElectionListenerTest {
             start.countDown()
             threads.forEach { it.join(5_000) }
             handles.forEach(AutoCloseable::close)
+        }
+    }
+
+    @Test
+    fun `callback 중 listener 변경은 현재 dispatch snapshot에 반영하지 않는다`() {
+        val support = LeaderElectionListenerSupport()
+        val events = ConcurrentLinkedQueue<String>()
+        val callbackEntered = CountDownLatch(1)
+        val continueCallback = CountDownLatch(1)
+        val blockFirstCallback = AtomicBoolean(true)
+
+        val first = object: LeaderElectionListener {
+            override fun onElected(lockName: String) {
+                events += "first"
+                if (blockFirstCallback.compareAndSet(true, false)) {
+                    callbackEntered.countDown()
+                    check(continueCallback.await(5.seconds))
+                }
+            }
+        }
+        val stable = object: LeaderElectionListener {
+            override fun onElected(lockName: String) {
+                events += "stable"
+            }
+        }
+        val removed = object: LeaderElectionListener {
+            override fun onElected(lockName: String) {
+                events += "removed"
+            }
+        }
+        val added = object: LeaderElectionListener {
+            override fun onElected(lockName: String) {
+                events += "added"
+            }
+        }
+
+        support.addListener(first)
+        support.addListener(stable)
+        val removedHandle = support.addListener(removed)
+        val dispatch = thread(start = false) {
+            support.notifyElected("snapshot-listener-job")
+        }
+
+        try {
+            dispatch.start()
+            check(callbackEntered.await(5.seconds))
+            removedHandle.close()
+            support.addListener(added)
+            continueCallback.countDown()
+            dispatch.join(5_000)
+            check(!dispatch.isAlive)
+
+            events.toList() shouldBeEqualTo listOf("first", "stable", "removed")
+
+            support.notifyElected("next-listener-job")
+
+            events.toList() shouldBeEqualTo listOf("first", "stable", "removed", "first", "stable", "added")
+        } finally {
+            continueCallback.countDown()
+            dispatch.join(5_000)
         }
     }
 

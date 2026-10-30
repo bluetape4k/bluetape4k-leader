@@ -1,7 +1,5 @@
 package io.bluetape4k.leader.spring.scheduling
 
-import io.bluetape4k.logging.KLogging
-import io.bluetape4k.logging.debug
 import java.io.Serializable
 import java.lang.reflect.Method
 
@@ -14,8 +12,6 @@ import java.lang.reflect.Method
 class LeaderScheduledPolicyRegistry(
     configured: List<LeaderScheduledPolicyProperties.Policy>,
 ) {
-
-    private companion object: KLogging()
 
     private val configuredBySelector: Map<String, LeaderScheduledPolicyProperties.Policy> =
         configured.associateByTo(linkedMapOf()) { policy ->
@@ -47,8 +43,6 @@ class LeaderScheduledPolicyRegistry(
         method: Method,
         policy: LeaderScheduledPolicyProperties.Policy,
     ) {
-        log.debug { "Register. beanName: $beanName, target: $target, method: $method, policy: $policy" }
-
         check(!frozen) { "Scheduled policy registry is already frozen" }
 
         val selector = selectorOf(beanName, method.name)

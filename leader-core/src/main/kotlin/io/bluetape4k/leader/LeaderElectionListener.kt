@@ -3,15 +3,13 @@ package io.bluetape4k.leader
 import io.bluetape4k.coroutines.flow.extensions.log
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
-import kotlinx.atomicfu.locks.withLock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import java.io.Serializable
 import java.time.Instant
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.locks.ReentrantLock
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.function.Consumer
 
 /**
@@ -204,23 +202,15 @@ interface LeaderElectionListenerRegistry {
  */
 open class LeaderElectionListenerSupport: LeaderElectionListenerRegistry {
 
-    private companion object: KLogging()
-
-    private val lock = ReentrantLock()
-    private val listeners = ConcurrentLinkedQueue<LeaderElectionListener>()
+    private val listeners = CopyOnWriteArrayList<LeaderElectionListener>()
 
     override fun addListener(listener: LeaderElectionListener): AutoCloseable {
-        lock.withLock {
-            if (!listeners.contains(listener)) {
-                listeners.add(listener)
-            }
-            return AutoCloseable { removeListener(listener) }
-        }
+        listeners.addIfAbsent(listener)
+        return AutoCloseable { removeListener(listener) }
     }
 
-    override fun removeListener(listener: LeaderElectionListener): Boolean = lock.withLock {
+    override fun removeListener(listener: LeaderElectionListener): Boolean =
         listeners.remove(listener)
-    }
 
     /**
      * 등록된 listener 각각에 획득 callback을 보냅니다. callback 예외는 기록하고 다음 listener로 계속합니다.
@@ -262,4 +252,6 @@ open class LeaderElectionListenerSupport: LeaderElectionListenerRegistry {
             }
         }
     }
+
+    private companion object: KLogging()
 }

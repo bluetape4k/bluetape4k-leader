@@ -1,7 +1,6 @@
 package io.bluetape4k.leader.etcd.internal
 
 import io.bluetape4k.ToStringBuilder
-import io.bluetape4k.leader.utils.safePlus
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -32,3 +31,6 @@ internal class EtcdAcquisitionDeadline private constructor(
             .add("deadlineNanos", deadlineNanos)
             .toString()
 }
+
+private infix fun Long.safePlus(other: Long): Long =
+    if (other > 0L && this > Long.MAX_VALUE - other) Long.MAX_VALUE else this + other

@@ -14,7 +14,6 @@ import io.bluetape4k.leader.internal.CoreBackendErrorClassifier
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requirePositiveNumber
 import io.bluetape4k.utils.Runtimex
@@ -520,7 +519,6 @@ object LeaderLeaseAutoExtender: KLogging() {
         when (outcome) {
             is Extended               -> {
                 /* 성공적으로 연장했으므로 계속 진행합니다. */
-                log.info { "연장이 성공해서 계속 진행합니다." }
             }
             is ExtendOutcome.Rejected -> {
                 // Bounded watchdog admission is a transient lane decision. Keep the

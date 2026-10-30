@@ -58,7 +58,7 @@ internal class KubernetesLeaseLock(
         do {
             when (tryAcquireOnce(leaseTime)) {
                 AcquireResult.Acquired -> {
-                    log.debug { "Kubernetes Lease acquired. lockName=$lockName, ownerToken=$ownerToken" }
+                    log.debug { "Kubernetes Lease acquired. lockName=$lockName" }
                     return true
                 }
                 AcquireResult.Contended -> Unit
