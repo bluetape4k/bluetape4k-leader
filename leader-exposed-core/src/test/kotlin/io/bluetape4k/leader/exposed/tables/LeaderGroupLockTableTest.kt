@@ -48,7 +48,7 @@ class LeaderGroupLockTableTest: AbstractExposedTableTest() {
                     it[lockOwner] = "owner-$slot"
                     it[token] = Base58.randomString(16)
                     it[lockedAt] = now
-                    it[lockedUntil] = now.plusSeconds(60)
+                    it[lockedUntil] = now + 60.seconds()
                 }
             }
 
@@ -69,7 +69,7 @@ class LeaderGroupLockTableTest: AbstractExposedTableTest() {
                 it[slot] = 0
                 it[token] = Base58.randomString(16)
                 it[lockedAt] = now
-                it[lockedUntil] = now.plusSeconds(60)
+                it[lockedUntil] = now + 60.seconds()
             }
 
             assertFailsWith<Exception> {
@@ -78,7 +78,7 @@ class LeaderGroupLockTableTest: AbstractExposedTableTest() {
                     it[slot] = 0
                     it[token] = Base58.randomString(8)
                     it[lockedAt] = now
-                    it[lockedUntil] = now.plusSeconds(60)
+                    it[lockedUntil] = now + 60.seconds()
                 }
             }
         }
@@ -89,7 +89,7 @@ class LeaderGroupLockTableTest: AbstractExposedTableTest() {
     fun `활성 슬롯은 locked_until 이 현재시각 이상인 조건으로만 카운트한다`(testDB: TestDB) {
         withTables(testDB, LeaderGroupLockTable) {
             val now = Instant.now()
-            val expired = now.minusSeconds(60) // 최소 60초 이전 — clock drift 방지
+            val expired = now - 60.seconds() // 최소 60초 이전 — clock drift 방지
 
             // 만료된 슬롯
             LeaderGroupLockTable.insert {
@@ -131,7 +131,7 @@ class LeaderGroupLockTableTest: AbstractExposedTableTest() {
                 it[slot] = 0
                 it[token] = Base58.randomString(16)
                 it[lockedAt] = expired
-                it[lockedUntil] = expired.plusSeconds(30)
+                it[lockedUntil] = expired + 30.seconds()
             }
 
             val newToken = Base58.randomString(16)
@@ -163,7 +163,7 @@ class LeaderGroupLockTableTest: AbstractExposedTableTest() {
                     it[slot] = s
                     it[token] = Base58.randomString(16)
                     it[lockedAt] = now
-                    it[lockedUntil] = now.plusSeconds(60)
+                    it[lockedUntil] = now + 60.seconds()
                 }
             }
 

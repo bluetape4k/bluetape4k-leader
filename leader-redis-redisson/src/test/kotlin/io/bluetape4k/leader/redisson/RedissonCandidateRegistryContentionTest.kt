@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.coroutines.support.awaitUntil
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
@@ -10,8 +11,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
-import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Test
+import org.testcontainers.utility.Base58
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -22,7 +23,7 @@ class RedissonCandidateRegistryContentionTest: AbstractRedissonLeaderTest() {
 
     @Test
     fun `blocking and suspend entry lock owners remain mutually exclusive`() = runSuspendIO {
-        val lockName = "issue-826-mixed-contention-${System.nanoTime()}"
+        val lockName = "issue-826-mixed-contention-${Base58.randomString(8)}"
         val nodeId = "node-826-mixed-contention"
         val cache = redissonClient.getMapCache<String, CandidateInfo>(
             "${RedissonCandidateRegistry.DEFAULT_KEY_PREFIX}:$lockName",
@@ -46,7 +47,7 @@ class RedissonCandidateRegistryContentionTest: AbstractRedissonLeaderTest() {
             waiting.isCompleted.shouldBeFalse()
 
             entryLock.unlockAsync(blockingOwnerId).await()
-            withTimeout(5.seconds) { waiting.await() }
+            waiting.awaitUntil(5.seconds)
         } finally {
             waiting.cancelAndJoin()
             if (entryLock.isHeldByThread(blockingOwnerId)) {

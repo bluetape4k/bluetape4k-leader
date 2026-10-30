@@ -2,11 +2,14 @@ package io.bluetape4k.leader.mongodb.internal
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.contract.AbstractMonotonicDeadlineMathContractTest
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 class MonotonicDeadlineTest: AbstractMonotonicDeadlineMathContractTest() {
+
+    companion object: KLogging()
 
     override fun createDeadline(waitTime: Duration, ticker: () -> Long): DeadlineProbe {
         val deadline = MonotonicDeadline.fromNow(waitTime, ticker)

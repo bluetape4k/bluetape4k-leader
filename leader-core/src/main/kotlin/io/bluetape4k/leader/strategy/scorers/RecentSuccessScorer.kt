@@ -21,6 +21,7 @@ object RecentSuccessScorer: CandidateScorer {
         if (successfulCompletions.isEmpty()) return 0.0
         val minEpoch = successfulCompletions.min()
         val maxEpoch = successfulCompletions.max()
+
         if (maxEpoch == minEpoch) return 100.0
         return (lastCompletion.toEpochMilli() - minEpoch).toDouble() / (maxEpoch - minEpoch) * 100.0
     }

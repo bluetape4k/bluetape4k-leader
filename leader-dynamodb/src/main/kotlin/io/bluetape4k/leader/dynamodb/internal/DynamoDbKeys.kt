@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.dynamodb.internal
 
 import io.bluetape4k.leader.validateLockName
+import io.bluetape4k.support.requireMatches
 
 internal object DynamoDbKeys {
     private const val SlotMarker = "#slot-"
@@ -8,15 +9,17 @@ internal object DynamoDbKeys {
     private val KeyPrefixPattern = Regex("^[a-zA-Z0-9][a-zA-Z0-9_:-]{0,127}$")
 
     fun validateTableName(tableName: String) {
-        require(TableNamePattern.matches(tableName)) {
-            "tableName must be 3-255 chars and contain only [a-zA-Z0-9_.-]: $tableName"
-        }
+        tableName.requireMatches(TableNamePattern, "tableName")
+//        require(TableNamePattern.matches(tableName)) {
+//            "tableName must be 3-255 chars and contain only [a-zA-Z0-9_.-]: $tableName"
+//        }
     }
 
     fun validateKeyPrefix(keyPrefix: String) {
-        require(KeyPrefixPattern.matches(keyPrefix)) {
-            "keyPrefix must be 1-128 chars, start with alphanumeric, and contain only [a-zA-Z0-9_:-]: $keyPrefix"
-        }
+        keyPrefix.requireMatches(KeyPrefixPattern, "keyPrefix")
+//        require(KeyPrefixPattern.matches(keyPrefix)) {
+//            "keyPrefix must be 1-128 chars, start with alphanumeric, and contain only [a-zA-Z0-9_:-]: $keyPrefix"
+//        }
         require(!keyPrefix.contains(SlotMarker)) { "keyPrefix must not contain '$SlotMarker': $keyPrefix" }
     }
 

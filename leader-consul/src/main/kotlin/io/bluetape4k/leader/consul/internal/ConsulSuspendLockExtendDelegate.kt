@@ -47,14 +47,15 @@ internal class ConsulSuspendLockExtendDelegate(
     }
 
     override suspend fun isHeldSuspend(): Boolean =
-        !handle.isReleased && try {
-            lockClient.read(handle.key).await()?.sessionId == handle.sessionId
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.warn(e) { "Failed to verify Consul suspend leader session ownership. lockName=${handle.lockName}" }
-            false
-        }
+        !handle.isReleased &&
+                try {
+                    lockClient.read(handle.key).await()?.sessionId == handle.sessionId
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    log.warn(e) { "Consul suspend leader ownership check failed. lockName=${handle.lockName}" }
+                    false
+                }
 
     override val lastExtendDeadline: AtomicReference<Instant>
         get() = _lastExtendDeadline

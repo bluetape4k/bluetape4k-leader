@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.ktor
 
+import io.bluetape4k.coroutines.support.log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -141,7 +142,7 @@ internal class LeaderElectionResourceRegistryImpl(
             closedCompletion.complete(report)
             // The registry owns this scope; no dispatcher or supervisor survives completion.
             cleanupSupervisor.cancel()
-        }
+        }.log("CleanUp")
     }
 
     override suspend fun awaitClosed(): LeaderElectionShutdownReport =

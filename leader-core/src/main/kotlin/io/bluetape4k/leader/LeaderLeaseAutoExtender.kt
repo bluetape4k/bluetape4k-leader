@@ -3,6 +3,7 @@ package io.bluetape4k.leader
 import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.leader.ExtendOutcome.BackendError
 import io.bluetape4k.leader.ExtendOutcome.Extended
 import io.bluetape4k.leader.ExtendOutcome.NotHeld
@@ -45,6 +46,7 @@ private fun publishLeaderLeaseWatchdogEvent(
     elapsedNanos: Long,
 ) {
     if (!observing) return
+
     LeaderLeaseExtensionObservers.publish(
         LeaderLeaseExtensionEvent(
             source = LeaderLeaseExtensionSource.WATCHDOG,
@@ -237,31 +239,32 @@ object LeaderLeaseAutoExtender: KLogging() {
 
         // async mode에서는 각 tick을 virtual thread로 dispatch해 느린 backend가 shared scheduler를 막지 않게 합니다.
         // extendInFlight guard는 extend 호출이 겹치지 않도록 막습니다.
-        val tickRunnable: Runnable = if (capturedAsyncExtend) {
-            Runnable {
-                if (extendInFlight.compareAndSet(false, true)) {
-                    Thread.ofVirtual()
-                        .name("leader-lease-extend-${threadSeq.incrementAndGet()}")
-                        .start {
-                            try {
-                                doTick()
-                            } finally {
-                                extendInFlight.set(false)
+        val tickRunnable: Runnable =
+            if (capturedAsyncExtend) {
+                Runnable {
+                    if (extendInFlight.compareAndSet(false, true)) {
+                        Thread.ofVirtual()
+                            .name("leader-lease-extend-${threadSeq.incrementAndGet()}")
+                            .start {
+                                try {
+                                    doTick()
+                                } finally {
+                                    extendInFlight.set(false)
+                                }
                             }
-                        }
+                    }
                 }
-            }
-        } else {
-            Runnable {
-                if (extendInFlight.compareAndSet(false, true)) {
-                    try {
-                        doTick()
-                    } finally {
-                        extendInFlight.set(false)
+            } else {
+                Runnable {
+                    if (extendInFlight.compareAndSet(false, true)) {
+                        try {
+                            doTick()
+                        } finally {
+                            extendInFlight.set(false)
+                        }
                     }
                 }
             }
-        }
 
         val future = try {
             scheduler.scheduleWithFixedDelay(
@@ -294,7 +297,10 @@ object LeaderLeaseAutoExtender: KLogging() {
      */
     fun closeAsync(watchdog: AutoCloseable): CompletableFuture<Unit> {
         if (watchdog === NoopCloseable) return completableFutureOf(Unit)
-        return futureOf(cleanupExecutor) { watchdog.close() }
+
+        return futureOf(cleanupExecutor) {
+            watchdog.close()
+        }
     }
 
     /**
@@ -359,6 +365,7 @@ object LeaderLeaseAutoExtender: KLogging() {
             var delegateRejected = false
             var delegateElapsedNanos = 0L
             val watchdogReservation = admission?.invoke()
+
             if (admission != null && watchdogReservation == null) {
                 publishLeaderLeaseWatchdogEvent(
                     observing,
@@ -369,6 +376,7 @@ object LeaderLeaseAutoExtender: KLogging() {
                 )
                 return
             }
+
             val outcome = try {
                 delegate.extendSuspend(leaseTime).also {
                     delegateElapsedNanos = if (observing) {
@@ -385,7 +393,9 @@ object LeaderLeaseAutoExtender: KLogging() {
                 } else {
                     0L
                 }
-                log.warn(ex) { "Suspend watchdog delegate rejected extension. delegateId=${delegate.hashCode()}" }
+                log.warn(ex) {
+                    "Suspend watchdog delegate rejected extension. delegateId=${delegate.hashCode()}"
+                }
                 delegateRejected = true
                 BackendError(ex)
             } catch (ex: Exception) {
@@ -424,7 +434,7 @@ object LeaderLeaseAutoExtender: KLogging() {
                         extendInFlight.set(false)
                         cancelScopeIfIdle()
                     }
-                }
+                }.log("Tick")
             }
         }
 
@@ -436,7 +446,9 @@ object LeaderLeaseAutoExtender: KLogging() {
                 TimeUnit.MILLISECONDS,
             )
         } catch (ex: RejectedExecutionException) {
-            log.warn(ex) { "Suspend watchdog scheduling rejected — scheduler shut down. Returning no-op." }
+            log.warn(ex) {
+                "Suspend watchdog scheduling rejected — scheduler shut down. Returning no-op."
+            }
             scope.cancel()
             return NoopCloseable
         }
@@ -476,6 +488,7 @@ object LeaderLeaseAutoExtender: KLogging() {
 
     private fun waitForInFlightExtend(extendInFlight: AtomicBoolean) {
         val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(CLOSE_WAIT_TIMEOUT_MILLIS)
+
         while (extendInFlight.get() && System.nanoTime() < deadline) {
             try {
                 Thread.sleep(CLOSE_WAIT_POLL_MILLIS)
@@ -504,7 +517,8 @@ object LeaderLeaseAutoExtender: KLogging() {
             return
         }
         when (outcome) {
-            is Extended -> { /* 성공적으로 연장했으므로 계속 진행합니다. */
+            is Extended               -> {
+                /* 성공적으로 연장했으므로 계속 진행합니다. */
             }
             is ExtendOutcome.Rejected -> {
                 // Bounded watchdog admission is a transient lane decision. Keep the
@@ -517,9 +531,9 @@ object LeaderLeaseAutoExtender: KLogging() {
                     futureRef.get()?.cancel(false)
                 }
             }
-            is BackendError -> {
-                val kind = errorClassifier.classify(outcome.cause)
-                    ?: BackendErrorKind.NON_TRANSIENT
+            is BackendError           -> {
+                val kind = errorClassifier.classify(outcome.cause) ?: BackendErrorKind.NON_TRANSIENT
+
                 when (kind) {
                     BackendErrorKind.TRANSIENT -> {
                         log.warn(outcome.cause) { "leader.lease.auto-extend.transient-error — retrying. cause=${outcome.cause.message}" }

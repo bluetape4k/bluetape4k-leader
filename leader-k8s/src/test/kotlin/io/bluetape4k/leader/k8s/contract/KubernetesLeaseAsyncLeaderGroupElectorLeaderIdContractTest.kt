@@ -3,6 +3,7 @@ package io.bluetape4k.leader.k8s.contract
 import io.bluetape4k.leader.AsyncLeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.contract.AbstractAsyncLeaderGroupElectorLeaderIdContractTest
+import io.bluetape4k.leader.k8s.KubernetesContainers
 import io.bluetape4k.leader.k8s.KubernetesLeaseGroupOptions
 import io.bluetape4k.leader.k8s.KubernetesLeaseLeaderGroupElector
 import io.bluetape4k.logging.KLogging
@@ -22,7 +23,7 @@ class KubernetesLeaseAsyncLeaderGroupElectorLeaderIdContractTest:
 
     companion object: KLogging()
 
-    private val client: KubernetesClient = KubernetesContractSupport.newClient()
+    private val client: KubernetesClient = KubernetesContainers.newClient()
 
     override fun createElector(options: LeaderGroupElectionOptions): AsyncLeaderGroupElector =
         KubernetesLeaseLeaderGroupElector(

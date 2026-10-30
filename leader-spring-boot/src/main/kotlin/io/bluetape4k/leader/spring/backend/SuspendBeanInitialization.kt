@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.backend
 
+import io.bluetape4k.coroutines.support.awaitUntil
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
@@ -14,7 +15,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -50,7 +50,7 @@ internal fun <T> createSuspendBackendBean(
         val task = scope.async { block() }.log("Created $validOperationName")
 
         try {
-            withTimeout(timeout) { task.await() }
+            task.awaitUntil(timeout)
         } finally {
             withContext(NonCancellable) {
                 val cleanupCompleted = withTimeoutOrNull(cleanupTimeout) {

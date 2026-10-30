@@ -6,6 +6,7 @@ import io.bluetape4k.leader.LeaderManagementActionRegistry
 import io.bluetape4k.leader.LeaderManagementActionSurface
 import io.bluetape4k.leader.micrometer.MicrometerLeaderManagementActionObserver
 import io.bluetape4k.leader.spring.properties.LeaderManagementActionProperties
+import io.bluetape4k.logging.KLogging
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanDefinition
@@ -47,6 +48,8 @@ import kotlin.time.toKotlinDuration
 )
 @EnableConfigurationProperties(LeaderManagementActionProperties::class)
 class LeaderElectionManagementActionAutoConfiguration {
+
+    private companion object: KLogging()
 
     @Bean("leaderElectionActionWebEndpoint")
     @ConditionalOnBean(LeaderManagementActionRegistry::class)
@@ -104,6 +107,8 @@ class LeaderElectionManagementActionAutoConfiguration {
 private class SpringSurfaceObserver(
     private val delegate: LeaderManagementActionObserver,
 ): LeaderManagementActionObserver {
+
+    private companion object: KLogging()
 
     override fun onResult(observation: LeaderManagementActionObservation) {
         delegate.onResult(observation.withSpringSurface())

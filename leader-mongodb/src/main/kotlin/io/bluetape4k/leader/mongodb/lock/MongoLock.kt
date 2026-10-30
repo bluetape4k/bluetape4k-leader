@@ -107,7 +107,7 @@ class MongoLock private constructor(
                     return true
                 }
                 AcquireResult.CONTENDED -> Unit
-                AcquireResult.FAILED -> return false
+                AcquireResult.FAILED   -> return false
             }
 
             if (deadline.hasTimeRemaining()) {
@@ -218,7 +218,7 @@ class MongoLock private constructor(
                             releaseLateAcquisition(lateRelease)
                         }
                     }
-                    AcquireResult.FAILED -> complete(false)
+                    AcquireResult.FAILED   -> complete(false)
                     AcquireResult.CONTENDED -> {
                         if (!deadline.hasTimeRemaining()) {
                             log.debug { "락 획득 실패 (타임아웃, async): lockKey=$lockKey" }
@@ -266,7 +266,7 @@ class MongoLock private constructor(
                     log.error(e) { "MongoDB 인증 오류 (code=${e.errorCode}) 발생: lockKey=$lockKey" }
                     AcquireResult.FAILED
                 }
-                else -> {
+                else  -> {
                     log.warn(e) { "MongoDB 커맨드 오류 (code=${e.errorCode}) 발생: lockKey=$lockKey" }
                     AcquireResult.FAILED
                 }
@@ -360,7 +360,7 @@ class MongoLock private constructor(
 /**
  * 1.0.0에서 노출된 JVM facade를 유지하는 호환용 lock name 검증 함수입니다.
  */
-@Deprecated("use String.validateMonoLockName() instead")
+@Deprecated("use String.validateMongoLockName() instead")
 @Suppress("DEPRECATION")
 fun validateMongoLockName(lockName: String) {
     io.bluetape4k.leader.mongodb.validateMongoLockName(lockName)

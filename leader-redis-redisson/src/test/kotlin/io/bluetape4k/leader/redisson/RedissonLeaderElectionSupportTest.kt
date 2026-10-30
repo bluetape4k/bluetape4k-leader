@@ -1,7 +1,9 @@
 package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
@@ -50,9 +52,10 @@ class RedissonLeaderElectionSupportTest: AbstractRedissonLeaderTest() {
                 }
             }
 
-            countDownLatch.await(3.seconds)
+            countDownLatch.await(3.seconds).shouldBeTrue()
         } finally {
             executor.shutdownNow()
+            executor.awaitTermination(3.seconds)
         }
     }
 
@@ -139,7 +142,7 @@ class RedissonLeaderElectionSupportTest: AbstractRedissonLeaderTest() {
                 redissonClient.runIfLeader(lockName) {
                     log.debug { "작업 1 을 시작합니다. task1=${task1.get()}" }
                     task1.incrementAndGet()
-                    Thread.sleep(Random.nextLong(5, 10))
+                    randomSleep()
                     log.debug { "작업 1 을 종료합니다. task1=${task1.get()}" }
                 }
             }
@@ -147,7 +150,7 @@ class RedissonLeaderElectionSupportTest: AbstractRedissonLeaderTest() {
                 redissonClient.runIfLeader(lockName) {
                     log.debug { "작업 2 을 시작합니다. task2=${task2.get()}" }
                     task2.incrementAndGet()
-                    Thread.sleep(Random.nextLong(5, 10))
+                    randomSleep()
                     log.debug { "작업 2 을 종료합니다. task2=${task2.get()}" }
                 }
             }
@@ -221,7 +224,7 @@ class RedissonLeaderElectionSupportTest: AbstractRedissonLeaderTest() {
                         log.debug { "작업 1 을 시작합니다. task1=${task1.get()}" }
                         task1.incrementAndGet()
                         log.debug { "작업 1 을 종료합니다. task1=${task1.get()}" }
-                        Thread.sleep(Random.nextLong(5, 10))
+                        randomSleep()
                         42
                     }.toCompletableFuture()
                 }.get(5.seconds)
@@ -232,7 +235,7 @@ class RedissonLeaderElectionSupportTest: AbstractRedissonLeaderTest() {
                         log.debug { "작업 2 을 시작합니다. task2=${task2.get()}" }
                         task2.incrementAndGet()
                         log.debug { "작업 2 을 종료합니다. task2=${task2.get()}" }
-                        Thread.sleep(Random.nextLong(5, 10))
+                        randomSleep()
                         43
                     }.toCompletableFuture()
                 }.get(5.seconds)

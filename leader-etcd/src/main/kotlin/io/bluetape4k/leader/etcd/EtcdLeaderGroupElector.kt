@@ -5,6 +5,7 @@ import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.AopScopeAccess
+import io.bluetape4k.leader.AsyncLifecycle
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLease
@@ -25,8 +26,6 @@ import io.bluetape4k.leader.etcd.internal.etcdCleanupTimeout
 import io.bluetape4k.leader.etcd.internal.getWithinEtcdCleanupTimeout
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import io.bluetape4k.leader.etcd.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
-import io.bluetape4k.leader.etcd.runIfLeaderGroup as currentRunIfLeaderGroup
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -44,6 +43,8 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import io.bluetape4k.leader.etcd.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
+import io.bluetape4k.leader.etcd.runIfLeaderGroup as currentRunIfLeaderGroup
 
 /**
  * `EtcdLeaderGroupElector`는 etcd의 slot lock key와 lease를 이용해 여러 leader의 blocking/async 실행을 관리합니다.
@@ -77,12 +78,6 @@ class EtcdLeaderGroupElector private constructor(
             options: EtcdLeaderGroupElectionOptions = EtcdLeaderGroupElectionOptions.Default,
         ): EtcdLeaderGroupElector =
             EtcdLeaderGroupElector(lockClient, options)
-    }
-
-    private enum class AsyncLifecycle {
-        WAITING,
-        STARTED,
-        CLEANUP,
     }
 
     override val maxLeaders: Int = options.maxLeaders
@@ -134,14 +129,12 @@ class EtcdLeaderGroupElector private constructor(
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         val cleanupBarrier = AsyncLeaseCleanupBarrier(::releaseAfterMinLease)
         val beginCleanup: () -> CompletableFuture<Unit> = {
-            when {
-                lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) ->
-                    cleanupBarrier.request()
-                lifecycle.get() == AsyncLifecycle.CLEANUP ->
-                    cleanupBarrier.request()
-                else ->
-                    completableFutureOf(Unit)
-            }
+            if (lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP))
+                cleanupBarrier.request()
+            else if (lifecycle.get() == AsyncLifecycle.CLEANUP)
+                cleanupBarrier.request()
+            else
+                completableFutureOf(Unit)
         }
 
         val acquisitionFuture = futureOf(executor) {
@@ -155,20 +148,17 @@ class EtcdLeaderGroupElector private constructor(
 
         val pipelineFuture = acquisitionFuture.thenComposeAsync(
             { handle ->
-                when {
-                    handle == null ->
-                        completableFutureOf(null)
-                    !lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED) ->
-                        failedCompletableFutureOf(
-                            CancellationException("leader result future was cancelled before action"),
-                        )
-                    else ->
-                        runAcquiredAsync(
-                            handle,
-                            cancellationRelay,
-                            action
-                        )
-                }
+                if (handle == null)
+                    completableFutureOf(null)
+                else if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED))
+                    failedCompletableFutureOf(
+                        CancellationException("leader result future was cancelled before action"),
+                    )
+                else runAcquiredAsync(
+                    handle,
+                    cancellationRelay,
+                    action
+                )
             },
             executor
         )
@@ -397,10 +387,7 @@ class EtcdLeaderGroupElector private constructor(
                 lockClient.ownershipKeys(lockClient.groupSlotLockKey(lockName, slot))
                     .get(10.seconds)
                     .map { key ->
-                        LeaderLease(
-                            auditLeaderId = EtcdLeaseHandle.ownershipToken(key),
-                            slot = slot,
-                        )
+                        LeaderLease(auditLeaderId = EtcdLeaseHandle.ownershipToken(key), slot = slot)
                     }
             }.getOrElse { e ->
                 log.warn(e) { "etcd group state query failed. lockName=$lockName, slot=$slot" }

@@ -2,10 +2,10 @@ package io.bluetape4k.leader.etcd
 
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.concurrent.virtualthread.virtualFuture
-import io.bluetape4k.leader.etcd.runVirtualIfLeader as currentRunVirtualIfLeader
 import io.bluetape4k.leader.VirtualThreadLeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.etcd.jetcd.Client
+import io.bluetape4k.leader.etcd.runVirtualIfLeader as currentRunVirtualIfLeader
 
 /**
  * `EtcdVirtualThreadLeaderElector`는 etcd blocking elector 호출을 virtual thread에서 실행합니다.
@@ -18,9 +18,7 @@ class EtcdVirtualThreadLeaderElector(
    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics {
 
     override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
-        virtualFuture {
-            delegate.runIfLeader(lockName, action)
-        }
+        virtualFuture { delegate.runIfLeader(lockName, action) }
 }
 
 /** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */

@@ -5,6 +5,7 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 import io.bluetape4k.leader.history.LeaderHistorySink
 import io.bluetape4k.leader.history.SuspendLeaderHistorySink
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
+import io.bluetape4k.logging.KLogging
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -18,6 +19,8 @@ import org.springframework.scheduling.annotation.EnableScheduling
 @ConditionalOnProperty(prefix = "bluetape4k.leader.history.retention", name = ["enabled"], matchIfMissing = true)
 @EnableScheduling
 class LeaderHistoryRetentionAutoConfiguration {
+
+    companion object: KLogging()
 
     @Bean
     @ConditionalOnMissingBean(LeaderHistoryRetentionJob::class)

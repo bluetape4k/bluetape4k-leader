@@ -19,6 +19,7 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.lettuce.lock.LettuceLock
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.utils.Runtimex
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.untilAsserted
@@ -27,7 +28,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CancellationException
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -209,7 +209,7 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
             }
             val marker = futureOf(executor) { "executor-free" }
 
-            marker.get(300, TimeUnit.MILLISECONDS) shouldBeEqualTo "executor-free"
+            marker.get(300.milliseconds) shouldBeEqualTo "executor-free"
             result.get(2.seconds).shouldBeNull()
         } finally {
             holderLock.unlock()
@@ -229,8 +229,8 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
         val executed = AtomicInteger(0)
 
         MultithreadingTester()
-            .workers(5)
-            .rounds(3)
+            .workers(Runtimex.availableProcessors)
+            .rounds(4)
             .add {
                 el.runIfLeader(lockName) {
                     val current = concurrent.incrementAndGet()
@@ -253,8 +253,8 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
         val executed = AtomicInteger(0)
 
         MultithreadingTester()
-            .workers(5)
-            .rounds(3)
+            .workers(Runtimex.availableProcessors)
+            .rounds(4)
             .add {
                 el.runAsyncIfLeader(lockName) {
                     futureOf { executed.incrementAndGet() }
@@ -278,7 +278,7 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
         val executed = AtomicInteger(0)
 
         StructuredTaskScopeTester()
-            .rounds(15)
+            .rounds(Runtimex.availableProcessors * 4)
             .add {
                 el.runIfLeader(lockName) {
                     val current = concurrent.incrementAndGet()
@@ -301,7 +301,7 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
         val executed = AtomicInteger(0)
 
         StructuredTaskScopeTester()
-            .rounds(15)
+            .rounds(Runtimex.availableProcessors * 4)
             .add {
                 el.runAsyncIfLeader(lockName) {
                     futureOf { executed.incrementAndGet() }

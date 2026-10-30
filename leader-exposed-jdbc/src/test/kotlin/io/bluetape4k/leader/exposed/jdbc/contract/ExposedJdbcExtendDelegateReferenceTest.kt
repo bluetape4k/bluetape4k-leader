@@ -44,9 +44,9 @@ class ExposedJdbcExtendDelegateReferenceTest {
     companion object: KLogging() {
         private val db: Database by lazy {
             val testDb = TestDB.H2
-            val connection = testDb.db ?: testDb.connect()
-            ExposedJdbcSchemaInitializer.ensureSchema(connection)
-            connection
+            val database = testDb.db ?: testDb.connect()
+            ExposedJdbcSchemaInitializer.ensureSchema(database)
+            database
         }
     }
 
@@ -58,11 +58,13 @@ class ExposedJdbcExtendDelegateReferenceTest {
         val lockName = randomLockName()
 
         var outcome: ExtendOutcome? = null
+
         elector.runIfLeader(lockName) {
             LockAssert.assertLocked()
             outcome = LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         AopScopeAccess.pollCapture().shouldBeNull()
     }
@@ -83,6 +85,7 @@ class ExposedJdbcExtendDelegateReferenceTest {
             outcome = LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         AopScopeAccess.pollCapture().shouldBeNull()
     }
@@ -117,6 +120,8 @@ class ExposedJdbcExtendDelegateReferenceTest {
             postExtend = LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
+        log.debug { "preExtend=$preExtend" }
+        log.debug { "postExtend=$postExtend" }
         preExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
         postExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }

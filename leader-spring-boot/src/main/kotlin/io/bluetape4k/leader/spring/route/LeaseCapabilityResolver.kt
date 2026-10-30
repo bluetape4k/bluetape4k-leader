@@ -20,7 +20,7 @@ import org.springframework.beans.factory.getBean
 internal class LeaseCapabilityResolver(
     private val beanFactory: ListableBeanFactory,
 ) {
-    companion object: KLogging()
+    private companion object: KLogging()
 
     @Suppress("ReturnCount", "ThrowsCount")
     fun select(electorBean: String): LeaderLeaseAcquirer {
@@ -63,7 +63,7 @@ internal class LeaseCapabilityResolver(
             }
         } else {
             try {
-                beanFactory.getBean(SuspendLeaderLeaseAcquirer::class.java)
+                beanFactory.getBean<SuspendLeaderLeaseAcquirer>()
             } catch (_: NoUniqueBeanDefinitionException) {
                 return null
             } catch (_: NoSuchBeanDefinitionException) {

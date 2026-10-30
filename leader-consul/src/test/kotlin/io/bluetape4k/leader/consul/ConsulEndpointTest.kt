@@ -47,7 +47,7 @@ class ConsulEndpointTest {
 
     @Test
     fun `masks acl token in string form`() {
-        val endpoint = ConsulEndpoint("http://localhost:8500", aclToken = "secret-token")
+        val endpoint = ConsulEndpoint(baseUrl = "http://localhost:8500", aclToken = "secret-token")
 
         endpoint.toString() shouldBeEqualTo
                 "ConsulEndpoint(baseUrl=http://localhost:8500, datacenter=null, aclToken=***, requestTimeout=5s)"

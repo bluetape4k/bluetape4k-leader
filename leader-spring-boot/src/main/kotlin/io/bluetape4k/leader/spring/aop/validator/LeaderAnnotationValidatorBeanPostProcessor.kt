@@ -66,10 +66,9 @@ class LeaderAnnotationValidatorBeanPostProcessor(
         if (targetClass.isAnnotationPresent(org.aspectj.lang.annotation.Aspect::class.java)) return null
         if (targetClass.`package`?.name?.startsWith("org.springframework") == true) return null
 
-        val annotated = targetClass.declaredMethods
-            .filter { method ->
-                method.hasMergedAnnotation<LeaderElection>() || method.hasMergedAnnotation<LeaderGroupElection>()
-            }
+        val annotated = targetClass.declaredMethods.filter { method ->
+            method.hasMergedAnnotation<LeaderElection>() || method.hasMergedAnnotation<LeaderGroupElection>()
+        }
         if (annotated.isEmpty()) return null
         return targetClass to annotated
     }

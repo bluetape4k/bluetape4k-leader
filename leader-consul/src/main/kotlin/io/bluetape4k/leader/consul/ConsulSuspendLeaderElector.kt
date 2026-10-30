@@ -116,14 +116,15 @@ class ConsulSuspendLeaderElector private constructor(
 
     override val supportsAuditLeaderState: Boolean = true
 
-    private suspend fun <T> runWithLock(
+    private suspend inline fun <T> runWithLock(
         lockName: String,
         auditLeaderId: String?,
-        action: suspend () -> T,
+        crossinline action: suspend () -> T,
     ): T? {
         currentCoroutineContext().ensureActive()
         val handle = acquire(lockName, auditLeaderId) ?: return null
         val delegate: SuspendExtendDelegate = ConsulSuspendLockExtendDelegate(lockClient, handle)
+
         val lockHandle = LeaderLockHandle.real(
             identity = LockIdentity(
                 lockName = lockName,
@@ -135,6 +136,7 @@ class ConsulSuspendLeaderElector private constructor(
             extendDelegate = delegate,
             auditLeaderId = handle.auditLeaderId,
         )
+
         val watchdog = LeaderLeaseAutoExtender.start(
             options.leaderOptions.autoExtend,
             options.leaderOptions.leaseTime,
@@ -170,6 +172,7 @@ class ConsulSuspendLeaderElector private constructor(
             electedAt = electedAt,
             leaseUntil = leaseUntil,
         )
+
         val sessionId = try {
             lockClient.createSession(
                 name = "${options.sessionNamePrefix}-${options.leaderOptions.nodeId}",
@@ -238,7 +241,7 @@ class ConsulSuspendLeaderElector private constructor(
                 lockClient.renewSession(sessionId).await()
                 lastRenewNanos = now
             }
-            val delayMillis = minOf(50.milliseconds.inWholeMilliseconds, remainingMillis(deadline)).coerceAtLeast(1)
+            val delayMillis = minOf(50, remainingMillis(deadline)).coerceAtLeast(1)
             delay(delayMillis.milliseconds)
         } while (true)
     }

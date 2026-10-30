@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.internal
 
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.logging.KLogging
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 
 /** 선택된 state provider bean에서 backend diagnostics provider를 해석합니다. */
@@ -10,12 +11,15 @@ internal class LeaderBackendDiagnosticsSelector(
     private val stateProviderBean: String = "",
 ) {
 
+    companion object: KLogging()
+
     fun selectedOrNull(): LeaderBackendDiagnosticsProvider? {
         val selectedState = LeaderElectionStateSelector(beanFactory, stateProviderBean).selectedOrNull() ?: return null
+
         return when (val state = selectedState.state) {
             is LeaderBackendDiagnosticsProvider -> state
             is LeaderBackendDiagnosticsAware -> state.backendDiagnosticsProvider
-            else -> null
+            else                             -> null
         }
     }
 }

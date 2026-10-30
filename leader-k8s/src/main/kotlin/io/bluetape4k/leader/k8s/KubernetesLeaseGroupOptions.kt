@@ -2,7 +2,7 @@ package io.bluetape4k.leader.k8s
 
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseNames
-import io.bluetape4k.support.requireGt
+import io.bluetape4k.support.requirePositiveDuration
 import java.io.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -24,7 +24,7 @@ data class KubernetesLeaseGroupOptions(
 
     init {
         KubernetesLeaseNames.validateNamespace(namespace)
-        retryDelay.requireGt(Duration.ZERO, "retryDelay")
+        retryDelay.requirePositiveDuration("retryDelay")
     }
 
     val maxLeaders: Int get() = leaderGroupOptions.maxLeaders

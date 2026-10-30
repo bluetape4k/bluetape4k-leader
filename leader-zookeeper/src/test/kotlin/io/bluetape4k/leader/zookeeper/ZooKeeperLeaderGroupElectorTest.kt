@@ -96,7 +96,8 @@ class ZooKeeperLeaderGroupElectorTest: AbstractZooKeeperLeaderTest() {
     @Test
     fun `runIfLeader - action 예외 후에도 lease 가 반환되어 다음 호출이 성공한다`() {
         val lockName = randomName()
-        runCatching {
+
+        assertFailsWith<IllegalStateException> {
             elector.runIfLeader(lockName) {
                 error("boom")
             }

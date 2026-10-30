@@ -48,8 +48,10 @@ abstract class AbstractAsyncLeaseCleanupContractTest {
             cleanup = { throw cleanupFailure },
             transform = { value, _ -> value },
         )
-        val failure = assertFailsWith<ExecutionException> { result.get(2.seconds) }
-        (failure.cause === original).shouldBeTrue()
+        val failure = assertFailsWith<ExecutionException> {
+            result.get(2.seconds)
+        }
+        failure.cause shouldBe original
         original.suppressed.toList() shouldBeEqualTo listOf(cleanupFailure)
     }
 

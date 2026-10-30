@@ -11,6 +11,8 @@ internal class KubernetesLeaseGroupAcquisitionDeadline private constructor(
 
     companion object {
         fun fromNow(waitTime: Duration): KubernetesLeaseGroupAcquisitionDeadline =
-            KubernetesLeaseGroupAcquisitionDeadline(System.nanoTime() + waitTime.inWholeNanoseconds.coerceAtLeast(0L))
+            KubernetesLeaseGroupAcquisitionDeadline(
+                System.nanoTime() + waitTime.inWholeNanoseconds.coerceAtLeast(0L)
+            )
     }
 }

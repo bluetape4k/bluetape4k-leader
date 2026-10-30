@@ -4,13 +4,13 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.examples.support.startExampleContainer
+import io.bluetape4k.leader.zookeeper.blockUntilConnected
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.testcontainers.infra.ZooKeeperServer
 import org.apache.curator.framework.CuratorFramework
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -24,7 +24,7 @@ object ZooKeeperSchedulerDemo: KLogging() {
         curator.start()
 
         try {
-            check(curator.blockUntilConnected(10, TimeUnit.SECONDS)) {
+            check(curator.blockUntilConnected(10.seconds)) {
                 "Curator did not connect to ZooKeeper within 10 seconds"
             }
             runScenario(curator)

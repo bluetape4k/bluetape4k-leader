@@ -14,8 +14,19 @@ import io.bluetape4k.leader.internal.MonotonicDeadline as CoreMonotonicDeadline
 internal class MonotonicDeadline private constructor(
     private val startNanos: Long,
     private val timeoutNanos: Long,
-    private val ticker: () -> Long,
+    ticker: () -> Long,
 ) {
+
+    companion object {
+        fun fromNow(
+            waitTime: Duration,
+            ticker: () -> Long = System::nanoTime,
+        ): MonotonicDeadline {
+            val startNanos = ticker()
+            val timeoutNanos = waitTime.inWholeNanoseconds.coerceAtLeast(0L)
+            return MonotonicDeadline(startNanos, timeoutNanos, ticker)
+        }
+    }
 
     private val delegate = CoreMonotonicDeadline.fromStart(startNanos, timeoutNanos, ticker)
 
@@ -30,16 +41,5 @@ internal class MonotonicDeadline private constructor(
             .add("startNanos", startNanos)
             .add("timeoutNanos", timeoutNanos)
             .toString()
-    }
-
-    companion object {
-        fun fromNow(
-            waitTime: Duration,
-            ticker: () -> Long = System::nanoTime,
-        ): MonotonicDeadline {
-            val startNanos = ticker()
-            val timeoutNanos = waitTime.inWholeNanoseconds.coerceAtLeast(0L)
-            return MonotonicDeadline(startNanos, timeoutNanos, ticker)
-        }
     }
 }

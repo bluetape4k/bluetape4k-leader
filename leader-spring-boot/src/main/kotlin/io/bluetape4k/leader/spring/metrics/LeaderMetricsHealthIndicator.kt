@@ -15,8 +15,8 @@ class LeaderMetricsHealthIndicator(
 ): AbstractHealthIndicator("Leader AOP metrics health check failed") {
 
     companion object {
-        private val log = KotlinLogging.logger {}
 
+        private val log = KotlinLogging.logger {}
         private const val METER_ACTIVE = "leader.aop.active"
         private const val DETAIL_ACTIVE = "active"
         private const val DETAIL_TRACKED_LOCKS = "trackedLocks"

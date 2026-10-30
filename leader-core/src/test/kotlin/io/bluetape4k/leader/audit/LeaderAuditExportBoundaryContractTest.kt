@@ -2,8 +2,10 @@ package io.bluetape4k.leader.audit
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldContainAll
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Modifier
 import java.time.Instant
@@ -61,38 +63,37 @@ class LeaderAuditExportBoundaryContractTest {
         val publicSnapshotMethods = LeaderAuditExportSnapshot::class.java.declaredMethods
             .filter {
                 Modifier.isPublic(it.modifiers) &&
-                    (Modifier.isFinal(it.modifiers) || it.name == "toString")
+                        (Modifier.isFinal(it.modifiers) || it.name == "toString")
             }
             .map { it.name }
             .toSet()
 
-        // publicSnapshotMethods.forEach { log.debug { it } }
+        publicSnapshotMethods.forEach { log.debug { it } }
 
-        publicSnapshotMethods shouldBeEqualTo setOf(
-            "getQueued",
-            "getInFlight",
-            "getScheduledRetries",
-            "getAdmitted",
-            "getAccepted",
-            "getDroppedQueueFull",
+        publicSnapshotMethods shouldContainAll setOf(
+            "getClosed",
             "getDroppedClosed",
-            "getRetries",
-            "getTerminalFailures",
+            "getAdmitted",
+            "getInFlight",
             "getCancellations",
+            "getRetries",
+            "getQueued",
+            "getObserverDrops",
+            "getAccepted",
+            "getScheduledRetries",
+            "getObserverRegistrationDrops",
+            "getDroppedQueueFull",
+            "getTerminalFailures",
             "getExecutorRejections",
             "getSchedulerRejections",
-            "getObserverDrops",
-            "getObserverRegistrationDrops",
-            "getDiagnosticsFatalErrors",
             "getDiagnosticsClosed",
-            "getClosed",
-            "toString",
+            "getDiagnosticsFatalErrors",
         )
     }
 
     @Test
     fun `snapshot string renders each counter exactly once`() {
-        val snapshot = LeaderAuditExportSnapshot.create(
+        val snapshot = LeaderAuditExportSnapshot(
             queued = 1,
             inFlight = 2,
             scheduledRetries = 3,

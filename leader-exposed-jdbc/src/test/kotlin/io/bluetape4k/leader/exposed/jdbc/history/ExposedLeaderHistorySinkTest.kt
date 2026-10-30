@@ -3,6 +3,7 @@ package io.bluetape4k.leader.exposed.jdbc.history
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.exposed.tests.TestDB
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
@@ -47,9 +48,8 @@ class ExposedLeaderHistorySinkTest: AbstractExposedJdbcLeaderTest() {
         row[LeaderLockHistoryTable.token] shouldBeEqualTo record.token
         row[LeaderLockHistoryTable.kind] shouldBeEqualTo record.kind
         val persistedLeaseDeadline = row[LeaderLockHistoryTable.lockedUntil]
-        check(
-            Duration.between(persistedLeaseDeadline, record.lockedUntil).abs() < Duration.ofSeconds(1),
-        ) {
+
+        check(Duration.between(persistedLeaseDeadline, record.lockedUntil).abs() < 1.seconds()) {
             "Persisted lease deadline differs by more than the database timestamp precision: " +
                     "expected=${record.lockedUntil}, actual=$persistedLeaseDeadline"
         }
@@ -65,7 +65,7 @@ class ExposedLeaderHistorySinkTest: AbstractExposedJdbcLeaderTest() {
             token = token,
             kind = LockIdentity.AnnotationKind.SINGLE,
             acquiredAt = now,
-            lockedUntil = now.plusSeconds(30),
+            lockedUntil = now + 30.seconds(),
             nodeId = "test-node",
         )
     }

@@ -15,12 +15,12 @@ import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.async.RedisAsyncCommands
-import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.future.await
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -48,40 +48,40 @@ class LettuceSuspendLock(
 
         private val UNLOCK_SCRIPT = RedisScript(
             """
-if redis.call('get', KEYS[1]) == ARGV[1] then
-  local ttl = tonumber(ARGV[2])
-  if ttl and ttl > 0 then
-    return redis.call('pexpire', KEYS[1], ttl)
-  end
-  return redis.call('del', KEYS[1])
-else
-  return 0
-end"""
+            if redis.call('get', KEYS[1]) == ARGV[1] then
+              local ttl = tonumber(ARGV[2])
+              if ttl and ttl > 0 then
+                return redis.call('pexpire', KEYS[1], ttl)
+              end
+              return redis.call('del', KEYS[1])
+            else
+              return 0
+            end""".trimIndent()
         )
 
         private val EXTEND_SCRIPT = RedisScript(
             """
-if redis.call('get', KEYS[1]) == ARGV[1] then
-  return redis.call('pexpire', KEYS[1], ARGV[2])
-else
-  return 0
-end"""
+            if redis.call('get', KEYS[1]) == ARGV[1] then
+              return redis.call('pexpire', KEYS[1], ARGV[2])
+            else
+              return 0
+            end""".trimIndent()
         )
     }
 
-    private val tokenRef = atomic<String?>(null)
+    private val tokenRef = AtomicReference<String?>(null)
 
     private val asyncCommands: RedisAsyncCommands<String, String> by lazy { connection.async() }
 
     suspend fun isLocked(): Boolean = asyncCommands.get(lockKey).await() != null
 
     suspend fun isHeldByCurrentInstance(): Boolean {
-        val token = tokenRef.value ?: return false
+        val token = tokenRef.get() ?: return false
         return asyncCommands.get(lockKey).await() == token
     }
 
     /** 이 인스턴스가 마지막으로 성공한 획득에서 발급받은 소유 token을 반환하며, 미획득 상태는 `null`입니다. token은 ownership 비밀값입니다. */
-    fun currentToken(): String? = tokenRef.value
+    fun currentToken(): String? = tokenRef.get()
 
     suspend fun tryLock(
         waitTime: Duration = Duration.ZERO,
@@ -90,12 +90,12 @@ end"""
         val token = newToken()
         val leaseMs = leaseTime.inWholeMilliseconds
         val deadline = MonotonicDeadline.fromNow(waitTime)
+        val args = SetArgs().nx().px(leaseMs)
 
         do {
-            val args = SetArgs().nx().px(leaseMs)
             val result = asyncCommands.set(lockKey, token, args).await()
             if (result != null) {
-                tokenRef.value = token
+                tokenRef.set(token)
                 log.debug { "Lock 획득 성공 (suspend): lockKey=$lockKey" }
                 return true
             }
@@ -116,12 +116,12 @@ end"""
         val token = newToken()
         val leaseMs = leaseTime.inWholeMilliseconds
         val deadline = MonotonicDeadline.fromNow(maxWaitTime)
+        val args = SetArgs().nx().px(leaseMs)
 
         while (true) {
-            val args = SetArgs().nx().px(leaseMs)
             val result = asyncCommands.set(lockKey, token, args).await()
             if (result != null) {
-                tokenRef.value = token
+                tokenRef.set(token)
                 log.debug { "Lock 획득 성공 (suspend): lockKey=$lockKey" }
                 return
             }
@@ -136,8 +136,7 @@ end"""
         minLeaseTime: Duration = Duration.ZERO,
         acquiredAtNanos: Long = System.nanoTime(),
     ) {
-        val token =
-            tokenRef.getAndSet(null) ?: error("현재 인스턴스가 락을 보유하지 않습니다: lockKey=$lockKey")
+        val token = tokenRef.getAndSet(null) ?: error("현재 인스턴스가 락을 보유하지 않습니다: lockKey=$lockKey")
         val remainingMs = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime).inWholeMilliseconds
 
         val released = RedisScriptRunner.runSuspending<Long>(
@@ -159,7 +158,7 @@ end"""
     /** Lua에서 현재 token을 검증해 TTL을 갱신하고 `Extended` 또는 `NotHeld`를 반환합니다. */
     suspend fun extendDetailed(leaseTime: Duration = defaultLeaseTime): ExtendOutcome {
         currentCoroutineContext().ensureActive()
-        val token = tokenRef.value ?: return ExtendOutcome.NotHeld
+        val token = tokenRef.get() ?: return ExtendOutcome.NotHeld
         val leaseMs = leaseTime.inWholeMilliseconds
 
         val extended = RedisScriptRunner.runSuspending<Long>(

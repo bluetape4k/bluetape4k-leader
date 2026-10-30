@@ -134,6 +134,7 @@ class LeaderLeaseAutoExtenderLifecycleTest {
 
         conflicting.destroy()
         LeaderLeaseAutoExtender.isShutdown().shouldBeFalse()
+
         owner.destroy()
         LeaderLeaseAutoExtender.isShutdown().shouldBeTrue()
     }

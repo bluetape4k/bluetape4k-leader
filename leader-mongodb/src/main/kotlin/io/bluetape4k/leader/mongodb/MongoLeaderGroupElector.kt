@@ -17,8 +17,6 @@ import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import io.bluetape4k.leader.mongodb.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
-import io.bluetape4k.leader.mongodb.runIfLeaderGroup as currentRunIfLeaderGroup
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoSlotExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoLock
@@ -38,6 +36,8 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
 import kotlin.time.Duration
+import io.bluetape4k.leader.mongodb.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
+import io.bluetape4k.leader.mongodb.runIfLeaderGroup as currentRunIfLeaderGroup
 
 /**
  * `MongoLeaderGroupElector`는 MongoDB의 blocking 그룹 선출을 제공하며 `maxLeaders` 슬롯을 acquire·extend·release합니다.
@@ -92,7 +92,7 @@ class MongoLeaderGroupElector private constructor(
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
-        lockName.validateMonoLockName()
+        lockName.validateMongoLockName()
 
         val leaseTime = options.leaderGroupOptions.leaseTime
         val perSlotWait = options.leaderGroupOptions.waitTime / maxLeaders
@@ -177,7 +177,7 @@ class MongoLeaderGroupElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        lockName.validateMonoLockName()
+        lockName.validateMongoLockName()
 
         val leaseTime = options.leaderGroupOptions.leaseTime
         val perSlotWait = options.leaderGroupOptions.waitTime / maxLeaders
@@ -233,14 +233,14 @@ class MongoLeaderGroupElector private constructor(
         )
     }
 
-    private fun <T> runAcquiredAsync(
+    private inline fun <T> runAcquiredAsync(
         lock: MongoLock,
         lockName: String,
         slot: Int,
         acquiredAtNanos: Long,
         leaseTime: Duration,
         cancellationRelay: LeaderFutureBridge.CancellationRelay,
-        action: () -> CompletableFuture<T>,
+        crossinline action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val startedAt = Instant.now()
         log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName, slot=$slot" }
@@ -249,7 +249,7 @@ class MongoLeaderGroupElector private constructor(
         val historyKey = recordAcquired(lockName, lock.token, slot, startedAt, leaseTime)
         val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
         val actionFuture = runCatching {
-            cancellationRelay.invoke(action)
+            cancellationRelay.invoke { action() }
         }.getOrElse { error ->
             val finishedAt = Instant.now()
             val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)

@@ -36,7 +36,6 @@ class ZooKeeperLeaderElectorTest: AbstractZooKeeperLeaderTest() {
         val election = ZooKeeperLeaderElector(curator)
 
         val result = election.runIfLeader(randomName()) { "hello" }
-
         result shouldBeEqualTo "hello"
     }
 
@@ -74,7 +73,6 @@ class ZooKeeperLeaderElectorTest: AbstractZooKeeperLeaderTest() {
 
         try {
             Thread.currentThread().interrupt()
-
             assertFailsWith<InterruptedException> {
                 elector.runIfLeader(randomName()) { "should-not-run" }
             }

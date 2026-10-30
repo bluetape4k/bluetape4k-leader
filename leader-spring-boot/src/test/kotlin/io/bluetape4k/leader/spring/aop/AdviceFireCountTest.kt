@@ -35,7 +35,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AdviceFireCountTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     class AdviceFireTestService {
         @LeaderElection(name = "fire-count-test")

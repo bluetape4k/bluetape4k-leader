@@ -3,6 +3,7 @@ package io.bluetape4k.leader.lettuce.semaphore
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.lettuce.DEFAULT_TOKEN_LENGTH
 import io.bluetape4k.leader.lettuce.internal.MonotonicDeadline
@@ -12,6 +13,7 @@ import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.asInt
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import io.lettuce.core.ScriptOutputType
@@ -55,83 +57,83 @@ class LettuceSlotTokenGroup(
         /** Redis server time으로 만료 token을 정리한 뒤 `maxLeaders` 미만이면 token과 선택적 audit ID를 저장합니다. */
         private val ACQUIRE_SCRIPT = RedisScript(
             """
-redis.replicate_commands()
-local t = redis.call('TIME')
-local nowMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
-redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, nowMs)
-if redis.call('ZCARD', KEYS[1]) < tonumber(ARGV[1]) then
-  redis.call('ZADD', KEYS[1], nowMs + tonumber(ARGV[3]), ARGV[2])
-  redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[3]) + $SLOT_KEY_TTL_MARGIN_MS)
-  if ARGV[4] ~= '' then
-    redis.call('HSET', KEYS[2], ARGV[2], ARGV[4])
-    redis.call('PEXPIRE', KEYS[2], tonumber(ARGV[3]) + $SLOT_KEY_TTL_MARGIN_MS)
-  end
-  return ARGV[2]
-end
-return ''
-"""
+            redis.replicate_commands()
+            local t = redis.call('TIME')
+            local nowMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
+            redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, nowMs)
+            if redis.call('ZCARD', KEYS[1]) < tonumber(ARGV[1]) then
+              redis.call('ZADD', KEYS[1], nowMs + tonumber(ARGV[3]), ARGV[2])
+              redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[3]) + $SLOT_KEY_TTL_MARGIN_MS)
+              if ARGV[4] ~= '' then
+                redis.call('HSET', KEYS[2], ARGV[2], ARGV[4])
+                redis.call('PEXPIRE', KEYS[2], tonumber(ARGV[3]) + $SLOT_KEY_TTL_MARGIN_MS)
+              end
+              return ARGV[2]
+            end
+            return ''
+            """.trimIndent()
         )
 
         /** 남은 최소 lease가 있으면 현재 token의 score를 갱신하고, 없으면 token과 metadata를 제거합니다. */
         private val RELEASE_SCRIPT = RedisScript(
             """
-redis.replicate_commands()
-if tonumber(ARGV[2]) > 0 then
-  local t = redis.call('TIME')
-  local nowMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
-  local cur = redis.call('ZSCORE', KEYS[1], ARGV[1])
-  if cur and tonumber(cur) > nowMs then
-    return redis.call('ZADD', KEYS[1], 'XX', nowMs + tonumber(ARGV[2]), ARGV[1])
-  end
-  return 0
-else
-  redis.call('HDEL', KEYS[2], ARGV[1])
-  return redis.call('ZREM', KEYS[1], ARGV[1])
-end
-"""
+            redis.replicate_commands()
+            if tonumber(ARGV[2]) > 0 then
+              local t = redis.call('TIME')
+              local nowMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
+              local cur = redis.call('ZSCORE', KEYS[1], ARGV[1])
+              if cur and tonumber(cur) > nowMs then
+                return redis.call('ZADD', KEYS[1], 'XX', nowMs + tonumber(ARGV[2]), ARGV[1])
+              end
+              return 0
+            else
+              redis.call('HDEL', KEYS[2], ARGV[1])
+              return redis.call('ZREM', KEYS[1], ARGV[1])
+            end
+            """.trimIndent()
         )
 
         /** 만료 token을 정리한 뒤 `{active, maxLeaders - active}`를 반환합니다. */
         private val STATUS_SCRIPT = RedisScript(
             """
-redis.replicate_commands()
-local t = redis.call('TIME')
-local nowMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
-redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, nowMs)
-local active = redis.call('ZCARD', KEYS[1])
-return { active, tonumber(ARGV[1]) - active }
-"""
+            redis.replicate_commands()
+            local t = redis.call('TIME')
+            local nowMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
+            redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, nowMs)
+            local active = redis.call('ZCARD', KEYS[1])
+            return { active, tonumber(ARGV[1]) - active }
+            """.trimIndent()
         )
 
         /** 유효한 token의 score와 key TTL을 `leaseTime`만큼 갱신합니다. */
         private val EXTEND_SCRIPT = RedisScript(
             """
-redis.replicate_commands()
-local t = redis.call('TIME')
-local nowMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
-local cur = redis.call('ZSCORE', KEYS[1], ARGV[1])
-if cur and tonumber(cur) > nowMs then
-  redis.call('ZADD', KEYS[1], 'XX', nowMs + tonumber(ARGV[2]), ARGV[1])
-  redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[2]) + $SLOT_KEY_TTL_MARGIN_MS)
-  redis.call('PEXPIRE', KEYS[2], tonumber(ARGV[2]) + $SLOT_KEY_TTL_MARGIN_MS)
-  return 1
-end
-return 0
-"""
+            redis.replicate_commands()
+            local t = redis.call('TIME')
+            local nowMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
+            local cur = redis.call('ZSCORE', KEYS[1], ARGV[1])
+            if cur and tonumber(cur) > nowMs then
+              redis.call('ZADD', KEYS[1], 'XX', nowMs + tonumber(ARGV[2]), ARGV[1])
+              redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[2]) + $SLOT_KEY_TTL_MARGIN_MS)
+              redis.call('PEXPIRE', KEYS[2], tonumber(ARGV[2]) + $SLOT_KEY_TTL_MARGIN_MS)
+              return 1
+            end
+            return 0
+            """.trimIndent()
         )
 
         /** token score가 Redis server time보다 큰지 검사해 소유 여부를 1 또는 0으로 반환합니다. */
         private val IS_HELD_SCRIPT = RedisScript(
             """
-redis.replicate_commands()
-local t = redis.call('TIME')
-local nowMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
-local cur = redis.call('ZSCORE', KEYS[1], ARGV[1])
-if cur and tonumber(cur) > nowMs then
-  return 1
-end
-return 0
-"""
+            redis.replicate_commands()
+            local t = redis.call('TIME')
+            local nowMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
+            local cur = redis.call('ZSCORE', KEYS[1], ARGV[1])
+            if cur and tonumber(cur) > nowMs then
+              return 1
+            end
+            return 0
+            """.trimIndent()
         )
     }
 
@@ -160,7 +162,7 @@ return 0
                 syncCommands, ACQUIRE_SCRIPT, ScriptOutputType.VALUE,
                 arrayOf(slotKey, metaKey), maxLeaders.toString(), token, leaseMs, auditLeaderId
             )
-            if (!result.isEmpty()) {
+            if (result.isNotEmpty()) {
                 log.debug { "슬롯 획득 성공. slotKey=$slotKey, token=$token" }
                 return result
             }
@@ -254,13 +256,13 @@ return 0
                 }
             }.thenCompose { result ->
                 when {
-                    !result.isNullOrEmpty() -> completableFutureOf(result)
+                    !result.isNullOrEmpty()     -> completableFutureOf(result)
                     deadline.hasTimeRemaining() -> {
                         val delayMillis = deadline.remainingMillisForDelay(SPIN_DELAY_MS)
                         val delayed = CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS)
-                        CompletableFuture.runAsync({}, delayed).thenCompose { attempt() }
+                        futureOf(delayed) { }.thenCompose { attempt() }
                     }
-                    else -> {
+                    else                        -> {
                         // deadline 도달 시점에 마지막 error 가 있으면 backend outage 로 간주하여 surface.
                         // contention (script 정상 실행 + 빈 문자열 반환) 만 null 로 반환.
                         val terminalError = lastError.get()
@@ -299,7 +301,7 @@ return 0
                 asyncCommands, ACQUIRE_SCRIPT, ScriptOutputType.VALUE,
                 arrayOf(slotKey, metaKey), maxLeaders.toString(), token, leaseMs, auditLeaderId
             )
-            if (!result.isEmpty()) {
+            if (result.isNotEmpty()) {
                 log.debug { "슬롯 획득 성공 (suspend). slotKey=$slotKey, token=$token" }
                 return result
             }
@@ -346,8 +348,7 @@ return 0
             arrayOf(slotKey, metaKey), token, remainingMinLeaseMs.toString()
         )
         log.debug {
-            "슬롯 해제 (suspend). slotKey=$slotKey, token=$token, " +
-                    "remainingMinLeaseMs=$remainingMinLeaseMs, ret=$ret"
+            "슬롯 해제 (suspend). slotKey=$slotKey, token=$token, remainingMinLeaseMs=$remainingMinLeaseMs, ret=$ret"
         }
     }
 
@@ -360,8 +361,8 @@ return 0
             asyncCommands, STATUS_SCRIPT, ScriptOutputType.MULTI,
             arrayOf(slotKey), maxLeaders.toString()
         )
-        val active = list.getOrNull(0)?.toInt() ?: 0
-        val available = list.getOrNull(1)?.toInt() ?: maxLeaders
+        val active = list.getOrNull(0).asInt(0)
+        val available = list.getOrNull(1).asInt(maxLeaders)
         return active to available
     }
 }

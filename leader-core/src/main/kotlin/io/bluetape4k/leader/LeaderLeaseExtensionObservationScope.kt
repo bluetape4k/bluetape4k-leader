@@ -28,11 +28,13 @@ class LeaderLeaseExtensionObservationScope private constructor(
     fun <T> withScope(block: () -> T): T {
         val previous = scopes.get()
         val installed = takeIf { isActive() }
+
         if (installed == null) {
             scopes.remove()
         } else {
             scopes.set(installed)
         }
+
         return try {
             block()
         } finally {

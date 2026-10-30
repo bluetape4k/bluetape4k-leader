@@ -30,21 +30,21 @@ inline fun <T> CuratorFramework.runIfLeader(
     runIfLeader(ZooKeeperElectionPath(lockName, basePath), options, action)
 
 /** `path`의 ZooKeeper lock 획득과 action future를 `executor`에서 수행하며, 경합이면 완료값 `null`을 반환합니다. */
-fun <T> CuratorFramework.runAsyncIfLeader(
+inline fun <T> CuratorFramework.runAsyncIfLeader(
     path: ZooKeeperElectionPath,
     executor: Executor = VirtualThreadExecutor,
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
-    action: () -> CompletableFuture<T>,
+    crossinline action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> =
-    ZooKeeperLeaderElector(this, path.basePath, options).runAsyncIfLeader(path.lockName, executor, action)
+    ZooKeeperLeaderElector(this, path.basePath, options).runAsyncIfLeader(path.lockName, executor) { action() }
 
 /** `basePath/lockName` 경로의 ZooKeeper lock을 비동기로 기다리고, 경합이면 완료값 `null`을 반환합니다. */
-fun <T> CuratorFramework.runAsyncIfLeader(
+inline fun <T> CuratorFramework.runAsyncIfLeader(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
     basePath: String = ZooKeeperLeaderElector.DEFAULT_BASE_PATH,
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
-    action: () -> CompletableFuture<T>,
+    crossinline action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> =
     runAsyncIfLeader(ZooKeeperElectionPath(lockName, basePath), executor, options, action)
 
@@ -65,22 +65,23 @@ inline fun <T> CuratorFramework.runIfLeaderGroup(
 ): T? = runIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), options, action)
 
 /** `path`의 ZooKeeper group lease 획득과 action future를 `executor`에서 수행하며, 경합이면 완료값 `null`입니다. */
-fun <T> CuratorFramework.runAsyncIfLeaderGroup(
+inline fun <T> CuratorFramework.runAsyncIfLeaderGroup(
     path: ZooKeeperElectionPath,
     executor: Executor = VirtualThreadExecutor,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-    action: () -> CompletableFuture<T>,
+    crossinline action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> =
-    ZooKeeperLeaderGroupElector(this, options, path.basePath).runAsyncIfLeader(path.lockName, executor, action)
+    ZooKeeperLeaderGroupElector(this, options, path.basePath).runAsyncIfLeader(path.lockName, executor) { action() }
 
 /** `basePath/lockName` semaphore의 그룹 lease를 비동기로 획득하고, 슬롯이 없으면 완료값 `null`을 반환합니다. */
-fun <T> CuratorFramework.runAsyncIfLeaderGroup(
+inline fun <T> CuratorFramework.runAsyncIfLeaderGroup(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     basePath: String = ZooKeeperLeaderGroupElector.DEFAULT_BASE_PATH,
-    action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> = runAsyncIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), executor, options, action)
+    crossinline action: () -> CompletableFuture<T>,
+): CompletableFuture<T?> =
+    runAsyncIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), executor, options) { action() }
 
 
 /** `path`의 ZooKeeper lock을 coroutine에서 획득하고 `finally`에서 elector를 닫습니다. 경합이면 `null`입니다. */
@@ -88,14 +89,10 @@ suspend inline fun <T> CuratorFramework.suspendRunIfLeader(
     path: ZooKeeperElectionPath,
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: suspend () -> T,
-): T? {
-    val elector = ZooKeeperSuspendLeaderElector(this, path.basePath, options)
-    return try {
+): T? =
+    ZooKeeperSuspendLeaderElector(this, path.basePath, options).use { elector ->
         elector.runIfLeader(path.lockName) { action() }
-    } finally {
-        elector.close()
     }
-}
 
 /** `basePath/lockName` ZooKeeper lock을 coroutine에서 획득해 suspend `action`을 실행합니다. */
 suspend inline fun <T> CuratorFramework.suspendRunIfLeader(

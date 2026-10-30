@@ -67,7 +67,7 @@ annotation class ComposedGroupElection(
 @Suppress("NON_FINAL_MEMBER_IN_FINAL_CLASS")
 class LeaderAnnotationValidatorBeanPostProcessorTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val spel = SpelExpressionEvaluator(embeddedValueResolver = { it })
 
@@ -126,6 +126,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
+
         assertFailsWith<IllegalArgumentException> {
             bpp.postProcessAfterInitialization(Sample(), "sample")
         }
@@ -140,6 +141,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
+
         assertFailsWith<IllegalStateException> {
             bpp.postProcessAfterInitialization(Sample(), "sample")
         }
@@ -158,6 +160,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         // self-inv 자체는 strict 모드에서도 WARN 만 (정확 검출 불가)
         assertNotFails {
             bpp.postProcessAfterInitialization(Sample(), "sample")
@@ -185,6 +188,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertNotFails {
             bpp.postProcessAfterInitialization(SampleSuspend(), "sample")
         }
@@ -198,6 +202,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
+
         assertNotFails {
             bpp.postProcessAfterInitialization(SampleSuspend(), "sample")
         }
@@ -211,6 +216,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertNotFails {
             bpp.postProcessAfterInitialization(SampleMono(), "sample")
         }
@@ -224,6 +230,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertFailsWith<IllegalStateException> {
             bpp.postProcessAfterInitialization(SampleFlux(), "sample")
         }
@@ -237,6 +244,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertFailsWith<IllegalStateException> {
             bpp.postProcessAfterInitialization(SampleFlow(), "sample")
         }
@@ -250,6 +258,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertNotFails {
             bpp.postProcessAfterInitialization(SampleFlux(), "sample")
         }
@@ -263,6 +272,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertNotFails {
             bpp.postProcessAfterInitialization(SampleFlow(), "sample")
         }
@@ -276,6 +286,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertFailsWith<IllegalStateException> {
             bpp.postProcessAfterInitialization(SampleFlux(), "sample")
         }
@@ -289,6 +300,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertFailsWith<IllegalStateException> {
             bpp.postProcessAfterInitialization(SampleFlow(), "sample")
         }
@@ -302,6 +314,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertNotFails {
             bpp.postProcessAfterInitialization(SampleComposedStream(), "sample")
         }
@@ -318,6 +331,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertFailsWith<IllegalStateException> {
             bpp.postProcessAfterInitialization(SampleFuture(), "sample")
         }
@@ -331,6 +345,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertFailsWith<IllegalStateException> {
             bpp.postProcessAfterInitialization(SampleFuture(), "sample")
         }
@@ -344,6 +359,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertFailsWith<IllegalStateException> {
             bpp.postProcessAfterInitialization(SampleDeferred(), "sample")
         }
@@ -357,6 +373,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
+
         assertNotFails {
             bpp.postProcessAfterInitialization(SampleFuture(), "sample")
         }
@@ -386,6 +403,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertNotFails {
             bpp.postProcessAfterInitialization(SampleComposed(), "sample")
         }
@@ -399,6 +417,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertFailsWith<IllegalStateException> {
             bpp.postProcessAfterInitialization(SampleComposedFinal(), "sample")
         }
@@ -412,6 +431,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
+
         assertFailsWith<IllegalStateException> {
             bpp.postProcessAfterInitialization(SampleBadSpel(), "sample")
         }
@@ -425,6 +445,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
+
         assertFailsWith<IllegalStateException> {
             bpp.postProcessAfterInitialization(Sample(), "sample")
         }
@@ -438,6 +459,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+
         assertFailsWith<IllegalStateException> {
             bpp.postProcessAfterInitialization(Sample(), "sample")
         }
@@ -451,6 +473,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
+
         assertFailsWith<IllegalArgumentException> {
             bpp.postProcessAfterInitialization(SampleBadGroup(), "sample")
         }

@@ -3,6 +3,7 @@ package io.bluetape4k.leader.spring.observability
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.LeaderElectionListener
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -18,6 +19,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 class LeaderElectionObservedEventPublisher(
     private val registry: LeaderElectionStatusRegistry,
 ): LeaderElectionListener, LeaderElectionEventPublisher {
+
+    private companion object: KLogging()
 
     private val eventSubject = MutableSharedFlow<LeaderElectionEvent>(
         extraBufferCapacity = 128,

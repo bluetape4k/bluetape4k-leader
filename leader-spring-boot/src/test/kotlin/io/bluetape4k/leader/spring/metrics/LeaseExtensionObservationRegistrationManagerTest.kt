@@ -44,7 +44,7 @@ import kotlin.time.toJavaDuration
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaseExtensionObservationRegistrationManagerTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     @Test
     fun `two Spring contexts sharing a registry keep one callback until the last context closes`() {

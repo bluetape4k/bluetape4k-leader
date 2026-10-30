@@ -7,8 +7,9 @@ import io.bluetape4k.leader.LeaderLeaseDefaults
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseHandle
+import io.bluetape4k.leader.utils.safePlus
 import io.bluetape4k.logging.coroutines.KLoggingChannel
-import io.bluetape4k.support.requireGt
+import io.bluetape4k.support.requirePositiveDuration
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -30,7 +31,7 @@ internal class SuspendLeaderLeaseLifecycle(
 
     suspend fun tryAcquire(slot: LeaderSlot, waitTime: Duration = options.waitTime): SuspendLeaderLeaseHandle? {
         val now = monotonicNanos()
-        val deadline = safePlus(now, waitTime.inWholeNanoseconds.coerceAtLeast(0L))
+        val deadline = now safePlus waitTime.inWholeNanoseconds.coerceAtLeast(0L)
         val backend = callbacks.acquire(slot, deadline, deadline) ?: return null
         return ManagedSuspendLeaseHandle(backend, options, callbacks, monotonicNanos)
     }
@@ -67,10 +68,17 @@ internal class SuspendLeaderLeaseLifecycle(
         @Suppress("TooGenericExceptionCaught")
         override suspend fun extend(lockAtMostFor: Duration): ExtendOutcome {
             if (state.get() != State.LIVE) return ExtendOutcome.NotHeld
-            lockAtMostFor.requireGt(Duration.ZERO, "lockAtMostFor")
+            lockAtMostFor.requirePositiveDuration("lockAtMostFor")
+
             return try {
-                callbacks.extend(backend, lockAtMostFor.coerceAtMost(options.leaseTime), releaseDeadline()).also {
-                    if (it is ExtendOutcome.NotHeld) status.set(LeaseOwnershipStatus.NOT_HELD)
+                callbacks.extend(
+                    lease = backend,
+                    duration = lockAtMostFor.coerceAtMost(options.leaseTime),
+                    deadlineNanos = releaseDeadline()
+                ).also {
+                    if (it is ExtendOutcome.NotHeld) {
+                        status.set(LeaseOwnershipStatus.NOT_HELD)
+                    }
                 }
             } catch (ex: Exception) {
                 status.set(LeaseOwnershipStatus.UNKNOWN)
@@ -80,6 +88,7 @@ internal class SuspendLeaderLeaseLifecycle(
 
         override suspend fun ownershipStatus(): LeaseOwnershipStatus {
             if (state.get() != State.LIVE) return status.get()
+
             return try {
                 callbacks.isHeld(backend, releaseDeadline()).also { status.set(it) }
             } catch (_: Exception) {
@@ -92,6 +101,7 @@ internal class SuspendLeaderLeaseLifecycle(
 
         override suspend fun release() = withContext(NonCancellable) {
             if (!state.compareAndSet(State.LIVE, State.CLOSING)) return@withContext
+
             val deadline = releaseDeadline()
             try {
                 if (options.autoExtend) {
@@ -104,12 +114,12 @@ internal class SuspendLeaderLeaseLifecycle(
                     }
                 }
                 LeaderLeaseAutoExtender.closeSuspend(watchdog)
-                val remaining = (
-                        options.minLeaseTime.inWholeNanoseconds -
-                                (monotonicNanos() - backend.acquiredAtNanos)
-                        )
+
+                val remaining = (options.minLeaseTime.inWholeNanoseconds - (monotonicNanos() - backend.acquiredAtNanos))
                     .coerceAtLeast(0L)
-                if (remaining > 0L) delay((remaining - 1L) / NANOS_PER_MILLISECOND + 1L)
+
+                if (remaining > 0L) delay(timeMillis = (remaining - 1L) / NANOS_PER_MILLISECOND + 1L)
+
                 val releaseOutcome = try {
                     callbacks.release(backend, deadline)
                 } catch (cancelled: CancellationException) {
@@ -117,10 +127,16 @@ internal class SuspendLeaderLeaseLifecycle(
                 } catch (_: Exception) {
                     BackendReleaseOutcome.ERROR
                 }
+
                 when (releaseOutcome) {
-                    BackendReleaseOutcome.RELEASED, BackendReleaseOutcome.NOT_HELD ->
+                    BackendReleaseOutcome.RELEASED,
+                    BackendReleaseOutcome.NOT_HELD,
+                        ->
                         status.set(LeaseOwnershipStatus.NOT_HELD)
-                    BackendReleaseOutcome.ERROR, BackendReleaseOutcome.TIMEOUT ->
+
+                    BackendReleaseOutcome.ERROR,
+                    BackendReleaseOutcome.TIMEOUT,
+                        ->
                         status.set(LeaseOwnershipStatus.UNKNOWN)
                 }
             } finally {
@@ -128,15 +144,9 @@ internal class SuspendLeaderLeaseLifecycle(
             }
         }
 
-        private fun releaseDeadline(): Long = safePlus(
-            monotonicNanos(),
-            minOf(LeaderLeaseDefaults.PUBLIC_RELEASE_TIMEOUT, options.leaseTime).inWholeNanoseconds,
-        )
+        private fun releaseDeadline(): Long =
+            monotonicNanos() safePlus
+                    minOf(LeaderLeaseDefaults.PUBLIC_RELEASE_TIMEOUT, options.leaseTime).inWholeNanoseconds
 
-        private fun safePlus(first: Long, second: Long): Long =
-            if (second > 0 && first > Long.MAX_VALUE - second) Long.MAX_VALUE else first + second
     }
-
-    private fun safePlus(first: Long, second: Long): Long =
-        if (second > 0 && first > Long.MAX_VALUE - second) Long.MAX_VALUE else first + second
 }

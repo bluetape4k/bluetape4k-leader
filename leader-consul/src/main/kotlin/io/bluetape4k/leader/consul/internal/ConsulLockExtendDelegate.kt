@@ -43,12 +43,13 @@ internal class ConsulLockExtendDelegate(
     }
 
     override fun isHeld(): Boolean =
-        !handle.isReleased && runCatching {
-            lockClient.read(handle.key).getWithinRequestTimeout(lockClient)?.sessionId == handle.sessionId
-        }.getOrElse { e ->
-            log.warn(e) { "Failed to verify Consul leader session ownership. lockName=${handle.lockName}" }
-            false
-        }
+        !handle.isReleased &&
+                runCatching {
+                    lockClient.read(handle.key).getWithinRequestTimeout(lockClient)?.sessionId == handle.sessionId
+                }.getOrElse { e ->
+                    log.warn(e) { "Failed to verify Consul leader session ownership. lockName=${handle.lockName}" }
+                    false
+                }
 
     override val lastExtendDeadline: AtomicReference<Instant>
         get() = _lastExtendDeadline

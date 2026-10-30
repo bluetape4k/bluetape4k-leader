@@ -16,6 +16,7 @@ fun remainingMinLeaseTime(startedAtNanos: Long, minLeaseTime: Duration): Duratio
     }
     val elapsed = (System.nanoTime() - startedAtNanos).nanoseconds
     val remaining = minLeaseTime - elapsed
+
     return if (remaining > Duration.ZERO) remaining else Duration.ZERO
 }
 

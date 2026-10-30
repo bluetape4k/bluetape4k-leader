@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.get
+import io.bluetape4k.coroutines.support.awaitUntilOrNull
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -14,7 +15,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -200,7 +200,7 @@ class LeaderElectionResourceRegistryTest {
         val report = CompletableDeferred<LeaderElectionShutdownReport>()
 
         val waiter = launch { report.complete(registry.awaitClosed()) }.log("waiter")
-        withTimeoutOrNull(50.milliseconds) { report.await() }.shouldBeNull()
+        report.awaitUntilOrNull(50.milliseconds).shouldBeNull()
 
         allowCompletion.complete(Unit)
         report.await() shouldBeEqualTo

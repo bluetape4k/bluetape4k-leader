@@ -19,12 +19,9 @@ import java.time.Duration
 
 @Tag("integration")
 @Execution(ExecutionMode.SAME_THREAD)
-class EtcdReadinessBoundaryIntegrationTest {
+class EtcdReadinessBoundaryIntegrationTest: AbstractEtcdLeaderTest() {
 
-    private companion object: KLogging() {
-        val ETCD_READINESS_ENDPOINT =
-            ReadinessEndpoint(EtcdServer.NAME, EtcdServer.CLIENT_PORT, "/health")
-    }
+    private companion object: KLogging()
 
     @Test
     fun `host wait 실패 직전에 실제 세 경계의 정상 증거를 수집한다`() {

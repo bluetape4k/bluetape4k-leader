@@ -3,6 +3,7 @@ package io.bluetape4k.leader.spring.observability
 import io.bluetape4k.leader.spring.route.LeaderRouteGuardAutoConfiguration
 import io.bluetape4k.leader.spring.route.LeaderRouteLeaseDiagnosticsContributor
 import io.bluetape4k.leader.spring.route.LeaderRouteLeaseRuntime
+import io.bluetape4k.logging.KLogging
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -20,6 +21,8 @@ import org.springframework.context.annotation.Bean
     havingValue = "true",
 )
 class LeaderRouteLeaseActuatorAutoConfiguration {
+
+    private companion object: KLogging()
 
     @Bean("leaderRouteLeaseDiagnosticsContributor")
     @ConditionalOnMissingBean(LeaderRouteLeaseDiagnosticsContributor::class)

@@ -44,7 +44,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionAspectFailureModeTest {
 
-    companion object: KLogging() {
+    private companion object: KLogging() {
         private const val SAMPLE_RESULT = "ok"
     }
 
@@ -69,10 +69,10 @@ class LeaderElectionAspectFailureModeTest {
 
     private val election: LeaderElector = mockk(relaxed = true)
     private val recorder: LeaderAopMetricsRecorder = mockk(relaxed = true)
-    private val factoryMock: LeaderElectorFactory = mockk()
-    private val beanSelector: LeaderBeanSelector = mockk()
-    private val signature: MethodSignature = mockk()
-    private val pjp: ProceedingJoinPoint = mockk()
+    private val factoryMock: LeaderElectorFactory = mockk(relaxed = true)
+    private val beanSelector: LeaderBeanSelector = mockk(relaxed = true)
+    private val signature: MethodSignature = mockk(relaxed = true)
+    private val pjp: ProceedingJoinPoint = mockk(relaxed = true)
 
     @BeforeEach
     fun setUp() {

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.internal
 
+import io.bluetape4k.coroutines.support.awaitUntilOrNull
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -20,19 +21,18 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.EmptyCoroutineContext
-import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -66,6 +66,7 @@ class SuspendLeaderElectorLeaseAdapter(
         val published = CompletableDeferred<SuspendSession?>()
         val admission = LeaderLeaseWatchdogAdmission.current()
         val admissionContext = admission?.let(LeaderLeaseWatchdogAdmission::asContextElement)
+
         val observationScope = LeaderLeaseExtensionObservationScope.currentOrNull()
         val observationContext = observationScope?.asContextElement()
         val propagationContext =
@@ -84,16 +85,20 @@ class SuspendLeaderElectorLeaseAdapter(
                         session.awaitRelease()
                     }
                 }
-                if (!published.isCompleted) published.complete(null)
+                if (!published.isCompleted) {
+                    published.complete(null)
+                }
                 session.completed.complete(Unit)
             } catch (failure: Throwable) {
-                if (!published.isCompleted) published.completeExceptionally(failure)
+                if (!published.isCompleted) {
+                    published.completeExceptionally(failure)
+                }
                 session.completed.completeExceptionally(failure)
             }
         }.log("Acquire LeaseHandle. slot=$slot")
 
         return try {
-            val value = withTimeoutOrNull(configuredOptions.waitTime) { published.await() }
+            val value = published.awaitUntilOrNull(configuredOptions.waitTime)
             if (value != null) {
                 SuspendAdapterLeaseHandle(session, configuredOptions.leaseTime)
             } else {
@@ -106,14 +111,14 @@ class SuspendLeaderElectorLeaseAdapter(
         }
     }
 
-    private fun cancelAttempt(session: SuspendSession, job: kotlinx.coroutines.Job) {
+    private fun cancelAttempt(session: SuspendSession, job: Job) {
         session.cancelled.set(true)
         session.requestRelease()
         job.cancel()
     }
 
     private suspend fun captureSuspendHandle(): io.bluetape4k.leader.LeaderLockHandle? =
-        coroutineContext[LockHandleElement]?.handle
+        currentCoroutineContext()[LockHandleElement]?.handle
 
     private class SuspendSession(
         val slot: LeaderSlot,
@@ -132,9 +137,9 @@ class SuspendLeaderElectorLeaseAdapter(
         private val terminalStatus = AtomicReference<LeaseOwnershipStatus?>(null)
 
         @Volatile
-        private var raw: io.bluetape4k.leader.LeaderLockHandle? = null
+        private var raw: LeaderLockHandle? = null
 
-        fun install(handle: io.bluetape4k.leader.LeaderLockHandle?) {
+        fun install(handle: LeaderLockHandle?) {
             raw = handle
         }
 
@@ -156,17 +161,17 @@ class SuspendLeaderElectorLeaseAdapter(
 
         private fun extendRaw(duration: Duration): ExtendOutcome =
             when (val handle = raw) {
-                is io.bluetape4k.leader.LeaderLockHandle.Real -> handle.extend(duration)
-                null -> ExtendOutcome.NotHeld
-                else -> ExtendOutcome.Rejected
+                is LeaderLockHandle.Real -> handle.extend(duration)
+                null                     -> ExtendOutcome.NotHeld
+                else                     -> ExtendOutcome.Rejected
             }
 
         private fun statusRaw(): LeaseOwnershipStatus =
             when (val handle = raw) {
-                is io.bluetape4k.leader.LeaderLockHandle.Real ->
+                is LeaderLockHandle.Real ->
                     if (handle.isStillHeld()) LeaseOwnershipStatus.HELD else LeaseOwnershipStatus.NOT_HELD
-                null -> LeaseOwnershipStatus.UNKNOWN
-                else -> LeaseOwnershipStatus.UNKNOWN
+                null                     -> LeaseOwnershipStatus.UNKNOWN
+                else                     -> LeaseOwnershipStatus.UNKNOWN
             }
 
         @Suppress("ReturnCount")
@@ -174,7 +179,7 @@ class SuspendLeaderElectorLeaseAdapter(
             if (released.get() || cancelled.get()) return ExtendOutcome.NotHeld
             val result = CompletableDeferred<ExtendOutcome>()
             if (!commands.trySend(Command.Extend(duration, result)).isSuccess) return ExtendOutcome.Rejected
-            return withTimeoutOrNull(duration) { result.await() } ?: ExtendOutcome.Rejected
+            return result.awaitUntilOrNull(duration) ?: ExtendOutcome.Rejected
         }
 
         @Suppress("ReturnCount")
@@ -185,7 +190,7 @@ class SuspendLeaderElectorLeaseAdapter(
 
             val result = CompletableDeferred<LeaseOwnershipStatus>()
             if (!commands.trySend(Command.Held(result)).isSuccess) return LeaseOwnershipStatus.UNKNOWN
-            return withTimeoutOrNull(1.seconds) { result.await() } ?: LeaseOwnershipStatus.UNKNOWN
+            return result.awaitUntilOrNull(1.seconds) ?: LeaseOwnershipStatus.UNKNOWN
         }
 
         suspend fun release() {
@@ -193,7 +198,7 @@ class SuspendLeaderElectorLeaseAdapter(
             commands.trySend(Command.Release)
             val timeout = minOf(LeaderLeaseDefaults.PUBLIC_RELEASE_TIMEOUT, maxLeaseTime)
 
-            if (withTimeoutOrNull(timeout) { completed.await() } == null) {
+            if (completed.awaitUntilOrNull(timeout) == null) {
                 terminalStatus.set(LeaseOwnershipStatus.UNKNOWN)
                 throw TimeoutException("suspend lease release timed out")
             }

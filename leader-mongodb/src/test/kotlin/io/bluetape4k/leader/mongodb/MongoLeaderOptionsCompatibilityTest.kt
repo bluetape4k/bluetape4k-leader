@@ -10,6 +10,7 @@ class MongoLeaderOptionsCompatibilityTest {
     fun `기존 직렬화 UID를 유지한다`() {
         ObjectStreamClass.lookup(MongoLeaderElectionOptions::class.java).serialVersionUID shouldBeEqualTo
                 MONGO_LEADER_ELECTION_OPTIONS_SERIAL_VERSION_UID
+
         ObjectStreamClass.lookup(MongoLeaderGroupElectionOptions::class.java).serialVersionUID shouldBeEqualTo
                 MONGO_LEADER_GROUP_ELECTION_OPTIONS_SERIAL_VERSION_UID
     }

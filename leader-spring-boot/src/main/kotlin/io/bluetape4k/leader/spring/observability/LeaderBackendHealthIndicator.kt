@@ -46,9 +46,10 @@ class LeaderBackendHealthIndicator(
             when (connectivity.status) {
                 LeaderBackendConnectivityStatus.UP -> builder.up()
                 LeaderBackendConnectivityStatus.DOWN -> builder.down()
+
                 LeaderBackendConnectivityStatus.UNKNOWN,
                 LeaderBackendConnectivityStatus.NOT_CHECKED,
-                    -> builder.status(Status.UNKNOWN)
+                                                   -> builder.status(Status.UNKNOWN)
             }
             builder
                 .withDetail(DETAIL_BACKEND, diagnostics.descriptor.backendId)
@@ -63,7 +64,7 @@ class LeaderBackendHealthIndicator(
     override fun toString(): String {
         return ToStringBuilder(this)
             .add("provider", provider)
-            .add("timeout", timeout.toString())
+            .add("timeout", timeout)
             .add("health", health())
             .toString()
     }

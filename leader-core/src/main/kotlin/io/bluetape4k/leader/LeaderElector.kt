@@ -94,6 +94,7 @@ interface LeaderElector: AsyncLeaderElector {
             }
             throw e
         }
+
         return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
     }
 }

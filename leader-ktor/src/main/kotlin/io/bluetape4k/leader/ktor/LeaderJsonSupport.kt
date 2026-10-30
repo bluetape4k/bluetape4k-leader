@@ -7,7 +7,7 @@ internal fun String.jsonEscape(): String = buildString(length) {
     this@jsonEscape.forEach { char ->
         when (char) {
             '\\' -> append("\\\\")
-            '"' -> append("\\\"")
+            '"'  -> append("\\\"")
             '\b' -> append("\\b")
             '\u000C' -> append("\\f")
             '\n' -> append("\\n")

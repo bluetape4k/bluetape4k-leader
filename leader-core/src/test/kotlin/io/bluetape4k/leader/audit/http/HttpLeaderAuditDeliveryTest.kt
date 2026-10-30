@@ -4,7 +4,9 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeLessThan
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.audit.LeaderAuditDeliveryResult
 import io.bluetape4k.leader.audit.LeaderAuditExportEvent
@@ -160,6 +162,21 @@ class HttpLeaderAuditDeliveryTest {
 
         result.join() shouldBeEqualTo LeaderAuditDeliveryResult.TERMINAL_FAILURE
         client.request.shouldBeNull()
+    }
+
+    @Test
+    fun `payload string representation redacts body and stays bounded`() {
+        val secret = "audit-body-secret-canary".toByteArray()
+        val payload = LeaderAuditHttpPayload.of("application/audit+json", secret)
+
+        val rendered = payload.toString()
+
+        rendered shouldNotContain String(secret)
+        rendered shouldNotContain secret.contentToString()
+        rendered.length shouldBeLessThan 256
+
+        val maximumPayload = LeaderAuditHttpPayload.of("application/audit+json", ByteArray(1024 * 1024) { 42 })
+        maximumPayload.toString().length shouldBeLessThan 256
     }
 
     @Test

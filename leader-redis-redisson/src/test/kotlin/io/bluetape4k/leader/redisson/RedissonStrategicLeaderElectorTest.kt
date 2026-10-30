@@ -115,10 +115,9 @@ class RedissonStrategicLeaderElectorTest: AbstractRedissonLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("node-2"))
         node1.unregisterCandidate(lockName, "node-1")
 
-        val candidates = node1.listCandidates(lockName)
-        candidates.forEach { log.debug { "candidate=$it" } }
+        val candidates = node1.listCandidates(lockName).onEach { log.debug { "candidate: $it" } }
         candidates.size shouldBeEqualTo 1
-        candidates.first().nodeId shouldBeEqualTo "node-2"
+        candidates.single().nodeId shouldBeEqualTo "node-2"
     }
 
     @Test

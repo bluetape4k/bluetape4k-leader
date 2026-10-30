@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.etcd.internal
 
+import io.bluetape4k.support.requirePositiveDuration
 import kotlin.math.ceil
 import kotlin.math.roundToLong
 import kotlin.random.Random
@@ -50,6 +51,6 @@ internal object EtcdLeaseTime {
 
     private fun validatePositiveFinite(duration: Duration, name: String) {
         require(duration.isFinite()) { "$name must be finite. $name=$duration" }
-        require(duration > Duration.ZERO) { "$name must be positive. $name=$duration" }
+        duration.requirePositiveDuration(name)
     }
 }

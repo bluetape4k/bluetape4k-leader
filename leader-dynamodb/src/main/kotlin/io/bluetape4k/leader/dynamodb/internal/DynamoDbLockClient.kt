@@ -6,6 +6,7 @@ import io.bluetape4k.aws.dynamodb.model.UpdateItemRequest
 import io.bluetape4k.aws.dynamodb.model.toAttributeValue
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderLease
@@ -88,6 +89,9 @@ internal class DynamoDbLockClient(
         val leaseUntil: Instant get() = Instant.ofEpochMilli(leaseExpiryMillis)
     }
 
+    private val safeSyncClient get() = syncClient.requireNotNull("syncClient")
+    private val safeAsyncClient get() = asyncClient.requireNotNull("asyncClient")
+
     fun acquire(
         key: String,
         ownerId: String,
@@ -129,7 +133,7 @@ internal class DynamoDbLockClient(
                 .whenComplete { _, failure ->
                     if (failure != null) {
                         log.warn(failure.unwrapCompletionException()) {
-                            "DynamoDB late async acquire release failed. " + "key=$key"
+                            "DynamoDB late async acquire release failed. key=$key"
                         }
                     }
                 }
@@ -144,21 +148,20 @@ internal class DynamoDbLockClient(
                     val cause = failure?.unwrapCompletionException()
                     when {
                         result.isDone && acquired != null -> releaseLate(acquired)
-                        result.isDone -> Unit
-                        cause != null -> result.completeExceptionally(cause)
-                        acquired != null -> result.complete(acquired)
+                        result.isDone                -> Unit
+                        cause != null                -> result.completeExceptionally(cause)
+                        acquired != null             -> result.complete(acquired)
                         !deadline.hasTimeRemaining() -> result.complete(null)
-                        else -> {
+                        else                         -> {
                             val delayMillis = jitterDelayMillis(deadline, retryDelay)
-                            CompletableFuture.runAsync(
-                                {},
-                                CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS),
-                            ).whenComplete { _, delayFailure ->
+                            futureOf(CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS)) {
+                                Unit
+                            }.whenComplete { _, delayFailure ->
                                 val delayCause = delayFailure?.unwrapCompletionException()
                                 when {
                                     result.isDone -> Unit
                                     delayCause != null -> result.completeExceptionally(delayCause)
-                                    else -> attempt()
+                                    else          -> attempt()
                                 }
                             }
                         }
@@ -179,8 +182,9 @@ internal class DynamoDbLockClient(
         ttlPadding: Duration,
         clockSkewTolerance: Duration,
     ): AcquiredLock? {
-        val client = syncClient.requireNotNull { "sync DynamoDbClient is required" }
+        val client = safeSyncClient
         val leaseExpiryMillis = nowMillis() + leaseTime.inWholeMilliseconds
+
         return try {
             client.putItem(
                 acquireRequest(
@@ -208,29 +212,28 @@ internal class DynamoDbLockClient(
         ttlPadding: Duration,
         clockSkewTolerance: Duration,
     ): CompletableFuture<AcquiredLock?> {
-        val client = asyncClient.requireNotNull { "async DynamoDbAsyncClient is required" }
+        val client = safeAsyncClient
         val leaseExpiryMillis = nowMillis() + leaseTime.inWholeMilliseconds
-        return client
-            .putItem(
-                acquireRequest(
-                    key,
-                    ownerId,
-                    auditLeaderId,
-                    nodeId,
-                    leaseExpiryMillis,
-                    ttlPadding,
-                    clockSkewTolerance
-                )
+        return client.putItem(
+            acquireRequest(
+                key,
+                ownerId,
+                auditLeaderId,
+                nodeId,
+                leaseExpiryMillis,
+                ttlPadding,
+                clockSkewTolerance
             )
-            .thenApply<AcquiredLock?> { AcquiredLock(key, ownerId, auditLeaderId, nodeId, leaseExpiryMillis) }
-            .exceptionallyCompose { failure ->
-                val cause = failure.unwrapCompletionException()!!
-                if (cause is ConditionalCheckFailedException) {
-                    reconcileOwnedAsync(key, ownerId)
-                } else {
-                    failedCompletableFutureOf(cause)
-                }
+        ).thenApply<AcquiredLock?> {
+            AcquiredLock(key, ownerId, auditLeaderId, nodeId, leaseExpiryMillis)
+        }.exceptionallyCompose { failure ->
+            val cause = failure.unwrapCompletionException()!!
+            if (cause is ConditionalCheckFailedException) {
+                reconcileOwnedAsync(key, ownerId)
+            } else {
+                failedCompletableFutureOf(cause)
             }
+        }
     }
 
     private fun acquireRequest(
@@ -265,7 +268,7 @@ internal class DynamoDbLockClient(
     }
 
     fun release(lock: AcquiredLock, minLeaseTime: Duration, acquiredAtNanos: Long) {
-        val client = requireNotNull(syncClient) { "sync DynamoDbClient is required" }
+        val client = safeSyncClient
         try {
             val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
             if (remaining > Duration.ZERO) {
@@ -279,14 +282,16 @@ internal class DynamoDbLockClient(
     }
 
     fun releaseAsync(lock: AcquiredLock, minLeaseTime: Duration, acquiredAtNanos: Long): CompletableFuture<Unit> {
-        val client = requireNotNull(asyncClient) { "async DynamoDbAsyncClient is required" }
+        val client = safeAsyncClient
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
+
         val future =
             if (remaining > Duration.ZERO) {
                 client.updateItem(retainUntilRequest(lock, remaining)).thenApply { Unit }
             } else {
                 client.deleteItem(deleteRequest(lock.key, lock.ownerId)).thenApply { Unit }
             }
+
         return future.exceptionallyCompose { failure ->
             val cause = failure.unwrapCompletionException()!!
             if (cause is ConditionalCheckFailedException) {
@@ -299,9 +304,10 @@ internal class DynamoDbLockClient(
     }
 
     fun extend(lock: AcquiredLock, leaseTime: Duration, ttlPadding: Duration): ExtendOutcome {
-        val client = requireNotNull(syncClient) { "sync DynamoDbClient is required" }
+        val client = safeSyncClient
         val now = nowMillis()
         val leaseExpiryMillis = now + leaseTime.inWholeMilliseconds
+
         return try {
             client.updateItem(extendRequest(lock, now, leaseExpiryMillis, ttlPadding))
             ExtendOutcome.Extended(Instant.ofEpochMilli(leaseExpiryMillis))
@@ -312,11 +318,15 @@ internal class DynamoDbLockClient(
     }
 
     fun extendAsync(lock: AcquiredLock, leaseTime: Duration, ttlPadding: Duration): CompletableFuture<ExtendOutcome> {
-        val client = requireNotNull(asyncClient) { "async DynamoDbAsyncClient is required" }
+        val client = safeAsyncClient
         val now = nowMillis()
         val leaseExpiryMillis = now + leaseTime.inWholeMilliseconds
-        return client.updateItem(extendRequest(lock, now, leaseExpiryMillis, ttlPadding))
-            .thenApply<ExtendOutcome> { ExtendOutcome.Extended(Instant.ofEpochMilli(leaseExpiryMillis)) }
+
+        return client
+            .updateItem(extendRequest(lock, now, leaseExpiryMillis, ttlPadding))
+            .thenApply<ExtendOutcome> {
+                ExtendOutcome.Extended(Instant.ofEpochMilli(leaseExpiryMillis))
+            }
             .exceptionallyCompose { failure ->
                 val cause = failure.unwrapCompletionException()!!
                 if (cause is ConditionalCheckFailedException) {
@@ -353,8 +363,9 @@ internal class DynamoDbLockClient(
 
     fun activeGroupLeases(prefix: String, maxLeaders: Int): List<LeaderLease> {
         val now = nowMillis()
-        val keys = (0 until maxLeaders).map { slot -> "$prefix$slot" }
+        val keys = List(maxLeaders) { slot -> "$prefix$slot" }
         val items = batchRead(keys)
+
         return items.mapNotNull { item ->
             val ownerId = item[OwnerId]?.s() ?: return@mapNotNull null
             val auditLeaderId = item[AuditLeaderId]?.s() ?: ownerId
@@ -364,33 +375,42 @@ internal class DynamoDbLockClient(
                 return@mapNotNull null
             }
             val slot = item[LockName]?.s()?.substringAfterLast("#slot-", "")?.toIntOrNull()
-            LeaderLease(auditLeaderId, leaseUntil = Instant.ofEpochMilli(leaseExpiry), slot = slot, nodeId = nodeId)
+
+            LeaderLease(
+                auditLeaderId = auditLeaderId,
+                leaseUntil = Instant.ofEpochMilli(leaseExpiry),
+                slot = slot,
+                nodeId = nodeId
+            )
         }
     }
 
-    override fun toString(): String {
-        return ToStringBuilder(this)
+    override fun toString(): String =
+        ToStringBuilder(this)
             .add("tableName", tableName)
             .toString()
-    }
 
     private fun batchRead(keys: List<String>): List<Map<String, AttributeValue>> {
         val items = mutableListOf<Map<String, AttributeValue>>()
         // chunk마다 상한이 초기화되지 않도록 전체 조회에서 재시도 예산을 공유합니다.
         var retries = 0
         var retryDelayMillis = BatchGetInitialDelayMillis
+
         keys.chunked(BatchGetLimit).forEach { chunk ->
             var requestItems = batchRequestItems(chunk)
             do {
                 val response =
                     syncClient?.batchGetItem(BatchGetItemRequest.builder().requestItems(requestItems).build())
-                        ?: requireNotNull(asyncClient) { "DynamoDB client is required" }
+                        ?: safeAsyncClient
                             .batchGetItem(BatchGetItemRequest.builder().requestItems(requestItems).build())
                             .join()
+
                 items += response.responses()[tableName].orEmpty()
+
                 requestItems = response.unprocessedKeys().filterValues { tableKeys ->
                     !tableKeys.keys().isNullOrEmpty()
                 }
+
                 if (requestItems.isNotEmpty()) {
                     check(retries < BatchGetMaxRetries) {
                         "DynamoDB batch read exhausted $BatchGetMaxRetries retries; " +
@@ -434,12 +454,12 @@ internal class DynamoDbLockClient(
     private fun read(key: String): LockRecord? {
         val request = readRequest(key)
         val item = syncClient?.getItem(request)?.item()
-            ?: requireNotNull(asyncClient) { "DynamoDB client is required" }.getItem(request).join().item()
+            ?: safeAsyncClient.getItem(request).join().item()
         return item.toLockRecord()
     }
 
     private fun readAsync(key: String): CompletableFuture<LockRecord?> {
-        val client = requireNotNull(asyncClient) { "async DynamoDbAsyncClient is required" }
+        val client = safeAsyncClient
         return client.getItem(readRequest(key)).thenApply { it.item().toLockRecord() }
     }
 
@@ -451,6 +471,7 @@ internal class DynamoDbLockClient(
         val auditLeaderId = get(AuditLeaderId)?.s() ?: ownerId
         val nodeId = get(NodeId)?.s()
         val leaseExpiry = get(LeaseExpiry)?.n()?.toLongOrNull() ?: return null
+
         return LockRecord(ownerId, auditLeaderId, nodeId, leaseExpiry)
     }
 

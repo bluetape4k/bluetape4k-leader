@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.k8s
 
-import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
@@ -67,7 +67,7 @@ class KubernetesLeaderBackendDiagnosticsTest {
     @Test
     fun `canonical Kubernetes elector는 diagnostics provider를 구현한다`() {
         canonicalElectors.forEach { electorType ->
-            LeaderBackendDiagnosticsProvider::class.java.isAssignableFrom(electorType) shouldBe true
+            LeaderBackendDiagnosticsProvider::class.java.isAssignableFrom(electorType).shouldBeTrue()
         }
     }
 }

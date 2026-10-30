@@ -6,8 +6,10 @@ import io.bluetape4k.leader.consul.internal.ConsulLeaderPaths
 import io.bluetape4k.support.requireGe
 import io.bluetape4k.support.requireLe
 import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.requireZeroOrPositiveDuration
 import java.io.Serializable
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -30,7 +32,7 @@ data class ConsulLeaderElectionOptions(
         sessionNamePrefix.requireNotBlank("sessionNamePrefix")
         leaderOptions.leaseTime.requireGe(MinLeaseTime, "leaderOptions.leaseTime")
         leaderOptions.leaseTime.requireLe(MaxLeaseTime, "leaderOptions.leaseTime")
-        lockDelay.requireGe(Duration.ZERO, "lockDelay")
+        lockDelay.requireZeroOrPositiveDuration("lockDelay")
     }
 
     companion object {
@@ -38,7 +40,7 @@ data class ConsulLeaderElectionOptions(
 
         val MinLeaseTime: Duration = 10.seconds
 
-        val MaxLeaseTime: Duration = 86_400.seconds
+        val MaxLeaseTime: Duration = 24.hours
 
         @JvmField
         val Default = ConsulLeaderElectionOptions()
@@ -76,7 +78,7 @@ data class ConsulLeaderGroupElectionOptions(
             ConsulLeaderElectionOptions.MaxLeaseTime,
             "leaderGroupOptions.leaseTime",
         )
-        lockDelay.requireGe(Duration.ZERO, "lockDelay")
+        lockDelay.requireZeroOrPositiveDuration("lockDelay")
     }
 
     companion object {

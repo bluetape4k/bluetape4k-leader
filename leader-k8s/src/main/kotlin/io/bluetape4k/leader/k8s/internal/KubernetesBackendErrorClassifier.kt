@@ -13,12 +13,13 @@ internal object KubernetesBackendErrorClassifier: BackendErrorClassifier {
 
     override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {
         is KubernetesClientTimeoutException -> BackendErrorKind.TRANSIENT
-        is KubernetesClientException -> when (cause.code) {
-            CONFLICT, TOO_MANY_REQUESTS -> BackendErrorKind.TRANSIENT
-            UNAUTHORIZED, FORBIDDEN -> BackendErrorKind.NON_TRANSIENT
-            in 500..599 -> BackendErrorKind.TRANSIENT
-            else -> BackendErrorKind.NON_TRANSIENT
-        }
-        else -> null
+        is KubernetesClientException ->
+            when (cause.code) {
+                CONFLICT, TOO_MANY_REQUESTS -> BackendErrorKind.TRANSIENT
+                UNAUTHORIZED, FORBIDDEN     -> BackendErrorKind.NON_TRANSIENT
+                in 500..599                 -> BackendErrorKind.TRANSIENT
+                else                        -> BackendErrorKind.NON_TRANSIENT
+            }
+        else                         -> null
     }
 }

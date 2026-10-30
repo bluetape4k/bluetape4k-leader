@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.aop.validator
 
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
+import io.bluetape4k.leader.spring.aop.util.DurationParser
 import io.bluetape4k.logging.KotlinLogging
 import io.bluetape4k.logging.debug
 import java.lang.reflect.Method
@@ -49,7 +50,7 @@ internal class LeaderMethodValidationSupport(
         if (isStreamReturn(method.returnType.name) && !autoExtend && !streamBounded) {
             violations += "${method.returnType.name} 반환 타입은 autoExtend=true 또는 streamBounded=true 필요"
         }
-        require(minLeaseTime.compareTo(leaseTime) <= 0) {
+        require(minLeaseTime <= leaseTime) {
             "minLeaseTime must not exceed leaseTime: minLeaseTime=$minLeaseTime, leaseTime=$leaseTime"
         }
         spel.preParse(nameExpression, method)
@@ -81,8 +82,9 @@ internal class LeaderMethodValidationSupport(
             .parseNonNegativeOrDefault(minLeaseTimeText, Duration.ZERO)
         if (minLeaseTime == Duration.ZERO) return
         if (leaseTimeText.isBlank()) return
-        val leaseTime = io.bluetape4k.leader.spring.aop.util.DurationParser.parse(leaseTimeText)
-        require(minLeaseTime.compareTo(leaseTime) <= 0) {
+        val leaseTime = DurationParser.parse(leaseTimeText)
+
+        require(minLeaseTime <= leaseTime) {
             "$prefix.minLeaseTime must not exceed $prefix.leaseTime: minLeaseTime=$minLeaseTime, leaseTime=$leaseTime"
         }
     }

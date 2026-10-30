@@ -80,7 +80,9 @@ class LeaderManagementRegistration internal constructor(
     }
 
     override fun close() {
-        if (closed.compareAndSet(false, true)) onClose()
+        if (closed.compareAndSet(false, true)) {
+            onClose()
+        }
     }
 }
 
@@ -149,20 +151,24 @@ object LeaderManagementHttpContract {
 
     /** outcome을 framework-neutral HTTP status code로 변환합니다. */
     fun statusCode(outcome: LeaderManagementActionOutcome): Int = when (outcome) {
-        LeaderManagementActionOutcome.RELEASED -> STATUS_OK
+        LeaderManagementActionOutcome.RELEASED          -> STATUS_OK
         LeaderManagementActionOutcome.INVALID_LOCK_NAME -> STATUS_BAD_REQUEST
-        LeaderManagementActionOutcome.NOT_REGISTERED -> STATUS_NOT_FOUND
+        LeaderManagementActionOutcome.NOT_REGISTERED    -> STATUS_NOT_FOUND
+
         LeaderManagementActionOutcome.AMBIGUOUS,
         LeaderManagementActionOutcome.NOT_HELD,
         LeaderManagementActionOutcome.ACTION_IN_PROGRESS,
-            -> STATUS_CONFLICT
+                                                        -> STATUS_CONFLICT
+
         LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED -> STATUS_TOO_MANY_REQUESTS
+
         LeaderManagementActionOutcome.OWNERSHIP_UNKNOWN,
         LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
         LeaderManagementActionOutcome.RELEASE_FAILED,
         LeaderManagementActionOutcome.REGISTRY_CLOSED,
-            -> STATUS_SERVICE_UNAVAILABLE
-        LeaderManagementActionOutcome.ACTION_TIMED_OUT -> STATUS_GATEWAY_TIMEOUT
+                                                        -> STATUS_SERVICE_UNAVAILABLE
+
+        LeaderManagementActionOutcome.ACTION_TIMED_OUT  -> STATUS_GATEWAY_TIMEOUT
     }
 
     /** 이번 action 결과를 자동 재시도해도 안전하다는 보장을 제공하지 않습니다. */

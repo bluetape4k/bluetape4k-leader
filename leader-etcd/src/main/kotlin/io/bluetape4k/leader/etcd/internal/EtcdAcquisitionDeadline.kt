@@ -13,11 +13,7 @@ internal class EtcdAcquisitionDeadline private constructor(
         fun fromNow(waitTime: Duration): EtcdAcquisitionDeadline {
             val budgetNanos = waitTime.inWholeNanoseconds.coerceAtLeast(1L)
             val now = System.nanoTime()
-            val deadlineNanos = if (Long.MAX_VALUE - now < budgetNanos) {
-                Long.MAX_VALUE
-            } else {
-                now + budgetNanos
-            }
+            val deadlineNanos = now.safePlus(budgetNanos)
             return EtcdAcquisitionDeadline(deadlineNanos)
         }
     }
@@ -35,3 +31,6 @@ internal class EtcdAcquisitionDeadline private constructor(
             .add("deadlineNanos", deadlineNanos)
             .toString()
 }
+
+private infix fun Long.safePlus(other: Long): Long =
+    if (other > 0L && this > Long.MAX_VALUE - other) Long.MAX_VALUE else this + other

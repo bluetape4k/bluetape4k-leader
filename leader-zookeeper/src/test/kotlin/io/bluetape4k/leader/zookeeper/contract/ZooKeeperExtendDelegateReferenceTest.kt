@@ -4,7 +4,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.codec.Base58
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.ExtendOutcome
@@ -18,6 +18,7 @@ import io.bluetape4k.leader.zookeeper.ZooKeeperLeaderGroupElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperSuspendLeaderElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperSuspendLeaderGroupElector
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import org.apache.curator.utils.ZKPaths
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -49,8 +50,6 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
 
     companion object: KLoggingChannel()
 
-    private fun randomLockName(): String = "extdelref-zk-${Base58.randomString(8)}"
-
     private fun deleteChildren(path: String) {
         curator.children.forPath(path)
             .forEach { child -> curator.delete().forPath(ZKPaths.makePath(path, child)) }
@@ -77,8 +76,8 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-        // ZK passthrough: observedExpireAt = Instant.MAX (session-held semantics)
-        (outcome as ExtendOutcome.Extended).observedExpireAt shouldBeEqualTo Instant.MAX
+            // ZK passthrough: observedExpireAt = Instant.MAX (session-held semantics)
+            .observedExpireAt shouldBeEqualTo Instant.MAX
         AopScopeAccess.pollCapture().shouldBeNull()
     }
 
@@ -94,7 +93,7 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-        (outcome as ExtendOutcome.Extended).observedExpireAt shouldBeEqualTo Instant.MAX
+            .observedExpireAt shouldBeEqualTo Instant.MAX
     }
 
     @Test
@@ -112,7 +111,7 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-        (outcome as ExtendOutcome.Extended).observedExpireAt shouldBeEqualTo Instant.MAX
+            .observedExpireAt shouldBeEqualTo Instant.MAX
         AopScopeAccess.pollCapture().shouldBeNull()
     }
 
@@ -131,7 +130,7 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
         }
 
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-        (outcome as ExtendOutcome.Extended).observedExpireAt shouldBeEqualTo Instant.MAX
+            .observedExpireAt shouldBeEqualTo Instant.MAX
         AopScopeAccess.pollCapture().shouldBeNull()
     }
 
@@ -147,7 +146,11 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
             outcomes += LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
-        outcomes.forEach { it.shouldBeInstanceOf<ExtendOutcome.Extended>() }
+        outcomes shouldHaveSize 3
+        outcomes.forEach {
+            log.debug { "outcome=$it" }
+            it.shouldBeInstanceOf<ExtendOutcome.Extended>()
+        }
     }
 
     @Test
@@ -162,7 +165,6 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
             handle.isStillHeld().shouldBeFalse()
             outcome = LockExtender.extendActiveLockDetailed(60.seconds)
         }
-
         outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 
@@ -176,7 +178,6 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
             deleteSingleLockNode(lockName)
             outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
         }
-
         outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 
@@ -195,7 +196,6 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
             handle.isStillHeld().shouldBeFalse()
             outcome = LockExtender.extendActiveLockDetailed(60.seconds)
         }
-
         outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 
@@ -212,7 +212,6 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
             deleteGroupLeaseNode(lockName)
             outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
         }
-
         outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 }

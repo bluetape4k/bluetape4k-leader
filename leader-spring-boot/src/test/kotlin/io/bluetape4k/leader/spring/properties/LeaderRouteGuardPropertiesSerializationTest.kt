@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 
 class LeaderRouteGuardPropertiesSerializationTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     @Test
     fun `legacy four argument constructor and copy bridges remain callable`() {
@@ -125,8 +125,8 @@ class LeaderRouteGuardPropertiesSerializationTest {
 
     @Suppress("DEPRECATION")
     private fun <T: Any> roundTrip(value: T): T {
-        val bytes = BinarySerializers.Jdk.serialize(value)
-        return BinarySerializers.Jdk.deserialize<T>(bytes).shouldNotBeNull()
+        val bytes = BinarySerializers.JdkUnfiltered.serialize(value)
+        return BinarySerializers.JdkUnfiltered.deserialize<T>(bytes).shouldNotBeNull()
     }
 
     private fun <T: Any> roundTripFastFory(value: T): T {

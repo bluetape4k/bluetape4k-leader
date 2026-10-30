@@ -115,9 +115,9 @@ internal class ExposedJdbcLock internal constructor(
     }
 
     private fun tryAcquireOnce(leaseTime: Duration): Boolean {
-        val lockNameVal = this@ExposedJdbcLock.lockName
-        val lockOwnerVal = this@ExposedJdbcLock.lockOwner
-        val tokenVal = this@ExposedJdbcLock.token
+        val lockNameVal = this.lockName
+        val lockOwnerVal = this.lockOwner
+        val tokenVal = this.token
 
         return transaction(db) {
             val now = currentTime(useDbTime)
@@ -125,7 +125,10 @@ internal class ExposedJdbcLock internal constructor(
 
             // Step 1: 만료된 락 갱신 시도
             val updated = LeaderLockTable.update(
-                where = { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.lockedUntil less now) }
+                where = {
+                    (LeaderLockTable.lockName eq lockNameVal) and
+                            (LeaderLockTable.lockedUntil less now)
+                }
             ) {
                 it[LeaderLockTable.lockOwner] = lockOwnerVal
                 it[LeaderLockTable.token] = tokenVal
@@ -196,8 +199,8 @@ internal class ExposedJdbcLock internal constructor(
         minLeaseTime: Duration = Duration.ZERO,
         acquiredAtNanos: Long = System.nanoTime(),
     ) {
-        val lockNameVal = this@ExposedJdbcLock.lockName
-        val tokenVal = this@ExposedJdbcLock.token
+        val lockNameVal = this.lockName
+        val tokenVal = this.token
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
         try {
@@ -205,13 +208,17 @@ internal class ExposedJdbcLock internal constructor(
                 if (remaining > Duration.ZERO) {
                     val now = currentTime(useDbTime)
                     LeaderLockTable.update(
-                        where = { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal) }
+                        where = {
+                            (LeaderLockTable.lockName eq lockNameVal) and
+                                    (LeaderLockTable.token eq tokenVal)
+                        }
                     ) {
                         it[LeaderLockTable.lockedUntil] = now.plusMillis(remaining.inWholeMilliseconds)
                     }
                 } else {
                     LeaderLockTable.deleteWhere {
-                        (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal)
+                        (LeaderLockTable.lockName eq lockNameVal) and
+                                (LeaderLockTable.token eq tokenVal)
                     }
                 }
             }
@@ -232,8 +239,8 @@ internal class ExposedJdbcLock internal constructor(
      * 갱신된 시각은 [ExtendOutcome.Extended]로, 소유하지 않거나 이미 만료된 경우 [ExtendOutcome.NotHeld]로 반환합니다.
      */
     fun extendDetailed(leaseTime: Duration): ExtendOutcome {
-        val lockNameVal = this@ExposedJdbcLock.lockName
-        val tokenVal = this@ExposedJdbcLock.token
+        val lockNameVal = this.lockName
+        val tokenVal = this.token
 
         return transaction(db) {
             val now = currentTime(useDbTime)

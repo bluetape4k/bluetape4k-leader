@@ -6,7 +6,7 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderNodeId
 import io.bluetape4k.leader.LeaderState
-import io.bluetape4k.support.requireGe
+import io.bluetape4k.support.requirePositiveNumber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.Flow
@@ -50,7 +50,8 @@ fun LeaderElectionEventPublisher.leaderGroupStateFlow(
     scope: CoroutineScope,
     started: SharingStarted = SharingStarted.Eagerly,
 ): StateFlow<LeaderGroupState> {
-    maxLeaders.requireGe(1, "maxLeaders")
+    maxLeaders.requirePositiveNumber("maxLeaders")
+
     val initialState = LeaderGroupState(lockName, maxLeaders, activeCount = 0)
     return events.toLeaderGroupStates(lockName, maxLeaders)
         .toStateFlow(initialState, scope, started)
@@ -77,19 +78,18 @@ private fun Flow<LeaderElectionEvent>.toLeaderGroupStates(
             LeaderGroupState(lockName, maxLeaders, activeCount)
         }
 
-private fun LeaderElectionEvent.toLeaderState(lockName: String): LeaderState =
-    when (this) {
-        is LeaderElectionEvent.Elected -> LeaderState.occupied(
-            lockName,
-            leader ?: LeaderLease(
-                auditLeaderId = leaderId ?: LeaderNodeId.Default,
-                leaseUntil = leaseExpiry,
-            ),
-        )
+private fun LeaderElectionEvent.toLeaderState(lockName: String): LeaderState = when (this) {
+    is LeaderElectionEvent.Elected -> LeaderState.occupied(
+        lockName,
+        leader ?: LeaderLease(
+            auditLeaderId = leaderId ?: LeaderNodeId.Default,
+            leaseUntil = leaseExpiry,
+        ),
+    )
 
-        is LeaderElectionEvent.Revoked -> LeaderState.empty(lockName)
-        is LeaderElectionEvent.Skipped -> LeaderState.empty(lockName)
-    }
+    is LeaderElectionEvent.Revoked -> LeaderState.empty(lockName)
+    is LeaderElectionEvent.Skipped -> LeaderState.empty(lockName)
+}
 
 private fun <T> Flow<T>.toStateFlow(
     initialValue: T,

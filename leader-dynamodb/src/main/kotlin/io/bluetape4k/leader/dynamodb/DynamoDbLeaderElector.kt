@@ -1,8 +1,6 @@
 package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.concurrent.futureOf
-import io.bluetape4k.leader.dynamodb.runAsyncIfLeader as currentRunAsyncIfLeader
-import io.bluetape4k.leader.dynamodb.runIfLeader as currentRunIfLeader
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAcquirer
@@ -30,15 +28,17 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
+import io.bluetape4k.leader.dynamodb.runAsyncIfLeader as currentRunAsyncIfLeader
+import io.bluetape4k.leader.dynamodb.runIfLeader as currentRunIfLeader
 
 /**
  * `DynamoDbLeaderElector`는 conditional DynamoDB item으로 단일 leader의 blocking/async 실행과 lease를 관리합니다.
  *
- * @property dynamoDb 조건부 put/update/delete와 일관된 read를 수행할 synchronous DynamoDB client입니다.
+ * @property client 조건부 put/update/delete와 일관된 read를 수행할 synchronous DynamoDB client입니다.
  * @property options table/key prefix, lease 대기, retry, TTL padding, clock skew를 포함한 단일 설정입니다.
  */
 class DynamoDbLeaderElector(
-    private val dynamoDb: DynamoDbClient,
+    private val client: DynamoDbClient,
     val options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
 ): LeaderElector,
    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics,
@@ -53,7 +53,7 @@ class DynamoDbLeaderElector(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(DynamoDbBackendErrorClassifier)
     }
 
-    private val lockClient = DynamoDbLockClient(options.tableName, syncClient = dynamoDb)
+    private val lockClient = DynamoDbLockClient(options.tableName, syncClient = client)
 
     override val supportsAuditLeaderState: Boolean = true
 
@@ -89,7 +89,11 @@ class DynamoDbLeaderElector(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
-    private fun <T> runWithLock(lockName: String, auditLeaderId: String?, action: () -> T): T? {
+    private inline fun <T> runWithLock(
+        lockName: String,
+        auditLeaderId: String?,
+        crossinline action: () -> T,
+    ): T? {
         DynamoDbKeys.validateUserLockName(lockName)
         val key = DynamoDbKeys.single(options.keyPrefix, lockName)
         val ownerId = DynamoDbLockClient.newOwnerId()
@@ -195,7 +199,7 @@ class DynamoDbLeaderElector(
                     cause != null && elected.get() -> LeaderRunResult.ActionFailed(cause)
                     cause != null -> throw CompletionException(cause)
                     elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                    else -> LeaderRunResult.Skipped
+                    else          -> LeaderRunResult.Skipped
                 }
             }
     }

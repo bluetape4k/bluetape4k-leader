@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
+import io.bluetape4k.support.asInstantOrNull
 import kotlinx.coroutines.flow.firstOrNull
 import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
 import java.sql.Timestamp
@@ -16,6 +17,7 @@ internal suspend fun R2dbcTransaction.currentTime(
 ): Instant =
     if (useDbTime) dbCurrentTimestamp() else Instant.now(clock)
 
+/** 1.0.0에서 공개된 JVM facade를 유지하는 timestamp 변환 함수입니다. */
 internal fun Any?.toExposedR2dbcInstant(): Instant =
     when (this) {
         is Instant -> this
@@ -27,6 +29,6 @@ internal fun Any?.toExposedR2dbcInstant(): Instant =
     }
 
 private suspend fun R2dbcTransaction.dbCurrentTimestamp(): Instant =
-    exec("SELECT CURRENT_TIMESTAMP") { row -> row.get(0).toExposedR2dbcInstant() }
+    exec("SELECT CURRENT_TIMESTAMP") { row -> row.get(0).asInstantOrNull() }
         ?.firstOrNull()
         ?: error("SELECT CURRENT_TIMESTAMP returned no rows")

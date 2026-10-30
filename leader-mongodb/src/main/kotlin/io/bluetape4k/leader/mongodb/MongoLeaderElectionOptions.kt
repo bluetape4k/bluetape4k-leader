@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.mongodb
 
 import io.bluetape4k.leader.LeaderElectionOptions
-import io.bluetape4k.support.requireGt
+import io.bluetape4k.support.requirePositiveDuration
 import java.io.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -17,7 +17,7 @@ data class MongoLeaderElectionOptions(
     val retryDelay: Duration = 50.milliseconds,
 ): Serializable {
     init {
-        retryDelay.requireGt(Duration.ZERO, "retryDelay")
+        retryDelay.requirePositiveDuration("retryDelay")
     }
 
     companion object {

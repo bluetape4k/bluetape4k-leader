@@ -30,11 +30,8 @@ class ExposedLeaderSchemaTest: AbstractExposedTableTest() {
     fun `allTables로 SchemaUtils createMissingTablesAndColumns 실행이 성공한다`(testDB: TestDB) {
         withTables(testDB, *ExposedLeaderSchema.allTables) {
             LeaderLockTable.exists().shouldBeTrue()
-
             LeaderGroupLockTable.exists().shouldBeTrue()
-
             LeaderLockHistoryTable.exists().shouldBeTrue()
-
         }
     }
 
@@ -46,11 +43,8 @@ class ExposedLeaderSchemaTest: AbstractExposedTableTest() {
             SchemaUtils.drop(*ExposedLeaderSchema.allTables)
 
             LeaderLockTable.exists().shouldBeFalse()
-
             LeaderGroupLockTable.exists().shouldBeFalse()
-
             LeaderLockHistoryTable.exists().shouldBeFalse()
-
         }
     }
 }

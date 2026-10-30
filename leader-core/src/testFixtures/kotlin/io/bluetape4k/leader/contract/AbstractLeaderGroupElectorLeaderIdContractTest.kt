@@ -10,6 +10,7 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -49,6 +50,7 @@ abstract class AbstractLeaderGroupElectorLeaderIdContractTest {
         val s = slot("audit-node")
         val result = defaultElector.runIfLeaderResult(s) { "done" }
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
         result.value shouldBeEqualTo "done"
         result.leaderId shouldBeEqualTo "audit-node"
@@ -59,6 +61,7 @@ abstract class AbstractLeaderGroupElectorLeaderIdContractTest {
         val s = slot("null-node")
         val result = defaultElector.runIfLeaderResult(s) { null }
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
         result.leaderId shouldBeEqualTo "null-node"
     }
@@ -87,10 +90,12 @@ abstract class AbstractLeaderGroupElectorLeaderIdContractTest {
         MultithreadingTester()
             .workers(2)
             .rounds(1)
-            .addAll(
-                { r1.set(defaultElector.runIfLeaderResult(slot1) { "result-1" }) },
-                { r2.set(defaultElector.runIfLeaderResult(slot2) { "result-2" }) },
-            )
+            .add {
+                r1.set(defaultElector.runIfLeaderResult(slot1) { "result-1" })
+            }
+            .add {
+                r2.set(defaultElector.runIfLeaderResult(slot2) { "result-2" })
+            }
             .run()
 
         r1.get().shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "node-1"
@@ -105,6 +110,8 @@ abstract class AbstractLeaderGroupElectorLeaderIdContractTest {
         val r1 = defaultElector.runIfLeaderResult(s1) { 1 }
         val r2 = defaultElector.runIfLeaderResult(s2) { 2 }
 
+        log.debug { "r1=$r1" }
+        log.debug { "r2=$r2" }
         r1.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "group-1"
         r2.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "group-2"
     }

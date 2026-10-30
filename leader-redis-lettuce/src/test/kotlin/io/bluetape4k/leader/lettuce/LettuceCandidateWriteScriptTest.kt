@@ -30,9 +30,7 @@ class LettuceCandidateWriteScriptTest: AbstractLettuceLeaderTest() {
         val lockName = "write-script-${Base58.randomString(8)}"
         val nodeId = "node-1"
         val keys = keys(lockName, nodeId)
-        val value = LettuceCandidateInfoCodec.encode(
-            io.bluetape4k.leader.strategy.CandidateInfo(nodeId),
-        )
+        val value = LettuceCandidateInfoCodec.encode(CandidateInfo(nodeId))
 
         val registered = run(keys, REGISTER, value, "0", nodeId)
         registered.status() shouldBeEqualTo REGISTERED
@@ -53,7 +51,7 @@ class LettuceCandidateWriteScriptTest: AbstractLettuceLeaderTest() {
         val nodeId = "node-1"
         val keys = keys(lockName, nodeId)
         val raw = LettuceCandidateInfoCodec.encode(
-            io.bluetape4k.leader.strategy.CandidateInfo(nodeId),
+            CandidateInfo(nodeId),
         )
         val token = "migration-token-${Base58.randomString(8)}"
 
@@ -126,7 +124,7 @@ class LettuceCandidateWriteScriptTest: AbstractLettuceLeaderTest() {
         val nodeId = "node-1"
         val keys = keys(lockName, nodeId)
         val raw = LettuceCandidateInfoCodec.encode(
-            io.bluetape4k.leader.strategy.CandidateInfo(nodeId),
+            CandidateInfo(nodeId),
         )
         connection.sync().set(keys.tombstone, "1")
 
@@ -273,18 +271,19 @@ class LettuceCandidateWriteScriptTest: AbstractLettuceLeaderTest() {
             override fun pttl(key: String): Long = sync.pttl(key).also { persistSource(key, it) }
         }
         val reactiveCommands = object: RedisReactiveCommands<String, String> by reactive {
-            override fun pttl(key: String): Mono<Long> = reactive.pttl(key).flatMap { ttl ->
-                if (key == sourceKey && first) {
-                    ttl shouldBeGreaterThan 0L
-                    first = false
-                    reactive.persist(sourceKey).map { persisted ->
-                        persisted.shouldBeTrue()
-                        ttl
+            override fun pttl(key: String): Mono<Long> = reactive.pttl(key)
+                .flatMap { ttl ->
+                    if (key == sourceKey && first) {
+                        ttl shouldBeGreaterThan 0L
+                        first = false
+                        reactive.persist(sourceKey).map { persisted ->
+                            persisted.shouldBeTrue()
+                            ttl
+                        }
+                    } else {
+                        Mono.just(ttl)
                     }
-                } else {
-                    Mono.just(ttl)
                 }
-            }
         }
         return object: StatefulRedisConnection<String, String> by connection {
             override fun sync(): RedisCommands<String, String> = syncCommands

@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
+class MongoLeaderElectorTest: AbstractMongoLeaderTest() {
 
     companion object: KLogging()
 

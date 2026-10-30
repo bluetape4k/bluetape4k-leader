@@ -1,8 +1,8 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.support.requireGe
 import io.bluetape4k.support.requireInRange
 import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.requirePositiveNumber
 import java.io.Serializable
 
 /**
@@ -26,7 +26,7 @@ data class LeaderGroupState(
 
     init {
         lockName.requireNotBlank("lockName")
-        maxLeaders.requireGe(1, "maxLeaders")
+        maxLeaders.requirePositiveNumber("maxLeaders")
         activeCount.requireInRange(0, maxLeaders, "activeCount")
         leaders.size.requireInRange(0, maxLeaders, "leaders.size")
     }

@@ -106,7 +106,11 @@ class LettuceLeaderGroupElector(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
-    private fun <T> runImpl(lockName: String, auditLeaderId: String?, action: () -> T): T? {
+    private inline fun <T> runImpl(
+        lockName: String,
+        auditLeaderId: String?,
+        crossinline action: () -> T,
+    ): T? {
         val slotGroup = getSlotGroup(lockName)
 
         val token = slotGroup.tryAcquire(options.waitTime, options.leaseTime, auditLeaderId ?: "")
@@ -131,8 +135,10 @@ class LettuceLeaderGroupElector(
             extendDelegate = delegate,
             auditLeaderId = auditLeaderId,
         )
+
         // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
         val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate, ERROR_CLASSIFIER)
+
         log.debug { "리더 선출 성공: lockName=$lockName, token=$token" }
         try {
             return AopScopeAccess.withPushedSync(handle) {
@@ -183,17 +189,17 @@ class LettuceLeaderGroupElector(
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
                 elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                else          -> LeaderRunResult.Skipped
             }
         }
     }
 
     @Suppress("LongMethod", "TooGenericExceptionCaught")
-    private fun <T> runAsyncImpl(
+    private inline fun <T> runAsyncImpl(
         lockName: String,
         auditLeaderId: String?,
         executor: Executor,
-        action: () -> CompletableFuture<T>,
+        crossinline action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val slotGroup = getSlotGroup(lockName)
 
@@ -224,7 +230,7 @@ class LettuceLeaderGroupElector(
         val pipelineFuture = acquisitionFuture.thenComposeAsync({ token ->
             if (token == null) {
                 log.debug { "리더 선출 실패 (슬롯 없음, async): lockName=$lockName" }
-                completableFutureOf<T?>(null)
+                completableFutureOf(null)
             } else {
                 val startedAtNanos = acquiredAtNanos.get()
                 if (!lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.STARTED)) {
@@ -260,14 +266,14 @@ class LettuceLeaderGroupElector(
         }
     }
 
-    private fun <T> runAcquiredAsync(
+    private inline fun <T> runAcquiredAsync(
         slotGroup: LettuceSlotTokenGroup,
         lockName: String,
         token: String,
         auditLeaderId: String?,
         startedAtNanos: Long,
         cancellationRelay: LeaderFutureBridge.CancellationRelay,
-        action: () -> CompletableFuture<T>,
+        crossinline action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val delegate = LettuceSlotExtendDelegate(slotGroup, token)
         val identity = LockIdentity(
@@ -299,7 +305,8 @@ class LettuceLeaderGroupElector(
         }.getOrElse { error ->
             return releaseAndPropagate(slotGroup, lockName, token, startedAtNanos, error, null)
         }
-        return actionFuture.handle<Pair<T?, Throwable?>> { value, error -> Pair(value, error) }
+        return actionFuture
+            .handle<Pair<T?, Throwable?>> { value, error -> Pair(value, error) }
             .thenCompose { (value, error) ->
                 releaseAndPropagate(slotGroup, lockName, token, startedAtNanos, error, value)
             }

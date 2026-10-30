@@ -90,12 +90,11 @@ class ExposedJdbcLeaderGroupElector private constructor(
         try {
             transaction(db) {
                 val now = currentTime(options.leaderGroupOptions.useDbTime)
+                val whereOp = (LeaderGroupLockTable.lockName eq lockName) and
+                        (LeaderGroupLockTable.lockedUntil greater now)
                 LeaderGroupLockTable
                     .selectAll()
-                    .where {
-                        (LeaderGroupLockTable.lockName eq lockName) and
-                                (LeaderGroupLockTable.lockedUntil greater now)
-                    }
+                    .where(whereOp)
                     .count()
                     .toInt()
             }
@@ -169,8 +168,8 @@ class ExposedJdbcLeaderGroupElector private constructor(
                 )
             }
             val hKey = record?.let { historyRecorder.recordAcquired(it) }
-            val effectiveKey: LeaderHistoryKey? =
-                hKey ?: record?.let {
+            val effectiveKey: LeaderHistoryKey? = hKey
+                ?: record?.let {
                     LeaderHistoryKey(
                         lockName = lockName,
                         token = lock.token,
@@ -274,7 +273,10 @@ class ExposedJdbcLeaderGroupElector private constructor(
         val rejectionCleanupClaimed = AtomicBoolean()
         val releaseIfUnclaimed: () -> Unit = {
             val acquired = acquiredSlotRef.get()
-            if (acquired != null && !lifecycleStarted.get() && rejectionCleanupClaimed.compareAndSet(false, true)) {
+            val canUnlock = acquired != null &&
+                    !lifecycleStarted.get() &&
+                    rejectionCleanupClaimed.compareAndSet(false, true)
+            if (canUnlock) {
                 when (acquired.first.unlockAndReport()) {
                     ExposedJdbcUnlockOutcome.RELEASED ->
                         log.debug { "executor 거부 후 비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=${acquired.second}" }
@@ -300,7 +302,8 @@ class ExposedJdbcLeaderGroupElector private constructor(
                 )
                 when (lock.tryLock(perSlotWait, leaseTime) { resultFuture.isCancelled }) {
                     true -> {
-                        acquired = lock to slot; break
+                        acquired = lock to slot
+                        break
                     }
                     false -> continue
                     null -> {

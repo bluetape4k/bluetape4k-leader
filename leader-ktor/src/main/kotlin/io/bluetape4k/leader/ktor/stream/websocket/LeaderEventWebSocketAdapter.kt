@@ -16,6 +16,8 @@ import io.ktor.websocket.Frame
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,14 +46,14 @@ object LeaderEventWebSocketAdapter {
 
         val streamRoute = route.webSocket(webSocketPath(config.eventStreamRoutePath)) {
             val connection = call.attributes.getOrNull(connectionKey) ?: return@webSocket
-            val handlerJob = kotlin.coroutines.coroutineContext[Job] ?: return@webSocket
+            val handlerJob = currentCoroutineContext()[Job] ?: return@webSocket
             val disconnectJob = launch {
                 closeReason.await()
                 handlerJob.cancel()
             }
             val heartbeatJob = launch {
                 while (isActive) {
-                    kotlinx.coroutines.delay(config.eventStreamHeartbeat)
+                    delay(config.eventStreamHeartbeat)
                     send(Frame.Text(LeaderEventStreamPayload.heartbeat()))
                 }
             }
@@ -82,13 +84,13 @@ private fun webSocketPath(path: String): String =
 
 private fun LeaderStreamItem.toWebSocketPayload(config: LeaderEventStreamConfig): String =
     when (this) {
-        is LeaderStreamItem.Event -> LeaderEventStreamPayload.event(event, sequence, config)
+        is LeaderStreamItem.Event   -> LeaderEventStreamPayload.event(event, sequence, config)
         is LeaderStreamItem.Control -> when (control) {
             LeaderStreamItem.Kind.HEARTBEAT -> LeaderEventStreamPayload.heartbeat()
             LeaderStreamItem.Kind.REPLAY_GAP -> LeaderEventStreamPayload.replayGap(
                 from.requireNotNull("from"),
                 to.requireNotNull("to"),
             )
-            LeaderStreamItem.Kind.EVENT -> error("EVENT cannot be a control item")
+            LeaderStreamItem.Kind.EVENT     -> error("EVENT cannot be a control item")
         }
     }

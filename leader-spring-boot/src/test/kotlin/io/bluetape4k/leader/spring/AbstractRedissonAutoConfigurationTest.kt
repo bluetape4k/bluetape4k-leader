@@ -24,11 +24,11 @@ abstract class AbstractRedissonAutoConfigurationTest {
             Redisson.create(newRedissonConfig())
 
         @JvmStatic
-        fun newRedissonConfig(): Config = Config().apply {
+        protected fun newRedissonConfig(): Config = Config().apply {
             useSingleServer()
                 .setAddress(redisUrl)
-                .setConnectionPoolSize(4)
-                .setConnectionMinimumIdleSize(1)
+                .setConnectionPoolSize(8)
+                .setConnectionMinimumIdleSize(2)
         }
     }
 }

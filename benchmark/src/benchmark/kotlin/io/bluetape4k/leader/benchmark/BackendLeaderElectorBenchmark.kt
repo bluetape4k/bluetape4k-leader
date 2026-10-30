@@ -23,8 +23,10 @@ import io.bluetape4k.leader.mongodb.MongoLeaderElector
 import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.leader.redisson.RedissonLeaderElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperLeaderElector
+import io.bluetape4k.leader.zookeeper.blockUntilConnected
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.requireBeTrue
 import io.bluetape4k.testcontainers.aws.DynamoDbLocalServer
 import io.bluetape4k.testcontainers.database.MySQL8Server
 import io.bluetape4k.testcontainers.database.PostgreSQLServer
@@ -62,7 +64,6 @@ import software.amazon.awssdk.services.dynamodb.model.KeyType
 import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType
 import software.amazon.awssdk.services.dynamodb.model.TimeToLiveSpecification
 import java.time.Duration
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
 @State(Scope.Benchmark)
@@ -100,19 +101,19 @@ class BackendLeaderElectorBenchmark {
     fun setup() {
         lockName = "bench-$backend-blocking"
         elector = when (backend) {
-            "local" -> LocalLeaderElector(leaderOptions)
-            "lettuce" -> createLettuceElector()
-            "redisson" -> createRedissonElector()
-            "exposed-jdbc-h2" -> createExposedJdbcH2Elector()
+            "local"              -> LocalLeaderElector(leaderOptions)
+            "lettuce"            -> createLettuceElector()
+            "redisson"           -> createRedissonElector()
+            "exposed-jdbc-h2"    -> createExposedJdbcH2Elector()
             "exposed-jdbc-postgresql" -> createExposedJdbcPostgreSqlElector()
             "exposed-jdbc-mysql" -> createExposedJdbcMySqlElector()
-            "mongo" -> createMongoElector()
-            "hazelcast" -> createHazelcastElector()
-            "zookeeper" -> createZooKeeperElector()
-            "consul" -> createConsulElector()
-            "etcd" -> createEtcdElector()
-            "dynamodb" -> createDynamoDbElector()
-            else -> error("Unsupported backend: $backend")
+            "mongo"              -> createMongoElector()
+            "hazelcast"          -> createHazelcastElector()
+            "zookeeper"          -> createZooKeeperElector()
+            "consul"             -> createConsulElector()
+            "etcd"               -> createEtcdElector()
+            "dynamodb"           -> createDynamoDbElector()
+            else                 -> error("Unsupported backend: $backend")
         }
         require(elector.runIfLeader("$lockName-smoke") { true } == true) {
             "Benchmark backend failed leader election smoke check. backend=$backend"
@@ -222,12 +223,13 @@ class BackendLeaderElectorBenchmark {
     }
 
     private fun createZooKeeperElector(): LeaderElector {
-        val client = ZooKeeperServer.Launcher.getCuratorFramework(ZooKeeperServer.Launcher.zookeeper).also {
-            it.start()
-            require(it.blockUntilConnected(30, TimeUnit.SECONDS)) {
-                "ZooKeeper benchmark client did not connect within 30 seconds."
+        val client = ZooKeeperServer.Launcher.getCuratorFramework(ZooKeeperServer.Launcher.zookeeper)
+            .also {
+                it.start()
+                it.blockUntilConnected(30.seconds).requireBeTrue {
+                    "ZooKeeper benchmark client did not connect within 30 seconds."
+                }
             }
-        }
         curator = client
         return ZooKeeperLeaderElector(client, options = leaderOptions)
     }

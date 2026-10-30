@@ -14,7 +14,7 @@ import java.time.Duration
 
 class LeaderRouteLeasePropertiesTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     @Test
     fun `defaults expose the bounded request lease contract`() {

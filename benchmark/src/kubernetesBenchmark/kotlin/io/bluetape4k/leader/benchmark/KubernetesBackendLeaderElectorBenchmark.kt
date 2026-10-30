@@ -247,7 +247,7 @@ class KubernetesBackendLeaderElectorBenchmark {
 }
 
 @State(Scope.Thread)
-open class KubernetesFreshLeaseState {
+class KubernetesFreshLeaseState {
 
     lateinit var blockingLockName: String
     lateinit var suspendLockName: String
@@ -272,7 +272,7 @@ open class KubernetesFreshLeaseState {
 }
 
 @State(Scope.Thread)
-open class KubernetesActiveHolderLeaseState {
+class KubernetesActiveHolderLeaseState {
 
     lateinit var blockingLockName: String
     lateinit var suspendLockName: String
@@ -294,7 +294,7 @@ open class KubernetesActiveHolderLeaseState {
 }
 
 @State(Scope.Thread)
-open class KubernetesExpiredHolderLeaseState {
+class KubernetesExpiredHolderLeaseState {
 
     lateinit var blockingLockName: String
     lateinit var suspendLockName: String
@@ -320,7 +320,7 @@ open class KubernetesExpiredHolderLeaseState {
 }
 
 @State(Scope.Thread)
-open class KubernetesRenewalLeaseState {
+class KubernetesRenewalLeaseState {
 
     lateinit var blockingLockName: String
     lateinit var suspendLockName: String
@@ -346,7 +346,7 @@ open class KubernetesRenewalLeaseState {
 }
 
 @State(Scope.Thread)
-open class KubernetesConflictLeaseState {
+class KubernetesConflictLeaseState {
 
     lateinit var blockingLockName: String
     lateinit var suspendLockName: String

@@ -70,6 +70,7 @@ class ZooKeeperLeaderBackendDiagnosticsTest {
     fun `connectivity는 기존 Curator connection 상태만 읽는다`() {
         every { client.zookeeperClient } returns zookeeperClient
         every { zookeeperClient.isConnected } returnsMany listOf(true, false)
+
         val provider = ZooKeeperLeaderBackendDiagnostics(client)
 
         provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.UP

@@ -39,7 +39,7 @@ class LeaderEventStreamPayloadTest {
     @Test
     fun `plugin config defaults are copied into the immutable stream config`() {
         val config = LeaderElectionPluginConfig()
-
+        log.debug { "config=$config" }
         config.toLeaderEventStreamConfig() shouldBeEqualTo LeaderEventStreamConfig()
     }
 
@@ -130,6 +130,7 @@ class LeaderEventStreamPayloadTest {
             leader = LeaderLease("node-a"),
         )
 
+        log.debug { "event=$event" }
         LeaderEventStreamPayload.event(event, sequence = 7) shouldBeEqualTo
                 "{\"type\":\"Elected\",\"sequence\":7}"
     }
@@ -180,6 +181,7 @@ class LeaderEventStreamPayloadTest {
             leaderId = "node\"\\\n",
             leaseExpiry = Instant.parse("2026-08-26T01:02:03Z"),
         )
+        log.debug { "event=$event" }
 
         val json = LeaderEventStreamPayload.event(
             event = event,
@@ -188,6 +190,7 @@ class LeaderEventStreamPayloadTest {
             exposeLeaderMetadata = true,
         )
 
+        log.debug { "json=$json" }
         json shouldContain "\\\""
         json shouldContain "\\\\"
         json shouldContain "\\n"

@@ -95,7 +95,13 @@ class LettuceStrategicLeaderGroupElector @JvmOverloads constructor(
             log.debug { "[$lockName] 탈락: ${elimination.candidate.nodeId} — ${elimination.reason}" }
         }
 
-        if (result.winners.none { it.nodeId == nodeId }) return null
+        if (result.winners.none { it.nodeId == nodeId }) {
+            log.debug {
+                "선출된 nodeId 들과 일치하지 않아서 탈락. " +
+                        "nodeId=$nodeId, winners=${result.winners.joinToString { it.nodeId }}"
+            }
+            return null
+        }
 
         return try {
             val value = action()

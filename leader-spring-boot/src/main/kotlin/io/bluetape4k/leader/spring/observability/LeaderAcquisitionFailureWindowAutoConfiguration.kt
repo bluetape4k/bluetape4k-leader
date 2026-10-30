@@ -3,6 +3,7 @@ package io.bluetape4k.leader.spring.observability
 import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
+import io.bluetape4k.logging.KLogging
 import org.springframework.beans.factory.config.BeanDefinition
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -25,6 +26,8 @@ import org.springframework.context.annotation.Role
 )
 @EnableConfigurationProperties(LeaderProperties::class)
 class LeaderAcquisitionFailureWindowAutoConfiguration {
+
+    private companion object: KLogging()
 
     @Bean("leaderAcquisitionFailureWindow")
     @ConditionalOnMissingBean(name = ["leaderAcquisitionFailureWindow"])

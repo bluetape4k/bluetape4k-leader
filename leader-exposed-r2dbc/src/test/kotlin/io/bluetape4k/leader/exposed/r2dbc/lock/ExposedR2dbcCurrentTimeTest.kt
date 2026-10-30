@@ -1,8 +1,9 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
-import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.asInstantOrNull
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 import java.time.Instant
@@ -24,14 +25,13 @@ class ExposedR2dbcCurrentTimeTest {
             expected.atZone(ZoneOffset.ofHours(-8)),
             LocalDateTime.ofInstant(expected, ZoneOffset.UTC),
         ).forEach { value ->
+            value.asInstantOrNull() shouldBeEqualTo expected
             value.toExposedR2dbcInstant() shouldBeEqualTo expected
         }
     }
 
     @Test
-    fun `지원하지 않는 R2DBC current timestamp 반환형은 실패한다`() {
-        assertFailsWith<IllegalStateException> {
-            Any().toExposedR2dbcInstant()
-        }
+    fun `지원하지 않는 R2DBC current timestamp 반환형은 null 을 반환한다`() {
+        Any().asInstantOrNull().shouldBeNull()
     }
 }

@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class LeaderElectionActionWebEndpointTest {
 
-    companion object: KLogging() {
+    private companion object: KLogging() {
         private val jsonMapper = Jackson.defaultJsonMapper
     }
 

@@ -72,6 +72,7 @@ interface SuspendLeaderElector: LeaderElectionState {
         action: suspend () -> T,
     ): LeaderRunResult<T> {
         LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
+
         var elected = false
         val value = try {
             runIfLeader(slot.lockName) {

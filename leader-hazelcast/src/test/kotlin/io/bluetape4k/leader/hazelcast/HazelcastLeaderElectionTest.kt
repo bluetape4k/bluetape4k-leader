@@ -132,8 +132,8 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             .run()
 
         log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
-        task1.get() shouldBeGreaterThan 4
-        task2.get() shouldBeGreaterThan 4
+        task1.get() shouldBeGreaterThan roundsPerThread
+        task2.get() shouldBeGreaterThan roundsPerThread
     }
 
     @EnabledForJreRange(min = JRE.JAVA_21)
@@ -143,9 +143,11 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
         val election = HazelcastLeaderElector(hazelcastClient)
         val task1 = AtomicInteger(0)
         val task2 = AtomicInteger(0)
+        val numThreads = 8
+        val roundsPerThread = 4
 
         StructuredTaskScopeTester()
-            .rounds(16)
+            .rounds(numThreads * roundsPerThread)
             .add {
                 election.runIfLeader(lockName) {
                     log.debug { "작업 1. task1=${task1.get()}" }
@@ -163,8 +165,8 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             .run()
 
         log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
-        task1.get() shouldBeGreaterThan 4
-        task2.get() shouldBeGreaterThan 4
+        task1.get() shouldBeGreaterThan roundsPerThread
+        task2.get() shouldBeGreaterThan roundsPerThread
     }
 
     @Test
@@ -366,8 +368,8 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             .run()
 
         log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
-        task1.get() shouldBeGreaterThan 4
-        task2.get() shouldBeGreaterThan 4
+        task1.get() shouldBeGreaterThan roundsPerThread
+        task2.get() shouldBeGreaterThan roundsPerThread
     }
 
     @EnabledForJreRange(min = JRE.JAVA_21)
@@ -377,9 +379,11 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
         val election = HazelcastLeaderElector(hazelcastClient)
         val task1 = AtomicInteger(0)
         val task2 = AtomicInteger(0)
+        val numThreads = 8
+        val roundsPerThread = 4
 
         StructuredTaskScopeTester()
-            .rounds(16)
+            .rounds(numThreads * roundsPerThread)
             .add {
                 election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
                     futureOf {
@@ -399,7 +403,7 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             .run()
 
         log.debug { "task1=${task1.get()}, task2=${task2.get()}" }
-        task1.get() shouldBeGreaterThan 4
-        task2.get() shouldBeGreaterThan 4
+        task1.get() shouldBeGreaterThan roundsPerThread
+        task2.get() shouldBeGreaterThan roundsPerThread
     }
 }

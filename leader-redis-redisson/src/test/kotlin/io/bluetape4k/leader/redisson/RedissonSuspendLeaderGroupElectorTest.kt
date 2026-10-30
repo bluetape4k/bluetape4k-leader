@@ -27,6 +27,7 @@ import kotlinx.coroutines.delay
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.withAlias
+import org.awaitility.kotlin.withPollDelay
 import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CancellationException
@@ -347,8 +348,7 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
         val secondElector = RedissonSuspendLeaderGroupElector(redissonClient, opts)
         secondElector.runIfLeader(cancelLock) { "should-not" }.shouldBeNull()
 
-        delay(900.milliseconds)
-        await atMost 5.seconds withPollInterval 100.milliseconds untilSuspending {
+        await atMost 10.seconds withPollDelay 1.seconds withPollInterval 100.milliseconds untilSuspending {
             secondElector.runIfLeader(cancelLock) { "later" } == "later"
         }
     }

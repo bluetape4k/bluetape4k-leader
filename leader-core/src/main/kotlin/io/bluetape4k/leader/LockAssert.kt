@@ -3,7 +3,7 @@ package io.bluetape4k.leader
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.logging.KLogging
-import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.currentCoroutineContext
 
 /**
  * 현재 thread 또는 coroutine의 leader lock 실행 scope를 검사하고 조회합니다.
@@ -75,8 +75,9 @@ object LockAssert: KLogging() {
      * 활성 `@LeaderElection` scope가 없거나 fail-open scope이면 `IllegalStateException`을 던집니다.
      */
     suspend fun assertLockedSuspend() {
-        val handle = coroutineContext[LockHandleElement]?.handle
+        val handle = currentCoroutineContext()[LockHandleElement]?.handle
             ?: error("LockAssert.assertLockedSuspend() called outside an active @LeaderElection scope")
+
         check(handle !is LeaderLockHandle.FailOpen) {
             "LockAssert.assertLockedSuspend() — current scope is fail-open. lockName=${handle.lockName}"
         }
@@ -89,8 +90,9 @@ object LockAssert: KLogging() {
      * @param lockName 현재 coroutine 실행 scope와 일치해야 하는 lock 이름
      */
     suspend fun assertLockedSuspend(lockName: String) {
-        val handle = coroutineContext[LockHandleElement]?.handle
+        val handle = currentCoroutineContext()[LockHandleElement]?.handle
             ?: error("LockAssert.assertLockedSuspend('$lockName') — no active scope")
+
         check(handle.lockName == lockName) {
             "LockAssert.assertLockedSuspend('$lockName') — active lock is '${handle.lockName}'"
         }
@@ -106,7 +108,7 @@ object LockAssert: KLogging() {
      * @return 현재 coroutine 실행 scope가 실제 lock을 보유하면 `true`
      */
     suspend fun isLockedSuspend(): Boolean {
-        val handle = coroutineContext[LockHandleElement]?.handle ?: return false
+        val handle = currentCoroutineContext()[LockHandleElement]?.handle ?: return false
         return handle is LeaderLockHandle.Real
     }
 
@@ -118,7 +120,7 @@ object LockAssert: KLogging() {
      * @return 지정한 lock의 현재 coroutine 실행 scope가 실제 lock을 보유하면 `true`
      */
     suspend fun isLockedSuspend(lockName: String): Boolean {
-        val handle = coroutineContext[LockHandleElement]?.handle ?: return false
+        val handle = currentCoroutineContext()[LockHandleElement]?.handle ?: return false
         return handle is LeaderLockHandle.Real && handle.lockName == lockName
     }
 }

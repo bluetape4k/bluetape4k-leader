@@ -18,8 +18,6 @@ import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import io.bluetape4k.leader.mongodb.runAsyncIfLeader as currentRunAsyncIfLeader
-import io.bluetape4k.leader.mongodb.runIfLeader as currentRunIfLeader
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoLockExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoLock
@@ -36,6 +34,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import io.bluetape4k.leader.mongodb.runAsyncIfLeader as currentRunAsyncIfLeader
+import io.bluetape4k.leader.mongodb.runIfLeader as currentRunIfLeader
 
 /**
  * `MongoLeaderElector`는 MongoDB의 blocking 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.
@@ -74,7 +74,7 @@ class MongoLeaderElector private constructor(
     }
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
-        lockName.validateMonoLockName()
+        lockName.validateMongoLockName()
         val lock = MongoLock(collection, lockName, options.retryDelay)
         log.debug { "리더 승격을 요청합니다. lockName=$lockName" }
 
@@ -152,7 +152,7 @@ class MongoLeaderElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        lockName.validateMonoLockName()
+        lockName.validateMongoLockName()
         val lock = MongoLock(collection, lockName, options.retryDelay)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
 

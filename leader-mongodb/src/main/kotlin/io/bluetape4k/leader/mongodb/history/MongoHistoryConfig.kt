@@ -1,6 +1,10 @@
 package io.bluetape4k.leader.mongodb.history
 
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.requireLe
+import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.requireNotStartsWith
+import io.bluetape4k.support.requireZeroOrPositiveNumber
 import java.io.Serializable
 
 /**
@@ -17,7 +21,7 @@ data class MongoHistoryConfig(
 
     init {
         validateMongoHistoryCollectionName(collectionName)
-        require(ttlDays >= 0) { "ttlDays must be >= 0. Use 0 to disable TTL index. ttlDays=$ttlDays" }
+        ttlDays.requireZeroOrPositiveNumber { "ttlDays must be >= 0. Use 0 to disable TTL index. ttlDays=$ttlDays" }
     }
 
     companion object: KLogging() {
@@ -29,9 +33,9 @@ data class MongoHistoryConfig(
 }
 
 private fun validateMongoHistoryCollectionName(collectionName: String) {
-    require(collectionName.isNotBlank()) { "collectionName must not be blank" }
-    require(collectionName.length <= 120) { "collectionName.length must be <= 120: ${collectionName.length}" }
-    require(!collectionName.startsWith("system.")) {
+    collectionName.requireNotBlank { "collectionName must not be blank" }
+    collectionName.length.requireLe(120) { "collectionName.length must be <= 120: ${collectionName.length}" }
+    collectionName.requireNotStartsWith("system.") {
         "collectionName must not use MongoDB reserved system namespace: $collectionName"
     }
     require(collectionName.none { it == '\u0000' || it == '$' }) {

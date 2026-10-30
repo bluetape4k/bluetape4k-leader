@@ -2,6 +2,7 @@ package io.bluetape4k.leader.lettuce.contract
 
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.AopScopeAccess
@@ -15,6 +16,7 @@ import io.bluetape4k.leader.lettuce.LettuceLeaderGroupElector
 import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderElector
 import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderGroupElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds
@@ -108,6 +110,7 @@ class LettuceExtendDelegateReferenceTest: AbstractLettuceLeaderTest() {
                 outcome = LockExtender.extendActiveLockDetailedSuspend(LockAtMostFor)
             }
 
+            log.debug { "outcome=$outcome" }
             outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
         }
 
@@ -123,7 +126,11 @@ class LettuceExtendDelegateReferenceTest: AbstractLettuceLeaderTest() {
             outcomes += LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
-        outcomes.forEach { it.shouldBeInstanceOf<ExtendOutcome.Extended>() }
+        outcomes shouldHaveSize 3
+        outcomes.forEach {
+            log.debug { "outcome=$it" }
+            it.shouldBeInstanceOf<ExtendOutcome.Extended>()
+        }
     }
 
     /**
@@ -153,6 +160,8 @@ class LettuceExtendDelegateReferenceTest: AbstractLettuceLeaderTest() {
             postExtend = LockExtender.extendActiveLockDetailed(LockAtMostFor)
         }
 
+        log.debug { "preExtend=$preExtend" }
+        log.debug { "postExtend=$postExtend" }
         preExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
         postExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }

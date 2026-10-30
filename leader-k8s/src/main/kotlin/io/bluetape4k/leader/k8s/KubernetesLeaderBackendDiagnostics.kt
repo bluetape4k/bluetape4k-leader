@@ -17,10 +17,12 @@ object KubernetesLeaderBackendDiagnostics: LeaderBackendDiagnosticsProvider {
         LeaderExecutionModel.ASYNC,
         LeaderExecutionModel.SUSPEND,
     )
+
     private val SupportedModes = LeaderBackendModeSupport(
         single = LeaderBackendSupport.SUPPORTED,
         group = LeaderBackendSupport.SUPPORTED,
     )
+
     private val SingleAuditModes = LeaderBackendModeSupport(
         single = LeaderBackendSupport.SUPPORTED,
         group = LeaderBackendSupport.UNSUPPORTED,

@@ -8,6 +8,7 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.utils.Runtimex
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
@@ -85,7 +86,7 @@ class ZooKeeperSuspendLeaderElectorTest: AbstractZooKeeperLeaderTest() {
             val executed = AtomicInteger(0)
 
             SuspendedJobTester()
-                .rounds(16)
+                .rounds(Runtimex.availableProcessors * 4)
                 .add {
                     elector.runIfLeader(lockName) {
                         val current = currentConcurrent.incrementAndGet()
@@ -100,7 +101,7 @@ class ZooKeeperSuspendLeaderElectorTest: AbstractZooKeeperLeaderTest() {
 
             log.debug { "동시 최대 실행 수=${peakConcurrent.get()}, 실행 수=${executed.get()}" }
             peakConcurrent.get() shouldBeEqualTo 1
-            executed.get() shouldBeEqualTo 16
+            executed.get() shouldBeEqualTo Runtimex.availableProcessors * 4
         }
     }
 }

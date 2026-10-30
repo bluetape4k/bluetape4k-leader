@@ -26,6 +26,13 @@ class LeaderStateTest {
     }
 
     @Test
+    fun `LeaderState preserves accepted lock names from the 1x contract`() {
+        listOf("tenant.lock", "tenant lock", "결제-작업", ".leading-symbol").forEach { lockName ->
+            LeaderState.empty(lockName).lockName shouldBeEqualTo lockName
+        }
+    }
+
+    @Test
     fun `occupied - leader lease 를 포함한 점유 상태를 생성한다`() {
         val lease = LeaderLease("node-a", electedAt = Instant.now())
         val state = LeaderState.occupied("job-lock", lease)

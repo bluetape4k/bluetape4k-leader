@@ -40,6 +40,7 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
     fun `MongoSuspendLock token uses 128-bit Base58 length`() = runSuspendIO {
         val lock = MongoSuspendLock(coroutineLockCollection, randomName())
 
+        log.debug { "lock=$lock" }
         lock.token.length shouldBeEqualTo MongoLock.DEFAULT_TOKEN_LENGTH
     }
 
@@ -58,7 +59,7 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
         val lockName = randomName()
         val successCount = AtomicInteger(0)
 
-        val jobs = (1..10).map {
+        val jobs = List(10) {
             async {
                 elector.runIfLeader(lockName) {
                     successCount.incrementAndGet()

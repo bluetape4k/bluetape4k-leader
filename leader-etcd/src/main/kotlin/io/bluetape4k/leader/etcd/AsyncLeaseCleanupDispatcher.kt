@@ -136,14 +136,19 @@ internal class AsyncLeaseCleanupBarrier<T: Any>(
     }
 
     private fun dispatchIfReady() {
-        if (cleanupRequested.get() && acquisitionCompleted.get() && cleanupStarted.compareAndSet(false, true)) {
+        val ready = cleanupRequested.get() &&
+                acquisitionCompleted.get() &&
+                cleanupStarted.compareAndSet(false, true)
+
+        if (ready) {
             val value = acquired.get()
             if (value == null) {
                 completion.complete(Unit)
             } else {
                 AsyncLeaseCleanupDispatcher.execute { cleanup(value) }
                     .whenComplete { _, failure ->
-                        if (failure == null) completion.complete(Unit) else completion.completeExceptionally(failure)
+                        if (failure == null) completion.complete(Unit)
+                        else completion.completeExceptionally(failure)
                     }
             }
         }

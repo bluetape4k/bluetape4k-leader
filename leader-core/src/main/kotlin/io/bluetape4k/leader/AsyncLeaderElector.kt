@@ -73,20 +73,17 @@ interface AsyncLeaderElector: LeaderElectionState {
         val elected = AtomicBoolean(false)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
 
-        return LeaderFutureBridge
-            .map(
-                runAsyncIfLeader(slot.lockName, executor) {
-                    elected.set(true)
-                    cancellationRelay.invoke(action)
-                },
-                cancellationRelay
-            ) { value, failure ->
-                when {
-                    failure != null && elected.get() -> failure.toActionFailedResult()
-                    failure != null -> throw failure.asCompletionException()
-                    elected.get() -> LeaderRunResult.Elected(value)
-                    else -> LeaderRunResult.Skipped
-                }
+        val future = runAsyncIfLeader(slot.lockName, executor) {
+            elected.set(true)
+            cancellationRelay.invoke(action)
+        }
+        return LeaderFutureBridge.map(future, cancellationRelay) { value, failure ->
+            when {
+                failure != null && elected.get() -> failure.toActionFailedResult()
+                failure != null                  -> throw failure.asCompletionException()
+                elected.get()                    -> LeaderRunResult.Elected(value)
+                else                             -> LeaderRunResult.Skipped
             }
+        }
     }
 }

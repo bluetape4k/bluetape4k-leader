@@ -30,6 +30,9 @@ class BackendLease internal constructor(
     private companion object {
         val GENERATION = java.util.concurrent.atomic.AtomicLong()
     }
+
+    override fun toString(): String =
+        "BackendLease(slot=$slot, acquiredAt=$acquiredAt, acquiredAtNanos=$acquiredAtNanos, generation=$generation)"
 }
 
 enum class BackendReleaseOutcome {

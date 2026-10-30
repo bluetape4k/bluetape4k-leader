@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.codec.encodeBase64String
+import io.bluetape4k.coroutines.support.awaitUntil
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionEvent
@@ -13,9 +14,8 @@ import io.bluetape4k.leader.ktor.stream.LeaderEventStreamHub
 import io.bluetape4k.leader.ktor.stream.LeaderStreamItem
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
-import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO as ClientCIO
+import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.prepareGet
@@ -30,9 +30,8 @@ import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.basic
-import io.ktor.server.routing.routing
-import io.ktor.server.cio.CIO as ServerCIO
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.routing.routing
 import io.ktor.server.sse.SSE
 import io.ktor.server.testing.testApplication
 import io.ktor.server.websocket.WebSockets
@@ -40,9 +39,9 @@ import io.ktor.utils.io.readLine
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -53,7 +52,9 @@ import java.net.Socket
 import java.net.URI
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import io.ktor.client.engine.cio.CIO as ClientCIO
 import io.ktor.client.plugins.websocket.WebSockets as ClientWebSockets
+import io.ktor.server.cio.CIO as ServerCIO
 
 class LeaderEventStreamRouteTest {
 
@@ -155,7 +156,7 @@ class LeaderEventStreamRouteTest {
                 hub.awaitSubscriberCount(1)
                 publisher.emit(LeaderElectionEvent.Elected("job", leaderId = "node-a"))
 
-                val frame = withTimeout(5.seconds) { response.await() }
+                val frame = response.awaitUntil(5.seconds)
                 log.debug { "frame=$frame" }
                 frame shouldContain "id: 1"
                 frame shouldContain "event: Elected"
@@ -188,7 +189,7 @@ class LeaderEventStreamRouteTest {
                 }
                 hub.awaitSubscriberCount(1)
 
-                val frame = withTimeout(5.seconds) { responseJob.await() }
+                val frame = responseJob.awaitUntil(5.seconds)
                 log.debug { "frame=$frame" }
                 frame shouldContain "event: heartbeat"
 
@@ -274,7 +275,7 @@ class LeaderEventStreamRouteTest {
                 hub.awaitSubscriberCount(1)
                 publisher.emit(LeaderElectionEvent.Skipped("all-lock-job"))
 
-                val frame = withTimeout(5.seconds) { response.await() }
+                val frame = response.awaitUntil(5.seconds)
                 log.debug { "frame=$frame" }
                 frame shouldContain "\"lockName\":\"all-lock-job\""
             }

@@ -37,7 +37,9 @@ internal object ExposedJdbcSchemaInitializer: KLogging() {
                     SchemaUtils.create(*ExposedLeaderSchema.allTables)
                     SchemaUtils
                         .addMissingColumnsStatements(*ExposedLeaderSchema.allTables)
-                        .forEach { sql -> exec(sql) }
+                        .forEach { sql ->
+                            exec(sql)
+                        }
                 }
             } catch (e: Throwable) {
                 logInitializationFailure(dbKey, e)
@@ -70,9 +72,7 @@ internal object ExposedJdbcSchemaInitializer: KLogging() {
     }
 }
 
-/**
- * 1.0.0에서 노출된 JVM facade를 유지하는 호환용 lock name 검증 함수입니다.
- */
+/** 1.0.0에서 공개한 JVM facade를 유지하는 호환용 lock-name 검증 함수입니다. */
 @Deprecated("use String.validateExposedLockName() instead")
 @Suppress("DEPRECATION")
 fun validateExposedLockName(lockName: String) {

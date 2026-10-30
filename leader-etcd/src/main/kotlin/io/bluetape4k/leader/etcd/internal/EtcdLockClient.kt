@@ -7,7 +7,6 @@ import io.etcd.jetcd.lease.LeaseKeepAliveResponse
 import io.etcd.jetcd.options.GetOption
 import io.etcd.jetcd.options.GetOption.SortOrder
 import io.etcd.jetcd.options.GetOption.SortTarget
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletableFuture
 
 /** etcd 단일/group key 계산, lease 부여, lock acquire/release, keep-alive를 추상화한 클라이언트입니다. */
@@ -89,5 +88,5 @@ internal class JetcdEtcdLockClient(
     }
 
     private fun byteSequence(path: String): ByteSequence =
-        ByteSequence.from(path, StandardCharsets.UTF_8)
+        ByteSequence.from(path, Charsets.UTF_8)
 }

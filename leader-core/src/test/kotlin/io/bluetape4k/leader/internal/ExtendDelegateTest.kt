@@ -2,6 +2,7 @@ package io.bluetape4k.leader.internal
 
 import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.ExtendOutcome
@@ -93,7 +94,7 @@ class ExtendDelegateTest {
 
     @Test
     fun `SuspendExtendDelegate sync isHeld returns false`() {
-        ConcreteSuspendDelegate(held = true).isHeld() shouldBe false
+        ConcreteSuspendDelegate(held = true).isHeld().shouldBeFalse()
     }
 
     @Test

@@ -11,6 +11,7 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -50,6 +51,7 @@ abstract class AbstractSuspendLeaderGroupElectorLeaderIdContractTest {
         val s = slot("audit-node")
         val result = defaultElector.runIfLeaderResultSuspend(s) { "done" }
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
         result.value shouldBeEqualTo "done"
         result.leaderId shouldBeEqualTo "audit-node"
@@ -60,6 +62,7 @@ abstract class AbstractSuspendLeaderGroupElectorLeaderIdContractTest {
         val s = slot("null-node")
         val result = defaultElector.runIfLeaderResultSuspend(s) { null }
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
         result.leaderId shouldBeEqualTo "null-node"
     }
@@ -87,7 +90,7 @@ abstract class AbstractSuspendLeaderGroupElectorLeaderIdContractTest {
 
         SuspendedJobTester()
             .workers(2)
-            .rounds(2)
+            .rounds(4)
             .add { r1.set(defaultElector.runIfLeaderResultSuspend(slot1) { "result-1" }) }
             .add { r2.set(defaultElector.runIfLeaderResultSuspend(slot2) { "result-2" }) }
             .run()
@@ -104,6 +107,8 @@ abstract class AbstractSuspendLeaderGroupElectorLeaderIdContractTest {
         val r1 = defaultElector.runIfLeaderResultSuspend(s1) { 1 }
         val r2 = defaultElector.runIfLeaderResultSuspend(s2) { 2 }
 
+        log.debug { "r1=$r1" }
+        log.debug { "r2=$r2" }
         r1.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "group-1"
         r2.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "group-2"
     }

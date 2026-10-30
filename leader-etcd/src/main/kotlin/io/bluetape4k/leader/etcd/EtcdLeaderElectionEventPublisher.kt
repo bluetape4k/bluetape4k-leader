@@ -34,7 +34,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -89,10 +88,14 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
         if (!closed.compareAndSet(false, true)) {
             return
         }
-        watcherRef.getAndSet(null)?.let { watcher ->
-            runCatching { watcher.close() }
-                .onFailure { e -> log.debug(e) { "etcd watch close skipped." } }
-        }
+        watcherRef.getAndSet(null)
+            ?.let { watcher ->
+                runCatching {
+                    watcher.close()
+                }.onFailure { e ->
+                    log.debug(e) { "etcd watch close skipped." }
+                }
+            }
         watchReady.completeExceptionally(CancellationException("etcd event publisher closed before watch became ready"))
         if (ownsScope) {
             scope.cancel()
@@ -109,8 +112,9 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
             .withCreateNotify(true)
             .withRequireLeader(true)
             .build()
+
         val watcher = watchClient.watch(
-            ByteSequence.from(paths.keyPrefix, StandardCharsets.UTF_8),
+            ByteSequence.from(paths.keyPrefix, Charsets.UTF_8),
             option,
             Watch.listener(::onResponse, ::onFailure, ::onCompleted),
         )
@@ -122,13 +126,15 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
             }
             return
         }
-        watcherRef.getAndSet(watcher)?.let { oldWatcher ->
-            runCatching {
-                oldWatcher.close()
-            }.onFailure { e ->
-                log.debug(e) { "previous etcd watch close skipped." }
+        watcherRef.getAndSet(watcher)
+            ?.let { oldWatcher ->
+                runCatching {
+                    oldWatcher.close()
+                }.onFailure { e ->
+                    log.debug(e) { "previous etcd watch close skipped." }
+                }
             }
-        }
+
         if (closed.get() && watcherRef.compareAndSet(watcher, null)) {
             runCatching {
                 watcher.close()
@@ -220,7 +226,7 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
             val eventOwnerKey = event.keyValue.key.toUtf8String()
             val currentOwnerKey = currentOwnerKey(resource)
             when (event.eventType) {
-                WatchEvent.EventType.PUT -> handlePut(resource, eventOwnerKey, currentOwnerKey)
+                WatchEvent.EventType.PUT    -> handlePut(resource, eventOwnerKey, currentOwnerKey)
                 WatchEvent.EventType.DELETE -> handleDelete(resource, eventOwnerKey, currentOwnerKey)
                 WatchEvent.EventType.UNRECOGNIZED -> Unit
             }
@@ -279,7 +285,7 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
     }
 
     private fun resourceFromKey(key: ByteSequence): WatchedResource? {
-        val path = key.toString(StandardCharsets.UTF_8)
+        val path = key.toString(Charsets.UTF_8)
         val singlePrefix = "${paths.keyPrefix}/single/"
 
         if (path.startsWith(singlePrefix)) {

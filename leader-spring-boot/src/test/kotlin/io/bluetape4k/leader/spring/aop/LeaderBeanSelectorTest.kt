@@ -24,7 +24,7 @@ import org.springframework.beans.factory.getBean
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderBeanSelectorTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val factoryA: LeaderElectorFactory = mockk(name = "factoryA")
     private val factoryB: LeaderElectorFactory = mockk(name = "factoryB")
@@ -37,7 +37,7 @@ class LeaderBeanSelectorTest {
 
     @Test
     fun `explicit bean - getBean(name, type) 호출`() {
-        every { bf.getBean("redissonLeaderElectionFactory", LeaderElectorFactory::class.java) } returns factoryA
+        every { bf.getBean<LeaderElectorFactory>("redissonLeaderElectionFactory") } returns factoryA
 
         val sut = LeaderBeanSelector(bf)
         val selected = sut.selectElectionFactory("redissonLeaderElectionFactory")
@@ -69,7 +69,9 @@ class LeaderBeanSelectorTest {
 
     @Test
     fun `auto select - @Primary 후보 시 우선 선택`() {
-        every { bf.getBeansOfType(LeaderElectorFactory::class.java) } returns mapOf(
+        every {
+            bf.getBeansOfType(LeaderElectorFactory::class.java)
+        } returns mapOf(
             "factoryA" to factoryA,
             "factoryB" to factoryB,
         )
@@ -86,7 +88,9 @@ class LeaderBeanSelectorTest {
 
     @Test
     fun `auto select - ambiguous + @Primary 없음 시 NoUniqueBeanDefinitionException`() {
-        every { bf.getBeansOfType(LeaderElectorFactory::class.java) } returns mapOf(
+        every {
+            bf.getBeansOfType(LeaderElectorFactory::class.java)
+        } returns mapOf(
             "factoryA" to factoryA,
             "factoryB" to factoryB,
         )

@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.audit.http
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.audit.LeaderAuditExportEvent
+import io.bluetape4k.support.hashOf
 import io.bluetape4k.support.requireLe
 import io.bluetape4k.support.requireNotBlank
 
@@ -41,7 +43,30 @@ class LeaderAuditHttpPayload private constructor(
             body.size.requireLe(HARD_MAX_PAYLOAD_BYTES, "body.bytes")
             return LeaderAuditHttpPayload(validContentType, body.copyOf())
         }
+
+        /** 검증·복사된 payload를 생성합니다. */
+        operator fun invoke(contentType: String, body: ByteArray): LeaderAuditHttpPayload {
+            val validContentType = contentType.requireNotBlank("contentType")
+            require(!validContentType.containsHttpControlCharacter()) {
+                "contentType must not contain control characters"
+            }
+            body.size.requireLe(HARD_MAX_PAYLOAD_BYTES, "body.bytes")
+            return LeaderAuditHttpPayload(validContentType, body.copyOf())
+        }
     }
+
+    override fun equals(other: Any?): Boolean =
+        other is LeaderAuditHttpPayload &&
+                contentType == other.contentType &&
+                bytes.contentEquals(other.bytes)
+
+    override fun hashCode(): Int = hashOf(contentType, bytes.contentHashCode())
+
+    override fun toString(): String =
+        ToStringBuilder(this)
+            .add("contentType", contentType)
+            .add("byteLength", bytes.size)
+            .toString()
 }
 
 private const val HARD_MAX_PAYLOAD_BYTES: Int = 1024 * 1024

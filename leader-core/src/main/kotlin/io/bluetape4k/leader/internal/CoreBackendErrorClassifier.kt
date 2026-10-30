@@ -17,6 +17,6 @@ internal object CoreBackendErrorClassifier: BackendErrorClassifier {
         is SQLTransientException, is SQLRecoverableException -> BackendErrorKind.TRANSIENT
         is SQLNonTransientException -> BackendErrorKind.NON_TRANSIENT
         is SocketTimeoutException, is ConnectException -> BackendErrorKind.TRANSIENT
-        else -> null  // 분류 불가 — CompositeBackendErrorClassifier 가 NON_TRANSIENT default 처리
+        else -> null // 분류 불가 — CompositeBackendErrorClassifier가 NON_TRANSIENT 기본 처리
     }
 }

@@ -129,8 +129,8 @@ class LettuceSuspendLeaderElector(
                 )
             }
             val key = record?.let { historyRecorder.recordAcquired(it) }
-            val effectiveKey: LeaderHistoryKey? =
-                key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
+            val effectiveKey: LeaderHistoryKey? = key
+                ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
 
             return try {
                 val result = withContext(AopScopeAccess.createLockHandleElement(handle)) {

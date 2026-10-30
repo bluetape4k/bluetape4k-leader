@@ -15,7 +15,6 @@ import io.bluetape4k.leader.hazelcast.internal.HazelcastSuspendSlotExtendDelegat
 import io.bluetape4k.leader.hazelcast.lock.HazelcastSuspendLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
-import io.bluetape4k.leader.hazelcast.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -26,6 +25,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import io.bluetape4k.leader.hazelcast.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 
 /**
  * `HazelcastSuspendLeaderGroupElector`는 Hazelcast의 suspend 그룹 선출을 제공하며 `maxLeaders` 슬롯을 acquire·extend·release합니다.

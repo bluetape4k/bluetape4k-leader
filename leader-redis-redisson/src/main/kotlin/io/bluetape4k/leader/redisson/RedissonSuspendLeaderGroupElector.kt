@@ -15,7 +15,6 @@ import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonSuspendSemaphoreExtendDelegate
-import io.bluetape4k.leader.redisson.runSuspendIfLeaderGroup as currentRunSuspendIfLeaderGroup
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -33,6 +32,7 @@ import org.redisson.api.RedissonClient
 import org.redisson.client.RedisException
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
+import io.bluetape4k.leader.redisson.runSuspendIfLeaderGroup as currentRunSuspendIfLeaderGroup
 
 /**
  * `RedissonSuspendLeaderGroupElector`는 Redis Redisson의 suspend 그룹 선출을 제공하며 `maxLeaders` 슬롯을 acquire·extend·release합니다.
@@ -116,7 +116,11 @@ class RedissonSuspendLeaderGroupElector private constructor(
     private fun getAuditMap(lockName: String): RMap<String, String> =
         redissonClient.getMap("lg:{$lockName}:audit")
 
-    private suspend fun <T> runImpl(lockName: String, auditLeaderId: String?, action: suspend () -> T): T? {
+    private suspend fun <T> runImpl(
+        lockName: String,
+        auditLeaderId: String?,
+        action: suspend () -> T,
+    ): T? {
         lockName.requireNotBlank("lockName")
 
         val semaphore = getInitializedPermitSemaphoreAsync(lockName)

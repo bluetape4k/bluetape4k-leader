@@ -5,7 +5,6 @@ import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import io.bluetape4k.support.requireZeroOrPositiveNumber
 import java.io.Serializable
-import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
 /**
@@ -65,8 +64,8 @@ data class LeaderMetricTagRule private constructor(
 
         return when (mode) {
             LeaderMetricTagMode.REDACT -> redactedValue
-            LeaderMetricTagMode.RAW -> rawValue
-            LeaderMetricTagMode.HASH -> sha256Hex(rawValue).take(hashLength)
+            LeaderMetricTagMode.RAW    -> rawValue
+            LeaderMetricTagMode.HASH   -> sha256Hex(rawValue).take(hashLength)
             LeaderMetricTagMode.TRUNCATE -> rawValue.take(maxLength)
         }
     }
@@ -135,7 +134,7 @@ data class LeaderMetricTagRule private constructor(
 
         private fun sha256Hex(value: String): String {
             val messageDigest = SHA256.get().apply { reset() }
-            val digest = messageDigest.digest(value.toByteArray(StandardCharsets.UTF_8))
+            val digest = messageDigest.digest(value.toByteArray(Charsets.UTF_8))
             val chars = CharArray(digest.size * 2)
             digest.forEachIndexed { index, byte ->
                 val unsigned = byte.toInt() and 0xff
@@ -163,13 +162,12 @@ data class LeaderMetricTagOptions(
 ): Serializable {
 
     /** tag key에 맞는 규칙을 반환하고, 등록되지 않은 key에는 `defaultRule`을 사용합니다. */
-    fun ruleFor(tagKey: String): LeaderMetricTagRule =
-        when (tagKey) {
-            MicrometerNames.TAG_LOCK_NAME -> lockName
-            TAG_LEADER_ID -> leaderId
-            TAG_BACKEND_NAME -> backendName
-            else -> defaultRule
-        }
+    fun ruleFor(tagKey: String): LeaderMetricTagRule = when (tagKey) {
+        MicrometerNames.TAG_LOCK_NAME -> lockName
+        TAG_LEADER_ID                 -> leaderId
+        TAG_BACKEND_NAME              -> backendName
+        else                          -> defaultRule
+    }
 
     companion object {
         private const val serialVersionUID = 1L

@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.spring.aop.properties
 
+import io.bluetape4k.javatimes.minutes
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.support.requireInRange
 import io.bluetape4k.support.requireNotBlank
@@ -32,12 +34,12 @@ data class LeaderAopProperties(
     val metrics: Metrics = Metrics(),
     val spel: Spel = Spel(),
 ): Serializable {
-        /**
-         * AOP leader 실행을 위한 metric recorder와 tag 변환 정책입니다.
-         *
-         * @property enabled AOP metric recorder를 활성화할지 여부이며 기본값은 `true`입니다.
-         * @property tags lock, leader ID, backend tag 각각의 노출ㆍredaction 규칙이며 기본값은 `Tags()`입니다.
-         */
+    /**
+     * AOP leader 실행을 위한 metric recorder와 tag 변환 정책입니다.
+     *
+     * @property enabled AOP metric recorder를 활성화할지 여부이며 기본값은 `true`입니다.
+     * @property tags lock, leader ID, backend tag 각각의 노출ㆍredaction 규칙이며 기본값은 `Tags()`입니다.
+     */
     data class Metrics(
         val enabled: Boolean = true,
         val tags: Tags = Tags(),
@@ -159,10 +161,10 @@ data class LeaderAopProperties(
         const val PREFIX: String = "bluetape4k.leader.aop"
 
         @JvmField
-        val DEFAULT_WAIT_TIME: Duration = Duration.ofSeconds(5)
+        val DEFAULT_WAIT_TIME: Duration = 5.seconds()
 
         @JvmField
-        val DEFAULT_LEASE_TIME: Duration = Duration.ofMinutes(1)
+        val DEFAULT_LEASE_TIME: Duration = 1.minutes()
 
         /** 애플리케이션 이름을 앞에 붙이는 기본 lock name prefix 표현식입니다. */
         const val DEFAULT_LOCK_NAME_PREFIX: String = $$"${spring.application.name:}:"

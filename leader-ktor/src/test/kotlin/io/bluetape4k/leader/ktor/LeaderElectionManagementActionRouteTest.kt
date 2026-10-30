@@ -8,7 +8,6 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.ktor.testing.shouldHaveStatus
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderManagementActionObservation
-import io.bluetape4k.leader.LeaderManagementActionObserver
 import io.bluetape4k.leader.LeaderManagementActionSurface
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
@@ -290,7 +289,7 @@ class LeaderElectionManagementActionRouteTest {
     private fun registryWithHandle(): RecordingRegistry {
         val observations = mutableListOf<LeaderManagementActionObservation>()
         val registry = SuspendLeaderManagementActionRegistry(
-            observer = LeaderManagementActionObserver { observations += it },
+            observer = { observations += it },
         )
         val handle = TestHandle("batch-job")
         registry.register(handle)

@@ -15,7 +15,7 @@ import org.junit.jupiter.api.TestInstance
 class MongoSuspendLockExtenderContractTest: AbstractSuspendLockExtenderContractTest() {
 
     companion object: KLoggingChannel() {
-        val mongo = AbstractMongoLeaderTest.mongoServer
+        val mongo by lazy { AbstractMongoLeaderTest.mongoServer }
     }
 
     override val elector: SuspendLeaderElector = runBlocking {

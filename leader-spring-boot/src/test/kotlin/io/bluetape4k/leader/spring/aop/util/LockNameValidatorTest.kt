@@ -14,7 +14,7 @@ import org.junit.jupiter.params.provider.ValueSource
 @Suppress("DEPRECATION")
 class LockNameValidatorTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val validator = LockNameValidator()
     private val prefixedValidator = LockNameValidator(prefix = "myapp:")

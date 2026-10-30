@@ -27,6 +27,7 @@ class LeaderLeaseAutoExtenderLifecycle(
 ): InitializingBean, DisposableBean {
 
     companion object {
+
         private val log = KotlinLogging.logger {}
 
         internal val activeContextCount = atomic(0)

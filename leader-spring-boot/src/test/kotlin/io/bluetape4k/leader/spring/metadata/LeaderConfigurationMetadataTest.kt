@@ -15,7 +15,7 @@ import java.io.Serializable
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderConfigurationMetadataTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val objectMapper: JsonMapper = Jackson.defaultJsonMapper
 

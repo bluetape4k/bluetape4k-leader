@@ -22,7 +22,7 @@ import java.time.Duration
 
 class LeaderElectionManagementActionAutoConfigurationTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(

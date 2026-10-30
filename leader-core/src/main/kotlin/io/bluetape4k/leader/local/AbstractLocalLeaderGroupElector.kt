@@ -20,6 +20,7 @@ import io.bluetape4k.leader.parkRemainingMinLeaseTime
 import io.bluetape4k.logging.KotlinLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.support.requirePositiveNumber
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
@@ -71,7 +72,9 @@ abstract class AbstractLocalLeaderGroupElector(
      */
     protected fun getSemaphore(lockName: String): Semaphore {
         lockName.requireNotBlank("lockName")
-        return semaphores.computeIfAbsent(lockName) { Semaphore(maxLeaders, true) }
+        return semaphores.computeIfAbsent(lockName) {
+            Semaphore(maxLeaders, true)
+        }
     }
 
     /**
@@ -80,7 +83,7 @@ abstract class AbstractLocalLeaderGroupElector(
      * @param action permit을 보유한 동안 실행할 작업
      * @return `action`이 반환한 값
      */
-    protected fun <T> withPermit(lockName: String, action: () -> T): T {
+    protected inline fun <T> withPermit(lockName: String, action: () -> T): T {
         val semaphore = getSemaphore(lockName)
         semaphore.acquire()
         try {
@@ -135,7 +138,7 @@ abstract class AbstractLocalLeaderGroupElector(
             leaseTime = options.leaseTime,
             maxLeaders = maxLeaders,
         )
-        val slot = requireNotNull(lease.slot) {
+        val slot = lease.slot.requireNotNull {
             "Group lease.slot must be non-null for lockName=$lockName, kind=GROUP"
         }
 
@@ -146,6 +149,7 @@ abstract class AbstractLocalLeaderGroupElector(
             groupParams = LockIdentity.GroupParams(maxLeaders),
         )
         val lastExtendDeadlineRef = AtomicReference(Instant.EPOCH)
+
         val delegate = object: ExtendDelegate {
             private val _lastExtendDeadline = lastExtendDeadlineRef
             override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline

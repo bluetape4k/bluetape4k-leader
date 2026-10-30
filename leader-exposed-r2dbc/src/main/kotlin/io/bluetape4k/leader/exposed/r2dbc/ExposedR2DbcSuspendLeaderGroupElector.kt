@@ -157,20 +157,21 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         refreshedCount: Int,
     ): Int = cachedActiveCounts.compute(lockName) { _, current ->
         when {
-            snapshot.entry == null -> when {
+            snapshot.entry == null     -> when {
                 current == null && refreshedCount > 0 -> CachedActiveCount(refreshedCount)
                 else -> current
             }
 
             current !== snapshot.entry -> current
             current.generation.get() != snapshot.generation -> current
-            refreshedCount > 0 -> {
+
+            refreshedCount > 0         -> {
                 current.value.set(refreshedCount)
                 current.generation.incrementAndGet()
                 current
             }
 
-            else -> null
+            else                       -> null
         }
     }?.value?.get() ?: 0
 
@@ -202,6 +203,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         lockName.validateExposedR2dbcLockName()
         val snapshot = cacheSnapshot(lockName)
         val startedAtAvailabilityEpoch = availabilitySnapshot()
+
         val refreshedCount = try {
             suspendTransaction(db) {
                 val now = currentTime(options.leaderGroupOptions.useDbTime)
@@ -225,6 +227,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
             log.warn(e) { "activeCount DB 조회 오류 (기존 캐시 유지): lockName=$lockName" }
             return cachedActiveCounts[lockName]?.value?.get() ?: 0
         }
+
         if (!markAvailable(lockName, startedAtAvailabilityEpoch)) return maxLeaders
         return applyActiveCountRefresh(lockName, snapshot, refreshedCount)
     }

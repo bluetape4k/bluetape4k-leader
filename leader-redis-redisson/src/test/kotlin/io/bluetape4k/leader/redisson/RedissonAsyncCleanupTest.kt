@@ -59,6 +59,7 @@ class RedissonAsyncCleanupTest {
         every {
             lock.tryLockAsync(any<Long>(), any<Long>(), TimeUnit.MILLISECONDS, owner)
         } returns CompletableFutureWrapper(completableFutureOf(true))
+
         every { lock.isHeldByThreadAsync(owner) } returns CompletableFutureWrapper(ownership)
         every { lock.unlockAsync(owner) } returns CompletableFutureWrapper(unlocked)
         every { keys.expireAsync(any<java.time.Duration>(), "cleanup") } returns CompletableFutureWrapper(expiry)

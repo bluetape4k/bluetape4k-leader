@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.route
 
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.logging.KLogging
 import java.time.Clock
 import java.util.concurrent.CancellationException
 
@@ -12,6 +13,8 @@ internal class LeaderRouteAuthorityRuntime(
     internal val authority: LeaderRouteAuthority,
     private val clock: Clock = Clock.systemUTC(),
 ) {
+
+    private companion object: KLogging()
 
     /** Preserves the constructor descriptor published before redirect freshness support. */
     internal constructor(authority: LeaderRouteAuthority): this(authority, Clock.systemUTC())

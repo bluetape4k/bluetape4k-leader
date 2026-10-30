@@ -21,8 +21,6 @@ import io.bluetape4k.leader.hazelcast.lock.HazelcastLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import io.bluetape4k.leader.hazelcast.runAsyncIfLeader as currentRunAsyncIfLeader
-import io.bluetape4k.leader.hazelcast.runIfLeader as currentRunIfLeader
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -35,6 +33,8 @@ import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import io.bluetape4k.leader.hazelcast.runAsyncIfLeader as currentRunAsyncIfLeader
+import io.bluetape4k.leader.hazelcast.runIfLeader as currentRunIfLeader
 
 /**
  * `HazelcastLeaderElector`는 Hazelcast의 blocking 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.
@@ -127,20 +127,23 @@ class HazelcastLeaderElector private constructor(
         lockName.validateLockName()
 
         val lock = HazelcastLock(lockMap, lockName, LOCK_MAP_NAME, hazelcast::newTransactionContext)
+        log.debug { "Leader 승격을 요청합니다 ... lockName=$lockName" }
 
         val lockAcquired = AtomicBoolean()
         val acquiredAtNanosRef = AtomicLong()
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         val releaseIfUnclaimed: () -> Unit = {
-            if (lockAcquired.get() && lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
-                runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanosRef.get()) }
-                    .onSuccess {
-                        log.debug { "executor 거부 후 비동기 락을 반납했습니다. lockName=$lockName" }
-                    }
-                    .onFailure { e ->
-                        log.error(e) { "Fail to release lock after executor rejection. lockName=$lockName" }
-                    }
+            val canUnlock = lockAcquired.get() &&
+                    lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)
+            if (canUnlock) {
+                runCatching {
+                    lock.unlock(options.minLeaseTime, acquiredAtNanosRef.get())
+                }.onSuccess {
+                    log.debug { "executor 거부 후 비동기 락을 반납했습니다. lockName=$lockName" }
+                }.onFailure { e ->
+                    log.error(e) { "Fail to release lock after executor rejection. lockName=$lockName" }
+                }
             }
         }
         val acquisitionFuture = futureOf(executor) {

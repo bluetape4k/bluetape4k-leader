@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
+import io.bluetape4k.support.asInstantOrNull
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import java.sql.Timestamp
 import java.time.Clock
@@ -15,6 +16,7 @@ internal fun JdbcTransaction.currentTime(
 ): Instant =
     if (useDbTime) dbCurrentTimestamp() else Instant.now(clock)
 
+/** 1.0.0에서 공개된 JVM facade를 유지하는 timestamp 변환 함수입니다. */
 internal fun Any?.toExposedJdbcInstant(): Instant =
     when (this) {
         is Instant -> this
@@ -30,5 +32,5 @@ private fun JdbcTransaction.dbCurrentTimestamp(): Instant =
         if (!resultSet.next()) {
             error("SELECT CURRENT_TIMESTAMP returned no rows")
         }
-        resultSet.getObject(1).toExposedJdbcInstant()
+        resultSet.getObject(1).asInstantOrNull()
     } ?: error("SELECT CURRENT_TIMESTAMP returned no result set")

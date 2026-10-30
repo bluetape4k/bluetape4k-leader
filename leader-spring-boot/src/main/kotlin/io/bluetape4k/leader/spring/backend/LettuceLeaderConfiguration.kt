@@ -8,6 +8,7 @@ import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderElector
 import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
+import io.bluetape4k.logging.KLogging
 import io.lettuce.core.api.StatefulRedisConnection
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -21,6 +22,8 @@ import org.springframework.context.annotation.Configuration
 @ConditionalOnClass(StatefulRedisConnection::class)
 @ConditionalOnBean(StatefulRedisConnection::class)
 class LettuceLeaderConfiguration {
+
+    companion object: KLogging()
 
     @Bean
     @ConditionalOnMissingBean(name = ["lettuceLeaderElector"])

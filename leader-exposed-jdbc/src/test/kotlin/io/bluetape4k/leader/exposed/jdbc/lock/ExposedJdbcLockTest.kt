@@ -37,9 +37,8 @@ class ExposedJdbcLockTest: AbstractExposedJdbcLeaderTest() {
 
         val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
 
-        val acquired = lock.tryLock(2.seconds, 10.seconds)
+        lock.tryLock(2.seconds, 10.seconds).shouldBeTrue()
 
-        acquired.shouldBeTrue()
         lock.unlock()
     }
 
@@ -50,12 +49,12 @@ class ExposedJdbcLockTest: AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
 
         val lockName = randomName()
+
         val holder = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
         holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
 
         val contender = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 10L))
-        val acquired = contender.tryLock(100.milliseconds, 5.seconds)
-        acquired.shouldBeFalse()
+        contender.tryLock(100.milliseconds, 5.seconds).shouldBeFalse()
 
         holder.unlock()
     }
@@ -67,6 +66,7 @@ class ExposedJdbcLockTest: AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
 
         val lockName = randomName()
+
         val holder = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
         holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
 
@@ -138,6 +138,7 @@ class ExposedJdbcLockTest: AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
 
         val lockName = randomName()
+
         val lock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
         lock.tryLock(1.seconds, 10.seconds).shouldBeTrue()
 
@@ -145,6 +146,7 @@ class ExposedJdbcLockTest: AbstractExposedJdbcLeaderTest() {
 
         val reacquire = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
         reacquire.tryLock(1.seconds, 10.seconds).shouldBeTrue()
+
         reacquire.unlock()
     }
 
@@ -155,6 +157,7 @@ class ExposedJdbcLockTest: AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
 
         val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
+
         lock.tryLock(1.seconds, 10.seconds).shouldBeTrue()
         lock.unlock()
 
@@ -166,9 +169,10 @@ class ExposedJdbcLockTest: AbstractExposedJdbcLeaderTest() {
     fun `isHeldByCurrentInstance - 락 획득 후 true 반환`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
-        val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
-        lock.tryLock(1.seconds, 10.seconds).shouldBeTrue()
 
+        val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
+
+        lock.tryLock(1.seconds, 10.seconds).shouldBeTrue()
         lock.isHeldByCurrentInstance().shouldBeTrue()
 
         lock.unlock()
@@ -195,6 +199,7 @@ class ExposedJdbcLockTest: AbstractExposedJdbcLeaderTest() {
 
         val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
         val leaseTime = 150.milliseconds
+
         lock.tryLock(1.seconds, leaseTime).shouldBeTrue()
 
         Thread.sleep(leaseTime.inWholeMilliseconds * 2)
@@ -249,9 +254,9 @@ class ExposedJdbcLockTest: AbstractExposedJdbcLeaderTest() {
             }
         }
 
-        latch.await(10.seconds)
+        latch.await(10.seconds).shouldBeTrue()
         executor.shutdown()
-        executor.awaitTermination(5.seconds)
+        executor.awaitTermination(5.seconds).shouldBeTrue()
 
         successCount.get() shouldBeGreaterOrEqualTo 1
     }

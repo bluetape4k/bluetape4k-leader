@@ -13,7 +13,7 @@ import org.junit.jupiter.api.TestInstance
 abstract class AbstractHazelcastLeaderTest {
 
     companion object: KLogging() {
-        val hazelcastServer: HazelcastServer = HazelcastServer.Launcher.hazelcast
+        val hazelcastServer: HazelcastServer by lazy { HazelcastServer.Launcher.hazelcast }
 
         val hazelcastClient: HazelcastInstance by lazy {
             val config = ClientConfig().apply {
@@ -23,7 +23,7 @@ abstract class AbstractHazelcastLeaderTest {
                 ShutdownQueue.register { it.shutdown() }
             }
         }
-    }
 
-    fun randomName(): String = "leader-test:${Base58.randomString(8)}"
+        fun randomName(): String = "leader-test:${Base58.randomString(12)}"
+    }
 }

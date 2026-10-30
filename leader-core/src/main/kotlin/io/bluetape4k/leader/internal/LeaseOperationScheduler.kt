@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.internal
 
+import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.ArrayBlockingQueue
@@ -11,6 +12,7 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 
 /** acquire, cleanup, watchdog 인접 연산이 공유하는 bounded executor입니다. */
@@ -28,6 +30,7 @@ class LeaseOperationScheduler(
     private val running = AtomicInteger()
     private val outstanding = AtomicInteger()
     private val sequence = AtomicInteger()
+
     private val executor = ThreadPoolExecutor(
         maxInFlight.requirePositiveNumber("maxInFlight"),
         maxInFlight,
@@ -100,15 +103,17 @@ class LeaseOperationScheduler(
         val timeoutNanos = when {
             !timeout.isFinite() -> SHUTDOWN_TIMEOUT_SECONDS.seconds.inWholeNanoseconds
             timeout <= Duration.ZERO -> 0L
-            else -> timeout.inWholeNanoseconds
+            else                -> timeout.inWholeNanoseconds
         }
         val terminated = try {
-            executor.awaitTermination(timeoutNanos, TimeUnit.NANOSECONDS)
+            executor.awaitTermination(timeoutNanos.nanoseconds)
         } catch (_: InterruptedException) {
             Thread.currentThread().interrupt()
             false
         }
-        if (!terminated) executor.shutdownNow()
+        if (!terminated) {
+            executor.shutdownNow()
+        }
         return terminated && executor.isTerminated
     }
 

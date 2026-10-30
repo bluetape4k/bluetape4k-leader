@@ -33,8 +33,8 @@ class LeaderScheduledPolicyRegistry(
         linkedMapOf<TargetIdentity, MutableMap<String, MethodSignature>>()
 
     private var frozen = false
-    private var frozenBindings:
-            Map<TargetIdentity, Map<MethodSignature, LeaderScheduledPolicyProperties.Policy>> = emptyMap()
+    private var frozenBindings: Map<TargetIdentity, Map<MethodSignature, LeaderScheduledPolicyProperties.Policy>> =
+        emptyMap()
 
     /** user bean의 scheduled method와 property binding을 registry에 추가합니다. */
     fun register(
@@ -54,14 +54,15 @@ class LeaderScheduledPolicyRegistry(
 
         val targetIdentity = TargetIdentity(target)
         val signature = MethodSignature.from(method)
-        val selectorsForTarget = mutableSelectors.getOrPut(targetIdentity) { linkedMapOf() }
+        val selectorsForTarget = mutableSelectors.computeIfAbsent(targetIdentity) { linkedMapOf() }
         val previousSignature = selectorsForTarget[selector]
+
         when {
             previousSignature == null -> selectorsForTarget[selector] = signature
             previousSignature != signature -> error(
                 "Ambiguous scheduled policy selector '$selector': overloaded methods are not supported",
             )
-            else -> error("Duplicate scheduled policy registration for selector '$selector'")
+            else                      -> error("Duplicate scheduled policy registration for selector '$selector'")
         }
 
         mutableBindings.getOrPut(targetIdentity) { linkedMapOf() }[signature] = policy
@@ -86,7 +87,9 @@ class LeaderScheduledPolicyRegistry(
             "No @Scheduled method matched scheduled policy selector(s): ${unmatched.sorted().joinToString()}"
         }
 
-        frozenBindings = mutableBindings.mapValues { (_, bindings) -> bindings.toMap() }.toMap()
+        frozenBindings = mutableBindings.mapValues { (_, bindings) ->
+            bindings.toMap()
+        }.toMap()
         frozen = true
     }
 
@@ -95,10 +98,11 @@ class LeaderScheduledPolicyRegistry(
         check(frozen) { "Scheduled policy registry must be frozen before lookup" }
         val bindings = frozenBindings[TargetIdentity(target)] ?: return null
         val exact = bindings[MethodSignature.from(method)]
-        return exact ?: bindings.entries
-            .firstOrNull { (signature, _) ->
-                signature.name == method.name && signature.parameterTypes == method.parameterTypes.toList()
-            }?.value
+        return exact
+            ?: bindings.entries
+                .firstOrNull { (signature, _) ->
+                    signature.name == method.name && signature.parameterTypes == method.parameterTypes.toList()
+                }?.value
     }
 
     private fun selectorOf(beanName: String, methodName: String): String = "$beanName#$methodName"

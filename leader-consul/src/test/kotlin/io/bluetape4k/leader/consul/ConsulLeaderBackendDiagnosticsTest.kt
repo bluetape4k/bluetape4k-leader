@@ -11,6 +11,7 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -37,8 +38,11 @@ class ConsulLeaderBackendDiagnosticsTest {
         val descriptor = ConsulLeaderBackendDiagnostics.backendDescriptor
         val capabilities = descriptor.capabilities
 
+        log.debug { "descriptor=$descriptor" }
         descriptor.backendId shouldBeEqualTo "consul"
         descriptor.displayName shouldBeEqualTo "Consul"
+
+        log.debug { "capabilities=$capabilities" }
         capabilities.singleExecutionModels shouldBeEqualTo nativeExecutionModels
         capabilities.groupExecutionModels shouldBeEqualTo nativeExecutionModels
         capabilities.leaseExtension shouldBeEqualTo supportedModes

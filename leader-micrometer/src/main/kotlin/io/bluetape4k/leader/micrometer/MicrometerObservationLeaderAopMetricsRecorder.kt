@@ -21,6 +21,16 @@ class MicrometerObservationLeaderAopMetricsRecorder(
     val options: LeaderObservationOptions = LeaderObservationOptions(),
 ): LeaderAopMetricsRecorder {
 
+    private companion object: KLogging() {
+        const val OPERATION_ACQUIRE = "acquire"
+        const val OPERATION_EXECUTE = "execute"
+        const val OUTCOME_ACQUIRED = "acquired"
+        const val OUTCOME_SKIPPED = "skipped"
+        const val OUTCOME_SUCCESS = "success"
+        const val OUTCOME_ERROR = "error"
+        const val OUTCOME_CANCELLED = "cancelled"
+    }
+
     private val tagSanitizer = LeaderMetricTagSanitizer.from(options.tagOptions)
 
     override fun onLockAttempt(name: String, options: LeaderElectionOptions) = Unit
@@ -138,13 +148,5 @@ class MicrometerObservationLeaderAopMetricsRecorder(
         return observation
     }
 
-    private companion object: KLogging() {
-        const val OPERATION_ACQUIRE = "acquire"
-        const val OPERATION_EXECUTE = "execute"
-        const val OUTCOME_ACQUIRED = "acquired"
-        const val OUTCOME_SKIPPED = "skipped"
-        const val OUTCOME_SUCCESS = "success"
-        const val OUTCOME_ERROR = "error"
-        const val OUTCOME_CANCELLED = "cancelled"
-    }
+
 }

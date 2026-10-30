@@ -16,6 +16,7 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.support.closeSafe
 import io.bluetape4k.testcontainers.infra.ToxiproxyServer
 import io.bluetape4k.testcontainers.storage.RedisServer
+import io.bluetape4k.utils.ShutdownQueue
 import io.lettuce.core.RedisClient
 import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
@@ -47,13 +48,16 @@ import java.time.Duration
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FailOpenRunIntegrationTest {
 
-    companion object: KLogging() {
+    private companion object: KLogging() {
         private const val RESULT = "lettuce-result"
         private const val CONTENTION_LOCK = "fail-open-it-contention"
         private const val BACKEND_LOCK = "fail-open-it-backend"
 
-        private val redis = RedisServer(reuse = false).also { it.start() }
-        private val client: RedisClient = RedisClient.create(redis.url)
+        private val redis = RedisServer(reuse = false).also {
+            it.start()
+            ShutdownQueue.register(it)
+        }
+        private val client: RedisClient = RedisClient.create(redis.url).also { ShutdownQueue.register(it) }
         private val connection: StatefulRedisConnection<String, String> = client.connect(StringCodec.UTF8)
     }
 

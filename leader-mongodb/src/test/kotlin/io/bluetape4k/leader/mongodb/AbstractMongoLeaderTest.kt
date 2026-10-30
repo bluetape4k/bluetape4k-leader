@@ -36,8 +36,12 @@ abstract class AbstractMongoLeaderTest {
         val db by lazy { mongoClient.getDatabase("leader_test") }
         val coroutineDb by lazy { coroutineMongoClient.getDatabase("leader_test") }
 
-        val lockCollection by lazy { db.getCollection(MongoLock.LOCK_COLLECTION_NAME) }
-        val groupLockCollection by lazy { db.getCollection(MongoLock.GROUP_LOCK_COLLECTION_NAME) }
+        val lockCollection by lazy {
+            db.getCollection(MongoLock.LOCK_COLLECTION_NAME)
+        }
+        val groupLockCollection by lazy {
+            db.getCollection(MongoLock.GROUP_LOCK_COLLECTION_NAME)
+        }
 
         val coroutineLockCollection by lazy {
             coroutineDb.getCollection<Document>(MongoLock.LOCK_COLLECTION_NAME)
@@ -46,7 +50,7 @@ abstract class AbstractMongoLeaderTest {
             coroutineDb.getCollection<Document>(MongoLock.GROUP_LOCK_COLLECTION_NAME)
         }
 
-        fun randomName(): String = "test-${Base58.randomString(8)}"
+        fun randomName(): String = "test-${Base58.randomString(12)}"
     }
 
     @BeforeEach

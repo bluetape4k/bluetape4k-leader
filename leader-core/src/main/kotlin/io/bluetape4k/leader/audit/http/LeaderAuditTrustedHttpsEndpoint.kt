@@ -1,7 +1,8 @@
 package io.bluetape4k.leader.audit.http
 
+import io.bluetape4k.support.equalsIgnoreCase
 import io.bluetape4k.support.requireNotBlank
-import io.bluetape4k.support.requireNotNull
+import io.bluetape4k.support.requireNull
 import java.net.URI
 
 /**
@@ -20,18 +21,17 @@ class LeaderAuditTrustedHttpsEndpoint private constructor(
         /** 명시적으로 신뢰한 HTTPS endpoint를 생성합니다. */
         @JvmStatic
         fun trusted(uri: URI): LeaderAuditTrustedHttpsEndpoint {
-            val scheme = uri.scheme.requireNotNull("uri.scheme")
-            scheme.requireNotBlank("uri.scheme")
-            require(scheme.equals("https", ignoreCase = true)) {
+            val scheme = uri.scheme.requireNotBlank("uri.scheme")
+            require(scheme.equalsIgnoreCase("https")) {
                 "uri.scheme must be https"
             }
             require(uri.isAbsolute && !uri.isOpaque) {
                 "uri must be an absolute hierarchical URI"
             }
             uri.host.requireNotBlank("uri.host")
-            require(uri.userInfo == null) { "uri must not contain user-info" }
-            require(uri.query == null) { "uri must not contain a query" }
-            require(uri.fragment == null) { "uri must not contain a fragment" }
+            uri.userInfo.requireNull("uri.userInfo")
+            uri.query.requireNull("uri.query")
+            uri.fragment.requireNull("uri.fragment")
             require(!uri.toString().containsHttpControlCharacter()) {
                 "uri must not contain control characters"
             }

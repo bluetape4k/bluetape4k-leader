@@ -6,6 +6,7 @@ import io.bluetape4k.leader.consul.ConsulLeaderGroupElectionOptions
 import io.bluetape4k.leader.consul.ConsulLeaderGroupElector
 import io.bluetape4k.leader.contract.AbstractAsyncLeaderGroupElectorLeaderIdContractTest
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.info
 import org.junit.jupiter.api.TestInstance
 
 /**
@@ -16,12 +17,15 @@ class ConsulAsyncLeaderGroupElectorLeaderIdContractTest: AbstractAsyncLeaderGrou
 
     companion object: KLogging()
 
-    override fun createElector(options: LeaderGroupElectionOptions): AsyncLeaderGroupElector =
-        ConsulLeaderGroupElector(
+    override fun createElector(options: LeaderGroupElectionOptions): AsyncLeaderGroupElector {
+        log.info { "Create ConsulLeaderElector. options=$options" }
+
+        return ConsulLeaderGroupElector(
             ConsulContractSupport.endpoint(),
             ConsulLeaderGroupElectionOptions(
                 leaderGroupOptions = options,
                 keyPrefix = ConsulContractSupport.keyPrefix(),
             ),
         )
+    }
 }

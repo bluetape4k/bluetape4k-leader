@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.get
+import io.bluetape4k.coroutines.support.awaitUntil
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionEvent
@@ -58,7 +59,7 @@ class EtcdLeaderElectionEventPublisherIntegrationTest: AbstractEtcdLeaderTest() 
                     "done"
                 } shouldBeEqualTo "done"
 
-                withTimeout(10.seconds) { events.await() } shouldBeEqualTo listOf(
+                events.awaitUntil(10.seconds) shouldBeEqualTo listOf(
                     LeaderElectionEvent.Elected(lockName),
                     LeaderElectionEvent.Revoked(lockName),
                 )
@@ -98,7 +99,7 @@ class EtcdLeaderElectionEventPublisherIntegrationTest: AbstractEtcdLeaderTest() 
                     "done"
                 } shouldBeEqualTo "done"
 
-                withTimeout(10.seconds) { events.await() } shouldBeEqualTo listOf(
+                events.awaitUntil(10.seconds) shouldBeEqualTo listOf(
                     LeaderElectionEvent.Elected(lockName),
                     LeaderElectionEvent.Revoked(lockName),
                 )
@@ -156,7 +157,7 @@ class EtcdLeaderElectionEventPublisherIntegrationTest: AbstractEtcdLeaderTest() 
                     holder.get(10.seconds) shouldBeEqualTo "holder"
                     contender.get(10.seconds) shouldBeEqualTo "contender"
 
-                    withTimeout(10.seconds) { events.await() }
+                    events.awaitUntil(10.seconds)
                         .map { it.name } shouldBeEqualTo listOf("elected", "revoked", "elected", "revoked")
                 }
             } finally {
@@ -214,7 +215,7 @@ class EtcdLeaderElectionEventPublisherIntegrationTest: AbstractEtcdLeaderTest() 
                     "restarted"
                 } shouldBeEqualTo "restarted"
 
-                withTimeout(10.seconds) { events.await() } shouldBeEqualTo listOf(
+                events.awaitUntil(10.seconds) shouldBeEqualTo listOf(
                     LeaderElectionEvent.Elected(lockName),
                     LeaderElectionEvent.Revoked(lockName),
                 )

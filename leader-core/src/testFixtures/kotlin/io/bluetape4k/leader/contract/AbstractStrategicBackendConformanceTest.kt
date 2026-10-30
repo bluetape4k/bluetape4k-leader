@@ -406,7 +406,7 @@ abstract class AbstractStrategicBackendConformanceTest {
         }
     }
 
-    private suspend fun <T> withProviderSuspend(
+    private suspend inline fun <T> withProviderSuspend(
         block: suspend (StrategicBackendConformanceProvider) -> T,
     ): T {
         return createProvider().use { provider ->

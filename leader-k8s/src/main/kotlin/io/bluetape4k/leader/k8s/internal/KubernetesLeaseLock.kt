@@ -58,7 +58,7 @@ internal class KubernetesLeaseLock(
         do {
             when (tryAcquireOnce(leaseTime)) {
                 AcquireResult.Acquired -> {
-                    log.debug { "Kubernetes Lease acquired. lockName=$lockName, ownerToken=$ownerToken" }
+                    log.debug { "Kubernetes Lease acquired. lockName=$lockName" }
                     return true
                 }
                 AcquireResult.Contended -> Unit
@@ -85,8 +85,7 @@ internal class KubernetesLeaseLock(
 
         val now = now()
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
-        val specBuilder = LeaseSpecBuilder(current.spec)
-            .withRenewTime(now)
+        val specBuilder = LeaseSpecBuilder(current.spec).withRenewTime(now)
         if (remaining > Duration.ZERO) {
             specBuilder.withHolderIdentity(ownerToken)
                 .withLeaseDurationSeconds(remaining.toLeaseDurationSeconds("remainingMinLeaseTime"))

@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeInRange
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.leader.ExtendOutcome
@@ -12,6 +13,7 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.time.Instant
@@ -135,17 +137,18 @@ class EtcdLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
             )
             val elector = EtcdLeaderElector(client, options)
 
-            val outcome = checkNotNull(elector.runIfLeader(randomName()) {
+            val outcome = elector.runIfLeader(randomName()) {
                 val beforeExtend = Instant.now()
                 val result = LockExtender.extendActiveLockDetailed(60.seconds)
                 beforeExtend to result
-            })
+            }.shouldNotBeNull()
 
             val result = outcome.second
+            log.debug { "result=$result" }
             result.shouldBeInstanceOf<ExtendOutcome.Extended>()
 
             val observedMillis = Duration.between(outcome.first, result.observedExpireAt).toMillis()
-            observedMillis.shouldBeInRange(0L..6_000L)
+            observedMillis shouldBeInRange 0L..6_000L
         }
     }
 

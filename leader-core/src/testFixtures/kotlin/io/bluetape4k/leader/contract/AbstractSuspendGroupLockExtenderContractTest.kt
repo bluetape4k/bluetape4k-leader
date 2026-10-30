@@ -12,6 +12,7 @@ import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -127,6 +128,7 @@ abstract class AbstractSuspendGroupLockExtenderContractTest {
             outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
         }
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }
 
@@ -134,6 +136,7 @@ abstract class AbstractSuspendGroupLockExtenderContractTest {
     fun `extendActiveLockDetailedSuspend returns NotHeld outside suspend group body`() = runSuspendIO {
         val outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 

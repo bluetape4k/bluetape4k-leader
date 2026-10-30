@@ -129,12 +129,12 @@ class LeaderRouteLeaseShutdownCoordinatorTest {
                 nodeId = "node",
             )
 
-            override fun tryAcquire(lockName: String): LeaderLeaseHandle? {
+            override fun tryAcquire(lockName: String): LeaderLeaseHandle {
                 acquireCount.incrementAndGet()
                 return handle
             }
 
-            override fun tryAcquire(slot: LeaderSlot): LeaderLeaseHandle? {
+            override fun tryAcquire(slot: LeaderSlot): LeaderLeaseHandle {
                 acquireCount.incrementAndGet()
                 return handle
             }

@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.spring.properties
 
+import io.bluetape4k.javatimes.requirePositiveDuration
 import io.bluetape4k.javatimes.seconds
-import io.bluetape4k.support.requireGt
 import io.bluetape4k.support.requireLe
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.io.Serializable
@@ -23,7 +23,7 @@ data class LeaderManagementActionProperties(
 ): Serializable {
 
     init {
-        timeout.requireGt(Duration.ZERO, "management action timeout")
+        timeout.requirePositiveDuration("management action timeout")
         timeout.requireLe(MAX_TIMEOUT, "management action timeout")
     }
 

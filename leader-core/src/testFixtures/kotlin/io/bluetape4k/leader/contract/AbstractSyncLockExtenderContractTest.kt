@@ -13,6 +13,7 @@ import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.atomic.AtomicInteger
@@ -191,6 +192,7 @@ abstract class AbstractSyncLockExtenderContractTest {
             outcome = LockExtender.extendActiveLockDetailed(60.seconds)
         }
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }
 
@@ -198,6 +200,7 @@ abstract class AbstractSyncLockExtenderContractTest {
     fun `extendActiveLockDetailed returns NotHeld outside runIfLeader body`() {
         val outcome = LockExtender.extendActiveLockDetailed(60.seconds)
 
+        log.debug { "outcome=$outcome" }
         outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 
@@ -225,7 +228,7 @@ abstract class AbstractSyncLockExtenderContractTest {
                 elector.runIfLeader(lockName) {
                     val n = currentHolders.incrementAndGet()
                     maxConcurrent.getAndUpdate { max(it, n) }
-                    Thread.sleep(5)
+                    Thread.sleep(Random.nextLong(1, 10))
                     currentHolders.decrementAndGet()
                 }
             }
@@ -246,7 +249,7 @@ abstract class AbstractSyncLockExtenderContractTest {
                 elector.runIfLeader(lockName) {
                     val n = currentHolders.incrementAndGet()
                     maxConcurrent.getAndUpdate { max(it, n) }
-                    Thread.sleep(5)
+                    Thread.sleep(Random.nextLong(1, 10))
                     currentHolders.decrementAndGet()
                 }
             }
@@ -280,7 +283,9 @@ abstract class AbstractSyncLockExtenderContractTest {
                 elector.runIfLeader(lockName) {
                     repeat(extendsPerRound) { i ->
                         val outcome = LockExtender.extendActiveLockDetailed((10 + i * 5).seconds)
-                        if (outcome is ExtendOutcome.Extended) successCount.incrementAndGet()
+                        if (outcome is ExtendOutcome.Extended) {
+                            successCount.incrementAndGet()
+                        }
                     }
                 }
             }
@@ -302,7 +307,9 @@ abstract class AbstractSyncLockExtenderContractTest {
                 elector.runIfLeader(lockName) {
                     repeat(extendsPerRound) { i ->
                         val outcome = LockExtender.extendActiveLockDetailed((10 + i * 5).seconds)
-                        if (outcome is ExtendOutcome.Extended) successCount.incrementAndGet()
+                        if (outcome is ExtendOutcome.Extended) {
+                            successCount.incrementAndGet()
+                        }
                     }
                 }
             }

@@ -71,12 +71,12 @@ internal class LocalLeaderStateRegistry {
         leaseTime: Duration,
         maxLeaders: Int,
     ): LeaderLease = lock.withLock {
-        val leases = groupLeases.getOrPut(lockName) { HashMap() }
-        val slot = (0 until maxLeaders).firstOrNull { it !in leases }
-            ?: leases.size
-        val lease = newLease(auditLeaderId, nodeId, leaseTime, slot)
-        leases[slot] = lease
-        lease
+        val leases = groupLeases.computeIfAbsent(lockName) { HashMap() }
+        val slot = (0 until maxLeaders).firstOrNull { it !in leases } ?: leases.size
+
+        newLease(auditLeaderId, nodeId, leaseTime, slot).also {
+            leases[slot] = it
+        }
     }
 
     fun releaseGroup(lockName: String, lease: LeaderLease) {
@@ -105,6 +105,7 @@ internal class LocalLeaderStateRegistry {
 
     fun groupState(lockName: String, maxLeaders: Int, activeCount: Int): LeaderGroupState {
         lockName.requireNotBlank("lockName")
+
         return lock.withLock {
             val leaders = groupLeases[lockName]
                 ?.values

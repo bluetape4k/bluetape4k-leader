@@ -531,11 +531,12 @@ class LeaderWebFluxRouteGuardTest {
             exchange.response.writeWith(Mono.just(exchange.response.bufferFactory().wrap(bytes)))
         }
         val routeFilter = when {
-            resolver != null && metadataProvider != null -> factory(authority, rejectionStatus, redirect)
-                .filter(slot, resolver, metadataProvider)
-            resolver != null -> factory(authority, rejectionStatus, redirect)
-                .filter(slot, resolver)
-            else -> factory(authority, rejectionStatus, redirect).filter(slot)
+            resolver != null && metadataProvider != null ->
+                factory(authority, rejectionStatus, redirect).filter(slot, resolver, metadataProvider)
+            resolver != null                             ->
+                factory(authority, rejectionStatus, redirect).filter(slot, resolver)
+            else                                         ->
+                factory(authority, rejectionStatus, redirect).filter(slot)
         }
         return WebTestClient.bindToWebHandler(handler)
             .webFilter(routeFilter)

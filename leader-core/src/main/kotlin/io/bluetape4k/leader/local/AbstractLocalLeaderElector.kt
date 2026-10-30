@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.local
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.tryLock
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionListener
 import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
@@ -25,7 +27,6 @@ import io.bluetape4k.support.requireNotBlank
 import kotlinx.atomicfu.locks.withLock
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.time.Duration
@@ -133,7 +134,7 @@ abstract class AbstractLocalLeaderElector(
             return LockStateHolder.withPushed(reentrant) { action() }
         }
 
-        val acquired = lock.tryLock(waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+        val acquired = lock.tryLock(waitTime)
         if (!acquired) {
             listeners.notifySkipped(lockName)
             return null
@@ -153,17 +154,18 @@ abstract class AbstractLocalLeaderElector(
             factoryBeanName = LOCAL_FACTORY_BEAN_NAME,
         )
         val lastExtendDeadline = AtomicReference(Instant.EPOCH)
+
         val delegate = object: ExtendDelegate {
             private val _lastExtendDeadline = lastExtendDeadline
             override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
             override fun extend(lockAtMostFor: Duration): io.bluetape4k.leader.ExtendOutcome {
                 val extended = states.extendSingle(lockName, lockAtMostFor)
                 return if (extended) {
-                    io.bluetape4k.leader.ExtendOutcome.Extended(
+                    ExtendOutcome.Extended(
                         Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds)
                     )
                 } else {
-                    io.bluetape4k.leader.ExtendOutcome.NotHeld
+                    ExtendOutcome.NotHeld
                 }
             }
 
@@ -177,8 +179,10 @@ abstract class AbstractLocalLeaderElector(
             extendDelegate = delegate,
             auditLeaderId = auditLeaderId,
         )
+
         val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate)
         listeners.notifyElected(lockName, lease)
+
         return try {
             LockStateHolder.withPushed(handle) { action() }
         } finally {

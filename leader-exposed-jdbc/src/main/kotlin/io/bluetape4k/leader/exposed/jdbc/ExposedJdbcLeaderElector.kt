@@ -2,6 +2,7 @@ package io.bluetape4k.leader.exposed.jdbc
 
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
@@ -18,6 +19,7 @@ import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -47,7 +49,7 @@ class ExposedJdbcLeaderElector private constructor(
    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
 
     override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
-        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+        LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
     }
 
     companion object: KLogging() {
@@ -190,26 +192,31 @@ class ExposedJdbcLeaderElector private constructor(
         val lifecycleStarted = AtomicBoolean()
         val rejectionCleanupClaimed = AtomicBoolean()
         val releaseIfUnclaimed: () -> Unit = {
-            if (lockAcquired.get() && !lifecycleStarted.get() && rejectionCleanupClaimed.compareAndSet(false, true)) {
-                runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanosRef.get()) }
-                    .onSuccess { log.debug { "executor 거부 후 비동기 락을 반납했습니다. lockName=$lockName" } }
-                    .onFailure { e -> log.warn(e) { "executor 거부 후 비동기 락 해제 실패. lockName=$lockName" } }
+            val canUnlock = lockAcquired.get() &&
+                    !lifecycleStarted.get() &&
+                    rejectionCleanupClaimed.compareAndSet(false, true)
+
+            if (canUnlock) {
+                runCatching {
+                    lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanosRef.get())
+                }.onSuccess {
+                    log.debug { "executor 거부 후 비동기 락을 반납했습니다. lockName=$lockName" }
+                }.onFailure { e ->
+                    log.warn(e) { "executor 거부 후 비동기 락 해제 실패. lockName=$lockName" }
+                }
             }
         }
-        val acquisitionFuture = CompletableFuture
-            .supplyAsync(
-                {
-                    lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime) {
-                        resultFuture.isCancelled
-                    }.also { acquired ->
-                        if (acquired) {
-                            acquiredAtNanosRef.set(System.nanoTime())
-                            lockAcquired.set(true)
-                        }
-                    }
-                },
-                executor,
-            )
+        val acquisitionFuture = futureOf(executor) {
+            lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime) {
+                resultFuture.isCancelled
+            }.also { acquired ->
+                if (acquired) {
+                    acquiredAtNanosRef.set(System.nanoTime())
+                    lockAcquired.set(true)
+                }
+            }
+        }
+
         val pipelineFuture: CompletableFuture<T?> = try {
             acquisitionFuture.thenComposeAsync({ acquired ->
                 if (!acquired) {
@@ -247,12 +254,14 @@ class ExposedJdbcLeaderElector private constructor(
                                     log.warn(e) { "비동기 history 기록 실패. lockName=$lockName" }
                                 }
 
-                                runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
-                                    .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
-                                    .onFailure { e ->
-                                        cleanupFailure = cleanupFailure?.also { it.addSuppressed(e) } ?: e
-                                        log.warn(e) { "비동기 락 해제 실패. lockName=$lockName" }
-                                    }
+                                runCatching {
+                                    lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos)
+                                }.onSuccess {
+                                    log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" }
+                                }.onFailure { e ->
+                                    cleanupFailure = cleanupFailure?.also { it.addSuppressed(e) } ?: e
+                                    log.warn(e) { "비동기 락 해제 실패. lockName=$lockName" }
+                                }
 
                                 if (throwable != null) {
                                     cleanupFailure?.let { throwable.addSuppressed(it) }
@@ -265,9 +274,7 @@ class ExposedJdbcLeaderElector private constructor(
                     }
 
                     if (resultFuture.isCancelled) {
-                        val cancellation = java.util.concurrent.CancellationException(
-                            "runAsyncIfLeader result was cancelled",
-                        )
+                        val cancellation = CancellationException("runAsyncIfLeader result was cancelled")
                         return@thenComposeAsync finishAction(cancellation).thenCompose {
                             failedCompletableFutureOf(cancellation)
                         }
@@ -347,6 +354,7 @@ class ExposedJdbcLeaderElector private constructor(
         resultFuture.whenComplete { _, _ ->
             if (resultFuture.isCancelled) actionFutureRef.get()?.cancel(false)
         }
+
         pipelineFuture.whenComplete { value, throwable ->
             if (throwable != null) releaseIfUnclaimed()
             if (throwable == null) {

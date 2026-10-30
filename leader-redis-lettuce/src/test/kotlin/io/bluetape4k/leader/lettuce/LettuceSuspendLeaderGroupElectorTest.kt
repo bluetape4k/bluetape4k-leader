@@ -17,6 +17,7 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.utils.Runtimex
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
@@ -144,7 +145,7 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
         val executed = AtomicInteger(0)
 
         SuspendedJobTester()
-            .rounds(maxLeaders * 3)
+            .rounds(maxLeaders * Runtimex.availableProcessors)
             .add {
                 el.runIfLeader(lockName) {
                     val current = concurrent.incrementAndGet()
@@ -165,7 +166,7 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
     fun `SuspendedJobTester - 코루틴 리더 그룹 총 실행 횟수 검증`() = runSuspendIO {
         val el = LettuceSuspendLeaderGroupElector(connection, options)
         val executed = AtomicInteger(0)
-        val rounds = 10
+        val rounds = Runtimex.availableProcessors
 
         SuspendedJobTester()
             .rounds(rounds * maxLeaders)

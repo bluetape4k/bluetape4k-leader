@@ -51,6 +51,7 @@ internal class LocalRequestLeaseStore {
         val deadline = System.nanoTime() + waitTime.inWholeNanoseconds.coerceAtLeast(0L)
 
         if (!monitor.lock.lockInterruptiblyOrNull()) return null
+
         try {
             while (true) {
                 val current = records[slot.lockName]
@@ -91,6 +92,7 @@ internal class LocalRequestLeaseStore {
 
     fun release(record: Record): Boolean {
         val monitor = monitors.computeIfAbsent(record.slot.lockName) { Monitor() }
+
         monitor.lock.withLock {
             val removed = records.remove(record.slot.lockName, record)
             if (removed) {
@@ -104,6 +106,7 @@ internal class LocalRequestLeaseStore {
     fun extend(record: Record, duration: Duration): ExtendOutcome {
         duration.requireGt(Duration.ZERO, "lockAtMostFor")
         val monitor = monitors.computeIfAbsent(record.slot.lockName) { Monitor() }
+
         monitor.lock.withLock {
             val current = records[record.slot.lockName]
             if (current !== record || record.released.get() || record.isExpired()) {
@@ -122,6 +125,7 @@ internal class LocalRequestLeaseStore {
 
     fun ownershipStatus(record: Record): LeaseOwnershipStatus {
         val monitor = monitors.computeIfAbsent(record.slot.lockName) { Monitor() }
+
         monitor.lock.withLock {
             val current = records[record.slot.lockName]
             if (current !== record || record.released.get() || record.isExpired()) {
@@ -202,6 +206,7 @@ internal class LocalRequestLeaseHandle(
 
     override fun release() {
         if (!closed.compareAndSet(false, true)) return
+
         watchdog?.close()
         watchdog = null
         parkRemainingMinLeaseTime(record.acquiredAtNanos, options.minLeaseTime)

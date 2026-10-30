@@ -29,7 +29,7 @@ import kotlin.time.Duration
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderMicrometerHealthAutoConfigurationTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(

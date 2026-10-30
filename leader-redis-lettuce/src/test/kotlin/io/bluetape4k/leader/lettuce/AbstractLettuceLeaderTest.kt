@@ -29,5 +29,5 @@ abstract class AbstractLettuceLeaderTest {
         }
     }
 
-    protected fun randomName(): String = "leader-test:${Base58.randomString(8)}"
+    protected fun randomName(): String = "leader-test:${Base58.randomString(12)}"
 }

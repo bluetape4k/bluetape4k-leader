@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.coroutines.support.awaitUntilOrNull
+import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.leader.LeaderManagementAction
 import io.bluetape4k.leader.LeaderManagementActionObservation
 import io.bluetape4k.leader.LeaderManagementActionObserver
@@ -13,6 +15,7 @@ import io.bluetape4k.leader.LeaderManagementRegistrationOutcome
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.isManagementActionLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.support.checkNotNull
 import io.bluetape4k.support.requireGt
 import io.bluetape4k.support.requireLe
 import io.bluetape4k.support.requirePositiveNumber
@@ -115,7 +118,7 @@ class SuspendLeaderManagementActionRegistry(
             return immediate(LeaderManagementActionOutcome.INVALID_LOCK_NAME, surface)
         }
         when (val selection = store.select(lockName)) {
-            SuspendLeaderManagementActionStore.Selection.Closed ->
+            SuspendLeaderManagementActionStore.Selection.Closed    ->
                 return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
             SuspendLeaderManagementActionStore.Selection.NotRegistered ->
@@ -127,13 +130,13 @@ class SuspendLeaderManagementActionRegistry(
             is SuspendLeaderManagementActionStore.Selection.Record -> {
                 val (outcome, action) = store.begin(selection.value, surface)
                 when (outcome) {
-                    SuspendLeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED ->
+                    SuspendLeaderManagementActionStore.BeginOutcome.REGISTRY_CLOSED    ->
                         return immediate(LeaderManagementActionOutcome.REGISTRY_CLOSED, surface)
 
-                    SuspendLeaderManagementActionStore.BeginOutcome.NOT_REGISTERED ->
+                    SuspendLeaderManagementActionStore.BeginOutcome.NOT_REGISTERED     ->
                         return immediate(LeaderManagementActionOutcome.NOT_REGISTERED, surface)
 
-                    SuspendLeaderManagementActionStore.BeginOutcome.AMBIGUOUS ->
+                    SuspendLeaderManagementActionStore.BeginOutcome.AMBIGUOUS          ->
                         return immediate(LeaderManagementActionOutcome.AMBIGUOUS, surface)
 
                     SuspendLeaderManagementActionStore.BeginOutcome.ACTION_IN_PROGRESS ->
@@ -142,18 +145,20 @@ class SuspendLeaderManagementActionRegistry(
                     SuspendLeaderManagementActionStore.BeginOutcome.ACTION_ADMISSION_REJECTED ->
                         return immediate(LeaderManagementActionOutcome.ACTION_ADMISSION_REJECTED, surface)
 
-                    SuspendLeaderManagementActionStore.BeginOutcome.STARTED -> Unit
+                    SuspendLeaderManagementActionStore.BeginOutcome.STARTED            -> Unit
                 }
-                val actionRecord = checkNotNull(action)
+                val actionRecord = action.checkNotNull("actionRecord")
                 val deferred = CompletableDeferred<LeaderManagementActionResult>()
                 actionRecord.deferred = deferred
+
                 val job = scope.launch {
                     try {
                         deferred.complete(runAction(actionRecord))
                     } catch (error: Throwable) {
                         deferred.completeExceptionally(error)
                     }
-                }
+                }.log("Action")
+
                 actionRecord.job = job
                 return awaitResult(actionRecord, deferred)
             }
@@ -239,7 +244,7 @@ class SuspendLeaderManagementActionRegistry(
                 LeaseOwnershipStatus.UNKNOWN ->
                     return terminalResult(action, result(LeaderManagementActionOutcome.OWNERSHIP_UNKNOWN, false))
 
-                LeaseOwnershipStatus.HELD -> Unit
+                LeaseOwnershipStatus.HELD    -> Unit
             }
 
             if (action.timedOut.get() ||
@@ -295,7 +300,7 @@ class SuspendLeaderManagementActionRegistry(
                 when {
                     action.timedOut.get() -> timeoutResult(action)
                     postCheck == LeaseOwnershipStatus.NOT_HELD -> result(LeaderManagementActionOutcome.RELEASED, true)
-                    else -> result(
+                    else                  -> result(
                         LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
                         true
                     )
@@ -313,7 +318,7 @@ class SuspendLeaderManagementActionRegistry(
         deferred: CompletableDeferred<LeaderManagementActionResult>,
     ): LeaderManagementActionResult {
         return try {
-            withTimeoutOrNull(actionTimeout) { deferred.await() } ?: timeoutAction(action)
+            deferred.awaitUntilOrNull(actionTimeout) ?: timeoutAction(action)
         } catch (cancelled: CancellationException) {
             action.cancelRequested.set(true)
             if (!action.mutationAttempted.get()) {
@@ -349,7 +354,7 @@ class SuspendLeaderManagementActionRegistry(
                 )
                 action.job?.cancel()
             }
-        }
+        }.log("Cleanup watcher")
     }
 
     private fun cancelBeforeWorkerStarts(action: SuspendLeaderManagementActionStore.ActionRecord) {
@@ -489,10 +494,7 @@ class SuspendLeaderManagementActionRegistry(
     }
 
     private suspend fun CompletableDeferred<Unit>.awaitWithTimeout(timeout: Duration): Boolean =
-        withTimeoutOrNull(timeout) {
-            await()
-            true
-        } ?: false
+        awaitUntilOrNull(timeout) != null
 }
 
 /** suspend registry의 non-blocking action state를 빠르게 선형화합니다. */
@@ -604,8 +606,8 @@ private class SuspendLeaderManagementActionStore(
         when {
             lifecycle != Lifecycle.OPEN -> Selection.Closed
             records.isEmpty() -> Selection.NotRegistered
-            records.size > 1 -> Selection.Ambiguous
-            else -> Selection.Record(records.single())
+            records.size > 1  -> Selection.Ambiguous
+            else              -> Selection.Record(records.single())
         }
     }
 

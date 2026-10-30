@@ -16,7 +16,6 @@ import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonSuspendLockExtendDelegate
-import io.bluetape4k.leader.redisson.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -33,7 +32,7 @@ import org.redisson.client.RedisException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.toJavaDuration
-
+import io.bluetape4k.leader.redisson.suspendRunIfLeader as currentSuspendRunIfLeader
 
 /**
  * `RedissonSuspendLeaderElector`는 Redis Redisson의 suspend 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.

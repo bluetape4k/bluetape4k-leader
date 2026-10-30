@@ -14,7 +14,7 @@ class StateLeaderRouteAuthority(
     private val elector: LeaderElector,
 ): LeaderRouteAuthority {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     init {
         if (!elector.supportsAuditLeaderState) {
@@ -47,6 +47,10 @@ class StateLeaderRouteAuthority(
             Thread.currentThread().interrupt()
             throw e
         } catch (_: Exception) {
-            LeaderRouteEvaluation(LeaderRouteDecision.Unavailable, null, clock.instant())
+            LeaderRouteEvaluation(
+                decision = LeaderRouteDecision.Unavailable,
+                leaderState = null,
+                evaluatedAt = clock.instant()
+            )
         }
 }

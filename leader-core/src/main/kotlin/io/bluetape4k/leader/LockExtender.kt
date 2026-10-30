@@ -3,10 +3,10 @@ package io.bluetape4k.leader
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
-import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 import kotlin.time.toKotlinDuration
 
@@ -67,6 +67,7 @@ object LockExtender: KLogging() {
     fun extendActiveLockDetailed(lockAtMostFor: Duration): ExtendOutcome {
         val handle = LockStateHolder.peekSync()
             ?: return outsideScope(LeaderLeaseExtensionExecution.BLOCKING)
+
         return extendDetailedInternal(handle, lockAtMostFor)
     }
 
@@ -80,6 +81,7 @@ object LockExtender: KLogging() {
     fun extendActiveLockDetailed(lockName: String, lockAtMostFor: Duration): ExtendOutcome {
         val handle = LockStateHolder.peekSyncMatching(lockName)
             ?: return outsideScope(LeaderLeaseExtensionExecution.BLOCKING)
+
         return extendDetailedInternal(handle, lockAtMostFor)
     }
 
@@ -110,8 +112,9 @@ object LockExtender: KLogging() {
      * @return 성공, 미보유, thread 제약, 큐 거부 또는 backend 오류를 구분하는 결과입니다.
      */
     suspend fun extendActiveLockDetailedSuspend(lockAtMostFor: Duration): ExtendOutcome {
-        val handle = coroutineContext[LockHandleElement]?.handle
+        val handle = currentCoroutineContext()[LockHandleElement]?.handle
             ?: return outsideScope(LeaderLeaseExtensionExecution.SUSPEND)
+
         return extendDetailedSuspendInternal(handle, lockAtMostFor)
     }
 
@@ -155,6 +158,7 @@ object LockExtender: KLogging() {
         // backend extend 성공 후에만 갱신합니다. backend가 관측한 만료 시각을 사용해 watchdog skip이
         // 실제로 갱신된 lease보다 오래 유지되지 않게 합니다.
         val delegateStartedAtNanos = if (observing) System.nanoTime() else 0L
+
         return try {
             val outcome = real.extend(lockAtMostFor)
             val delegateElapsedNanos = elapsedNanos(delegateStartedAtNanos, observing)
@@ -190,6 +194,8 @@ object LockExtender: KLogging() {
         handle: LeaderLockHandle,
         lockAtMostFor: Duration,
     ): ExtendOutcome {
+        log.debug { "extendDetailedSuspendInternal. handle=$handle, lockAtMostFor=$lockAtMostFor" }
+
         val observationScope = LeaderLeaseExtensionObservationScope.currentOrNull()
         val observing = LeaderLeaseExtensionObservers.hasObservers(observationScope)
         val context = if (observing) extensionContext(handle) else null
@@ -212,6 +218,7 @@ object LockExtender: KLogging() {
         // backend extend 성공 후에만 갱신합니다. backend가 관측한 만료 시각을 사용해 watchdog skip이
         // 실제로 갱신된 lease보다 오래 유지되지 않게 합니다.
         val delegateStartedAtNanos = if (observing) System.nanoTime() else 0L
+
         return try {
             val outcome = real.extendSuspend(lockAtMostFor)
             val delegateElapsedNanos = elapsedNanos(delegateStartedAtNanos, observing)
@@ -249,6 +256,7 @@ object LockExtender: KLogging() {
         log.warn { "LockExtender called outside an active @LeaderElection scope — returning NotHeld" }
         val outcome = ExtendOutcome.NotHeld
         val observationScope = LeaderLeaseExtensionObservationScope.currentOrNull()
+
         if (LeaderLeaseExtensionObservers.hasObservers(observationScope)) {
             LeaderLeaseExtensionObservers.publish(
                 LeaderLeaseExtensionEvent(
@@ -295,8 +303,8 @@ object LockExtender: KLogging() {
      * @param outcome backend 연장 결과 또는 연장을 시도할 수 없었던 원인입니다.
      */
     private fun processBooleanResult(outcome: ExtendOutcome): Boolean = when (outcome) {
-        is ExtendOutcome.Extended -> true
-        is ExtendOutcome.NotHeld -> {
+        is ExtendOutcome.Extended    -> true
+        is ExtendOutcome.NotHeld     -> {
             // backend-origin NotHeld: token mismatch, takeover, lease expired를 포함합니다.
             // (outsideScope / FailOpen path 에서 온 NotHeld 는 path-specific WARN 이미 발생 — double log)
             log.warn { "LockExtender — extend returned NotHeld (token mismatch / takeover / lease expired / scope absent)" }
@@ -306,7 +314,7 @@ object LockExtender: KLogging() {
             log.warn { "LockExtender — extend failed: WrongThread (Redisson thread-bound lock called from wrong thread)" }
             false
         }
-        is ExtendOutcome.Rejected -> {
+        is ExtendOutcome.Rejected    -> {
             log.warn { "LockExtender — extend rejected by the bounded operation queue" }
             false
         }

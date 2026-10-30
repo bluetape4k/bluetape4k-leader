@@ -8,6 +8,7 @@ import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcVirtualThreadLeaderElector
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
+import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -21,6 +22,8 @@ import org.springframework.context.annotation.Configuration
 @ConditionalOnClass(Database::class)
 @ConditionalOnBean(Database::class)
 class ExposedJdbcLeaderConfiguration {
+
+    companion object: KLogging()
 
     @Bean
     @ConditionalOnMissingBean(name = ["exposedJdbcLeaderElector"])

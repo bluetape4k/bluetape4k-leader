@@ -160,7 +160,7 @@ class LeaderScheduledPolicyBeanPostProcessor(
     private fun collectScheduledMethods(targetClass: Class<*>): List<Method> =
         MethodIntrospector.selectMethods(
             targetClass,
-            MethodIntrospector.MetadataLookup<Set<Scheduled>> { method ->
+            MethodIntrospector.MetadataLookup { method ->
                 AnnotatedElementUtils.getMergedRepeatableAnnotations(
                     method,
                     Scheduled::class.java,

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.audit.http
 
+import io.bluetape4k.support.hashOf
 import io.bluetape4k.support.requireInRange
 
 /**
@@ -22,6 +23,13 @@ class LeaderAuditHttpOptions(
         @JvmStatic
         fun defaults(): LeaderAuditHttpOptions = LeaderAuditHttpOptions(DEFAULT_MAX_PAYLOAD_BYTES)
     }
+
+    override fun equals(other: Any?): Boolean =
+        other is LeaderAuditHttpOptions && maxPayloadBytes == other.maxPayloadBytes
+
+    override fun hashCode(): Int = hashOf(maxPayloadBytes)
+
+    override fun toString(): String = "LeaderAuditHttpOptions(maxPayloadBytes=$maxPayloadBytes)"
 }
 
 private const val DEFAULT_MAX_PAYLOAD_BYTES: Int = 64 * 1024

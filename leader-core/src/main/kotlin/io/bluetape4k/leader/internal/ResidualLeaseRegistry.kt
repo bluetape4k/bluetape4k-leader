@@ -1,8 +1,10 @@
 package io.bluetape4k.leader.internal
 
+import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.LeaderLeaseDefaults
 import io.bluetape4k.leader.LeaseCleanupReservation
 import io.bluetape4k.leader.LeaseCleanupResult
+import io.bluetape4k.leader.utils.safePlus
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.*
@@ -186,10 +188,21 @@ class ResidualLeaseRegistry(
         @Volatile
         var terminalResult: LeaseCleanupResult? = null
             internal set
-    }
 
-    private fun safePlus(first: Long, second: Long): Long =
-        if (second > 0 && first > Long.MAX_VALUE - second) Long.MAX_VALUE else first + second
+        override fun toString(): String =
+            ToStringBuilder(this)
+                .add("reservation", reservation)
+                .add("acquiredAtNanos", acquiredAtNanos)
+                .add("transferAtNanos", transferAtNanos)
+                .add("retentionDeadlineNanos", retentionDeadlineNanos)
+                .add("originContextGeneration", originContextGeneration)
+                .add("fencingProofAvailable", fencingProofAvailable)
+                .add("ttlProofAvailable", ttlProofAvailable)
+                .add("state", state)
+                .add("terminalResult", terminalResult)
+                .toString()
+
+    }
 
     private fun retentionDeadline(acquiredAtNanos: Long, transferAtNanos: Long): Long {
         val retentionNanos = retention.inWholeNanoseconds.coerceAtLeast(0L)
@@ -201,9 +214,9 @@ class ResidualLeaseRegistry(
         val acquiredDeadline = if (lifetimeNanos == Long.MAX_VALUE) {
             Long.MAX_VALUE
         } else {
-            safePlus(acquiredAtNanos, safePlus(lifetimeNanos, retentionNanos))
+            acquiredAtNanos safePlus (lifetimeNanos safePlus retentionNanos)
         }
-        val transferDeadline = safePlus(transferAtNanos, retentionNanos)
+        val transferDeadline = transferAtNanos safePlus retentionNanos
         return minOf(acquiredDeadline, transferDeadline)
     }
 

@@ -30,7 +30,7 @@ import kotlin.time.Duration
 
 class LeaderBackendDiagnosticsEndpointTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(

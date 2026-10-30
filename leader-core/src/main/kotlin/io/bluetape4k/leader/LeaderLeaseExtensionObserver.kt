@@ -3,8 +3,9 @@ package io.bluetape4k.leader
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.logging.KotlinLogging
 import io.bluetape4k.logging.warn
-import io.bluetape4k.support.requireGe
+import io.bluetape4k.support.hashOf
 import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.requireZeroOrPositiveNumber
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
@@ -46,12 +47,13 @@ class LeaderLeaseExtensionContext(
     }
 
     override fun equals(other: Any?): Boolean =
-        this === other || (other is LeaderLeaseExtensionContext &&
-                lockName == other.lockName &&
-                auditLeaderId == other.auditLeaderId)
+        this === other ||
+                (other is LeaderLeaseExtensionContext &&
+                        lockName == other.lockName &&
+                        auditLeaderId == other.auditLeaderId)
 
-    override fun hashCode(): Int = 31 * lockName.hashCode() + (auditLeaderId?.hashCode() ?: 0)
-    override fun toString(): String = "LeaderLeaseExtensionContext(<redacted>)"
+    override fun hashCode(): Int = hashOf(lockName, auditLeaderId)
+    override fun toString(): String = "LeaderLeaseExtensionContext($REDACTED)"
 }
 
 /** 하나의 terminal lease extension 시도를 나타내는 immutable event입니다. */
@@ -64,7 +66,7 @@ class LeaderLeaseExtensionEvent(
 ) {
 
     init {
-        elapsedNanos.requireGe(0L, "elapsedNanos")
+        elapsedNanos.requireZeroOrPositiveNumber("elapsedNanos")
     }
 
     override fun equals(other: Any?): Boolean =
@@ -75,19 +77,12 @@ class LeaderLeaseExtensionEvent(
                 elapsedNanos == other.elapsedNanos &&
                 context == other.context)
 
-    override fun hashCode(): Int {
-        var result = source.hashCode()
-        result = 31 * result + execution.hashCode()
-        result = 31 * result + outcome.hashCode()
-        result = 31 * result + elapsedNanos.hashCode()
-        result = 31 * result + (context?.hashCode() ?: 0)
-        return result
-    }
+    override fun hashCode(): Int = hashOf(source, execution, outcome, elapsedNanos, context)
+
     override fun toString(): String =
         "LeaderLeaseExtensionEvent(source=$source, execution=$execution, outcome=${outcome::class.simpleName})"
 
 }
-
 
 /** lease extension terminal event를 받는 public SAM callback입니다. */
 fun interface LeaderLeaseExtensionObserver {
@@ -105,6 +100,7 @@ object LeaderLeaseExtensionObservers {
     private val wildcardRegistrations = CopyOnWriteArrayList<Registration>()
     private val scopedRegistrations =
         ConcurrentHashMap<LeaderLeaseExtensionObservationScope, ConcurrentLinkedQueue<Registration>>()
+
     private val globalInFlight = Semaphore(MAX_IN_FLIGHT)
     private val dropped = AtomicLong(0L)
 
@@ -274,8 +270,7 @@ object LeaderLeaseExtensionObservers {
         if (!registration.lastCallbackWarningNanos.compareAndSet(previous, now)) return
 
         log.warn {
-            "LeaderLeaseExtensionObserver callback failed and was ignored. " +
-                    "observer=${registration.safeName}"
+            "LeaderLeaseExtensionObserver callback failed and was ignored. observer=${registration.safeName}"
         }
     }
 

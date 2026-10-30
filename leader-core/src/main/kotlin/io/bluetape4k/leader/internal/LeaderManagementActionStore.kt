@@ -126,8 +126,8 @@ internal class LeaderManagementActionStore(
         when {
             lifecycle != Lifecycle.OPEN -> Selection.Closed
             activeRecords.isEmpty() -> Selection.NotRegistered
-            activeRecords.size > 1 -> Selection.Ambiguous
-            else -> Selection.Record(activeRecords.single())
+            activeRecords.size > 1  -> Selection.Ambiguous
+            else                    -> Selection.Record(activeRecords.single())
         }
     }
 
@@ -187,7 +187,8 @@ internal class LeaderManagementActionStore(
     internal fun activeActionRecords(): List<ActionRecord> = lock.withLock { activeActions.keys.toList() }
 
     internal fun registeredLockNames(): List<String> = lock.withLock {
-        byLockName.asSequence()
+        byLockName
+            .asSequence()
             .filter { (_, records) -> records.any { it.registrationCount > 0 } }
             .map { it.key }
             .sorted()
@@ -198,8 +199,11 @@ internal class LeaderManagementActionStore(
 
     private fun removeIfDetached(record: RegistrationRecord) {
         if (record.registrationCount > 0 || record.actionInProgress.get()) return
+
         byHandle.remove(record.handle)
         byLockName[record.lockName]?.remove(record)
-        if (byLockName[record.lockName].isNullOrEmpty()) byLockName.remove(record.lockName)
+        if (byLockName[record.lockName].isNullOrEmpty()) {
+            byLockName.remove(record.lockName)
+        }
     }
 }

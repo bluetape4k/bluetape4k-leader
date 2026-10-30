@@ -1,7 +1,7 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.leader.contract.AbstractLockNameConformanceTest
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.leader.contract.AbstractLockNameConformanceTest
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 

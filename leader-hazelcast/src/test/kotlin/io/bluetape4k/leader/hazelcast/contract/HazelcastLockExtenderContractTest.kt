@@ -13,9 +13,8 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HazelcastLockExtenderContractTest: AbstractSyncLockExtenderContractTest() {
 
-    companion object: KLogging() {
-        val server = AbstractHazelcastLeaderTest.hazelcastServer
-    }
+    companion object: KLogging()
 
-    override val elector: LeaderElector = HazelcastLeaderElector(AbstractHazelcastLeaderTest.hazelcastClient)
+    override val elector: LeaderElector =
+        HazelcastLeaderElector(AbstractHazelcastLeaderTest.hazelcastClient)
 }

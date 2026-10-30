@@ -425,7 +425,7 @@ Expected: DynamoDB Local 기반 module test와 matrix static 모두 성공.
 - Create: `leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseSuspendLockExtenderContractTest.kt`
 - Create: `leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseSuspendGroupLockExtenderContractTest.kt`
 - Create: `leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseExecutorOverloadContractTest.kt`
-- Create: `leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesContractSupport.kt`
+- Create: `../../../leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/KubernetesContractSupport.kt`
 - Modify: `scripts/ci/leader-contract-capabilities.json`
 
 - [x] **Step 1: K3s-tagged concrete subclasses를 추가한다.**

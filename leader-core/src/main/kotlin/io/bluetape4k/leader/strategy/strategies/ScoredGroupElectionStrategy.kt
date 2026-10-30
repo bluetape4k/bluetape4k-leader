@@ -39,6 +39,7 @@ class ScoredGroupElectionStrategy(
         val winners = ordered.take(maxLeaders)
         val boundary = winners.last()
         val boundaryScore = scores.getValue(boundary)
+
         val eliminations = ordered.drop(maxLeaders).map { candidate ->
             val score = scores.getValue(candidate)
             val reason = if (score < boundaryScore) {
@@ -48,6 +49,7 @@ class ScoredGroupElectionStrategy(
             }
             Elimination(candidate, reason)
         }
+
         return StrategicGroupElectionResult(
             winners = winners,
             eliminations = eliminations,

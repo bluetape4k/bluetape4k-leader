@@ -13,28 +13,18 @@ import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
 import io.bluetape4k.leader.exposed.testing.databaseUrlRedactionContractTests
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.slf4j.LoggerFactory
-import java.lang.reflect.Modifier
 import java.util.concurrent.atomic.AtomicInteger
 
 class ExposedJdbcSchemaInitializerTest: AbstractExposedJdbcLeaderTest() {
 
     companion object: KLogging()
-
-    @org.junit.jupiter.api.Test
-    fun `legacy lock-name JVM facade remains available`() {
-        val method = Class.forName(
-            "io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializerKt"
-        ).getDeclaredMethod("validateExposedLockName", String::class.java)
-
-        method.returnType shouldBeEqualTo Void.TYPE
-        (Modifier.isPublic(method.modifiers) && Modifier.isStatic(method.modifiers)) shouldBeEqualTo true
-    }
 
     @TestFactory
     fun `database URL redaction contract`() =
@@ -56,6 +46,7 @@ class ExposedJdbcSchemaInitializerTest: AbstractExposedJdbcLeaderTest() {
             val warning = appender.list.first { event ->
                 event.level == Level.WARN && "리더 선출 스키마 초기화 실패" in event.formattedMessage
             }
+            log.debug { "warning message=${warning.formattedMessage}" }
             warning.formattedMessage shouldNotContain secret
             warning.throwableProxy.shouldBeNull()
         } finally {

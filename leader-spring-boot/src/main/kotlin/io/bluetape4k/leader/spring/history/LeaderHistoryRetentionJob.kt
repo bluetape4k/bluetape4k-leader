@@ -41,9 +41,10 @@ class LeaderHistoryRetentionJob(
         autoExtend = true,
     )
     fun runRetention() {
-        val cutoff = Instant.now() - retentionDays.days() //.minus(retentionDays, ChronoUnit.DAYS)
+        val cutoff = Instant.now() - retentionDays.days()
         val deadline = System.currentTimeMillis() + maxDurationMs
         var deleted: Int
+
         do {
             log.debug { "delete older than $cutoff, chunkSize=$chunkSize" }
             deleted = sink.deleteOlderThan(cutoff, chunkSize)

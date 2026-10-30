@@ -138,7 +138,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
 
         val holderLock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        holderLock.tryLock(1.seconds, 30.seconds)
+        holderLock.tryLock(1.seconds, 30.seconds).shouldBeTrue()
 
         try {
             val shortOptions = ExposedJdbcLeaderElectionOptions(
@@ -149,7 +149,6 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             )
             val election = ExposedJdbcLeaderElector(db, shortOptions)
             val result = election.runIfLeader(lockName) { "실행하면 안 됨" }
-
             result.shouldBeNull()
         } finally {
             holderLock.unlock()
@@ -165,7 +164,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
 
         val leaseTime = 200.milliseconds
         val holderLock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        holderLock.tryLock(1.seconds, leaseTime)
+        holderLock.tryLock(1.seconds, leaseTime).shouldBeTrue()
 
         // leaseTime(200ms) 만료를 확실히 넘기기 위해 1.5배 + buffer(50ms) 대기
         val waitForExpiryMillis = (leaseTime.inWholeMilliseconds * 3 / 2) + 50
@@ -284,9 +283,10 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             LeaderLockHistoryTable.selectAll()
                 .where { LeaderLockHistoryTable.lockName eq lockName }
                 .toList()
+                .onEach { log.debug { "row=$it" } }
         }
         rows.size shouldBeEqualTo 1
-        rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.COMPLETED
+        rows.single()[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.COMPLETED
     }
 
     @ParameterizedTest
@@ -316,9 +316,10 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             LeaderLockHistoryTable.selectAll()
                 .where { LeaderLockHistoryTable.lockName eq lockName }
                 .toList()
+                .onEach { log.debug { "row=$it" } }
         }
         rows.size shouldBeEqualTo 1
-        rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED
+        rows.single()[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED
     }
 
     @ParameterizedTest
@@ -347,9 +348,8 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                     val current = currentCount.incrementAndGet()
                     peakCount.updateAndGet { max(it, current) }
 
-                    Thread.sleep(10)
+                    Thread.sleep(kotlin.random.Random.nextLong(5, 10))
                     successCount.incrementAndGet()
-
                     currentCount.decrementAndGet()
                 }
             }
@@ -410,7 +410,10 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 }
             }.getOrElse { failedCompletableFutureOf(it) }
 
-            val failure = assertFailsWith<CompletionException> { resultFuture.join() }
+            val failure = assertFailsWith<CompletionException> {
+                resultFuture.join()
+            }
+            log.debug { "failure=$failure" }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
 
             actionInvoked.get().shouldBeFalse()
@@ -430,6 +433,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
         val holder = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(10L))
         holder.tryLock(Duration.ZERO, 30.seconds).shouldBeTrue()
+
         val election = ExposedJdbcLeaderElector(
             db,
             ExposedJdbcLeaderElectionOptions(
@@ -480,11 +484,14 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val composeReady = CountDownLatch(1)
         val composeAllowed = CountDownLatch(1)
         val actionInvocations = AtomicInteger()
+
         val executor = Executor { command ->
             worker.execute {
                 if (taskNumber.incrementAndGet() == 2) {
                     composeReady.countDown()
-                    check(composeAllowed.await(5.seconds)) { "composition callback 대기 시간이 초과되었습니다." }
+                    check(composeAllowed.await(5.seconds)) {
+                        "composition callback 대기 시간이 초과되었습니다."
+                    }
                 }
                 command.run()
             }
@@ -523,6 +530,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
         val recordStarted = CountDownLatch(1)
         val recordAllowed = CountDownLatch(1)
+
         val recorder = object: SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db)) {
             override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
                 recordStarted.countDown()
@@ -559,6 +567,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 LeaderLockHistoryTable.selectAll()
                     .where { LeaderLockHistoryTable.lockName eq lockName }
                     .single()
+                    .also { log.debug { "row=$it" } }
             }
             history[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED
 
@@ -690,6 +699,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             LeaderLockHistoryTable.selectAll()
                 .where { LeaderLockHistoryTable.lockName eq lockName }
                 .single()
+                .also { log.debug { "row=$it" } }
         }
         history[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED
 

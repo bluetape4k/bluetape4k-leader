@@ -69,19 +69,19 @@ class LeaderGroupElectionAspectTest {
 
     private class SampleServiceImpl: SampleService {
         @LeaderGroupElection(name = "static-group-job", maxLeaders = 3)
-        override fun runSync(): String? = SAMPLE_RESULT
+        override fun runSync(): String = SAMPLE_RESULT
 
         @LeaderGroupElection(name = "'r-' + #region", maxLeaders = 2)
-        override fun runWithArg(region: String): String? = "result-$region"
+        override fun runWithArg(region: String): String = "result-$region"
 
         @LeaderGroupElection(name = "min-group-job", maxLeaders = 3, leaseTime = "PT30S", minLeaseTime = "PT10S")
-        override fun runWithMinLease(): String? = SAMPLE_RESULT
+        override fun runWithMinLease(): String = SAMPLE_RESULT
 
         @LeaderGroupElection(name = "ns.subns.group", maxLeaders = 2)
-        override fun runWithDotName(): String? = SAMPLE_RESULT
+        override fun runWithDotName(): String = SAMPLE_RESULT
 
         @LeaderGroupElection(name = "db-time-group-job", maxLeaders = 2, useDbTime = true)
-        override fun runWithDbTime(): String? = SAMPLE_RESULT
+        override fun runWithDbTime(): String = SAMPLE_RESULT
     }
 
     // Class-level mocks — reused across all tests, cleared in @BeforeEach
@@ -285,6 +285,8 @@ class LeaderGroupElectionAspectTest {
         val wrapped = assertFailsWith<LeaderGroupElectionException> {
             aspect.aroundLeader(pjp)
         }
+
+        log.debug { "wrapped=$wrapped" }
         wrapped.cause shouldBeEqualTo backendEx
         wrapped.message.shouldNotBeNull().contains("redis-prod-01").shouldBeFalse()
 
@@ -310,6 +312,7 @@ class LeaderGroupElectionAspectTest {
         val ex = assertFailsWith<CancellationException> {
             aspect.aroundLeader(pjp)
         }
+        log.debug { "ex=$ex" }
         ex shouldBeEqualTo cancelEx
     }
 
@@ -317,7 +320,7 @@ class LeaderGroupElectionAspectTest {
     fun `SKIP 모드 - backend throw 흡수 후 null`() {
         class SampleSkip {
             @LeaderGroupElection(name = "skip-group-job", maxLeaders = 2, failureMode = LeaderAspectFailureMode.SKIP)
-            fun run(): String? = SAMPLE_RESULT
+            fun run(): String = SAMPLE_RESULT
         }
 
         val skipTarget = SampleSkip()
@@ -472,7 +475,7 @@ class LeaderGroupElectionAspectTest {
                 maxLeaders = 2,
                 failureMode = LeaderAspectFailureMode.SKIP,
             )
-            fun run(): String? = SAMPLE_RESULT
+            fun run(): String = SAMPLE_RESULT
         }
 
         val skipTarget = SampleSkipOnCreate()
@@ -495,7 +498,7 @@ class LeaderGroupElectionAspectTest {
                 maxLeaders = 2,
                 failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN
             )
-            fun run(): String? = SAMPLE_RESULT
+            fun run(): String = SAMPLE_RESULT
         }
 
         val target = SampleFailOpen()
@@ -525,7 +528,7 @@ class LeaderGroupElectionAspectTest {
                 maxLeaders = 2,
                 failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN
             )
-            fun run(): String? = SAMPLE_RESULT
+            fun run(): String = SAMPLE_RESULT
         }
 
         val target = SampleFailOpen()
@@ -562,7 +565,7 @@ class LeaderGroupElectionAspectTest {
                 maxLeaders = 2,
                 failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN
             )
-            fun run(): String? = SAMPLE_RESULT
+            fun run(): String = SAMPLE_RESULT
         }
 
         val target = SampleFailOpen()
@@ -589,7 +592,7 @@ class LeaderGroupElectionAspectTest {
                 maxLeaders = 2,
                 failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN
             )
-            fun run(): String? = SAMPLE_RESULT
+            fun run(): String = SAMPLE_RESULT
         }
 
         val target = SampleFailOpen()
@@ -619,7 +622,7 @@ class LeaderGroupElectionAspectTest {
                 maxLeaders = 2,
                 failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN
             )
-            fun run(): String? = SAMPLE_RESULT
+            fun run(): String = SAMPLE_RESULT
         }
 
         val target = SampleFailOpen()

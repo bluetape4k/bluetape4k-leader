@@ -52,7 +52,8 @@ class ConsulSuspendLeaderElectorDelegationTest {
         val elector = ConsulSuspendLeaderElector.create(client)
         val failure = LeaderElectionException("boom")
 
-        val result = elector.runIfLeaderResultSuspend(LeaderSlot("lock-a", "audit-a")) {
+        val slot = LeaderSlot("lock-a", "audit-a")
+        val result = elector.runIfLeaderResultSuspend(slot) {
             throw failure
         }
 
@@ -133,6 +134,7 @@ class ConsulSuspendLeaderElectorDelegationTest {
 
         val state = elector.state("lock-a")
 
+        log.debug { "state=$state" }
         state.lockName shouldBeEqualTo "lock-a"
         state.leader?.auditLeaderId shouldBeEqualTo "audit-a"
         state.leader?.nodeId shouldBeEqualTo "node-a"
@@ -156,8 +158,6 @@ class ConsulSuspendLeaderElectorDelegationTest {
         val elector = ConsulSuspendLeaderElector.create(client)
 
         elector.state("lock-a").isEmpty.shouldBeTrue()
-
-        log.debug { "client=$client" }
     }
 
     @Test
@@ -245,6 +245,7 @@ class ConsulSuspendLeaderElectorDelegationTest {
             electedAt = Instant.parse("2026-05-22T01:02:03Z"),
             leaseUntil = Instant.parse("2026-05-22T01:02:13Z"),
         )
+
         val client = FakeConsulLockClient(
             entry = ConsulKvEntry(
                 key = handle.key,

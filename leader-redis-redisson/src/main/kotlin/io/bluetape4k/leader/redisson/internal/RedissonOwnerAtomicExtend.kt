@@ -16,7 +16,7 @@ internal object RedissonOwnerAtomicExtend {
     internal const val WRONG_THREAD_RESULT = -1L
     internal const val NOT_HELD_RESULT = 0L
 
-    private const val OWNER_ATOMIC_EXTEND_SCRIPT = """
+    private val OWNER_ATOMIC_EXTEND_SCRIPT = """
         if (redis.call('exists', KEYS[1]) == 0) then
             return 0
         end
@@ -26,7 +26,7 @@ internal object RedissonOwnerAtomicExtend {
         redis.call('pexpire', KEYS[1], ARGV[2])
         local now = redis.call('time')
         return now[1] * 1000 + math.floor(now[2] / 1000) + tonumber(ARGV[2])
-    """
+    """.trimIndent()
 
     private val lockNameMethodCache = ConcurrentHashMap<Class<*>, Method>()
     private val rawNameMethodCache = ConcurrentHashMap<Class<*>, Method>()
@@ -59,15 +59,16 @@ internal object RedissonOwnerAtomicExtend {
     ): ExtendOutcome {
         val leaseMillis = lockAtMostFor.inWholeMilliseconds.coerceAtLeast(1L)
         val keyName = rawName(lock)
-        val result = redissonClient.getScript(StringCodec.INSTANCE).evalAsync<Long>(
-            keyName,
-            RScript.Mode.READ_WRITE,
-            OWNER_ATOMIC_EXTEND_SCRIPT,
-            RScript.ReturnType.LONG,
-            listOf(keyName),
-            ownerField(lock, acquiringThreadId),
-            leaseMillis,
-        )
+        val result = redissonClient.getScript(StringCodec.INSTANCE)
+            .evalAsync<Long>(
+                keyName,
+                RScript.Mode.READ_WRITE,
+                OWNER_ATOMIC_EXTEND_SCRIPT,
+                RScript.ReturnType.LONG,
+                listOf(keyName),
+                ownerField(lock, acquiringThreadId),
+                leaseMillis,
+            )
             .toCompletableFuture()
             .await()
         return result.toExtendOutcome()
@@ -77,7 +78,7 @@ internal object RedissonOwnerAtomicExtend {
         when (this) {
             NOT_HELD_RESULT -> ExtendOutcome.NotHeld
             WRONG_THREAD_RESULT -> ExtendOutcome.WrongThread
-            else -> ExtendOutcome.Extended(Instant.ofEpochMilli(this))
+            else            -> ExtendOutcome.Extended(Instant.ofEpochMilli(this))
         }
 
     private fun ownerField(lock: RLock, acquiringThreadId: Long): String {

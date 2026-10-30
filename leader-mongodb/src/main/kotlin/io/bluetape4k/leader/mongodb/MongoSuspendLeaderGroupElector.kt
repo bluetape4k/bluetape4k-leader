@@ -14,7 +14,6 @@ import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
-import io.bluetape4k.leader.mongodb.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoSuspendSlotExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
@@ -33,6 +32,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 import kotlin.time.Duration
 import com.mongodb.kotlin.client.coroutine.MongoCollection as CoroutineMongoCollection
+import io.bluetape4k.leader.mongodb.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 
 /**
  * `MongoSuspendLeaderGroupElector`는 MongoDB의 suspend 그룹 선출을 제공하며 `maxLeaders` 슬롯을 acquire·extend·release합니다.
@@ -94,7 +94,7 @@ class MongoSuspendLeaderGroupElector private constructor(
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
-        lockName.validateMonoLockName()
+        lockName.validateMongoLockName()
 
         val leaseTime = options.leaderGroupOptions.leaseTime
         val perSlotWait = options.leaderGroupOptions.waitTime / maxLeaders

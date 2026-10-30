@@ -17,7 +17,7 @@ import org.junit.jupiter.api.TestInstance
 class MongoLockExtenderContractTest: AbstractSyncLockExtenderContractTest() {
 
     companion object: KLogging() {
-        val mongo = AbstractMongoLeaderTest.mongoServer
+        val mongo by lazy { AbstractMongoLeaderTest.mongoServer }
     }
 
     override val elector: LeaderElector =

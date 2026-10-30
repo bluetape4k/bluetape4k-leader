@@ -10,6 +10,7 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.get
+import io.bluetape4k.concurrent.sequence
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionException
@@ -27,7 +28,6 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CancellationException
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
@@ -80,6 +80,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
     @Test
     fun `state 조회`() {
         val state = election.state(lockName)
+        log.debug { "state : $state" }
         state.lockName shouldBeEqualTo lockName
         state.maxLeaders shouldBeEqualTo maxLeaders
         state.activeCount shouldBeEqualTo 0
@@ -166,7 +167,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
                 }
             }
         }
-        CompletableFuture.allOf(*futures.toTypedArray()).get(3.seconds)
+        futures.sequence().get(3.seconds)
         counter.get() shouldBeEqualTo maxLeaders
     }
 
@@ -183,7 +184,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
         MultithreadingTester()
             .workers(maxLeaders * 2)
-            .rounds(5)
+            .rounds(8)
             .add {
                 el.runIfLeader(lockName) {
                     val current = concurrent.incrementAndGet()
@@ -207,7 +208,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
         MultithreadingTester()
             .workers(maxLeaders * 2)
-            .rounds(5)
+            .rounds(8)
             .add {
                 el.runAsyncIfLeader(lockName) {
                     futureOf {
@@ -234,7 +235,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
         val executed = AtomicInteger(0)
 
         StructuredTaskScopeTester()
-            .rounds(maxLeaders * 2 * 5)
+            .rounds(maxLeaders * 2 * 8)
             .add {
                 el.runIfLeader(lockName) {
                     val current = concurrent.incrementAndGet()
@@ -257,7 +258,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
         val executed = AtomicInteger(0)
 
         StructuredTaskScopeTester()
-            .rounds(maxLeaders * 2 * 5)
+            .rounds(maxLeaders * 2 * 8)
             .add {
                 el.runAsyncIfLeader(lockName) {
                     futureOf {

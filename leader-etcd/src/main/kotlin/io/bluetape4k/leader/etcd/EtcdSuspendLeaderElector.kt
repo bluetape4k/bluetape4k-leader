@@ -18,7 +18,6 @@ import io.bluetape4k.leader.etcd.internal.JetcdEtcdLockClient
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
-import io.bluetape4k.leader.etcd.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -33,6 +32,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.CompletableFuture
 import kotlin.time.Duration
+import io.bluetape4k.leader.etcd.suspendRunIfLeader as currentSuspendRunIfLeader
 
 /**
  * `EtcdSuspendLeaderElector`는 jetcd lease/lock 호출을 suspend 방식으로 수행해 단일 leader 실행을 관리합니다.
@@ -46,10 +46,6 @@ class EtcdSuspendLeaderElector private constructor(
 ): SuspendLeaderElector,
    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics,
    SuspendLeaderLeaseAcquirerSupport {
-
-    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
-        SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
-    }
 
     companion object: KLoggingChannel() {
         internal const val ETCD_SUSPEND_FACTORY_BEAN_NAME = "etcd-suspend-leader-elector"
@@ -68,6 +64,11 @@ class EtcdSuspendLeaderElector private constructor(
         ): EtcdSuspendLeaderElector =
             EtcdSuspendLeaderElector(lockClient, options)
     }
+
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    }
+
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         val leaseHandle = acquire(lockName) ?: return null

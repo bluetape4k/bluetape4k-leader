@@ -1,18 +1,18 @@
 package io.bluetape4k.leader.consul.internal
 
 import io.bluetape4k.leader.consul.ConsulLeaderElectionOptions
+import io.bluetape4k.support.requireInRange
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 internal object ConsulSessionTtl {
 
     fun ttlSeconds(leaseTime: Duration): Long {
-        require(leaseTime >= ConsulLeaderElectionOptions.MinLeaseTime) {
-            "leaseTime must be at least ${ConsulLeaderElectionOptions.MinLeaseTime}. leaseTime=$leaseTime"
-        }
-        require(leaseTime <= ConsulLeaderElectionOptions.MaxLeaseTime) {
-            "leaseTime must be at most ${ConsulLeaderElectionOptions.MaxLeaseTime}. leaseTime=$leaseTime"
-        }
+        leaseTime.requireInRange(
+            ConsulLeaderElectionOptions.MinLeaseTime,
+            ConsulLeaderElectionOptions.MaxLeaseTime,
+            "leaseTime"
+        )
         return leaseTime.inWholeSeconds.coerceAtLeast(ConsulLeaderElectionOptions.MinLeaseTime.inWholeSeconds)
     }
 

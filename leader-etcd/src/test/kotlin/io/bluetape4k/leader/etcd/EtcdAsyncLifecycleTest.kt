@@ -20,7 +20,6 @@ import io.bluetape4k.support.checkNotNull
 import io.etcd.jetcd.ByteSequence
 import io.etcd.jetcd.lease.LeaseKeepAliveResponse
 import org.junit.jupiter.api.Test
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.ConcurrentHashMap
@@ -470,7 +469,7 @@ class EtcdAsyncLifecycleTest {
 
         override fun lock(lockKey: ByteSequence, leaseId: Long): CompletableFuture<ByteSequence> {
             val call = lockCalls.incrementAndGet()
-            val ownershipKey = "${lockKey.toString(StandardCharsets.UTF_8)}/owner-$leaseId".toByteSequence()
+            val ownershipKey = "${lockKey.toString(Charsets.UTF_8)}/owner-$leaseId".toByteSequence()
 
             if (pendFirstLock && call == 1) {
                 val future = CompletableFuture<ByteSequence>()

@@ -6,7 +6,6 @@ import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionException
@@ -48,29 +47,25 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
     companion object: KLoggingChannel()
 
     private suspend fun makeElection(testDB: TestR2dbcDB): ExposedR2DbcSuspendLeaderElector {
-        val db = setupDb(testDB)
-        return ExposedR2DbcSuspendLeaderElector(
-            db,
-            ExposedR2dbcLeaderElectionOptions(
-                leaderOptions = LeaderElectionOptions(
-                    waitTime = 2.seconds,
-                    leaseTime = 10.seconds,
+        return withTestDB(testDB) { db ->
+            ExposedR2DbcSuspendLeaderElector(
+                db,
+                ExposedR2dbcLeaderElectionOptions(
+                    leaderOptions = LeaderElectionOptions(
+                        waitTime = 2.seconds,
+                        leaseTime = 10.seconds,
+                    ),
+                    retryStrategy = RetryStrategy.Jitter(),
                 ),
-                retryStrategy = RetryStrategy.Jitter(),
-            ),
-        )
+            )
+        }
     }
 
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runIfLeader - 리더 선출 성공 시 action 결과를 반환한다`(testDB: TestR2dbcDB) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
-
         val election = makeElection(testDB)
-
         val result = election.runIfLeader(randomName()) { "done" }
-
         result shouldBeEqualTo "done"
     }
 
@@ -78,77 +73,73 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
     @MethodSource("enableDialects")
     fun `ExposedR2dbcLock - useDbTime true면 DB 서버 시간 경로로 락을 획득한다`(testDB: TestR2dbcDB) =
         runSuspendIO {
-            val db = setupDb(testDB)
-            cleanTables(db)
+            withTestDB(testDB) { db ->
+                val lockName = randomName()
+                val lock = ExposedR2dbcLock(
+                    db = db,
+                    lockName = lockName,
+                    retryStrategy = RetryStrategy.Jitter(),
+                    useDbTime = true,
+                )
 
-            val lockName = randomName()
-            val lock = ExposedR2dbcLock(
-                db = db,
-                lockName = lockName,
-                retryStrategy = RetryStrategy.Jitter(),
-                useDbTime = true,
-            )
+                try {
+                    lock.tryLock(1.seconds, 5.seconds).shouldBeTrue()
+                    lock.isHeldByCurrentInstance().shouldBeTrue()
 
-            try {
-                lock.tryLock(1.seconds, 5.seconds).shouldBeTrue()
-                lock.isHeldByCurrentInstance().shouldBeTrue()
-
-                val rowCount = suspendTransaction(db) {
-                    LeaderLockTable
-                        .selectAll()
-                        .where { LeaderLockTable.lockName eq lockName }
-                        .count()
+                    val rowCount = suspendTransaction(db) {
+                        LeaderLockTable
+                            .selectAll()
+                            .where { LeaderLockTable.lockName eq lockName }
+                            .count()
+                    }
+                    rowCount shouldBeEqualTo 1L
+                } finally {
+                    lock.unlock()
                 }
-                rowCount shouldBeEqualTo 1L
-            } finally {
-                lock.unlock()
             }
         }
 
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runIfLeader - 동일 lockName에 이미 리더가 있으면 null을 반환한다`(testDB: TestR2dbcDB) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
-        val lockName = randomName()
+        withTestDB(testDB) { db ->
+            val lockName = randomName()
 
-        val leaderOptions = ExposedR2dbcLeaderElectionOptions(
-            leaderOptions = LeaderElectionOptions(
-                waitTime = 30.seconds,
-                leaseTime = 30.seconds,
-            ),
-        )
-        val holder = ExposedR2DbcSuspendLeaderElector(db, leaderOptions)
+            val leaderOptions = ExposedR2dbcLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = 30.seconds,
+                    leaseTime = 30.seconds,
+                ),
+            )
+            val holder = ExposedR2DbcSuspendLeaderElector(db, leaderOptions)
 
-        val holderJob = async {
-            holder.runIfLeader(lockName) {
-                delay(500.milliseconds)
-                "leader"
-            }
-        }.log("Holder")
+            val holderJob = async {
+                holder.runIfLeader(lockName) {
+                    delay(500.milliseconds)
+                    "leader"
+                }
+            }.log("Holder")
 
-        delay(100.milliseconds)
+            delay(100.milliseconds)
 
-        val contenderOptions = ExposedR2dbcLeaderElectionOptions(
-            leaderOptions = LeaderElectionOptions(
-                waitTime = 100.milliseconds,
-                leaseTime = 30.seconds,
-            ),
-            retryStrategy = RetryStrategy.Fixed(fixedMs = 10L),
-        )
-        val contender = ExposedR2DbcSuspendLeaderElector(db, contenderOptions)
-        val result = contender.runIfLeader(lockName) { "contender" }
+            val contenderOptions = ExposedR2dbcLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = 100.milliseconds,
+                    leaseTime = 30.seconds,
+                ),
+                retryStrategy = RetryStrategy.Fixed(fixedMs = 10L),
+            )
+            val contender = ExposedR2DbcSuspendLeaderElector(db, contenderOptions)
+            val result = contender.runIfLeader(lockName) { "contender" }
 
-        result.shouldBeNull()
-        holderJob.await() shouldBeEqualTo "leader"
+            result.shouldBeNull()
+            holderJob.await() shouldBeEqualTo "leader"
+        }
     }
 
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runIfLeader - action 예외 후 재선출이 가능하다`(testDB: TestR2dbcDB) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
-
         val lockName = randomName()
         val election = makeElection(testDB)
 
@@ -164,42 +155,38 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
     @MethodSource("enableDialects")
     fun `runIfLeader - recordAcquired 취소 후에도 lock 이 해제되어 다음 호출이 성공한다`(testDB: TestR2dbcDB) =
         runSuspendIO {
-            val db = setupDb(testDB)
-            cleanTables(db)
+            withTestDB(testDB) { db ->
+                val lockName = randomName()
+                val options = ExposedR2dbcLeaderElectionOptions(
+                    leaderOptions = LeaderElectionOptions(
+                        waitTime = 2.seconds,
+                        leaseTime = 10.seconds,
+                    ),
+                    retryStrategy = RetryStrategy.Jitter(),
+                )
+                val cancelingRecorder = SuspendSafeLeaderHistoryRecorder(CancelOnAcquiredHistorySink)
+                val election = ExposedR2DbcSuspendLeaderElector(db, options, cancelingRecorder)
 
-            val lockName = randomName()
-            val options = ExposedR2dbcLeaderElectionOptions(
-                leaderOptions = LeaderElectionOptions(
-                    waitTime = 2.seconds,
-                    leaseTime = 10.seconds,
-                ),
-                retryStrategy = RetryStrategy.Jitter(),
-            )
-            val cancelingRecorder = SuspendSafeLeaderHistoryRecorder(CancelOnAcquiredHistorySink)
-            val election = ExposedR2DbcSuspendLeaderElector(db, options, cancelingRecorder)
+                assertFailsWith<CancellationException> {
+                    election.runIfLeader(lockName) { "should-not-run" }
+                }
 
-            assertFailsWith<CancellationException> {
-                election.runIfLeader(lockName) { "should-not-run" }
+                val rowCount = suspendTransaction(db) {
+                    LeaderLockTable
+                        .selectAll()
+                        .where { LeaderLockTable.lockName eq lockName }
+                        .count()
+                }
+                rowCount shouldBeEqualTo 0L
+
+                ExposedR2DbcSuspendLeaderElector(db, options)
+                    .runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
             }
-
-            val rowCount = suspendTransaction(db) {
-                LeaderLockTable
-                    .selectAll()
-                    .where { LeaderLockTable.lockName eq lockName }
-                    .count()
-            }
-            rowCount shouldBeEqualTo 0L
-
-            ExposedR2DbcSuspendLeaderElector(db, options)
-                .runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
         }
 
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runIfLeader - action 성공 후 순차 재실행이 가능하다`(testDB: TestR2dbcDB) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
-
         val lockName = randomName()
         val election = makeElection(testDB)
 
@@ -213,9 +200,6 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runIfLeader - 잘못된 lockName은 IllegalArgumentException이 발생한다`(testDB: TestR2dbcDB) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
-
         val election = makeElection(testDB)
 
         assertFailsWith<IllegalArgumentException> {
@@ -226,60 +210,59 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runIfLeader - recordHistory=true 시 이력 기록 후 정상 반환된다`(testDB: TestR2dbcDB) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
+        withTestDB(testDB) { db ->
+            val options = ExposedR2dbcLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds,
+                ),
+                recordHistory = true,
+                lockOwner = "test-worker",
+            )
+            val election = ExposedR2DbcSuspendLeaderElector(db, options)
 
-        val options = ExposedR2dbcLeaderElectionOptions(
-            leaderOptions = LeaderElectionOptions(
-                waitTime = 2.seconds,
-                leaseTime = 10.seconds,
-            ),
-            recordHistory = true,
-            lockOwner = "test-worker",
-        )
-        val election = ExposedR2DbcSuspendLeaderElector(db, options)
+            val result = election.runIfLeader(randomName()) { "with-history" }
 
-        val result = election.runIfLeader(randomName()) { "with-history" }
-
-        result shouldBeEqualTo "with-history"
+            result shouldBeEqualTo "with-history"
+        }
     }
 
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `코루틴 10개 경합 시 상호 배제 — 단 하나만 리더로 선출된다`(testDB: TestR2dbcDB) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
+        withTestDB(testDB) { db ->
 
-        val lockName = randomName()
-        val concurrent = AtomicInteger(0)
-        val maxConcurrent = AtomicInteger(0)
-        val executed = AtomicInteger(0)
+            val lockName = randomName()
+            val concurrent = AtomicInteger(0)
+            val maxConcurrent = AtomicInteger(0)
+            val executed = AtomicInteger(0)
 
-        val options = ExposedR2dbcLeaderElectionOptions(
-            leaderOptions = LeaderElectionOptions(
-                waitTime = 300.milliseconds,
-                leaseTime = 5.seconds,
-            ),
-            retryStrategy = RetryStrategy.Fixed(fixedMs = 10L),
-        )
+            val options = ExposedR2dbcLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = 300.milliseconds,
+                    leaseTime = 5.seconds,
+                ),
+                retryStrategy = RetryStrategy.Fixed(fixedMs = 10L),
+            )
 
-        val jobs = List(10) {
-            async {
-                val election = ExposedR2DbcSuspendLeaderElector(db, options)
-                election.runIfLeader(lockName) {
-                    val current = concurrent.incrementAndGet()
-                    maxConcurrent.updateAndGet { max -> maxOf(max, current) }
-                    delay(50.milliseconds)
-                    concurrent.decrementAndGet()
-                    executed.incrementAndGet()
-                }
-            }.log("Job #$it")
+            val jobs = List(10) {
+                async {
+                    val election = ExposedR2DbcSuspendLeaderElector(db, options)
+                    election.runIfLeader(lockName) {
+                        val current = concurrent.incrementAndGet()
+                        maxConcurrent.updateAndGet { max -> maxOf(max, current) }
+                        delay(50.milliseconds)
+                        concurrent.decrementAndGet()
+                        executed.incrementAndGet()
+                    }
+                }.log("Job #$it")
+            }
+            jobs.awaitAll()
+
+            log.debug { "최대 동시 실행: ${maxConcurrent.get()}, 총 실행 횟수: ${executed.get()}" }
+            maxConcurrent.get() shouldBeEqualTo 1
+            executed.get() shouldBeGreaterOrEqualTo 1
         }
-        jobs.awaitAll()
-
-        log.debug { "최대 동시 실행: ${maxConcurrent.get()}, 총 실행 횟수: ${executed.get()}" }
-        maxConcurrent.get() shouldBeEqualTo 1
-        executed.get() shouldBeGreaterOrEqualTo 1
     }
 
     // ─── suspendRunIfLeader 확장 함수 ──────────────────────────────────────────
@@ -287,24 +270,19 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `suspendRunIfLeader 확장 함수로 리더 선출이 가능하다`(testDB: TestR2dbcDB) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
-
-        val result = db.suspendRunIfLeader(randomName()) { "ext-result" }
-
-        result shouldBeEqualTo "ext-result"
+        withTestDB(testDB) { db ->
+            val result = db.suspendRunIfLeader(randomName()) { "ext-result" }
+            result shouldBeEqualTo "ext-result"
+        }
     }
 
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `suspendRunIfLeader 확장 함수 - null이 아닌 결과를 반환한다`(testDB: TestR2dbcDB) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
-
-        val result = db.suspendRunIfLeader(randomName()) { 42 }
-
-        result.shouldNotBeNull()
-        result shouldBeEqualTo 42
+        withTestDB(testDB) { db ->
+            val result = db.suspendRunIfLeader(randomName()) { 42 }
+            result shouldBeEqualTo 42
+        }
     }
 
     // ─── Tier 6: 누락 테스트 보완 ────────────────────────────────────────────────
@@ -312,28 +290,27 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runIfLeader - CancellationException 발생 시 락이 해제되어 재획득 가능하다`(testDB: TestR2dbcDB) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
+        withTestDB(testDB) { db ->
+            val lockName = randomName()
+            val options = ExposedR2dbcLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = 2.seconds,
+                    leaseTime = 30.seconds,
+                ),
+            )
 
-        val lockName = randomName()
-        val options = ExposedR2dbcLeaderElectionOptions(
-            leaderOptions = LeaderElectionOptions(
-                waitTime = 2.seconds,
-                leaseTime = 30.seconds,
-            ),
-        )
-
-        // withTimeout으로 CancellationException 강제 발생 → NonCancellable finally에서 락 해제
-        runCatching {
-            withTimeout(200.milliseconds) {
-                ExposedR2DbcSuspendLeaderElector(db, options).runIfLeader(lockName) {
-                    delay(10.seconds)
+            // withTimeout으로 CancellationException 강제 발생 → NonCancellable finally에서 락 해제
+            runCatching {
+                withTimeout(200.milliseconds) {
+                    ExposedR2DbcSuspendLeaderElector(db, options).runIfLeader(lockName) {
+                        delay(10.seconds)
+                    }
                 }
             }
-        }
 
-        val result = ExposedR2DbcSuspendLeaderElector(db, options).runIfLeader(lockName) { "reacquired" }
-        result shouldBeEqualTo "reacquired"
+            val result = ExposedR2DbcSuspendLeaderElector(db, options).runIfLeader(lockName) { "reacquired" }
+            result shouldBeEqualTo "reacquired"
+        }
     }
 
     @ParameterizedTest
@@ -341,111 +318,110 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
     fun `acquisition transaction 취소 후 lock row를 정리하고 bounded 재획득한다`(
         testDB: TestR2dbcDB,
     ) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
+        withTestDB(testDB) { db ->
 
-        val lockName = randomName()
-        val options = ExposedR2dbcLeaderElectionOptions(
-            leaderOptions = LeaderElectionOptions(
-                waitTime = 200.milliseconds,
-                leaseTime = 30.seconds,
-            ),
-            retryStrategy = RetryStrategy.Fixed(10L),
-        )
-        val interceptor = CancelAfterAcquisitionCommit(db) {}
-        R2dbcTransaction.globalInterceptors += interceptor
+            val lockName = randomName()
+            val options = ExposedR2dbcLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = 200.milliseconds,
+                    leaseTime = 30.seconds,
+                ),
+                retryStrategy = RetryStrategy.Fixed(10L),
+            )
+            val interceptor = CancelAfterAcquisitionCommit(db) {}
+            R2dbcTransaction.globalInterceptors += interceptor
 
-        try {
-            assertFailsWith<CancellationException> {
-                ExposedR2DbcSuspendLeaderElector(db, options).runIfLeader(lockName) {
-                    error("action must not run after acquisition cancellation")
+            try {
+                assertFailsWith<CancellationException> {
+                    ExposedR2DbcSuspendLeaderElector(db, options).runIfLeader(lockName) {
+                        error("action must not run after acquisition cancellation")
+                    }
                 }
-            }
 
-            val rowCount = suspendTransaction(db) {
-                LeaderLockTable
-                    .selectAll()
-                    .where { LeaderLockTable.lockName eq lockName }
-                    .count()
-            }
-            rowCount shouldBeEqualTo 0L
+                val rowCount = suspendTransaction(db) {
+                    LeaderLockTable
+                        .selectAll()
+                        .where { LeaderLockTable.lockName eq lockName }
+                        .count()
+                }
+                rowCount shouldBeEqualTo 0L
 
-            withTimeout(1.seconds) {
-                ExposedR2DbcSuspendLeaderElector(db, options).runIfLeader(lockName) { "reacquired" }
-            } shouldBeEqualTo "reacquired"
-        } finally {
-            R2dbcTransaction.globalInterceptors.remove(interceptor)
-            cleanTables(db)
+                withTimeout(1.seconds) {
+                    ExposedR2DbcSuspendLeaderElector(db, options).runIfLeader(lockName) { "reacquired" }
+                } shouldBeEqualTo "reacquired"
+            } finally {
+                R2dbcTransaction.globalInterceptors.remove(interceptor)
+                cleanTables(db)
+            }
         }
     }
 
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `acquisition cleanup failure는 원래 cancellation에 suppressed 된다`(testDB: TestR2dbcDB) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
+        withTestDB(testDB) { db ->
+            val lockName = randomName()
+            val cleanupFailure = IllegalStateException("deterministic cleanup failure")
+            val interceptor = CancelAfterAcquisitionCommit(db) { throw cleanupFailure }
+            R2dbcTransaction.globalInterceptors += interceptor
 
-        val lockName = randomName()
-        val cleanupFailure = IllegalStateException("deterministic cleanup failure")
-        val interceptor = CancelAfterAcquisitionCommit(db) { throw cleanupFailure }
-        R2dbcTransaction.globalInterceptors += interceptor
-
-        try {
-            val cancellation = assertFailsWith<CancellationException> {
-                ExposedR2DbcSuspendLeaderElector(db).runIfLeader(lockName) {
-                    error("action must not run after acquisition cancellation")
+            try {
+                val cancellation = assertFailsWith<CancellationException> {
+                    ExposedR2DbcSuspendLeaderElector(db).runIfLeader(lockName) {
+                        error("action must not run after acquisition cancellation")
+                    }
                 }
+
+                cancellation.suppressed.single().shouldBeInstanceOf<IllegalStateException>()
+                cancellation.suppressed.single().message shouldBeEqualTo cleanupFailure.message
+
+                R2dbcTransaction.globalInterceptors.remove(interceptor)
+
+                val rowCount = suspendTransaction(db) {
+                    LeaderLockTable
+                        .selectAll()
+                        .where { LeaderLockTable.lockName eq lockName }
+                        .count()
+                }
+                rowCount shouldBeEqualTo 0L
+            } finally {
+                R2dbcTransaction.globalInterceptors.remove(interceptor)
+                cleanTables(db)
             }
-
-            cancellation.suppressed.single().shouldBeInstanceOf<IllegalStateException>()
-            cancellation.suppressed.single().message shouldBeEqualTo cleanupFailure.message
-
-            R2dbcTransaction.globalInterceptors.remove(interceptor)
-
-            val rowCount = suspendTransaction(db) {
-                LeaderLockTable
-                    .selectAll()
-                    .where { LeaderLockTable.lockName eq lockName }
-                    .count()
-            }
-            rowCount shouldBeEqualTo 0L
-        } finally {
-            R2dbcTransaction.globalInterceptors.remove(interceptor)
-            cleanTables(db)
         }
     }
 
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `historyRecorder 사용 시 action 예외 발생 후 FAILED 이력이 기록된다`(testDB: TestR2dbcDB) = runSuspendIO {
-        val db = setupDb(testDB)
-        cleanTables(db)
+        withTestDB(testDB) { db ->
 
-        val lockName = randomName()
-        val sink = ExposedSuspendLeaderHistorySink(db)
-        val recorder = SuspendSafeLeaderHistoryRecorder(sink)
-        val options = ExposedR2dbcLeaderElectionOptions(
-            leaderOptions = LeaderElectionOptions(
-                waitTime = 2.seconds,
-                leaseTime = 10.seconds,
-            ),
-            lockOwner = "test-worker",
-        )
-        val election = ExposedR2DbcSuspendLeaderElector(db, options, recorder)
+            val lockName = randomName()
+            val sink = ExposedSuspendLeaderHistorySink(db)
+            val recorder = SuspendSafeLeaderHistoryRecorder(sink)
+            val options = ExposedR2dbcLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds,
+                ),
+                lockOwner = "test-worker",
+            )
+            val election = ExposedR2DbcSuspendLeaderElector(db, options, recorder)
 
-        runCatching {
-            election.runIfLeader(lockName) {
-                throw LeaderElectionException("의도적 실패")
+            runCatching {
+                election.runIfLeader(lockName) {
+                    throw LeaderElectionException("의도적 실패")
+                }
             }
-        }
 
-        val failedCount = suspendTransaction(db) {
-            LeaderLockHistoryTable.selectAll()
-                .andWhere { LeaderLockHistoryTable.lockName eq lockName }
-                .andWhere { LeaderLockHistoryTable.status eq LeaderHistoryStatus.FAILED }
-                .count()
+            val failedCount = suspendTransaction(db) {
+                LeaderLockHistoryTable.selectAll()
+                    .andWhere { LeaderLockHistoryTable.lockName eq lockName }
+                    .andWhere { LeaderLockHistoryTable.status eq LeaderHistoryStatus.FAILED }
+                    .count()
+            }
+            failedCount shouldBeGreaterOrEqualTo 1L
         }
-        failedCount shouldBeGreaterOrEqualTo 1L
     }
 
     private object CancelOnAcquiredHistorySink: SuspendLeaderHistorySink {

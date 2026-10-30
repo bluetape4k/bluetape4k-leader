@@ -102,8 +102,7 @@ class LeaderScheduledPolicyAutoConfigurationTest {
             .shouldNotBeNull()
             .readText()
             .lines()
-
-        imports.forEach { log.debug { it } }
+            .onEach { log.debug { it } }
 
         val factory = imports.indexOf(LeaderAopFactoryAutoConfiguration::class.qualifiedName)
         val policy = imports.indexOf(LeaderScheduledPolicyAutoConfiguration::class.qualifiedName)

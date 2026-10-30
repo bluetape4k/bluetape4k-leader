@@ -10,6 +10,7 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -49,6 +50,7 @@ abstract class AbstractAsyncLeaderElectorLeaderIdContractTest {
             completableFutureOf("done")
         }.join()
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
         result.value shouldBeEqualTo "done"
         result.leaderId shouldBeEqualTo "async-audit-node"
@@ -61,6 +63,7 @@ abstract class AbstractAsyncLeaderElectorLeaderIdContractTest {
             completableFutureOf(null)
         }.join()
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
         result.leaderId shouldBeEqualTo "async-null-node"
     }

@@ -12,7 +12,6 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.etcd.jetcd.ByteSequence
 import org.junit.jupiter.api.Test
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeoutException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -34,9 +33,9 @@ class JetcdEtcdLockClientIntegrationTest: AbstractEtcdLeaderTest() {
             var groupOwnershipKey = ByteSequence.EMPTY
 
             try {
-                singleLockKey.toString(StandardCharsets.UTF_8) shouldBeEqualTo
+                singleLockKey.toString(Charsets.UTF_8) shouldBeEqualTo
                         "$keyPrefix/single/batch%3Adaily"
-                groupSlotLockKey.toString(StandardCharsets.UTF_8) shouldBeEqualTo
+                groupSlotLockKey.toString(Charsets.UTF_8) shouldBeEqualTo
                         "$keyPrefix/group/batch_job/slot-2"
 
                 singleOwnershipKey = lockClient.lock(singleLockKey, singleLeaseId).get(10.seconds)

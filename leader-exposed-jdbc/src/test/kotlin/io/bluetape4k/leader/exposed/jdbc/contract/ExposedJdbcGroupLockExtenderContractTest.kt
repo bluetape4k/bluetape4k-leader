@@ -22,9 +22,9 @@ class ExposedJdbcGroupLockExtenderContractTest: AbstractGroupLockExtenderContrac
     companion object: KLogging() {
         private val db: Database by lazy {
             val testDb = TestDB.H2
-            val connection = testDb.db ?: testDb.connect()
-            ExposedJdbcSchemaInitializer.ensureSchema(connection)
-            connection
+            val database = testDb.db ?: testDb.connect()
+            ExposedJdbcSchemaInitializer.ensureSchema(database)
+            database
         }
     }
 

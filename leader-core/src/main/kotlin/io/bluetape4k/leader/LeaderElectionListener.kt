@@ -1,6 +1,6 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.coroutines.support.log
+import io.bluetape4k.coroutines.flow.extensions.log
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CoroutineScope
@@ -161,17 +161,18 @@ private fun <T: LeaderElectionEvent> LeaderElectionEventPublisher.subscribeToEve
             if (eventType.isInstance(event)) {
                 val typedEvent = eventType.cast(event)
 
-                runCatching { listener.accept(typedEvent) }
-                    .onFailure { e ->
-                        LeaderElectionEventPublisherCallbackLogger.log.warn(e) {
-                            "LeaderElectionEventPublisher $callbackName callback failed and was ignored. " +
-                                    "lockName=${event.lockName}"
-                        }
+                runCatching {
+                    listener.accept(typedEvent)
+                }.onFailure { e ->
+                    LeaderElectionEventPublisherCallbackLogger.log.warn(e) {
+                        "LeaderElectionEventPublisher $callbackName callback failed and was ignored. " +
+                                "lockName=${event.lockName}"
                     }
+                }
             }
         }
-        .launchIn(scope)
         .log("Event")
+        .launchIn(scope)
 
     return AutoCloseable { job.cancel() }
 }
@@ -242,12 +243,13 @@ open class LeaderElectionListenerSupport: LeaderElectionListenerRegistry {
         callback: (LeaderElectionListener) -> Unit,
     ) {
         listeners.forEach { listener ->
-            runCatching { callback(listener) }
-                .onFailure { e ->
-                    log.warn(e) {
-                        "LeaderElectionListener $callbackName failed and was ignored. lockName=$lockName"
-                    }
+            runCatching {
+                callback(listener)
+            }.onFailure { e ->
+                log.warn(e) {
+                    "LeaderElectionListener $callbackName failed and was ignored. lockName=$lockName"
                 }
+            }
         }
     }
 

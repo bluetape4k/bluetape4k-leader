@@ -11,6 +11,7 @@ import io.bluetape4k.leader.spring.backend.LettuceLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.MongoLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.RedissonLeaderConfiguration
 import io.bluetape4k.leader.spring.boot.LeaderLeaseAutoExtenderLifecycle
+import io.bluetape4k.logging.KLogging
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -37,6 +38,8 @@ import org.springframework.core.env.Environment
     ExposedR2dbcLeaderConfiguration::class,
 )
 class LeaderElectionAutoConfiguration {
+
+    private companion object: KLogging()
 
     @Bean
     @ConditionalOnMissingBean

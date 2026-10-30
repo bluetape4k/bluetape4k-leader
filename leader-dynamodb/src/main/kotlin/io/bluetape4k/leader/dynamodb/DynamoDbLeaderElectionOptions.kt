@@ -2,7 +2,8 @@ package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbKeys
-import io.bluetape4k.support.requireGt
+import io.bluetape4k.support.requirePositiveDuration
+import io.bluetape4k.support.requireZeroOrPositiveDuration
 import java.io.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -30,9 +31,9 @@ data class DynamoDbLeaderElectionOptions(
     init {
         DynamoDbKeys.validateTableName(tableName)
         DynamoDbKeys.validateKeyPrefix(keyPrefix)
-        retryDelay.requireGt(Duration.ZERO, "retryDelay")
-        ttlPadding.requireGt(Duration.ZERO, "ttlPadding")
-        require(clockSkewTolerance >= Duration.ZERO) { "clockSkewTolerance must be >= 0: $clockSkewTolerance" }
+        retryDelay.requirePositiveDuration("retryDelay")
+        ttlPadding.requirePositiveDuration("ttlPadding")
+        clockSkewTolerance.requireZeroOrPositiveDuration("clockSkewTolerance")
         require(leaderOptions.leaseTime > clockSkewTolerance * 2) {
             "leaseTime must be greater than 2 * clockSkewTolerance: " +
                     "leaseTime=${leaderOptions.leaseTime}, clockSkewTolerance=$clockSkewTolerance"

@@ -58,7 +58,8 @@ internal class RedissonSuspendSemaphoreExtendDelegate(
 
     private suspend fun doExtendSuspend(lockAtMostFor: Duration): ExtendOutcome {
         val ms = lockAtMostFor.inWholeMilliseconds
-        val updated = semaphore.updateLeaseTimeAsync(permitId, ms, TimeUnit.MILLISECONDS)
+        val updated = semaphore
+            .updateLeaseTimeAsync(permitId, ms, TimeUnit.MILLISECONDS)
             .toCompletableFuture()
             .await()
         return if (updated) {

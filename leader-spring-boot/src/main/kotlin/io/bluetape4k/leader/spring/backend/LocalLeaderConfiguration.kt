@@ -11,6 +11,7 @@ import io.bluetape4k.leader.local.LocalLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderElectionAutoConfiguration
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
+import io.bluetape4k.logging.KLogging
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -20,6 +21,8 @@ import org.springframework.context.annotation.Bean
 @AutoConfiguration(after = [LeaderElectionAutoConfiguration::class])
 @EnableConfigurationProperties(LeaderProperties::class)
 class LocalLeaderConfiguration {
+
+    companion object: KLogging()
 
     @Bean
     @ConditionalOnMissingBean(LeaderElector::class)

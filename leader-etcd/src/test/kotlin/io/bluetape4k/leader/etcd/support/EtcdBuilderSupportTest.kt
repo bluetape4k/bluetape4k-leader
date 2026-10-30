@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.etcd.support
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import io.etcd.jetcd.options.GetOption.SortOrder
 import io.etcd.jetcd.options.GetOption.SortTarget
 import org.junit.jupiter.api.Test
@@ -23,11 +24,11 @@ class EtcdBuilderSupportTest {
             withLimit(7)
         }
 
-        option.isPrefix() shouldBeEqualTo true
-        option.getEndKey().orElseThrow() shouldBeEqualTo endKey
-        option.getSortField() shouldBeEqualTo SortTarget.MOD
-        option.getSortOrder() shouldBeEqualTo SortOrder.DESCEND
-        option.getLimit() shouldBeEqualTo 7L
+        option.isPrefix.shouldBeTrue()
+        option.endKey.orElseThrow() shouldBeEqualTo endKey
+        option.sortField shouldBeEqualTo SortTarget.MOD
+        option.sortOrder shouldBeEqualTo SortOrder.DESCEND
+        option.limit shouldBeEqualTo 7L
     }
 
     @Test

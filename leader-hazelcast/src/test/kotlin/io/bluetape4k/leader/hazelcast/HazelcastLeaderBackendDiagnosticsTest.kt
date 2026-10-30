@@ -3,10 +3,10 @@ package io.bluetape4k.leader.hazelcast
 import com.hazelcast.core.HazelcastInstance
 import com.hazelcast.core.LifecycleService
 import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
@@ -52,7 +52,7 @@ class HazelcastLeaderBackendDiagnosticsTest {
 
     @Test
     fun `descriptor는 Hazelcast 실행 모델과 server TTL 계약을 보고한다`() {
-        val provider = HazelcastLeaderBackendDiagnostics(mockk(relaxed = true))
+        val provider = HazelcastLeaderBackendDiagnostics(hazelcast)
         val descriptor = provider.backendDescriptor
         val capabilities = descriptor.capabilities
         val executionModels = setOf(
@@ -111,7 +111,7 @@ class HazelcastLeaderBackendDiagnosticsTest {
     @Test
     fun `canonical Hazelcast elector는 diagnostics provider를 구현한다`() {
         canonicalElectors.forEach { electorType ->
-            LeaderBackendDiagnosticsProvider::class.java.isAssignableFrom(electorType) shouldBe true
+            LeaderBackendDiagnosticsProvider::class.java.isAssignableFrom(electorType).shouldBeTrue()
         }
     }
 }

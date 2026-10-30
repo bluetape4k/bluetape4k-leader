@@ -24,7 +24,6 @@ import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
@@ -179,7 +178,7 @@ class PrometheusExportTest {
     }
 
     private fun queryPrometheus(prometheusUrl: String, query: String): String {
-        val encodedQuery = URLEncoder.encode(query, UTF_8)
+        val encodedQuery = URLEncoder.encode(query, Charsets.UTF_8)
         val request = HttpRequest.newBuilder()
             .uri(URI.create("$prometheusUrl/api/v1/query?query=$encodedQuery"))
             .GET()

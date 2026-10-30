@@ -2,7 +2,6 @@ package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.concurrent.virtualthread.virtualFuture
-import io.bluetape4k.leader.dynamodb.runVirtualIfLeaderGroup as currentRunVirtualIfLeaderGroup
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
@@ -10,6 +9,7 @@ import io.bluetape4k.leader.VirtualThreadLeaderGroupElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.LeaderFutureBridge
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import io.bluetape4k.leader.dynamodb.runVirtualIfLeaderGroup as currentRunVirtualIfLeaderGroup
 
 /**
  * `DynamoDbVirtualThreadLeaderGroupElector`는 DynamoDB group elector 호출을 virtual thread에서 실행합니다.

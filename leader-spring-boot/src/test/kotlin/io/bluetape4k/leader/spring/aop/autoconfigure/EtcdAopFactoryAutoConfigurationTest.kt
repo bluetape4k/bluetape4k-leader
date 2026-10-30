@@ -30,7 +30,7 @@ import org.springframework.test.annotation.DirtiesContext
 
 class EtcdAopFactoryAutoConfigurationTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(LeaderAopFactoryAutoConfiguration::class.java))

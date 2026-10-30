@@ -7,6 +7,7 @@ import io.bluetape4k.leader.hazelcast.HazelcastSuspendLeaderElector
 import io.bluetape4k.leader.hazelcast.HazelcastSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
+import io.bluetape4k.logging.KLogging
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -18,6 +19,8 @@ import org.springframework.context.annotation.Configuration
 @ConditionalOnClass(HazelcastInstance::class)
 @ConditionalOnBean(HazelcastInstance::class)
 class HazelcastLeaderConfiguration {
+
+    companion object: KLogging()
 
     @Bean
     @ConditionalOnMissingBean(name = ["hazelcastLeaderElector"])

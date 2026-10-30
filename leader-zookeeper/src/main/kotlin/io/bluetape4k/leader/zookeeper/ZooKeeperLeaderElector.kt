@@ -14,8 +14,6 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import io.bluetape4k.leader.zookeeper.runAsyncIfLeader as currentRunAsyncIfLeader
-import io.bluetape4k.leader.zookeeper.runIfLeader as currentRunIfLeader
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperLockExtendDelegate
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperOwnedInterProcessMutex
@@ -26,6 +24,8 @@ import org.apache.curator.framework.CuratorFramework
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
+import io.bluetape4k.leader.zookeeper.runAsyncIfLeader as currentRunAsyncIfLeader
+import io.bluetape4k.leader.zookeeper.runIfLeader as currentRunIfLeader
 
 /**
  * `ZooKeeperLeaderElector`는 ZooKeeper의 blocking 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.

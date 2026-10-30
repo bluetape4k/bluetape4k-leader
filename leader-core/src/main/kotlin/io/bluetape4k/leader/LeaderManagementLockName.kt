@@ -14,7 +14,7 @@ private val MANAGEMENT_LOCK_NAME_PATTERN = Regex("^[A-Za-z0-9][A-Za-z0-9._:-]{0,
 @Deprecated("use isManagementActionLockName extension method instead")
 fun isManagementActionLockName(lockName: String): Boolean =
     lockName.isNotEmpty() &&
-            lockName.toByteArray(Charsets.UTF_8).size <= MANAGEMENT_LOCK_NAME_MAX_BYTES &&
+            lockName.toUtf8Bytes().size <= MANAGEMENT_LOCK_NAME_MAX_BYTES &&
             MANAGEMENT_LOCK_NAME_PATTERN.matches(lockName)
 
 /**
@@ -32,7 +32,7 @@ fun String.isManagementActionLockName(): Boolean =
 @Deprecated("use requireManagementActionLockNameMethod extension method instead")
 fun requireManagementActionLockName(lockName: String): String {
     val value = lockName.requireNotBlank("lockName")
-    value.toByteArray(Charsets.UTF_8).size.requireLe(MANAGEMENT_LOCK_NAME_MAX_BYTES, "lockName.bytes")
+    value.toUtf8Bytes().size.requireLe(MANAGEMENT_LOCK_NAME_MAX_BYTES, "lockName.bytes")
     value.requireMatches(MANAGEMENT_LOCK_NAME_PATTERN, "lockName")
     return value
 }

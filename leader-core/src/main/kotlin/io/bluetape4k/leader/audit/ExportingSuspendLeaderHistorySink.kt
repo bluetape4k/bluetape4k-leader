@@ -2,6 +2,7 @@
 
 package io.bluetape4k.leader.audit
 
+import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.audit.internal.LeaderAuditPendingContextStore
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderHistoryStatus
@@ -25,12 +26,6 @@ class ExportingSuspendLeaderHistorySink private constructor(
     private val contexts: LeaderAuditPendingContextStore,
 ): SuspendLeaderHistorySink {
 
-    private companion object: KLogging() {
-        const val TOKEN_PLACEHOLDER: String = "audit-context"
-        const val CONTEXT_ATTRIBUTE: String = "audit_context"
-        const val CONTEXT_MISSING: String = "missing"
-    }
-
     /** 기본 redaction 정책을 사용하는 wrapper입니다. */
     constructor(delegate: SuspendLeaderHistorySink, exporter: LeaderAuditExporter): this(
         delegate,
@@ -45,6 +40,21 @@ class ExportingSuspendLeaderHistorySink private constructor(
         exporter: LeaderAuditExporter,
         sanitizer: LeaderAuditValueSanitizer,
     ): this(delegate, exporter, sanitizer, LeaderAuditPendingContextStore())
+
+    companion object: KLogging() {
+        private const val TOKEN_PLACEHOLDER: String = "audit-context"
+        private const val CONTEXT_ATTRIBUTE: String = "audit_context"
+        private const val CONTEXT_MISSING: String = "missing"
+
+        /** 지정한 redaction 정책을 사용하는 wrapper입니다. */
+        operator fun invoke(
+            delegate: SuspendLeaderHistorySink,
+            exporter: LeaderAuditExporter,
+            sanitizer: LeaderAuditValueSanitizer = LeaderAuditValueSanitizer.Default,
+        ): ExportingSuspendLeaderHistorySink {
+            return ExportingSuspendLeaderHistorySink(delegate, exporter, sanitizer, LeaderAuditPendingContextStore())
+        }
+    }
 
     override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
         currentCoroutineContext().ensureActive()
@@ -125,15 +135,17 @@ class ExportingSuspendLeaderHistorySink private constructor(
         errorType: String? = null,
         errorMessage: String? = null,
     ): LeaderAuditExportEvent.History {
-        val source = context ?: LeaderAuditPendingContextStore.PendingContext(
-            lockName = key.lockName,
-            kind = io.bluetape4k.leader.LockIdentity.AnnotationKind.SINGLE,
-            acquiredAt = finishedAt,
-            lockedUntil = finishedAt,
-            nodeId = null,
-            slotId = key.slotId,
-            metadata = mapOf(CONTEXT_ATTRIBUTE to CONTEXT_MISSING),
-        )
+        val source = context
+            ?: LeaderAuditPendingContextStore.PendingContext(
+                lockName = key.lockName,
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                acquiredAt = finishedAt,
+                lockedUntil = finishedAt,
+                nodeId = null,
+                slotId = key.slotId,
+                metadata = mapOf(CONTEXT_ATTRIBUTE to CONTEXT_MISSING),
+            )
+
         return LeaderAuditExportEvent.History.from(
             LeaderLockHistoryRecord(
                 lockName = source.lockName,

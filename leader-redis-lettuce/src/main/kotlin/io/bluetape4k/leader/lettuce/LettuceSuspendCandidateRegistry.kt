@@ -5,13 +5,14 @@ package io.bluetape4k.leader.lettuce
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.validateLockName
+import io.bluetape4k.support.asLongOrNull
+import io.bluetape4k.support.asString
 import io.lettuce.core.RedisCommandExecutionException
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.coroutines
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection
 import io.lettuce.core.cluster.api.coroutines
-import java.time.Instant
 import java.util.*
 import kotlin.time.Duration
 
@@ -213,7 +214,7 @@ internal class LettuceSuspendCandidateRegistry private constructor(
             LettuceCandidateResultScript.UPDATE,
             ScriptOutputType.MULTI,
             arrayOf(candidateKey(lockName, nodeId), migrationTokenKey(lockName, nodeId)),
-            *LettuceCandidateResultScript.resultArgs(result, Instant.now().toEpochMilli()),
+            *LettuceCandidateResultScript.resultArgs(result, System.currentTimeMillis()),
         )
         LettuceCandidateResultScript.rethrowMalformed(reply)
     }
@@ -336,17 +337,17 @@ internal class LettuceSuspendCandidateRegistry private constructor(
                     ),
                     args = arrayOf(sourceRaw, observedTtl.toString(), nodeId, token),
                 )
-                when (reply.firstOrNull()?.toString()?.toLongOrNull()) {
-                    MIGRATED -> {
+                when (reply.firstOrNull().asLongOrNull()) {
+                    MIGRATED  -> {
                         cleanupExpiredMigration(lockName, nodeId, source.key, sourceRaw, observedTtl, token)
                         commands.get(candidateKey(lockName, nodeId)) != null
                     }
                     EXISTING_REPAIRED -> true
                     MALFORMED -> {
-                        LettuceCandidateInfoCodec.decode(reply.getOrNull(1)?.toString().orEmpty())
+                        LettuceCandidateInfoCodec.decode(reply.getOrNull(1).asString())
                         false
                     }
-                    else -> false
+                    else      -> false
                 }
             }
         }

@@ -15,8 +15,6 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import io.bluetape4k.leader.k8s.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
-import io.bluetape4k.leader.k8s.runIfLeaderGroup as currentRunIfLeaderGroup
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseGroupAcquisitionDeadline
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
@@ -35,6 +33,8 @@ import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import io.bluetape4k.leader.k8s.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
+import io.bluetape4k.leader.k8s.runIfLeaderGroup as currentRunIfLeaderGroup
 
 /**
  * `KubernetesLeaseLeaderGroupElector`는 namespaced slot Lease로 여러 leader의 blocking/async 실행과 lease 수명을 관리합니다.
@@ -125,14 +125,18 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
             when {
                 cause is CancellationException -> throw cause
                 cause != null && elected -> LeaderRunResult.ActionFailed(cause)
-                cause != null -> throw cause
-                elected -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                cause != null            -> throw cause
+                elected                  -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else                     -> LeaderRunResult.Skipped
             }
         }
     }
 
-    private fun <T> runWithGroupSlot(lockName: String, auditLeaderId: String?, action: () -> T): T? {
+    private inline fun <T> runWithGroupSlot(
+        lockName: String,
+        auditLeaderId: String?,
+        crossinline action: () -> T,
+    ): T? {
         val acquired = acquire(lockName, auditLeaderId) ?: return null
         val lock = acquired.lock
         val delegate = KubernetesLeaseLockExtendDelegate(lock)
@@ -160,11 +164,11 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
     }
 
     @Suppress("TooGenericExceptionCaught")
-    private fun <T> runAsyncWithGroupSlot(
+    private inline fun <T> runAsyncWithGroupSlot(
         lockName: String,
         auditLeaderId: String?,
         executor: Executor,
-        action: () -> CompletableFuture<T>,
+        crossinline action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
@@ -175,7 +179,7 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
             when {
                 lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
                 lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else -> completableFutureOf(Unit)
+                else                                      -> completableFutureOf(Unit)
             }
         }
         val acquisitionFuture = futureOf(executor) {
@@ -195,7 +199,7 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
                     failedCompletableFutureOf(CancellationException("leader result future was cancelled before action"))
                 } else {
                     try {
-                        runAcquiredAsync(lockName, acquired, auditLeaderId, cancellationRelay, action)
+                        runAcquiredAsync(lockName, acquired, auditLeaderId, cancellationRelay) { action() }
                     } catch (error: Throwable) {
                         AsyncLeaseCleanupDispatcher.failAfter(error) {
                             release(acquired.lock, acquired.acquiredAtNanos, lockName, acquired.slot)
@@ -221,12 +225,12 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
     }
 
     @Suppress("ReturnCount", "TooGenericExceptionCaught")
-    private fun <T> runAcquiredAsync(
+    private inline fun <T> runAcquiredAsync(
         lockName: String,
         acquired: AcquiredSlot,
         auditLeaderId: String?,
         cancellationRelay: LeaderFutureBridge.CancellationRelay,
-        action: () -> CompletableFuture<T>,
+        crossinline action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val lock = acquired.lock
         val delegate = KubernetesLeaseLockExtendDelegate(lock)
@@ -244,7 +248,9 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
         }
         val actionFuture = try {
             val handle = handle(lockName, lock, acquired.slot, acquired.acquiredAtNanos, delegate, auditLeaderId)
-            cancellationRelay.invoke { AopScopeAccess.withPushedSync(handle) { action() } }
+            cancellationRelay.invoke {
+                AopScopeAccess.withPushedSync(handle) { action() }
+            }
         } catch (e: Throwable) {
             return AsyncLeaseCleanupDispatcher.failAfter(e) {
                 watchdog.close()
@@ -290,17 +296,18 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
     }
 
     private fun currentLeaders(lockName: String): List<LeaderLease> =
-        (0 until maxLeaders).mapNotNull { slot ->
-            runCatching {
-                newSlotLock(lockName, slot, null)
-                    .state()
-                    .leader
-                    ?.copy(slot = slot)
-            }.getOrElse { e ->
-                log.warn(e) { "Kubernetes Lease group state query failed. lockName=$lockName, slot=$slot" }
-                null
+        (0 until maxLeaders)
+            .mapNotNull { slot ->
+                runCatching {
+                    newSlotLock(lockName, slot, null)
+                        .state()
+                        .leader
+                        ?.copy(slot = slot)
+                }.getOrElse { e ->
+                    log.warn(e) { "Kubernetes Lease group state query failed. lockName=$lockName, slot=$slot" }
+                    null
+                }
             }
-        }
 
     private fun handle(
         lockName: String,

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring.route
 
+import io.bluetape4k.logging.KLogging
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 
@@ -10,6 +11,9 @@ import java.util.concurrent.atomic.AtomicLong
  * 생성합니다. snapshot은 외부에서 수정할 수 없는 일반 map으로 반환됩니다.
  */
 class LeaderRouteLeaseMetrics: SanitizedRouteLeaseObservationSink {
+
+    private companion object: KLogging()
+
     private val counts = EnumMap<LeaseObservationCode, AtomicLong>(LeaseObservationCode::class.java)
         .apply {
             LeaseObservationCode.entries.forEach { put(it, AtomicLong()) }

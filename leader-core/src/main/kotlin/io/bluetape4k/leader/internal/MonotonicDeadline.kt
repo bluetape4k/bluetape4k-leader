@@ -56,6 +56,9 @@ class MonotonicDeadline private constructor(
 
     fun hasTimeRemaining(): Boolean = remainingNanos() > 0L
 
+    override fun toString(): String =
+        "MonotonicDeadline(startNanos=$startNanos, timeoutNanos=$timeoutNanos, ticker = $ticker)"
+
     companion object: KLogging() {
         /**
          * 이미 읽은 시작 시각과 timeout으로 deadline을 만듭니다.

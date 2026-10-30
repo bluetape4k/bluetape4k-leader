@@ -6,8 +6,9 @@ import java.util.concurrent.CompletionException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+// 공통 코루틴 bridge로 이동할 후보입니다.
 internal suspend fun <T> CompletableFuture<T>.awaitWithoutCancellingFuture(
-    onCancellation: (CompletableFuture<T>) -> Unit,
+    onCancellation: (CompletableFuture<T>) -> Unit = {},
 ): T =
     suspendCancellableCoroutine { cont ->
         whenComplete { value, failure ->

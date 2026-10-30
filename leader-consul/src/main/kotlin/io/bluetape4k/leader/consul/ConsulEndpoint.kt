@@ -51,16 +51,15 @@ data class ConsulEndpoint(
         }
     }
 
-    val normalizedBaseUrl: URI =
-        URI(
-            baseUrl.scheme,
-            null,
-            baseUrl.host,
-            baseUrl.port,
-            baseUrl.path?.trimEnd('/')?.ifBlank { null },
-            null,
-            null,
-        )
+    val normalizedBaseUrl: URI = URI(
+        baseUrl.scheme,
+        null,
+        baseUrl.host,
+        baseUrl.port,
+        baseUrl.path?.trimEnd('/')?.ifBlank { null },
+        null,
+        null,
+    )
 
     override fun toString(): String =
         "ConsulEndpoint(" +

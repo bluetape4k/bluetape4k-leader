@@ -29,7 +29,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class ConsulAopFactoryAutoConfigurationTest {
 
-    companion object: KLogging()
+    private companion object: KLogging()
 
     private val runner = ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(LeaderAopFactoryAutoConfiguration::class.java))

@@ -19,7 +19,6 @@ import io.bluetape4k.leader.etcd.internal.EtcdSuspendLockExtendDelegate
 import io.bluetape4k.leader.etcd.internal.JetcdEtcdLockClient
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
-import io.bluetape4k.leader.etcd.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -36,6 +35,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ThreadLocalRandom
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import io.bluetape4k.leader.etcd.suspendRunIfLeaderGroup as currentSuspendRunIfLeaderGroup
 
 /**
  * `EtcdSuspendLeaderGroupElector`는 etcd slot lease를 suspend 방식으로 획득해 여러 leader 실행을 관리합니다.
@@ -109,7 +109,11 @@ class EtcdSuspendLeaderGroupElector private constructor(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
-    private suspend fun <T> runImpl(lockName: String, auditLeaderId: String?, action: suspend () -> T): T? {
+    private suspend inline fun <T> runImpl(
+        lockName: String,
+        auditLeaderId: String?,
+        crossinline action: suspend () -> T,
+    ): T? {
         val leaseHandle = acquire(lockName) ?: return null
         val delegate: SuspendExtendDelegate = EtcdSuspendLockExtendDelegate(lockClient, leaseHandle)
         val handle = LeaderLockHandle.real(

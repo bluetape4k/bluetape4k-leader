@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.dynamodb.internal
 
+import io.bluetape4k.coroutines.support.awaitUntil
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
@@ -66,7 +67,7 @@ internal class DynamoDbSuspendLockExtendDelegate(
 
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
         try {
-            client.extendAsync(lock, lockAtMostFor, ttlPadding).await()
+            client.extendAsync(lock, lockAtMostFor, ttlPadding).awaitUntil(lockAtMostFor)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

@@ -22,6 +22,7 @@ import io.bluetape4k.leader.redisson.RedissonLeaderGroupElector
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperLeaderGroupElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperSuspendLeaderGroupElector
+import io.bluetape4k.leader.zookeeper.blockUntilConnected
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import io.bluetape4k.testcontainers.infra.ZooKeeperServer
@@ -54,7 +55,6 @@ import org.redisson.config.Config
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -225,7 +225,7 @@ class LeaderGroupElectorBenchmark {
     private fun createZooKeeperElector(): LeaderGroupElector {
         val client = ZooKeeperServer.Launcher.getCuratorFramework(ZooKeeperServer.Launcher.zookeeper).also {
             it.start()
-            require(it.blockUntilConnected(30, TimeUnit.SECONDS)) {
+            require(it.blockUntilConnected(30.seconds)) {
                 "ZooKeeper benchmark client did not connect within 30 seconds."
             }
         }
@@ -416,7 +416,7 @@ class SuspendLeaderGroupElectorBenchmark {
     private fun createZooKeeperElector(): SuspendLeaderGroupElector {
         val client = ZooKeeperServer.Launcher.getCuratorFramework(ZooKeeperServer.Launcher.zookeeper).also {
             it.start()
-            require(it.blockUntilConnected(30, TimeUnit.SECONDS)) {
+            require(it.blockUntilConnected(30.seconds)) {
                 "ZooKeeper suspend benchmark client did not connect within 30 seconds."
             }
         }

@@ -20,7 +20,7 @@ import org.junit.jupiter.api.TestInstance
 class MongoGroupLockExtenderContractTest: AbstractGroupLockExtenderContractTest() {
 
     companion object: KLogging() {
-        val mongo = AbstractMongoLeaderTest.mongoServer
+        val mongo by lazy { AbstractMongoLeaderTest.mongoServer }
     }
 
     override val elector: LeaderGroupElector =

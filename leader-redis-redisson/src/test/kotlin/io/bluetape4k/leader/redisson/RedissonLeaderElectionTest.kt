@@ -122,11 +122,9 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
         val leaderElection = RedissonLeaderElector(redissonClient, options)
 
         assertFailsWith<CompletionException> {
-            leaderElection
-                .runAsyncIfLeader(lockName) {
-                    failedCompletableFutureOf<Int>(IllegalStateException("boom"))
-                }
-                .join()
+            leaderElection.runAsyncIfLeader(lockName) {
+                failedCompletableFutureOf<Int>(IllegalStateException("boom"))
+            }.join()
         }
 
         leaderElection
@@ -147,7 +145,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
         val attempts = AtomicInteger(0)
 
         MultithreadingTester()
-            .workers(4)
+            .workers(Runtimex.availableProcessors)
             .rounds(5)
             .add {
                 val attempt = attempts.incrementAndGet()
@@ -165,7 +163,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             }
             .run()
 
-        attempts.get() shouldBeEqualTo 4 * 5
+        attempts.get() shouldBeEqualTo Runtimex.availableProcessors * 5
     }
 
     @Test

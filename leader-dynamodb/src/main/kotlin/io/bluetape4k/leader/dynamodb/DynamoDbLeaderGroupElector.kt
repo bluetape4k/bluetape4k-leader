@@ -1,8 +1,6 @@
 package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.concurrent.futureOf
-import io.bluetape4k.leader.dynamodb.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
-import io.bluetape4k.leader.dynamodb.runIfLeaderGroup as currentRunIfLeaderGroup
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
@@ -26,6 +24,8 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
+import io.bluetape4k.leader.dynamodb.runAsyncIfLeaderGroup as currentRunAsyncIfLeaderGroup
+import io.bluetape4k.leader.dynamodb.runIfLeaderGroup as currentRunIfLeaderGroup
 
 /**
  * `DynamoDbLeaderGroupElector`는 conditional DynamoDB slot item으로 여러 leader의 blocking/async 실행을 관리합니다.
@@ -54,7 +54,12 @@ class DynamoDbLeaderGroupElector(
     override fun state(lockName: String): LeaderGroupState {
         DynamoDbKeys.validateUserLockName(lockName)
         val leases = lockClient.activeGroupLeases(DynamoDbKeys.groupPrefix(options.keyPrefix, lockName), maxLeaders)
-        return LeaderGroupState(lockName, maxLeaders, leases.size.coerceAtMost(maxLeaders), leases)
+        return LeaderGroupState(
+            lockName,
+            maxLeaders,
+            leases.size.coerceAtMost(maxLeaders),
+            leases
+        )
     }
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
@@ -84,7 +89,11 @@ class DynamoDbLeaderGroupElector(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
-    private fun <T> runWithLock(lockName: String, auditLeaderId: String?, action: () -> T): T? {
+    private fun <T> runWithLock(
+        lockName: String,
+        auditLeaderId: String?,
+        action: () -> T,
+    ): T? {
         DynamoDbKeys.validateUserLockName(lockName)
         val start = Random.nextInt(maxLeaders)
         val perSlotWait = options.leaderGroupOptions.waitTime / maxLeaders
@@ -203,7 +212,7 @@ class DynamoDbLeaderGroupElector(
                 cause != null && elected.get() -> LeaderRunResult.ActionFailed(cause)
                 cause != null -> throw CompletionException(cause)
                 elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                else          -> LeaderRunResult.Skipped
             }
         }
     }

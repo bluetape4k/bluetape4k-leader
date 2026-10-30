@@ -28,6 +28,13 @@ class LeaderSlotTest {
     }
 
     @Test
+    fun `LeaderSlot preserves accepted lock names from the 1x contract`() {
+        listOf("tenant.lock", "tenant lock", "결제-작업", ".leading-symbol").forEach { lockName ->
+            LeaderSlot(lockName, "node-a").lockName shouldBeEqualTo lockName
+        }
+    }
+
+    @Test
     fun `LeaderSlot - blank lockName throws`() {
         assertFailsWith<IllegalArgumentException> {
             LeaderSlot("", "node-a")

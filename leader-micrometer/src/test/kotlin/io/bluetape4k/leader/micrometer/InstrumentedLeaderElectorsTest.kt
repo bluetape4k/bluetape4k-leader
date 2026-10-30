@@ -188,7 +188,9 @@ class InstrumentedLeaderElectorsTest {
         MultithreadingTester()
             .workers(8)
             .rounds(25)
-            .add { decorated.checkConnectivity(100.milliseconds) }
+            .add {
+                decorated.checkConnectivity(100.milliseconds)
+            }
             .run()
 
         registry
@@ -196,7 +198,7 @@ class InstrumentedLeaderElectorsTest {
             .tag(MicrometerNames.TAG_BACKEND_REASON, LeaderBackendConnectivityReason.CONNECTED.name)
             .counter()
             .shouldNotBeNull()
-            .count() shouldBeEqualTo 200.0
+            .count() shouldBeEqualTo 200.0  // 8 * 25
 
         registry
             .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
@@ -322,9 +324,8 @@ class InstrumentedLeaderElectorsTest {
         val inner = InstrumentedLeaderElector(delegate, registry)
         val outer = InstrumentedLeaderElector(inner, registry)
 
-        (outer as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
-            .shouldNotBeNull()
-            .checkConnectivity(100.milliseconds)
+        outer.shouldBeInstanceOf<LeaderBackendDiagnosticsAware>()
+            .backendDiagnosticsProvider.shouldNotBeNull().checkConnectivity(100.milliseconds)
 
         registry
             .find(MicrometerNames.METER_BACKEND_CONNECTIVITY)
@@ -345,9 +346,8 @@ class InstrumentedLeaderElectorsTest {
         val inner = InstrumentedLeaderElector(delegate, innerRegistry, LeaderMetricTagOptions.Raw)
         val outer = InstrumentedLeaderElector(inner, outerRegistry, LeaderMetricTagOptions.Raw)
 
-        (outer as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
-            .shouldNotBeNull()
-            .checkConnectivity(100.milliseconds)
+        outer.shouldBeInstanceOf<LeaderBackendDiagnosticsAware>()
+            .backendDiagnosticsProvider.shouldNotBeNull().checkConnectivity(100.milliseconds)
 
         connectivityCount(outerRegistry, "redis-prod.example:6380/token") shouldBeEqualTo 1.0
         outerRegistry
@@ -375,15 +375,12 @@ class InstrumentedLeaderElectorsTest {
                                LeaderBackendDiagnosticsProvider by provider {}
         val inner = InstrumentedLeaderElector(delegate, registry, innerOptions)
 
-        (inner as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
-            .shouldNotBeNull()
-            .checkConnectivity(100.milliseconds)
+        inner.shouldBeInstanceOf<LeaderBackendDiagnosticsAware>()
+            .backendDiagnosticsProvider.shouldNotBeNull().checkConnectivity(100.milliseconds)
 
         val outer = InstrumentedLeaderElector(inner, registry, outerOptions)
-
-        (outer as LeaderBackendDiagnosticsAware).backendDiagnosticsProvider
-            .shouldNotBeNull()
-            .checkConnectivity(100.milliseconds)
+        outer.shouldBeInstanceOf<LeaderBackendDiagnosticsAware>()
+            .backendDiagnosticsProvider.shouldNotBeNull().checkConnectivity(100.milliseconds)
 
         connectivityCount(registry, "inner-backend") shouldBeEqualTo 1.0
         connectivityCount(registry, "outer-backend") shouldBeEqualTo 1.0

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
@@ -63,15 +64,17 @@ internal class TenantScopedSuspendLeaderElector(
         get() = delegate.supportsAuditLeaderState
 
     override val leaseCapabilityAvailable: Boolean
-        get() = ((delegate as? SuspendLeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
-            ?: delegate) is SuspendLeaderLeaseAcquirer
+        get() {
+            val elector = (delegate as? SuspendLeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable ?: delegate
+            return elector is SuspendLeaderLeaseAcquirer
+        }
 
     override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
         val acquirer = (delegate as? SuspendLeaderLeaseAcquirer).requireNotNull {
             "The tenant-scoped suspend elector delegate does not expose request-lease capability"
         }
         object: SuspendLeaderLeaseAcquirer {
-            override val configuredOptions: io.bluetape4k.leader.LeaderElectionOptions
+            override val configuredOptions: LeaderElectionOptions
                 get() = acquirer.configuredOptions
 
             override suspend fun tryAcquire(lockName: String): SuspendLeaderLeaseHandle? =

@@ -45,7 +45,7 @@ private const val LEADER_AOP_AUTOCONFIG_DB = "leader_aop_autoconfig_test"
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MongoAopFactoryAutoConfigurationTest {
 
-    companion object: KLogging() {
+    private companion object: KLogging() {
         val mongoServer by lazy { MongoDBServer.Launcher.mongoDB }
     }
 

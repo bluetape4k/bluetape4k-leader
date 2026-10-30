@@ -13,6 +13,7 @@ import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.config.BeanDefinition
+import org.springframework.beans.factory.getBeanNamesForType
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -95,15 +96,19 @@ private fun LeaderAopProperties.Metrics.TagRule.toMicrometerRule(): LeaderMetric
 private fun LeaderAopProperties.Metrics.TagMode.toMicrometerMode(): LeaderMetricTagMode =
     when (this) {
         LeaderAopProperties.Metrics.TagMode.REDACT -> LeaderMetricTagMode.REDACT
-        LeaderAopProperties.Metrics.TagMode.RAW -> LeaderMetricTagMode.RAW
-        LeaderAopProperties.Metrics.TagMode.HASH -> LeaderMetricTagMode.HASH
+        LeaderAopProperties.Metrics.TagMode.RAW    -> LeaderMetricTagMode.RAW
+        LeaderAopProperties.Metrics.TagMode.HASH   -> LeaderMetricTagMode.HASH
         LeaderAopProperties.Metrics.TagMode.TRUNCATE -> LeaderMetricTagMode.TRUNCATE
     }
 
 private class DefaultMeterRecorderCondition: Condition {
     override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean {
         val beanFactory = context.beanFactory as? ListableBeanFactory ?: return true
-        val recorderNames = beanFactory.getBeanNamesForType(LeaderAopMetricsRecorder::class.java, true, false)
+        val recorderNames = beanFactory
+            .getBeanNamesForType<LeaderAopMetricsRecorder>(
+                includeNonSingletons = true,
+                allowEagerInit = false
+            )
 
         return recorderNames.none { name ->
             val recorderType = beanFactory.getType(name, false)

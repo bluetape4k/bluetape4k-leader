@@ -15,7 +15,6 @@ import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
-import io.bluetape4k.leader.mongodb.suspendRunIfLeader as currentSuspendRunIfLeader
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoSuspendLockExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
@@ -28,6 +27,7 @@ import kotlinx.coroutines.withContext
 import org.bson.Document
 import java.time.Instant
 import java.util.concurrent.TimeUnit
+import io.bluetape4k.leader.mongodb.suspendRunIfLeader as currentSuspendRunIfLeader
 
 /**
  * `MongoSuspendLeaderElector`는 MongoDB의 suspend 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.
@@ -64,7 +64,7 @@ class MongoSuspendLeaderElector private constructor(
     }
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
-        lockName.validateMonoLockName()
+        lockName.validateMongoLockName()
         val lock = MongoSuspendLock(collection, lockName, options.retryDelay)
         log.debug { "리더 승격을 요청합니다 (suspend). lockName=$lockName" }
 

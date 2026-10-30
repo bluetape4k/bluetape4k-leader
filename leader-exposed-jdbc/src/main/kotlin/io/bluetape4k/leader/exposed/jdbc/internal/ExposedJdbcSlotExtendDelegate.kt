@@ -54,4 +54,7 @@ internal class ExposedJdbcSlotExtendDelegate(
             log.warn(e) { "Exposed JDBC group isHeld failed. lockName=${slotLock.lockName}, slot=${slotLock.slot}" }
             false
         }
+
+    override fun toString(): String =
+        "ExposedJdbcSlotExtendDelegate(lastExtendDeadline=$lastExtendDeadline)"
 }

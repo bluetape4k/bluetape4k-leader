@@ -1,9 +1,13 @@
 package io.bluetape4k.leader.spring.route
 
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.spring.properties.LeaderRouteRedirectNormalizedProperties
 import io.bluetape4k.leader.spring.properties.LeaderRouteRedirectProperties
+import io.bluetape4k.support.equalsIgnoreCase
 import java.net.URI
+import java.time.Instant
+import java.util.concurrent.CancellationException
 
 internal class LeaderRouteRedirectPolicy(
     properties: LeaderRouteRedirectProperties,
@@ -21,7 +25,7 @@ internal class LeaderRouteRedirectPolicy(
         null
     } else {
         when (evaluation.decision) {
-            LeaderRouteDecision.Allowed -> null
+            LeaderRouteDecision.Allowed   -> null
             LeaderRouteDecision.Unavailable -> {
                 observe(LeaderRouteRedirectFailureReason.UNAVAILABLE, framework)
                 null
@@ -48,33 +52,33 @@ internal class LeaderRouteRedirectPolicy(
         } else {
             null
         }
+
         return when {
-            stale -> {
+            stale                                           -> {
                 observe(LeaderRouteRedirectFailureReason.STALE_LEASE, framework)
                 null
             }
 
-            target == null -> null
+            target == null                                  -> null
             !isMetadataTrusted(target, metadata, framework) -> null
+
             !LeaderRouteRedirectUriValidator.isSafe(target, normalized.allowedHosts) -> {
                 observe(LeaderRouteRedirectFailureReason.URI_REJECTED, framework)
                 null
             }
 
-            else -> target
+            else                                            -> target
         }
     }
 
-    private fun hasFreshLease(
-        state: io.bluetape4k.leader.LeaderState,
-        deadline: java.time.Instant?,
-    ): Boolean = deadline != null && state.leader?.leaseUntil?.isAfter(deadline) == true
+    private fun hasFreshLease(state: LeaderState, deadline: Instant?): Boolean =
+        deadline != null && state.leader?.leaseUntil?.isAfter(deadline) == true
 
     @Suppress("SwallowedException", "TooGenericExceptionCaught")
     private fun resolveTarget(
         slot: LeaderSlot,
-        state: io.bluetape4k.leader.LeaderState?,
-        evaluatedAt: java.time.Instant,
+        state: LeaderState?,
+        evaluatedAt: Instant,
         resolver: LeaderRouteRedirectResolver,
         framework: LeaderRouteRedirectFramework,
     ): URI? {
@@ -82,7 +86,7 @@ internal class LeaderRouteRedirectPolicy(
             resolver.resolve(
                 LeaderRouteRedirectContext(slot, state, evaluatedAt, normalized.leaseSafetyWindow),
             )
-        } catch (e: java.util.concurrent.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
@@ -103,10 +107,14 @@ internal class LeaderRouteRedirectPolicy(
         return when (metadata?.forwardedHeadersPresent) {
             true -> {
                 val peer = metadata.transportPeerAddress
-                val trusted = peer != null && runCatching {
-                    LeaderRouteRedirectProperties.normalizeAddress(peer) in normalized.trustedProxyAddresses
-                }.getOrDefault(false)
-                if (!trusted) observe(LeaderRouteRedirectFailureReason.UNTRUSTED_PROXY, framework)
+                val trusted = peer != null &&
+                        runCatching {
+                            LeaderRouteRedirectProperties.normalizeAddress(peer) in normalized.trustedProxyAddresses
+                        }.getOrDefault(false)
+
+                if (!trusted) {
+                    observe(LeaderRouteRedirectFailureReason.UNTRUSTED_PROXY, framework)
+                }
                 trusted
             }
 
@@ -121,7 +129,7 @@ internal class LeaderRouteRedirectPolicy(
     private fun observe(reason: LeaderRouteRedirectFailureReason, framework: LeaderRouteRedirectFramework) {
         try {
             failureObserver?.invoke(reason, framework)
-        } catch (e: java.util.concurrent.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
@@ -163,7 +171,7 @@ internal object LeaderRouteRedirectUriValidator {
     }
 
     private fun isSafeSchemeAndPort(uri: URI): Boolean =
-        uri.scheme.equals("https", ignoreCase = true) &&
+        uri.scheme.equalsIgnoreCase("https") &&
                 uri.rawUserInfo == null &&
                 uri.port == NO_EXPLICIT_PORT
 

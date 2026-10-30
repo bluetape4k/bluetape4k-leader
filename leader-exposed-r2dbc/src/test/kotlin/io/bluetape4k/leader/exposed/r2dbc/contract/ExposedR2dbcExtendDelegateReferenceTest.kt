@@ -1,7 +1,8 @@
 package io.bluetape4k.leader.exposed.r2dbc.contract
 
 import io.bluetape4k.assertions.shouldBeInstanceOf
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.AopScopeAccess
@@ -15,6 +16,7 @@ import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderGroupElector
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.r2dbc.TestR2dbcDB
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds
@@ -77,7 +79,7 @@ class ExposedR2dbcExtendDelegateReferenceTest: AbstractExposedR2dbcLeaderTest() 
             }
 
             outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
-            (AopScopeAccess.pollCapture() == null).shouldBeTrue()
+            AopScopeAccess.pollCapture().shouldBeNull()
         }
 
     @Test
@@ -92,7 +94,11 @@ class ExposedR2dbcExtendDelegateReferenceTest: AbstractExposedR2dbcLeaderTest() 
             outcomes += LockExtender.extendActiveLockDetailedSuspend(60.seconds)
         }
 
-        outcomes.forEach { it.shouldBeInstanceOf<ExtendOutcome.Extended>() }
+        outcomes.forEach {
+            log.debug { "outcome=$it" }
+            it.shouldBeInstanceOf<ExtendOutcome.Extended>()
+        }
+        outcomes shouldHaveSize 3
     }
 
     @Test
@@ -107,6 +113,8 @@ class ExposedR2dbcExtendDelegateReferenceTest: AbstractExposedR2dbcLeaderTest() 
             postExtend = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
         }
 
+        log.debug { "preExtend=$preExtend" }
+        log.debug { "postExtend=$postExtend" }
         preExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
         postExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }

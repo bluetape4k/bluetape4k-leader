@@ -18,8 +18,6 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter
 import io.bluetape4k.leader.internal.LeaderFutureBridge
-import io.bluetape4k.leader.redisson.runAsyncIfLeader as currentRunAsyncIfLeader
-import io.bluetape4k.leader.redisson.runIfLeader as currentRunIfLeader
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonLockExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
@@ -41,6 +39,8 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
+import io.bluetape4k.leader.redisson.runAsyncIfLeader as currentRunAsyncIfLeader
+import io.bluetape4k.leader.redisson.runIfLeader as currentRunIfLeader
 
 /**
  * `RedissonLeaderElector`는 Redis Redisson의 blocking 단일 선출을 제공하며 lockName의 lease 획득·연장·해제를 관리합니다.
@@ -58,10 +58,6 @@ class RedissonLeaderElector private constructor(
    LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient),
    LeaderLeaseAcquirerSupport {
 
-    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
-        LeaderElectorLeaseAdapter({ this }, options)
-    }
-
     companion object: KLogging() {
         internal const val REDISSON_FACTORY_BEAN_NAME = "redisson-leader-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(RedissonBackendErrorClassifier)
@@ -73,6 +69,10 @@ class RedissonLeaderElector private constructor(
         ): RedissonLeaderElector {
             return RedissonLeaderElector(redissonClient, options)
         }
+    }
+
+    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
+        LeaderElectorLeaseAdapter({ this }, options)
     }
 
     private val waitTimeMills = options.waitTime.inWholeMilliseconds
@@ -207,18 +207,18 @@ class RedissonLeaderElector private constructor(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
-                else -> LeaderRunResult.Skipped
+                elected.get()   -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else            -> LeaderRunResult.Skipped
             }
         }
     }
 
     @Suppress("LongMethod", "TooGenericExceptionCaught")
-    private fun <T> runAsyncImpl(
+    private inline fun <T> runAsyncImpl(
         lockName: String,
         auditLeaderId: String?,
         executor: Executor,
-        action: () -> CompletableFuture<T>,
+        crossinline action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         lockName.validateLockName()
 
@@ -327,13 +327,13 @@ class RedissonLeaderElector private constructor(
     }
 
     /** 비동기 lock 획득 후 lease watchdog과 action future를 정리하고, 경합이면 완료값 `null`을 반환합니다. */
-    private fun <T> executeActionAsync(
+    private inline fun <T> executeActionAsync(
         lock: RLock,
         auditLeaderId: String?,
         currentThreadId: Long,
         acquiredAtNanos: Long,
         cancellationRelay: LeaderFutureBridge.CancellationRelay,
-        action: () -> CompletableFuture<T>,
+        crossinline action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val lockName = lock.name
         val delegate = RedissonLockExtendDelegate(redissonClient, lock, currentThreadId)
