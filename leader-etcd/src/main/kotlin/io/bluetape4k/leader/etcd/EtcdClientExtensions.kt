@@ -16,14 +16,14 @@ inline fun <T> Client.runIfLeader(
     return EtcdLeaderElector(this, options).runIfLeader(lockName) { action() }
 }
 
-inline fun <T> Client.runAsyncIfLeader(
+fun <T> Client.runAsyncIfLeader(
     lockName: String,
     options: EtcdLeaderElectionOptions = EtcdLeaderElectionOptions.Default,
     executor: Executor = VirtualThreadExecutor,
-    crossinline action: () -> CompletableFuture<T>,
+    action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> {
     lockName.validateLockName()
-    return EtcdLeaderElector(this, options).runAsyncIfLeader(lockName, executor) { action() }
+    return EtcdLeaderElector(this, options).runAsyncIfLeader(lockName, executor, action)
 }
 
 inline fun <T> Client.runIfLeaderGroup(
@@ -35,14 +35,14 @@ inline fun <T> Client.runIfLeaderGroup(
     return EtcdLeaderGroupElector(this, options).runIfLeader(lockName) { action() }
 }
 
-inline fun <T> Client.runAsyncIfLeaderGroup(
+fun <T> Client.runAsyncIfLeaderGroup(
     lockName: String,
     options: EtcdLeaderGroupElectionOptions = EtcdLeaderGroupElectionOptions.Default,
     executor: Executor = VirtualThreadExecutor,
-    crossinline action: () -> CompletableFuture<T>,
+    action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> {
     lockName.validateLockName()
-    return EtcdLeaderGroupElector(this, options).runAsyncIfLeader(lockName, executor) { action() }
+    return EtcdLeaderGroupElector(this, options).runAsyncIfLeader(lockName, executor, action)
 }
 
 //
@@ -50,22 +50,22 @@ inline fun <T> Client.runAsyncIfLeaderGroup(
 //
 
 
-suspend inline fun <T> Client.suspendRunIfLeader(
+suspend fun <T> Client.suspendRunIfLeader(
     lockName: String,
     options: EtcdLeaderElectionOptions = EtcdLeaderElectionOptions.Default,
-    crossinline action: suspend () -> T,
+    action: suspend () -> T,
 ): T? {
     lockName.validateLockName()
-    return EtcdSuspendLeaderElector(this, options).runIfLeader(lockName) { action() }
+    return EtcdSuspendLeaderElector(this, options).runIfLeader(lockName, action)
 }
 
-suspend inline fun <T> Client.suspendRunIfLeaderGroup(
+suspend fun <T> Client.suspendRunIfLeaderGroup(
     lockName: String,
     options: EtcdLeaderGroupElectionOptions = EtcdLeaderGroupElectionOptions.Default,
-    crossinline action: suspend () -> T,
+    action: suspend () -> T,
 ): T? {
     lockName.validateLockName()
-    return EtcdSuspendLeaderGroupElector(this, options).runIfLeader(lockName) { action() }
+    return EtcdSuspendLeaderGroupElector(this, options).runIfLeader(lockName, action)
 }
 
 
@@ -73,22 +73,22 @@ suspend inline fun <T> Client.suspendRunIfLeaderGroup(
 //  Virtual Threads
 //
 
-inline fun <T> Client.runVirtualIfLeader(
+fun <T> Client.runVirtualIfLeader(
     lockName: String,
     options: EtcdLeaderElectionOptions = EtcdLeaderElectionOptions.Default,
-    crossinline action: () -> T,
+    action: () -> T,
 ): VirtualFuture<T?> {
     lockName.validateLockName()
     return EtcdVirtualThreadLeaderElector(EtcdLeaderElector(this, options))
-        .runAsyncIfLeader(lockName) { action() }
+        .runAsyncIfLeader(lockName, action)
 }
 
-inline fun <T> Client.runVirtualIfLeaderGroup(
+fun <T> Client.runVirtualIfLeaderGroup(
     lockName: String,
     options: EtcdLeaderGroupElectionOptions = EtcdLeaderGroupElectionOptions.Default,
-    crossinline action: () -> T,
+    action: () -> T,
 ): VirtualFuture<T?> {
     lockName.validateLockName()
     return EtcdVirtualThreadLeaderGroupElector(EtcdLeaderGroupElector(this, options))
-        .runAsyncIfLeader(lockName) { action() }
+        .runAsyncIfLeader(lockName, action)
 }
