@@ -42,6 +42,10 @@ fun bt4kVersion(alias: String): String {
         .ifBlank { version.strictVersion }
 }
 
+val catalogGuavaCoordinate = "com.google.guava:guava:${bt4kVersion("guava")}"
+val catalogOpenTelemetryApiCoordinate =
+    "io.opentelemetry:opentelemetry-api:${bt4kVersion("opentelemetry")}"
+
 // Spring Dependency Management의 detached 설정에는 등록된 project configuration 규칙이 적용되지 않는다.
 dependencyManagement {
     resolutionStrategy {
@@ -58,6 +62,8 @@ dependencyManagement {
             "org.bouncycastle:bcutil-jdk18on:${bt4kVersion("bouncycastle-bcpkix")}",
             "org.bouncycastle:bcpg-jdk18on:${bt4kVersion("bouncycastle-bcpg")}",
             "org.bouncycastle:bcprov-jdk18on:${bt4kVersion("bouncycastle-bcprov")}",
+            catalogGuavaCoordinate,
+            catalogOpenTelemetryApiCoordinate,
         )
     }
 }
@@ -145,6 +151,10 @@ allprojects {
 // Spring Dependency Management가 구성한 BOM 규칙 이후에 도구 전이 의존성을 중앙 카탈로그에 맞춘다.
 gradle.afterProject {
     configurations.configureEach {
+        resolutionStrategy.force(
+            catalogGuavaCoordinate,
+            catalogOpenTelemetryApiCoordinate,
+        )
         val isDokkaConfiguration = name.startsWith("dokka")
         val isKotlinBouncyCastleConfiguration = name == "kotlinBouncyCastleConfiguration"
         resolutionStrategy.eachDependency {
@@ -190,6 +200,15 @@ gradle.afterProject {
             if (isDokkaConfiguration && dependencyGroup == "org.jsoup" && requested.name == "jsoup") {
                 useVersion(bt4kVersion("jsoup"))
                 because("Dokka 도구 의존성을 중앙의 jsoup 보안 버전에 정렬한다.")
+            }
+            // 외부 BOM의 dependency-management 규칙이 더 낮은 버전을 선택하더라도 중앙 보안선을 우선한다.
+            if (dependencyGroup == "com.google.guava" && requested.name == "guava") {
+                useVersion(bt4kVersion("guava"))
+                because("모든 프로젝트 구성의 Guava를 중앙 보안 버전에 정렬한다.")
+            }
+            if (dependencyGroup == "io.opentelemetry" && requested.name == "opentelemetry-api") {
+                useVersion(bt4kVersion("opentelemetry"))
+                because("모든 프로젝트 구성의 OpenTelemetry API를 중앙 보안 버전에 정렬한다.")
             }
         }
     }
