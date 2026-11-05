@@ -33,7 +33,7 @@ env:
   JAVA_VERSION: '25'
   JAVA_DISTRIBUTION: 'temurin'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  BLUETAPE4K_DEPENDENCIES_CATALOG_REF: '9bd4fa16e6d64677641b1babf4629ae5b4ef6d80'
+  BLUETAPE4K_DEPENDENCIES_CATALOG_REF: '693cdc86672969d5ad9ad8a9d5dacc9875031474'
 
 jobs:
   # ── 0. 시크릿 스캔 ────────────────────────────────────────────────────────
@@ -269,7 +269,7 @@ jobs:
   ci-contract:
     name: Validate CI fan-out contract
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     needs: [ changes ]
     if: always()
     steps:
@@ -277,6 +277,14 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - uses: actions/setup-java@v6.1.0
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v6.4.1
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
       - name: Validate dependency fan-out and runtime gate
         env:
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
@@ -298,6 +306,8 @@ jobs:
           python3 scripts/ci/validate_release_provenance.py
           python3 scripts/ci/validate_release_provenance_test.py
           python3 scripts/compatibility/check_binary_api_test.py
+      - name: Verify backend facade consumer contract
+        run: ./gradlew verifyIssue994FacadeContracts --no-daemon --no-configuration-cache --no-build-cache --no-parallel
 
   # ── 2-B. 매뉴얼/릴리스 provenance 계약 검증 ─────────────────────────────
   manual-contract:
