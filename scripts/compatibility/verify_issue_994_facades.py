@@ -40,6 +40,7 @@ FUNCTION_START = re.compile(
 )
 METHOD_HEADER = re.compile(r"^\s+(?:public|protected|private)\b.*\)\s*;$")
 METHOD_REF = re.compile(r"// Method ([^./\s]+(?:/[^./\s]+)*)\.([^:]+):(\(.*)$")
+KDOC_BLOCK = re.compile(r"/\*\*.*?\*/", re.DOTALL)
 
 
 class VerificationError(RuntimeError):
@@ -281,6 +282,11 @@ def transform_target_block(block: str) -> str:
     return block
 
 
+def without_kdoc(text: str) -> str:
+    """Ignore reader-facing KDoc while comparing declaration implementation blocks."""
+    return KDOC_BLOCK.sub("", text)
+
+
 def source_at_revision(revision: str, path: str) -> str:
     result = run(["git", "show", f"{revision}:{path}"], check=False)
     if result.returncode != 0:
@@ -322,7 +328,7 @@ def validate_source_inventory(declarations: list[dict[str, str]]) -> list[str]:
             block = expected[declaration.start : declaration.end]
             if target is None:
                 current_block = current[current_by_key[declaration.key].start : current_by_key[declaration.key].end]
-                if current_block != block:
+                if without_kdoc(current_block) != without_kdoc(block):
                     errors.append(f"non-target declaration changed: {path}#{declaration.name}")
                 continue
             if (str(int(declaration.is_inline)), str(int(declaration.is_crossinline))) != (
@@ -341,9 +347,16 @@ def validate_source_inventory(declarations: list[dict[str, str]]) -> list[str]:
 
         if path.endswith("leader/etcd/support/ClientSupport.kt") and current != baseline:
             errors.append("ClientSupport.kt changed; etcdClientOf and its sibling helpers must remain byte-identical")
-        if current != expected:
+        if without_kdoc(current) != without_kdoc(expected):
             difference = "\n".join(
-                list(difflib.unified_diff(expected.splitlines(), current.splitlines(), fromfile="expected", tofile=path))[:24]
+                list(
+                    difflib.unified_diff(
+                        without_kdoc(expected).splitlines(),
+                        without_kdoc(current).splitlines(),
+                        fromfile="expected",
+                        tofile=path,
+                    )
+                )[:24]
             )
             errors.append(f"source differs from the approved 36-facade transformation in {path}:\n{difference}")
     return errors
@@ -795,7 +808,10 @@ def main() -> int:
             errors = validate_source_inventory(declarations)
             if errors:
                 raise VerificationError("source inventory failed:\n" + "\n".join(errors))
-            print("PASS: exactly 36 approved facade/shim transformations; etcdClientOf and non-target declarations unchanged")
+            print(
+                "PASS: exactly 36 approved facade/shim transformations; etcdClientOf and non-target "
+                "declaration implementations unchanged (KDoc excluded)"
+            )
         elif args.consumer_bytecode:
             errors = verify_consumer_bytecode(callsites)
             if errors:

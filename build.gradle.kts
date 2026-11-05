@@ -697,6 +697,32 @@ tasks.register<Exec>("checkBinaryCompatibility") {
     commandLine("python3", rootProject.file("scripts/compatibility/check_binary_api.py").absolutePath)
 }
 
+val issue994FacadeContractProjects = listOf(
+    ":bluetape4k-leader-dynamodb:testClasses",
+    ":bluetape4k-leader-etcd:testClasses",
+    ":bluetape4k-leader-exposed-jdbc:testClasses",
+    ":bluetape4k-leader-k8s:testClasses",
+    ":bluetape4k-leader-mongodb:testClasses",
+    ":bluetape4k-leader-zookeeper:testClasses",
+)
+val issue994FacadeVerifierTasks = listOf(
+    "self-test" to "verifyIssue994FacadeSelfTest",
+    "source-inventory" to "verifyIssue994FacadeSourceInventory",
+    "consumer-bytecode" to "verifyIssue994FacadeConsumerBytecode",
+).map { (mode, taskName) ->
+    tasks.register<Exec>(taskName) {
+        group = "verification"
+        description = "Run the Issue #994 facade verifier in $mode mode."
+        dependsOn(issue994FacadeContractProjects)
+        commandLine("python3", rootProject.file("scripts/compatibility/verify_issue_994_facades.py").absolutePath, "--$mode")
+    }
+}
+tasks.register("verifyIssue994FacadeContracts") {
+    group = "verification"
+    description = "Verify the approved backend facade source and Kotlin consumer bytecode contracts."
+    issue994FacadeVerifierTasks.forEach(::dependsOn)
+}
+
 val publishedProjects = subprojects.filterNot(Project::isNonPublishedProject)
 val verifyPublishedPomLicenses = tasks.register("verifyPublishedPomLicenses") {
     group = "verification"

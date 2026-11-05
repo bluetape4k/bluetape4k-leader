@@ -29,7 +29,13 @@ inline fun <T> CuratorFramework.runIfLeader(
 ): T? =
     runIfLeader(ZooKeeperElectionPath(lockName, basePath), options, action)
 
-/** `path`의 ZooKeeper lock 획득과 action future를 `executor`에서 수행하며, 경합이면 완료값 `null`을 반환합니다. */
+/**
+ * `path`의 ZooKeeper lock을 비동기로 획득한 뒤 사용자 action을 `executor`에 제출하고, 경합이면 완료값 `null`을 반환합니다.
+ *
+ * lock 획득·반납·lease 정리는 caller executor가 아니라 내부 `VirtualThreadExecutor`에서 수행합니다.
+ * caller가 single-thread executor를 전달해도 acquisition thread가 action future를 기다리며 자기 자신을
+ * 점유하지 않도록 하는 ZooKeeper 전용 scheduling 계약입니다.
+ */
 fun <T> CuratorFramework.runAsyncIfLeader(
     path: ZooKeeperElectionPath,
     executor: Executor = VirtualThreadExecutor,
@@ -38,7 +44,10 @@ fun <T> CuratorFramework.runAsyncIfLeader(
 ): CompletableFuture<T?> =
     ZooKeeperLeaderElector(this, path.basePath, options).runAsyncIfLeader(path.lockName, executor, action)
 
-/** `basePath/lockName` 경로의 ZooKeeper lock을 비동기로 기다리고, 경합이면 완료값 `null`을 반환합니다. */
+/**
+ * `basePath/lockName` 경로의 ZooKeeper lock을 위 overload와 같은 scheduling 계약으로 기다리고,
+ * 경합이면 완료값 `null`을 반환합니다.
+ */
 fun <T> CuratorFramework.runAsyncIfLeader(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
@@ -64,7 +73,12 @@ inline fun <T> CuratorFramework.runIfLeaderGroup(
     crossinline action: () -> T,
 ): T? = runIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), options, action)
 
-/** `path`의 ZooKeeper group lease 획득과 action future를 `executor`에서 수행하며, 경합이면 완료값 `null`입니다. */
+/**
+ * `path`의 ZooKeeper group lease를 비동기로 획득한 뒤 사용자 action을 `executor`에 제출합니다.
+ *
+ * lease 획득·반납은 내부 `VirtualThreadExecutor`에서 수행하고 caller executor에는 action 시작만 제출합니다.
+ * 따라서 single-thread caller executor도 acquisition thread의 자기 대기를 만들지 않습니다.
+ */
 fun <T> CuratorFramework.runAsyncIfLeaderGroup(
     path: ZooKeeperElectionPath,
     executor: Executor = VirtualThreadExecutor,
@@ -73,7 +87,10 @@ fun <T> CuratorFramework.runAsyncIfLeaderGroup(
 ): CompletableFuture<T?> =
     ZooKeeperLeaderGroupElector(this, options, path.basePath).runAsyncIfLeader(path.lockName, executor, action)
 
-/** `basePath/lockName` semaphore의 그룹 lease를 비동기로 획득하고, 슬롯이 없으면 완료값 `null`을 반환합니다. */
+/**
+ * `basePath/lockName` semaphore의 그룹 lease를 위 overload와 같은 scheduling 계약으로 획득하고,
+ * 슬롯이 없으면 완료값 `null`을 반환합니다.
+ */
 fun <T> CuratorFramework.runAsyncIfLeaderGroup(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,

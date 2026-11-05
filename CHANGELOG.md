@@ -11,6 +11,7 @@
 ### 변경
 
 - `1.0.0` 정식 배포 후 다음 minor 개발선을 `1.1.0-SNAPSHOT`으로 열었습니다.
+- backend callback facade의 Kotlin `inline` 구현을 일반 함수로 전환했습니다. 이미 컴파일된 Kotlin 소비자는 이전 inline 본문을 계속 사용할 수 있으므로 변경된 구현을 적용하려면 소비자 재컴파일이 필요합니다. 지원 범위는 Kotlin source/runtime 계약이며 Java/JVM binary compatibility는 보장하지 않습니다 ([Issue #994](https://github.com/bluetape4k/bluetape4k-leader/issues/994), [Issue #997](https://github.com/bluetape4k/bluetape4k-leader/issues/997)).
 
 ## [1.0.0] — 2026-09-02
 

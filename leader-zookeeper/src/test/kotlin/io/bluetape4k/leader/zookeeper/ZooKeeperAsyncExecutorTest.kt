@@ -37,10 +37,16 @@ class ZooKeeperAsyncExecutorTest: AbstractZooKeeperLeaderTest() {
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `single과 group은 동일 single thread executor의 action을 기다릴 수 있다`(group: Boolean) {
-        val executor = Executors.newSingleThreadExecutor()
+    fun `single과 group은 caller executor에서 action을 시작하고 동일 executor의 future를 기다릴 수 있다`(
+        group: Boolean,
+    ) {
+        val executor = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "zookeeper-caller")
+        }
         val name = randomName()
+        val actionThreadName = AtomicReference<String>()
         val action = {
+            actionThreadName.set(Thread.currentThread().name)
             futureOf(executor) { "done" }
         }
         val result = if (group) {
@@ -52,6 +58,7 @@ class ZooKeeperAsyncExecutorTest: AbstractZooKeeperLeaderTest() {
         }
         try {
             result.get(3.seconds) shouldBeEqualTo "done"
+            actionThreadName.get() shouldBe "zookeeper-caller"
         } finally {
             result.cancel(true)
             executor.shutdownNow()
