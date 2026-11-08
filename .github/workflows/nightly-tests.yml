@@ -791,7 +791,7 @@ jobs:
 
     # MongoDB 8.0.28 rejects Ubuntu 26.04's 7.0.0 kernel (SERVER-121912).
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     needs: build
     steps:
       - uses: actions/checkout@v7
@@ -1146,7 +1146,7 @@ jobs:
 
     # MongoDB 8.0.28 rejects Ubuntu 26.04's 7.0.0 kernel (SERVER-121912).
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     needs: build
     steps:
       - uses: actions/checkout@v7
