@@ -1273,7 +1273,30 @@ jobs:
           merge-multiple: false
       - name: Aggregate Kover coverage summary
         if: always()
-        run: python3 .github/scripts/aggregate-kover-coverage.py coverage-artifacts
+        run: |
+          python3 .github/scripts/aggregate-kover-coverage.py coverage-artifacts \
+            --expected-artifact coverage-core \
+            --expected-artifact coverage-redis-lettuce \
+            --expected-artifact coverage-redis-redisson \
+            --expected-artifact coverage-exposed-core-h2 \
+            --expected-artifact coverage-exposed-core-postgresql \
+            --expected-artifact coverage-exposed-core-mysql \
+            --expected-artifact coverage-exposed-jdbc-h2 \
+            --expected-artifact coverage-exposed-jdbc-postgresql \
+            --expected-artifact coverage-exposed-jdbc-mysql \
+            --expected-artifact coverage-exposed-r2dbc-h2 \
+            --expected-artifact coverage-exposed-r2dbc-postgresql \
+            --expected-artifact coverage-exposed-r2dbc-mysql \
+            --expected-artifact coverage-mongodb \
+            --expected-artifact coverage-leader-dynamodb \
+            --expected-artifact coverage-leader-etcd \
+            --expected-artifact coverage-leader-consul \
+            --expected-artifact coverage-leader-k8s \
+            --expected-artifact coverage-hazelcast \
+            --expected-artifact coverage-zookeeper \
+            --expected-artifact coverage-micrometer \
+            --expected-artifact coverage-spring-boot \
+            --expected-artifact coverage-leader-ktor
       - name: Upload aggregated coverage
         if: always()
         uses: actions/upload-artifact@v7
@@ -1354,6 +1377,10 @@ jobs:
       - preview-backend-release-summary
     if: always()
     steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
       - name: Check all jobs
         env:
           RESULTS: ${{ join(needs.*.result, ',') }}
@@ -1361,12 +1388,7 @@ jobs:
           FULL_SCOPE: ${{ (github.event_name == 'schedule' && github.event.schedule == '19 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
         run: |
           echo "Nightly results: $RESULTS"
-          if echo "$RESULTS" | grep -qE "failure|cancelled"; then
-            echo "Nightly failed"
-            exit 1
-          fi
-          if [ "$FULL_SCOPE" = "true" ] && [ "$CLUSTER_RESULT" != "success" ]; then
-            echo "Redis Cluster Nightly gate is $CLUSTER_RESULT, expected success"
-            exit 1
-          fi
-          echo "Nightly passed"
+          python3 scripts/ci/validate_nightly_gate.py \
+            --results "$RESULTS" \
+            --full-scope "$FULL_SCOPE" \
+            --cluster-result "$CLUSTER_RESULT"

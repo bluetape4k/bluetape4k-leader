@@ -50,6 +50,66 @@ def _gradle_kover_commands(source: str) -> list[str]:
     ]
 
 
+def _coverage_artifact_uploads(source: str) -> list[tuple[str, str]]:
+    uploads: list[tuple[str, str]] = []
+    for job in re.finditer(r"^  ([A-Za-z0-9][A-Za-z0-9_-]*):\s*$", source, re.MULTILINE):
+        block = _job_block(source, job.group(1))
+        if block is None:
+            continue
+        upload = _step_block(block, "Upload coverage report")
+        if upload is None:
+            continue
+        match = re.search(
+            r"^\s+name:\s+(coverage-[A-Za-z0-9_-]+)\s*$",
+            upload,
+            flags=re.MULTILINE,
+        )
+        if match:
+            uploads.append((job.group(1), match.group(1)))
+    return sorted(uploads)
+
+
+def _needs_job(block: str, job_id: str) -> bool:
+    return bool(
+        re.search(
+            rf"(?:^|\[|,|-)\s*{re.escape(job_id)}\s*(?:$|\]|,)",
+            block,
+            flags=re.MULTILINE,
+        )
+    )
+
+
+def _validate_nightly_gate_contract(source: str, path: Path) -> list[str]:
+    if path.name != "nightly-tests.yml":
+        return []
+
+    nightly_status = _job_block(source, "nightly-status")
+    if nightly_status is None:
+        return [f"{path}: nightly-status job이 없습니다"]
+
+    check_step = _step_block(nightly_status, "Check all jobs")
+    if check_step is None:
+        return [f"{path}: nightly-status에 Check all jobs step이 없습니다"]
+
+    required_job_markers = (
+        "actions/checkout@v7",
+        "actions/setup-python@v7",
+    )
+    required_check_markers = (
+        "scripts/ci/validate_nightly_gate.py",
+        "--results",
+        "--full-scope",
+        "--cluster-result",
+    )
+    if any(marker not in nightly_status for marker in required_job_markers) or any(
+        marker not in check_step for marker in required_check_markers
+    ):
+        return [
+            f"{path}: nightly-status는 checkout/setup-python 후 scripts/ci/validate_nightly_gate.py로 Full Nightly 결과를 fail-closed 검증해야 합니다"
+        ]
+    return []
+
+
 def _validate_k8s_coverage_contract(source: str, path: Path) -> list[str]:
     coverage_report = _job_block(source, "coverage-report")
     if coverage_report is None or "test-leader-k8s" not in coverage_report:
@@ -142,8 +202,33 @@ def validate_workflow(path: Path) -> list[str]:
         aggregate = _step_block(coverage_report, "Aggregate Kover coverage summary")
         if aggregate is None or "aggregate-kover-coverage.py" not in aggregate:
             violations.append(f"{path}: coverage-report에 Kover 집계 step이 없습니다")
+        elif path.name == "nightly-tests.yml":
+            artifact_uploads = _coverage_artifact_uploads(source)
+            artifact_names = [name for _, name in artifact_uploads]
+            expected_artifacts = set(
+                re.findall(r"--expected-artifact\s+([A-Za-z0-9_-]+)", aggregate)
+            )
+            if not artifact_names:
+                violations.append(
+                    f"{path}: Full Nightly coverage producer가 하나 이상 필요합니다"
+                )
+            elif len(artifact_names) != len(set(artifact_names)):
+                violations.append(
+                    f"{path}: Full Nightly coverage artifact 이름은 producer job 사이에서 중복될 수 없습니다"
+                )
+            if artifact_names and expected_artifacts != set(artifact_names):
+                violations.append(
+                    f"{path}: Full Nightly coverage 집계는 모든 coverage artifact를 "
+                    "--expected-artifact로 전달해야 합니다"
+                )
+            for job_id, artifact_name in artifact_uploads:
+                if not _needs_job(coverage_report, job_id):
+                    violations.append(
+                        f"{path}: coverage-report는 {artifact_name} producer인 {job_id} job을 needs에 포함해야 합니다"
+                    )
 
     violations.extend(_validate_k8s_coverage_contract(source, path))
+    violations.extend(_validate_nightly_gate_contract(source, path))
 
     return violations
 
