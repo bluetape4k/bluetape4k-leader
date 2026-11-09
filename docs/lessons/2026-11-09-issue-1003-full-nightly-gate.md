@@ -20,6 +20,12 @@ artifact가 누락되어도 집계를 통과시킬 수 있었다.
 - Kover 계약 검증기가 workflow의 coverage upload 이름과 기대 목록을 대조하고,
   producer가 0개이거나 중복되는 경우와 `nightly-status`의 판정기 호출도 검사한다.
 - Full Nightly 결과에 빈 상태 토큰이 섞이면 판정기가 실패한다.
+- Full Nightly 실행 `42502855181`에서 exact head
+  `33811400d2750dc04052f07166632bb27abb7969`의 MongoDB/Spring Boot job이
+  `mongo:8.0.28`의 `waiting for connections` 대기 timeout으로 종료했다. 당시
+  `ubuntu-24.04` runner의 커널이 `7.0.0`으로 갱신되어 MongoDB 8.0의 커널 호환성
+  제한을 다시 밟은 것이 원인이므로, CI에 이미 적용한 `ubuntu-22.04` pin을 Nightly와
+  examples의 MongoDB 민감 job에도 동일하게 적용한다.
 
 ## 결과
 
@@ -35,12 +41,15 @@ artifact가 누락되어도 집계를 통과시킬 수 있었다.
   판정기 호출, producer 0개, `nightly-status` checkout 누락을 거부한다.
 - `scripts/ci/validate_kover_contract.py --static`: 현재 `ci.yml`과
   `nightly-tests.yml`의 Kover/Full Nightly 계약을 통과한다.
-- 외부 GitHub Full Nightly dispatch와 exact-head 결과는 이 로컬 수정 단계에서
-  실행하지 않았다.
+- 외부 Full Nightly `42502855181`은 위 원인으로 fail-closed했으며, runner pin 수정
+  후 새 exact-head dispatch를 재실행해 성공 여부를 확인한다.
 
 ## 놓친 점과 재발 방지
 
 예약된 Daily smoke의 `skipped`는 선택 범위의 정상 결과일 수 있으므로 Full scope와
 동일한 판정을 적용하지 않는다. 새 coverage job을 추가할 때는 upload 이름, Full
 Nightly 기대 목록, 계약 테스트를 한 변경으로 갱신하고, Full Nightly 성공을 주장하기
-전에 주간 Full 실행의 exact head와 job 결과를 다시 읽는다.
+전에 주간 Full 실행의 exact head와 job 결과를 다시 읽는다. GitHub runner label은
+고정된 커널을 보장하지 않으므로, MongoDB 같은 호환성 민감 fixture를 사용하는
+workflow는 이미지/커널 계약을 명시하고 CI·Nightly·examples의 pin 계약 테스트를
+함께 유지한다.
