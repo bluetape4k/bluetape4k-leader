@@ -33,6 +33,12 @@ artifact가 누락되어도 집계를 통과시킬 수 있었다.
 경로를 로컬 계약 테스트에서 재현하고 차단할 수 있게 되었다. CI 계약 job도 판정기
 회귀 테스트를 실행한다.
 
+runner pin을 `ubuntu-22.04`로 맞춘 뒤 [Full Nightly 실행 `42549454066`](https://github.com/bluetape4k/bluetape4k-leader/actions/runs/42549454066)은
+exact head `c6864ebaa43bea87c49e743e6bd76e904ffe0a6e`에서 MongoDB/Spring Boot를
+포함한 모든 필수 결과를 `success`로 완료했다. `coverage-mongodb`와
+`coverage-spring-boot`를 포함한 22개 coverage artifact가 생성되었고,
+`Coverage Report`와 `Nightly Status`도 성공했다.
+
 ## 검증
 
 - `scripts/ci/validate_nightly_gate_test.py`: Full scope의
@@ -41,8 +47,9 @@ artifact가 누락되어도 집계를 통과시킬 수 있었다.
   판정기 호출, producer 0개, `nightly-status` checkout 누락을 거부한다.
 - `scripts/ci/validate_kover_contract.py --static`: 현재 `ci.yml`과
   `nightly-tests.yml`의 Kover/Full Nightly 계약을 통과한다.
-- 외부 Full Nightly `42502855181`은 위 원인으로 fail-closed했으며, runner pin 수정
-  후 새 exact-head dispatch를 재실행해 성공 여부를 확인한다.
+- 외부 Full Nightly `42502855181`은 위 원인으로 fail-closed했다.
+- runner pin 수정 후 `42549454066`을 새 exact head로 dispatch했고, Full scope의
+  모든 job·coverage·Nightly Status가 성공했다.
 
 ## 놓친 점과 재발 방지
 
