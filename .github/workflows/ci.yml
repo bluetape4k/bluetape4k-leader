@@ -305,6 +305,7 @@ jobs:
           python3 scripts/ci/validate_provider_artifacts.py --self-test
           python3 scripts/ci/validate_kover_contract.py --static
           python3 scripts/ci/validate_kover_contract_test.py
+          python3 scripts/ci/validate_nightly_gate_test.py
           python3 scripts/ci/validate_release_provenance.py
           python3 scripts/ci/validate_release_provenance_test.py
           python3 scripts/compatibility/check_binary_api_test.py
