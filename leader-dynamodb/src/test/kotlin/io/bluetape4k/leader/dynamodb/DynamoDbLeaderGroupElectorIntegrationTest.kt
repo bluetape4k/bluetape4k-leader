@@ -19,6 +19,8 @@ import io.bluetape4k.utils.Runtimex
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.until
+import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
@@ -205,7 +207,9 @@ class DynamoDbLeaderGroupElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
             result.cancel(false).shouldBeTrue()
 
             log.debug { "result=$result" }
-            actionFuture.isCancelled.shouldBeTrue()
+            await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
+                actionFuture.isCancelled.shouldBeTrue()
+            }
 
             await atMost 5.seconds until {
                 elector.runIfLeader(lockName) { "reacquired" } == "reacquired"

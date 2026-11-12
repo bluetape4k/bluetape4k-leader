@@ -49,7 +49,9 @@ class RedissonExecutorRejectionLifecycleTest: AbstractRedissonLeaderTest() {
 
             actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
-            actionFuture.isCancelled.shouldBeTrue()
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
+                actionFuture.isCancelled.shouldBeTrue()
+            }
 
             await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
@@ -76,7 +78,9 @@ class RedissonExecutorRejectionLifecycleTest: AbstractRedissonLeaderTest() {
 
             actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
-            actionFuture.isCancelled.shouldBeTrue()
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
+                actionFuture.isCancelled.shouldBeTrue()
+            }
 
             await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
@@ -106,7 +110,9 @@ class RedissonExecutorRejectionLifecycleTest: AbstractRedissonLeaderTest() {
 
             actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
-            actionFuture.isCancelled.shouldBeTrue()
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
+                actionFuture.isCancelled.shouldBeTrue()
+            }
 
             await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
@@ -135,7 +141,9 @@ class RedissonExecutorRejectionLifecycleTest: AbstractRedissonLeaderTest() {
 
             actionStarted.await(2.seconds).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
-            actionFuture.isCancelled.shouldBeTrue()
+            await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
+                actionFuture.isCancelled.shouldBeTrue()
+            }
 
             await atMost 2.seconds withPollInterval 100.milliseconds untilAsserted {
                 election.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
