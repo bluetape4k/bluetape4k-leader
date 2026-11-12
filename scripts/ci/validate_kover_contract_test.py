@@ -28,9 +28,9 @@ def run_validator(*arguments: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def run_aggregator(root: Path) -> subprocess.CompletedProcess[str]:
+def run_aggregator(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, str(AGGREGATOR), str(root)],
+        [sys.executable, str(AGGREGATOR), str(root), *arguments],
         cwd=ROOT,
         check=False,
         text=True,
@@ -345,6 +345,57 @@ jobs:
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("80.00%", result.stdout)
 
+    def test_aggregator_deduplicates_matrix_reports_and_selects_best_representative(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = {
+                "coverage-exposed-core-h2": (8, 2),
+                "coverage-exposed-core-postgresql": (8, 2),
+                "coverage-exposed-jdbc-h2": (8, 2),
+                "coverage-exposed-jdbc-mysql": (9, 1),
+                "coverage-exposed-jdbc-postgresql": (9, 1),
+            }
+            for artifact, (covered, missed) in reports.items():
+                module = (
+                    "leader-exposed-core"
+                    if "exposed-core" in artifact
+                    else "leader-exposed-jdbc"
+                )
+                report = root / artifact / f"{module}/build/reports/kover/report.xml"
+                report.parent.mkdir(parents=True)
+                report.write_text(
+                    f'<report><counter type="INSTRUCTION" missed="{missed}" covered="{covered}"/></report>',
+                    encoding="utf-8",
+                )
+
+            result = run_aggregator(root)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("**2 unique reports**", result.stdout)
+        self.assertIn("| `leader-exposed-core` | `report` | `coverage-exposed-core-h2` | 8 | 2 | 80.00% |", result.stdout)
+        self.assertIn("| `leader-exposed-jdbc` | `report` | `coverage-exposed-jdbc-mysql` | 9 | 1 | 90.00% |", result.stdout)
+        self.assertIn("| **TOTAL** | **2 unique reports** | — | **17** | **3** | **85.00%** |", result.stdout)
+        self.assertIn("coverage-exposed-jdbc-mysql", result.stdout)
+
+    def test_aggregator_fails_closed_when_matrix_denominators_differ(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for artifact, covered, missed in (
+                ("coverage-core-h2", 8, 2),
+                ("coverage-core-postgresql", 9, 2),
+            ):
+                report = root / artifact / "leader-core/build/reports/kover/report.xml"
+                report.parent.mkdir(parents=True)
+                report.write_text(
+                    f'<report><counter type="INSTRUCTION" missed="{missed}" covered="{covered}"/></report>',
+                    encoding="utf-8",
+                )
+
+            result = run_aggregator(root)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("instruction denominator differs", result.stdout + result.stderr)
+
     def test_aggregator_fails_when_an_expected_artifact_is_missing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             report = Path(directory) / "coverage-core/build/reports/kover/report.xml"
@@ -354,20 +405,12 @@ jobs:
                 encoding="utf-8",
             )
 
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    str(AGGREGATOR),
-                    directory,
-                    "--expected-artifact",
-                    "coverage-core",
-                    "--expected-artifact",
-                    "coverage-micrometer",
-                ],
-                cwd=ROOT,
-                check=False,
-                text=True,
-                capture_output=True,
+            result = run_aggregator(
+                Path(directory),
+                "--expected-artifact",
+                "coverage-core",
+                "--expected-artifact",
+                "coverage-micrometer",
             )
 
         self.assertNotEqual(result.returncode, 0)
