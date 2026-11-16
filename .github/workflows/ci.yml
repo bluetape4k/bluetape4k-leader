@@ -292,6 +292,8 @@ jobs:
           python3 scripts/ci/validate_ci_fanout.py --self-test
           python3 scripts/ci/validate_leader_contract_matrix.py --static
           python3 scripts/ci/validate_leader_contract_matrix.py --self-test
+          python3 scripts/ci/validate_example_static_contract.py
+          python3 scripts/ci/validate_example_static_contract_test.py
           python3 scripts/ci/validate_test_assertion_contract.py
           python3 scripts/ci/validate_test_assertion_contract_test.py
           python3 scripts/ci/validate_timing_contract.py
