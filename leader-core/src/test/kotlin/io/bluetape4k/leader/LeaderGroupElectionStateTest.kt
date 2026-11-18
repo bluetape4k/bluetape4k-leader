@@ -9,17 +9,18 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.local.LocalAsyncLeaderGroupElector
 import io.bluetape4k.leader.local.LocalLeaderGroupElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeout
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.until
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -60,6 +61,7 @@ class LeaderGroupElectionStateTest {
         val lockName = randomLockName()
         val state = election.state(lockName)
 
+        log.debug { "state=$state" }
         state.lockName shouldBeEqualTo lockName
         state.maxLeaders shouldBeEqualTo maxLeaders
         state.activeCount shouldBeEqualTo 0
@@ -87,10 +89,8 @@ class LeaderGroupElectionStateTest {
                 }.log("Job #$it")
             }
 
-            withTimeout(5.seconds) {
-                while (acquiredCount.get() < 2) {
-                    delay(5.milliseconds)
-                }
+            await atMost 5.seconds until {
+                acquiredCount.get() >= 2
             }
 
             election.activeCount(lockName) shouldBeEqualTo 2
@@ -108,6 +108,8 @@ class LeaderGroupElectionStateTest {
     fun `activeCount - 초기 상태에서 0을 반환한다 (async 구현체)`() {
         val election: LeaderGroupElectionState = LocalAsyncLeaderGroupElector(options)
         val lockName = randomLockName()
+
+        log.debug { "election=$election" }
         election.activeCount(lockName) shouldBeEqualTo 0
     }
 
@@ -115,12 +117,16 @@ class LeaderGroupElectionStateTest {
     fun `availableSlots - 초기 상태에서 maxLeaders 를 반환한다 (async 구현체)`() {
         val election: LeaderGroupElectionState = LocalAsyncLeaderGroupElector(options)
         val lockName = randomLockName()
+
+        log.debug { "election=$election" }
         election.availableSlots(lockName) shouldBeEqualTo maxLeaders
     }
 
     @Test
     fun `state - maxLeaders 프로퍼티가 올바르다`() {
         val election: LeaderGroupElectionState = LocalLeaderGroupElector(options)
+
+        log.debug { "election=$election" }
         election.maxLeaders shouldBeEqualTo maxLeaders
     }
 }

@@ -42,7 +42,9 @@ class DynamoDbLockClientOwnerIdTest {
         val sampleSize = 256
 
         // When
-        val ownerIds = List(sampleSize) { DynamoDbLockClient.newOwnerId() }
+        val ownerIds = List(sampleSize) {
+            DynamoDbLockClient.newOwnerId()
+        }
 
         // Then
         ownerIds shouldHaveSize sampleSize

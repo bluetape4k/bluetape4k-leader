@@ -246,7 +246,7 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
         }
 
         val third = LettuceSuspendLeaderGroupElector(connection, opts)
-        third.runIfLeader(lockName) { "third" } shouldBeEqualTo null
+        third.runIfLeader(lockName) { "third" }.shouldBeNull()
     }
 
     @Test
@@ -293,7 +293,7 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
 
         // 취소 후에도 minLease 동안은 다른 client 가 진입 못 해야 함
         val secondElector = LettuceSuspendLeaderGroupElector(connection, opts)
-        secondElector.runIfLeader(cancelLock) { "should-not" } shouldBeEqualTo null
+        secondElector.runIfLeader(cancelLock) { "should-not" }.shouldBeNull()
 
         // minLease 만료 후 정상 acquire
         await atMost 3.seconds withPollInterval 100.milliseconds untilSuspending {

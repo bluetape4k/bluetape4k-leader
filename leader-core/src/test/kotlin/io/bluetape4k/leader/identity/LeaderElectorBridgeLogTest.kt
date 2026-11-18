@@ -21,7 +21,7 @@ class LeaderElectorBridgeLogTest {
         LeaderElectorBridgeLog.setGlobal(bridgeLog)
     }
 
-    private fun slot(lockName: String = "test-lock", leaderId: String = "node-a") =
+    private fun slot(lockName: String = "test-lock", leaderId: String = "node-a"): LeaderSlot =
         LeaderSlot(lockName, leaderId)
 
     @Test
@@ -33,7 +33,9 @@ class LeaderElectorBridgeLogTest {
     @Test
     fun `warnOnBridgeUse - repeated calls for same pair - counter keeps growing`() {
         val s = slot()
-        repeat(5) { bridgeLog.warnOnBridgeUse(FakeElector::class, s) }
+        repeat(5) {
+            bridgeLog.warnOnBridgeUse(FakeElector::class, s)
+        }
         bridgeLog.droppedAuditCount() shouldBeEqualTo 5L
     }
 

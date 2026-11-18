@@ -5,8 +5,12 @@ import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import io.bluetape4k.support.toUtf8Bytes
+import io.bluetape4k.support.toUtf8String
 import io.bluetape4k.support.truncateUtf8
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -15,20 +19,21 @@ class LeaderHistoryRecorderSupportTest {
 
     companion object: KLogging()
 
-    private val now = Instant.parse("2026-05-14T10:00:00Z")
+    private val now = Instant.now() //parse("2026-05-14T10:00:00Z")
 
     private fun record(
         errorMessage: String? = null,
         metadata: Map<String, String> = emptyMap(),
-    ) = LeaderLockHistoryRecord(
-        lockName = "lock",
-        token = "tok",
-        kind = LockIdentity.AnnotationKind.SINGLE,
-        acquiredAt = now,
-        lockedUntil = now.plusSeconds(60),
-        errorMessage = errorMessage,
-        metadata = metadata,
-    )
+    ): LeaderLockHistoryRecord =
+        LeaderLockHistoryRecord(
+            lockName = "lock",
+            token = "tok",
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            acquiredAt = now,
+            lockedUntil = now.plusSeconds(60),
+            errorMessage = errorMessage,
+            metadata = metadata,
+        )
 
     // ── sanitizeForLog ────────────────────────────────────────────────────
 
@@ -76,7 +81,7 @@ class LeaderHistoryRecorderSupportTest {
         val longMessage = "x".repeat(1000)
         val sanitized = sanitize(record(errorMessage = longMessage))
         val errorMessage = requireNotNull(sanitized.errorMessage)
-        val bytes = errorMessage.toByteArray(Charsets.UTF_8)
+        val bytes = errorMessage.toUtf8Bytes()
         bytes.size shouldBeLessOrEqualTo LeaderLockHistoryRecord.MAX_ERROR_MESSAGE_BYTES
     }
 
@@ -92,6 +97,8 @@ class LeaderHistoryRecorderSupportTest {
         val metadata = mapOf("k\ney" to "va\tlue")
         val sanitized = sanitize(record(metadata = metadata))
         val entry = sanitized.metadata.entries.first()
+
+        log.debug { "entry=$entry" }
         entry.key shouldBeEqualTo "k?ey"
         entry.value shouldBeEqualTo "va?lue"
     }
@@ -101,7 +108,7 @@ class LeaderHistoryRecorderSupportTest {
         val longValue = "v".repeat(1000)
         val metadata = mapOf("k" to longValue)
         val sanitized = sanitize(record(metadata = metadata))
-        val value = requireNotNull(sanitized.metadata["k"])
+        val value = sanitized.metadata["k"].shouldNotBeNull()
         value.length shouldBeLessOrEqualTo LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH
     }
 
@@ -109,6 +116,8 @@ class LeaderHistoryRecorderSupportTest {
     fun `sanitize returns equivalent record when no changes are needed`() {
         val r = record(errorMessage = "simple error", metadata = mapOf("k" to "v"))
         val sanitized = sanitize(r)
+
+        log.debug { "sanitized=$sanitized" }
         sanitized shouldBe r
         sanitized.errorMessage shouldBeEqualTo r.errorMessage
         sanitized.metadata shouldBeEqualTo r.metadata
@@ -128,10 +137,10 @@ class LeaderHistoryRecorderSupportTest {
         // "世" is 3 bytes; cutting at 8 bytes must not produce an incomplete sequence
         val input = "Hello, 世界"
         val truncated = input.truncateUtf8(8)
-        val bytes = truncated.toByteArray(Charsets.UTF_8)
+        val bytes = truncated.toUtf8Bytes()
         bytes.size shouldBeLessOrEqualTo 8
         // must be decodable without exception
-        String(bytes, Charsets.UTF_8)
+        bytes.toUtf8String()
     }
 
     @Test

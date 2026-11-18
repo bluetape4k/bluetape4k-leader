@@ -30,6 +30,7 @@ internal class LeaderLeaseLifecycle(
         val now = monotonicNanos()
         val waitDeadline = now safePlus waitTime.inWholeNanoseconds.coerceAtLeast(0L)
         val backend = callbacks.acquire(slot, waitDeadline, waitDeadline) ?: return null
+
         return ManagedLeaseHandle(backend, options, callbacks, cleanupBoundary, monotonicNanos)
     }
 
@@ -83,7 +84,9 @@ internal class LeaderLeaseLifecycle(
         }
 
         override fun ownershipStatus(): LeaseOwnershipStatus {
-            if (state.get() != State.LIVE) return status.get()
+            if (state.get() != State.LIVE) {
+                return status.get()
+            }
             return try {
                 callbacks.isHeld(backend, releaseDeadline())
                     .also { status.set(it) }
@@ -111,9 +114,11 @@ internal class LeaderLeaseLifecycle(
                 parkRemainingMinLeaseTime(backend.acquiredAtNanos, options.minLeaseTime)
 
                 val result = cleanupBoundary?.releaseWithin(
-                    (deadline - monotonicNanos()).coerceAtLeast(0L).nanoseconds,
-                    NoopReservation,
-                ) ?: runCatching { callbacks.release(backend, deadline) }.getOrElse { BackendReleaseOutcome.ERROR }
+                    deadline = (deadline - monotonicNanos()).coerceAtLeast(0L).nanoseconds,
+                    reservation = NoopReservation,
+                ) ?: runCatching {
+                    callbacks.release(backend, deadline)
+                }.getOrElse { BackendReleaseOutcome.ERROR }
 
                 when (result) {
                     LeaseCleanupResult.RELEASED,

@@ -13,13 +13,15 @@ import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.api.Test
-import java.util.concurrent.CompletableFuture
+import org.junit.jupiter.api.condition.EnabledForJreRange
+import org.junit.jupiter.api.condition.JRE
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -112,6 +114,34 @@ class LocalAsyncLeaderGroupElectorTest {
         peakConcurrent.get() shouldBeLessOrEqualTo maxLeaders
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
+    @Test
+    fun `runAsyncIfLeader - Virtual Threads 동시 실행 중인 리더 수가 maxLeaders 를 초과하지 않는다`() {
+        val lockName = randomLockName()
+        val currentConcurrent = AtomicInteger(0)
+        val peakConcurrent = AtomicInteger(0)
+
+        val virtualExecutor = Executors.newVirtualThreadPerTaskExecutor()
+
+        StructuredTaskScopeTester()
+            .rounds(maxLeaders * 4 * 2)
+            .add {
+                election.runAsyncIfLeader(lockName) {
+                    futureOf(virtualExecutor) {
+                        val current = currentConcurrent.incrementAndGet()
+                        peakConcurrent.updateAndGet { max(it, current) }
+                        Thread.sleep(Random.nextLong(5, 15))
+                        currentConcurrent.decrementAndGet()
+                    }
+                }.join()
+            }
+            .run()
+
+        virtualExecutor.close()
+        log.debug { "최대 동시 실행 수: ${peakConcurrent.get()} / maxLeaders=$maxLeaders" }
+        peakConcurrent.get() shouldBeLessOrEqualTo maxLeaders
+    }
+
     @Test
     fun `maxLeaders 개 슬롯이 모두 사용 중일 때 추가 요청은 블로킹된다`() {
         val lockName = randomLockName()
@@ -123,7 +153,7 @@ class LocalAsyncLeaderGroupElectorTest {
         repeat(maxLeaders) {
             executor.submit {
                 election.runAsyncIfLeader(lockName) {
-                    CompletableFuture.runAsync {
+                    futureOf {
                         startLatch.countDown()
                         holdLatch.await()
                     }
@@ -141,7 +171,7 @@ class LocalAsyncLeaderGroupElectorTest {
         val extraStarted = AtomicInteger(0)
         executor.submit {
             election.runAsyncIfLeader(lockName) {
-                CompletableFuture.runAsync { extraStarted.incrementAndGet() }
+                futureOf { extraStarted.incrementAndGet() }
             }.join()
         }
         Thread.sleep(50)
@@ -179,7 +209,7 @@ class LocalAsyncLeaderGroupElectorTest {
         repeat(maxLeaders) {
             executor.submit {
                 election.runAsyncIfLeader(lockName) {
-                    CompletableFuture.runAsync {
+                    futureOf {
                         startLatch.countDown()
                         holdLatch.await()
                     }
@@ -231,6 +261,39 @@ class LocalAsyncLeaderGroupElectorTest {
         counter.get() shouldBeEqualTo numThreads * roundsPerThread
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
+    @Test
+    fun `Virtual Threads 스트레스 - 모든 실행이 완료되고 카운터가 정확하다`() {
+        val lockName = randomLockName()
+        val counter = AtomicInteger(0)
+        val numThreads = 2 * Runtimex.availableProcessors
+        val roundsPerThread = 4
+
+        StructuredTaskScopeTester()
+            .rounds(numThreads * roundsPerThread / 2)
+            .add {
+                election.runAsyncIfLeader(lockName) {
+                    futureOf {
+                        log.debug { "비동기 작업 1 실행. counter=${counter.get()}" }
+                        Thread.sleep(Random.nextLong(1, 5))
+                        counter.incrementAndGet()
+                    }
+                }.join()
+            }
+            .add {
+                election.runAsyncIfLeader(lockName) {
+                    futureOf {
+                        log.debug { "비동기 작업 2 실행. counter=${counter.get()}" }
+                        Thread.sleep(Random.nextLong(1, 5))
+                        counter.incrementAndGet()
+                    }
+                }.join()
+            }
+            .run()
+
+        counter.get() shouldBeEqualTo numThreads * roundsPerThread
+    }
+
     // ── skip-behavior (ShedLock 방식): 슬롯 획득 실패 시 null 반환 ──────────
 
     @Test
@@ -245,7 +308,7 @@ class LocalAsyncLeaderGroupElectorTest {
         // 동일 election 인스턴스로 슬롯 점유 (maxLeaders=1 이므로 가득 참)
         val firstThread = thread {
             skipElection.runAsyncIfLeader(lockName) {
-                CompletableFuture.runAsync {
+                futureOf {
                     latch.countDown()
                     releaseLatch.await()
                 }

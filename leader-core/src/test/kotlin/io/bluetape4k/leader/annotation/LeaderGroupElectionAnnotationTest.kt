@@ -3,8 +3,10 @@ package io.bluetape4k.leader.annotation
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.reflect.full.findAnnotation
@@ -34,6 +36,8 @@ class LeaderGroupElectionAnnotationTest {
     @Test
     fun `기본 속성값 확인`() {
         val annotation = ::annotatedMethod.findAnnotation<LeaderGroupElection>().shouldNotBeNull()
+
+        log.debug { "annotation=$annotation" }
         annotation.name shouldBeEqualTo "group-lock"
         annotation.maxLeaders shouldBeEqualTo -1
         annotation.waitTime shouldBeEqualTo ""
@@ -47,6 +51,8 @@ class LeaderGroupElectionAnnotationTest {
     @Test
     fun `커스텀 속성값 확인`() {
         val annotation = ::fullyAnnotatedMethod.findAnnotation<LeaderGroupElection>().shouldNotBeNull()
+
+        log.debug { "annotation=$annotation" }
         annotation.name shouldBeEqualTo "custom-group"
         annotation.maxLeaders shouldBeEqualTo 3
         annotation.waitTime shouldBeEqualTo "PT5S"
@@ -63,7 +69,8 @@ class LeaderGroupElectionAnnotationTest {
             .filterIsInstance<Target>()
             .first()
             .allowedTargets
-        targets.contains(AnnotationTarget.FUNCTION).shouldBeTrue()
+            .toList()
+        targets shouldContain AnnotationTarget.FUNCTION
     }
 
     @Test

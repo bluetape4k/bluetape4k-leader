@@ -15,6 +15,7 @@ import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.leader.local.LocalAsyncLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.until
@@ -68,6 +69,7 @@ class AsyncLeaderElectorContractTest {
     @Test
     fun `runAsyncIfLeader - action future 실패 시 CompletionException 이 전파된다`() {
         val election: AsyncLeaderElector = LocalAsyncLeaderElector()
+
         assertFailsWith<CompletionException> {
             election.runAsyncIfLeader(randomLockName()) {
                 failedCompletableFutureOf<String>(RuntimeException("계약 위반 예외"))
@@ -161,6 +163,7 @@ class AsyncLeaderElectorContractTest {
             failedCompletableFutureOf<Any?>(failure)
         }.join().shouldNotBeNull()
 
+        log.debug { "result: $result" }
         result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
         result.cause shouldBeEqualTo failure
     }

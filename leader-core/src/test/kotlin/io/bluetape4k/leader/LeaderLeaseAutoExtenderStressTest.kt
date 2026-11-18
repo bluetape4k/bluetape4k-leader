@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
 
 /**
  * Stress tests for [LeaderLeaseAutoExtender] — N=100 concurrent watchdogs and async-extend dispatch.
@@ -48,7 +49,7 @@ class LeaderLeaseAutoExtenderStressTest {
 
         override fun extend(lockAtMostFor: Duration): ExtendOutcome {
             extendCalls.incrementAndGet()
-            return ExtendOutcome.Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+            return ExtendOutcome.Extended(Instant.now() + lockAtMostFor.toJavaDuration())
         }
 
         override fun isHeld(): Boolean = true
@@ -101,7 +102,7 @@ class LeaderLeaseAutoExtenderStressTest {
                             e,
                         )
                     }
-                    return ExtendOutcome.Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+                    return ExtendOutcome.Extended(Instant.now() + lockAtMostFor.toJavaDuration())
                 }
 
                 override fun isHeld(): Boolean = true

@@ -25,7 +25,12 @@ class LeaseCleanupBoundaryImpl private constructor(
             residualRegistry: ResidualLeaseRegistry,
             release: () -> LeaseCleanupResult,
         ): LeaseCleanupBoundaryImpl =
-            LeaseCleanupBoundaryImpl(scheduler, residualRegistry, release, null)
+            LeaseCleanupBoundaryImpl(
+                scheduler = scheduler,
+                residualRegistry = residualRegistry,
+                release = release,
+                deadlineAwareRelease = null
+            )
 
         operator fun invoke(
             scheduler: LeaseOperationScheduler,
@@ -33,10 +38,10 @@ class LeaseCleanupBoundaryImpl private constructor(
             releaseWithin: (Long) -> LeaseCleanupResult,
         ): LeaseCleanupBoundaryImpl =
             LeaseCleanupBoundaryImpl(
-                scheduler,
-                residualRegistry,
-                { releaseWithin(Long.MAX_VALUE) },
-                releaseWithin
+                scheduler = scheduler,
+                residualRegistry = residualRegistry,
+                release = { releaseWithin(Long.MAX_VALUE) },
+                deadlineAwareRelease = releaseWithin
             )
     }
 

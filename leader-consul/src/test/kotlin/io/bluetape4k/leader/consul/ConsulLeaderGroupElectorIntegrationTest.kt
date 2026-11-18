@@ -12,6 +12,7 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -117,6 +118,7 @@ class ConsulLeaderGroupElectorIntegrationTest: AbstractConsulTest() {
         val release = CountDownLatch(1)
         val executor = Executors.newSingleThreadExecutor()
 
+        log.debug { "empty: $empty" }
         empty.lockName shouldBeEqualTo slot.lockName
         empty.maxLeaders shouldBeEqualTo 1
         empty.activeCount shouldBeEqualTo 0
@@ -129,14 +131,18 @@ class ConsulLeaderGroupElectorIntegrationTest: AbstractConsulTest() {
                     val state = holder.state(slot.lockName)
                     val lease = state.leaders.single()
 
+                    log.debug { "state: $state" }
                     state.lockName shouldBeEqualTo slot.lockName
                     state.maxLeaders shouldBeEqualTo 1
                     state.activeCount shouldBeEqualTo 1
                     state.availableSlots shouldBeEqualTo 0
+
+                    log.debug { "lease: $lease" }
                     lease.auditLeaderId shouldBeEqualTo "consul-group-state-audit-node-a"
                     lease.nodeId shouldBeEqualTo "consul-group-state-node-a"
                     lease.slot shouldBeEqualTo 0
                     lease.leaseUntil.shouldNotBeNull()
+
                     started.countDown()
                     release.await(10.seconds).shouldBeTrue()
                     "holder"
@@ -173,8 +179,10 @@ class ConsulLeaderGroupElectorIntegrationTest: AbstractConsulTest() {
         elector.runIfLeader(slot) {
             val state = elector.state(slot.lockName)
 
+            log.debug { "state: $state" }
             state.leaders shouldHaveSingleLeader "group-audit-node-a"
             state.leaders.single().nodeId shouldBeEqualTo "consul-group-node-a"
+
             "ok"
         } shouldBeEqualTo "ok"
     }

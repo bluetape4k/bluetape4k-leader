@@ -5,6 +5,7 @@ import io.bluetape4k.leader.contract.AbstractSuspendGroupLockExtenderContractTes
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderGroupElectionOptions
 import io.bluetape4k.leader.dynamodb.DynamoDbSuspendLeaderGroupElector
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -14,9 +15,12 @@ import kotlin.time.Duration.Companion.seconds
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DynamoDbSuspendGroupLockExtenderContractTest: AbstractSuspendGroupLockExtenderContractTest() {
+
+    companion object: KLogging()
+
     override val elector: SuspendLeaderGroupElector =
         DynamoDbSuspendLeaderGroupElector(
-            DynamoDbContractSupport.dynamoDbAsync,
+            DynamoDbContractSupport.asyncClient,
             DynamoDbLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2),
                 tableName = DynamoDbContractSupport.tableName,

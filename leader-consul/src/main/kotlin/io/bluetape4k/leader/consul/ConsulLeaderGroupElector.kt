@@ -196,11 +196,11 @@ class ConsulLeaderGroupElector private constructor(
         val cleanupBarrier = AsyncLeaseCleanupBarrier(::release)
 
         val beginCleanup: () -> CompletableFuture<Unit> = {
-            when {
-                lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
-                lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else                                      -> completableFutureOf(Unit)
-            }
+            if (lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP)) {
+                cleanupBarrier.request()
+            } else if (lifecycle.get() == AsyncLifecycle.CLEANUP) {
+                cleanupBarrier.request()
+            } else completableFutureOf(Unit)
         }
         val acquisitionFuture = futureOf(executor) {
             var handle: ConsulLeaseHandle? = null
@@ -312,19 +312,20 @@ class ConsulLeaderGroupElector private constructor(
         }
 
         return try {
-            acquireWithinWaitTime(lockName, sessionId, payload)?.let { (slot, key) ->
-                ConsulLeaseHandle(
-                    lockName = lockName,
-                    key = key,
-                    sessionId = sessionId,
-                    ownerToken = ownerToken,
-                    auditLeaderId = payload.auditLeaderId,
-                    nodeId = payload.nodeId,
-                    electedAt = electedAt,
-                    leaseUntil = leaseUntil,
-                    slotId = slot.toString(),
-                )
-            } ?: run {
+            acquireWithinWaitTime(lockName, sessionId, payload)
+                ?.let { (slot, key) ->
+                    ConsulLeaseHandle(
+                        lockName = lockName,
+                        key = key,
+                        sessionId = sessionId,
+                        ownerToken = ownerToken,
+                        auditLeaderId = payload.auditLeaderId,
+                        nodeId = payload.nodeId,
+                        electedAt = electedAt,
+                        leaseUntil = leaseUntil,
+                        slotId = slot.toString(),
+                    )
+                } ?: run {
                 destroySession(sessionId)
                 log.debug { "Consul leader group slot acquisition skipped by contention. lockName=$lockName" }
                 null
@@ -407,30 +408,31 @@ class ConsulLeaderGroupElector private constructor(
         }
     }
 
-    private fun currentLeaders(lockName: String): List<LeaderLease> = List(maxLeaders) { slot ->
-        runCatching {
-            val entry = lockClient.read(lockClient.groupLockKey(lockName, slot)).getWithinRequestTimeout(lockClient)
-                ?: return@runCatching null
+    private fun currentLeaders(lockName: String): List<LeaderLease> =
+        List(maxLeaders) { slot ->
+            runCatching {
+                val entry = lockClient.read(lockClient.groupLockKey(lockName, slot)).getWithinRequestTimeout(lockClient)
+                    ?: return@runCatching null
 
-            if (entry.sessionId == null) {
-                return@runCatching null
-            }
-            val lease = entry.value?.let { ConsulOwnerPayload.fromJson(it)?.toLeaderLease(slot) }
-            if (lease == null) {
-                log.warn {
-                    "Consul group state ignored because owner payload is missing or invalid. " +
-                            "lockName=$lockName, slot=$slot, sessionId=${entry.sessionId.value}"
+                if (entry.sessionId == null) {
+                    return@runCatching null
                 }
+                val lease = entry.value?.let { ConsulOwnerPayload.fromJson(it)?.toLeaderLease(slot) }
+                if (lease == null) {
+                    log.warn {
+                        "Consul group state ignored because owner payload is missing or invalid. " +
+                                "lockName=$lockName, slot=$slot, sessionId=${entry.sessionId.value}"
+                    }
+                }
+                lease
+            }.getOrElse { e ->
+                if (e is InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
+                log.warn(e) { "Consul group state query failed. lockName=$lockName, slot=$slot" }
+                null
             }
-            lease
-        }.getOrElse { e ->
-            if (e is InterruptedException) {
-                Thread.currentThread().interrupt()
-            }
-            log.warn(e) { "Consul group state query failed. lockName=$lockName, slot=$slot" }
-            null
-        }
-    }.filterNotNull()
+        }.filterNotNull()
 
     private fun destroySession(sessionId: ConsulSessionId) {
         runCatching {
@@ -448,20 +450,23 @@ private fun Throwable?.unwrapCompletionException(): Throwable? =
  * [this] Consul endpoint에서 그룹 [lockName]의 슬롯을 획득했을 때만 [action]을 실행합니다.
  * 사용할 슬롯이 없으면 null을 반환하고, action 종료 후 session과 슬롯 ownership을 정리합니다.
  */
-fun <T> ConsulEndpoint.runIfLeaderGroup(
+inline fun <T> ConsulEndpoint.runIfLeaderGroup(
     lockName: String,
     options: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
-    action: () -> T,
-): T? = ConsulLeaderGroupElector(this, options).runIfLeader(lockName, action)
+    crossinline action: () -> T,
+): T? =
+    ConsulLeaderGroupElector(this, options)
+        .runIfLeader(lockName) { action() }
 
 /**
  * [this] Consul endpoint에서 그룹 [lockName]의 슬롯을 비동기로 획득한 뒤 [action]을 실행합니다.
  * 기본 [executor]에서 처리하며 슬롯을 얻지 못하면 null로 완료합니다.
  */
-fun <T> ConsulEndpoint.runAsyncIfLeaderGroup(
+inline fun <T> ConsulEndpoint.runAsyncIfLeaderGroup(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
     options: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
-    action: () -> CompletableFuture<T>,
+    crossinline action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> =
-    ConsulLeaderGroupElector(this, options).runAsyncIfLeader(lockName, executor, action)
+    ConsulLeaderGroupElector(this, options)
+        .runAsyncIfLeader(lockName, executor) { action() }

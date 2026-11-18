@@ -95,6 +95,7 @@ sealed interface LeaderAuditExportEvent {
 
             companion object {
                 fun create(data: SnapshotData): Snapshot = Snapshot(data)
+                operator fun invoke(data: SnapshotData): Snapshot = Snapshot(data)
             }
         }
 
@@ -145,7 +146,7 @@ sealed interface LeaderAuditExportEvent {
                 val exportNow = Instant.now()
                 val occurredAt = record.finishedAt ?: record.acquiredAt
                 return History(
-                    Snapshot.create(
+                    Snapshot(
                         object: SnapshotData {
                             override val occurredAt: Instant = occurredAt
                             override val lockName: String = bounded(
@@ -209,6 +210,7 @@ sealed interface LeaderAuditExportEvent {
 
             companion object {
                 fun create(data: SnapshotData): Snapshot = Snapshot(data)
+                operator fun invoke(data: SnapshotData): Snapshot = Snapshot(data)
             }
         }
 
@@ -248,7 +250,7 @@ sealed interface LeaderAuditExportEvent {
             ): Lifecycle {
                 val elected = event as? LeaderElectionEvent.Elected
                 return Lifecycle(
-                    Snapshot.create(
+                    Snapshot(
                         object: SnapshotData {
                             override val occurredAt: Instant = Instant.now()
                             override val lockName: String = bounded(
@@ -341,6 +343,7 @@ private fun sanitizeAttributes(
         if (result.size >= LeaderAuditExportEvent.MAX_ATTRIBUTES || result.containsKey(sanitizedKey)) return@forEach
         val entryBytes = sanitizedKey.utf8Size() + sanitizedValue.utf8Size()
         if (totalBytes + entryBytes > LeaderAuditExportEvent.MAX_ATTRIBUTES_TOTAL_BYTES) return@forEach
+
         result[sanitizedKey] = sanitizedValue
         totalBytes += entryBytes
     }
@@ -352,6 +355,7 @@ private fun String.utf8Size(): Int = toUtf8Bytes().size
 private fun String.utf8SizeAtMost(limit: Int): Int {
     var total = 0
     var index = 0
+
     while (index < length) {
         val codePoint = codePointAt(index)
         val byteCount = when {
@@ -371,6 +375,7 @@ private fun compareUtf8(left: String, right: String): Int {
     val leftBytes = left.toUtf8Bytes()
     val rightBytes = right.toUtf8Bytes()
     val commonLength = minOf(leftBytes.size, rightBytes.size)
+
     for (index in 0 until commonLength) {
         val comparison = (leftBytes[index].toInt() and 0xff) - (rightBytes[index].toInt() and 0xff)
         if (comparison != 0) return comparison

@@ -20,7 +20,7 @@ import io.bluetape4k.utils.Runtimex
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.until
-import org.awaitility.kotlin.withPollInterval
+import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
@@ -184,12 +184,14 @@ class DynamoDbLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
         val lockName = randomName()
 
         holder.runIfLeader(lockName) {
-            val initialLeaseUntil = requireNotNull(holder.state(lockName).leader?.leaseUntil)
+            val initialLeaseUntil = holder.state(lockName).leader?.leaseUntil.shouldNotBeNull()
 
-            await.atMost(leaseTime * 3).withPollInterval(100.milliseconds).until {
+            await atMost (leaseTime * 3) untilAsserted {
                 val now = Instant.now()
+                now.isAfter(initialLeaseUntil).shouldBeTrue()
+
                 val currentLeaseUntil = holder.state(lockName).leader?.leaseUntil
-                now.isAfter(initialLeaseUntil) && currentLeaseUntil?.isAfter(now) == true
+                currentLeaseUntil?.isAfter(now).shouldBeTrue()
             }
 
             contender.runIfLeader(lockName) { "contender" }.shouldBeNull()
@@ -220,9 +222,9 @@ class DynamoDbLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
                 nodeId = "dynamodb-node-a"
             ),
         )
-        val slot = LeaderSlot(randomName(), "dynamodb-audit-node-a")
-
         elector.supportsAuditLeaderState.shouldBeTrue()
+
+        val slot = LeaderSlot(randomName(), "dynamodb-audit-node-a")
         val result = elector.runIfLeaderResult(slot) {
             val lease = elector.state(slot.lockName).leader
             lease?.auditLeaderId shouldBeEqualTo "dynamodb-audit-node-a"
@@ -294,8 +296,8 @@ class DynamoDbLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
         leaderOptions: LeaderElectionOptions = LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 5.seconds),
     ): DynamoDbLeaderElector =
         DynamoDbLeaderElector(
-            dynamoDb,
-            DynamoDbLeaderElectionOptions(
+            client = dynamoDbSync,
+            options = DynamoDbLeaderElectionOptions(
                 leaderOptions = leaderOptions,
                 tableName = tableName,
                 keyPrefix = keyPrefix,

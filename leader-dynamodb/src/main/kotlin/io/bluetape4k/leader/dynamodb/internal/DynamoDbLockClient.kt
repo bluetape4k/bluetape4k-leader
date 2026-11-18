@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.dynamodb.internal
 
 import io.bluetape4k.ToStringBuilder
+import io.bluetape4k.aws.dynamodb.model.GetItemRequest
 import io.bluetape4k.aws.dynamodb.model.PutItemRequest
 import io.bluetape4k.aws.dynamodb.model.UpdateItemRequest
 import io.bluetape4k.aws.dynamodb.model.toAttributeValue
@@ -188,13 +189,13 @@ internal class DynamoDbLockClient(
         return try {
             client.putItem(
                 acquireRequest(
-                    key,
-                    ownerId,
-                    auditLeaderId,
-                    nodeId,
-                    leaseExpiryMillis,
-                    ttlPadding,
-                    clockSkewTolerance
+                    key = key,
+                    ownerId = ownerId,
+                    auditLeaderId = auditLeaderId,
+                    nodeId = nodeId,
+                    leaseExpiryMillis = leaseExpiryMillis,
+                    ttlPadding = ttlPadding,
+                    clockSkewTolerance = clockSkewTolerance
                 )
             )
             AcquiredLock(key, ownerId, auditLeaderId, nodeId, leaseExpiryMillis)
@@ -214,26 +215,28 @@ internal class DynamoDbLockClient(
     ): CompletableFuture<AcquiredLock?> {
         val client = safeAsyncClient
         val leaseExpiryMillis = nowMillis() + leaseTime.inWholeMilliseconds
-        return client.putItem(
-            acquireRequest(
-                key,
-                ownerId,
-                auditLeaderId,
-                nodeId,
-                leaseExpiryMillis,
-                ttlPadding,
-                clockSkewTolerance
+        return client
+            .putItem(
+                acquireRequest(
+                    key = key,
+                    ownerId = ownerId,
+                    auditLeaderId = auditLeaderId,
+                    nodeId = nodeId,
+                    leaseExpiryMillis = leaseExpiryMillis,
+                    ttlPadding = ttlPadding,
+                    clockSkewTolerance = clockSkewTolerance
+                )
             )
-        ).thenApply<AcquiredLock?> {
-            AcquiredLock(key, ownerId, auditLeaderId, nodeId, leaseExpiryMillis)
-        }.exceptionallyCompose { failure ->
-            val cause = failure.unwrapCompletionException()!!
-            if (cause is ConditionalCheckFailedException) {
-                reconcileOwnedAsync(key, ownerId)
-            } else {
-                failedCompletableFutureOf(cause)
+            .thenApply<AcquiredLock?> {
+                AcquiredLock(key, ownerId, auditLeaderId, nodeId, leaseExpiryMillis)
+            }.exceptionallyCompose { failure ->
+                val cause = failure.unwrapCompletionException()!!
+                if (cause is ConditionalCheckFailedException) {
+                    reconcileOwnedAsync(key, ownerId)
+                } else {
+                    failedCompletableFutureOf(cause)
+                }
             }
-        }
     }
 
     private fun acquireRequest(
@@ -285,12 +288,11 @@ internal class DynamoDbLockClient(
         val client = safeAsyncClient
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
-        val future =
-            if (remaining > Duration.ZERO) {
-                client.updateItem(retainUntilRequest(lock, remaining)).thenApply { Unit }
-            } else {
-                client.deleteItem(deleteRequest(lock.key, lock.ownerId)).thenApply { Unit }
-            }
+        val future = if (remaining > Duration.ZERO) {
+            client.updateItem(retainUntilRequest(lock, remaining)).thenApply { Unit }
+        } else {
+            client.deleteItem(deleteRequest(lock.key, lock.ownerId)).thenApply { Unit }
+        }
 
         return future.exceptionallyCompose { failure ->
             val cause = failure.unwrapCompletionException()!!
@@ -346,6 +348,7 @@ internal class DynamoDbLockClient(
     fun state(lockName: String, key: String): LeaderState {
         val record = read(key)
         val now = nowMillis()
+
         return if (record == null || record.leaseExpiryMillis <= now) {
             LeaderState.empty(lockName)
         } else {
@@ -476,11 +479,11 @@ internal class DynamoDbLockClient(
     }
 
     private fun readRequest(key: String): GetItemRequest =
-        GetItemRequest.builder()
-            .tableName(tableName)
-            .consistentRead(true)
-            .key(mapOf(LockName to key.toAttributeValue()))
-            .build()
+        GetItemRequest {
+            tableName(tableName)
+            consistentRead(true)
+            key(mapOf(LockName to key.toAttributeValue()))
+        }
 
     private fun retainUntilRequest(lock: AcquiredLock, remaining: Duration): UpdateItemRequest {
         val leaseExpiryMillis = nowMillis() + remaining.inWholeMilliseconds

@@ -134,6 +134,7 @@ class DynamoDbSuspendLeaderGroupElectorIntegrationTest: AbstractDynamoDbLeaderTe
             "ok"
         }
 
+        log.debug { "result=$result" }
         result shouldBeEqualTo LeaderRunResult.Elected("ok", leaderId = "dynamodb-suspend-group-audit-node-a")
     }
 
@@ -143,8 +144,8 @@ class DynamoDbSuspendLeaderGroupElectorIntegrationTest: AbstractDynamoDbLeaderTe
             LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 1.seconds, leaseTime = 5.seconds),
     ): DynamoDbSuspendLeaderGroupElector =
         DynamoDbSuspendLeaderGroupElector(
-            dynamoDbAsync,
-            DynamoDbLeaderGroupElectionOptions(
+            dynamoDb = dynamoDbAsync,
+            options = DynamoDbLeaderGroupElectionOptions(
                 leaderGroupOptions = groupOptions,
                 tableName = tableName,
                 keyPrefix = keyPrefix,

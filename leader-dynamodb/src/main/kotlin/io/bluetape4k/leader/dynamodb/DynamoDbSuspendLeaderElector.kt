@@ -89,20 +89,24 @@ class DynamoDbSuspendLeaderElector(
         val key = DynamoDbKeys.single(options.keyPrefix, lockName)
         val ownerId = DynamoDbLockClient.newOwnerId()
         val acquireFuture = lockClient.acquireAsync(
-            key,
-            ownerId,
-            auditLeaderId ?: ownerId,
-            options.leaderOptions.nodeId,
-            options.leaderOptions.waitTime,
-            options.leaderOptions.leaseTime,
-            options.retryDelay,
-            options.ttlPadding,
-            options.clockSkewTolerance,
+            key = key,
+            ownerId = ownerId,
+            auditLeaderId = auditLeaderId ?: ownerId,
+            nodeId = options.leaderOptions.nodeId,
+            waitTime = options.leaderOptions.waitTime,
+            leaseTime = options.leaderOptions.leaseTime,
+            retryDelay = options.retryDelay,
+            ttlPadding = options.ttlPadding,
+            clockSkewTolerance = options.clockSkewTolerance,
         )
         val lock = acquireFuture.awaitWithoutCancellingFuture { future ->
             future.whenComplete { acquired, _ ->
                 if (acquired != null) {
-                    lockClient.releaseAsync(acquired, Duration.ZERO, System.nanoTime())
+                    lockClient.releaseAsync(
+                        lock = acquired,
+                        minLeaseTime = Duration.ZERO,
+                        acquiredAtNanos = System.nanoTime()
+                    )
                 }
             }
         } ?: return null
@@ -121,14 +125,15 @@ class DynamoDbSuspendLeaderElector(
             auditLeaderId = lock.auditLeaderId,
         )
         val watchdog = LeaderLeaseAutoExtender.start(
-            options.leaderOptions.autoExtend,
-            options.leaderOptions.leaseTime,
-            delegate,
-            DynamoDbLeaderElector.ERROR_CLASSIFIER,
+            enabled = options.leaderOptions.autoExtend,
+            leaseTime = options.leaderOptions.leaseTime,
+            delegate = delegate,
+            classifier = DynamoDbLeaderElector.ERROR_CLASSIFIER,
         )
 
         try {
             log.debug { "DynamoDB suspend leader acquired. lockName=$lockName" }
+
             return withContext(AopScopeAccess.createLockHandleElement(handle)) {
                 action()
             }

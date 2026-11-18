@@ -110,9 +110,9 @@ internal class LeaderAuditPendingContextStore(
             .sortedWith(compareBy<Map.Entry<String, String>> { it.key }.thenBy { it.value })
             .take(LeaderLockHistoryRecord.MAX_METADATA_KEYS)
             .forEach { (key, value) ->
-                if (bounded.size >= LeaderLockHistoryRecord.MAX_METADATA_KEYS ||
-                    totalBytes >= LeaderAuditExportEvent.MAX_ATTRIBUTES_TOTAL_BYTES
-                ) {
+                val overflowSize = bounded.size >= LeaderLockHistoryRecord.MAX_METADATA_KEYS ||
+                        totalBytes >= LeaderAuditExportEvent.MAX_ATTRIBUTES_TOTAL_BYTES
+                if (overflowSize) {
                     return@forEach
                 }
 

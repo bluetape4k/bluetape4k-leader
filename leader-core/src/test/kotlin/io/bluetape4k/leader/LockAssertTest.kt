@@ -22,12 +22,14 @@ class LockAssertTest {
 
     // --- helpers ---
 
-    private fun identity(name: String = "test-lock") = LockIdentity(
-        lockName = name,
-        kind = LockIdentity.AnnotationKind.SINGLE,
-        factoryBeanName = "testFactory",
-    )
+    private fun identity(name: String = "test-lock"): LockIdentity =
+        LockIdentity(
+            lockName = name,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = "testFactory",
+        )
 
+    @Suppress("SameParameterValue")
     private fun fakeDelegate(held: Boolean = true): ExtendDelegate = object: ExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
         override val lastExtendDeadline: AtomicReference<Instant> get() = deadline

@@ -90,25 +90,26 @@ class LeaderAuditExportSnapshot private constructor(payload: Payload) {
             diagnosticsFatalErrors: Long,
             diagnosticsClosed: Boolean,
             closed: Boolean,
-        ): LeaderAuditExportSnapshot = invoke(
-            queued = queued,
-            inFlight = inFlight,
-            scheduledRetries = scheduledRetries,
-            admitted = admitted,
-            accepted = accepted,
-            droppedQueueFull = droppedQueueFull,
-            droppedClosed = droppedClosed,
-            retries = retries,
-            terminalFailures = terminalFailures,
-            cancellations = cancellations,
-            executorRejections = executorRejections,
-            schedulerRejections = schedulerRejections,
-            observerDrops = observerDrops,
-            observerRegistrationDrops = observerRegistrationDrops,
-            diagnosticsFatalErrors = diagnosticsFatalErrors,
-            diagnosticsClosed = diagnosticsClosed,
-            closed = closed,
-        )
+        ): LeaderAuditExportSnapshot =
+            invoke(
+                queued = queued,
+                inFlight = inFlight,
+                scheduledRetries = scheduledRetries,
+                admitted = admitted,
+                accepted = accepted,
+                droppedQueueFull = droppedQueueFull,
+                droppedClosed = droppedClosed,
+                retries = retries,
+                terminalFailures = terminalFailures,
+                cancellations = cancellations,
+                executorRejections = executorRejections,
+                schedulerRejections = schedulerRejections,
+                observerDrops = observerDrops,
+                observerRegistrationDrops = observerRegistrationDrops,
+                diagnosticsFatalErrors = diagnosticsFatalErrors,
+                diagnosticsClosed = diagnosticsClosed,
+                closed = closed,
+            )
 
         /** 내부 counter state를 immutable public snapshot으로 만듭니다. */
         @JvmStatic

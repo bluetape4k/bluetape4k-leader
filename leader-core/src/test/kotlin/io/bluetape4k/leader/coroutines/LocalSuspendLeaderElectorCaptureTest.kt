@@ -13,10 +13,12 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.milliseconds
@@ -144,6 +146,10 @@ class LocalSuspendLeaderElectorCaptureTest {
             election.runIfLeader(lockName) {
                 throw RuntimeException("intentional")
             }
+        }.onFailure {
+            if (it is CancellationException) {
+                ensureActive()
+            }
         }
 
         coroutineContext[LockHandleElement].shouldBeNull()
@@ -180,8 +186,6 @@ class LocalSuspendLeaderElectorCaptureTest {
             holder.await()
         }
 
-        initialLeaseUntil.shouldNotBeNull()
-        extendedLeaseUntil.shouldNotBeNull()
         extendedLeaseUntil.shouldNotBeNull() shouldBeAfter initialLeaseUntil.shouldNotBeNull()
     }
 

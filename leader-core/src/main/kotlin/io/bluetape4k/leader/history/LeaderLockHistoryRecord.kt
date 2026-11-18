@@ -47,7 +47,10 @@ data class LeaderLockHistoryRecord private constructor(
      * @param errorMessage 로그 위험 문자를 정제하고 UTF-8 기준 최대 512바이트로 자른 실패 메시지입니다. 없으면 `null`입니다.
      * @param metadata 최대 16개 항목과 값당 256자로 정제된 이력 문맥입니다.
      */
-    internal fun withSanitizedContent(errorMessage: String?, metadata: Map<String, String>): LeaderLockHistoryRecord =
+    internal fun withSanitizedContent(
+        errorMessage: String?,
+        metadata: Map<String, String>,
+    ): LeaderLockHistoryRecord =
         copy(errorMessage = errorMessage, metadata = metadata)
 
     // 이 record를 문자열 보간으로 로그에 남길 때 credential이 노출되지 않도록 token을 가립니다.
@@ -108,6 +111,7 @@ data class LeaderLockHistoryRecord private constructor(
         ): LeaderLockHistoryRecord {
             lockName.requireNotBlank("lockName")
             token.requireNotBlank("token")
+
             return LeaderLockHistoryRecord(
                 lockName = lockName,
                 token = token,

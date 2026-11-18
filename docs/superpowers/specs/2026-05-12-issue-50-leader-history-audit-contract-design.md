@@ -622,7 +622,7 @@ class MicrometerSafeLeaderHistoryRecorder(
 
 ```kotlin
 fun String.truncateUtf8(maxBytes: Int): String {
-    val bytes = toByteArray(Charsets.UTF_8)
+    val bytes = toUtf8Bytes()
     if (bytes.size <= maxBytes) return this
     // maxBytes까지 자른 후 유효한 UTF-8로 디코드
     var end = maxBytes

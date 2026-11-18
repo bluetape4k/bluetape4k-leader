@@ -2,6 +2,7 @@ package io.bluetape4k.leader.local
 
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
+import io.bluetape4k.logging.KLogging
 import java.io.Serializable
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
@@ -10,6 +11,8 @@ import kotlin.time.Duration
 internal class LocalStrategicCandidateRegistry(
     private val monotonicNowNanos: () -> Long = { System.nanoTime() },
 ) {
+
+    companion object: KLogging()
 
     private val candidates = ConcurrentHashMap<String, RegisteredCandidate>()
 

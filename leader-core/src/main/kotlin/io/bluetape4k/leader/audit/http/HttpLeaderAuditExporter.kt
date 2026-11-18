@@ -7,6 +7,7 @@ import io.bluetape4k.leader.audit.LeaderAuditExportSnapshot
 import io.bluetape4k.leader.audit.LeaderAuditExporter
 import io.bluetape4k.leader.audit.LeaderAuditSubmitResult
 import io.bluetape4k.leader.audit.internal.BoundedLeaderAuditExporter
+import io.bluetape4k.logging.KLogging
 import java.net.http.HttpClient
 
 /**
@@ -25,6 +26,8 @@ class HttpLeaderAuditExporter(
     exportOptions: LeaderAuditExportOptions,
     httpOptions: LeaderAuditHttpOptions,
 ): LeaderAuditExporter {
+
+    companion object: KLogging()
 
     private val delegate: LeaderAuditExporter = BoundedLeaderAuditExporter(
         delivery = HttpLeaderAuditDelivery(

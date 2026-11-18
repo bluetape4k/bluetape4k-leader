@@ -292,6 +292,8 @@ internal class BoundedLeaderAuditExporter(
                 }
 
                 WorkerHandoffState.CLOSED  -> return false
+
+                else                       -> return false
             }
         }
     }
@@ -596,6 +598,7 @@ internal class BoundedLeaderAuditExporter(
         }
     }
 
+    @Suppress("SameParameterValue")
     private fun terminalizeQueued(observation: LeaderAuditExportObservation) {
         drainQueued(observation)
     }
@@ -707,7 +710,9 @@ internal class BoundedLeaderAuditExporter(
     }
 
     private fun drainDiagnosticsLocked() {
-        while (diagnostics.poll() != null) diagnosticsQueued.decrementAndGet()
+        while (diagnostics.poll() != null) {
+            diagnosticsQueued.decrementAndGet()
+        }
     }
 
     private class WorkItem(val event: LeaderAuditExportEvent) {

@@ -7,6 +7,7 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaseCleanupResult
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds
 
@@ -54,10 +55,12 @@ class ResidualLeaseRegistryTest {
         val registry = ResidualLeaseRegistry(maxResidualLeases = 1, retention = 10.seconds)
         val reservation = registry.tryReserve().shouldNotBeNull()
         var terminalized = 0
+
         val entry = registry.transfer(
             reservation,
             onTerminalized = { terminalized++ },
         ).shouldNotBeNull()
+        log.debug { "entry=$entry" }
 
         registry.reconcile(entry, LeaseCleanupResult.RELEASED).shouldBeTrue()
         reservation.terminalize()

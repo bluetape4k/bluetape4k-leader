@@ -6,10 +6,13 @@ import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.history.LeaderHistorySink
 import io.bluetape4k.leader.history.SuspendLeaderHistorySink
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CoroutineScope
 import org.junit.jupiter.api.Test
 
 class LeaderAuditPublicApiCompatibilityTest {
+
+    companion object: KLogging()
 
     @Test
     fun `audit sink and event subscription constructors remain public`() {
@@ -17,6 +20,7 @@ class LeaderAuditPublicApiCompatibilityTest {
             LeaderHistorySink::class.java,
             LeaderAuditExporter::class.java,
         ).shouldBeTrue()
+
         ExportingLeaderHistorySink::class.java.hasPublicConstructor(
             LeaderHistorySink::class.java,
             LeaderAuditExporter::class.java,
@@ -27,6 +31,7 @@ class LeaderAuditPublicApiCompatibilityTest {
             SuspendLeaderHistorySink::class.java,
             LeaderAuditExporter::class.java,
         ).shouldBeTrue()
+
         ExportingSuspendLeaderHistorySink::class.java.hasPublicConstructor(
             SuspendLeaderHistorySink::class.java,
             LeaderAuditExporter::class.java,
@@ -36,8 +41,10 @@ class LeaderAuditPublicApiCompatibilityTest {
         val publisher = LeaderElectionEventPublisher::class.java
         val scope = CoroutineScope::class.java
         val exporter = LeaderAuditExporter::class.java
+
         LeaderElectionEventExportSubscription::class.java.hasPublicConstructor(publisher, scope, exporter)
             .shouldBeTrue()
+
         LeaderElectionEventExportSubscription::class.java.hasPublicConstructor(
             publisher,
             scope,
@@ -63,4 +70,6 @@ class LeaderAuditPublicApiCompatibilityTest {
 }
 
 private fun Class<*>.hasPublicConstructor(vararg parameterTypes: Class<*>): Boolean =
-    constructors.any { constructor -> constructor.parameterTypes.contentEquals(parameterTypes) }
+    constructors.any { constructor ->
+        constructor.parameterTypes.contentEquals(parameterTypes)
+    }

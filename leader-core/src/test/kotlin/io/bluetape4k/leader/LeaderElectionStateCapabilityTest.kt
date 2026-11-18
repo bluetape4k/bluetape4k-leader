@@ -9,11 +9,15 @@ import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.forTenant
 import io.bluetape4k.leader.coroutines.withListeners
 import io.bluetape4k.leader.local.LocalLeaderElector
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
 class LeaderElectionStateCapabilityTest {
+
+    companion object: KLogging()
 
     @Test
     fun `default capability is false and synchronous decorators preserve it`() {
@@ -54,6 +58,9 @@ class LeaderElectionStateCapabilityTest {
             election.state(slot.lockName).leader?.auditLeaderId
         }
 
+        log.debug { "observed=$observed" }
+        log.debug { "result=$result" }
+
         observed shouldBeEqualTo slot.leaderId
         result shouldBeEqualTo LeaderRunResult.Elected(slot.leaderId, slot.leaderId)
     }
@@ -67,9 +74,13 @@ class LeaderElectionStateCapabilityTest {
         val observed = election.runAsyncIfLeader(slot, directExecutor) {
             completableFutureOf(election.state(slot.lockName).leader?.auditLeaderId)
         }.join()
+
         val result = election.runAsyncIfLeaderResult(slot, directExecutor) {
             completableFutureOf(election.state(slot.lockName).leader?.auditLeaderId)
         }.join()
+
+        log.debug { "observed=$observed" }
+        log.debug { "result=$result" }
 
         observed shouldBeEqualTo slot.leaderId
         result shouldBeEqualTo LeaderRunResult.Elected(slot.leaderId, slot.leaderId)
@@ -87,6 +98,9 @@ class LeaderElectionStateCapabilityTest {
             election.state(slot.lockName).leader?.auditLeaderId
         }
 
+        log.debug { "observed=$observed" }
+        log.debug { "result=$result" }
+
         observed shouldBeEqualTo slot.leaderId
         result shouldBeEqualTo LeaderRunResult.Elected(slot.leaderId, slot.leaderId)
     }
@@ -98,6 +112,7 @@ class LeaderElectionStateCapabilityTest {
             lockName: String,
             executor: Executor,
             action: () -> CompletableFuture<T>,
-        ): CompletableFuture<T?> = action().thenApply { it }
+        ): CompletableFuture<T?> =
+            action().thenApply { it }
     }
 }

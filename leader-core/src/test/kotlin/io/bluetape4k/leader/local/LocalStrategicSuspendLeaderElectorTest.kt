@@ -76,8 +76,8 @@ class LocalStrategicSuspendLeaderElectorTest {
     @Test
     fun `refreshCandidate - 없는 후보는 새로 등록하지 않는다`() = runTest {
         node1.refreshCandidate(
-            lockName,
-            CandidateInfo("ghost", metadata = mapOf("heartbeat" to "missing")),
+            lockName = lockName,
+            info = CandidateInfo("ghost", metadata = mapOf("heartbeat" to "missing")),
         )
 
         node1.listCandidates(lockName).shouldBeEmpty()
@@ -86,8 +86,8 @@ class LocalStrategicSuspendLeaderElectorTest {
     @Test
     fun `refreshCandidate - 결과 통계와 완료 시각을 보존하고 metadata만 갱신한다`() = runTest {
         node1.registerCandidate(
-            lockName,
-            CandidateInfo(
+            lockName = lockName,
+            info = CandidateInfo(
                 nodeId = node1.nodeId,
                 registeredAt = Instant.parse("2026-01-01T00:00:00Z"),
                 successCount = 3,
@@ -99,8 +99,8 @@ class LocalStrategicSuspendLeaderElectorTest {
         val beforeRefresh = node1.listCandidates(lockName).single()
 
         node1.refreshCandidate(
-            lockName,
-            CandidateInfo(node1.nodeId, metadata = mapOf("version" to "new")),
+            lockName = lockName,
+            info = CandidateInfo(node1.nodeId, metadata = mapOf("version" to "new")),
         )
 
         val refreshed = node1.listCandidates(lockName).single()
@@ -123,8 +123,8 @@ class LocalStrategicSuspendLeaderElectorTest {
             .add {
                 node1.updateResult(lockName, node1.nodeId, CandidateResult.SUCCESS)
                 node1.refreshCandidate(
-                    lockName,
-                    CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok"))
+                    lockName = lockName,
+                    info = CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok"))
                 )
             }
             .run()
@@ -140,8 +140,8 @@ class LocalStrategicSuspendLeaderElectorTest {
             .rounds(100)
             .add {
                 node1.refreshCandidate(
-                    lockName,
-                    CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")),
+                    lockName = lockName,
+                    info = CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")),
                 )
             }
             .add {

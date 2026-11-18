@@ -4,7 +4,9 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
@@ -21,10 +23,11 @@ class LeaderFutureBridgeTest {
 
     @Test
     fun `map은 성공 값을 변환한다`() {
-        val mapped = LeaderFutureBridge.map(completableFutureOf("done")) { value, failure ->
-            failure shouldBeEqualTo null
-            requireNotNull(value).length
-        }
+        val mapped = LeaderFutureBridge
+            .map(completableFutureOf("done")) { value, failure ->
+                failure.shouldBeNull()
+                value.shouldNotBeNull().length
+            }
 
         mapped.join() shouldBeEqualTo 4
     }
@@ -32,11 +35,12 @@ class LeaderFutureBridgeTest {
     @Test
     fun `map은 source 실패를 mapper에 전달한다`() {
         val failure = IllegalStateException("source failed")
-        val mapped = LeaderFutureBridge.map(failedCompletableFutureOf<String>(failure)) { _, observed ->
-            val observedFailure = requireNotNull(observed)
-            observedFailure shouldBeEqualTo failure
-            throw observedFailure
-        }
+        val mapped = LeaderFutureBridge
+            .map(failedCompletableFutureOf<String>(failure)) { _, observed ->
+                val observedFailure = requireNotNull(observed)
+                observedFailure shouldBeEqualTo failure
+                throw observedFailure
+            }
 
         assertFailsWith<CompletionException> {
             mapped.join()

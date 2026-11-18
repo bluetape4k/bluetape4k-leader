@@ -26,14 +26,16 @@ object FifoGroupElectionStrategy: GroupElectionStrategy {
         val winners = ordered.take(maxLeaders)
         val boundary = winners.last()
 
-        val eliminations = ordered.drop(maxLeaders).map { candidate ->
-            val reason = if (candidate.registeredAt > boundary.registeredAt) {
-                "registered later (${candidate.registeredAt} > ${boundary.registeredAt})"
-            } else {
-                "nodeId lexicographically after boundary (${candidate.nodeId} > ${boundary.nodeId})"
+        val eliminations = ordered
+            .drop(maxLeaders)
+            .map { candidate ->
+                val reason = if (candidate.registeredAt > boundary.registeredAt) {
+                    "registered later (${candidate.registeredAt} > ${boundary.registeredAt})"
+                } else {
+                    "nodeId lexicographically after boundary (${candidate.nodeId} > ${boundary.nodeId})"
+                }
+                Elimination(candidate, reason)
             }
-            Elimination(candidate, reason)
-        }
 
         return StrategicGroupElectionResult(winners, eliminations)
     }

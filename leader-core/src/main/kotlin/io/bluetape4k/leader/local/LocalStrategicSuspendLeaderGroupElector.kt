@@ -32,7 +32,9 @@ class LocalStrategicSuspendLeaderGroupElector(
 
     private fun candidatesFor(lockName: String): LocalStrategicCandidateRegistry {
         lockName.validateLockName()
-        return registry.computeIfAbsent(lockName) { LocalStrategicCandidateRegistry() }
+        return registry.computeIfAbsent(lockName) {
+            LocalStrategicCandidateRegistry()
+        }
     }
 
     private fun mutexFor(lockName: String): Mutex =
@@ -95,7 +97,9 @@ class LocalStrategicSuspendLeaderGroupElector(
             log.debug {
                 val scoreText = result.scores.entries
                     .sortedByDescending { it.value }
-                    .joinToString(", ") { (id, score) -> "$id=%.2f".format(score) }
+                    .joinToString(", ") { (id, score) ->
+                        "$id=%.2f".format(score)
+                    }
                 "[$lockName] 점수: $scoreText"
             }
         }

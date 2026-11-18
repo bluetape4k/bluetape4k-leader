@@ -29,6 +29,7 @@ internal class LocalLeaderStateRegistry {
     ): LeaderLease = lock.withLock {
         val lease = newLease(auditLeaderId, nodeId, leaseTime)
         val current = singleLeases[lockName]
+
         if (current == null) {
             singleLeases[lockName] = LeaseRef(lease)
         } else {
@@ -57,6 +58,7 @@ internal class LocalLeaderStateRegistry {
 
     fun singleState(lockName: String): LeaderState {
         lockName.requireNotBlank("lockName")
+
         return lock.withLock {
             singleLeases[lockName]?.lease
                 ?.let { LeaderState.occupied(lockName, it) }

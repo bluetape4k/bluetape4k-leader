@@ -29,7 +29,9 @@ class DynamoDbVirtualThreadLeaderElectorIntegrationTest: AbstractDynamoDbLeaderT
             "virtual"
         }.await() shouldBeEqualTo "virtual"
 
-        elector.runAsyncIfLeader(lockName) { "reacquired" }.await() shouldBeEqualTo "reacquired"
+        elector.runAsyncIfLeader(lockName) {
+            "reacquired"
+        }.await() shouldBeEqualTo "reacquired"
     }
 
     @Test
@@ -66,7 +68,6 @@ class DynamoDbVirtualThreadLeaderElectorIntegrationTest: AbstractDynamoDbLeaderT
             contender.runAsyncIfLeader(lockName) { "contender" }.await().shouldBeNull()
 
             release.countDown()
-
             holderFuture.get(5.seconds) shouldBeEqualTo "holder"
         } finally {
             release.countDown()
@@ -120,13 +121,7 @@ class DynamoDbVirtualThreadLeaderElectorIntegrationTest: AbstractDynamoDbLeaderT
 
             release.countDown()
 
-            setOf(
-                first.get(5.seconds),
-                second.get(5.seconds)
-            ) shouldBeEqualTo setOf(
-                "first",
-                "second"
-            )
+            setOf(first.get(5.seconds), second.get(5.seconds)) shouldBeEqualTo setOf("first", "second")
         } finally {
             release.countDown()
             executor.shutdownNow()
@@ -138,8 +133,8 @@ class DynamoDbVirtualThreadLeaderElectorIntegrationTest: AbstractDynamoDbLeaderT
         leaderOptions: LeaderElectionOptions = LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 5.seconds),
     ): DynamoDbLeaderElector =
         DynamoDbLeaderElector(
-            dynamoDb,
-            DynamoDbLeaderElectionOptions(
+            client = dynamoDbSync,
+            options = DynamoDbLeaderElectionOptions(
                 leaderOptions = leaderOptions,
                 tableName = tableName,
                 keyPrefix = keyPrefix,
@@ -154,8 +149,8 @@ class DynamoDbVirtualThreadLeaderElectorIntegrationTest: AbstractDynamoDbLeaderT
             LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 1.seconds, leaseTime = 5.seconds),
     ): DynamoDbLeaderGroupElector =
         DynamoDbLeaderGroupElector(
-            dynamoDb,
-            DynamoDbLeaderGroupElectionOptions(
+            dynamoDb = dynamoDbSync,
+            options = DynamoDbLeaderGroupElectionOptions(
                 leaderGroupOptions = groupOptions,
                 tableName = tableName,
                 keyPrefix = keyPrefix,

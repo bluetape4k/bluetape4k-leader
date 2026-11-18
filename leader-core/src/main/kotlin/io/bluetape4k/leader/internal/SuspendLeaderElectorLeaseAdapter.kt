@@ -117,7 +117,7 @@ class SuspendLeaderElectorLeaseAdapter(
         job.cancel()
     }
 
-    private suspend fun captureSuspendHandle(): io.bluetape4k.leader.LeaderLockHandle? =
+    private suspend fun captureSuspendHandle(): LeaderLockHandle? =
         currentCoroutineContext()[LockHandleElement]?.handle
 
     private class SuspendSession(
@@ -178,7 +178,10 @@ class SuspendLeaderElectorLeaseAdapter(
         suspend fun extend(duration: Duration): ExtendOutcome {
             if (released.get() || cancelled.get()) return ExtendOutcome.NotHeld
             val result = CompletableDeferred<ExtendOutcome>()
-            if (!commands.trySend(Command.Extend(duration, result)).isSuccess) return ExtendOutcome.Rejected
+
+            if (!commands.trySend(Command.Extend(duration, result)).isSuccess) {
+                return ExtendOutcome.Rejected
+            }
             return result.awaitUntilOrNull(duration) ?: ExtendOutcome.Rejected
         }
 
@@ -189,7 +192,9 @@ class SuspendLeaderElectorLeaseAdapter(
             if (released.get() || cancelled.get()) return LeaseOwnershipStatus.UNKNOWN
 
             val result = CompletableDeferred<LeaseOwnershipStatus>()
-            if (!commands.trySend(Command.Held(result)).isSuccess) return LeaseOwnershipStatus.UNKNOWN
+            if (!commands.trySend(Command.Held(result)).isSuccess) {
+                return LeaseOwnershipStatus.UNKNOWN
+            }
             return result.awaitUntilOrNull(1.seconds) ?: LeaseOwnershipStatus.UNKNOWN
         }
 

@@ -54,11 +54,12 @@ class DynamoDbLeaderGroupElector(
     override fun state(lockName: String): LeaderGroupState {
         DynamoDbKeys.validateUserLockName(lockName)
         val leases = lockClient.activeGroupLeases(DynamoDbKeys.groupPrefix(options.keyPrefix, lockName), maxLeaders)
+
         return LeaderGroupState(
-            lockName,
-            maxLeaders,
-            leases.size.coerceAtMost(maxLeaders),
-            leases
+            lockName = lockName,
+            maxLeaders = maxLeaders,
+            activeCount = leases.size.coerceAtMost(maxLeaders),
+            leaders = leases
         )
     }
 
@@ -89,10 +90,10 @@ class DynamoDbLeaderGroupElector(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
-    private fun <T> runWithLock(
+    private inline fun <T> runWithLock(
         lockName: String,
         auditLeaderId: String?,
-        action: () -> T,
+        crossinline action: () -> T,
     ): T? {
         DynamoDbKeys.validateUserLockName(lockName)
         val start = Random.nextInt(maxLeaders)

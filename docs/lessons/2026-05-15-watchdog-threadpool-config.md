@@ -54,7 +54,7 @@ slow backend extend 호출이 single-thread scheduler를 block → 100개 watchd
 
 ### 교훈
 
-`Thread.ofVirtual()`이 `CompletableFuture.runAsync()`보다 적합한 경우:
+`Thread.ofVirtual()`이 `futureOf()`보다 적합한 경우:
 
 - CI 2-core 환경에서 ForkJoinPool은 thread 1개 → 동시 dispatch 불가
 - `CompletableFuture`는 ForkJoinPool에 의존, pool lifecycle 관리 별도 필요

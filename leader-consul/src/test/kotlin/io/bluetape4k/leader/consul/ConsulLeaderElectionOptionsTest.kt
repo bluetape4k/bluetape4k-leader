@@ -28,6 +28,7 @@ class ConsulLeaderElectionOptionsTest {
         options.keyPrefix shouldBeEqualTo "bluetape4k/leader"
         options.sessionNamePrefix shouldBeEqualTo "bluetape4k-leader"
         options.lockDelay shouldBeEqualTo Duration.ZERO
+
         ConsulSessionTtl.ttlSeconds(options.leaderOptions.leaseTime) shouldBeEqualTo 60L
     }
 

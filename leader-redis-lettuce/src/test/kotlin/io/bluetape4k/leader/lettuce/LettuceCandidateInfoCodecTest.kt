@@ -2,6 +2,7 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -38,8 +39,8 @@ class LettuceCandidateInfoCodecTest: AbstractLettuceLeaderTest() {
         val decoded = LettuceCandidateInfoCodec.decode(encoded)
 
         log.debug { "decoded=$decoded" }
-        decoded.lastStartTime shouldBeEqualTo null
-        decoded.lastCompletionTime shouldBeEqualTo null
+        decoded.lastStartTime.shouldBeNull()
+        decoded.lastCompletionTime.shouldBeNull()
         decoded.metadata shouldBeEqualTo emptyMap()
     }
 

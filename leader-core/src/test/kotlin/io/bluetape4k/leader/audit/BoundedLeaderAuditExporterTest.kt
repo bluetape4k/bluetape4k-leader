@@ -7,11 +7,15 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.javatimes.millis
+import io.bluetape4k.javatimes.minutes
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.audit.internal.BoundedLeaderAuditExporter
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.until
@@ -28,7 +32,6 @@ import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -73,7 +76,9 @@ class BoundedLeaderAuditExporterTest {
 
         exporter.close()
         exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.DROPPED_CLOSED
+
         val snapshot = exporter.snapshot()
+        log.debug { "snapshot=$snapshot" }
         snapshot.closed.shouldBeTrue()
         snapshot.droppedClosed shouldBeEqualTo 1
     }
@@ -92,7 +97,9 @@ class BoundedLeaderAuditExporterTest {
         exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
         delivered.await(5.seconds).shouldBeTrue()
         awaitAdmissionReleased(exporter)
+
         val snapshot = exporter.snapshot()
+        log.debug { "snapshot=$snapshot" }
         snapshot.admitted shouldBeEqualTo 0
         snapshot.inFlight shouldBeEqualTo 0
         snapshot.accepted shouldBeEqualTo 1
@@ -117,8 +124,11 @@ class BoundedLeaderAuditExporterTest {
         exporter.submit(event())
         terminal.await(5.seconds).shouldBeTrue()
         attempts.get() shouldBeEqualTo 2
-        exporter.snapshot().terminalFailures shouldBeEqualTo 1
-        exporter.snapshot().admitted shouldBeEqualTo 0
+
+        val snapshot = exporter.snapshot()
+        log.debug { "snapshot=$snapshot" }
+        snapshot.terminalFailures shouldBeEqualTo 1
+        snapshot.admitted shouldBeEqualTo 0
         exporter.close()
     }
 
@@ -134,8 +144,11 @@ class BoundedLeaderAuditExporterTest {
 
         exporter.submit(event())
         terminal.await(5.seconds).shouldBeTrue()
-        exporter.snapshot().inFlight shouldBeEqualTo 0
-        exporter.snapshot().admitted shouldBeEqualTo 0
+
+        val snapshot = exporter.snapshot()
+        log.debug { "snapshot=$snapshot" }
+        snapshot.inFlight shouldBeEqualTo 0
+        snapshot.admitted shouldBeEqualTo 0
         exporter.close()
     }
 
@@ -173,6 +186,7 @@ class BoundedLeaderAuditExporterTest {
         deliveryFailed.await(5.seconds).shouldBeTrue()
 
         val snapshot = exporter.snapshot()
+        log.debug { "snapshot=$snapshot" }
         snapshot.cancellations shouldBeEqualTo 1
         snapshot.inFlight shouldBeEqualTo 0
         snapshot.admitted shouldBeEqualTo 0
@@ -199,8 +213,11 @@ class BoundedLeaderAuditExporterTest {
         deliveryStarted.await(5.seconds).shouldBeTrue()
         exporter.close()
         cancelled.await(5.seconds).shouldBeTrue()
-        exporter.snapshot().cancellations shouldBeEqualTo 1
-        exporter.snapshot().admitted shouldBeEqualTo 0
+
+        val snapshot = exporter.snapshot()
+        log.debug { "snapshot=$snapshot" }
+        snapshot.cancellations shouldBeEqualTo 1
+        snapshot.admitted shouldBeEqualTo 0
     }
 
     @Test
@@ -222,9 +239,12 @@ class BoundedLeaderAuditExporterTest {
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
         terminal.await(5.seconds).shouldBeTrue()
         attempts.get() shouldBeEqualTo 2
-        exporter.snapshot().retries shouldBeEqualTo 1
-        exporter.snapshot().inFlight shouldBeEqualTo 0
-        exporter.snapshot().admitted shouldBeEqualTo 0
+
+        val snapshot = exporter.snapshot()
+        log.debug { "snapshot=$snapshot" }
+        snapshot.retries shouldBeEqualTo 1
+        snapshot.inFlight shouldBeEqualTo 0
+        snapshot.admitted shouldBeEqualTo 0
         exporter.close()
     }
 
@@ -252,7 +272,10 @@ class BoundedLeaderAuditExporterTest {
 
         futures.remove().complete(LeaderAuditDeliveryResult.SUCCESS)
         secondStarted.await(5.seconds).shouldBeTrue()
-        exporter.snapshot().inFlight shouldBeEqualTo 1
+
+        val snapshot = exporter.snapshot()
+        log.debug { "snapshot=$snapshot" }
+        snapshot.inFlight shouldBeEqualTo 1
 
         futures.remove().complete(LeaderAuditDeliveryResult.SUCCESS)
         exporter.close()
@@ -299,7 +322,11 @@ class BoundedLeaderAuditExporterTest {
         releaseExecutor.countDown()
         secondStarted.await(5.seconds).shouldBeTrue()
         awaitAdmissionReleased(exporter)
-        exporter.snapshot().admitted shouldBeEqualTo 0
+
+        val snapshot = exporter.snapshot()
+        log.debug { "snapshot=$snapshot" }
+        snapshot.admitted shouldBeEqualTo 0
+
         exporter.close()
     }
 
@@ -325,16 +352,22 @@ class BoundedLeaderAuditExporterTest {
         exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
         awaitAdmissionReleased(exporter)
 
-        exporter.snapshot().admitted shouldBeEqualTo 0
-        exporter.snapshot().executorRejections shouldBeEqualTo 1
+        val snapshot = exporter.snapshot()
+        log.debug { "snapshot=$snapshot" }
+        snapshot.admitted shouldBeEqualTo 0
+        snapshot.executorRejections shouldBeEqualTo 1
         exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
 
         recovered.await(5.seconds).shouldBeTrue()
         deliveryFuture.complete(LeaderAuditDeliveryResult.SUCCESS).shouldBeTrue()
 
         awaitAdmissionReleased(exporter)
-        exporter.snapshot().admitted shouldBeEqualTo 0
-        exporter.snapshot().executorRejections shouldBeEqualTo 1
+
+        val snapshot2 = exporter.snapshot()
+        log.debug { "snapshot2=$snapshot2" }
+        snapshot2.admitted shouldBeEqualTo 0
+        snapshot2.executorRejections shouldBeEqualTo 1
+
         exporter.close()
     }
 
@@ -378,31 +411,43 @@ class BoundedLeaderAuditExporterTest {
             exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
         }
         firstDispatchEntered.await(5.seconds).shouldBeTrue()
-        exporter.snapshot().queued shouldBeEqualTo queueCapacity
-        exporter.snapshot().admitted shouldBeEqualTo queueCapacity
+        exporter.snapshot().let {
+            log.debug { "snapshot=$it" }
+            it.queued shouldBeEqualTo queueCapacity
+            it.admitted shouldBeEqualTo queueCapacity
+        }
 
         allowFirstDispatchToReject.countDown()
         awaitAdmissionReleased(exporter)
-        exporter.snapshot().executorRejections.shouldBeEqualTo(queueCapacity.toLong())
-        exporter.snapshot().queued shouldBeEqualTo 0
-        exporter.snapshot().inFlight shouldBeEqualTo 0
-        exporter.snapshot().admitted shouldBeEqualTo 0
+        exporter.snapshot().let {
+            log.debug { "snapshot2=$it" }
+            it.executorRejections shouldBeEqualTo queueCapacity.toLong()
+            it.queued shouldBeEqualTo 0
+            it.inFlight shouldBeEqualTo 0
+            it.admitted shouldBeEqualTo 0
+        }
 
         repeat(queueCapacity) {
             exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
         }
         recoveryDispatchEntered.await(5.seconds).shouldBeTrue()
-        exporter.snapshot().queued shouldBeEqualTo queueCapacity
-        exporter.snapshot().admitted shouldBeEqualTo queueCapacity
+        exporter.snapshot().let {
+            log.debug { "snapshot3=$it" }
+            it.queued shouldBeEqualTo queueCapacity
+            it.admitted shouldBeEqualTo queueCapacity
+        }
 
         allowRecoveryDispatch.countDown()
         recoveryWorkerCompleted.await(5.seconds).shouldBeTrue()
         recoveryDelivered.get() shouldBeEqualTo queueCapacity
         recoveryDispatches.get() shouldBeEqualTo 1
 
-        exporter.snapshot().accepted shouldBeEqualTo (queueCapacity * 2).toLong()
-        exporter.snapshot().admitted shouldBeEqualTo 0
-        exporter.snapshot().executorRejections shouldBeEqualTo queueCapacity.toLong()
+        exporter.snapshot().let {
+            log.debug { "snapshot4=$it" }
+            it.accepted shouldBeEqualTo (queueCapacity * 2).toLong()
+            it.admitted shouldBeEqualTo 0
+            it.executorRejections shouldBeEqualTo queueCapacity.toLong()
+        }
         exporter.close()
     }
 
@@ -472,13 +517,21 @@ class BoundedLeaderAuditExporterTest {
         val exporter = exporter(
             scheduler = scheduler,
             executor = Executor { it.run() },
-            onObservation = { if (it == LeaderAuditExportObservation.SCHEDULER_REJECTED) rejected.countDown() },
+            onObservation = {
+                if (it == LeaderAuditExportObservation.SCHEDULER_REJECTED) {
+                    rejected.countDown()
+                }
+            },
         )
 
         exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
         rejected.await(5.seconds).shouldBeTrue()
-        exporter.snapshot().schedulerRejections shouldBeEqualTo 1
-        exporter.snapshot().admitted shouldBeEqualTo 0
+
+        exporter.snapshot().let {
+            log.debug { "snapshot=$it" }
+            it.schedulerRejections shouldBeEqualTo 1
+            it.admitted shouldBeEqualTo 0
+        }
         exporter.close()
     }
 
@@ -492,9 +545,9 @@ class BoundedLeaderAuditExporterTest {
                 queueCapacity = 0,
                 maxInFlight = 1,
                 maxAttempts = 1,
-                attemptTimeout = Duration.ofSeconds(1),
-                initialBackoff = Duration.ofMillis(1),
-                maxBackoff = Duration.ofSeconds(1),
+                attemptTimeout = 1.seconds(),
+                initialBackoff = 1.millis(),
+                maxBackoff = 1.seconds(),
                 executor = executor,
                 scheduler = scheduler,
             )
@@ -504,9 +557,9 @@ class BoundedLeaderAuditExporterTest {
                 queueCapacity = 1,
                 maxInFlight = 2,
                 maxAttempts = 1,
-                attemptTimeout = Duration.ofSeconds(1),
-                initialBackoff = Duration.ofMillis(1),
-                maxBackoff = Duration.ofSeconds(1),
+                attemptTimeout = 1.seconds(),
+                initialBackoff = 1.millis(),
+                maxBackoff = 1.seconds(),
                 executor = executor,
                 scheduler = scheduler,
             )
@@ -516,9 +569,9 @@ class BoundedLeaderAuditExporterTest {
                 queueCapacity = 1,
                 maxInFlight = 1,
                 maxAttempts = 17,
-                attemptTimeout = Duration.ofSeconds(1),
-                initialBackoff = Duration.ofMillis(1),
-                maxBackoff = Duration.ofSeconds(1),
+                attemptTimeout = 1.seconds(),
+                initialBackoff = 1.millis(),
+                maxBackoff = 1.seconds(),
                 executor = executor,
                 scheduler = scheduler,
             )
@@ -529,8 +582,8 @@ class BoundedLeaderAuditExporterTest {
                 maxInFlight = 1,
                 maxAttempts = 1,
                 attemptTimeout = Duration.ZERO,
-                initialBackoff = Duration.ofMillis(1),
-                maxBackoff = Duration.ofSeconds(1),
+                initialBackoff = 1.millis(),
+                maxBackoff = 1.seconds(),
                 executor = executor,
                 scheduler = scheduler,
             )
@@ -540,9 +593,9 @@ class BoundedLeaderAuditExporterTest {
                 queueCapacity = 1,
                 maxInFlight = 1,
                 maxAttempts = 1,
-                attemptTimeout = Duration.ofSeconds(1),
+                attemptTimeout = 1.seconds(),
                 initialBackoff = Duration.ZERO,
-                maxBackoff = Duration.ofSeconds(1),
+                maxBackoff = 1.seconds(),
                 executor = executor,
                 scheduler = scheduler,
             )
@@ -552,9 +605,9 @@ class BoundedLeaderAuditExporterTest {
                 queueCapacity = 1,
                 maxInFlight = 1,
                 maxAttempts = 1,
-                attemptTimeout = Duration.ofSeconds(1),
-                initialBackoff = Duration.ofSeconds(2),
-                maxBackoff = Duration.ofSeconds(1),
+                attemptTimeout = 1.seconds(),
+                initialBackoff = 2.seconds(),
+                maxBackoff = 1.seconds(),
                 executor = executor,
                 scheduler = scheduler,
             )
@@ -564,9 +617,9 @@ class BoundedLeaderAuditExporterTest {
                 queueCapacity = 1,
                 maxInFlight = 1,
                 maxAttempts = 1,
-                attemptTimeout = Duration.ofMinutes(6),
-                initialBackoff = Duration.ofMillis(1),
-                maxBackoff = Duration.ofSeconds(1),
+                attemptTimeout = 6.minutes(),
+                initialBackoff = 1.millis(),
+                maxBackoff = 1.seconds(),
                 executor = executor,
                 scheduler = scheduler,
             )
@@ -711,9 +764,13 @@ class BoundedLeaderAuditExporterTest {
 
             uncaught.await(5.seconds).shouldBeTrue()
             diagnosticsQueued(exporter) shouldBeEqualTo 0
-            secondStarted.await(200, TimeUnit.MILLISECONDS).shouldBeFalse()
-            exporter.snapshot().diagnosticsClosed.shouldBeTrue()
-            exporter.snapshot().diagnosticsFatalErrors shouldBeEqualTo 1
+            secondStarted.await(200.milliseconds).shouldBeFalse()
+
+            exporter.snapshot().let {
+                log.debug { "snapshot=$it" }
+                it.diagnosticsClosed.shouldBeTrue()
+                it.diagnosticsFatalErrors shouldBeEqualTo 1
+            }
             exporter.close()
         } finally {
             Thread.setDefaultUncaughtExceptionHandler(previous)
@@ -740,7 +797,7 @@ class BoundedLeaderAuditExporterTest {
             closeReturned.countDown()
         }
 
-        closeReturned.await(200, TimeUnit.MILLISECONDS).shouldBeFalse()
+        closeReturned.await(200.milliseconds).shouldBeFalse()
         releasePoll.countDown()
 
         closeReturned.await(5.seconds).shouldBeTrue()
@@ -754,9 +811,9 @@ class BoundedLeaderAuditExporterTest {
         queueCapacity: Int = 8,
         maxInFlight: Int = minOf(queueCapacity, 2),
         maxAttempts: Int = 3,
-        attemptTimeout: Duration = Duration.ofSeconds(1),
-        initialBackoff: Duration = Duration.ofMillis(1),
-        maxBackoff: Duration = Duration.ofSeconds(1),
+        attemptTimeout: Duration = 1.seconds(),
+        initialBackoff: Duration = 1.millis(),
+        maxBackoff: Duration = 1.seconds(),
         executor: Executor = Executor { it.run() },
         scheduler: ScheduledExecutorService = scheduler(),
         onObservation: (LeaderAuditExportObservation) -> Unit = {},
@@ -784,20 +841,21 @@ class BoundedLeaderAuditExporterTest {
     private fun scheduler(): ScheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor().also(schedulers::add)
 
-    private fun event(): LeaderAuditExportEvent.History = LeaderAuditExportEvent.History.from(
-        record = LeaderLockHistoryRecord(
-            lockName = "lock",
-            token = "token",
-            kind = LockIdentity.AnnotationKind.SINGLE,
-            acquiredAt = Instant.parse("2026-08-18T00:00:00Z"),
-            lockedUntil = Instant.parse("2026-08-18T00:01:00Z"),
-            status = LeaderHistoryStatus.ACQUIRED,
-        ),
-        sanitizer = LeaderAuditValueSanitizer.Default,
-    )
+    private fun event(): LeaderAuditExportEvent.History =
+        LeaderAuditExportEvent.History.from(
+            record = LeaderLockHistoryRecord(
+                lockName = "lock",
+                token = "token",
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                acquiredAt = Instant.parse("2026-08-18T00:00:00Z"),
+                lockedUntil = Instant.parse("2026-08-18T00:01:00Z"),
+                status = LeaderHistoryStatus.ACQUIRED,
+            ),
+            sanitizer = LeaderAuditValueSanitizer.Default,
+        )
 
     private fun awaitAdmissionReleased(exporter: BoundedLeaderAuditExporter) {
-        await atMost 5.seconds withPollInterval 50.milliseconds until {
+        await atMost 5.seconds withPollInterval 100.milliseconds until {
             exporter.snapshot().admitted == 0
         }
         exporter.snapshot().admitted shouldBeEqualTo 0
@@ -813,9 +871,14 @@ class BoundedLeaderAuditExporterTest {
         }
     }
 
-    private fun diagnosticsQueued(exporter: BoundedLeaderAuditExporter): Int =
-        (exporter.javaClass.getDeclaredField("diagnosticsQueued").apply { isAccessible = true }
-            .get(exporter) as AtomicInteger).get()
+    private fun diagnosticsQueued(exporter: BoundedLeaderAuditExporter): Int {
+        val atomicInt = exporter.javaClass
+            .getDeclaredField("diagnosticsQueued")
+            .apply { isAccessible = true }
+            .get(exporter) as AtomicInteger
+
+        return atomicInt.get()
+    }
 
     private class BlockingDiagnosticsQueue(
         private val polled: CountDownLatch,
@@ -832,10 +895,10 @@ class BoundedLeaderAuditExporterTest {
     }
 
     private fun awaitValue(value: AtomicInteger, expected: Int) {
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        val deadline = System.nanoTime() + 5.seconds().toNanos()
         while (value.get() != expected && System.nanoTime() < deadline) {
             Thread.onSpinWait()
         }
-        value.get().shouldBeEqualTo(expected)
+        value.get() shouldBeEqualTo expected
     }
 }

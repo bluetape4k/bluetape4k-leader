@@ -28,7 +28,9 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
          * @param options node ID, 허용 slot 수, 대기 시간 및 lease 설정
          * @return 전달한 설정을 사용하는 JVM 내부 그룹 elector
          */
-        operator fun invoke(options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default): LeaderGroupElector {
+        operator fun invoke(
+            options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
+        ): LeaderGroupElector {
             options.maxLeaders.requirePositiveNumber("options.maxLeader")
             return LocalLeaderGroupElector(options)
         }
@@ -62,6 +64,7 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
         log.debug { "runAsyncIfLeader... lockName: $lockName" }
 
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+
         return LeaderFutureBridge.propagateCancellation(
             futureOf(executor) {
                 tryWithPermit(lockName) {

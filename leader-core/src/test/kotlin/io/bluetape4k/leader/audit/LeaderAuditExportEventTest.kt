@@ -9,12 +9,14 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.assertions.shouldNotBeEqualTo
 import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.support.toUtf8Bytes
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Modifier
@@ -48,6 +50,7 @@ class LeaderAuditExportEventTest {
     fun `default sanitizer redacts lock node and leader identity`() {
         val sanitizer = LeaderAuditValueSanitizer.Default
 
+        log.debug { "sanitizer: $sanitizer" }
         sanitizer.sanitize(LeaderAuditField.LOCK_NAME, "tenant-42-job") shouldBeEqualTo "redacted"
         sanitizer.sanitize(LeaderAuditField.LEADER_ID, "node-1") shouldBeEqualTo "redacted"
     }
@@ -59,6 +62,7 @@ class LeaderAuditExportEventTest {
             sanitizer = LeaderAuditValueSanitizer.Default,
         )
 
+        log.debug { "event=$event" }
         event.toString() shouldNotContain secretSentinel
         event.attributes.values.any { it.contains(secretSentinel) }.shouldBeFalse()
         event.errorMessage shouldNotContain secretSentinel
@@ -118,6 +122,7 @@ class LeaderAuditExportEventTest {
                 maxBytes = LeaderAuditExportEvent.MAX_TEXT_FIELD_BYTES,
             ),
         )
+        log.debug { "bounded=$bounded" }
         bounded.lockName shouldBeEqualTo expectedText
         bounded.nodeId shouldBeEqualTo expectedText
         bounded.slotId shouldBeEqualTo expectedText
@@ -128,6 +133,7 @@ class LeaderAuditExportEventTest {
                 maxBytes = LeaderAuditExportEvent.MAX_TEXT_FIELD_BYTES,
             ),
         )
+        log.debug { "bounded=$bounded" }
         boundedLifecycle.leaderId shouldBeEqualTo expectedText
     }
 
@@ -135,15 +141,18 @@ class LeaderAuditExportEventTest {
     fun `utf8 truncation and sanitized collision order are deterministic`() {
         val truncated = LeaderAuditValueSanitizer.Truncate(maxBytes = 7)
             .sanitize(LeaderAuditField.ERROR_MESSAGE, "가가가x")
-        truncated.shouldBeEqualTo("가가")
-        truncated.contains("\uFFFD").shouldBeFalse()
-        truncated.contains("...").shouldBeFalse()
+
+        truncated shouldBeEqualTo "가가"
+        truncated shouldNotContain "\uFFFD"
+        truncated shouldNotContain "..."
 
         val first = linkedMapOf("a-two" to "y-value", "a-one" to "z-value")
         val second = linkedMapOf("a-one" to "z-value", "a-two" to "y-value")
         val sanitizer = LeaderAuditValueSanitizer.Truncate(maxBytes = 1)
         val firstEvent = lifecycleWithAttributes(first, sanitizer)
         val secondEvent = lifecycleWithAttributes(second, sanitizer)
+
+        log.debug { "firstEvent=$firstEvent" }
         firstEvent.attributes shouldBeEqualTo secondEvent.attributes
         firstEvent.attributes.values.single() shouldBeEqualTo "z"
     }
@@ -161,6 +170,7 @@ class LeaderAuditExportEventTest {
 
         val event = lifecycleWithAttributes(attributes, LeaderAuditValueSanitizer.Truncate(maxBytes = 128))
 
+        log.debug { "event=$event" }
         event.attributes.size shouldBeEqualTo LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES
         event.attributes.containsKey("z-0").shouldBeTrue()
         event.attributes.containsKey("a-0").shouldBeFalse()
@@ -183,6 +193,7 @@ class LeaderAuditExportEventTest {
             LeaderAuditValueSanitizer.Truncate(maxBytes = 128),
         )
 
+        log.debug { "event=$event" }
         event.attributes shouldHaveSize backing.size
     }
 
@@ -198,6 +209,7 @@ class LeaderAuditExportEventTest {
             LeaderAuditValueSanitizer.Truncate(maxBytes = 128),
         )
 
+        log.debug { "event=$event" }
         event.attributes.shouldBeEmpty()
     }
 
@@ -260,8 +272,7 @@ class LeaderAuditExportEventTest {
             nonSyntheticConstructors.size shouldBeEqualTo 1
             Modifier.isPrivate(nonSyntheticConstructors.single().modifiers).shouldBeTrue()
             constructors
-                .filter { !it.isSynthetic && !Modifier.isPrivate(it.modifiers) }
-                .isEmpty()
+                .none { !it.isSynthetic && !Modifier.isPrivate(it.modifiers) }
                 .shouldBeTrue()
             constructors
                 .filter { Modifier.isPublic(it.modifiers) || it.isSynthetic }
@@ -307,14 +318,13 @@ class LeaderAuditExportEventTest {
             ),
         )
 
-        listOf(secretSentinel, "ACQUIRED", "single", "")
-            .forEach { invalidKind ->
-                sanitizers.forEach { sanitizer ->
-                    assertFailsWith<IllegalArgumentException> {
-                        sanitizer.sanitize(LeaderAuditField.KIND, invalidKind)
-                    }
+        listOf(secretSentinel, "ACQUIRED", "single", "").forEach { invalidKind ->
+            sanitizers.forEach { sanitizer ->
+                assertFailsWith<IllegalArgumentException> {
+                    sanitizer.sanitize(LeaderAuditField.KIND, invalidKind)
                 }
             }
+        }
 
         LeaderAuditValueSanitizer.Default
             .sanitize(LeaderAuditField.KIND, "SINGLE") shouldBeEqualTo "SINGLE"
@@ -350,7 +360,7 @@ class LeaderAuditExportEventTest {
     fun `raw policy remains safe when used by event factories`() {
         val raw = LeaderAuditValueSanitizer.Raw(
             allowList = setOf(LeaderAuditField.KIND),
-            maxBytes = 16,
+            maxBytes = 16
         )
 
         val history = LeaderAuditExportEvent.History.from(
@@ -363,8 +373,11 @@ class LeaderAuditExportEventTest {
             sanitizer = raw,
         )
 
+        log.debug { "history: $history" }
         history.lockName shouldBeEqualTo "redacted"
         history.nodeId shouldBeEqualTo "redacted"
+
+        log.debug { "lifecycle: $lifecycle" }
         lifecycle.lockName shouldBeEqualTo "redacted"
         lifecycle.leaderId shouldBeEqualTo "redacted"
         lifecycle.toString() shouldNotContain secretSentinel
@@ -405,7 +418,7 @@ class LeaderAuditExportEventTest {
             acquiredAt = occurredAt,
             lockedUntil = leaseExpiry,
             nodeId = "node-1",
-            finishedAt = occurredAt.plusSeconds(1),
+            finishedAt = occurredAt + 1.seconds(),
             durationMs = 42,
             status = LeaderHistoryStatus.COMPLETED,
             errorType = "x".repeat(256),
@@ -422,7 +435,7 @@ class LeaderAuditExportEventTest {
             acquiredAt = occurredAt,
             lockedUntil = leaseExpiry,
             nodeId = secretSentinel,
-            finishedAt = occurredAt.plusSeconds(1),
+            finishedAt = occurredAt + 1.seconds(),
             durationMs = 1,
             status = LeaderHistoryStatus.FAILED,
             errorType = secretSentinel,
@@ -432,14 +445,15 @@ class LeaderAuditExportEventTest {
         )
 
     private fun historyWithMultibyteAndOversizedAttributes(): LeaderAuditExportEvent.History =
-        LeaderAuditExportEvent.History.from(
-            record = record(
-                errorType = "가".repeat(200),
-                errorMessage = "가".repeat(2000),
-                metadata = (1..64).associate { "키-$it" to "값-$it".repeat(200) },
-            ),
-            sanitizer = LeaderAuditValueSanitizer.Truncate(maxBytes = 8192),
-        )
+        LeaderAuditExportEvent.History
+            .from(
+                record = record(
+                    errorType = "가".repeat(200),
+                    errorMessage = "가".repeat(2000),
+                    metadata = (1..64).associate { "키-$it" to "값-$it".repeat(200) },
+                ),
+                sanitizer = LeaderAuditValueSanitizer.Truncate(maxBytes = 8192),
+            )
 
     private fun historyWithTextFields(
         lockName: String,

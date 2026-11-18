@@ -83,8 +83,7 @@ class LocalVirtualThreadLeaderGroupElectorTest {
     fun `runAsyncIfLeader - toCompletableFuture 로 변환하여 결과를 소비할 수 있다`() {
         val result = election
             .runAsyncIfLeader(randomLockName()) { 42 }
-            .toCompletableFuture()
-            .join()
+            .await()
 
         result shouldBeEqualTo 42
     }
@@ -139,7 +138,9 @@ class LocalVirtualThreadLeaderGroupElectorTest {
         // 추가 요청은 블로킹되어야 함
         val extraStarted = AtomicInteger(0)
         executor.submit {
-            election.runAsyncIfLeader(lockName) { extraStarted.incrementAndGet() }.await()
+            election.runAsyncIfLeader(lockName) {
+                extraStarted.incrementAndGet()
+            }.await()
         }
         Thread.sleep(50)
         extraStarted.get() shouldBeEqualTo 0
@@ -158,6 +159,7 @@ class LocalVirtualThreadLeaderGroupElectorTest {
         val lockName = randomLockName()
         val state = election.state(lockName)
 
+        log.debug { "state: $state" }
         state.lockName shouldBeEqualTo lockName
         state.maxLeaders shouldBeEqualTo maxLeaders
         state.activeCount shouldBeEqualTo 0

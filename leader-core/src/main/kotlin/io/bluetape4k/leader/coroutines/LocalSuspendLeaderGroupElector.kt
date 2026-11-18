@@ -35,6 +35,7 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.toJavaDuration
 
 /**
  * JVM 프로세스 안에서 lock별 coroutine `Semaphore`로 그룹 slot을 조정하고 상태와 이벤트를 기록합니다.
@@ -169,11 +170,11 @@ class LocalSuspendLeaderGroupElector private constructor(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
-    private suspend fun <T> tryWithPermit(
+    private suspend inline fun <T> tryWithPermit(
         lockName: String,
         auditLeaderId: String,
         nodeId: String? = options.nodeId,
-        action: suspend () -> T,
+        crossinline action: suspend () -> T,
     ): T? {
         val semaphore = getSemaphore(lockName)
         // withTimeoutOrNull 은 semaphore 획득 시도에만 적용합니다. action() 실행은 포함하지 않습니다.
@@ -212,7 +213,7 @@ class LocalSuspendLeaderGroupElector private constructor(
             override fun extend(lockAtMostFor: kotlin.time.Duration): ExtendOutcome {
                 val extended = states.extendGroup(lockName, slot, lockAtMostFor)
                 return if (extended) {
-                    ExtendOutcome.Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+                    ExtendOutcome.Extended(Instant.now() + lockAtMostFor.toJavaDuration())
                 } else {
                     ExtendOutcome.NotHeld
                 }

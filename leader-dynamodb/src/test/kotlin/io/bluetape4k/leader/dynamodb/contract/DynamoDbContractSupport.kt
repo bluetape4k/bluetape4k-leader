@@ -1,9 +1,10 @@
 package io.bluetape4k.leader.dynamodb.contract
 
+import io.bluetape4k.aws.auth.staticCredentialsProviderOf
+import io.bluetape4k.aws.dynamodb.dynamoDbAsyncClient
+import io.bluetape4k.aws.dynamodb.dynamoDbClient
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.testcontainers.aws.DynamoDbLocalServer
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
@@ -16,28 +17,34 @@ import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType
 import software.amazon.awssdk.services.dynamodb.model.TimeToLiveSpecification
 
 internal object DynamoDbContractSupport {
-    private val container = DynamoDbLocalServer.Launcher.dynamoDb
+
+    private val dynamodb by lazy { DynamoDbLocalServer.Launcher.dynamoDb }
     val tableName: String = "contract_" + Base58.randomString(12)
 
-    val dynamoDb: DynamoDbClient
-    val dynamoDbAsync: DynamoDbAsyncClient
+    val credentials by lazy {
+        staticCredentialsProviderOf(dynamodb.awsAccessKey, dynamodb.awsSecretKey)
+    }
+    val region by lazy { Region.of(dynamodb.regionName) }
+
+    val syncClient: DynamoDbClient by lazy {
+        dynamoDbClient {
+            endpointOverride(dynamodb.awsEndpoint)
+            credentialsProvider(credentials)
+            region(region)
+        }
+    }
+    val asyncClient: DynamoDbAsyncClient by lazy {
+        dynamoDbAsyncClient {
+            endpointOverride(dynamodb.awsEndpoint)
+            credentialsProvider(credentials)
+            region(region)
+        }
+
+    }
 
     init {
-        val credentials = StaticCredentialsProvider.create(
-            AwsBasicCredentials.create(container.awsAccessKey, container.awsSecretKey),
-        )
-        val region = Region.of(container.regionName)
-        dynamoDb = DynamoDbClient.builder()
-            .endpointOverride(container.awsEndpoint)
-            .credentialsProvider(credentials)
-            .region(region)
-            .build()
-        dynamoDbAsync = DynamoDbAsyncClient.builder()
-            .endpointOverride(container.awsEndpoint)
-            .credentialsProvider(credentials)
-            .region(region)
-            .build()
-        dynamoDb.createTable(
+
+        syncClient.createTable(
             CreateTableRequest.builder()
                 .tableName(tableName)
                 .billingMode(BillingMode.PAY_PER_REQUEST)
@@ -55,9 +62,13 @@ internal object DynamoDbContractSupport {
                 )
                 .build(),
         )
-        dynamoDb.waiter().waitUntilTableExists { it.tableName(tableName) }
+
+        syncClient.waiter().waitUntilTableExists {
+            it.tableName(tableName)
+        }
+
         runCatching {
-            dynamoDb.updateTimeToLive {
+            syncClient.updateTimeToLive {
                 it.tableName(tableName)
                     .timeToLiveSpecification(
                         TimeToLiveSpecification.builder()

@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.metrics
 
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldContainAll
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -13,13 +13,13 @@ class SkipReasonTest {
 
     @Test
     fun `enum 항목 3개 존재 확인`() {
-        SkipReason.entries.size shouldBeEqualTo 3
+        SkipReason.entries shouldHaveSize 3
     }
 
     @Test
     fun `CONTENTION, BACKEND_ERROR, FAIL_OPEN_FORCED 모두 포함`() {
         val entries = SkipReason.entries.map { it.name }
-        entries shouldContainAll listOf("CONTENTION", "BACKEND_ERROR", "FAIL_OPEN_FORCED")
+        entries shouldBeEqualTo listOf("CONTENTION", "BACKEND_ERROR", "FAIL_OPEN_FORCED")
     }
 
     @Test

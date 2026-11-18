@@ -19,6 +19,7 @@ import io.bluetape4k.leader.consul.internal.JavaHttpConsulLockClient
 import io.bluetape4k.leader.consul.internal.getWithinRequestTimeout
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter
@@ -47,7 +48,7 @@ class ConsulSuspendLeaderElector private constructor(
     val options: ConsulLeaderElectionOptions,
 ): SuspendLeaderElector,
    LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics,
-   io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+   SuspendLeaderLeaseAcquirerSupport {
 
     override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
         SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
@@ -286,8 +287,10 @@ private fun remainingMillis(deadlineNanos: Long): Long =
  * [this] Consul endpoint에서 [lockName]을 suspend 방식으로 획득했을 때만 [action]을 실행합니다.
  * 경합이면 null을 반환하고 취소 뒤에도 session과 KV ownership을 정리합니다.
  */
-suspend fun <T> ConsulEndpoint.suspendRunIfLeader(
+suspend inline fun <T> ConsulEndpoint.suspendRunIfLeader(
     lockName: String,
     options: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
-    action: suspend () -> T,
-): T? = ConsulSuspendLeaderElector(this, options).runIfLeader(lockName, action)
+    crossinline action: suspend () -> T,
+): T? =
+    ConsulSuspendLeaderElector(this, options)
+        .runIfLeader(lockName) { action() }

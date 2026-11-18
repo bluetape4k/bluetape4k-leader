@@ -23,6 +23,8 @@ class LeaderSlotTest {
     @Test
     fun `LeaderSlot - basic construction`() {
         val slot = LeaderSlot("my-lock", "node-a")
+
+        log.debug { "slot=$slot" }
         slot.lockName shouldBeEqualTo "my-lock"
         slot.leaderId shouldBeEqualTo "node-a"
     }
@@ -51,6 +53,8 @@ class LeaderSlotTest {
     @Test
     fun `LeaderSlot - of factory uses provider`() {
         val slot = LeaderSlot.of("billing-lock", RandomLeaderIdProvider.Default)
+
+        log.debug { "slot=$slot" }
         slot.lockName shouldBeEqualTo "billing-lock"
         slot.leaderId.shouldNotBeBlank()
     }
@@ -70,6 +74,7 @@ class LeaderSlotTest {
         val orig = LeaderSlot("lock", "node-a")
         val copy = orig.copy(leaderId = "node-b")
 
+        log.debug { "copy=$copy" }
         copy.leaderId shouldBeEqualTo "node-b"
         copy.lockName shouldBeEqualTo "lock"
     }

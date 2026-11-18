@@ -37,7 +37,12 @@ class LeaderAuditExportBoundaryContractTest {
 
         val rawParameterTypes = LeaderAuditExportEvent.History::class.java.declaredConstructors
             .flatMap { it.parameterTypes.asList() }
-        listOf(String::class.java, Map::class.java, Instant::class.java)
+
+        listOf(
+            String::class.java,
+            Map::class.java,
+            Instant::class.java
+        )
             .none { it in rawParameterTypes }
             .shouldBeTrue()
     }

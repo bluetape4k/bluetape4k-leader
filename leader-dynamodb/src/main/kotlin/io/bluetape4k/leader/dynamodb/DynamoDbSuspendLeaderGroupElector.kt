@@ -78,7 +78,11 @@ class DynamoDbSuspendLeaderGroupElector(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
-    private suspend fun <T> runWithLock(lockName: String, auditLeaderId: String?, action: suspend () -> T): T? {
+    private suspend inline fun <T> runWithLock(
+        lockName: String,
+        auditLeaderId: String?,
+        crossinline action: suspend () -> T,
+    ): T? {
         DynamoDbKeys.validateUserLockName(lockName)
         val start = Random.nextInt(maxLeaders)
         val perSlotWait = options.leaderGroupOptions.waitTime / maxLeaders
@@ -88,20 +92,24 @@ class DynamoDbSuspendLeaderGroupElector(
             val key = DynamoDbKeys.groupSlot(options.keyPrefix, lockName, slot)
             val ownerId = DynamoDbLockClient.newOwnerId()
             val future = lockClient.acquireAsync(
-                key,
-                ownerId,
-                auditLeaderId ?: ownerId,
-                options.leaderGroupOptions.nodeId,
-                perSlotWait,
-                options.leaderGroupOptions.leaseTime,
-                options.retryDelay,
-                options.ttlPadding,
-                options.clockSkewTolerance,
+                key = key,
+                ownerId = ownerId,
+                auditLeaderId = auditLeaderId ?: ownerId,
+                nodeId = options.leaderGroupOptions.nodeId,
+                waitTime = perSlotWait,
+                leaseTime = options.leaderGroupOptions.leaseTime,
+                retryDelay = options.retryDelay,
+                ttlPadding = options.ttlPadding,
+                clockSkewTolerance = options.clockSkewTolerance,
             )
             val lock = future.awaitWithoutCancellingFuture { pending ->
                 pending.whenComplete { acquired, _ ->
                     if (acquired != null) {
-                        lockClient.releaseAsync(acquired, Duration.ZERO, System.nanoTime())
+                        lockClient.releaseAsync(
+                            lock = acquired,
+                            minLeaseTime = Duration.ZERO,
+                            acquiredAtNanos = System.nanoTime()
+                        )
                     }
                 }
             } ?: continue
@@ -122,10 +130,10 @@ class DynamoDbSuspendLeaderGroupElector(
                 auditLeaderId = lock.auditLeaderId,
             )
             val watchdog = LeaderLeaseAutoExtender.start(
-                false,
-                options.leaderGroupOptions.leaseTime,
-                delegate,
-                DynamoDbLeaderElector.ERROR_CLASSIFIER,
+                enabled = false,
+                leaseTime = options.leaderGroupOptions.leaseTime,
+                delegate = delegate,
+                classifier = DynamoDbLeaderElector.ERROR_CLASSIFIER,
             )
 
             try {

@@ -13,10 +13,22 @@ import java.sql.SQLTransientException
 internal object CoreBackendErrorClassifier: BackendErrorClassifier {
 
     override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {
-        is OutOfMemoryError, is StackOverflowError, is LinkageError -> BackendErrorKind.FATAL
-        is SQLTransientException, is SQLRecoverableException -> BackendErrorKind.TRANSIENT
+        is OutOfMemoryError,
+        is StackOverflowError,
+        is LinkageError,
+             -> BackendErrorKind.FATAL
+
+        is SQLTransientException,
+        is SQLRecoverableException,
+             -> BackendErrorKind.TRANSIENT
+
         is SQLNonTransientException -> BackendErrorKind.NON_TRANSIENT
-        is SocketTimeoutException, is ConnectException -> BackendErrorKind.TRANSIENT
-        else -> null // 분류 불가 — CompositeBackendErrorClassifier가 NON_TRANSIENT 기본 처리
+
+        is SocketTimeoutException,
+        is ConnectException,
+             -> BackendErrorKind.TRANSIENT
+
+        else ->
+            null // 분류 불가 — CompositeBackendErrorClassifier가 NON_TRANSIENT 기본 처리
     }
 }

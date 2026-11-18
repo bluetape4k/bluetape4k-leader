@@ -11,6 +11,7 @@ import io.bluetape4k.leader.dynamodb.DynamoDbLeaderGroupElectionOptions
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderGroupElector
 import io.bluetape4k.leader.dynamodb.DynamoDbVirtualThreadLeaderElector
 import io.bluetape4k.leader.dynamodb.DynamoDbVirtualThreadLeaderGroupElector
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.milliseconds
@@ -22,11 +23,13 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DynamoDbVirtualThreadContractTest {
 
+    companion object: KLogging()
+
     @Test
     fun singleVirtualWrapperPropagatesLeaderIdAndReleases() {
         val elector = DynamoDbVirtualThreadLeaderElector(
             DynamoDbLeaderElector(
-                DynamoDbContractSupport.dynamoDb,
+                DynamoDbContractSupport.syncClient,
                 DynamoDbLeaderElectionOptions(
                     tableName = DynamoDbContractSupport.tableName,
                     keyPrefix = DynamoDbContractSupport.keyPrefix(),
@@ -36,54 +39,55 @@ class DynamoDbVirtualThreadContractTest {
             ),
         )
         val lockName = "dynamodb-virtual-single-contract"
+        val slotA = LeaderSlot(lockName, "dynamodb-single-a")
+        val first = elector.runAsyncIfLeaderResult(slotA) {
+            "single-ok"
+        }.await()
 
-        val first = elector.runAsyncIfLeaderResult(
-            LeaderSlot(lockName, "dynamodb-single-a"),
-        ) { "single-ok" }.toCompletableFuture().join()
-
-        first shouldBeInstanceOf LeaderRunResult.Elected::class
-        (first as LeaderRunResult.Elected).value shouldBeEqualTo "single-ok"
+        first.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        first.value shouldBeEqualTo "single-ok"
         first.leaderId shouldBeEqualTo "dynamodb-single-a"
 
-        val second = elector.runAsyncIfLeaderResult(
-            LeaderSlot(lockName, "dynamodb-single-b"),
-        ) { "single-reacquired" }.toCompletableFuture().join()
+        val slotB = LeaderSlot(lockName, "dynamodb-single-b")
+        val second = elector.runAsyncIfLeaderResult(slotB) {
+            "single-reacquired"
+        }.await()
 
-        second shouldBeInstanceOf LeaderRunResult.Elected::class
-        (second as LeaderRunResult.Elected).value shouldBeEqualTo "single-reacquired"
+        second.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        second.value shouldBeEqualTo "single-reacquired"
         second.leaderId shouldBeEqualTo "dynamodb-single-b"
     }
 
     @Test
     fun groupVirtualWrapperPropagatesLeaderIdAndReleases() {
+        val options = DynamoDbLeaderGroupElectionOptions(
+            leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2),
+            tableName = DynamoDbContractSupport.tableName,
+            keyPrefix = DynamoDbContractSupport.keyPrefix(),
+            ttlPadding = 1.seconds,
+            clockSkewTolerance = 10.milliseconds,
+        )
         val elector = DynamoDbVirtualThreadLeaderGroupElector(
-            DynamoDbLeaderGroupElector(
-                DynamoDbContractSupport.dynamoDb,
-                DynamoDbLeaderGroupElectionOptions(
-                    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2),
-                    tableName = DynamoDbContractSupport.tableName,
-                    keyPrefix = DynamoDbContractSupport.keyPrefix(),
-                    ttlPadding = 1.seconds,
-                    clockSkewTolerance = 10.milliseconds,
-                ),
-            ),
+            DynamoDbLeaderGroupElector(DynamoDbContractSupport.syncClient, options)
         )
         val lockName = "dynamodb-virtual-group-contract"
 
-        val first = elector.runAsyncIfLeaderResult(
-            LeaderSlot(lockName, "dynamodb-group-a"),
-        ) { "group-ok" }.toCompletableFuture().join()
+        val slotA = LeaderSlot(lockName, "dynamodb-group-a")
+        val first = elector.runAsyncIfLeaderResult(slotA) {
+            "group-ok"
+        }.await()
 
-        first shouldBeInstanceOf LeaderRunResult.Elected::class
-        (first as LeaderRunResult.Elected).value shouldBeEqualTo "group-ok"
+        first.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        first.value shouldBeEqualTo "group-ok"
         first.leaderId shouldBeEqualTo "dynamodb-group-a"
 
-        val second = elector.runAsyncIfLeaderResult(
-            LeaderSlot(lockName, "dynamodb-group-b"),
-        ) { "group-reacquired" }.toCompletableFuture().join()
+        val slotB = LeaderSlot(lockName, "dynamodb-group-b")
+        val second = elector.runAsyncIfLeaderResult(slotB) {
+            "group-reacquired"
+        }.await()
 
-        second shouldBeInstanceOf LeaderRunResult.Elected::class
-        (second as LeaderRunResult.Elected).value shouldBeEqualTo "group-reacquired"
+        second.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
+        second.value shouldBeEqualTo "group-reacquired"
         second.leaderId shouldBeEqualTo "dynamodb-group-b"
     }
 }

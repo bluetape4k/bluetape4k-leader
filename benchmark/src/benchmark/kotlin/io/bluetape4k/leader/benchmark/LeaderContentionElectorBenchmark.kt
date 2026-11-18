@@ -222,7 +222,7 @@ class BlockingLeaderContentionElectorBenchmark {
     private fun holdBlockingLock(lockName: String): BlockingHolder {
         val ready = CountDownLatch(1)
         val release = CountDownLatch(1)
-        val future = CompletableFuture.runAsync(
+        val future = futureOf(
             {
                 val acquired = holderElector.runIfLeader(lockName) {
                     ready.countDown()
@@ -650,7 +650,7 @@ class LocalBlockingLeaderContentionElectorBenchmark {
     private fun holdBlockingLock(elector: LeaderElector, lockName: String): BlockingHolder {
         val ready = CountDownLatch(1)
         val release = CountDownLatch(1)
-        val future = CompletableFuture.runAsync(
+        val future = futureOf(
             {
                 val acquired = elector.runIfLeader(lockName) {
                     ready.countDown()

@@ -19,11 +19,12 @@ class LockStateHolderTest {
 
     companion object: KLogging()
 
-    private fun identity(name: String = "test-lock") = LockIdentity(
-        lockName = name,
-        kind = LockIdentity.AnnotationKind.SINGLE,
-        factoryBeanName = "testFactory",
-    )
+    private fun identity(name: String = "test-lock") =
+        LockIdentity(
+            lockName = name,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = "testFactory",
+        )
 
     private fun fakeDelegate(): ExtendDelegate = object: ExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)

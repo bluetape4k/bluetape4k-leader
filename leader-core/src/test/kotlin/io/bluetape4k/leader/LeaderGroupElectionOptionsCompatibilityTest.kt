@@ -4,6 +4,8 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
 import java.io.ObjectInputStream
@@ -15,7 +17,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class LeaderGroupElectionOptionsCompatibilityTest {
 
-    companion object {
+    companion object: KLogging() {
         private val intType = Int::class.javaPrimitiveType ?: error("missing int type")
         private val longType = Long::class.javaPrimitiveType ?: error("missing long type")
 
@@ -31,6 +33,7 @@ class LeaderGroupElectionOptionsCompatibilityTest {
             input.readObject() as LeaderGroupElectionOptions
         }
 
+        log.debug { "restored: $restored" }
         restored.maxLeaders shouldBeEqualTo 3
         restored.nodeId shouldBeEqualTo "legacy-node"
         restored.useDbTime.shouldBeFalse()
@@ -85,9 +88,7 @@ class LeaderGroupElectionOptionsCompatibilityTest {
             "legacy-constructor",
             0L,
             null,
-        ).let {
-            it.useDbTime.shouldBeFalse()
-        }
+        ).useDbTime.shouldBeFalse()
 
         val copy = type.getDeclaredMethod(
             "copy-5t7Pxr8",
@@ -104,9 +105,7 @@ class LeaderGroupElectionOptionsCompatibilityTest {
             90.seconds.inWholeNanoseconds,
             "legacy-copy",
             2.seconds.inWholeNanoseconds,
-        ).let {
-            it.shouldBeInstanceOf<LeaderGroupElectionOptions>().useDbTime.shouldBeTrue()
-        }
+        ).shouldBeInstanceOf<LeaderGroupElectionOptions>().useDbTime.shouldBeTrue()
 
         val default = type.getDeclaredMethod(
             "copy-5t7Pxr8\$default",

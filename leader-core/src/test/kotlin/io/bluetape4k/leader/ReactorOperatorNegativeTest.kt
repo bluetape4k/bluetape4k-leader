@@ -32,11 +32,12 @@ class ReactorOperatorNegativeTest {
 
     companion object: KLoggingChannel()
 
-    private fun identity(name: String = "reactor-lock") = LockIdentity(
-        lockName = name,
-        kind = LockIdentity.AnnotationKind.SINGLE,
-        factoryBeanName = "testFactory",
-    )
+    private fun identity(name: String = "reactor-lock"): LockIdentity =
+        LockIdentity(
+            lockName = name,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = "testFactory",
+        )
 
     private fun fakeDelegate(): ExtendDelegate = object: ExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
@@ -65,10 +66,11 @@ class ReactorOperatorNegativeTest {
     @Test
     fun `LockAssert assertLocked inside Mono map throws when no active scope (R5)`() {
         // No ThreadLocal scope — simulates a Reactor operator on a different thread
-        val mono = Mono.just("value").map {
-            LockAssert.assertLocked()
-            it
-        }
+        val mono = Mono.just("value")
+            .map {
+                LockAssert.assertLocked()
+                it
+            }
 
         assertFailsWith<IllegalStateException> {
             mono.block()

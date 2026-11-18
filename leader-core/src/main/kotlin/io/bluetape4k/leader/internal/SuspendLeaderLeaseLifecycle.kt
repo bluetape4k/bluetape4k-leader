@@ -12,7 +12,9 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.support.requirePositiveDuration
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
@@ -92,6 +94,7 @@ internal class SuspendLeaderLeaseLifecycle(
             return try {
                 callbacks.isHeld(backend, releaseDeadline()).also { status.set(it) }
             } catch (_: Exception) {
+                currentCoroutineContext().ensureActive()
                 status.set(LeaseOwnershipStatus.UNKNOWN)
                 LeaseOwnershipStatus.UNKNOWN
             }

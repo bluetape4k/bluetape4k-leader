@@ -1,7 +1,7 @@
 # OBS-03 Audit Export Adapter Implementation Plan
 
 > **For agentic
-workers:** REQUIRED SUB-SKILL: Use `test-driven-development` and the matching Kotlin pattern skill to implement this plan task-by-task. Steps use checkbox syntax for tracking.
+> workers:** REQUIRED SUB-SKILL: Use `test-driven-development` and the matching Kotlin pattern skill to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
 **Goal:** `leader-core`와 `leader-micrometer`에 election/history event를 안전하게 bounded asynchronous exporter로 전달하고, JDK HTTP/webhook transport와 관찰 metric을 제공한다.
 
@@ -49,7 +49,7 @@ Stack:** Kotlin, JDK 25 `java.net.http.HttpClient`, cancellation-capable `Comple
       )
 
       event::class.memberProperties.none { it.name == "token" }.shouldBeTrue()
-      val errorBytes = event.errorMessage?.toByteArray(Charsets.UTF_8)?.size ?: 0
+      val errorBytes = event.errorMessage?.toUtf8Bytes()?.size ?: 0
       (errorBytes <= LeaderAuditExportEvent.MAX_ERROR_MESSAGE_BYTES).shouldBeTrue()
       (event.attributes.size <= LeaderAuditExportEvent.MAX_ATTRIBUTES).shouldBeTrue()
   }
@@ -79,25 +79,25 @@ Stack:** Kotlin, JDK 25 `java.net.http.HttpClient`, cancellation-capable `Comple
   @Test
   fun `utf8 bounds and attribute aggregate limits are deterministic`() {
       val event = historyWithMultibyteAndOversizedAttributes()
-      ((event.errorMessage?.toByteArray(Charsets.UTF_8)?.size ?: 0)
+      ((event.errorMessage?.toUtf8Bytes()?.size ?: 0)
           <= LeaderAuditExportEvent.MAX_ERROR_MESSAGE_BYTES).shouldBeTrue()
-      ((event.errorType?.toByteArray(Charsets.UTF_8)?.size ?: 0)
+      ((event.errorType?.toUtf8Bytes()?.size ?: 0)
           <= LeaderAuditExportEvent.MAX_ERROR_TYPE_BYTES).shouldBeTrue()
       listOf(event.lockName, event.nodeId, event.slotId).filterNotNull().all {
-          it.toByteArray(Charsets.UTF_8).size <= LeaderAuditExportEvent.MAX_TEXT_FIELD_BYTES
+          it.toUtf8Bytes().size <= LeaderAuditExportEvent.MAX_TEXT_FIELD_BYTES
       }.shouldBeTrue()
       val lifecycle = lifecycleWithAttributes(emptyMap(), LeaderAuditValueSanitizer.Default)
-      (lifecycle.leaderId?.toByteArray(Charsets.UTF_8)?.size ?: 0)
+      (lifecycle.leaderId?.toUtf8Bytes()?.size ?: 0)
           .let { (it <= LeaderAuditExportEvent.MAX_TEXT_FIELD_BYTES).shouldBeTrue() }
       (event.attributes.size <= LeaderAuditExportEvent.MAX_ATTRIBUTES).shouldBeTrue()
       event.attributes.keys.all {
-          it.toByteArray(Charsets.UTF_8).size <= LeaderAuditExportEvent.MAX_ATTRIBUTE_KEY_BYTES
+          it.toUtf8Bytes().size <= LeaderAuditExportEvent.MAX_ATTRIBUTE_KEY_BYTES
       }.shouldBeTrue()
       event.attributes.values.all {
-          it.toByteArray(Charsets.UTF_8).size <= LeaderAuditExportEvent.MAX_ATTRIBUTE_VALUE_BYTES
+          it.toUtf8Bytes().size <= LeaderAuditExportEvent.MAX_ATTRIBUTE_VALUE_BYTES
       }.shouldBeTrue()
       event.attributes.entries.sumOf { (key, value) ->
-          key.toByteArray(Charsets.UTF_8).size + value.toByteArray(Charsets.UTF_8).size
+          key.toUtf8Bytes().size + value.toUtf8Bytes().size
       }.let { (it <= LeaderAuditExportEvent.MAX_ATTRIBUTES_TOTAL_BYTES).shouldBeTrue() }
 
       val oversizedText = "가".repeat(200)
@@ -171,7 +171,7 @@ Stack:** Kotlin, JDK 25 `java.net.http.HttpClient`, cancellation-capable `Comple
           .shouldNotBeEqualTo(SECRET_SENTINEL)
       LeaderAuditValueSanitizer.Truncate(maxBytes = 8)
           .sanitize(LeaderAuditField.ERROR_TYPE, SECRET_SENTINEL)
-          .toByteArray(Charsets.UTF_8).size.shouldBeEqualTo(8)
+          .toUtf8Bytes().size.shouldBeEqualTo(8)
       val raw = LeaderAuditValueSanitizer.Raw(
           allowList = setOf(LeaderAuditField.KIND),
           maxBytes = 16,

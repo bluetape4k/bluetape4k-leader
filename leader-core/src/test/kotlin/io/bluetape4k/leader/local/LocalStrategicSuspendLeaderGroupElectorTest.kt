@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
@@ -11,6 +12,7 @@ import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -44,7 +46,9 @@ class LocalStrategicSuspendLeaderGroupElectorTest {
             CandidateInfo("node-3", registeredAt = t0.plusSeconds(2)),
         )
         listOf(node1, node2, node3).forEach { elector ->
-            candidates.forEach { elector.registerCandidate(lockName, it) }
+            candidates.forEach {
+                elector.registerCandidate(lockName, it)
+            }
         }
     }
 
@@ -60,7 +64,8 @@ class LocalStrategicSuspendLeaderGroupElectorTest {
             }
         }.awaitAll()
 
-        results.filterNotNull().size shouldBeEqualTo 2
+        log.debug { "results: $results" }
+        results.filterNotNull() shouldHaveSize 2
         results[2].shouldBeNull()
         counter.get() shouldBeEqualTo 2
     }
@@ -89,8 +94,8 @@ class LocalStrategicSuspendLeaderGroupElectorTest {
     @Test
     fun `refreshCandidate - 결과 통계와 등록 시각을 보존하고 metadata만 갱신한다`() = runTest {
         node1.registerCandidate(
-            lockName,
-            CandidateInfo(
+            lockName = lockName,
+            info = CandidateInfo(
                 nodeId = node1.nodeId,
                 registeredAt = Instant.parse("2026-01-01T00:00:00Z"),
                 successCount = 3,
@@ -102,11 +107,12 @@ class LocalStrategicSuspendLeaderGroupElectorTest {
         val beforeRefresh = node1.listCandidates(lockName).single()
 
         node1.refreshCandidate(
-            lockName,
-            CandidateInfo(node1.nodeId, metadata = mapOf("version" to "new")),
+            lockName = lockName,
+            info = CandidateInfo(node1.nodeId, metadata = mapOf("version" to "new")),
         )
 
         val refreshed = node1.listCandidates(lockName).single()
+        log.debug { "refreshed: $refreshed" }
         refreshed.registeredAt shouldBeEqualTo beforeRefresh.registeredAt
         refreshed.lastCompletionTime shouldBeEqualTo beforeRefresh.lastCompletionTime
         refreshed.successCount shouldBeEqualTo beforeRefresh.successCount
@@ -124,16 +130,12 @@ class LocalStrategicSuspendLeaderGroupElectorTest {
             .workers(8)
             .rounds(workers * rounds)
             .add {
-                node1.updateResult(
-                    lockName,
-                    node1.nodeId,
-                    io.bluetape4k.leader.strategy.CandidateResult.SUCCESS,
-                )
+                node1.updateResult(lockName, node1.nodeId, CandidateResult.SUCCESS)
             }
             .add {
                 node1.refreshCandidate(
-                    lockName,
-                    CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")),
+                    lockName = lockName,
+                    info = CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")),
                 )
             }
             .run()
@@ -149,8 +151,8 @@ class LocalStrategicSuspendLeaderGroupElectorTest {
             .rounds(100)
             .add {
                 node1.refreshCandidate(
-                    lockName,
-                    CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")),
+                    lockName = lockName,
+                    info = CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")),
                 )
             }
             .add {

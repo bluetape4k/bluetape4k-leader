@@ -27,7 +27,10 @@ class ExportingSuspendLeaderHistorySink private constructor(
 ): SuspendLeaderHistorySink {
 
     /** 기본 redaction 정책을 사용하는 wrapper입니다. */
-    constructor(delegate: SuspendLeaderHistorySink, exporter: LeaderAuditExporter): this(
+    constructor(
+        delegate: SuspendLeaderHistorySink,
+        exporter: LeaderAuditExporter,
+    ): this(
         delegate,
         exporter,
         LeaderAuditValueSanitizer.Default,
@@ -77,11 +80,11 @@ class ExportingSuspendLeaderHistorySink private constructor(
             contextRemoved = true
             submitSafely(
                 historyEvent(
-                    key,
-                    context,
-                    finishedAt,
-                    durationMs,
-                    LeaderHistoryStatus.COMPLETED,
+                    key = key,
+                    context = context,
+                    finishedAt = finishedAt,
+                    durationMs = durationMs,
+                    status = LeaderHistoryStatus.COMPLETED,
                 ),
             )
         } finally {

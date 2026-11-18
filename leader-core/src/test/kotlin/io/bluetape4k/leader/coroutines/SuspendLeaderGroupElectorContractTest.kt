@@ -8,6 +8,7 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.coroutines.support.log
+import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionException
@@ -18,11 +19,15 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * [SuspendLeaderGroupElector] 인터페이스 계약을 검증하는 테스트입니다.
@@ -59,7 +64,9 @@ class SuspendLeaderGroupElectorContractTest {
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() = runSuspendIO {
         val thrown = assertFailsWith<LeaderGroupElectionException> {
-            election.runIfLeader(randomLockName()) { throw LeaderGroupElectionException("그룹 계약 예외") }
+            election.runIfLeader(randomLockName()) {
+                throw LeaderGroupElectionException("그룹 계약 예외")
+            }
         }
         thrown.message shouldBeEqualTo "그룹 계약 예외"
     }
@@ -90,6 +97,7 @@ class SuspendLeaderGroupElectorContractTest {
         val lockName = randomLockName()
         val state = election.state(lockName)
 
+        log.debug { "state : $state" }
         state.lockName shouldBeEqualTo lockName
         state.maxLeaders shouldBeEqualTo maxLeaders
         state.activeCount shouldBeEqualTo 0
@@ -114,8 +122,8 @@ class SuspendLeaderGroupElectorContractTest {
                 }.log("Job #$it")
             }
 
-            while (startedCount.get() < maxLeaders) {
-                delay(5.milliseconds)
+            await atMost 5.seconds withPollInterval 100.milliseconds untilSuspending {
+                startedCount.get() == maxLeaders
             }
 
             election.activeCount(lockName) shouldBeEqualTo maxLeaders

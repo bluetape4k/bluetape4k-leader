@@ -48,29 +48,30 @@ class LeaderElectorLeaseAdapter(
         val admission = LeaderLeaseWatchdogAdmission.current()
         val observationScope = LeaderLeaseExtensionObservationScope.currentOrNull()
 
-        val owner = Thread.startVirtualThread {
-            val runElection = {
-                LeaderLeaseWatchdogAdmission.withOptionalProvider(admission) {
-                    try {
-                        electorProvider().runIfLeader(slot) {
-                            val captured = AopScopeAccess.peekSyncMatching(slot.lockName)
-                            session.install(captured)
-                            if (captured !is LeaderLockHandle.Real || session.cancelled.get()) {
-                                session.cancelled.set(true)
-                                session.requestRelease()
-                            } else {
-                                elected.complete(session)
-                                session.awaitRelease()
-                            }
+        val runElection: () -> Boolean = {
+            LeaderLeaseWatchdogAdmission.withOptionalProvider(admission) {
+                try {
+                    electorProvider().runIfLeader(slot) {
+                        val captured = AopScopeAccess.peekSyncMatching(slot.lockName)
+                        session.install(captured)
+                        if (captured !is LeaderLockHandle.Real || session.cancelled.get()) {
+                            session.cancelled.set(true)
+                            session.requestRelease()
+                        } else {
+                            elected.complete(session)
+                            session.awaitRelease()
                         }
-                        if (!elected.isDone) elected.complete(null)
-                        session.completed.complete(Unit)
-                    } catch (failure: Throwable) {
-                        if (!elected.isDone) elected.completeExceptionally(failure)
-                        session.completed.completeExceptionally(failure)
                     }
+                    if (!elected.isDone) elected.complete(null)
+                    session.completed.complete(Unit)
+                } catch (failure: Throwable) {
+                    if (!elected.isDone) elected.completeExceptionally(failure)
+                    session.completed.completeExceptionally(failure)
                 }
             }
+        }
+
+        val owner = Thread.startVirtualThread {
             if (observationScope == null) {
                 runElection()
             } else {
@@ -80,7 +81,9 @@ class LeaderElectorLeaseAdapter(
 
         return try {
             elected.get(acquireTimeoutNanos(), TimeUnit.NANOSECONDS)
-                ?.let { AdapterLeaseHandle(session, configuredOptions.leaseTime) }
+                ?.let {
+                    AdapterLeaseHandle(session, configuredOptions.leaseTime)
+                }
         } catch (_: TimeoutException) {
             session.cancelled.set(true)
             owner.interrupt()
@@ -154,11 +157,7 @@ class LeaderElectorLeaseAdapter(
         private fun statusRaw(): LeaseOwnershipStatus =
             when (val handle = raw) {
                 is LeaderLockHandle.Real ->
-                    if (handle.isStillHeld()) {
-                        LeaseOwnershipStatus.HELD
-                    } else {
-                        LeaseOwnershipStatus.NOT_HELD
-                    }
+                    if (handle.isStillHeld()) LeaseOwnershipStatus.HELD else LeaseOwnershipStatus.NOT_HELD
                 null                     -> LeaseOwnershipStatus.UNKNOWN
                 else                     -> LeaseOwnershipStatus.UNKNOWN
             }
@@ -187,8 +186,10 @@ class LeaderElectorLeaseAdapter(
             val terminal = terminalStatus.get()
             if (terminal != null) return terminal
             if (released.get() || cancelled.get()) return LeaseOwnershipStatus.UNKNOWN
+
             val result = CompletableFuture<LeaseOwnershipStatus>()
             if (!commands.offer(Command.Held(result))) return LeaseOwnershipStatus.UNKNOWN
+
             return try {
                 result.get(1.seconds)
             } catch (_: TimeoutException) {
@@ -203,6 +204,7 @@ class LeaderElectorLeaseAdapter(
 
         fun release() {
             if (!released.compareAndSet(false, true)) return
+
             commands.offer(Command.Release)
             try {
                 completed.get(releaseTimeoutNanos(), TimeUnit.NANOSECONDS)
@@ -217,7 +219,9 @@ class LeaderElectorLeaseAdapter(
         }
 
         private fun releaseTimeoutNanos(): Long =
-            minOf(LeaderLeaseDefaults.PUBLIC_RELEASE_TIMEOUT, maxLeaseTime).inWholeNanoseconds.coerceAtLeast(1L)
+            minOf(LeaderLeaseDefaults.PUBLIC_RELEASE_TIMEOUT, maxLeaseTime)
+                .inWholeNanoseconds
+                .coerceAtLeast(1L)
     }
 
     private class AdapterLeaseHandle(

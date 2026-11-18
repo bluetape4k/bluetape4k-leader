@@ -18,8 +18,8 @@ class ConsulSuspendGroupLockExtenderContractTest: AbstractSuspendGroupLockExtend
 
     override val elector: SuspendLeaderGroupElector =
         ConsulSuspendLeaderGroupElector(
-            ConsulContractSupport.endpoint(),
-            ConsulLeaderGroupElectionOptions(
+            endpoint = ConsulContractSupport.endpoint(),
+            options = ConsulLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2),
                 keyPrefix = ConsulContractSupport.keyPrefix(),
             ),

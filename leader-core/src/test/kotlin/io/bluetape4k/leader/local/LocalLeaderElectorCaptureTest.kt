@@ -15,6 +15,7 @@ import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.concurrent.thread
@@ -47,7 +48,8 @@ class LocalLeaderElectorCaptureTest {
             capturedHandle = LockStateHolder.peekSync()
         }
 
-        capturedHandle.shouldBeInstanceOf<LeaderLockHandle.Real>().lockName shouldBeEqualTo lockName
+        capturedHandle.shouldBeInstanceOf<LeaderLockHandle.Real>()
+            .lockName shouldBeEqualTo lockName
     }
 
     @Test
@@ -147,9 +149,9 @@ class LocalLeaderElectorCaptureTest {
         var innerDepth = -1
 
         election.runIfLeader(lockName) {
-            outerDepth = (LockStateHolder.peekSync() as? LeaderLockHandle.Real)?.reentryDepth ?: -1
+            outerDepth = LockStateHolder.peekSync()?.shouldBeInstanceOf<LeaderLockHandle.Real>()?.reentryDepth ?: -1
             election.runIfLeader(lockName) {
-                innerDepth = (LockStateHolder.peekSync() as? LeaderLockHandle.Real)?.reentryDepth ?: -1
+                innerDepth = LockStateHolder.peekSync()?.shouldBeInstanceOf<LeaderLockHandle.Real>()?.reentryDepth ?: -1
             }
         }
 
@@ -208,13 +210,15 @@ class LocalLeaderElectorCaptureTest {
         started.await()
         val initial = stateElection.state(lockName).leader?.leaseUntil
 
-        Thread.sleep(250)
+        Thread.sleep(500)
 
         val extended = stateElection.state(lockName).leader?.leaseUntil
 
         release.countDown()
         holder.join()
 
+        log.debug { "initial: $initial" }
+        log.debug { "extended: $extended" }
         initial.shouldNotBeNull()
         extended.shouldNotBeNull()
         extended shouldBeAfter initial

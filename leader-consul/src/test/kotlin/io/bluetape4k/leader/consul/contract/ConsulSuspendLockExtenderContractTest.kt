@@ -17,7 +17,7 @@ class ConsulSuspendLockExtenderContractTest: AbstractSuspendLockExtenderContract
 
     override val elector: SuspendLeaderElector =
         ConsulSuspendLeaderElector(
-            ConsulContractSupport.endpoint(),
-            ConsulLeaderElectionOptions(keyPrefix = ConsulContractSupport.keyPrefix()),
+            endpoint = ConsulContractSupport.endpoint(),
+            options = ConsulLeaderElectionOptions(keyPrefix = ConsulContractSupport.keyPrefix()),
         )
 }

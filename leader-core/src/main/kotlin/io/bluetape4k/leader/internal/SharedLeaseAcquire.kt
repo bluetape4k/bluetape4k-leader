@@ -45,6 +45,7 @@ class SharedLeaseAcquire(
         if (closed.get()) return null
         val attempt = join(slot)
         startIfNeeded(attempt)
+
         val delegate = try {
             if (timeout == Duration.INFINITE) {
                 attempt.future.get()
@@ -155,12 +156,15 @@ class SharedLeaseAcquire(
             finish(attempt, published = false)
         } else {
             attempt.task.set(task)
-            if (attempt.waiters.get() == 0 && !attempt.future.isDone) task.cancel(true)
+            if (attempt.waiters.get() == 0 && !attempt.future.isDone) {
+                task.cancel(true)
+            }
         }
     }
 
     private fun publish(attempt: Attempt, delegate: LeaderLeaseHandle?) {
         var accepted = false
+
         attempt.lock.withLock {
             if (delegate != null && !attempt.closed.get() && !attempt.terminal.get()) {
                 accepted = attempt.delegate.compareAndSet(null, delegate)
@@ -169,6 +173,7 @@ class SharedLeaseAcquire(
                 attempt.future.complete(null)
             }
         }
+
         if (!accepted && delegate != null) delegate.release()
         finish(attempt, published = accepted)
     }
@@ -186,12 +191,14 @@ class SharedLeaseAcquire(
     private fun releaseWaiter(attempt: Attempt) {
         var cancel = false
         var terminalize = false
+
         attempt.lock.withLock {
             if (attempt.waiters.decrementAndGet() == 0) {
                 cancel = !attempt.future.isDone
                 terminalize = true
             }
         }
+
         if (terminalize) terminalizeForce(attempt)
         if (cancel) attempt.task.get()?.cancel(true)
     }
@@ -245,10 +252,11 @@ class SharedLeaseAcquire(
         }
     }
 
-    private fun completedAttempt(slot: LeaderSlot): Attempt = Attempt(slot, startAllowed = false).also {
-        it.waiters.incrementAndGet()
-        it.future.complete(null)
-    }
+    private fun completedAttempt(slot: LeaderSlot): Attempt =
+        Attempt(slot, startAllowed = false).also {
+            it.waiters.incrementAndGet()
+            it.future.complete(null)
+        }
 
     private fun closeReservationOnce(attempt: Attempt) {
         if (!attempt.reservationClosed.compareAndSet(false, true)) return

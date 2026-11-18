@@ -3,20 +3,26 @@ package io.bluetape4k.leader
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.io.lookup
+import io.bluetape4k.io.serializer.BinarySerializationException
 import io.bluetape4k.io.serializer.BinarySerializers
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.InvalidClassException
-import java.io.InvalidObjectException
 import java.io.ObjectInputStream
-import java.io.ObjectOutputStream
-import java.io.ObjectStreamClass
+import java.io.Serializable
 import java.util.*
 
+@Suppress("DEPRECATION")
 class LeaderSerializationCompatibilityTest {
+
+    companion object: KLogging() {
+        private const val LEGACY_CANDIDATE_INFO =
+            "rO0ABXNyACtpby5ibHVldGFwZTRrLmxlYWRlci5zdHJhdGVneS5DYW5kaWRhdGVJbmZvR4r+CyIiMA8CAAdKAAxmYWlsdXJlQ291bnRKAAxzdWNjZXNzQ291bnRMABJsYXN0Q29tcGxldGlvblRpbWV0ABNMamF2YS90aW1lL0luc3RhbnQ7TAANbGFzdFN0YXJ0VGltZXEAfgABTAAIbWV0YWRhdGF0AA9MamF2YS91dGlsL01hcDtMAAZub2RlSWR0ABJMamF2YS9sYW5nL1N0cmluZztMAAxyZWdpc3RlcmVkQXRxAH4AAXhwAAAAAAAAAAIAAAAAAAAAB3NyAA1qYXZhLnRpbWUuU2VylV2EuhsiSLIMAAB4cHcNAgAAAABpWdilAAAAAHhzcQB+AAV3DQIAAAAAaViHJQAAAAB4c3IAEWphdmEudXRpbC5Db2xsU2VyV46rtjobqBEDAAFJAAN0YWd4cAAAAAN3BAAAAAJ0AAR6b25ldAAGbGVnYWN5eHQAC2xlZ2FjeS1ub2Rlc3EAfgAFdw0CAAAAAGlXNaUAAAAAeA=="
+    }
 
     @Test
     fun `0_4_0 CandidateInfo payload fails closed after the explicit UID change`() {
@@ -31,25 +37,22 @@ class LeaderSerializationCompatibilityTest {
 
     @Test
     fun `current serializable outcomes expose the explicit UID policy`() {
-        ObjectStreamClass.lookup(CandidateInfo::class.java).serialVersionUID shouldBeEqualTo 1L
-        ObjectStreamClass.lookup(ExtendOutcome.Extended::class.java).serialVersionUID shouldBeEqualTo 1L
-        ObjectStreamClass.lookup(ExtendOutcome.Rejected::class.java).serialVersionUID shouldBeEqualTo 1L
-        ObjectStreamClass.lookup(ExtendOutcome.NotHeld::class.java).serialVersionUID shouldBeEqualTo 1L
-        ObjectStreamClass.lookup(ExtendOutcome.WrongThread::class.java).serialVersionUID shouldBeEqualTo 1L
-        ObjectStreamClass.lookup(ExtendOutcome.BackendError::class.java).serialVersionUID shouldBeEqualTo 1L
+        CandidateInfo::class.lookup().serialVersionUID shouldBeEqualTo 1L
+        ExtendOutcome.Extended::class.lookup().serialVersionUID shouldBeEqualTo 1L
+        ExtendOutcome.Rejected::class.lookup().serialVersionUID shouldBeEqualTo 1L
+        ExtendOutcome.NotHeld::class.lookup().serialVersionUID shouldBeEqualTo 1L
+        ExtendOutcome.WrongThread::class.lookup().serialVersionUID shouldBeEqualTo 1L
+        ExtendOutcome.BackendError::class.lookup().serialVersionUID shouldBeEqualTo 1L
     }
 
+    @Suppress("DEPRECATION")
     @Test
     fun `current ExtendOutcome remains serializable`() {
         val original: ExtendOutcome = ExtendOutcome.WrongThread
-        val bytes = ByteArrayOutputStream().use { output ->
-            ObjectOutputStream(output).use { stream -> stream.writeObject(original) }
-            output.toByteArray()
-        }
+        val bytes = BinarySerializers.JdkUnfiltered.serialize(original)
+        val restored = BinarySerializers.JdkUnfiltered.deserialize<ExtendOutcome>(bytes)
 
-        val restored = ObjectInputStream(ByteArrayInputStream(bytes)).use { input ->
-            input.readObject() as ExtendOutcome
-        }
+        log.debug { "restored=$restored" }
         restored shouldBeEqualTo original
     }
 
@@ -97,19 +100,17 @@ class LeaderSerializationCompatibilityTest {
         )
     }
 
-    private fun deserialize(bytes: ByteArray): Any =
-        ObjectInputStream(ByteArrayInputStream(bytes)).use { input -> input.readObject() }
+    private fun deserialize(bytes: ByteArray): Serializable =
+        BinarySerializers.JdkUnfiltered.deserialize(bytes)!!
 
     private fun serialize(value: Any): ByteArray =
-        ByteArrayOutputStream().use { output ->
-            ObjectOutputStream(output).use { stream -> stream.writeObject(value) }
-            output.toByteArray()
-        }
+        BinarySerializers.JdkUnfiltered.serialize(value)
+
 
     private fun assertInvalidSerializedFields(value: Any, replacements: List<Pair<String, Any>>) {
         replacements.forEach { (fieldName, replacement) ->
             try {
-                assertFailsWith<InvalidObjectException> {
+                assertFailsWith<BinarySerializationException> {
                     deserialize(serializeWithField(value, fieldName, replacement))
                 }
             } catch (cause: AssertionError) {
@@ -121,16 +122,12 @@ class LeaderSerializationCompatibilityTest {
     private fun serializeWithField(value: Any, fieldName: String, replacement: Any): ByteArray {
         val field = value.javaClass.getDeclaredField(fieldName).apply { isAccessible = true }
         val original = field.get(value)
+
         return try {
             field.set(value, replacement)
             serialize(value)
         } finally {
             field.set(value, original)
         }
-    }
-
-    companion object: KLogging() {
-        private const val LEGACY_CANDIDATE_INFO =
-            "rO0ABXNyACtpby5ibHVldGFwZTRrLmxlYWRlci5zdHJhdGVneS5DYW5kaWRhdGVJbmZvR4r+CyIiMA8CAAdKAAxmYWlsdXJlQ291bnRKAAxzdWNjZXNzQ291bnRMABJsYXN0Q29tcGxldGlvblRpbWV0ABNMamF2YS90aW1lL0luc3RhbnQ7TAANbGFzdFN0YXJ0VGltZXEAfgABTAAIbWV0YWRhdGF0AA9MamF2YS91dGlsL01hcDtMAAZub2RlSWR0ABJMamF2YS9sYW5nL1N0cmluZztMAAxyZWdpc3RlcmVkQXRxAH4AAXhwAAAAAAAAAAIAAAAAAAAAB3NyAA1qYXZhLnRpbWUuU2VylV2EuhsiSLIMAAB4cHcNAgAAAABpWdilAAAAAHhzcQB+AAV3DQIAAAAAaViHJQAAAAB4c3IAEWphdmEudXRpbC5Db2xsU2VyV46rtjobqBEDAAFJAAN0YWd4cAAAAAN3BAAAAAJ0AAR6b25ldAAGbGVnYWN5eHQAC2xlZ2FjeS1ub2Rlc3EAfgAFdw0CAAAAAGlXNaUAAAAAeA=="
     }
 }

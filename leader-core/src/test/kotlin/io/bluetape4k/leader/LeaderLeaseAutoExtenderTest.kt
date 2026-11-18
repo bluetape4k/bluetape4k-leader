@@ -25,12 +25,12 @@ import java.time.Instant
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledThreadPoolExecutor
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderLeaseAutoExtenderTest {
@@ -47,7 +47,7 @@ class LeaderLeaseAutoExtenderTest {
         override val lastExtendDeadline: AtomicReference<Instant> = AtomicReference(Instant.EPOCH)
         override fun extend(lockAtMostFor: Duration): ExtendOutcome {
             calls.incrementAndGet()
-            return Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+            return Extended(Instant.now() + lockAtMostFor.toJavaDuration())
         }
 
         override fun isHeld(): Boolean = true
@@ -71,6 +71,7 @@ class LeaderLeaseAutoExtenderTest {
 
         delay(120.milliseconds)
         watchdog.close()
+
         val afterClose = calls.get()
         delay(120.milliseconds)
 
@@ -91,7 +92,7 @@ class LeaderLeaseAutoExtenderTest {
             override fun extend(lockAtMostFor: Duration): ExtendOutcome {
                 extensionStarted.countDown()
                 releaseExtension.await(2.seconds)
-                return Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+                return Extended(Instant.now() + lockAtMostFor.toJavaDuration())
             }
 
             override fun isHeld(): Boolean = true
@@ -104,15 +105,16 @@ class LeaderLeaseAutoExtenderTest {
         try {
             extensionStarted.await(2.seconds).shouldBeTrue()
             eventLoop.execute {
-                LeaderLeaseAutoExtender.closeAsync(watchdog).whenComplete { _, _ ->
-                    closeThread.set(Thread.currentThread().name)
-                    closeCompleted.countDown()
-                }
-                eventLoop.execute { probeRan.countDown() }
+                LeaderLeaseAutoExtender.closeAsync(watchdog)
+                    .whenComplete { _, _ ->
+                        closeThread.set(Thread.currentThread().name)
+                        closeCompleted.countDown()
+                    }
+                probeRan.countDown()
             }
 
             probeRan.await(1.seconds).shouldBeTrue()
-            closeCompleted.await(100, TimeUnit.MILLISECONDS).shouldBeFalse()
+            closeCompleted.await(100.milliseconds).shouldBeFalse()
             releaseExtension.countDown()
             closeCompleted.await(2.seconds).shouldBeTrue()
             closeThread.get() shouldNotBeEqualTo "issue-936-event-loop"
@@ -135,7 +137,7 @@ class LeaderLeaseAutoExtenderTest {
             override fun extend(lockAtMostFor: Duration): ExtendOutcome {
                 extensionStarted.countDown()
                 releaseExtension.await(2.seconds)
-                return Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+                return Extended(Instant.now() + lockAtMostFor.toJavaDuration())
             }
 
             override fun isHeld(): Boolean = true

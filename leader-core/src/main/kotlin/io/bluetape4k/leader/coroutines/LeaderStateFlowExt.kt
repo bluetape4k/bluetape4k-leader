@@ -78,18 +78,19 @@ private fun Flow<LeaderElectionEvent>.toLeaderGroupStates(
             LeaderGroupState(lockName, maxLeaders, activeCount)
         }
 
-private fun LeaderElectionEvent.toLeaderState(lockName: String): LeaderState = when (this) {
-    is LeaderElectionEvent.Elected -> LeaderState.occupied(
-        lockName,
-        leader ?: LeaderLease(
-            auditLeaderId = leaderId ?: LeaderNodeId.Default,
-            leaseUntil = leaseExpiry,
-        ),
-    )
+private fun LeaderElectionEvent.toLeaderState(lockName: String): LeaderState =
+    when (this) {
+        is LeaderElectionEvent.Elected -> LeaderState.occupied(
+            lockName,
+            leader ?: LeaderLease(
+                auditLeaderId = leaderId ?: LeaderNodeId.Default,
+                leaseUntil = leaseExpiry,
+            ),
+        )
 
-    is LeaderElectionEvent.Revoked -> LeaderState.empty(lockName)
-    is LeaderElectionEvent.Skipped -> LeaderState.empty(lockName)
-}
+        is LeaderElectionEvent.Revoked -> LeaderState.empty(lockName)
+        is LeaderElectionEvent.Skipped -> LeaderState.empty(lockName)
+    }
 
 private fun <T> Flow<T>.toStateFlow(
     initialValue: T,

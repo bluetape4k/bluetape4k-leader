@@ -10,6 +10,7 @@ import java.util.concurrent.FutureTask
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
@@ -36,9 +37,7 @@ class LeaseOperationScheduler(
         maxInFlight,
         0L,
         TimeUnit.MILLISECONDS,
-        ArrayBlockingQueue(
-            queueCapacity.requirePositiveNumber("queueCapacity")
-        ),
+        ArrayBlockingQueue(queueCapacity.requirePositiveNumber("queueCapacity")),
         { task ->
             Thread(task, "$threadNamePrefix-${sequence.incrementAndGet()}").apply { isDaemon = true }
         },
@@ -53,7 +52,8 @@ class LeaseOperationScheduler(
     fun <T> submit(task: () -> T): Future<T>? {
         if (executor.isShutdown) return null
         outstanding.incrementAndGet()
-        val started = java.util.concurrent.atomic.AtomicBoolean(false)
+        val started = AtomicBoolean(false)
+
         val tracked = object: FutureTask<T>(Callable {
             started.set(true)
             running.incrementAndGet()
@@ -82,6 +82,7 @@ class LeaseOperationScheduler(
     @Suppress("ReturnCount")
     fun awaitIdle(timeout: Duration): Boolean {
         val deadline = System.nanoTime() + timeout.inWholeNanoseconds.coerceAtLeast(0L)
+
         while (System.nanoTime() < deadline) {
             if (outstanding.get() == 0 && queued == 0) return true
             try {

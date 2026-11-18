@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredGroupElectionStrategy
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.time.Instant
 
@@ -20,12 +21,13 @@ class StrategicGroupElectionStrategyTest {
         registeredAt: Instant = t0,
         successCount: Long = 0,
         failureCount: Long = 0,
-    ) = CandidateInfo(
-        nodeId = id,
-        registeredAt = registeredAt,
-        successCount = successCount,
-        failureCount = failureCount,
-    )
+    ): CandidateInfo =
+        CandidateInfo(
+            nodeId = id,
+            registeredAt = registeredAt,
+            successCount = successCount,
+            failureCount = failureCount,
+        )
 
     @Test
     fun `FIFO는 maxLeaders 순서대로 winner를 선택하고 나머지를 elimination으로 분리한다`() {
@@ -37,6 +39,7 @@ class StrategicGroupElectionStrategyTest {
 
         val result = FifoGroupElectionStrategy.elect(candidates, maxLeaders = 2)
 
+        log.debug { "result: $result" }
         result.winners.map(CandidateInfo::nodeId) shouldBeEqualTo listOf("a", "b")
         result.eliminations.map { it.candidate.nodeId } shouldBeEqualTo listOf("c")
         result.scores.isEmpty().shouldBeTrue()
@@ -52,6 +55,7 @@ class StrategicGroupElectionStrategyTest {
 
         val result = FifoGroupElectionStrategy.elect(candidates, maxLeaders = 2)
 
+        log.debug { "result: $result" }
         result.winners.map(CandidateInfo::nodeId) shouldBeEqualTo listOf("a", "m")
         result.eliminations.single().candidate.nodeId shouldBeEqualTo "z"
     }
@@ -68,6 +72,7 @@ class StrategicGroupElectionStrategyTest {
 
         val result = FifoGroupElectionStrategy.elect(candidates, maxLeaders = 5)
 
+        log.debug { "result: $result" }
         result.winners.map(CandidateInfo::nodeId) shouldBeEqualTo listOf("a", "b")
         result.eliminations.isEmpty().shouldBeTrue()
     }
@@ -83,6 +88,7 @@ class StrategicGroupElectionStrategyTest {
 
         val result = strategy.elect(candidates, maxLeaders = 2)
 
+        log.debug { "result: $result" }
         result.winners.map(CandidateInfo::nodeId) shouldBeEqualTo listOf("later", "tie-a")
         result.eliminations.single().candidate.nodeId shouldBeEqualTo "tie-b"
         result.scores shouldBeEqualTo mapOf("later" to 10.0, "tie-b" to 5.0, "tie-a" to 5.0)

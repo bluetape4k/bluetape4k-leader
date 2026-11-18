@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.micrometer
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -149,7 +150,7 @@ class PrometheusExportTest {
             .runIfLeader(acquiredLockName) { "done" } shouldBeEqualTo "done"
 
         InstrumentedLeaderElector(StubLeaderElector(elected = false), registry)
-            .runIfLeader(skippedLockName) { "not-called" } shouldBeEqualTo null
+            .runIfLeader(skippedLockName) { "not-called" }.shouldBeNull()
     }
 
     private fun writeScrapeFile(tempDir: Path, scrape: String): Path {

@@ -71,12 +71,12 @@ data class ConsulLeaderGroupElectionOptions(
         ConsulLeaderPaths.validatePrefix(keyPrefix)
         sessionNamePrefix.requireNotBlank("sessionNamePrefix")
         leaderGroupOptions.leaseTime.requireGe(
-            ConsulLeaderElectionOptions.MinLeaseTime,
-            "leaderGroupOptions.leaseTime",
+            expected = ConsulLeaderElectionOptions.MinLeaseTime,
+            parameterName = "leaderGroupOptions.leaseTime",
         )
         leaderGroupOptions.leaseTime.requireLe(
-            ConsulLeaderElectionOptions.MaxLeaseTime,
-            "leaderGroupOptions.leaseTime",
+            expected = ConsulLeaderElectionOptions.MaxLeaseTime,
+            parameterName = "leaderGroupOptions.leaseTime",
         )
         lockDelay.requireZeroOrPositiveDuration("lockDelay")
     }

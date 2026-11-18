@@ -4,6 +4,7 @@ import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 
 /** 동기·coroutine lifecycle helper가 공유하는 내부 backend callback 표입니다. */
@@ -28,7 +29,7 @@ class BackendLease internal constructor(
     internal val generation: Long = GENERATION.incrementAndGet(),
 ) {
     private companion object {
-        val GENERATION = java.util.concurrent.atomic.AtomicLong()
+        val GENERATION = AtomicLong()
     }
 
     override fun toString(): String =

@@ -27,6 +27,7 @@ import io.bluetape4k.leader.local.LocalVirtualThreadLeaderElector
 import io.bluetape4k.leader.local.LocalVirtualThreadLeaderGroupElector
 import io.bluetape4k.leader.withListeners
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -53,8 +54,11 @@ class LocalLeaderBackendDiagnosticsTest {
         val descriptor = LocalLeaderBackendDiagnostics.backendDescriptor
         val capabilities = descriptor.capabilities
 
+        log.debug { "descriptor=$descriptor" }
         descriptor.backendId shouldBeEqualTo "local"
         descriptor.displayName shouldBeEqualTo "Local"
+
+        log.debug { "capabilities=$capabilities" }
         capabilities.singleExecutionModels shouldBeEqualTo LeaderExecutionModel.entries.toSet()
         capabilities.groupExecutionModels shouldBeEqualTo LeaderExecutionModel.entries.toSet()
         capabilities.leaseExtension shouldBeEqualTo supportedModes
@@ -68,6 +72,7 @@ class LocalLeaderBackendDiagnosticsTest {
     fun `Local connectivity는 외부 I O 없이 UP을 반환한다`() {
         val connectivity = LocalLeaderBackendDiagnostics.checkConnectivity(100.milliseconds)
 
+        log.debug { "connectivity=$connectivity" }
         connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.UP
         connectivity.reason shouldBeEqualTo LeaderBackendConnectivityReason.CONNECTED
         connectivity.checkedAt.shouldNotBeNull()
@@ -106,8 +111,8 @@ class LocalLeaderBackendDiagnosticsTest {
         )
 
         electors.forEach { elector ->
-            val provider = elector as LeaderBackendDiagnosticsProvider
-            provider.backendDescriptor shouldBe LocalLeaderBackendDiagnostics.backendDescriptor
+            elector.shouldBeInstanceOf<LeaderBackendDiagnosticsProvider>()
+                .backendDescriptor shouldBe LocalLeaderBackendDiagnostics.backendDescriptor
         }
     }
 
@@ -117,22 +122,23 @@ class LocalLeaderBackendDiagnosticsTest {
             LocalLeaderElector().withListeners(),
             LocalLeaderElector().forTenant("tenant"),
             LocalLeaderElector().withListeners().forTenant("tenant").withListeners(),
-            (LocalVirtualThreadLeaderElector() as VirtualThreadLeaderElector).forTenant("tenant"),
+            LocalVirtualThreadLeaderElector().forTenant("tenant"),
             LocalLeaderGroupElector().withListeners(),
             LocalLeaderGroupElector().forTenant("tenant"),
             LocalVirtualThreadLeaderGroupElector().forTenant("tenant"),
-            (LocalSuspendLeaderElector() as SuspendLeaderElector).withListeners(),
-            (LocalSuspendLeaderElector() as SuspendLeaderElector).forTenant("tenant"),
-            (LocalSuspendLeaderGroupElector() as SuspendLeaderGroupElector).withListeners(),
-            (LocalSuspendLeaderGroupElector() as SuspendLeaderGroupElector).forTenant("tenant"),
+            LocalSuspendLeaderElector().withListeners(),
+            LocalSuspendLeaderElector().forTenant("tenant"),
+            LocalSuspendLeaderGroupElector().withListeners(),
+            LocalSuspendLeaderGroupElector().forTenant("tenant"),
         )
 
         wrappers.forEach { wrapper ->
             val provider = wrapper
                 .shouldBeInstanceOf<LeaderBackendDiagnosticsAware>()
                 .backendDiagnosticsProvider
+                .shouldNotBeNull()
 
-            provider.shouldNotBeNull().backendDescriptor shouldBe LocalLeaderBackendDiagnostics.backendDescriptor
+            provider.backendDescriptor shouldBe LocalLeaderBackendDiagnostics.backendDescriptor
         }
     }
 

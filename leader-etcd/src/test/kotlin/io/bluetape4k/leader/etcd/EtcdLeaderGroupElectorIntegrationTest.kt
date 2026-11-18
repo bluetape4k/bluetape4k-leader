@@ -142,9 +142,9 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                         lease.auditLeaderId.isNotBlank().shouldBeTrue()
                         lease.auditLeaderId shouldNotBeEqualTo "etcd-group-state-audit-node-a"
                         // etcd group state exposes backend ownership metadata, not the caller's audit identity.
-                        lease.nodeId shouldBeEqualTo null
+                        lease.nodeId.shouldBeNull()
                         lease.slot shouldBeEqualTo 0
-                        lease.leaseUntil shouldBeEqualTo null
+                        lease.leaseUntil.shouldBeNull()
                         started.countDown()
                         release.await(10.seconds)
                         "holder"

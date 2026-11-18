@@ -144,11 +144,11 @@ object LockExtender: KLogging() {
             log.warn { "LockExtender — current scope is fail-open sentinel (lockName=${handle.lockName})" }
             val outcome = ExtendOutcome.NotHeld
             publishUserEvent(
-                observing,
-                observationScope,
-                LeaderLeaseExtensionExecution.BLOCKING,
-                outcome,
-                context,
+                observing = observing,
+                observationScope = observationScope,
+                execution = LeaderLeaseExtensionExecution.BLOCKING,
+                outcome = outcome,
+                context = context,
                 elapsedNanos = 0L,
             )
             return outcome
@@ -166,11 +166,11 @@ object LockExtender: KLogging() {
                 real.extendDelegate.lastExtendDeadline.set(outcome.observedExpireAt)
             }
             publishUserEvent(
-                observing,
-                observationScope,
-                LeaderLeaseExtensionExecution.BLOCKING,
-                outcome,
-                context,
+                observing = observing,
+                observationScope = observationScope,
+                execution = LeaderLeaseExtensionExecution.BLOCKING,
+                outcome = outcome,
+                context = context,
                 elapsedNanos = delegateElapsedNanos,
             )
             outcome
@@ -178,11 +178,11 @@ object LockExtender: KLogging() {
             throw ex
         } catch (ex: Exception) {
             publishUserEvent(
-                observing,
-                observationScope,
-                LeaderLeaseExtensionExecution.BLOCKING,
-                ExtendOutcome.BackendError(ex),
-                context,
+                observing = observing,
+                observationScope = observationScope,
+                execution = LeaderLeaseExtensionExecution.BLOCKING,
+                outcome = ExtendOutcome.BackendError(ex),
+                context = context,
                 elapsedNanos = elapsedNanos(delegateStartedAtNanos, observing),
             )
             throw ex
@@ -204,11 +204,11 @@ object LockExtender: KLogging() {
             log.warn { "LockExtender — current scope is fail-open sentinel (lockName=${handle.lockName})" }
             val outcome = ExtendOutcome.NotHeld
             publishUserEvent(
-                observing,
-                observationScope,
-                LeaderLeaseExtensionExecution.SUSPEND,
-                outcome,
-                context,
+                observing = observing,
+                observationScope = observationScope,
+                execution = LeaderLeaseExtensionExecution.SUSPEND,
+                outcome = outcome,
+                context = context,
                 elapsedNanos = 0L,
             )
             return outcome
@@ -226,11 +226,11 @@ object LockExtender: KLogging() {
                 real.extendDelegate.lastExtendDeadline.set(outcome.observedExpireAt)
             }
             publishUserEvent(
-                observing,
-                observationScope,
-                LeaderLeaseExtensionExecution.SUSPEND,
-                outcome,
-                context,
+                observing = observing,
+                observationScope = observationScope,
+                execution = LeaderLeaseExtensionExecution.SUSPEND,
+                outcome = outcome,
+                context = context,
                 elapsedNanos = delegateElapsedNanos,
             )
             outcome
@@ -238,11 +238,11 @@ object LockExtender: KLogging() {
             throw ex
         } catch (ex: Exception) {
             publishUserEvent(
-                observing,
-                observationScope,
-                LeaderLeaseExtensionExecution.SUSPEND,
-                ExtendOutcome.BackendError(ex),
-                context,
+                observing = observing,
+                observationScope = observationScope,
+                execution = LeaderLeaseExtensionExecution.SUSPEND,
+                outcome = ExtendOutcome.BackendError(ex),
+                context = context,
                 elapsedNanos = elapsedNanos(delegateStartedAtNanos, observing),
             )
             throw ex

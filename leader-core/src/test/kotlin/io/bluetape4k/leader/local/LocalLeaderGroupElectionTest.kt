@@ -11,12 +11,15 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.EnabledForJreRange
+import org.junit.jupiter.api.condition.JRE
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -56,7 +59,9 @@ class LocalLeaderGroupElectionTest {
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() {
         assertFailsWith<LeaderGroupElectionException> {
-            election.runIfLeader(randomLockName()) { throw LeaderGroupElectionException("테스트 예외") }
+            election.runIfLeader(randomLockName()) {
+                throw LeaderGroupElectionException("테스트 예외")
+            }
         }
     }
 
@@ -93,10 +98,30 @@ class LocalLeaderGroupElectionTest {
         counter.get() shouldBeEqualTo numThreads * 2
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
+    @Test
+    fun `maxLeaders=1 이면 LeaderElector 과 동일하게 직렬 실행된다 - Virtual Threads`() {
+        val singleElection = LocalLeaderGroupElector(LeaderGroupElectionOptions(1))
+        val lockName = randomLockName()
+        val counter = AtomicInteger(0)
+        val numThreads = 2 * Runtimex.availableProcessors
+
+        StructuredTaskScopeTester()
+            .rounds(numThreads * 2)
+            .add {
+                singleElection.runIfLeader(lockName) {
+                    counter.incrementAndGet()
+                }
+            }
+            .run()
+
+        counter.get() shouldBeEqualTo numThreads * 2
+    }
+
     // ── 동시 실행 제한 ────────────────────────────────────────────────────
 
     @Test
-    fun `동시 실행 중인 리더 수가 maxLeaders 를 초과하지 않는다`() {
+    fun `동시 실행 중인 리더 수가 maxLeaders 를 초과하지 않는다 - Multithreading`() {
         val lockName = randomLockName()
         val currentConcurrent = AtomicInteger(0)
         val peakConcurrent = AtomicInteger(0)
@@ -104,6 +129,29 @@ class LocalLeaderGroupElectionTest {
         MultithreadingTester()
             .workers(maxLeaders * 4)
             .rounds(2)
+            .add {
+                election.runIfLeader(lockName) {
+                    val current = currentConcurrent.incrementAndGet()
+                    peakConcurrent.updateAndGet { max(it, current) }
+                    Thread.sleep(Random.nextLong(5, 15))
+                    currentConcurrent.decrementAndGet()
+                }
+            }
+            .run()
+
+        log.debug { "최대 동시 실행 수: ${peakConcurrent.get()} / maxLeaders=$maxLeaders" }
+        peakConcurrent.get() shouldBeLessOrEqualTo maxLeaders
+    }
+
+    @EnabledForJreRange(min = JRE.JAVA_21)
+    @Test
+    fun `동시 실행 중인 리더 수가 maxLeaders 를 초과하지 않는다 - Virtual Threads`() {
+        val lockName = randomLockName()
+        val currentConcurrent = AtomicInteger(0)
+        val peakConcurrent = AtomicInteger(0)
+
+        StructuredTaskScopeTester()
+            .rounds(maxLeaders * 4 * 2)
             .add {
                 election.runIfLeader(lockName) {
                     val current = currentConcurrent.incrementAndGet()
@@ -134,7 +182,7 @@ class LocalLeaderGroupElectionTest {
                 }
             }
         }
-        startLatch.await(2.seconds)
+        startLatch.await(2.seconds).shouldBeTrue()
 
         // 슬롯이 가득 찬 상태 검증
         election.state(lockName).isFull.shouldBeTrue()
@@ -144,7 +192,9 @@ class LocalLeaderGroupElectionTest {
         // 추가 요청은 블로킹되어야 함 (즉시 실행되면 안됨)
         val extraStarted = AtomicInteger(0)
         executor.submit {
-            election.runIfLeader(lockName) { extraStarted.incrementAndGet() }
+            election.runIfLeader(lockName) {
+                extraStarted.incrementAndGet()
+            }
         }
         Thread.sleep(50)
         extraStarted.get() shouldBeEqualTo 0  // 슬롯 점유 중이므로 아직 실행 안됨
@@ -163,6 +213,7 @@ class LocalLeaderGroupElectionTest {
         val lockName = randomLockName()
         val state = election.state(lockName)
 
+        log.debug { "state=$state" }
         state.lockName shouldBeEqualTo lockName
         state.maxLeaders shouldBeEqualTo maxLeaders
         state.activeCount shouldBeEqualTo 0
@@ -190,6 +241,8 @@ class LocalLeaderGroupElectionTest {
 
         // 2개 활성 중 상태 검증
         val activeState = election.state(lockName)
+
+        log.debug { "activeCount=$activeState" }
         activeState.activeCount shouldBeEqualTo 2
         activeState.availableSlots shouldBeEqualTo maxLeaders - 2
         activeState.leaders.size shouldBeEqualTo 2
@@ -256,7 +309,9 @@ class LocalLeaderGroupElectionTest {
         latch.await(2.seconds).shouldBeTrue()
 
         // 슬롯이 점유 중이므로 null 반환
-        val result = skipElection.runIfLeader(lockName) { "should-skip" }
+        val result = skipElection.runIfLeader(lockName) {
+            "should-skip"
+        }
         result.shouldBeNull()
 
         releaseLatch.countDown()
@@ -321,6 +376,33 @@ class LocalLeaderGroupElectionTest {
         MultithreadingTester()
             .workers(numThreads)
             .rounds(roundsPerThread)
+            .add {
+                election.runIfLeader(lockName) {
+                    Thread.sleep(Random.nextLong(5, 10))
+                    counter.incrementAndGet()
+                }
+            }
+            .add {
+                election.runIfLeader(lockName) {
+                    Thread.sleep(Random.nextLong(2, 8))
+                    counter.incrementAndGet()
+                }
+            }
+            .run()
+
+        counter.get() shouldBeEqualTo numThreads * roundsPerThread
+    }
+
+    @EnabledForJreRange(min = JRE.JAVA_21)
+    @Test
+    fun `Virtual Threads 스트레스 - 모든 실행이 완료되고 카운터가 정확하다`() {
+        val lockName = randomLockName()
+        val counter = AtomicInteger(0)
+        val numThreads = 2 * Runtimex.availableProcessors
+        val roundsPerThread = 4
+
+        StructuredTaskScopeTester()
+            .rounds(numThreads * roundsPerThread / 2)
             .add {
                 election.runIfLeader(lockName) {
                     Thread.sleep(Random.nextLong(5, 10))

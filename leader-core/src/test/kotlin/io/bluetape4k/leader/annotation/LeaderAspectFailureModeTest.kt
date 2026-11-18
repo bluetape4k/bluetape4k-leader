@@ -2,7 +2,9 @@ package io.bluetape4k.leader.annotation
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContainAll
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 
@@ -13,12 +15,13 @@ class LeaderAspectFailureModeTest {
 
     @Test
     fun `enum 항목 4개 존재 확인`() {
-        LeaderAspectFailureMode.entries.size shouldBeEqualTo 4
+        LeaderAspectFailureMode.entries shouldHaveSize 4
     }
 
     @Test
     fun `INHERIT, RETHROW, SKIP, FAIL_OPEN_RUN 모두 포함`() {
         val entries = LeaderAspectFailureMode.entries.map { it.name }
+            .onEach { log.debug { "entry=$it" } }
         entries shouldContainAll listOf("INHERIT", "RETHROW", "SKIP", "FAIL_OPEN_RUN")
     }
 

@@ -5,6 +5,7 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.contract.AbstractAsyncLeaderElectorLeaderIdContractTest
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElectionOptions
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElector
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -14,9 +15,12 @@ import kotlin.time.Duration.Companion.seconds
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DynamoDbAsyncLeaderElectorLeaderIdContractTest: AbstractAsyncLeaderElectorLeaderIdContractTest() {
+
+    companion object: KLogging()
+
     override fun createElector(options: LeaderElectionOptions): AsyncLeaderElector =
         DynamoDbLeaderElector(
-            DynamoDbContractSupport.dynamoDb,
+            DynamoDbContractSupport.syncClient,
             DynamoDbLeaderElectionOptions(
                 leaderOptions = options,
                 tableName = DynamoDbContractSupport.tableName,

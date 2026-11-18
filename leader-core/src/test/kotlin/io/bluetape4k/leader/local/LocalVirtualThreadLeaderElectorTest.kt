@@ -18,7 +18,6 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CancellationException
-import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.atomic.AtomicInteger
@@ -88,10 +87,12 @@ class LocalVirtualThreadLeaderElectorTest {
     fun `runAsyncIfLeaderResult - action 실패는 ActionFailed 로 분류한다`() {
         val failure = IllegalStateException("virtual-boom")
 
-        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "virtual-node")) {
+        val slot = LeaderSlot(randomLockName(), "virtual-node")
+        val result = election.runAsyncIfLeaderResult(slot) {
             throw failure
         }.await()
 
+        log.debug { "result: $result" }
         result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
         result.cause shouldBeEqualTo failure
     }
@@ -99,11 +100,11 @@ class LocalVirtualThreadLeaderElectorTest {
     @Test
     fun `runAsyncIfLeaderResult - CancellationException 은 ActionFailed 로 감싸지 않는다`() {
         val cancellation = CancellationException("virtual-cancelled")
-
-        val thrown = assertFailsWith<CompletionException> {
-            election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "virtual-node")) {
+        val slot = LeaderSlot(randomLockName(), "virtual-node")
+        val thrown = assertFailsWith<ExecutionException> {
+            election.runAsyncIfLeaderResult(slot) {
                 throw cancellation
-            }.toCompletableFuture().join()
+            }.await()
         }
 
         thrown.cause.shouldBeInstanceOf<CancellationException>()
