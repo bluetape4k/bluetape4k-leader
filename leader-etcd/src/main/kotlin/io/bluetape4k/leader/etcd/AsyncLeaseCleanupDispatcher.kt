@@ -145,7 +145,8 @@ internal class AsyncLeaseCleanupBarrier<T: Any>(
             if (value == null) {
                 completion.complete(Unit)
             } else {
-                AsyncLeaseCleanupDispatcher.execute { cleanup(value) }
+                AsyncLeaseCleanupDispatcher
+                    .execute { cleanup(value) }
                     .whenComplete { _, failure ->
                         if (failure == null) completion.complete(Unit)
                         else completion.completeExceptionally(failure)

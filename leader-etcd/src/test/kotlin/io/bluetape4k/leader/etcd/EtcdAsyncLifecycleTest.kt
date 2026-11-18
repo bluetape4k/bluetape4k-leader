@@ -255,7 +255,9 @@ class EtcdAsyncLifecycleTest {
             result.isDone.shouldBeFalse()
             blocker.release.countDown()
 
-            val failure = assertFailsWith<CompletionException> { result.join() }
+            val failure = assertFailsWith<CompletionException> {
+                result.join()
+            }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             failure.cause?.message shouldBeEqualTo "rejected-after-acquire"
 
@@ -290,7 +292,9 @@ class EtcdAsyncLifecycleTest {
             result.isDone.shouldBeFalse()
             blocker.release.countDown()
 
-            val failure = assertFailsWith<CompletionException> { result.join() }
+            val failure = assertFailsWith<CompletionException> {
+                result.join()
+            }
             failure.cause.shouldBeInstanceOf<RejectedExecutionException>()
             failure.cause?.message shouldBeEqualTo "rejected-after-acquire"
 
@@ -366,11 +370,15 @@ class EtcdAsyncLifecycleTest {
 
         assertFailsWith<RejectedExecutionException> {
             EtcdLeaderElector.create(singleClient, singleOptions())
-                .runAsyncIfLeader("lock-a", rejectingExecutor) { completableFutureOf("unused") }
+                .runAsyncIfLeader("lock-a", rejectingExecutor) {
+                    completableFutureOf("unused")
+                }
         }
         assertFailsWith<RejectedExecutionException> {
             EtcdLeaderGroupElector.create(groupClient, groupOptions())
-                .runAsyncIfLeader("lock-a", rejectingExecutor) { completableFutureOf("unused") }
+                .runAsyncIfLeader("lock-a", rejectingExecutor) {
+                    completableFutureOf("unused")
+                }
         }
 
         singleClient.backendCalls() shouldBeEqualTo 0

@@ -17,7 +17,7 @@ class EtcdLockExtenderContractTest: AbstractSyncLockExtenderContractTest() {
 
     override val elector: LeaderElector =
         EtcdLeaderElector(
-            EtcdContractSupport.client,
-            EtcdLeaderElectionOptions(keyPrefix = EtcdContractSupport.keyPrefix()),
+            client = EtcdContractSupport.client,
+            options = EtcdLeaderElectionOptions(keyPrefix = EtcdContractSupport.keyPrefix()),
         )
 }

@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.get
+import io.bluetape4k.coroutines.flow.extensions.log
 import io.bluetape4k.coroutines.support.awaitUntil
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
@@ -47,6 +48,7 @@ class EtcdLeaderElectionEventPublisherIntegrationTest: AbstractEtcdLeaderTest() 
 
                 val events = async(start = CoroutineStart.UNDISPATCHED) {
                     publisher.events
+                        .log("Event")
                         .onEach { event ->
                             if (event == LeaderElectionEvent.Elected(lockName)) elected.countDown()
                         }
@@ -87,6 +89,7 @@ class EtcdLeaderElectionEventPublisherIntegrationTest: AbstractEtcdLeaderTest() 
 
                 val events = async(start = CoroutineStart.UNDISPATCHED) {
                     publisher.events
+                        .log("Event")
                         .onEach { event ->
                             if (event == LeaderElectionEvent.Elected(lockName)) elected.countDown()
                         }
@@ -129,6 +132,7 @@ class EtcdLeaderElectionEventPublisherIntegrationTest: AbstractEtcdLeaderTest() 
 
                     val events = async(start = CoroutineStart.UNDISPATCHED) {
                         publisher.events
+                            .log("Event")
                             .onEach { event ->
                                 if (event == LeaderElectionEvent.Elected(lockName)) holderElected.countDown()
                             }
@@ -201,6 +205,7 @@ class EtcdLeaderElectionEventPublisherIntegrationTest: AbstractEtcdLeaderTest() 
 
                 val events = async(start = CoroutineStart.UNDISPATCHED) {
                     restartedPublisher.events
+                        .log("Event")
                         .onEach { event ->
                             if (event == LeaderElectionEvent.Elected(lockName)) {
                                 elected.countDown()

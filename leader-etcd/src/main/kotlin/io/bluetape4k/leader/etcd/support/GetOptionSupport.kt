@@ -13,11 +13,11 @@ fun getOptionOf(
     sortOrder: SortOrder? = null,
     limit: Long? = null,
     block: GetOption.Builder.() -> Unit = {},
-): GetOption = getOption {
-
-    isPrefix?.let { isPrefix(it) }
-    sortField?.let { withSortField(it) }
-    sortOrder?.let { withSortOrder(it) }
-    limit?.let { withLimit(it) }
-    block()
-}
+): GetOption =
+    getOption {
+        isPrefix?.let { isPrefix(it) }
+        sortField?.let { withSortField(it) }
+        sortOrder?.let { withSortOrder(it) }
+        limit?.let { withLimit(it) }
+        block()
+    }

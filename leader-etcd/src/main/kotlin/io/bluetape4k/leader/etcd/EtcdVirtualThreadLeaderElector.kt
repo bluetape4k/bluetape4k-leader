@@ -18,7 +18,9 @@ class EtcdVirtualThreadLeaderElector(
    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics {
 
     override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
-        virtualFuture { delegate.runIfLeader(lockName, action) }
+        virtualFuture {
+            delegate.runIfLeader(lockName, action)
+        }
 }
 
 /** 리팩터링 전 JVM facade의 바이너리 호환성을 보존하는 shim입니다. */
@@ -28,4 +30,5 @@ fun <T> Client.legacyRunVirtualIfLeader(
     lockName: String,
     options: EtcdLeaderElectionOptions = EtcdLeaderElectionOptions.Default,
     action: () -> T,
-): VirtualFuture<T?> = this.currentRunVirtualIfLeader(lockName, options, action)
+): VirtualFuture<T?> =
+    this.currentRunVirtualIfLeader(lockName, options, action)

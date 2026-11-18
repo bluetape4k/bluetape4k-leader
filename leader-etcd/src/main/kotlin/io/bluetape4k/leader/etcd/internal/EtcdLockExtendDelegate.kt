@@ -43,9 +43,10 @@ internal class EtcdLockExtendDelegate(
     }
 
     override fun isHeld(): Boolean =
-        !handle.isReleased && runCatching {
-            lockClient.keepAliveOnce(handle.leaseId).get(10.seconds).getTTL() > 0L
-        }.getOrDefault(false)
+        !handle.isReleased &&
+                runCatching {
+                    lockClient.keepAliveOnce(handle.leaseId).get(10.seconds).getTTL() > 0L
+                }.getOrDefault(false)
 
     override val lastExtendDeadline: AtomicReference<Instant>
         get() = _lastExtendDeadline
@@ -83,13 +84,14 @@ internal class EtcdSuspendLockExtendDelegate(
     }
 
     override suspend fun isHeldSuspend(): Boolean =
-        !handle.isReleased && try {
-            lockClient.keepAliveOnce(handle.leaseId).await().ttl > 0L
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            false
-        }
+        !handle.isReleased &&
+                try {
+                    lockClient.keepAliveOnce(handle.leaseId).await().ttl > 0L
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    false
+                }
 
     override val lastExtendDeadline: AtomicReference<Instant>
         get() = _lastExtendDeadline

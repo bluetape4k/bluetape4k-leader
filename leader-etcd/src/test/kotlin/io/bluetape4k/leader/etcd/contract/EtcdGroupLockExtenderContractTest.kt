@@ -18,8 +18,8 @@ class EtcdGroupLockExtenderContractTest: AbstractGroupLockExtenderContractTest()
 
     override val elector: LeaderGroupElector =
         EtcdLeaderGroupElector(
-            EtcdContractSupport.client,
-            EtcdLeaderGroupElectionOptions(
+            client = EtcdContractSupport.client,
+            options = EtcdLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2),
                 keyPrefix = EtcdContractSupport.keyPrefix(),
             ),

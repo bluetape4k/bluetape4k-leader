@@ -2,11 +2,14 @@ package io.bluetape4k.leader.etcd.support
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import io.etcd.jetcd.options.GetOption.SortOrder
 import io.etcd.jetcd.options.GetOption.SortTarget
 import org.junit.jupiter.api.Test
 
 class EtcdBuilderSupportTest {
+
+    companion object: KLogging()
 
     @Test
     fun `get option helper applies block after convenience values`() {

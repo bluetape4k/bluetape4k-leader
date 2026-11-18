@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.milliseconds
@@ -18,6 +19,7 @@ class EtcdLeaderElectionOptionsTest {
     fun `default options use shared leader defaults and default key prefix`() {
         val options = EtcdLeaderElectionOptions.Default
 
+        log.debug { "options: $options" }
         options.leaderOptions shouldBeEqualTo LeaderElectionOptions.Default
         options.keyPrefix shouldBeEqualTo "/bluetape4k/leader"
         options.retryDelay shouldBeEqualTo 50.milliseconds
@@ -32,6 +34,7 @@ class EtcdLeaderElectionOptionsTest {
             retryDelay = 100.milliseconds,
         )
 
+        log.debug { "options: $options" }
         options.leaderOptions shouldBeEqualTo leaderOptions
         options.keyPrefix shouldBeEqualTo "/apps/orders/leader"
         options.retryDelay shouldBeEqualTo 100.milliseconds

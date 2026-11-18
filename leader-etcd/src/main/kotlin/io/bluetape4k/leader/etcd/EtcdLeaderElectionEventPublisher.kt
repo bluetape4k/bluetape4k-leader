@@ -97,6 +97,7 @@ class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
                 }
             }
         watchReady.completeExceptionally(CancellationException("etcd event publisher closed before watch became ready"))
+
         if (ownsScope) {
             scope.cancel()
         }

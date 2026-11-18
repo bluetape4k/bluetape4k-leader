@@ -1,10 +1,13 @@
 package io.bluetape4k.leader.etcd.support
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import java.util.concurrent.Executors
 
 class EtcdClientOfInlineContractTest {
+
+    companion object: KLogging()
 
     @Test
     fun `builder block retains non-local return`() {

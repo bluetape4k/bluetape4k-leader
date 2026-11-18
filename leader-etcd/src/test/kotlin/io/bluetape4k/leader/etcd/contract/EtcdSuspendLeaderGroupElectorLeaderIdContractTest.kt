@@ -18,8 +18,8 @@ class EtcdSuspendLeaderGroupElectorLeaderIdContractTest: AbstractSuspendLeaderGr
 
     override fun createElector(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
         EtcdSuspendLeaderGroupElector(
-            EtcdContractSupport.client,
-            EtcdLeaderGroupElectionOptions(
+            client = EtcdContractSupport.client,
+            options = EtcdLeaderGroupElectionOptions(
                 leaderGroupOptions = options,
                 keyPrefix = EtcdContractSupport.keyPrefix(),
             ),

@@ -17,7 +17,7 @@ class EtcdSuspendLockExtenderContractTest: AbstractSuspendLockExtenderContractTe
 
     override val elector: SuspendLeaderElector =
         EtcdSuspendLeaderElector(
-            EtcdContractSupport.client,
-            EtcdLeaderElectionOptions(keyPrefix = EtcdContractSupport.keyPrefix()),
+            client = EtcdContractSupport.client,
+            options = EtcdLeaderElectionOptions(keyPrefix = EtcdContractSupport.keyPrefix()),
         )
 }

@@ -12,35 +12,38 @@ import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
 /** etcd backend의 정적 capability와 안전한 connectivity 계약입니다. */
 object EtcdLeaderBackendDiagnostics: LeaderBackendDiagnosticsProvider {
 
-    private val SupportedModes = LeaderBackendModeSupport(
-        single = LeaderBackendSupport.SUPPORTED,
-        group = LeaderBackendSupport.SUPPORTED,
-    )
+    private val SupportedModes: LeaderBackendModeSupport =
+        LeaderBackendModeSupport(
+            single = LeaderBackendSupport.SUPPORTED,
+            group = LeaderBackendSupport.SUPPORTED,
+        )
 
-    private val AuditModes = LeaderBackendModeSupport(
-        single = LeaderBackendSupport.SUPPORTED,
-        group = LeaderBackendSupport.UNSUPPORTED,
-    )
+    private val AuditModes: LeaderBackendModeSupport =
+        LeaderBackendModeSupport(
+            single = LeaderBackendSupport.SUPPORTED,
+            group = LeaderBackendSupport.UNSUPPORTED,
+        )
 
-    override val backendDescriptor: LeaderBackendDescriptor = LeaderBackendDescriptor(
-        backendId = "etcd",
-        displayName = "etcd",
-        capabilities = LeaderBackendCapabilities(
-            singleExecutionModels = setOf(
-                LeaderExecutionModel.BLOCKING,
-                LeaderExecutionModel.ASYNC,
-                LeaderExecutionModel.SUSPEND,
-                LeaderExecutionModel.VIRTUAL_THREAD,
+    override val backendDescriptor: LeaderBackendDescriptor =
+        LeaderBackendDescriptor(
+            backendId = "etcd",
+            displayName = "etcd",
+            capabilities = LeaderBackendCapabilities(
+                singleExecutionModels = setOf(
+                    LeaderExecutionModel.BLOCKING,
+                    LeaderExecutionModel.ASYNC,
+                    LeaderExecutionModel.SUSPEND,
+                    LeaderExecutionModel.VIRTUAL_THREAD,
+                ),
+                groupExecutionModels = setOf(
+                    LeaderExecutionModel.BLOCKING,
+                    LeaderExecutionModel.ASYNC,
+                    LeaderExecutionModel.SUSPEND,
+                ),
+                leaseExtension = SupportedModes,
+                auditState = AuditModes,
+                clockSource = LeaderBackendClockSource.BACKEND,
+                ttlMode = LeaderBackendTtlMode.SERVER_TTL,
             ),
-            groupExecutionModels = setOf(
-                LeaderExecutionModel.BLOCKING,
-                LeaderExecutionModel.ASYNC,
-                LeaderExecutionModel.SUSPEND,
-            ),
-            leaseExtension = SupportedModes,
-            auditState = AuditModes,
-            clockSource = LeaderBackendClockSource.BACKEND,
-            ttlMode = LeaderBackendTtlMode.SERVER_TTL,
-        ),
-    )
+        )
 }

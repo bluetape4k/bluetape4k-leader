@@ -7,7 +7,6 @@ import io.bluetape4k.leader.testcontainers.readinessBoundaryWaitStrategy
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.testcontainers.infra.EtcdServer
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
@@ -17,11 +16,10 @@ import org.testcontainers.containers.wait.strategy.WaitStrategy
 import org.testcontainers.containers.wait.strategy.WaitStrategyTarget
 import java.time.Duration
 
-@Tag("integration")
 @Execution(ExecutionMode.SAME_THREAD)
 class EtcdReadinessBoundaryIntegrationTest: AbstractEtcdLeaderTest() {
 
-    private companion object: KLogging()
+    companion object: KLogging()
 
     @Test
     fun `host wait 실패 직전에 실제 세 경계의 정상 증거를 수집한다`() {

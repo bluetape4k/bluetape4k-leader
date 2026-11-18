@@ -117,6 +117,7 @@ class EtcdLeaderGroupElector private constructor(
             }
             throw e
         }
+
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
@@ -128,6 +129,7 @@ class EtcdLeaderGroupElector private constructor(
         val lifecycle = AtomicReference(AsyncLifecycle.WAITING)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
         val cleanupBarrier = AsyncLeaseCleanupBarrier(::releaseAfterMinLease)
+
         val beginCleanup: () -> CompletableFuture<Unit> = {
             if (lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP))
                 cleanupBarrier.request()
@@ -162,6 +164,7 @@ class EtcdLeaderGroupElector private constructor(
             },
             executor
         )
+
         val ordered = LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
             if (failure == null) {
                 completableFutureOf(value)
@@ -286,7 +289,7 @@ class EtcdLeaderGroupElector private constructor(
         val deadline = EtcdAcquisitionDeadline.fromNow(options.leaderGroupOptions.waitTime)
         val startSlot = ThreadLocalRandom.current().nextInt(maxLeaders)
 
-        for (attempt in 0 until maxLeaders) {
+        repeat(maxLeaders) { attempt ->
             val slot = (startSlot + attempt) % maxLeaders
             val remainingSlots = maxLeaders - attempt
             val slotBudgetMs = (deadline.remainingMillis() / remainingSlots).coerceAtLeast(50L)
@@ -296,6 +299,7 @@ class EtcdLeaderGroupElector private constructor(
                 return handle
             }
         }
+
         log.debug { "etcd leader group slot acquisition skipped. lockName=$lockName" }
         return null
     }

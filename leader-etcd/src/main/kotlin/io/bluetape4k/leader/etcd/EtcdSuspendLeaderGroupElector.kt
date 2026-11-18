@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.etcd
 
+import io.bluetape4k.coroutines.support.awaitUntilOrNull
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLease
@@ -30,7 +31,6 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ThreadLocalRandom
 import kotlin.time.Duration
@@ -173,15 +173,14 @@ class EtcdSuspendLeaderGroupElector private constructor(
 
         try {
             val ttlSeconds = EtcdLeaseTime.ttlSeconds(options.leaderGroupOptions.leaseTime)
-            leaseId = withTimeoutOrNull(slotDeadline.remainingDuration()) {
-                lockClient.grantLease(ttlSeconds).await()
-            } ?: run {
-                log.debug { "etcd suspend group lease grant timed out. lockName=$lockName, slot=$slot" }
-                return null
-            }
+            leaseId = lockClient.grantLease(ttlSeconds).awaitUntilOrNull(slotDeadline.remainingDuration())
+                ?: run {
+                    log.debug { "etcd suspend group lease grant timed out. lockName=$lockName, slot=$slot" }
+                    return null
+                }
 
             lockFuture = lockClient.lock(lockClient.groupSlotLockKey(lockName, slot), leaseId)
-            val ownershipKey = withTimeoutOrNull(slotDeadline.remainingDuration()) { lockFuture.await() }
+            val ownershipKey = lockFuture.awaitUntilOrNull(slotDeadline.remainingDuration())
             if (ownershipKey == null) {
                 scheduleLateCleanup(lockFuture, leaseId)
                 lockFuture.cancel(true)

@@ -165,6 +165,7 @@ class JetcdWatchCallbackIntegrationTest: AbstractEtcdLeaderTest() {
             WatchEvent.EventType.PUT    -> "PUT:${keyValue.value.toUtf8String()}"
             WatchEvent.EventType.DELETE -> "DELETE"
             WatchEvent.EventType.UNRECOGNIZED -> "UNRECOGNIZED"
+            null                        -> "UNRECOGNIZED"
         }
 
     private class ReadyWatcher(
