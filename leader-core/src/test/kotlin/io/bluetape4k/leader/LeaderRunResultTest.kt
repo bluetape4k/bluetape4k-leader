@@ -11,6 +11,7 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderGroupElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CancellationException
@@ -31,6 +32,7 @@ class LeaderRunResultTest {
     fun `runIfLeaderResult - 리더 선출 성공 시 Elected 반환`() {
         val result = election.runIfLeaderResult(randomLockName()) { "done" }
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
         result.value shouldBeEqualTo "done"
     }
@@ -39,6 +41,7 @@ class LeaderRunResultTest {
     fun `runIfLeaderResult - action 이 null 반환해도 Elected 로 분류`() {
         val result = election.runIfLeaderResult(randomLockName()) { null }
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
         result.value.shouldBeNull()
     }
@@ -48,6 +51,7 @@ class LeaderRunResultTest {
         val failure = IllegalStateException("boom")
         val result = election.runIfLeaderResult<Any?>(randomLockName()) { throw failure }
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
         result.cause shouldBeEqualTo failure
     }
@@ -57,7 +61,9 @@ class LeaderRunResultTest {
         val cancellation = CancellationException("cancelled")
 
         val thrown = assertFailsWith<CancellationException> {
-            election.runIfLeaderResult<Any?>(randomLockName()) { throw cancellation }
+            election.runIfLeaderResult<Any?>(randomLockName()) {
+                throw cancellation
+            }
         }
 
         thrown shouldBeEqualTo cancellation
@@ -68,7 +74,9 @@ class LeaderRunResultTest {
         val interrupted = InterruptedException("interrupted")
 
         val thrown = assertFailsWith<InterruptedException> {
-            election.runIfLeaderResult<Any?>(randomLockName()) { throw interrupted }
+            election.runIfLeaderResult<Any?>(randomLockName()) {
+                throw interrupted
+            }
         }
 
         thrown shouldBeEqualTo interrupted
@@ -80,6 +88,7 @@ class LeaderRunResultTest {
     fun `runIfLeaderResult - 정수 결과도 Elected 로 반환`() {
         val result = election.runIfLeaderResult(randomLockName()) { 42 }
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.Elected<Int>>()
         result.value shouldBeEqualTo 42
     }
@@ -92,6 +101,8 @@ class LeaderRunResultTest {
             is LeaderRunResult.Skipped -> null
             is LeaderRunResult.ActionFailed -> result.cause.message
         }
+
+        log.debug { "output=$output" }
         output shouldBeEqualTo "value"
     }
 
@@ -101,6 +112,7 @@ class LeaderRunResultTest {
     fun `group runIfLeaderResult - 슬롯 획득 성공 시 Elected 반환`() {
         val result = groupElection.runIfLeaderResult(randomLockName()) { "group-done" }
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
         result.value shouldBeEqualTo "group-done"
     }
@@ -109,6 +121,7 @@ class LeaderRunResultTest {
     fun `group runIfLeaderResult - action 이 null 반환해도 Elected 로 분류`() {
         val result = groupElection.runIfLeaderResult(randomLockName()) { null }
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
         result.value.shouldBeNull()
     }
@@ -116,8 +129,11 @@ class LeaderRunResultTest {
     @Test
     fun `group runIfLeaderResult - action 실패는 ActionFailed 로 분류`() {
         val failure = IllegalArgumentException("group-boom")
-        val result = groupElection.runIfLeaderResult<Any?>(randomLockName()) { throw failure }
+        val result = groupElection.runIfLeaderResult<Any?>(randomLockName()) {
+            throw failure
+        }
 
+        log.debug { "result=$result" }
         result.shouldBeInstanceOf<LeaderRunResult.ActionFailed>()
         result.cause shouldBeEqualTo failure
     }
@@ -127,7 +143,9 @@ class LeaderRunResultTest {
         val cancellation = CancellationException("group-cancelled")
 
         val thrown = assertFailsWith<CancellationException> {
-            groupElection.runIfLeaderResult<Any?>(randomLockName()) { throw cancellation }
+            groupElection.runIfLeaderResult<Any?>(randomLockName()) {
+                throw cancellation
+            }
         }
 
         thrown shouldBeEqualTo cancellation
@@ -138,7 +156,9 @@ class LeaderRunResultTest {
         val interrupted = InterruptedException("group-interrupted")
 
         val thrown = assertFailsWith<InterruptedException> {
-            groupElection.runIfLeaderResult<Any?>(randomLockName()) { throw interrupted }
+            groupElection.runIfLeaderResult<Any?>(randomLockName()) {
+                throw interrupted
+            }
         }
 
         thrown shouldBeEqualTo interrupted
@@ -167,6 +187,8 @@ class LeaderRunResultTest {
     @Test
     fun `Elected - 단일 인수 생성 시 leaderId 는 null`() {
         val r = LeaderRunResult.Elected(42)
+
+        log.debug { "r=$r" }
         r.value shouldBeEqualTo 42
         r.leaderId.shouldBeNull()
     }
@@ -174,6 +196,8 @@ class LeaderRunResultTest {
     @Test
     fun `Elected - leaderId 명시 생성 시 값 보존`() {
         val r = LeaderRunResult.Elected("done", leaderId = "node-alpha")
+
+        log.debug { "r=$r" }
         r.value shouldBeEqualTo "done"
         r.leaderId shouldBeEqualTo "node-alpha"
     }
@@ -203,6 +227,8 @@ class LeaderRunResultTest {
     fun `Elected - copy 로 leaderId 교체 가능`() {
         val orig = LeaderRunResult.Elected("v", leaderId = "node-a")
         val updated = orig.copy(leaderId = "node-b")
+
+        log.debug { "updated=$updated" }
         updated.leaderId shouldBeEqualTo "node-b"
         updated.value shouldBeEqualTo "v"
     }

@@ -31,6 +31,7 @@ fun GroupElectionStrategy.electValidated(
     maxLeaders: Int,
 ): StrategicGroupElectionResult {
     maxLeaders.requirePositiveNumber("maxLeaders")
+
     return elect(candidates, maxLeaders).also {
         it.validateAgainst(candidates, maxLeaders)
     }

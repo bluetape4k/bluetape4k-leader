@@ -70,9 +70,11 @@ internal class TenantScopedSuspendLeaderElector(
         }
 
     override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
-        val acquirer = (delegate as? SuspendLeaderLeaseAcquirer).requireNotNull {
-            "The tenant-scoped suspend elector delegate does not expose request-lease capability"
-        }
+        val acquirer: SuspendLeaderLeaseAcquirer = (delegate as? SuspendLeaderLeaseAcquirer)
+            .requireNotNull {
+                "The tenant-scoped suspend elector delegate does not expose request-lease capability"
+            }
+
         object: SuspendLeaderLeaseAcquirer {
             override val configuredOptions: LeaderElectionOptions
                 get() = acquirer.configuredOptions

@@ -10,15 +10,18 @@ import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.api.Test
-import java.util.concurrent.CompletableFuture
+import org.junit.jupiter.api.condition.EnabledForJreRange
+import org.junit.jupiter.api.condition.JRE
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.random.Random
@@ -126,6 +129,43 @@ class LocalAsyncLeaderElectorTest {
         counter.get() shouldBeEqualTo numThreads * roundsPerThread
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
+    @Test
+    fun `runAsyncIfLeader - Virtual Threads 동시 실행 시 직렬 처리를 보장한다`() {
+        val lockName = randomLockName()
+        val counter = AtomicInteger(0)
+
+        val numThreads = 2 * Runtimex.availableProcessors
+        val roundsPerThread = 4
+
+        val virtualExecutor = Executors.newVirtualThreadPerTaskExecutor()
+
+        StructuredTaskScopeTester()
+            .rounds(numThreads * roundsPerThread / 2)
+            .add {
+                election.runAsyncIfLeader(lockName) {
+                    futureOf(virtualExecutor) {
+                        log.debug { "비동기 작업 1 실행. counter=${counter.get()}" }
+                        Thread.sleep(Random.nextLong(1, 5))
+                        counter.incrementAndGet()
+                    }
+                }.join()
+            }
+            .add {
+                election.runAsyncIfLeader(lockName) {
+                    futureOf(virtualExecutor) {
+                        log.debug { "비동기 작업 2 실행. counter=${counter.get()}" }
+                        Thread.sleep(Random.nextLong(1, 5))
+                        counter.incrementAndGet()
+                    }
+                }.join()
+            }
+            .run()
+
+        virtualExecutor.close()
+        counter.get() shouldBeEqualTo numThreads * roundsPerThread
+    }
+
     // ── skip-behavior (ShedLock 방식): 락 획득 실패 시 null 반환 ──────────
 
     @Test
@@ -140,7 +180,7 @@ class LocalAsyncLeaderElectorTest {
         // 동일 election 인스턴스로 락 점유
         val firstThread = thread {
             skipElection.runAsyncIfLeader(lockName) {
-                CompletableFuture.runAsync {
+                futureOf {
                     latch.countDown()
                     releaseLatch.await()
                 }

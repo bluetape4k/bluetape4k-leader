@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LockStateHolder
@@ -28,11 +29,12 @@ class LockExtenderTest {
 
     // --- helpers ---
 
-    private fun identity(name: String = "test-lock") = LockIdentity(
-        lockName = name,
-        kind = LockIdentity.AnnotationKind.SINGLE,
-        factoryBeanName = "testFactory",
-    )
+    private fun identity(name: String = "test-lock"): LockIdentity =
+        LockIdentity(
+            lockName = name,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = "testFactory",
+        )
 
     /**
      * Configurable fake delegate — lets tests inject specific [ExtendOutcome] responses.
@@ -199,6 +201,7 @@ class LockExtenderTest {
     fun `extendActiveLockDetailed returns Extended for successful backend extend`() {
         val expireAt = Instant.now().plusSeconds(60)
         val delegate = FakeDelegate(ExtendOutcome.Extended(expireAt))
+
         LockStateHolder.withPushed(realHandle(delegate = delegate)) {
             val outcome = LockExtender.extendActiveLockDetailed(60.seconds)
             outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
@@ -293,7 +296,8 @@ class LockExtenderTest {
 
     @Test
     fun `extendActiveLockDetailedSuspend returns Extended for successful backend extend`() = runTest {
-        val delegate = FakeDelegate(ExtendOutcome.Extended(Instant.now().plusSeconds(30)))
+        val delegate = FakeDelegate(ExtendOutcome.Extended(Instant.now() + 30.seconds()))
+
         withContext(LockHandleElement(realHandle(delegate = delegate))) {
             val outcome = LockExtender.extendActiveLockDetailedSuspend(30.seconds)
             outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
@@ -302,7 +306,8 @@ class LockExtenderTest {
 
     @Test
     fun `extendActiveLockDetailedSuspend uses SuspendExtendDelegate without sync bridge`() = runTest {
-        val delegate = FakeSuspendDelegate(ExtendOutcome.Extended(Instant.now().plusSeconds(30)))
+        val delegate = FakeSuspendDelegate(ExtendOutcome.Extended(Instant.now() + 30.seconds()))
+
         withContext(LockHandleElement(realHandle(delegate = delegate))) {
             val outcome = LockExtender.extendActiveLockDetailedSuspend(30.seconds)
             outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
@@ -344,7 +349,8 @@ class LockExtenderTest {
 
     @Test
     fun `sync extendActiveLockDetailed with SuspendExtendDelegate returns BackendError misuse path`() {
-        val delegate = FakeSuspendDelegate(ExtendOutcome.Extended(Instant.now().plusSeconds(30)))
+        val delegate = FakeSuspendDelegate(ExtendOutcome.Extended(Instant.now() + 30.seconds()))
+
         LockStateHolder.withPushed(realHandle(delegate = delegate)) {
             val outcome = LockExtender.extendActiveLockDetailed(30.seconds)
             outcome.shouldBeInstanceOf<ExtendOutcome.BackendError>()

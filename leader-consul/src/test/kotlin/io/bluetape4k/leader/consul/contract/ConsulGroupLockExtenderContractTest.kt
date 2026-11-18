@@ -18,8 +18,8 @@ class ConsulGroupLockExtenderContractTest: AbstractGroupLockExtenderContractTest
 
     override val elector: LeaderGroupElector =
         ConsulLeaderGroupElector(
-            ConsulContractSupport.endpoint(),
-            ConsulLeaderGroupElectionOptions(
+            endpoint = ConsulContractSupport.endpoint(),
+            options = ConsulLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2),
                 keyPrefix = ConsulContractSupport.keyPrefix(),
             ),

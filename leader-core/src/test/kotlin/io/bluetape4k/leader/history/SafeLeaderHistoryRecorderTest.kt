@@ -3,8 +3,9 @@ package io.bluetape4k.leader.history
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CancellationException
@@ -15,16 +16,17 @@ class SafeLeaderHistoryRecorderTest {
 
     companion object: KLogging()
 
-    private val now = Instant.parse("2026-05-14T10:00:00Z")
-    private val future = now.plusSeconds(60)
+    private val now = Instant.now()
+    private val future = now + 60.seconds()
 
-    private fun record() = LeaderLockHistoryRecord(
-        lockName = "test-lock",
-        token = "tok-abc",
-        kind = LockIdentity.AnnotationKind.SINGLE,
-        acquiredAt = now,
-        lockedUntil = future,
-    )
+    private fun record(): LeaderLockHistoryRecord =
+        LeaderLockHistoryRecord(
+            lockName = "test-lock",
+            token = "tok-abc",
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            acquiredAt = now,
+            lockedUntil = future,
+        )
 
     private val key = LeaderHistoryKey(lockName = "test-lock", token = "tok-abc")
 
@@ -166,8 +168,7 @@ class SafeLeaderHistoryRecorderTest {
         val cause = IllegalStateException("bad state")
         recorder.recordFailed(key, now, 50L, cause)
 
-        capturedType?.contains("IllegalStateException").shouldBeTrue()
-
+        capturedType shouldContain "IllegalStateException"
         capturedMsg shouldBeEqualTo "bad state"
     }
 

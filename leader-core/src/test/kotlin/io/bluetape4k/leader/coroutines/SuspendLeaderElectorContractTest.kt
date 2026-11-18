@@ -65,7 +65,9 @@ class SuspendLeaderElectorContractTest {
         val lockName = randomLockName()
 
         assertFailsWith<LeaderElectionException> {
-            election.runIfLeader(lockName) { throw LeaderElectionException("실패") }
+            election.runIfLeader(lockName) {
+                throw LeaderElectionException("실패")
+            }
         }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }

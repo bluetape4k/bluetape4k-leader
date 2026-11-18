@@ -11,10 +11,12 @@ import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
@@ -59,7 +61,13 @@ class LocalSuspendLeaderElectorTest {
     fun `runIfLeader - action 예외 후에도 Mutex 가 해제되어 다음 호출이 성공한다`() = runSuspendIO {
         val lockName = randomLockName()
         runCatching {
-            election.runIfLeader(lockName) { throw LeaderElectionException("실패") }
+            election.runIfLeader(lockName) {
+                throw LeaderElectionException("실패")
+            }
+        }.onFailure {
+            if (it is CancellationException) {
+                ensureActive()
+            }
         }
 
         // Mutex 가 해제된 상태여야 다음 호출이 정상 실행된다

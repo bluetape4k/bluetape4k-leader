@@ -2,11 +2,13 @@ package io.bluetape4k.leader.audit.http
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeLessThan
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.shouldBeLessThan
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.assertions.shouldNotContain
+import io.bluetape4k.collections.tryForEach
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.audit.LeaderAuditDeliveryResult
 import io.bluetape4k.leader.audit.LeaderAuditExportEvent
@@ -15,6 +17,9 @@ import io.bluetape4k.leader.audit.LeaderAuditValueSanitizer
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import io.bluetape4k.support.toUtf8Bytes
+import io.bluetape4k.support.toUtf8String
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.Authenticator
@@ -51,7 +56,7 @@ class HttpLeaderAuditDeliveryTest {
 
     @AfterEach
     fun tearDown() {
-        schedulers.forEach { it.shutdownNow() }
+        schedulers.tryForEach { it.shutdownNow() }
     }
 
     @Test
@@ -94,7 +99,9 @@ class HttpLeaderAuditDeliveryTest {
         responseFuture.completeExceptionally(IllegalArgumentException("request-secret"))
         result.join() shouldBeEqualTo LeaderAuditDeliveryResult.TERMINAL_FAILURE
 
-        val cancelledEncoder = LeaderAuditPayloadEncoder { throw CancellationException("cancelled") }
+        val cancelledEncoder = LeaderAuditPayloadEncoder {
+            throw CancellationException("cancelled")
+        }
         assertFailsWith<CancellationException> {
             delivery(StubHttpClient(CompletableFuture()), encoder = cancelledEncoder).deliver(event())
         }
@@ -116,8 +123,9 @@ class HttpLeaderAuditDeliveryTest {
         ).deliver(event())
 
         val request = client.request.shouldNotBeNull()
-        request.method().shouldBeEqualTo("POST")
-        request.timeout().orElse(null) shouldBeEqualTo Duration.ofSeconds(1)
+        log.debug { "request=$request" }
+        request.method() shouldBeEqualTo "POST"
+        request.timeout().getOrNull() shouldBeEqualTo 1.seconds()
         request.headers().firstValue("Content-Type").getOrNull() shouldBeEqualTo "application/audit+json"
         request.headers().firstValue("Authorization").getOrNull() shouldBeEqualTo "Bearer $WEBHOOK_TOKEN_PLACEHOLDER"
         request.bodyPublisher().getOrNull()?.contentLength() shouldBeEqualTo 5
@@ -155,7 +163,7 @@ class HttpLeaderAuditDeliveryTest {
 
         val client = StubHttpClient(CompletableFuture())
         val result = delivery(
-            client,
+            client = client,
             httpOptions = LeaderAuditHttpOptions(2),
             encoder = LeaderAuditPayloadEncoder { payload },
         ).deliver(event())
@@ -166,12 +174,13 @@ class HttpLeaderAuditDeliveryTest {
 
     @Test
     fun `payload string representation redacts body and stays bounded`() {
-        val secret = "audit-body-secret-canary".toByteArray()
+        val secret = "audit-body-secret-canary".toUtf8Bytes()
         val payload = LeaderAuditHttpPayload.of("application/audit+json", secret)
 
         val rendered = payload.toString()
 
-        rendered shouldNotContain String(secret)
+        log.debug { "rendered=$rendered" }
+        rendered shouldNotContain secret.toUtf8String()
         rendered shouldNotContain secret.contentToString()
         rendered.length shouldBeLessThan 256
 
@@ -206,6 +215,7 @@ class HttpLeaderAuditDeliveryTest {
         }
 
         val endpoint = LeaderAuditTrustedHttpsEndpoint.trusted(URI("https://audit.example.test/hook"))
+
         assertFailsWith<IllegalArgumentException> {
             delivery(StubHttpClient(CompletableFuture()), endpoint = endpoint, headers = mapOf("Host" to "evil"))
         }
@@ -214,7 +224,7 @@ class HttpLeaderAuditDeliveryTest {
         }
         assertFailsWith<IllegalArgumentException> {
             delivery(
-                StubHttpClient(CompletableFuture()),
+                client = StubHttpClient(CompletableFuture()),
                 endpoint = endpoint,
                 headers = mapOf("Authorization" to "Bearer\nsecret")
             )
@@ -231,6 +241,7 @@ class HttpLeaderAuditDeliveryTest {
         val result = delivery(client).deliver(event())
 
         result.cancel(true).shouldBeTrue()
+
         responseFuture.isCancelled.shouldBeTrue()
         result.isCancelled.shouldBeTrue()
     }
@@ -258,37 +269,41 @@ class HttpLeaderAuditDeliveryTest {
             LeaderAuditHttpPayload.of("text/plain", "audit".toByteArray())
         },
         httpOptions: LeaderAuditHttpOptions = LeaderAuditHttpOptions.defaults(),
-    ): HttpLeaderAuditDelivery = HttpLeaderAuditDelivery(
-        client = client,
-        endpoint = endpoint,
-        headers = headers,
-        encoder = encoder,
-        exportOptions = exportOptions(),
-        httpOptions = httpOptions,
-    )
+    ): HttpLeaderAuditDelivery =
+        HttpLeaderAuditDelivery(
+            client = client,
+            endpoint = endpoint,
+            headers = headers,
+            encoder = encoder,
+            exportOptions = exportOptions(),
+            httpOptions = httpOptions,
+        )
 
-    private fun exportOptions(): LeaderAuditExportOptions = LeaderAuditExportOptions(
-        queueCapacity = 8,
-        maxInFlight = 2,
-        maxAttempts = 2,
-        attemptTimeout = Duration.ofSeconds(1),
-        initialBackoff = Duration.ofMillis(1),
-        maxBackoff = Duration.ofSeconds(1),
-        executor = { it.run() },
-        scheduler = Executors.newSingleThreadScheduledExecutor().also(schedulers::add),
-    )
+    private fun exportOptions(): LeaderAuditExportOptions =
+        LeaderAuditExportOptions(
+            queueCapacity = 8,
+            maxInFlight = 2,
+            maxAttempts = 2,
+            attemptTimeout = Duration.ofSeconds(1),
+            initialBackoff = Duration.ofMillis(1),
+            maxBackoff = Duration.ofSeconds(1),
+            executor = { it.run() },
+            scheduler = Executors.newSingleThreadScheduledExecutor().also(schedulers::add),
+        )
 
-    private fun event(): LeaderAuditExportEvent.History = LeaderAuditExportEvent.History.from(
-        record = LeaderLockHistoryRecord(
-            lockName = "lock",
-            token = "token",
-            kind = LockIdentity.AnnotationKind.SINGLE,
-            acquiredAt = java.time.Instant.parse("2026-08-18T00:00:00Z"),
-            lockedUntil = java.time.Instant.parse("2026-08-18T00:01:00Z"),
-            status = LeaderHistoryStatus.ACQUIRED,
-        ),
-        sanitizer = LeaderAuditValueSanitizer.Default,
-    )
+    private fun event(): LeaderAuditExportEvent.History =
+        LeaderAuditExportEvent.History
+            .from(
+                record = LeaderLockHistoryRecord(
+                    lockName = "lock",
+                    token = "token",
+                    kind = LockIdentity.AnnotationKind.SINGLE,
+                    acquiredAt = java.time.Instant.parse("2026-08-18T00:00:00Z"),
+                    lockedUntil = java.time.Instant.parse("2026-08-18T00:01:00Z"),
+                    status = LeaderHistoryStatus.ACQUIRED,
+                ),
+                sanitizer = LeaderAuditValueSanitizer.Default,
+            )
 
     private class StubHttpClient(
         private val responseFuture: CompletableFuture<HttpResponse<Void>>,

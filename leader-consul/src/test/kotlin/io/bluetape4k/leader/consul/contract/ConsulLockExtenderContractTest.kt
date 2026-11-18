@@ -17,7 +17,7 @@ class ConsulLockExtenderContractTest: AbstractSyncLockExtenderContractTest() {
 
     override val elector: LeaderElector =
         ConsulLeaderElector(
-            ConsulContractSupport.endpoint(),
-            ConsulLeaderElectionOptions(keyPrefix = ConsulContractSupport.keyPrefix()),
+            endpoint = ConsulContractSupport.endpoint(),
+            options = ConsulLeaderElectionOptions(keyPrefix = ConsulContractSupport.keyPrefix()),
         )
 }

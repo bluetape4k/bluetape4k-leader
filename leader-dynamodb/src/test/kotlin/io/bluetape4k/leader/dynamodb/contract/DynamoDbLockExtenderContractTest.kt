@@ -4,6 +4,7 @@ import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.contract.AbstractSyncLockExtenderContractTest
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElectionOptions
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElector
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -13,9 +14,12 @@ import kotlin.time.Duration.Companion.seconds
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DynamoDbLockExtenderContractTest: AbstractSyncLockExtenderContractTest() {
+
+    companion object: KLogging()
+
     override val elector: LeaderElector =
         DynamoDbLeaderElector(
-            DynamoDbContractSupport.dynamoDb,
+            DynamoDbContractSupport.syncClient,
             DynamoDbLeaderElectionOptions(
                 tableName = DynamoDbContractSupport.tableName,
                 keyPrefix = DynamoDbContractSupport.keyPrefix(),

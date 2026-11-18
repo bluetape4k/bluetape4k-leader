@@ -9,6 +9,7 @@ import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.ElectionStrategy
 import io.bluetape4k.leader.strategy.GroupElectionStrategy
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -108,12 +109,15 @@ class StrategicRefreshCandidateDefaultTest {
         )
 
         val refreshed = list(PRESERVE_LOCK).single()
+
+        log.debug { "refreshed=$refreshed" }
         refreshed.registeredAt shouldBeEqualTo original.registeredAt
         refreshed.lastStartTime shouldBeEqualTo original.lastStartTime
         refreshed.lastCompletionTime shouldBeEqualTo original.lastCompletionTime
         refreshed.successCount shouldBeEqualTo original.successCount
         refreshed.failureCount shouldBeEqualTo original.failureCount
         refreshed.metadata shouldBeEqualTo NEW_METADATA
+
         fixture.ttlFor(PRESERVE_LOCK, fixture.nodeId) shouldBeEqualTo REFRESH_TTL
     }
 
@@ -155,24 +159,28 @@ class StrategicRefreshCandidateDefaultTest {
         )
 
         val refreshed = list(PRESERVE_LOCK).single()
+
+        log.debug { "refreshed=$refreshed" }
         refreshed.registeredAt shouldBeEqualTo original.registeredAt
         refreshed.lastStartTime shouldBeEqualTo original.lastStartTime
         refreshed.lastCompletionTime shouldBeEqualTo original.lastCompletionTime
         refreshed.successCount shouldBeEqualTo original.successCount
         refreshed.failureCount shouldBeEqualTo original.failureCount
         refreshed.metadata shouldBeEqualTo NEW_METADATA
+
         fixture.ttlFor(PRESERVE_LOCK, fixture.nodeId) shouldBeEqualTo REFRESH_TTL
     }
 
-    private fun candidateInfo(nodeId: String) = CandidateInfo(
-        nodeId = nodeId,
-        registeredAt = Instant.parse("2026-01-01T00:00:00Z"),
-        lastStartTime = Instant.parse("2026-01-01T00:01:00Z"),
-        lastCompletionTime = Instant.parse("2026-01-01T00:02:00Z"),
-        successCount = 7,
-        failureCount = 2,
-        metadata = mapOf("version" to "old"),
-    )
+    private fun candidateInfo(nodeId: String): CandidateInfo =
+        CandidateInfo(
+            nodeId = nodeId,
+            registeredAt = Instant.parse("2026-01-01T00:00:00Z"),
+            lastStartTime = Instant.parse("2026-01-01T00:01:00Z"),
+            lastCompletionTime = Instant.parse("2026-01-01T00:02:00Z"),
+            successCount = 7,
+            failureCount = 2,
+            metadata = mapOf("version" to "old"),
+        )
 
     private interface FixtureState {
         val nodeId: String
@@ -365,7 +373,10 @@ class StrategicRefreshCandidateDefaultTest {
             entries[CandidateKey(lockName, nodeId)]?.ttl
     }
 
-    private data class CandidateKey(val lockName: String, val nodeId: String)
+    private data class CandidateKey(
+        val lockName: String,
+        val nodeId: String,
+    )
 
     private data class CandidateEntry(
         var info: CandidateInfo,

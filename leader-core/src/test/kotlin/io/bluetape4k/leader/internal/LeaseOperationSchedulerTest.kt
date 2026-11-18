@@ -2,6 +2,7 @@ package io.bluetape4k.leader.internal
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.logging.KLogging
@@ -26,7 +27,7 @@ class LeaseOperationSchedulerTest {
             scheduler.submit {
                 started.countDown()
                 release.await(1.seconds)
-            }.shouldNotBeNull()
+            }
 
             started.await(1.seconds)
             scheduler.submit { }.shouldNotBeNull()
@@ -34,7 +35,7 @@ class LeaseOperationSchedulerTest {
             scheduler.queued shouldBeEqualTo 1
 
             release.countDown()
-            scheduler.awaitIdle(2.seconds)
+            scheduler.awaitIdle(2.seconds).shouldBeTrue()
             scheduler.inFlight shouldBeEqualTo 0
             scheduler.queued shouldBeEqualTo 0
         }

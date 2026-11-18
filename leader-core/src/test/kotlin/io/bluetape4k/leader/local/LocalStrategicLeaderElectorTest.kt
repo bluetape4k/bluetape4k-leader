@@ -9,6 +9,7 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.javatimes.millis
 import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.scorers.IdleTimeScorer
@@ -17,10 +18,13 @@ import io.bluetape4k.leader.strategy.scorers.WeightedScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
 import kotlinx.coroutines.CancellationException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.EnabledForJreRange
+import org.junit.jupiter.api.condition.JRE
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -41,7 +45,10 @@ class LocalStrategicLeaderElectorTest {
         node3 = LocalStrategicLeaderElector("node-3")
     }
 
-    private fun registerAll(vararg nodes: LocalStrategicLeaderElector, registeredAt: Instant = Instant.now()) {
+    private fun registerAll(
+        vararg nodes: LocalStrategicLeaderElector,
+        registeredAt: Instant = Instant.now(),
+    ) {
         nodes.forEachIndexed { i, node ->
             node.registerCandidate(
                 lockName, CandidateInfo(
@@ -83,6 +90,7 @@ class LocalStrategicLeaderElectorTest {
         node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
 
         val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        log.debug { "updated: $updated" }
         updated.successCount shouldBeEqualTo 1L
         updated.failureCount shouldBeEqualTo 0L
     }
@@ -93,6 +101,7 @@ class LocalStrategicLeaderElectorTest {
         node1.updateResult(lockName, "node-1", CandidateResult.FAILURE)
 
         val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        log.debug { "updated: $updated" }
         updated.successCount shouldBeEqualTo 0L
         updated.failureCount shouldBeEqualTo 1L
     }
@@ -100,8 +109,8 @@ class LocalStrategicLeaderElectorTest {
     @Test
     fun `refreshCandidate - 없는 후보는 새로 등록하지 않는다`() {
         node1.refreshCandidate(
-            lockName,
-            CandidateInfo("ghost", metadata = mapOf("heartbeat" to "missing")),
+            lockName = lockName,
+            info = CandidateInfo("ghost", metadata = mapOf("heartbeat" to "missing")),
         )
 
         node1.listCandidates(lockName).shouldBeEmpty()
@@ -110,8 +119,8 @@ class LocalStrategicLeaderElectorTest {
     @Test
     fun `refreshCandidate - 결과 통계와 완료 시각을 보존하고 metadata만 갱신한다`() {
         node1.registerCandidate(
-            lockName,
-            CandidateInfo(
+            lockName = lockName,
+            info = CandidateInfo(
                 nodeId = node1.nodeId,
                 registeredAt = Instant.parse("2026-01-01T00:00:00Z"),
                 successCount = 3,
@@ -123,11 +132,12 @@ class LocalStrategicLeaderElectorTest {
         val beforeRefresh = node1.listCandidates(lockName).single()
 
         node1.refreshCandidate(
-            lockName,
-            CandidateInfo(node1.nodeId, metadata = mapOf("version" to "new")),
+            lockName = lockName,
+            info = CandidateInfo(node1.nodeId, metadata = mapOf("version" to "new")),
         )
 
         val refreshed = node1.listCandidates(lockName).single()
+        log.debug { "refreshed: $refreshed" }
         refreshed.registeredAt shouldBeEqualTo beforeRefresh.registeredAt
         refreshed.lastCompletionTime shouldBeEqualTo beforeRefresh.lastCompletionTime
         refreshed.successCount shouldBeEqualTo beforeRefresh.successCount
@@ -153,6 +163,24 @@ class LocalStrategicLeaderElectorTest {
         node1.listCandidates(lockName).single().successCount shouldBeEqualTo (workers * rounds).toLong()
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
+    @Test
+    fun `refreshCandidate와 updateResult 동시 호출에서도 결과 카운터를 잃지 않는다 - Virtual Threads`() {
+        val workers = 2 * Runtimex.availableProcessors
+        val rounds = 100
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+
+        StructuredTaskScopeTester()
+            .rounds(workers * rounds)
+            .add {
+                node1.updateResult(lockName, node1.nodeId, CandidateResult.SUCCESS)
+                node1.refreshCandidate(lockName, CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")))
+            }
+            .run()
+
+        node1.listCandidates(lockName).single().successCount shouldBeEqualTo (workers * rounds).toLong()
+    }
+
     @Test
     fun `refreshCandidate와 unregisterCandidate 동시 호출에서도 후보를 되살리지 않는다`() {
         node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
@@ -160,6 +188,27 @@ class LocalStrategicLeaderElectorTest {
         MultithreadingTester()
             .workers(2)
             .rounds(100)
+            .addAll(
+                {
+                    node1.refreshCandidate(
+                        lockName,
+                        CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok"))
+                    )
+                },
+                { node1.unregisterCandidate(lockName, node1.nodeId) },
+            )
+            .run()
+
+        node1.listCandidates(lockName).shouldBeEmpty()
+    }
+
+    @EnabledForJreRange(min = JRE.JAVA_21)
+    @Test
+    fun `refreshCandidate와 unregisterCandidate 동시 호출에서도 후보를 되살리지 않는다 - Virtual Threads`() {
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+
+        StructuredTaskScopeTester()
+            .rounds(2 * 100)
             .addAll(
                 {
                     node1.refreshCandidate(
@@ -196,6 +245,7 @@ class LocalStrategicLeaderElectorTest {
         thrown.message shouldBeEqualTo "oops"
 
         val info = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        log.debug { "info: $info" }
         info.failureCount shouldBeEqualTo 1L
     }
 
@@ -248,6 +298,7 @@ class LocalStrategicLeaderElectorTest {
         node1.registerCandidate(lockName, CandidateInfo("node-1", successCount = 10))
 
         val candidates = node1.listCandidates(lockName)
+        log.debug { "candidates: $candidates" }
         candidates.size shouldBeEqualTo 1
         candidates.first().successCount shouldBeEqualTo 10L
     }
@@ -303,6 +354,7 @@ class LocalStrategicLeaderElectorTest {
         node1.registerCandidate(lockName, CandidateInfo("node-b", registeredAt = t0))
 
         val winner = FifoElectionStrategy.elect(node1.listCandidates(lockName)).winner
+        log.debug { "winner: $winner" }
         winner?.nodeId shouldBeEqualTo "node-a"
     }
 
@@ -331,6 +383,7 @@ class LocalStrategicLeaderElectorTest {
 
         val strategy = ScoredElectionStrategy(SuccessRateScorer)
         val winner = strategy.elect(node1.listCandidates(lockName)).winner
+        log.debug { "winner: $winner" }
         winner?.nodeId shouldBeEqualTo "node-2"
 
         val counter = AtomicInteger(0)
@@ -355,6 +408,7 @@ class LocalStrategicLeaderElectorTest {
         val scorer = WeightedScorer(IdleTimeScorer to 0.1, SuccessRateScorer to 0.9)
         val strategy = ScoredElectionStrategy(scorer)
         val winner = strategy.elect(node1.listCandidates(lockName)).winner
+        log.debug { "winner: $winner" }
         winner?.nodeId shouldBeEqualTo "node-1"
 
         val counter = AtomicInteger(0)
@@ -376,6 +430,7 @@ class LocalStrategicLeaderElectorTest {
         }
 
         val info = node1.listCandidates(lockName).first { it.nodeId == node1.nodeId }
+        log.debug { "info: $info" }
         info.failureCount shouldBeEqualTo 0L
         info.successCount shouldBeEqualTo 0L
     }
@@ -391,6 +446,7 @@ class LocalStrategicLeaderElectorTest {
         }
 
         val info = node1.listCandidates(lockName).first { it.nodeId == node1.nodeId }
+        log.debug { "info: $info" }
         info.failureCount shouldBeEqualTo 1L
     }
 }

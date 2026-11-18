@@ -226,7 +226,7 @@ class DynamoDbLeaderGroupElectorIntegrationTest: AbstractDynamoDbLeaderTest() {
             LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 1.seconds, leaseTime = 5.seconds),
     ): DynamoDbLeaderGroupElector =
         DynamoDbLeaderGroupElector(
-            dynamoDb,
+            dynamoDbSync,
             DynamoDbLeaderGroupElectionOptions(
                 leaderGroupOptions = groupOptions,
                 tableName = tableName,

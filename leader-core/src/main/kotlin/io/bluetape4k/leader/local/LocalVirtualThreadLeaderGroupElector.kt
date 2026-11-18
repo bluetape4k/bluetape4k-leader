@@ -97,10 +97,11 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
             when {
                 failure != null && elected.get() -> failure.toActionFailedResult()
                 failure != null -> throw failure.asCompletionException()
-                elected.get()   -> LeaderRunResult.Elected(
-                    value,
-                    leaderId = slot.leaderId
-                ) as LeaderRunResult<T>
+                elected.get()   ->
+                    LeaderRunResult.Elected(
+                        value,
+                        leaderId = slot.leaderId
+                    ) as LeaderRunResult<T>
                 else            -> LeaderRunResult.Skipped as LeaderRunResult<T>
             }
         }

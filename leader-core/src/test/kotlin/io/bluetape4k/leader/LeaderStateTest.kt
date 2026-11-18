@@ -5,7 +5,9 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
@@ -19,6 +21,7 @@ class LeaderStateTest {
     fun `empty - leader 없이 빈 상태를 생성한다`() {
         val state = LeaderState.empty("job-lock")
 
+        log.debug { "state=$state" }
         state.status shouldBeEqualTo LeaderStatus.Empty
         state.isEmpty.shouldBeTrue()
         state.isOccupied.shouldBeFalse()
@@ -27,7 +30,12 @@ class LeaderStateTest {
 
     @Test
     fun `LeaderState preserves accepted lock names from the 1x contract`() {
-        listOf("tenant.lock", "tenant lock", "결제-작업", ".leading-symbol").forEach { lockName ->
+        listOf(
+            "tenant.lock",
+            "tenant lock",
+            "결제-작업",
+            ".leading-symbol"
+        ).forEach { lockName ->
             LeaderState.empty(lockName).lockName shouldBeEqualTo lockName
         }
     }
@@ -37,6 +45,7 @@ class LeaderStateTest {
         val lease = LeaderLease("node-a", electedAt = Instant.now())
         val state = LeaderState.occupied("job-lock", lease)
 
+        log.debug { "state=$state" }
         state.status shouldBeEqualTo LeaderStatus.Occupied
         state.isOccupied.shouldBeTrue()
         state.leader shouldBeEqualTo lease
@@ -45,14 +54,21 @@ class LeaderStateTest {
     @Test
     fun `empty 상태에 leader 가 있으면 실패한다`() {
         assertFailsWith<IllegalArgumentException> {
-            LeaderState("job-lock", LeaderStatus.Empty, LeaderLease("node-a"))
+            LeaderState(
+                lockName = "job-lock",
+                status = LeaderStatus.Empty,
+                leader = LeaderLease("node-a")
+            )
         }
     }
 
     @Test
     fun `occupied 상태에 leader 가 없으면 실패한다`() {
         assertFailsWith<IllegalArgumentException> {
-            LeaderState("job-lock", LeaderStatus.Occupied)
+            LeaderState(
+                lockName = "job-lock",
+                status = LeaderStatus.Occupied
+            )
         }
     }
 
@@ -61,7 +77,11 @@ class LeaderStateTest {
         val now = Instant.now()
 
         assertFailsWith<IllegalArgumentException> {
-            LeaderLease("node-a", electedAt = now, leaseUntil = now.minusSeconds(1))
+            LeaderLease(
+                auditLeaderId = "node-a",
+                electedAt = now,
+                leaseUntil = now - 1.seconds()
+            )
         }
     }
 }

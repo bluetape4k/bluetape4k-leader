@@ -18,7 +18,8 @@ interface ExtendDelegate {
      * @param lockAtMostFor 연장 뒤에도 넘지 않을 최대 lock lease 길이
      * @return 연장 여부와 backend 오류를 구분하는 결과
      */
-    suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = extend(lockAtMostFor)
+    suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
+        extend(lockAtMostFor)
 
     /**
      * 현재 실행 중인 lock handle이 backend lock을 소유하는지 확인합니다.

@@ -22,7 +22,8 @@ object LeaderFutureBridge {
         source: CompletableFuture<T>,
         mapper: (T?, Throwable?) -> R,
     ): CompletableFuture<R> {
-        val transformed = source.handle { value, failure -> mapper(value, failure) }
+        val transformed = source
+            .handle { value, failure -> mapper(value, failure) }
         return mirror(transformed, source)
     }
 
@@ -33,7 +34,9 @@ object LeaderFutureBridge {
         source: CompletableFuture<T>,
         mapper: (T?, Throwable?) -> CompletableFuture<R>,
     ): CompletableFuture<R> {
-        val transformed = source.handle { value, failure -> mapper(value, failure) }.thenCompose { it }
+        val transformed = source
+            .handle { value, failure -> mapper(value, failure) }
+            .thenCompose { it }
         return mirror(transformed, source)
     }
 
@@ -45,7 +48,9 @@ object LeaderFutureBridge {
         cancellationRelay: CancellationRelay,
         mapper: (T?, Throwable?) -> CompletableFuture<R>,
     ): CompletableFuture<R> {
-        val transformed = source.handle { value, failure -> mapper(value, failure) }.thenCompose { it }
+        val transformed = source
+            .handle { value, failure -> mapper(value, failure) }
+            .thenCompose { it }
         return mirror(transformed, source, cancellationRelay::cancel)
     }
 
@@ -57,7 +62,8 @@ object LeaderFutureBridge {
         cancellationRelay: CancellationRelay,
         mapper: (T?, Throwable?) -> R,
     ): CompletableFuture<R> {
-        val transformed = source.handle { value, failure -> mapper(value, failure) }
+        val transformed = source
+            .handle { value, failure -> mapper(value, failure) }
         return mirror(transformed, source, cancellationRelay::cancel)
     }
 
@@ -73,7 +79,9 @@ object LeaderFutureBridge {
         source: CompletableFuture<T>,
         observer: (T?, Throwable?) -> Unit,
     ): CompletableFuture<T> {
-        val observed = source.whenComplete { value, failure -> observer(value, failure) }
+        val observed = source.whenComplete { value, failure ->
+            observer(value, failure)
+        }
         return mirror(observed, source)
     }
 
@@ -83,7 +91,8 @@ object LeaderFutureBridge {
     fun <T, R> map(
         source: VirtualFuture<T>,
         mapper: (T?, Throwable?) -> R,
-    ): VirtualFuture<R> = VirtualFuture(map(source.toCompletableFuture(), mapper))
+    ): VirtualFuture<R> =
+        VirtualFuture(map(source.toCompletableFuture(), mapper))
 
     /**
      * [VirtualFuture]의 성공·실패 결과는 변경하지 않고 반환 future의 취소만 원본으로 전파합니다.

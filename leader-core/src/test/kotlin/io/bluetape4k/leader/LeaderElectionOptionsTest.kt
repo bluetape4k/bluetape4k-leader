@@ -4,7 +4,9 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration
@@ -19,11 +21,12 @@ class LeaderElectionOptionsTest {
     @Test
     fun `기본 옵션 값이 올바르다`() {
         val options = LeaderElectionOptions.Default
+
+        log.debug { "options=$options" }
         options.waitTime shouldBeEqualTo LeaderElectionOptions.DefaultWaitTime
         options.leaseTime shouldBeEqualTo LeaderElectionOptions.DefaultLeaseTime
         options.minLeaseTime shouldBeEqualTo Duration.ZERO
         options.autoExtend.shouldBeFalse()
-
         options.useDbTime.shouldBeFalse()
 
     }
@@ -37,11 +40,12 @@ class LeaderElectionOptionsTest {
             autoExtend = true,
             useDbTime = true,
         )
+
+        log.debug { "options=$options" }
         options.waitTime shouldBeEqualTo 10.seconds
         options.leaseTime shouldBeEqualTo 120.seconds
         options.minLeaseTime shouldBeEqualTo 5.seconds
         options.autoExtend.shouldBeTrue()
-
         options.useDbTime.shouldBeTrue()
 
     }
@@ -49,6 +53,8 @@ class LeaderElectionOptionsTest {
     @Test
     fun `LeaderGroupElectionOptions 기본 값이 올바르다`() {
         val options = LeaderGroupElectionOptions.Default
+
+        log.debug { "options=$options" }
         options.maxLeaders shouldBeEqualTo LeaderGroupElectionOptions.DefaultMaxLeaders
         options.waitTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultWaitTime
         options.leaseTime shouldBeEqualTo LeaderElectionOptions.DefaultLeaseTime
@@ -111,7 +117,8 @@ class LeaderElectionOptionsTest {
 
     @Test
     fun `blank lockName 으로 호출 시 예외가 발생한다`() {
-        val election = io.bluetape4k.leader.local.LocalLeaderElector()
+        val election = LocalLeaderElector()
+
         assertFailsWith<IllegalArgumentException> {
             election.runIfLeader("") { "should fail" }
         }

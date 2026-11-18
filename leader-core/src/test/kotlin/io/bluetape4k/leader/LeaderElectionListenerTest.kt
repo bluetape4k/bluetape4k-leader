@@ -2,18 +2,23 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.concurrent.join
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.coroutines.withListeners
 import io.bluetape4k.leader.local.LocalLeaderElector
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -40,6 +45,8 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionListenerTest {
 
+    companion object: KLogging()
+
     @Test
     fun `동시에 등록해도 동일 listener는 한 번만 호출한다`() {
         val support = LeaderElectionListenerSupport()
@@ -63,18 +70,19 @@ class LeaderElectionListenerTest {
 
         try {
             threads.forEach(Thread::start)
-            check(ready.await(5.seconds))
+            ready.await(5.seconds).shouldBeTrue()
             start.countDown()
+
             threads.forEach { worker ->
-                worker.join(5_000)
-                check(!worker.isAlive)
+                worker.join(5.seconds)
+                worker.isAlive.shouldBeFalse()
             }
 
             support.notifyElected("concurrent-listener")
             callbackCount.get() shouldBeEqualTo 1
         } finally {
             start.countDown()
-            threads.forEach { it.join(5_000) }
+            threads.forEach { it.join(5.seconds) }
             handles.forEach(AutoCloseable::close)
         }
     }
@@ -121,17 +129,16 @@ class LeaderElectionListenerTest {
 
         try {
             dispatch.start()
-            check(callbackEntered.await(5.seconds))
+            callbackEntered.await(5.seconds).shouldBeTrue()
             removedHandle.close()
             support.addListener(added)
             continueCallback.countDown()
             dispatch.join(5_000)
-            check(!dispatch.isAlive)
+            dispatch.isAlive.shouldBeFalse()
 
             events.toList() shouldBeEqualTo listOf("first", "stable", "removed")
 
             support.notifyElected("next-listener-job")
-
             events.toList() shouldBeEqualTo listOf("first", "stable", "removed", "first", "stable", "added")
         } finally {
             continueCallback.countDown()
@@ -165,10 +172,11 @@ class LeaderElectionListenerTest {
         election.addListener(listener)
 
         val result = election.runIfLeader("listener-metadata-job") { "done" }
-
         result shouldBeEqualTo "done"
 
         val lease = listener.electedLeases.single().shouldNotBeNull()
+
+        log.debug { "lease=$lease" }
         lease.auditLeaderId shouldBeEqualTo "node-a"
         lease.nodeId shouldBeEqualTo "node-a"
         lease.leaseUntil.shouldNotBeNull()
@@ -239,6 +247,7 @@ class LeaderElectionListenerTest {
 
         publisher.emit(LeaderElectionEvent.Elected("failing-callback-job"))
         runCurrent()
+
         publisher.emit(LeaderElectionEvent.Skipped("continued-callback-job"))
         runCurrent()
 
@@ -263,13 +272,11 @@ class LeaderElectionListenerTest {
                 holderDone.await()
             }
         }
-
         holderReady.await()
+
         val skipped = election.runIfLeader(lockName) { "not-called" }
-
         skipped.shouldBeNull()
-        listener.events.contains("skipped:$lockName").shouldBeTrue()
-
+        listener.events shouldContain "skipped:$lockName"
 
         holderDone.countDown()
         holder.join()
@@ -289,8 +296,9 @@ class LeaderElectionListenerTest {
     @Test
     fun `ListeningLeaderElector - delegate 에 Flow 이벤트를 더한다`() = runSuspendIO {
         val election = StubLeaderElector(elected = true).withListeners()
+
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(2).toList()
             }
         }
@@ -311,7 +319,7 @@ class LeaderElectionListenerTest {
 
         val result = election.runIfLeader("decorated-skip-job") { "not-called" }
 
-        result shouldBeEqualTo null
+        result.shouldBeNull()
         listener.events.toList() shouldBeEqualTo listOf("skipped:decorated-skip-job")
     }
 
@@ -319,14 +327,14 @@ class LeaderElectionListenerTest {
     fun `ListeningLeaderElector - delegate skip 을 Flow 이벤트로 발행한다`() = runSuspendIO {
         val election = StubLeaderElector(elected = false).withListeners()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(1).toList()
             }
         }
 
         val result = election.runIfLeader("decorated-flow-skip-job") { "not-called" }
 
-        result shouldBeEqualTo null
+        result.shouldBeNull()
         collected.await() shouldBeEqualTo listOf(
             LeaderElectionEvent.Skipped("decorated-flow-skip-job"),
         )
@@ -337,7 +345,7 @@ class LeaderElectionListenerTest {
         val executor = Executor { it.run() }
         val election = StubLeaderElector(elected = true).withListeners()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(2).toList()
             }
         }
@@ -358,7 +366,7 @@ class LeaderElectionListenerTest {
         val executor = Executor { it.run() }
         val election = StubLeaderElector(elected = false).withListeners()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(1).toList()
             }
         }
@@ -367,7 +375,7 @@ class LeaderElectionListenerTest {
             completableFutureOf("not-called")
         }.join()
 
-        result shouldBeEqualTo null
+        result.shouldBeNull()
         collected.await() shouldBeEqualTo listOf(
             LeaderElectionEvent.Skipped("decorated-async-flow-skip-job"),
         )
@@ -378,7 +386,7 @@ class LeaderElectionListenerTest {
         val executor = Executor { it.run() }
         val election = StubLeaderElector(elected = true).withListeners()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(2).toList()
             }
         }
@@ -398,7 +406,7 @@ class LeaderElectionListenerTest {
     fun `ListeningLeaderElector - sync action 실패에도 Flow revoke 를 발행한다`() = runSuspendIO {
         val election = StubLeaderElector(elected = true).withListeners()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(2).toList()
             }
         }
@@ -434,7 +442,7 @@ class LeaderElectionListenerTest {
     fun `ListeningLeaderGroupElector - delegate 에 Flow 이벤트를 더한다`() = runSuspendIO {
         val election = StubLeaderGroupElector(elected = true).withListeners()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(2).toList()
             }
         }
@@ -453,7 +461,7 @@ class LeaderElectionListenerTest {
         val preexisting = LeaderLease("other-node", leaseUntil = java.time.Instant.now().plusSeconds(60), slot = 0)
         val election = StubLeaderGroupElector(elected = true, leaders = listOf(preexisting)).withListeners()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(2).toList()
             }
         }
@@ -462,9 +470,9 @@ class LeaderElectionListenerTest {
 
         result shouldBeEqualTo "done"
         val event = collected.await()[0] as LeaderElectionEvent.Elected
-        event.leader shouldBeEqualTo null
-        event.leaderId shouldBeEqualTo null
-        event.leaseExpiry shouldBeEqualTo null
+        event.leader.shouldBeNull()
+        event.leaderId.shouldBeNull()
+        event.leaseExpiry.shouldBeNull()
     }
 
     @Test
@@ -474,7 +482,7 @@ class LeaderElectionListenerTest {
 
         val result = election.runIfLeader("decorated-group-skip-job") { "not-called" }
 
-        result shouldBeEqualTo null
+        result.shouldBeNull()
         listener.events.toList() shouldBeEqualTo listOf("skipped:decorated-group-skip-job")
     }
 
@@ -482,14 +490,14 @@ class LeaderElectionListenerTest {
     fun `ListeningLeaderGroupElector - delegate skip 을 Flow 이벤트로 발행한다`() = runSuspendIO {
         val election = StubLeaderGroupElector(elected = false).withListeners()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(1).toList()
             }
         }
 
         val result = election.runIfLeader("decorated-group-flow-skip-job") { "not-called" }
 
-        result shouldBeEqualTo null
+        result.shouldBeNull()
         collected.await() shouldBeEqualTo listOf(
             LeaderElectionEvent.Skipped("decorated-group-flow-skip-job"),
         )
@@ -522,7 +530,7 @@ class LeaderElectionListenerTest {
             completableFutureOf("not-called")
         }.join()
 
-        result shouldBeEqualTo null
+        result.shouldBeNull()
         listener.events.toList() shouldBeEqualTo listOf("skipped:decorated-group-async-skip-job")
     }
 
@@ -531,7 +539,7 @@ class LeaderElectionListenerTest {
         val executor = Executor { it.run() }
         val election = StubLeaderGroupElector(elected = true).withListeners()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(2).toList()
             }
         }
@@ -552,7 +560,7 @@ class LeaderElectionListenerTest {
         val executor = Executor { it.run() }
         val election = StubLeaderGroupElector(elected = false).withListeners()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(1).toList()
             }
         }
@@ -561,7 +569,7 @@ class LeaderElectionListenerTest {
             completableFutureOf("not-called")
         }.join()
 
-        result shouldBeEqualTo null
+        result.shouldBeNull()
         collected.await() shouldBeEqualTo listOf(
             LeaderElectionEvent.Skipped("decorated-group-async-flow-skip-job"),
         )
@@ -572,7 +580,7 @@ class LeaderElectionListenerTest {
         val executor = Executor { it.run() }
         val election = StubLeaderGroupElector(elected = true).withListeners()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(2).toList()
             }
         }
@@ -592,7 +600,7 @@ class LeaderElectionListenerTest {
     fun `ListeningLeaderGroupElector - sync action 실패에도 Flow revoke 를 발행한다`() = runSuspendIO {
         val election = StubLeaderGroupElector(elected = true).withListeners()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(2).toList()
             }
         }
@@ -613,7 +621,7 @@ class LeaderElectionListenerTest {
     fun `LocalSuspendLeaderElector - Subject 로 선출 이벤트를 발행한다`() = runSuspendIO {
         val election = LocalSuspendLeaderElector()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(2).toList()
             }
         }
@@ -652,7 +660,7 @@ class LeaderElectionListenerTest {
         val listener = RecordingListener()
         val election = StubSuspendLeaderGroupElector(elected = true).withListeners(listener)
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000.milliseconds) {
+            withTimeout(2.seconds) {
                 election.events.take(2).toList()
             }
         }
@@ -690,7 +698,7 @@ class LeaderElectionListenerTest {
 
         val result = election.runIfLeader("decorated-suspend-group-skip-job") { "not-called" }
 
-        result shouldBeEqualTo null
+        result.shouldBeNull()
         listener.events.toList() shouldBeEqualTo listOf("skipped:decorated-suspend-group-skip-job")
         collected.await() shouldBeEqualTo listOf(
             LeaderElectionEvent.Skipped("decorated-suspend-group-skip-job"),
@@ -778,7 +786,6 @@ class LeaderElectionListenerTest {
             if (elected) {
                 futureOf(executor) { action() }
                     .thenCompose { it }
-                    .thenApply { it }
             } else {
                 completableFutureOf(null)
             }

@@ -14,12 +14,10 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-@Tag("integration")
 class ConsulSuspendLeaderGroupElectorIntegrationTest: AbstractConsulTest() {
 
     companion object: KLoggingChannel()

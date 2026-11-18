@@ -42,7 +42,7 @@ class LeaderElectionEventExportSubscriptionTest {
         val publisher = FakePublisher()
         val exporter = RecordingExporter()
         val attributes = mutableMapOf("tenant" to "before")
-        val subscription = LeaderElectionEventExportSubscription.Companion.invoke(
+        val subscription = LeaderElectionEventExportSubscription(
             publisher = publisher,
             scope = this,
             exporter = exporter,
@@ -55,7 +55,7 @@ class LeaderElectionEventExportSubscriptionTest {
         publisher.subject.emit(LeaderElectionEvent.Elected("job", leaderId = "node-1"))
         runCurrent()
 
-        val event = exporter.events.single() as LeaderAuditExportEvent.Lifecycle
+        val event = exporter.events.single().shouldBeInstanceOf<LeaderAuditExportEvent.Lifecycle>()
         event.attributes["tenant"] shouldBeEqualTo "before"
         subscription.close()
     }
@@ -76,25 +76,26 @@ class LeaderElectionEventExportSubscriptionTest {
 
         override fun observe(observer: LeaderAuditExportObserver): AutoCloseable = AutoCloseable { }
 
-        override fun snapshot(): LeaderAuditExportSnapshot = LeaderAuditExportSnapshot(
-            queued = 0,
-            inFlight = 0,
-            scheduledRetries = 0,
-            admitted = 0,
-            accepted = events.size.toLong(),
-            droppedQueueFull = 0,
-            droppedClosed = 0,
-            retries = 0,
-            terminalFailures = 0,
-            cancellations = 0,
-            executorRejections = 0,
-            schedulerRejections = 0,
-            observerDrops = 0,
-            observerRegistrationDrops = 0,
-            diagnosticsFatalErrors = 0,
-            diagnosticsClosed = false,
-            closed = false,
-        )
+        override fun snapshot(): LeaderAuditExportSnapshot =
+            LeaderAuditExportSnapshot(
+                queued = 0,
+                inFlight = 0,
+                scheduledRetries = 0,
+                admitted = 0,
+                accepted = events.size.toLong(),
+                droppedQueueFull = 0,
+                droppedClosed = 0,
+                retries = 0,
+                terminalFailures = 0,
+                cancellations = 0,
+                executorRejections = 0,
+                schedulerRejections = 0,
+                observerDrops = 0,
+                observerRegistrationDrops = 0,
+                diagnosticsFatalErrors = 0,
+                diagnosticsClosed = false,
+                closed = false,
+            )
 
         override fun close() = Unit
     }

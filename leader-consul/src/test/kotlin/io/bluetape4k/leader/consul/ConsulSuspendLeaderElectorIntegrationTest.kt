@@ -66,7 +66,6 @@ class ConsulSuspendLeaderElectorIntegrationTest: AbstractConsulTest() {
         }.log("Holder Job")
 
         started.await()
-
         contender.runIfLeader(lockName) { "contender" }.shouldBeNull()
 
         release.complete(Unit)
@@ -83,9 +82,7 @@ class ConsulSuspendLeaderElectorIntegrationTest: AbstractConsulTest() {
             ),
         )
         val slot = LeaderSlot(lockName = randomName(), leaderId = "suspend-audit-node-a")
-
         elector.supportsAuditLeaderState.shouldBeTrue()
-
         elector.runIfLeader(slot) {
             val state = elector.state(slot.lockName)
 

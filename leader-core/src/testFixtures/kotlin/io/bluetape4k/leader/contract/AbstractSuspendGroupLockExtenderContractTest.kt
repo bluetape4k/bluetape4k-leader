@@ -147,7 +147,9 @@ abstract class AbstractSuspendGroupLockExtenderContractTest {
         val lockName = randomLockName()
         val expected = Base58.randomString(16)
 
-        val actual = elector.runIfLeader(lockName) { expected }
+        val actual = elector.runIfLeader(lockName) {
+            expected
+        }
         actual shouldBeEqualTo expected
     }
 }

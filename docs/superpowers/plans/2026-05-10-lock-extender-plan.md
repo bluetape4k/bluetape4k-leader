@@ -1,7 +1,7 @@
 # LockExtender / LockAssert + Reentrant `@LeaderElection` + Explicit Lease Extension Implementation Plan
 
 > **For agentic
-workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** ShedLock-등가 `LockAssert.assertLocked()` / `LockExtender.extendActiveLock(Duration)` 추가 + `@LeaderElection`/`@LeaderGroupElection` 의 reentrant 의미론 정의 + 8 backend 의 atomic explicit lease extension API 신설.
 
@@ -113,7 +113,7 @@ class LockIdentityTest {
     fun `single kind without groupParams is allowed`() {
         val id = LockIdentity("job-A", LockIdentity.AnnotationKind.SINGLE, "lettuceFactory")
         id.lockName shouldBeEqualTo "job-A"
-        id.groupParams shouldBeEqualTo null
+        id.groupParams.shouldBeNull()
     }
 
     @Test
@@ -770,7 +770,7 @@ class LockHandleElementTest {
 
     @Test
     fun `element absent outside scope returns null`() = runTest {
-        coroutineContext[LockHandleElement] shouldBeEqualTo null
+        coroutineContext[LockHandleElement].shouldBeNull()
     }
 }
 ```
@@ -863,7 +863,7 @@ class SuspendLeaderElectorDefaultFunTest {
     fun `elected even if action returns null`() = runTest {
         val r = electedStub().runIfLeaderResultSuspend("L") { null as String? }
         r shouldBeInstanceOf LeaderRunResult.Elected::class
-        (r as LeaderRunResult.Elected<*>).value shouldBeEqualTo null
+        (r as LeaderRunResult.Elected<*>).value.shouldBeNull()
     }
 
     @Test
@@ -2032,7 +2032,7 @@ class LettuceBackendErrorClassifierTest {
         LettuceBackendErrorClassifier.classify(RedisCommandExecutionException("x")) shouldBeEqualTo BackendErrorKind.NON_TRANSIENT
     }
     @Test fun `unknown returns null (chain delegates to core)`() {
-        LettuceBackendErrorClassifier.classify(RuntimeException("x")) shouldBeEqualTo null
+        LettuceBackendErrorClassifier.classify(RuntimeException("x")).shouldBeNull()
     }
 }
 ```
@@ -3673,7 +3673,7 @@ T7~T13 에서 검증), AC-4b matrix integration, AC-5 (sync/suspend/Mono 3 분�
 
 > ⚠️ **Test ownership (Plan-R1-P1-2 — Codex)**: backend contract test (Lettuce/Redisson/Mongo/JDBC/R2DBC/Hazelcast/ZK) 는
 > **각 backend module
-안** 위치 — AC-23 의 `extendDelegate === watchdog.delegate` 가 `internal` 접근 필요. leader-spring-boot 는 backend module 의존성 없음 (특히 `leader-zookeeper` 미의존). T17 은
+> 안** 위치 — AC-23 의 `extendDelegate === watchdog.delegate` 가 `internal` 접근 필요. leader-spring-boot 는 backend module 의존성 없음 (특히 `leader-zookeeper` 미의존). T17 은
 > **aspect-level cross-cutting** (Local backend 만 spring-boot 안 통합) + ktor smoke + AC grep 검증에 한정.
 
 **Files:**

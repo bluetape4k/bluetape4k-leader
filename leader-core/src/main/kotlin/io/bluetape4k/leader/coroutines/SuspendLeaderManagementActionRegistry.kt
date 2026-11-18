@@ -16,8 +16,8 @@ import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.isManagementActionLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.support.checkNotNull
-import io.bluetape4k.support.requireGt
 import io.bluetape4k.support.requireLe
+import io.bluetape4k.support.requirePositiveDuration
 import io.bluetape4k.support.requirePositiveNumber
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -27,7 +27,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -181,9 +183,9 @@ class SuspendLeaderManagementActionRegistry(
             store.activeActionRecords().forEach { action ->
                 action.timedOut.set(true)
                 quarantineAndTerminalize(
-                    action,
-                    timeoutResult(action),
-                    LeaderManagementQuarantineReason.CLOSE_TIMEOUT,
+                    action = action,
+                    result = timeoutResult(action),
+                    reason = LeaderManagementQuarantineReason.CLOSE_TIMEOUT,
                 )
                 cancelBeforeWorkerStarts(action)
             }
@@ -199,9 +201,9 @@ class SuspendLeaderManagementActionRegistry(
         store.activeActionRecords().forEach { action ->
             action.timedOut.set(true)
             quarantineAndTerminalize(
-                action,
-                timeoutResult(action),
-                LeaderManagementQuarantineReason.CLOSE_TIMEOUT,
+                action = action,
+                result = timeoutResult(action),
+                reason = LeaderManagementQuarantineReason.CLOSE_TIMEOUT,
             )
             cancelBeforeWorkerStarts(action)
         }
@@ -215,11 +217,15 @@ class SuspendLeaderManagementActionRegistry(
     ): LeaderManagementActionResult {
         action.workerStarted.set(true)
         try {
-            if (action.timedOut.get() || action.cancelRequested.get() || !action.phase.compareAndSet(
+            if (action.timedOut.get() ||
+                action.cancelRequested.get() ||
+                !action.phase.compareAndSet(
                     LeaderManagementActionPhase.ADMITTED,
-                    LeaderManagementActionPhase.PRECHECK,
+                    LeaderManagementActionPhase.PRECHECK
                 )
-            ) return terminalResult(action, timeoutResult(action))
+            ) {
+                return terminalResult(action, timeoutResult(action))
+            }
 
             val ownership = try {
                 action.registration.handle.ownershipStatus()
@@ -260,7 +266,9 @@ class SuspendLeaderManagementActionRegistry(
             action.mutationAttempted.set(true)
 
             try {
-                withContext(NonCancellable) { action.registration.handle.release() }
+                withContext(NonCancellable) {
+                    action.registration.handle.release()
+                }
             } catch (_: RuntimeException) {
                 return terminalResult(
                     action,
@@ -284,10 +292,12 @@ class SuspendLeaderManagementActionRegistry(
             val postCheck = try {
                 withContext(NonCancellable) { action.registration.handle.ownershipStatus() }
             } catch (_: RuntimeException) {
+                currentCoroutineContext().ensureActive()
                 return terminalResult(
-                    action,
-                    if (action.timedOut.get()) timeoutResult(action)
-                    else result(LeaderManagementActionOutcome.RELEASE_UNCONFIRMED, true),
+                    action = action,
+                    result =
+                        if (action.timedOut.get()) timeoutResult(action)
+                        else result(LeaderManagementActionOutcome.RELEASE_UNCONFIRMED, true),
                 )
             } catch (error: Error) {
                 val terminal = if (action.timedOut.get()) timeoutResult(action)
@@ -296,14 +306,13 @@ class SuspendLeaderManagementActionRegistry(
                 throw error
             }
             return terminalResult(
-                action,
-                when {
-                    action.timedOut.get() -> timeoutResult(action)
-                    postCheck == LeaseOwnershipStatus.NOT_HELD -> result(LeaderManagementActionOutcome.RELEASED, true)
-                    else                  -> result(
-                        LeaderManagementActionOutcome.RELEASE_UNCONFIRMED,
-                        true
-                    )
+                action = action,
+                result = when {
+                    action.timedOut.get()                      -> timeoutResult(action)
+                    postCheck == LeaseOwnershipStatus.NOT_HELD ->
+                        result(LeaderManagementActionOutcome.RELEASED, true)
+                    else                                       ->
+                        result(LeaderManagementActionOutcome.RELEASE_UNCONFIRMED, true)
                 },
             )
         } finally {
@@ -467,10 +476,13 @@ class SuspendLeaderManagementActionRegistry(
         return result
     }
 
-    private fun result(outcome: LeaderManagementActionOutcome, mutationAttempted: Boolean) =
+    private fun result(
+        outcome: LeaderManagementActionOutcome,
+        mutationAttempted: Boolean,
+    ): LeaderManagementActionResult =
         LeaderManagementActionResult(LeaderManagementAction.RELEASE, outcome, mutationAttempted)
 
-    private fun timeoutResult(action: SuspendLeaderManagementActionStore.ActionRecord) =
+    private fun timeoutResult(action: SuspendLeaderManagementActionStore.ActionRecord): LeaderManagementActionResult =
         result(
             LeaderManagementActionOutcome.ACTION_TIMED_OUT,
             action.mutationAttempted.get() || action.phase.get() in setOf(
@@ -479,17 +491,18 @@ class SuspendLeaderManagementActionRegistry(
             ),
         )
 
-    private fun quarantineReason(phase: LeaderManagementActionPhase) = when (phase) {
-        LeaderManagementActionPhase.RELEASE_STARTED,
-        LeaderManagementActionPhase.POSTCHECK,
-            -> LeaderManagementQuarantineReason.NON_INTERRUPTIBLE
+    private fun quarantineReason(phase: LeaderManagementActionPhase): LeaderManagementQuarantineReason =
+        when (phase) {
+            LeaderManagementActionPhase.RELEASE_STARTED,
+            LeaderManagementActionPhase.POSTCHECK,
+                 -> LeaderManagementQuarantineReason.NON_INTERRUPTIBLE
 
-        else -> LeaderManagementQuarantineReason.CLEANUP_TIMEOUT
-    }
+            else -> LeaderManagementQuarantineReason.CLEANUP_TIMEOUT
+        }
 
     private fun Duration.requireBoundedPositive(name: String) {
         require(isFinite()) { "$name must be finite: $this" }
-        requireGt(Duration.ZERO, name)
+        requirePositiveDuration(name)
         requireLe(MAX_TIMEOUT_SECONDS.seconds, name)
     }
 
@@ -594,11 +607,13 @@ private class SuspendLeaderManagementActionStore(
         RegistrationDecision.Accepted(record)
     }
 
-    fun closeRegistration(record: RegistrationRecord) = lock.withLock {
-        if (record.registrationCount <= 0) return@withLock
-        record.registrationCount--
-        registrationCount--
-        removeIfDetached(record)
+    fun closeRegistration(record: RegistrationRecord) {
+        lock.withLock {
+            if (record.registrationCount <= 0) return@withLock
+            record.registrationCount--
+            registrationCount--
+            removeIfDetached(record)
+        }
     }
 
     fun select(lockName: String): Selection = lock.withLock {
@@ -614,26 +629,26 @@ private class SuspendLeaderManagementActionStore(
     fun begin(
         record: RegistrationRecord,
         surface: LeaderManagementActionSurface,
-    ): Pair<BeginOutcome, ActionRecord?> =
-        lock.withLock {
-            if (lifecycle != Lifecycle.OPEN) return@withLock BeginOutcome.REGISTRY_CLOSED to null
-            if (record.registrationCount <= 0 || byHandle[record.handle] !== record) {
-                return@withLock BeginOutcome.NOT_REGISTERED to null
-            }
-            if (byLockName[record.lockName]?.count { it.registrationCount > 0 } != 1) {
-                return@withLock BeginOutcome.AMBIGUOUS to null
-            }
-            if (!record.actionInProgress.compareAndSet(false, true)) {
-                return@withLock BeginOutcome.ACTION_IN_PROGRESS to null
-            }
-            if (activeActions.size >= maxInFlightActions) {
-                record.actionInProgress.set(false)
-                return@withLock BeginOutcome.ACTION_ADMISSION_REJECTED to null
-            }
-            ActionRecord(record, surface)
-                .also { activeActions[it] = true }
-                .let { BeginOutcome.STARTED to it }
+    ): Pair<BeginOutcome, ActionRecord?> = lock.withLock {
+        if (lifecycle != Lifecycle.OPEN) return@withLock BeginOutcome.REGISTRY_CLOSED to null
+        if (record.registrationCount <= 0 || byHandle[record.handle] !== record) {
+            return@withLock BeginOutcome.NOT_REGISTERED to null
         }
+        if (byLockName[record.lockName]?.count { it.registrationCount > 0 } != 1) {
+            return@withLock BeginOutcome.AMBIGUOUS to null
+        }
+        if (!record.actionInProgress.compareAndSet(false, true)) {
+            return@withLock BeginOutcome.ACTION_IN_PROGRESS to null
+        }
+        if (activeActions.size >= maxInFlightActions) {
+            record.actionInProgress.set(false)
+            return@withLock BeginOutcome.ACTION_ADMISSION_REJECTED to null
+        }
+
+        ActionRecord(record, surface)
+            .also { activeActions[it] = true }
+            .let { BeginOutcome.STARTED to it }
+    }
 
     fun finish(action: ActionRecord) = lock.withLock {
         if (activeActions.remove(action) != null) action.registration.actionInProgress.set(false)
@@ -654,7 +669,9 @@ private class SuspendLeaderManagementActionStore(
         true
     }
 
-    fun closeLifecycle() = lock.withLock { lifecycle = Lifecycle.CLOSED }
+    fun closeLifecycle() {
+        lock.withLock { lifecycle = Lifecycle.CLOSED }
+    }
 
     fun activeActionCount(): Int = lock.withLock { activeActions.size }
 
@@ -664,7 +681,9 @@ private class SuspendLeaderManagementActionStore(
 
     fun registeredLockNames(): List<String> = lock.withLock {
         byLockName.asSequence()
-            .filter { (_, records) -> records.any { it.registrationCount > 0 } }
+            .filter { (_, records) ->
+                records.any { it.registrationCount > 0 }
+            }
             .map { it.key }
             .sorted()
             .toList()

@@ -47,7 +47,7 @@ class SharedLeaseAcquireTest {
         virtualThread {
             firstFuture.complete(shared.tryAcquire(slot, 1.seconds))
         }
-        backendStarted.await(1.seconds)
+        backendStarted.await(1.seconds).shouldBeTrue()
 
         val secondFuture = CompletableFuture<LeaderLeaseHandle?>()
         virtualThread {
@@ -143,7 +143,7 @@ class SharedLeaseAcquireTest {
             future.complete(shared.tryAcquire(slot, 5.seconds))
         }
 
-        backendStarted.await(1.seconds)
+        backendStarted.await(1.seconds).shouldBeTrue()
         shared.close()
 
         future.get(1.seconds).shouldBeNull()
@@ -183,7 +183,7 @@ class SharedLeaseAcquireTest {
         reservationsClosed.get() shouldBeEqualTo 1
 
         releaseBlocker.countDown()
-        scheduler.awaitIdle(1.seconds).shouldBeEqualTo(true)
+        scheduler.awaitIdle(1.seconds).shouldBeTrue()
         backendCalls.get() shouldBeEqualTo 0
 
         shared.close()

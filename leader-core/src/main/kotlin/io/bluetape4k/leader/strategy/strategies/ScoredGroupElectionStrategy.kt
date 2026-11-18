@@ -40,15 +40,17 @@ class ScoredGroupElectionStrategy(
         val boundary = winners.last()
         val boundaryScore = scores.getValue(boundary)
 
-        val eliminations = ordered.drop(maxLeaders).map { candidate ->
-            val score = scores.getValue(candidate)
-            val reason = if (score < boundaryScore) {
-                "score below boundary (%.2f < %.2f)".format(score, boundaryScore)
-            } else {
-                "tied score — ranked lower by registeredAt/nodeId (score: %.2f)".format(score)
+        val eliminations = ordered
+            .drop(maxLeaders)
+            .map { candidate ->
+                val score = scores.getValue(candidate)
+                val reason = if (score < boundaryScore) {
+                    "score below boundary (%.2f < %.2f)".format(score, boundaryScore)
+                } else {
+                    "tied score — ranked lower by registeredAt/nodeId (score: %.2f)".format(score)
+                }
+                Elimination(candidate, reason)
             }
-            Elimination(candidate, reason)
-        }
 
         return StrategicGroupElectionResult(
             winners = winners,

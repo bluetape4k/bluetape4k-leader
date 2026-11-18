@@ -10,6 +10,7 @@ import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
@@ -70,8 +71,10 @@ class AbstractLocalLeaderElectorTest {
     fun `blank lockName 으로 호출 시 IllegalArgumentException 이 발생한다 (LocalVirtualThreadLeaderElector)`() {
         val election = LocalVirtualThreadLeaderElector()
 
-        assertFailsWith<java.util.concurrent.ExecutionException> {
-            election.runAsyncIfLeader("") { "should fail" }.await()
+        assertFailsWith<ExecutionException> {
+            election.runAsyncIfLeader("") {
+                "should fail"
+            }.await()
         }
     }
 
@@ -86,7 +89,9 @@ class AbstractLocalLeaderElectorTest {
         val election = LocalLeaderElector(options)
         election.shouldNotBeNull()
 
-        val result = election.runIfLeader(randomLockName()) { "custom-options-ok" }
+        val result = election.runIfLeader(randomLockName()) {
+            "custom-options-ok"
+        }
         result shouldBeEqualTo "custom-options-ok"
     }
 
@@ -127,7 +132,9 @@ class AbstractLocalLeaderElectorTest {
 
         repeat(3) {
             assertFailsWith<LeaderElectionException> {
-                election.runIfLeader(lockName) { throw LeaderElectionException("반복 실패 $it") }
+                election.runIfLeader(lockName) {
+                    throw LeaderElectionException("반복 실패 $it")
+                }
             }
         }
 

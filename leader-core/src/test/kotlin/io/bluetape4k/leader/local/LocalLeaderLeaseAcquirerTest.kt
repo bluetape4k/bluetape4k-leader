@@ -13,9 +13,11 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaseOwnershipStatus
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
@@ -26,9 +28,9 @@ class LocalLeaderLeaseAcquirerTest {
 
     @Test
     fun `lock-name overload captures configured node and slot overload preserves caller identity`() {
-        val elector = LocalLeaderElector(
-            LeaderElectionOptions(waitTime = 50.milliseconds, leaseTime = 1_000.milliseconds, nodeId = "node-a"),
-        )
+        val options =
+            LeaderElectionOptions(waitTime = 50.milliseconds, leaseTime = 1_000.milliseconds, nodeId = "node-a")
+        val elector = LocalLeaderElector(options)
 
         val byName = elector.tryAcquire("request-lock").shouldNotBeNull()
         byName.auditLeaderId shouldBeEqualTo "node-a"
@@ -43,26 +45,25 @@ class LocalLeaderLeaseAcquirerTest {
 
     @Test
     fun `contention returns null and release is safe from another thread`() {
-        val elector = LocalLeaderElector(
-            LeaderElectionOptions(waitTime = 25.milliseconds, leaseTime = 1_000.milliseconds, nodeId = "node-a"),
-        )
+        val options =
+            LeaderElectionOptions(waitTime = 25.milliseconds, leaseTime = 1_000.milliseconds, nodeId = "node-a")
+        val elector = LocalLeaderElector(options)
+
         val first = elector.tryAcquire("request-lock").shouldNotBeNull()
         val skipped = AtomicReference<io.bluetape4k.leader.LeaderLeaseHandle?>()
         val contenderDone = CountDownLatch(1)
-        val contender = Thread {
+        thread {
             skipped.set(elector.tryAcquire("request-lock"))
             contenderDone.countDown()
         }
-        contender.start()
         contenderDone.await(1.seconds).shouldBeTrue()
 
         skipped.get().shouldBeNull()
         val released = CountDownLatch(1)
-        val releaser = Thread {
+        val releaser = thread {
             first.release()
             released.countDown()
         }
-        releaser.start()
         released.await(1.seconds).shouldBeTrue()
         releaser.join(1_000)
         first.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.NOT_HELD
@@ -72,11 +73,12 @@ class LocalLeaderLeaseAcquirerTest {
 
     @Test
     fun `extend and ownership are generation fenced`() {
-        val elector = LocalLeaderElector(
-            LeaderElectionOptions(waitTime = 25.milliseconds, leaseTime = 60.milliseconds, nodeId = "node-a"),
-        )
+        val options = LeaderElectionOptions(waitTime = 25.milliseconds, leaseTime = 60.milliseconds, nodeId = "node-a")
+        val elector = LocalLeaderElector(options)
+
         val handle = elector.tryAcquire("request-lock").shouldNotBeNull()
 
+        log.debug { "handle=$handle" }
         handle.isStillHeld().shouldBeTrue()
         handle.extend(500.milliseconds).isExtended.shouldBeTrue()
         handle.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.HELD
@@ -88,31 +90,37 @@ class LocalLeaderLeaseAcquirerTest {
 
     @Test
     fun `release preserves the configured minimum lease time`() {
-        val elector = LocalLeaderElector(
-            LeaderElectionOptions(
-                waitTime = 25.milliseconds,
-                leaseTime = 500.milliseconds,
-                minLeaseTime = 80.milliseconds,
-                nodeId = "node-a",
-            ),
+        val options = LeaderElectionOptions(
+            waitTime = 25.milliseconds,
+            leaseTime = 500.milliseconds,
+            minLeaseTime = 80.milliseconds,
+            nodeId = "node-a",
         )
+        val elector = LocalLeaderElector(options)
+
         val handle = elector.tryAcquire("request-lock").shouldNotBeNull()
         val started = System.nanoTime()
 
         handle.release()
 
         val elapsed = (System.nanoTime() - started).nanoseconds
+        log.debug { "elapsed=$elapsed" }
         elapsed shouldBeGreaterOrEqualTo 40.milliseconds
     }
 
     @Test
     fun `suspend acquirer uses the same slot identity and release contract`() = runSuspendIO {
-        val elector = LocalSuspendLeaderElector(
-            LeaderElectionOptions(waitTime = 50.milliseconds, leaseTime = 1_000.milliseconds, nodeId = "node-a"),
+        val options = LeaderElectionOptions(
+            waitTime = 50.milliseconds,
+            leaseTime = 1_000.milliseconds,
+            nodeId = "node-a"
         )
+        val elector = LocalSuspendLeaderElector(options)
         val slot = LeaderSlot("suspend-lock", "caller-b")
+
         val handle = elector.tryAcquire(slot).shouldNotBeNull()
 
+        log.debug { "handle=$handle" }
         handle.auditLeaderId shouldBeEqualTo slot.leaderId
         handle.ownershipStatus() shouldBeEqualTo LeaseOwnershipStatus.HELD
         handle.isStillHeld().shouldBeTrue()

@@ -12,6 +12,7 @@ import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.support.toUtf8Bytes
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -28,9 +29,10 @@ class LeaderAuditPendingContextStoreTest {
 
         store.size() shouldBeEqualTo 1
 
-        val context = store.remove(key)
+        val context = store.remove(key).shouldNotBeNull()
 
-        context?.lockName shouldBeEqualTo "job"
+        log.debug { "context=$context" }
+        context.lockName shouldBeEqualTo "job"
         context.toString() shouldNotContain "credential"
         store.size() shouldBeEqualTo 0
     }
@@ -50,7 +52,7 @@ class LeaderAuditPendingContextStoreTest {
 
     @Test
     fun `storage bounds metadata cardinality and string lengths`() {
-        val metadata = linkedMapOf<String, String>().apply {
+        val metadata = buildMap {
             put("a".repeat(100), "v".repeat(1000))
             repeat(LeaderLockHistoryRecord.MAX_METADATA_KEYS) { index ->
                 put("entry-$index", "value-$index")
@@ -61,15 +63,16 @@ class LeaderAuditPendingContextStoreTest {
 
         store.put(key, record(metadata = metadata))
 
-        val stored = requireNotNull(store.remove(key))
+        val stored = store.remove(key).shouldNotBeNull()
         stored.metadata.size shouldBeEqualTo LeaderLockHistoryRecord.MAX_METADATA_KEYS
+
         val boundedEntry = stored.metadata.entries.single { it.key.length == 64 }
         boundedEntry.value.length shouldBeEqualTo LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH
     }
 
     @Test
     fun `storage bounds total metadata utf8 bytes deterministically`() {
-        val metadata = linkedMapOf<String, String>().apply {
+        val metadata = buildMap {
             repeat(LeaderLockHistoryRecord.MAX_METADATA_KEYS) { index ->
                 put("entry-$index", "가".repeat(LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH))
             }
@@ -96,7 +99,7 @@ class LeaderAuditPendingContextStoreTest {
 
     @Test
     fun `storage metadata bounds are independent of input iteration order`() {
-        val ascending = linkedMapOf<String, String>().apply {
+        val ascending = buildMap {
             repeat(LeaderLockHistoryRecord.MAX_METADATA_KEYS + 4) { index ->
                 put("entry-$index", "value-$index")
             }
@@ -118,13 +121,14 @@ class LeaderAuditPendingContextStoreTest {
     private fun record(
         lockName: String = "job",
         metadata: Map<String, String> = emptyMap(),
-    ): LeaderLockHistoryRecord = LeaderLockHistoryRecord(
-        lockName = lockName,
-        token = "credential",
-        kind = LockIdentity.AnnotationKind.SINGLE,
-        acquiredAt = Instant.parse("2026-08-19T00:00:00Z"),
-        lockedUntil = Instant.parse("2026-08-19T00:01:00Z"),
-        status = LeaderHistoryStatus.ACQUIRED,
-        metadata = metadata,
-    )
+    ): LeaderLockHistoryRecord =
+        LeaderLockHistoryRecord(
+            lockName = lockName,
+            token = "credential",
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            acquiredAt = Instant.parse("2026-08-19T00:00:00Z"),
+            lockedUntil = Instant.parse("2026-08-19T00:01:00Z"),
+            status = LeaderHistoryStatus.ACQUIRED,
+            metadata = metadata,
+        )
 }

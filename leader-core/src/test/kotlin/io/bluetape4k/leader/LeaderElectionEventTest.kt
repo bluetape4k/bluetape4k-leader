@@ -1,17 +1,15 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeEqualTo
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.io.serializer.BinarySerializers
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.ObjectInputStream
-import java.io.ObjectOutputStream
 import java.time.Instant
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -23,6 +21,7 @@ class LeaderElectionEventTest {
     fun `Elected - default construction leaves leaderId and leaseExpiry null`() {
         val event = LeaderElectionEvent.Elected("my-lock")
 
+        log.debug { "event=$event" }
         event.lockName shouldBeEqualTo "my-lock"
         event.leaderId.shouldBeNull()
         event.leaseExpiry.shouldBeNull()
@@ -33,6 +32,7 @@ class LeaderElectionEventTest {
     fun `Elected - explicit leaderId is preserved`() {
         val event = LeaderElectionEvent.Elected("my-lock", leaderId = "node-1")
 
+        log.debug { "event=$event" }
         event.lockName shouldBeEqualTo "my-lock"
         event.leaderId shouldBeEqualTo "node-1"
         event.leaseExpiry.shouldBeNull()
@@ -44,6 +44,7 @@ class LeaderElectionEventTest {
         val expiry = Instant.parse("2025-06-01T00:00:00Z")
         val event = LeaderElectionEvent.Elected("my-lock", leaderId = "node-1", leaseExpiry = expiry)
 
+        log.debug { "event=$event" }
         event.lockName shouldBeEqualTo "my-lock"
         event.leaderId shouldBeEqualTo "node-1"
         event.leaseExpiry shouldBeEqualTo expiry
@@ -63,26 +64,24 @@ class LeaderElectionEventTest {
 
         val event = LeaderElectionEvent.Elected.fromLease("my-lock", lease)
 
+        log.debug { "event=$event" }
         event.lockName shouldBeEqualTo "my-lock"
         event.leaderId shouldBeEqualTo "node-1"
         event.leaseExpiry shouldBeEqualTo expiry
         event.leader.shouldNotBeNull() shouldBeEqualTo lease
     }
 
+    @Suppress("DEPRECATION")
     @Test
     fun `Elected - serialization round-trip preserves all fields`() {
         val expiry = Instant.parse("2025-06-01T00:00:00Z")
         val original = LeaderElectionEvent.Elected("my-lock", leaderId = "node-1", leaseExpiry = expiry)
 
-        val bytes = ByteArrayOutputStream().use { baos ->
-            ObjectOutputStream(baos).use { oos -> oos.writeObject(original) }
-            baos.toByteArray()
-        }
-        val deserialized = ByteArrayInputStream(bytes).use { bais ->
-            ObjectInputStream(bais).use { ois -> ois.readObject() as LeaderElectionEvent.Elected }
-        }
+        val bytes = BinarySerializers.JdkUnfiltered.serialize(original)
+        val deserialized = BinarySerializers.JdkUnfiltered.deserialize<LeaderElectionEvent>(bytes)
 
-        deserialized.shouldNotBeNull() shouldBeEqualTo original
+        deserialized.shouldBeInstanceOf<LeaderElectionEvent.Elected>()
+        deserialized shouldBeEqualTo original
         deserialized.lockName shouldBeEqualTo "my-lock"
         deserialized.leaderId shouldBeEqualTo "node-1"
         deserialized.leaseExpiry shouldBeEqualTo expiry
@@ -95,27 +94,25 @@ class LeaderElectionEventTest {
         val original = LeaderElectionEvent.Elected("my-lock", leaderId = "node-1", leaseExpiry = expiry)
 
         val bytes = BinarySerializers.FastFory.serialize(original)
-        val deserialized = BinarySerializers.FastFory.deserialize<LeaderElectionEvent.Elected>(bytes)
+        val deserialized = BinarySerializers.FastFory.deserialize<LeaderElectionEvent>(bytes)
 
-        deserialized.shouldNotBeNull() shouldBeEqualTo original
+        deserialized.shouldBeInstanceOf<LeaderElectionEvent.Elected>()
+        deserialized shouldBeEqualTo original
         deserialized.lockName shouldBeEqualTo "my-lock"
         deserialized.leaderId shouldBeEqualTo "node-1"
         deserialized.leaseExpiry shouldBeEqualTo expiry
         deserialized.leader.shouldBeNull()
     }
 
+    @Suppress("DEPRECATION")
     @Test
     fun `Elected - serialization round-trip with null fields`() {
         val original = LeaderElectionEvent.Elected("lock-x")
 
-        val bytes = ByteArrayOutputStream().use { baos ->
-            ObjectOutputStream(baos).use { oos -> oos.writeObject(original) }
-            baos.toByteArray()
-        }
-        val deserialized = ByteArrayInputStream(bytes).use { bais ->
-            ObjectInputStream(bais).use { ois -> ois.readObject() as LeaderElectionEvent.Elected }
-        }
+        val bytes = BinarySerializers.JdkUnfiltered.serialize(original)
+        val deserialized = BinarySerializers.JdkUnfiltered.deserialize<LeaderElectionEvent>(bytes)
 
+        deserialized.shouldBeInstanceOf<LeaderElectionEvent.Elected>()
         deserialized shouldBeEqualTo original
         deserialized.leaderId.shouldBeNull()
         deserialized.leaseExpiry.shouldBeNull()
@@ -127,26 +124,24 @@ class LeaderElectionEventTest {
         val original = LeaderElectionEvent.Elected("lock-x")
 
         val bytes = BinarySerializers.FastFory.serialize(original)
-        val deserialized = BinarySerializers.FastFory.deserialize<LeaderElectionEvent.Elected>(bytes)
+        val deserialized = BinarySerializers.FastFory.deserialize<LeaderElectionEvent>(bytes)
 
+        deserialized.shouldBeInstanceOf<LeaderElectionEvent.Elected>()
         deserialized.shouldNotBeNull() shouldBeEqualTo original
         deserialized.leaderId.shouldBeNull()
         deserialized.leaseExpiry.shouldBeNull()
         deserialized.leader.shouldBeNull()
     }
 
+    @Suppress("DEPRECATION")
     @Test
     fun `Revoked - serialization round-trip preserves lock name`() {
         val original = LeaderElectionEvent.Revoked("lock-x")
 
-        val bytes = ByteArrayOutputStream().use { baos ->
-            ObjectOutputStream(baos).use { oos -> oos.writeObject(original) }
-            baos.toByteArray()
-        }
-        val deserialized = ByteArrayInputStream(bytes).use { bais ->
-            ObjectInputStream(bais).use { ois -> ois.readObject() as LeaderElectionEvent.Revoked }
-        }
+        val bytes = BinarySerializers.JdkUnfiltered.serialize(original)
+        val deserialized = BinarySerializers.JdkUnfiltered.deserialize<LeaderElectionEvent>(bytes)
 
+        deserialized.shouldBeInstanceOf<LeaderElectionEvent.Revoked>()
         deserialized shouldBeEqualTo original
         deserialized.lockName shouldBeEqualTo "lock-x"
     }
@@ -156,24 +151,22 @@ class LeaderElectionEventTest {
         val original = LeaderElectionEvent.Revoked("lock-x")
 
         val bytes = BinarySerializers.FastFory.serialize(original)
-        val deserialized = BinarySerializers.FastFory.deserialize<LeaderElectionEvent.Revoked>(bytes)
+        val deserialized = BinarySerializers.FastFory.deserialize<LeaderElectionEvent>(bytes)
 
-        deserialized.shouldNotBeNull() shouldBeEqualTo original
+        deserialized.shouldBeInstanceOf<LeaderElectionEvent.Revoked>()
+        deserialized shouldBeEqualTo original
         deserialized.lockName shouldBeEqualTo "lock-x"
     }
 
+    @Suppress("DEPRECATION")
     @Test
     fun `Skipped - serialization round-trip preserves lock name`() {
         val original = LeaderElectionEvent.Skipped("lock-x")
 
-        val bytes = ByteArrayOutputStream().use { baos ->
-            ObjectOutputStream(baos).use { oos -> oos.writeObject(original) }
-            baos.toByteArray()
-        }
-        val deserialized = ByteArrayInputStream(bytes).use { bais ->
-            ObjectInputStream(bais).use { ois -> ois.readObject() as LeaderElectionEvent.Skipped }
-        }
+        val bytes = BinarySerializers.JdkUnfiltered.serialize(original)
+        val deserialized = BinarySerializers.JdkUnfiltered.deserialize<LeaderElectionEvent>(bytes)
 
+        deserialized.shouldBeInstanceOf<LeaderElectionEvent.Skipped>()
         deserialized shouldBeEqualTo original
         deserialized.lockName shouldBeEqualTo "lock-x"
     }

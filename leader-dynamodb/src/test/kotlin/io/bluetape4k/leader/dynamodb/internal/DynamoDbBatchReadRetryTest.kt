@@ -1,9 +1,12 @@
 package io.bluetape4k.leader.dynamodb.internal
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.completableFutureOf
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
@@ -18,6 +21,8 @@ import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes
 
 class DynamoDbBatchReadRetryTest {
 
+    companion object: KLogging()
+
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
     fun `계속 미처리된 키는 sync와 async 모두 8회 재시도 뒤 실패한다`(async: Boolean) {
@@ -25,23 +30,33 @@ class DynamoDbBatchReadRetryTest {
         val asyncClient = mockk<DynamoDbAsyncClient>()
         var calls = 0
         val delays = mutableListOf<Long>()
+
         fun respond(request: BatchGetItemRequest): BatchGetItemResponse {
             calls++
             if (calls > 9) throw AssertionError("retry budget was not enforced")
-            return BatchGetItemResponse.builder().unprocessedKeys(request.requestItems()).build()
+            return BatchGetItemResponse.builder()
+                .unprocessedKeys(request.requestItems())
+                .build()
         }
-        every { syncClient.batchGetItem(any<BatchGetItemRequest>()) } answers { respond(firstArg()) }
-        every { asyncClient.batchGetItem(any<BatchGetItemRequest>()) } answers {
+
+        every {
+            syncClient.batchGetItem(any<BatchGetItemRequest>())
+        } answers { respond(firstArg()) }
+        every {
+            asyncClient.batchGetItem(any<BatchGetItemRequest>())
+        } answers {
             completableFutureOf(respond(firstArg()))
         }
         val client = DynamoDbLockClient(
-            "leader-locks",
+            tableName = "leader-locks",
             syncClient = syncClient.takeUnless { async },
             asyncClient = asyncClient.takeIf { async },
             batchRetrySleep = { delays += it },
         )
 
-        assertFailsWith<IllegalStateException> { client.activeGroupLeases("group#slot-", 1) }
+        assertFailsWith<IllegalStateException> {
+            client.activeGroupLeases("group#slot-", 1)
+        }
         calls shouldBeEqualTo 9
         delays shouldBeEqualTo listOf(25L, 50L, 100L, 200L, 200L, 200L, 200L, 200L)
     }
@@ -54,10 +69,14 @@ class DynamoDbBatchReadRetryTest {
         val client = client(async, { waits++ }) { request ->
             calls++
             if (calls == 9) BatchGetItemResponse.builder().build()
-            else BatchGetItemResponse.builder().unprocessedKeys(request.requestItems()).build()
+            else BatchGetItemResponse.builder()
+                .unprocessedKeys(request.requestItems())
+                .build()
         }
 
-        assertFailsWith<IllegalStateException> { client.activeGroupLeases("group#slot-", 250) }
+        assertFailsWith<IllegalStateException> {
+            client.activeGroupLeases("group#slot-", 250)
+        }
         calls shouldBeEqualTo 10
         waits shouldBeEqualTo 8
     }
@@ -75,7 +94,9 @@ class DynamoDbBatchReadRetryTest {
                     .unprocessedKeys(
                         mapOf(
                             "leader-locks" to KeysAndAttributes.builder()
-                                .consistentRead(true).keys(listOf(keys[1])).build()
+                                .consistentRead(true)
+                                .keys(listOf(keys[1]))
+                                .build()
                         )
                     )
                     .build()
@@ -87,6 +108,8 @@ class DynamoDbBatchReadRetryTest {
         }
 
         val leases = client.activeGroupLeases("group#slot-", 101)
+            .onEach { log.debug { "LeaderLease: $it" } }
+
         leases.map { it.slot } shouldBeEqualTo listOf(0)
         requests.map { it.requestItems().getValue("leader-locks").keys().size } shouldBeEqualTo listOf(100, 1, 1)
         requests.all { it.requestItems().getValue("leader-locks").consistentRead() }.shouldBeTrue()
@@ -98,11 +121,15 @@ class DynamoDbBatchReadRetryTest {
         var calls = 0
         val client = client(false, { throw interruption }) { request ->
             calls++
-            BatchGetItemResponse.builder().unprocessedKeys(request.requestItems()).build()
+            BatchGetItemResponse.builder()
+                .unprocessedKeys(request.requestItems())
+                .build()
         }
 
-        val failure = assertFailsWith<InterruptedException> { client.activeGroupLeases("group#slot-", 1) }
-        (failure === interruption).shouldBeTrue()
+        val failure = assertFailsWith<InterruptedException> {
+            client.activeGroupLeases("group#slot-", 1)
+        }
+        failure shouldBe interruption
         calls shouldBeEqualTo 1
     }
 
@@ -113,12 +140,16 @@ class DynamoDbBatchReadRetryTest {
     ): DynamoDbLockClient {
         val syncClient = mockk<DynamoDbClient>()
         val asyncClient = mockk<DynamoDbAsyncClient>()
-        every { syncClient.batchGetItem(any<BatchGetItemRequest>()) } answers { respond(firstArg()) }
-        every { asyncClient.batchGetItem(any<BatchGetItemRequest>()) } answers {
+        every {
+            syncClient.batchGetItem(any<BatchGetItemRequest>())
+        } answers { respond(firstArg()) }
+        every {
+            asyncClient.batchGetItem(any<BatchGetItemRequest>())
+        } answers {
             completableFutureOf(respond(firstArg()))
         }
         return DynamoDbLockClient(
-            "leader-locks",
+            tableName = "leader-locks",
             syncClient = syncClient.takeUnless { async },
             asyncClient = asyncClient.takeIf { async },
             nowMillis = { 1_000L },

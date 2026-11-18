@@ -7,6 +7,7 @@ import io.bluetape4k.logging.warn
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
+import kotlin.time.toJavaDuration
 
 /**
  * `ConsulLockExtendDelegate`는 Consul session renew와 KV session 확인을 동기 watchdog 계약으로 연결합니다.
@@ -33,7 +34,7 @@ internal class ConsulLockExtendDelegate(
             if (lockClient.read(handle.key).getWithinRequestTimeout(lockClient)?.sessionId != handle.sessionId) {
                 ExtendOutcome.NotHeld
             } else {
-                val deadline = Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds)
+                val deadline = Instant.now() + lockAtMostFor.toJavaDuration()
                 _lastExtendDeadline.set(deadline)
                 ExtendOutcome.Extended(deadline)
             }

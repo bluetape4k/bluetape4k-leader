@@ -7,14 +7,14 @@ import java.time.Instant
  */
 object NoopLeaderHistorySink: LeaderHistorySink {
     override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? = null
-    override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
+    override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long): Unit = Unit
     override fun recordFailed(
         key: LeaderHistoryKey,
         finishedAt: Instant,
         durationMs: Long,
         errorType: String?,
         errorMessage: String?,
-    ) = Unit
+    ): Unit = Unit
 }
 
 /**
@@ -22,12 +22,12 @@ object NoopLeaderHistorySink: LeaderHistorySink {
  */
 object NoopSuspendLeaderHistorySink: SuspendLeaderHistorySink {
     override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? = null
-    override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
+    override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long): Unit = Unit
     override suspend fun recordFailed(
         key: LeaderHistoryKey,
         finishedAt: Instant,
         durationMs: Long,
         errorType: String?,
         errorMessage: String?,
-    ) = Unit
+    ): Unit = Unit
 }

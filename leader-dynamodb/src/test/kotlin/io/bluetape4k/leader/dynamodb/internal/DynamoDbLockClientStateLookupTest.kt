@@ -1,6 +1,9 @@
 package io.bluetape4k.leader.dynamodb.internal
 
+import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -17,6 +20,8 @@ import software.amazon.awssdk.services.dynamodb.model.ScanRequest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DynamoDbLockClientStateLookupTest {
 
+    companion object: KLogging()
+
     @Test
     fun `activeGroupLeases reads deterministic slot keys without scan`() {
         val client = mockk<DynamoDbClient>()
@@ -26,31 +31,35 @@ class DynamoDbLockClientStateLookupTest {
         val prefix = "leader/group/orders#slot-"
         val lockClient = DynamoDbLockClient(tableName, syncClient = client, nowMillis = { now })
 
-        every { client.batchGetItem(capture(request)) } returns BatchGetItemResponse.builder()
-            .responses(
-                mapOf(
-                    tableName to listOf(
-                        item(
-                            "${prefix}0",
-                            ownerId = "owner-a",
-                            auditLeaderId = "audit-a",
-                            nodeId = "node-a",
-                            expiresAt = 5_000L
+        every {
+            client.batchGetItem(capture(request))
+        } returns
+                BatchGetItemResponse.builder()
+                    .responses(
+                        mapOf(
+                            tableName to listOf(
+                                item(
+                                    "${prefix}0",
+                                    ownerId = "owner-a",
+                                    auditLeaderId = "audit-a",
+                                    nodeId = "node-a",
+                                    expiresAt = 5_000L
+                                ),
+                                item(
+                                    "${prefix}1",
+                                    ownerId = "owner-b",
+                                    auditLeaderId = "audit-b",
+                                    nodeId = "node-b",
+                                    expiresAt = 999L
+                                ),
+                            ),
                         ),
-                        item(
-                            "${prefix}1",
-                            ownerId = "owner-b",
-                            auditLeaderId = "audit-b",
-                            nodeId = "node-b",
-                            expiresAt = 999L
-                        ),
-                    ),
-                ),
-            )
-            .unprocessedKeys(emptyMap())
-            .build()
+                    )
+                    .unprocessedKeys(emptyMap())
+                    .build()
 
         val leases = lockClient.activeGroupLeases(prefix, maxLeaders = 3)
+            .onEach { log.debug { it } }
 
         leases.size shouldBeEqualTo 1
         leases.single().auditLeaderId shouldBeEqualTo "audit-a"
@@ -69,7 +78,9 @@ class DynamoDbLockClientStateLookupTest {
         val prefix = "leader/group/orders#slot-"
         val lockClient = DynamoDbLockClient(tableName, syncClient = client, nowMillis = { 1_000L })
 
-        every { client.batchGetItem(any<BatchGetItemRequest>()) } answers {
+        every {
+            client.batchGetItem(any<BatchGetItemRequest>())
+        } answers {
             requests += invocation.args[0] as BatchGetItemRequest
             BatchGetItemResponse.builder()
                 .responses(emptyMap())
@@ -77,10 +88,11 @@ class DynamoDbLockClientStateLookupTest {
                 .build()
         }
 
-        lockClient.activeGroupLeases(prefix, maxLeaders = 250) shouldBeEqualTo emptyList()
+        lockClient.activeGroupLeases(prefix, maxLeaders = 250).shouldBeEmpty()
 
         requests.map { it.requestedKeys(tableName).size } shouldBeEqualTo listOf(100, 100, 50)
         requests.flatMap { it.requestedKeys(tableName) }.toSet().size shouldBeEqualTo 250
+
         verify(exactly = 3) { client.batchGetItem(any<BatchGetItemRequest>()) }
         verify(exactly = 0) { client.scan(any<ScanRequest>()) }
     }
@@ -94,7 +106,9 @@ class DynamoDbLockClientStateLookupTest {
         val lockClient = DynamoDbLockClient(tableName, syncClient = client, nowMillis = { 1_000L })
 
         var attempt = 0
-        every { client.batchGetItem(any<BatchGetItemRequest>()) } answers {
+        every {
+            client.batchGetItem(any<BatchGetItemRequest>())
+        } answers {
             requests += invocation.args[0] as BatchGetItemRequest
             attempt += 1
             if (attempt == 1) {
@@ -133,6 +147,7 @@ class DynamoDbLockClientStateLookupTest {
 
         leases.single().auditLeaderId shouldBeEqualTo "audit-a"
         requests.map { it.requestedKeys(tableName) } shouldBeEqualTo listOf(listOf("${prefix}0"), listOf("${prefix}0"))
+
         verify(exactly = 2) { client.batchGetItem(any<BatchGetItemRequest>()) }
         verify(exactly = 0) { client.scan(any<ScanRequest>()) }
     }

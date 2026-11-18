@@ -5,6 +5,7 @@ import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.contract.AbstractGroupLockExtenderContractTest
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderGroupElectionOptions
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderGroupElector
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -14,9 +15,12 @@ import kotlin.time.Duration.Companion.seconds
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DynamoDbGroupLockExtenderContractTest: AbstractGroupLockExtenderContractTest() {
+
+    companion object: KLogging()
+
     override val elector: LeaderGroupElector =
         DynamoDbLeaderGroupElector(
-            DynamoDbContractSupport.dynamoDb,
+            DynamoDbContractSupport.syncClient,
             DynamoDbLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2),
                 tableName = DynamoDbContractSupport.tableName,

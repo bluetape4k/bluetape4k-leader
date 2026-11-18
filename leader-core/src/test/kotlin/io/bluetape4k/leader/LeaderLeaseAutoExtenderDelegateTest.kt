@@ -3,6 +3,7 @@ package io.bluetape4k.leader
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
@@ -10,12 +11,14 @@ import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.sql.SQLNonTransientException
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
 
 /**
  * [LeaderLeaseAutoExtender.start] 의 [ExtendDelegate] 오버로드 검증.
@@ -40,7 +43,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
 
         override fun extend(lockAtMostFor: Duration): ExtendOutcome {
             extendCalls.incrementAndGet()
-            return if (held) ExtendOutcome.Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+            return if (held) ExtendOutcome.Extended(Instant.now() + lockAtMostFor.toJavaDuration())
             else ExtendOutcome.NotHeld
         }
 
@@ -63,7 +66,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
 
         override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome {
             suspendExtendCalls.incrementAndGet()
-            return if (held) ExtendOutcome.Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+            return if (held) ExtendOutcome.Extended(Instant.now() + lockAtMostFor.toJavaDuration())
             else ExtendOutcome.NotHeld
         }
 
@@ -136,7 +139,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
     @Test
     fun `suspend watchdog R2 skip does not call backend when user deadline is later`() = runSuspendIO {
         val delegate = TestSuspendDelegate(held = true)
-        delegate.lastExtendDeadline.set(Instant.now().plusSeconds(60))
+        delegate.lastExtendDeadline.set(Instant.now() + 60.seconds())
 
         val watchdog = LeaderLeaseAutoExtender.start(true, 90.milliseconds, delegate)
 
@@ -168,7 +171,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
         val delegate = TestDelegate(held = true)
 
         // user 가 explicit extend 를 호출했다고 가정: deadline = now + 60s
-        delegate.lastExtendDeadline.set(Instant.now().plusSeconds(60))
+        delegate.lastExtendDeadline.set(Instant.now() + 60.seconds())
 
         // cadence = 90ms / 3 = 30ms (MIN_RENEWAL_PERIOD 적용으로 25ms)
         val watchdog = LeaderLeaseAutoExtender.start(true, 90.milliseconds, delegate)
@@ -186,7 +189,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
         val delegate = TestDelegate(held = true)
 
         // deadline 을 과거로 설정 — watchdog 이 skip 안 함
-        delegate.lastExtendDeadline.set(Instant.now().minusSeconds(10))
+        delegate.lastExtendDeadline.set(Instant.now() - 10.seconds())
 
         val watchdog = LeaderLeaseAutoExtender.start(true, 90.milliseconds, delegate)
 
@@ -228,12 +231,12 @@ class LeaderLeaseAutoExtenderDelegateTest {
 
     @Test
     fun `BackendError transient - watchdog 이 계속 동작한다`() = runSuspendIO {
-        val callsAfterError = java.util.concurrent.atomic.AtomicInteger(0)
+        val callsAfterError = AtomicInteger(0)
         var transientFired = false
 
         // 첫 번째 호출은 transient error, 이후는 성공
         val delegate = object: ExtendDelegate {
-            private val _lastExtendDeadline = java.util.concurrent.atomic.AtomicReference(Instant.EPOCH)
+            private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
             override val lastExtendDeadline get() = _lastExtendDeadline
             private var callCount = 0
 
@@ -245,7 +248,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
                     ExtendOutcome.BackendError(java.net.SocketTimeoutException("timeout"))
                 } else {
                     callsAfterError.incrementAndGet()
-                    ExtendOutcome.Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+                    ExtendOutcome.Extended(Instant.now() + lockAtMostFor.toJavaDuration())
                 }
             }
 
@@ -263,11 +266,11 @@ class LeaderLeaseAutoExtenderDelegateTest {
 
     @Test
     fun `BackendError non-transient - watchdog 이 중단된다`() = runSuspendIO {
-        val callsAfterError = java.util.concurrent.atomic.AtomicInteger(0)
+        val callsAfterError = AtomicInteger(0)
         var errorFired = false
 
         val delegate = object: ExtendDelegate {
-            private val _lastExtendDeadline = java.util.concurrent.atomic.AtomicReference(Instant.EPOCH)
+            private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
             override val lastExtendDeadline get() = _lastExtendDeadline
             private var callCount = 0
 
@@ -276,7 +279,7 @@ class LeaderLeaseAutoExtenderDelegateTest {
                 return if (callCount == 1) {
                     errorFired = true
                     // SQLNonTransientException → NON_TRANSIENT → 중단
-                    ExtendOutcome.BackendError(java.sql.SQLNonTransientException("fatal query error"))
+                    ExtendOutcome.BackendError(SQLNonTransientException("fatal query error"))
                 } else {
                     callsAfterError.incrementAndGet()
                     ExtendOutcome.Extended(Instant.now())

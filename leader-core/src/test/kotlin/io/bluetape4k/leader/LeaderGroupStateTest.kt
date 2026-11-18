@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 
 class LeaderGroupStateTest {
@@ -14,24 +15,30 @@ class LeaderGroupStateTest {
     @Test
     fun `availableSlots - 최대 리더 수에서 활성 리더 수를 뺀 값을 반환한다`() {
         val state = LeaderGroupState(lockName = "job", maxLeaders = 5, activeCount = 2)
+
+        log.debug { "state=$state" }
         state.availableSlots shouldBeEqualTo 3
     }
 
     @Test
     fun `isFull - 활성 리더가 최대에 도달하면 true 를 반환한다`() {
         val full = LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = 3)
+        log.debug { "full=$full" }
         full.isFull.shouldBeTrue()
 
         val notFull = LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = 2)
+        log.debug { "notFull=$notFull" }
         notFull.isFull.shouldBeFalse()
     }
 
     @Test
     fun `isEmpty - 활성 리더가 없으면 true 를 반환한다`() {
         val empty = LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = 0)
+        log.debug { "empty=$empty" }
         empty.isEmpty.shouldBeTrue()
 
         val notEmpty = LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = 1)
+        log.debug { "notEmpty=$notEmpty" }
         notEmpty.isEmpty.shouldBeFalse()
     }
 
@@ -40,12 +47,15 @@ class LeaderGroupStateTest {
         val state1 = LeaderGroupState(lockName = "a", maxLeaders = 3, activeCount = 1)
         val state2 = LeaderGroupState(lockName = "a", maxLeaders = 3, activeCount = 1)
 
+        log.debug { "state1=$state1, state2=$state2" }
         state1 shouldBeEqualTo state2
     }
 
     @Test
     fun `경계 조건 - activeCount 가 0 일 때 availableSlots 는 maxLeaders 와 같다`() {
         val state = LeaderGroupState(lockName = "job", maxLeaders = 10, activeCount = 0)
+
+        log.debug { "state=$state" }
         state.availableSlots shouldBeEqualTo 10
         state.isEmpty.shouldBeTrue()
         state.isFull.shouldBeFalse()

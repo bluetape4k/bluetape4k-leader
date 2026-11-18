@@ -21,8 +21,8 @@ class ConsulAsyncLeaderGroupElectorLeaderIdContractTest: AbstractAsyncLeaderGrou
         log.info { "Create ConsulLeaderElector. options=$options" }
 
         return ConsulLeaderGroupElector(
-            ConsulContractSupport.endpoint(),
-            ConsulLeaderGroupElectionOptions(
+            endpoint = ConsulContractSupport.endpoint(),
+            options = ConsulLeaderGroupElectionOptions(
                 leaderGroupOptions = options,
                 keyPrefix = ConsulContractSupport.keyPrefix(),
             ),

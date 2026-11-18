@@ -60,10 +60,11 @@ class ConsulLeaderElectorDelegationTest {
         val client = FakeConsulLockClient(cleanupBlocker = blocker)
 
         assertCompletionThreadIsolated(blocker) { executor, actionFuture, actionStarted ->
-            ConsulLeaderElector.create(client).runAsyncIfLeader("lock-a", executor) {
-                actionStarted.countDown()
-                actionFuture
-            }
+            ConsulLeaderElector.create(client)
+                .runAsyncIfLeader("lock-a", executor) {
+                    actionStarted.countDown()
+                    actionFuture
+                }
         }
 
         client.releaseCalls shouldBeEqualTo 1
@@ -77,8 +78,8 @@ class ConsulLeaderElectorDelegationTest {
 
         assertCompletionThreadIsolated(blocker) { executor, actionFuture, actionStarted ->
             ConsulLeaderGroupElector.create(
-                client,
-                ConsulLeaderGroupElectionOptions(
+                lockClient = client,
+                options = ConsulLeaderGroupElectionOptions(
                     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, leaseTime = 10.seconds),
                 ),
             ).runAsyncIfLeader("lock-a", executor) {
@@ -101,11 +102,14 @@ class ConsulLeaderElectorDelegationTest {
             throw RejectedExecutionException("issue-900-cleanup-rejected")
         }
 
-        val result = AsyncLeaseCleanupDispatcher.completeAfter(
-            source = completableFutureOf("done"),
-            executor = rejectingExecutor,
-            cleanup = { cleanupCalls.incrementAndGet() },
-        ) { value, _ -> value }
+        val result = AsyncLeaseCleanupDispatcher
+            .completeAfter(
+                source = completableFutureOf("done"),
+                executor = rejectingExecutor,
+                cleanup = { cleanupCalls.incrementAndGet() },
+            ) { value, _ ->
+                value
+            }
 
         result.get(2.seconds) shouldBeEqualTo "done"
         result.isDone.shouldBeTrue()
@@ -133,11 +137,14 @@ class ConsulLeaderElectorDelegationTest {
         val cleanupFailure = IllegalStateException("cleanup-failed")
         val inlineExecutor = Executor { command -> command.run() }
 
-        val result = AsyncLeaseCleanupDispatcher.completeAfter(
-            source = failedCompletableFutureOf<String>(actionFailure),
-            executor = inlineExecutor,
-            cleanup = { throw cleanupFailure },
-        ) { value, _ -> value }
+        val result = AsyncLeaseCleanupDispatcher
+            .completeAfter(
+                source = failedCompletableFutureOf<String>(actionFailure),
+                executor = inlineExecutor,
+                cleanup = { throw cleanupFailure },
+            ) { value, _ ->
+                value
+            }
 
         val thrown = assertFailsWith<CompletionException> {
             result.join()
@@ -152,8 +159,8 @@ class ConsulLeaderElectorDelegationTest {
     fun `contention returns null even when destroy cleanup fails`() {
         val client = FakeConsulLockClient(acquireResult = false, destroyFails = true)
         val elector = ConsulLeaderElector.create(
-            client,
-            ConsulLeaderElectionOptions(
+            lockClient = client,
+            options = ConsulLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(waitTime = Duration.ZERO, leaseTime = 10.seconds),
             ),
         )
@@ -185,9 +192,9 @@ class ConsulLeaderElectorDelegationTest {
     @Test
     fun `interrupted group acquisition cleans up session and rethrows`() {
         val client = FakeConsulLockClient(interruptAcquire = true)
-        val elector = ConsulLeaderGroupElector.create(
-            client,
-            ConsulLeaderGroupElectionOptions(
+        val elector: ConsulLeaderGroupElector = ConsulLeaderGroupElector.create(
+            lockClient = client,
+            options = ConsulLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, leaseTime = 10.seconds),
             ),
         )
@@ -196,7 +203,6 @@ class ConsulLeaderElectorDelegationTest {
             assertFailsWith<InterruptedException> {
                 elector.runIfLeader("lock-a") { "should-not-run" }
             }
-
             Thread.currentThread().isInterrupted.shouldBeTrue()
             client.destroyCalls shouldBeEqualTo 1
         } finally {
@@ -247,7 +253,6 @@ class ConsulLeaderElectorDelegationTest {
             ),
         )
         val elector = ConsulLeaderElector.create(client)
-
         elector.state("lock-a").isEmpty.shouldBeTrue()
     }
 
@@ -261,7 +266,6 @@ class ConsulLeaderElectorDelegationTest {
         val elector = ConsulLeaderElector.create(client)
 
         elector.state("lock-a").isEmpty.shouldBeTrue()
-
         future.requestedTimeoutNanos shouldBeEqualTo 123.milliseconds.inWholeNanoseconds
     }
 
@@ -269,8 +273,8 @@ class ConsulLeaderElectorDelegationTest {
     fun `interrupted min lease wait releases session and rethrows`() {
         val client = FakeConsulLockClient()
         val elector = ConsulLeaderElector.create(
-            client,
-            ConsulLeaderElectionOptions(
+            lockClient = client,
+            options = ConsulLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
                     waitTime = Duration.ZERO,
                     leaseTime = 10.seconds,
@@ -380,7 +384,8 @@ class ConsulLeaderElectorDelegationTest {
         val elector = ConsulLeaderElector.create(client)
         val failure = LeaderElectionException("boom")
 
-        val result = elector.runIfLeaderResult(LeaderSlot("lock-a", "audit-a")) {
+        val slot = LeaderSlot("lock-a", "audit-a")
+        val result = elector.runIfLeaderResult(slot) {
             throw failure
         }
 
@@ -398,7 +403,8 @@ class ConsulLeaderElectorDelegationTest {
         val elector = ConsulLeaderElector.create(client)
 
         val failure = assertFailsWith<CompletionException> {
-            elector.runAsyncIfLeaderResult(LeaderSlot("lock-a", "audit-a")) {
+            val slot = LeaderSlot("lock-a", "audit-a")
+            elector.runAsyncIfLeaderResult(slot) {
                 failedCompletableFutureOf<String>(CancellationException("cancelled"))
             }.join()
         }
@@ -456,8 +462,8 @@ class ConsulLeaderElectorDelegationTest {
             releaseObserved = releaseObserved,
         )
         val elector = ConsulLeaderGroupElector.create(
-            client,
-            ConsulLeaderGroupElectionOptions(
+            lockClient = client,
+            options = ConsulLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, leaseTime = 10.seconds),
             ),
         )
@@ -491,8 +497,8 @@ class ConsulLeaderElectorDelegationTest {
     fun `runAsyncIfLeader cleanup runs after caller executor shutdown`() {
         val client = FakeConsulLockClient()
         val elector = ConsulLeaderElector.create(
-            client,
-            ConsulLeaderElectionOptions(
+            lockClient = client,
+            options = ConsulLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
                     waitTime = Duration.ZERO,
                     leaseTime = 10.seconds,
@@ -561,8 +567,8 @@ class ConsulLeaderElectorDelegationTest {
         val releaseObserved = CountDownLatch(1)
         val client = FakeConsulLockClient(releaseObserved = releaseObserved)
         val elector = ConsulLeaderGroupElector.create(
-            client,
-            ConsulLeaderGroupElectionOptions(
+            lockClient = client,
+            options = ConsulLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, leaseTime = 10.seconds),
             ),
         )
@@ -600,6 +606,7 @@ class ConsulLeaderElectorDelegationTest {
         val worker = Executors.newSingleThreadExecutor()
         val submissions = AtomicInteger()
         val actionInvoked = AtomicBoolean()
+
         val executor = Executor { command ->
             if (submissions.incrementAndGet() == 1) {
                 worker.execute(command)
@@ -614,7 +621,9 @@ class ConsulLeaderElectorDelegationTest {
                     actionInvoked.set(true)
                     completableFutureOf("should-not-run")
                 }
-            }.getOrElse { failedCompletableFutureOf(it) }
+            }.getOrElse {
+                failedCompletableFutureOf(it)
+            }
 
             blocker.started.await(2.seconds).shouldBeTrue()
             resultFuture.isDone.shouldBeFalse()
@@ -662,7 +671,9 @@ class ConsulLeaderElectorDelegationTest {
                     actionInvoked.set(true)
                     completableFutureOf("should-not-run")
                 }
-            }.getOrElse { failedCompletableFutureOf(it) }
+            }.getOrElse {
+                failedCompletableFutureOf(it)
+            }
 
             blocker.started.await(2.seconds).shouldBeTrue()
             resultFuture.isDone.shouldBeFalse()
@@ -712,8 +723,8 @@ class ConsulLeaderElectorDelegationTest {
     fun `group acquisition caps slot probes per retry under saturation`() {
         val client = FakeConsulLockClient(acquireResult = false)
         val elector = ConsulLeaderGroupElector.create(
-            client,
-            ConsulLeaderGroupElectionOptions(
+            lockClient = client,
+            options = ConsulLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(
                     maxLeaders = 64,
                     waitTime = 120.milliseconds,
@@ -737,8 +748,8 @@ class ConsulLeaderElectorDelegationTest {
         )
 
         val elector = ConsulLeaderGroupElector.create(
-            client,
-            ConsulLeaderGroupElectionOptions(
+            lockClient = client,
+            options = ConsulLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, leaseTime = 10.seconds),
             ),
         )
@@ -752,7 +763,9 @@ class ConsulLeaderElectorDelegationTest {
         blocker: CleanupBlocker,
         runAsync: (Executor, CompletableFuture<String>, CountDownLatch) -> CompletableFuture<String?>,
     ) {
-        val eventLoop = Executors.newSingleThreadExecutor { task -> Thread(task, "issue-900-consul-event-loop") }
+        val eventLoop = Executors.newSingleThreadExecutor { task ->
+            Thread(task, "issue-900-consul-event-loop")
+        }
         val actionFuture = CompletableFuture<String>()
         val actionStarted = CountDownLatch(1)
         val eventLoopProbe = CountDownLatch(1)

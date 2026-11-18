@@ -138,7 +138,7 @@ class ExportingLeaderHistorySink private constructor(
             )
 
         return LeaderAuditExportEvent.History.from(
-            LeaderLockHistoryRecord(
+            record = LeaderLockHistoryRecord(
                 lockName = source.lockName,
                 token = TOKEN_PLACEHOLDER,
                 kind = source.kind,
@@ -153,7 +153,7 @@ class ExportingLeaderHistorySink private constructor(
                 slotId = source.slotId,
                 metadata = source.metadata,
             ),
-            sanitizer,
+            sanitizer = sanitizer,
         )
     }
 

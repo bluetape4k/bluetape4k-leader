@@ -4,6 +4,8 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldHaveSize
+import io.bluetape4k.javatimes.millis
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
@@ -200,16 +202,18 @@ class LeaderBackendDiagnosticsProbeTest {
             .rounds(4)
             .add {
                 val index = sequence.getAndIncrement()
-                val expectedAt = checkedAt.plusMillis(index)
+                val expectedAt = checkedAt + index.millis()
                 val expectedStatus = if (index % 2L == 0L) {
                     LeaderBackendConnectivityStatus.UP
                 } else {
                     LeaderBackendConnectivityStatus.DOWN
                 }
                 val actual = LeaderBackendDiagnosticsProbe.check(
-                    (index + 1L).milliseconds,
-                    Clock.fixed(expectedAt, ZoneOffset.UTC),
-                ) { expectedStatus }
+                    timeout = (index + 1L).milliseconds,
+                    clock = Clock.fixed(expectedAt, ZoneOffset.UTC),
+                ) {
+                    expectedStatus
+                }
 
                 actual shouldBeEqualTo when (expectedStatus) {
                     LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivity.up(expectedAt)
@@ -220,8 +224,8 @@ class LeaderBackendDiagnosticsProbeTest {
             }
             .run()
 
-        results.size shouldBeEqualTo 32
-        results.toSet().size shouldBeEqualTo 32
+        results shouldHaveSize 32
+        results.toSet() shouldHaveSize 32
     }
 
     @Test

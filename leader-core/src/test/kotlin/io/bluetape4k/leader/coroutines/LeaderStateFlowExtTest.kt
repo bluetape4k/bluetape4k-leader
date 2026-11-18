@@ -55,7 +55,7 @@ class LeaderStateFlowExtTest {
      * runs [block], then cancels the flow scope. Prevents structured concurrency from blocking
      * the test's withTimeout waiting for the infinite collection coroutine.
      */
-    private suspend fun withStateFlow(
+    private suspend inline fun withStateFlow(
         lockName: String = "my-lock",
         block: suspend (publisher: FakeEventPublisher, flow: StateFlow<LeaderState>) -> Unit,
     ) {
@@ -69,7 +69,7 @@ class LeaderStateFlowExtTest {
         }
     }
 
-    private suspend fun withGroupStateFlow(
+    private suspend inline fun withGroupStateFlow(
         lockName: String = "my-lock",
         maxLeaders: Int = 3,
         block: suspend (publisher: FakeEventPublisher, flow: StateFlow<LeaderGroupState>) -> Unit,

@@ -11,6 +11,7 @@ import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.withPollInterval
@@ -49,23 +50,30 @@ class LeaderLeaseExtensionObserversTest {
 
         context shouldBeEqualTo LeaderLeaseExtensionContext("secret-lock", "secret-leader")
         event shouldBeEqualTo LeaderLeaseExtensionEvent(
-            LeaderLeaseExtensionSource.USER,
-            LeaderLeaseExtensionExecution.BLOCKING,
-            event.outcome,
-            42L,
-            context,
+            source = LeaderLeaseExtensionSource.USER,
+            execution = LeaderLeaseExtensionExecution.BLOCKING,
+            outcome = event.outcome,
+            elapsedNanos = 42L,
+            context = context,
         )
         context.toString() shouldNotContain "secret"
         event.toString() shouldNotContain "secret"
 
         val backendEvent = event.copyForTest(ExtendOutcome.BackendError(IllegalStateException("secret-cause")))
-        backendEvent.toString() shouldNotContain "secret-cause"
-        backendEvent.toString() shouldContain "BackendError"
+        backendEvent.toString().let {
+            log.debug { "backendEvent: $backendEvent" }
+            it shouldNotContain "secret-cause"
+            it shouldContain "BackendError"
+        }
 
         val contextMethods = LeaderLeaseExtensionContext::class.java.declaredMethods.map { it.name }
         val eventMethods = LeaderLeaseExtensionEvent::class.java.declaredMethods.map { it.name }
+
+        log.debug { "contextMethods: $contextMethods" }
         contextMethods shouldNotContain "copy"
         contextMethods shouldNotContain "component1"
+
+        log.debug { "eventMethods: $eventMethods" }
         eventMethods shouldNotContain "copy"
         eventMethods shouldNotContain "component1"
 
@@ -79,6 +87,7 @@ class LeaderLeaseExtensionObserversTest {
             val observed = AtomicReference<LeaderLeaseExtensionEvent>()
             val calls = AtomicInteger(0)
             val delivered = CountDownLatch(1)
+
             val observer = LeaderLeaseExtensionObserver { event ->
                 calls.incrementAndGet()
                 observed.set(event)
@@ -275,7 +284,7 @@ class LeaderLeaseExtensionObserversTest {
             LeaderLeaseExtensionObservers.addObserver {
                 entered.countDown()
                 try {
-                    release.await(5.seconds)
+                    release.await(5.seconds).shouldBeTrue()
                 } finally {
                     completed.countDown()
                 }
@@ -287,7 +296,9 @@ class LeaderLeaseExtensionObserversTest {
         val b = LeaderLeaseExtensionObservers.addScopedObserver { bCalls.incrementAndGet() }
 
         try {
-            repeat(256) { LeaderLeaseExtensionObservers.publish(testEvent()) }
+            repeat(256) {
+                LeaderLeaseExtensionObservers.publish(testEvent())
+            }
             entered.await(10.seconds).shouldBeTrue()
 
             val droppedBefore = LeaderLeaseExtensionObservers.droppedCount()
@@ -304,14 +315,14 @@ class LeaderLeaseExtensionObserversTest {
             bCalls.get() shouldBeEqualTo 0
         } finally {
             release.countDown()
-            val drained = try {
-                completed.await(10.seconds)
+
+            try {
+                completed.await(10.seconds).shouldBeTrue()
             } finally {
                 wildcardRegistrations.forEach(AutoCloseable::close)
                 a.close()
                 b.close()
             }
-            drained.shouldBeTrue()
         }
     }
 
@@ -321,10 +332,14 @@ class LeaderLeaseExtensionObserversTest {
             val staleCalls = AtomicInteger()
             val replacementCalls = AtomicInteger()
 
-            val stale = LeaderLeaseExtensionObservers.addScopedObserver { staleCalls.incrementAndGet() }
+            val stale = LeaderLeaseExtensionObservers.addScopedObserver {
+                staleCalls.incrementAndGet()
+            }
             stale.close()
 
-            val replacement = LeaderLeaseExtensionObservers.addScopedObserver { replacementCalls.incrementAndGet() }
+            val replacement = LeaderLeaseExtensionObservers.addScopedObserver {
+                replacementCalls.incrementAndGet()
+            }
 
             try {
                 LeaderLeaseExtensionObservers.publish(testEvent(), stale)
@@ -350,7 +365,9 @@ class LeaderLeaseExtensionObserversTest {
         try {
             LeaderLeaseExtensionObservers.hasObservers(a).shouldBeTrue()
             LeaderLeaseExtensionObservers.hasObservers(b).shouldBeTrue()
+
             a.close()
+
             LeaderLeaseExtensionObservers.hasObservers(a).shouldBeFalse()
             LeaderLeaseExtensionObservers.hasObservers(b).shouldBeTrue()
         } finally {
@@ -377,8 +394,10 @@ class LeaderLeaseExtensionObserversTest {
     fun `Java fixture can construct and register through the public facade`() {
         val event = LeaderLeaseExtensionJavaApiFixture.event()
 
+        log.debug { "event: $event" }
         event.source shouldBeEqualTo LeaderLeaseExtensionSource.USER
         event.execution shouldBeEqualTo LeaderLeaseExtensionExecution.BLOCKING
+
         LeaderLeaseExtensionJavaApiFixture.register().close()
         LeaderLeaseExtensionJavaApiFixture.registerAndRemove().shouldBeTrue()
         LeaderLeaseExtensionJavaApiFixture.droppedCount() shouldBeEqualTo
@@ -393,10 +412,12 @@ class LeaderLeaseExtensionObserversTest {
 
         hasObservers.isSynthetic.shouldBeTrue()
         publish.isSynthetic.shouldBeTrue()
+
         Modifier.isPublic(hasObservers.modifiers).shouldBeTrue()
         Modifier.isPublic(publish.modifiers).shouldBeTrue()
 
-        methods.filter { Modifier.isPublic(it.modifiers) && !it.isSynthetic }
+        methods
+            .filter { Modifier.isPublic(it.modifiers) && !it.isSynthetic }
             .map { it.name }
             .toSet() shouldBeEqualTo setOf("addObserver", "removeObserver", "droppedCount")
     }
@@ -407,6 +428,7 @@ class LeaderLeaseExtensionObserversTest {
         val completed = CountDownLatch(256)
         val release = CountDownLatch(1)
         val droppedBefore = LeaderLeaseExtensionObservers.droppedCount()
+
         val observer = LeaderLeaseExtensionObserver {
             entered.countDown()
             try {
@@ -415,10 +437,13 @@ class LeaderLeaseExtensionObserversTest {
                 completed.countDown()
             }
         }
+
         val registration = LeaderLeaseExtensionObservers.addObserver(observer)
 
         try {
-            repeat(257) { LeaderLeaseExtensionObservers.publish(testEvent()) }
+            repeat(257) {
+                LeaderLeaseExtensionObservers.publish(testEvent())
+            }
 
             entered.await(5.seconds).shouldBeTrue()
 
@@ -426,16 +451,16 @@ class LeaderLeaseExtensionObserversTest {
                 .atMost(5.seconds)
                 .withPollInterval(25.milliseconds)
                 .until {
-                    LeaderLeaseExtensionObservers.droppedCount() == droppedBefore + 1
+                    LeaderLeaseExtensionObservers.droppedCount() == (droppedBefore + 1)
                 }
         } finally {
             release.countDown()
-            val drained = try {
-                completed.await(10.seconds)
+
+            try {
+                completed.await(10.seconds).shouldBeTrue()
             } finally {
                 registration.close()
             }
-            drained.shouldBeTrue()
         }
     }
 
@@ -444,7 +469,8 @@ class LeaderLeaseExtensionObserversTest {
         val entered = CountDownLatch(1024)
         val completed = CountDownLatch(1024)
         val release = CountDownLatch(1)
-        val registrations = (1..4).map {
+
+        val registrations = List(4) {
             LeaderLeaseExtensionObservers.addObserver {
                 entered.countDown()
                 try {
@@ -456,10 +482,8 @@ class LeaderLeaseExtensionObserversTest {
         }
 
         try {
-            repeat(256) {
-                repeat(4) {
-                    LeaderLeaseExtensionObservers.publish(testEvent())
-                }
+            repeat(256 * 4) {
+                LeaderLeaseExtensionObservers.publish(testEvent())
             }
             entered.await(10.seconds).shouldBeTrue()
 
@@ -468,18 +492,17 @@ class LeaderLeaseExtensionObserversTest {
 
             await
                 .atMost(5.seconds)
-                .withPollInterval(25.milliseconds)
+                .withPollInterval(100.milliseconds)
                 .until {
-                    LeaderLeaseExtensionObservers.droppedCount() == droppedBefore + 4
+                    LeaderLeaseExtensionObservers.droppedCount() == (droppedBefore + 4)
                 }
         } finally {
             release.countDown()
-            val drained = try {
-                completed.await(10.seconds)
+            try {
+                completed.await(10.seconds).shouldBeTrue()
             } finally {
                 registrations.forEach(AutoCloseable::close)
             }
-            drained.shouldBeTrue()
         }
     }
 
@@ -498,8 +521,13 @@ class LeaderLeaseExtensionObserversTest {
             LeaderLeaseExtensionObservers.droppedCount() shouldBeEqualTo droppedBefore + 1
 
             val submitted = mutableListOf<Runnable>()
-            leaderLeaseExtensionDispatcher = Executor { runnable -> submitted += runnable }
-            repeat(3) { extraRegistrations += LeaderLeaseExtensionObservers.addObserver { } }
+            leaderLeaseExtensionDispatcher = Executor { runnable ->
+                submitted += runnable
+            }
+
+            repeat(3) {
+                extraRegistrations += LeaderLeaseExtensionObservers.addObserver { }
+            }
             repeat(256) {
                 LeaderLeaseExtensionObservers.publish(testEvent())
             }
@@ -530,8 +558,12 @@ class LeaderLeaseExtensionObserversTest {
             LeaderLeaseExtensionObservers.droppedCount() shouldBeEqualTo droppedBefore + 1
 
             val submitted = mutableListOf<Runnable>()
-            leaderLeaseExtensionDispatcher = Executor { runnable -> submitted += runnable }
-            repeat(3) { extraRegistrations += LeaderLeaseExtensionObservers.addObserver { } }
+            leaderLeaseExtensionDispatcher = Executor { runnable ->
+                submitted += runnable
+            }
+            repeat(3) {
+                extraRegistrations += LeaderLeaseExtensionObservers.addObserver { }
+            }
             repeat(256) {
                 LeaderLeaseExtensionObservers.publish(testEvent())
             }
@@ -564,7 +596,7 @@ class LeaderLeaseExtensionObserversTest {
                     throw AssertionError("fatal observer failure")
                 }
                 if (call <= 256) {
-                    release.await(5.seconds)
+                    release.await(5.seconds).shouldBeTrue()
                 } else {
                     extraEntered.countDown()
                 }
@@ -574,14 +606,19 @@ class LeaderLeaseExtensionObserversTest {
         }
 
         try {
-            Thread.setDefaultUncaughtExceptionHandler { _, throwable -> uncaught.set(throwable) }
+            Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
+                uncaught.set(throwable)
+            }
             val droppedBefore = LeaderLeaseExtensionObservers.droppedCount()
-            repeat(256) { LeaderLeaseExtensionObservers.publish(testEvent()) }
+
+            repeat(256) {
+                LeaderLeaseExtensionObservers.publish(testEvent())
+            }
 
             entered.await(10.seconds).shouldBeTrue()
             await
                 .atMost(5.seconds)
-                .withPollInterval(25.milliseconds)
+                .withPollInterval(100.milliseconds)
                 .until {
                     uncaught.get() != null
                 }
@@ -594,12 +631,11 @@ class LeaderLeaseExtensionObserversTest {
         } finally {
             Thread.setDefaultUncaughtExceptionHandler(previousHandler)
             release.countDown()
-            val drained = try {
-                completed.await(10.seconds)
+            try {
+                completed.await(10.seconds).shouldBeTrue()
             } finally {
                 registration.close()
             }
-            drained.shouldBeTrue()
         }
     }
 
@@ -637,7 +673,7 @@ class LeaderLeaseExtensionObserversTest {
 
             await
                 .atMost(5.seconds)
-                .withPollInterval(25.milliseconds)
+                .withPollInterval(100.milliseconds)
                 .until {
                     stableCallbacks.get() > 0L
                 }
@@ -648,21 +684,25 @@ class LeaderLeaseExtensionObserversTest {
         }
     }
 
-    private fun testEvent(): LeaderLeaseExtensionEvent = LeaderLeaseExtensionEvent(
-        source = LeaderLeaseExtensionSource.USER,
-        execution = LeaderLeaseExtensionExecution.BLOCKING,
-        outcome = ExtendOutcome.NotHeld,
-        elapsedNanos = 1L,
-        context = null,
-    )
+    private fun testEvent(): LeaderLeaseExtensionEvent =
+        LeaderLeaseExtensionEvent(
+            source = LeaderLeaseExtensionSource.USER,
+            execution = LeaderLeaseExtensionExecution.BLOCKING,
+            outcome = ExtendOutcome.NotHeld,
+            elapsedNanos = 1L,
+            context = null,
+        )
 
     private fun LeaderLeaseExtensionEvent.copyForTest(outcome: ExtendOutcome): LeaderLeaseExtensionEvent =
         LeaderLeaseExtensionEvent(source, execution, outcome, elapsedNanos, context)
 
-    private fun withManualDispatcher(block: (MutableList<Runnable>) -> Unit) {
+    private inline fun withManualDispatcher(block: (MutableList<Runnable>) -> Unit) {
         val previous = leaderLeaseExtensionDispatcher
         val submitted = mutableListOf<Runnable>()
-        leaderLeaseExtensionDispatcher = Executor { runnable -> submitted += runnable }
+
+        leaderLeaseExtensionDispatcher = Executor { runnable ->
+            submitted += runnable
+        }
         try {
             block(submitted)
         } finally {

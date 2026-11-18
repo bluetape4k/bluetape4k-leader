@@ -3,10 +3,15 @@ package io.bluetape4k.leader
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldHaveSize
+import io.bluetape4k.assertions.shouldNotBeEmpty
 import io.bluetape4k.concurrent.await
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.BackendErrorKind
@@ -14,6 +19,7 @@ import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import org.awaitility.kotlin.atMost
@@ -26,12 +32,11 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.toJavaDuration
 
 /**
  * OBS-02 PR2의 user/watchdog renewal 경계가 동일한 terminal outcome을 관찰하는지 검증합니다.
@@ -63,9 +68,9 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 LockExtender.extendActiveLockDetailedSuspend(30.seconds)
             }
 
-            globalEvents.size shouldBeEqualTo 2
-            aEvents.size shouldBeEqualTo 2
-            bEvents.size shouldBeEqualTo 0
+            globalEvents shouldHaveSize 2
+            aEvents shouldHaveSize 2
+            bEvents shouldHaveSize 0
         } finally {
             global.close()
             a.close()
@@ -104,7 +109,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 globalEvents.count { it.source == LeaderLeaseExtensionSource.WATCHDOG } shouldBeEqualTo 2
                 aEvents.count { it.source == LeaderLeaseExtensionSource.WATCHDOG } shouldBeEqualTo 2
             }
-            bEvents.size shouldBeEqualTo 0
+            bEvents shouldHaveSize 0
         } finally {
             blocking.close()
             suspend.close()
@@ -148,9 +153,9 @@ class LeaderLeaseExtensionBoundaryContractTest {
         try {
             release.countDown()
             owner.join(5_000)
-            failure.get() shouldBeEqualTo null
-            globalEvents.size shouldBeEqualTo 1
-            replacementEvents.size shouldBeEqualTo 0
+            failure.get().shouldBeNull()
+            globalEvents shouldHaveSize 1
+            replacementEvents shouldHaveSize 0
         } finally {
             release.countDown()
             global.close()
@@ -173,14 +178,15 @@ class LeaderLeaseExtensionBoundaryContractTest {
                     LockExtender.extendActiveLockDetailed(30.seconds) shouldBeEqualTo ExtendOutcome.Extended(expireAt)
                 }
 
-                submitted.size shouldBeEqualTo 1
+                submitted shouldHaveSize 1
                 submitted.single().run()
-                events.size shouldBeEqualTo 1
+                events shouldHaveSize 1
                 val event = events.single()
+                log.debug { "event=$event" }
                 event.source shouldBeEqualTo LeaderLeaseExtensionSource.USER
                 event.execution shouldBeEqualTo LeaderLeaseExtensionExecution.BLOCKING
                 event.outcome shouldBeEqualTo ExtendOutcome.Extended(expireAt)
-                (event.elapsedNanos >= 0L).shouldBeTrue()
+                event.elapsedNanos shouldBeGreaterOrEqualTo 0L
                 event.context?.lockName shouldBeEqualTo "boundary-lock"
                 event.context?.auditLeaderId shouldBeEqualTo "leader-1"
                 delegate.lastExtendDeadline.get() shouldBeEqualTo expireAt
@@ -196,7 +202,10 @@ class LeaderLeaseExtensionBoundaryContractTest {
         val observedDeadline = AtomicReference<Instant>()
         val expireAt = Instant.now().plusSeconds(30)
         val delegate = RecordingDelegate { ExtendOutcome.Extended(expireAt) }
-        leaderLeaseExtensionDispatcher = Executor { runnable -> runnable.run() }
+
+        leaderLeaseExtensionDispatcher = Executor { runnable ->
+            runnable.run()
+        }
         val registration = LeaderLeaseExtensionObservers.addObserver {
             observedDeadline.set(delegate.lastExtendDeadline.get())
         }
@@ -221,11 +230,11 @@ class LeaderLeaseExtensionBoundaryContractTest {
             try {
                 LockStateHolder.withPushed(realHandle(delegate)) {
                     LockExtender.extendActiveLock(30.seconds).shouldBeTrue()
-                    LockExtender.extendActiveLock(30.seconds.toJavaDuration()).shouldBeTrue()
+                    LockExtender.extendActiveLock(30.seconds()).shouldBeTrue()
                 }
 
                 submitted.forEach(Runnable::run)
-                events.size shouldBeEqualTo 2
+                events shouldHaveSize 2
                 events.all { it.source == LeaderLeaseExtensionSource.USER }.shouldBeTrue()
             } finally {
                 registration.close()
@@ -241,11 +250,16 @@ class LeaderLeaseExtensionBoundaryContractTest {
 
             try {
                 LockStateHolder.withPushed(realHandle(delegate, auditLeaderId = "named-leader")) {
-                    LockExtender.extendActiveLockDetailed("boundary-lock", 30.seconds) shouldBeEqualTo
-                            ExtendOutcome.NotHeld
+                    LockExtender
+                        .extendActiveLockDetailed(
+                            "boundary-lock",
+                            30.seconds
+                        ) shouldBeEqualTo ExtendOutcome.NotHeld
                 }
 
                 submitted.single().run()
+
+                log.debug { "events=$events" }
                 events.single().source shouldBeEqualTo LeaderLeaseExtensionSource.USER
                 events.single().execution shouldBeEqualTo LeaderLeaseExtensionExecution.BLOCKING
                 events.single().context?.lockName shouldBeEqualTo "boundary-lock"
@@ -267,14 +281,16 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 }
 
                 submitted.forEach(Runnable::run)
-                events.size shouldBeEqualTo 2
+
+                log.debug { "events=$events" }
+                events shouldHaveSize 2
                 events[0].outcome shouldBeEqualTo ExtendOutcome.NotHeld
                 events[0].elapsedNanos shouldBeEqualTo 0L
-                events[0].context shouldBeEqualTo null
+                events[0].context.shouldBeNull()
                 events[1].outcome shouldBeEqualTo ExtendOutcome.NotHeld
                 events[1].elapsedNanos shouldBeEqualTo 0L
                 events[1].context?.lockName shouldBeEqualTo "boundary-lock"
-                events[1].context?.auditLeaderId shouldBeEqualTo null
+                events[1].context?.auditLeaderId.shouldBeNull()
             } finally {
                 registration.close()
             }
@@ -295,7 +311,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 submitted.single().run()
                 events.single().outcome shouldBeEqualTo ExtendOutcome.NotHeld
                 events.single().elapsedNanos shouldBeEqualTo 0L
-                events.single().context shouldBeEqualTo null
+                events.single().context.shouldBeNull()
             } finally {
                 registration.close()
             }
@@ -335,8 +351,8 @@ class LeaderLeaseExtensionBoundaryContractTest {
                     }
                 }
                 thrown shouldBeSameInstanceAs cancellation
-                submitted.size shouldBeEqualTo 0
-                events.size shouldBeEqualTo 0
+                submitted shouldHaveSize 0
+                events shouldHaveSize 0
             } finally {
                 registration.close()
             }
@@ -355,8 +371,8 @@ class LeaderLeaseExtensionBoundaryContractTest {
                     }
                 }
                 thrown shouldBeSameInstanceAs failure
-                submitted.size shouldBeEqualTo 0
-                events.size shouldBeEqualTo 0
+                submitted shouldHaveSize 0
+                events shouldHaveSize 0
             } finally {
                 registration.close()
             }
@@ -400,11 +416,12 @@ class LeaderLeaseExtensionBoundaryContractTest {
                             ExtendOutcome.Extended(expireAt)
                 }
                 submitted.drop(1).single().run()
-                events.size shouldBeEqualTo 2
+                events shouldHaveSize 2
                 events[1].execution shouldBeEqualTo LeaderLeaseExtensionExecution.SUSPEND
 
                 val cancellation = CancellationException("cancelled")
                 val cancellationDelegate = RecordingSuspendDelegate { throw cancellation }
+
                 val thrownCancellation = assertFailsWith<CancellationException> {
                     withContext(LockHandleElement(realHandle(cancellationDelegate))) {
                         LockExtender.extendActiveLockDetailedSuspend(30.seconds)
@@ -412,10 +429,11 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 }
                 thrownCancellation::class shouldBeEqualTo cancellation::class
                 thrownCancellation.message shouldBeEqualTo cancellation.message
-                submitted.size shouldBeEqualTo 2
+                submitted shouldHaveSize 2
 
                 val cause = IllegalStateException("suspend backend failure")
                 val exceptionDelegate = RecordingSuspendDelegate { throw cause }
+
                 val thrown = assertFailsWith<IllegalStateException> {
                     withContext(LockHandleElement(realHandle(exceptionDelegate))) {
                         LockExtender.extendActiveLockDetailedSuspend(30.seconds)
@@ -423,8 +441,10 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 }
                 thrown::class shouldBeEqualTo cause::class
                 thrown.message shouldBeEqualTo cause.message
+
                 submitted.drop(2).single().run()
-                events.size shouldBeEqualTo 3
+                events shouldHaveSize 3
+
                 val backendError = events[2].outcome.shouldBeInstanceOf<ExtendOutcome.BackendError>()
                 backendError.cause::class shouldBeEqualTo cause::class
                 backendError.cause.message shouldBeEqualTo cause.message
@@ -447,7 +467,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 }
 
                 submitted.forEach(Runnable::run)
-                events.size shouldBeEqualTo 2
+                events shouldHaveSize 2
                 events.all {
                     it.source == LeaderLeaseExtensionSource.USER &&
                             it.execution == LeaderLeaseExtensionExecution.SUSPEND
@@ -471,8 +491,8 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 }
                 thrown::class shouldBeEqualTo failure::class
                 thrown.message shouldBeEqualTo failure.message
-                submitted.size shouldBeEqualTo 0
-                events.size shouldBeEqualTo 0
+                submitted shouldHaveSize 0
+                events shouldHaveSize 0
             } finally {
                 registration.close()
             }
@@ -500,8 +520,8 @@ class LeaderLeaseExtensionBoundaryContractTest {
                     .atMost(5.seconds)
                     .withPollInterval(25.milliseconds)
                     .untilAsserted {
-                        blockingEvents.isNotEmpty().shouldBeTrue()
-                        suspendEvents.isNotEmpty().shouldBeTrue()
+                        blockingEvents.shouldNotBeEmpty()
+                        suspendEvents.shouldNotBeEmpty()
                     }
             } finally {
                 blockingWatchdog.close()
@@ -512,8 +532,8 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 .atMost(5.seconds)
                 .withPollInterval(25.milliseconds)
                 .untilAsserted {
-                    blockingEvents.size shouldBeEqualTo blocking.calls.get()
-                    suspendEvents.size shouldBeEqualTo suspend.calls.get()
+                    blockingEvents shouldHaveSize blocking.calls.get()
+                    suspendEvents shouldHaveSize suspend.calls.get()
                 }
 
             blockingEvents.all { it.source == LeaderLeaseExtensionSource.WATCHDOG && it.context == null }
@@ -551,7 +571,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
             val before = events.size
             LeaderLeaseAutoExtender.start(true, 75.milliseconds, RecordingDelegate { ExtendOutcome.NotHeld })
             LeaderLeaseAutoExtender.start(true, 75.milliseconds, RecordingSuspendDelegate { ExtendOutcome.NotHeld })
-            events.size shouldBeEqualTo before
+            events shouldHaveSize before
         } finally {
             LeaderLeaseAutoExtender.restart()
             registration.close()
@@ -622,7 +642,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
                     if (asyncExtend) {
                         uncaughtLatch.await(5.seconds).shouldBeTrue()
                     }
-                    secondCall.await(250, TimeUnit.MILLISECONDS).shouldBeFalse()
+                    secondCall.await(250.milliseconds).shouldBeFalse()
                 } finally {
                     watchdog.close()
                     Thread.setDefaultUncaughtExceptionHandler(previousHandler)
@@ -632,7 +652,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
                     (uncaught.get() is CancellationException).shouldBeTrue()
                 }
             }
-            events.size shouldBeEqualTo 0
+            events shouldHaveSize 0
         } finally {
             LeaderLeaseAutoExtender.configure(asyncExtend = false)
             registration.close()
@@ -649,7 +669,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
                 events.clear()
                 val firstCall = CountDownLatch(1)
                 val secondCall = CountDownLatch(1)
-                val invocation = java.util.concurrent.atomic.AtomicInteger()
+                val invocation = AtomicInteger()
                 val delegate = RecordingSuspendDelegate(
                     onCall = { count ->
                         invocation.set(count)
@@ -735,7 +755,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
         private val block: (Duration) -> ExtendOutcome,
     ): ExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
-        val calls = java.util.concurrent.atomic.AtomicInteger()
+        val calls = AtomicInteger()
         override val lastExtendDeadline: AtomicReference<Instant> get() = deadline
 
         override fun extend(lockAtMostFor: Duration): ExtendOutcome {
@@ -751,7 +771,7 @@ class LeaderLeaseExtensionBoundaryContractTest {
         private val block: suspend (Duration) -> ExtendOutcome,
     ): SuspendExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
-        val calls = java.util.concurrent.atomic.AtomicInteger()
+        val calls = AtomicInteger()
         override val lastExtendDeadline: AtomicReference<Instant> get() = deadline
 
         override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome {

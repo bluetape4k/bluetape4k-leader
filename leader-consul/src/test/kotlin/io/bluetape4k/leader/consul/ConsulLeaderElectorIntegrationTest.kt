@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Timeout
 import java.time.Instant
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -118,6 +119,7 @@ class ConsulLeaderElectorIntegrationTest: AbstractConsulTest() {
                     state.leader?.auditLeaderId shouldBeEqualTo "consul-state-audit-node-a"
                     state.leader?.nodeId shouldBeEqualTo "consul-state-node-a"
                     state.leader?.leaseUntil.shouldNotBeNull()
+
                     started.countDown()
                     release.await(10.seconds).shouldBeTrue()
                     "holder"
@@ -194,7 +196,7 @@ class ConsulLeaderElectorIntegrationTest: AbstractConsulTest() {
         val lockName = randomName()
         val client = JavaHttpConsulLockClient(endpoint(), keyPrefix)
         val sessionId = client
-            .createSession("consul-expiry-test", 10.seconds, kotlin.time.Duration.ZERO)
+            .createSession("consul-expiry-test", 10.seconds, Duration.ZERO)
             .get(10.seconds)
 
         val key = client.singleLockKey(lockName)
@@ -229,10 +231,10 @@ class ConsulLeaderElectorIntegrationTest: AbstractConsulTest() {
         log.info { "create ConsulLeaderElector. keyPrefix=$keyPrefix, leaderOptions=$leaderOptions" }
 
         return ConsulLeaderElector(
-            endpoint(),
-            ConsulLeaderElectionOptions(
-                keyPrefix = keyPrefix,
+            endpoint = endpoint(),
+            options = ConsulLeaderElectionOptions(
                 leaderOptions = leaderOptions,
+                keyPrefix = keyPrefix,
             ),
         )
     }

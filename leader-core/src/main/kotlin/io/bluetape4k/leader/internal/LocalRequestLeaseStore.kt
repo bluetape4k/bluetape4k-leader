@@ -22,8 +22,10 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.Condition
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.time.Duration
+import kotlin.time.toJavaDuration
 
 /**
  * thread ownership에 의존하지 않는 local request lease 저장소입니다.
@@ -40,13 +42,21 @@ internal class LocalRequestLeaseStore {
     private val monitors = ConcurrentHashMap<String, Monitor>()
     private val records = ConcurrentHashMap<String, Record>()
 
-    fun tryAcquire(slot: LeaderSlot, waitTime: Duration, options: LeaderElectionOptions): LocalRequestLeaseHandle? {
+    fun tryAcquire(
+        slot: LeaderSlot,
+        waitTime: Duration,
+        options: LeaderElectionOptions,
+    ): LocalRequestLeaseHandle? {
         val record = tryAcquireRecord(slot, waitTime, options) ?: return null
         return LocalRequestLeaseHandle(this, record, options)
     }
 
     @Suppress("ReturnCount")
-    private fun tryAcquireRecord(slot: LeaderSlot, waitTime: Duration, options: LeaderElectionOptions): Record? {
+    private fun tryAcquireRecord(
+        slot: LeaderSlot,
+        waitTime: Duration,
+        options: LeaderElectionOptions,
+    ): Record? {
         val monitor = monitors.computeIfAbsent(slot.lockName) { Monitor() }
         val deadline = System.nanoTime() + waitTime.inWholeNanoseconds.coerceAtLeast(0L)
 
@@ -83,12 +93,13 @@ internal class LocalRequestLeaseStore {
         slot: LeaderSlot,
         waitTime: Duration,
         options: LeaderElectionOptions,
-    ): LocalSuspendRequestLeaseHandle? = withContext(Dispatchers.IO) {
-        coroutineContext.ensureActive()
-        tryAcquireRecord(slot, waitTime, options)?.let {
-            LocalSuspendRequestLeaseHandle(this@LocalRequestLeaseStore, it, options)
+    ): LocalSuspendRequestLeaseHandle? =
+        withContext(Dispatchers.IO) {
+            coroutineContext.ensureActive()
+            tryAcquireRecord(slot, waitTime, options)?.let {
+                LocalSuspendRequestLeaseHandle(this@LocalRequestLeaseStore, it, options)
+            }
         }
-    }
 
     fun release(record: Record): Boolean {
         val monitor = monitors.computeIfAbsent(record.slot.lockName) { Monitor() }
@@ -118,7 +129,8 @@ internal class LocalRequestLeaseStore {
                 return ExtendOutcome.NotHeld
             }
             record.expiresAtNanos = System.nanoTime() + duration.inWholeNanoseconds
-            record.expiresAt = Instant.now().plusMillis(duration.inWholeMilliseconds)
+            record.expiresAt = Instant.now() + duration.toJavaDuration()
+
             return ExtendOutcome.Extended(record.expiresAt)
         }
     }
@@ -137,7 +149,7 @@ internal class LocalRequestLeaseStore {
 
     private class Monitor {
         val lock = ReentrantLock()
-        val changed = lock.newCondition()
+        val changed: Condition = lock.newCondition()
     }
 
     internal class Record(
@@ -153,7 +165,7 @@ internal class LocalRequestLeaseStore {
         var expiresAtNanos: Long = acquiredAtNanos + leaseTime.inWholeNanoseconds
 
         @Volatile
-        var expiresAt: Instant = acquiredAt.plusMillis(leaseTime.inWholeMilliseconds)
+        var expiresAt: Instant = acquiredAt + leaseTime.toJavaDuration()
 
         fun isExpired(): Boolean = System.nanoTime() >= expiresAtNanos
     }
@@ -188,7 +200,7 @@ internal class LocalRequestLeaseHandle(
 
     init {
         val delegate = object: ExtendDelegate {
-            override val lastExtendDeadline = java.util.concurrent.atomic.AtomicReference(Instant.EPOCH)
+            override val lastExtendDeadline = AtomicReference(Instant.EPOCH)
             override fun extend(lockAtMostFor: Duration): ExtendOutcome = store.extend(record, lockAtMostFor)
             override fun isHeld(): Boolean = store.ownershipStatus(record) == LeaseOwnershipStatus.HELD
         }
@@ -255,7 +267,9 @@ internal class LocalSuspendRequestLeaseHandle(
             watchdog?.close()
             watchdog = null
             val remaining = remainingMinLeaseTime(record.acquiredAtNanos, options.minLeaseTime)
-            if (remaining > Duration.ZERO) delay(remaining)
+            if (remaining > Duration.ZERO) {
+                delay(remaining)
+            }
             store.release(record)
         }
     }

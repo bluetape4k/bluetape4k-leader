@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
@@ -44,6 +45,7 @@ class LeaderBackendDiagnosticsTest {
 
         val diagnostics = provider.diagnostics()
 
+        log.debug { "diagnostics=$diagnostics" }
         diagnostics.descriptor shouldBeEqualTo descriptor
         diagnostics.connectivity shouldBeEqualTo LeaderBackendConnectivity.notChecked()
         provider.calls shouldBeEqualTo 0
@@ -55,6 +57,7 @@ class LeaderBackendDiagnosticsTest {
 
         val diagnostics = provider.diagnostics(probe = true, timeout = 250.milliseconds)
 
+        log.debug { "diagnostics=$diagnostics" }
         diagnostics.connectivity shouldBeEqualTo LeaderBackendConnectivity.up(checkedAt, 7L)
         provider.calls shouldBeEqualTo 1
         provider.lastTimeout shouldBeEqualTo 250.milliseconds
@@ -114,10 +117,13 @@ class LeaderBackendDiagnosticsTest {
     fun `connectivity factory는 status별 bounded reason을 제공한다`() {
         LeaderBackendConnectivity.notChecked().reason shouldBeEqualTo
                 LeaderBackendConnectivityReason.NOT_CHECKED
+
         LeaderBackendConnectivity.up(checkedAt).reason shouldBeEqualTo
                 LeaderBackendConnectivityReason.CONNECTED
+
         LeaderBackendConnectivity.down(checkedAt).reason shouldBeEqualTo
                 LeaderBackendConnectivityReason.DISCONNECTED
+
         LeaderBackendConnectivity.unknown(checkedAt).reason shouldBeEqualTo
                 LeaderBackendConnectivityReason.CLIENT_STATE_UNCONFIRMED
 
@@ -130,8 +136,8 @@ class LeaderBackendDiagnosticsTest {
             checkedAt = checkedAt,
             reason = LeaderBackendConnectivityReason.PROVIDER_EXCEPTION,
         )
-        preserved.copy(status = LeaderBackendConnectivityStatus.UNKNOWN).reason shouldBeEqualTo
-                LeaderBackendConnectivityReason.PROVIDER_EXCEPTION
+        preserved.copy(status = LeaderBackendConnectivityStatus.UNKNOWN)
+            .reason shouldBeEqualTo LeaderBackendConnectivityReason.PROVIDER_EXCEPTION
     }
 
     @Test
@@ -159,6 +165,7 @@ class LeaderBackendDiagnosticsTest {
 
         val connectivity = provider.checkConnectivity(100.milliseconds)
 
+        log.debug { "connectivity=$connectivity" }
         connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
         connectivity.reason shouldBeEqualTo LeaderBackendConnectivityReason.PROVIDER_UNSUPPORTED
     }
@@ -191,6 +198,7 @@ class LeaderBackendDiagnosticsTest {
 
         val interrupted = InterruptedException("legacy interruption")
         provider.behavior = { throw interrupted }
+
         try {
             assertFailsWith<InterruptedException> {
                 provider.diagnostics(probe = true, timeout = 100.milliseconds)
@@ -201,6 +209,7 @@ class LeaderBackendDiagnosticsTest {
 
         val fatal = AssertionError("legacy fatal")
         provider.behavior = { throw fatal }
+
         assertFailsWith<AssertionError> {
             provider.diagnostics(probe = true, timeout = 100.milliseconds)
         } shouldBeSameInstanceAs fatal
@@ -264,6 +273,7 @@ class LeaderBackendDiagnosticsTest {
         override val backendDescriptor: LeaderBackendDescriptor = descriptor
         var calls: Int = 0
         var lastTimeout: Duration? = null
+
         var behavior: (Duration) -> LeaderBackendDiagnostics = { timeout ->
             lastTimeout = timeout
             LeaderBackendDiagnostics(descriptor, LeaderBackendConnectivity.notChecked())

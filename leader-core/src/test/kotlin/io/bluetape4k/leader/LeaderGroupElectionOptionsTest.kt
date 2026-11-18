@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration
@@ -18,6 +19,8 @@ class LeaderGroupElectionOptionsTest {
     @Test
     fun `기본 옵션 값이 올바르다`() {
         val options = LeaderGroupElectionOptions.Default
+
+        log.debug { "options=$options" }
         options.maxLeaders shouldBeEqualTo LeaderGroupElectionOptions.DefaultMaxLeaders
         options.waitTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultWaitTime
         options.leaseTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultLeaseTime
@@ -28,6 +31,8 @@ class LeaderGroupElectionOptionsTest {
     @Test
     fun `커스텀 maxLeaders 를 설정할 수 있다`() {
         val options = LeaderGroupElectionOptions(maxLeaders = 5)
+
+        log.debug { "options=$options" }
         options.maxLeaders shouldBeEqualTo 5
         options.waitTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultWaitTime
         options.leaseTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultLeaseTime
@@ -44,6 +49,8 @@ class LeaderGroupElectionOptionsTest {
             minLeaseTime = 5.seconds,
             useDbTime = true,
         )
+
+        log.debug { "options=$options" }
         options.maxLeaders shouldBeEqualTo 4
         options.waitTime shouldBeEqualTo 10.seconds
         options.leaseTime shouldBeEqualTo 120.seconds
@@ -56,6 +63,9 @@ class LeaderGroupElectionOptionsTest {
         val original = LeaderGroupElectionOptions(maxLeaders = 3)
         val copied = original.copy(maxLeaders = 6)
 
+        log.debug { "original=$original" }
+        log.debug { "copied=$copied" }
+
         copied.maxLeaders shouldBeEqualTo 6
         copied.waitTime shouldBeEqualTo original.waitTime
         copied.leaseTime shouldBeEqualTo original.leaseTime
@@ -67,11 +77,14 @@ class LeaderGroupElectionOptionsTest {
     fun `data class equality - 동일 값이면 동등하다`() {
         val options1 = LeaderGroupElectionOptions(maxLeaders = 3)
         val options2 = LeaderGroupElectionOptions(maxLeaders = 3)
+
+        log.debug { "options1=$options1" }
         options1 shouldBeEqualTo options2
     }
 
     @Test
     fun `Default 인스턴스는 null 이 아니다`() {
         LeaderGroupElectionOptions.Default.shouldNotBeNull()
+            .also { log.debug { "default=$it" } }
     }
 }

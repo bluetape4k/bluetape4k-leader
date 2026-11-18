@@ -27,14 +27,14 @@ class ConsulExecutorOverloadContractTest {
     @Test
     fun singleExecutorOverloadPropagatesLeaderIdAndReleases() {
         val elector = ConsulLeaderElector(
-            ConsulContractSupport.endpoint(),
-            ConsulLeaderElectionOptions(keyPrefix = ConsulContractSupport.keyPrefix()),
+            endpoint = ConsulContractSupport.endpoint(),
+            options = ConsulLeaderElectionOptions(keyPrefix = ConsulContractSupport.keyPrefix()),
         )
         val lockName = "consul-executor-single-contract"
 
         val first = elector.runAsyncIfLeaderResult(
-            LeaderSlot(lockName, "consul-single-a"),
-            VirtualThreadExecutor,
+            slot = LeaderSlot(lockName, "consul-single-a"),
+            executor = VirtualThreadExecutor,
         ) {
             completableFutureOf("single-ok")
         }.join()
@@ -45,8 +45,8 @@ class ConsulExecutorOverloadContractTest {
         first.leaderId shouldBeEqualTo "consul-single-a"
 
         val second = elector.runAsyncIfLeaderResult(
-            LeaderSlot(lockName, "consul-single-b"),
-            VirtualThreadExecutor,
+            slot = LeaderSlot(lockName, "consul-single-b"),
+            executor = VirtualThreadExecutor,
         ) {
             completableFutureOf("single-reacquired")
         }.join()
@@ -60,8 +60,8 @@ class ConsulExecutorOverloadContractTest {
     @Test
     fun groupExecutorOverloadPropagatesLeaderIdAndReleases() {
         val elector = ConsulLeaderGroupElector(
-            ConsulContractSupport.endpoint(),
-            ConsulLeaderGroupElectionOptions(
+            endpoint = ConsulContractSupport.endpoint(),
+            options = ConsulLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2),
                 keyPrefix = ConsulContractSupport.keyPrefix(),
             ),
@@ -69,8 +69,8 @@ class ConsulExecutorOverloadContractTest {
         val lockName = "consul-executor-group-contract"
 
         val first = elector.runAsyncIfLeaderResult(
-            LeaderSlot(lockName, "consul-group-a"),
-            VirtualThreadExecutor,
+            slot = LeaderSlot(lockName, "consul-group-a"),
+            executor = VirtualThreadExecutor,
         ) {
             completableFutureOf("group-ok")
         }.join()
@@ -81,8 +81,8 @@ class ConsulExecutorOverloadContractTest {
         first.leaderId shouldBeEqualTo "consul-group-a"
 
         val second = elector.runAsyncIfLeaderResult(
-            LeaderSlot(lockName, "consul-group-b"),
-            VirtualThreadExecutor,
+            slot = LeaderSlot(lockName, "consul-group-b"),
+            executor = VirtualThreadExecutor,
         ) {
             completableFutureOf("group-reacquired")
         }.join()

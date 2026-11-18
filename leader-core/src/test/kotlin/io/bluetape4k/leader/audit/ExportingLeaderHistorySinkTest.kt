@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.history.LeaderHistoryKey
@@ -13,6 +14,7 @@ import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendLeaderHistorySink
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -48,6 +50,7 @@ class ExportingLeaderHistorySinkTest {
 
         exporter.events[0].shouldBeInstanceOf<LeaderAuditExportEvent.History>()
             .status shouldBeEqualTo LeaderHistoryStatus.ACQUIRED
+
         exporter.events[1].shouldBeInstanceOf<LeaderAuditExportEvent.History>()
             .status shouldBeEqualTo LeaderHistoryStatus.COMPLETED
 
@@ -63,9 +66,9 @@ class ExportingLeaderHistorySinkTest {
             completedFailure = IllegalStateException("completed-failure"),
         )
         val sink = ExportingLeaderHistorySink(
-            delegate,
-            exporter,
-            LeaderAuditValueSanitizer.Truncate(maxBytes = 64),
+            delegate = delegate,
+            exporter = exporter,
+            sanitizer = LeaderAuditValueSanitizer.Truncate(maxBytes = 64),
         )
 
         sink.recordAcquired(record()) shouldBeEqualTo key
@@ -73,7 +76,13 @@ class ExportingLeaderHistorySinkTest {
             sink.recordCompleted(key, FINISHED_AT, 42)
         }
 
-        sink.recordFailed(key, FINISHED_AT, 43, "failed", "fallback")
+        sink.recordFailed(
+            key = key,
+            finishedAt = FINISHED_AT,
+            durationMs = 43,
+            errorType = "failed",
+            errorMessage = "fallback"
+        )
         exporter.events.last().shouldBeInstanceOf<LeaderAuditExportEvent.History>()
             .attributes["audit_context"] shouldBeEqualTo "missing"
     }
@@ -94,7 +103,13 @@ class ExportingLeaderHistorySinkTest {
 
         sink.recordAcquired(record()) shouldBeEqualTo key
         assertFailsWith<IllegalArgumentException> {
-            sink.recordFailed(key, FINISHED_AT, 42, "failed", "failure")
+            sink.recordFailed(
+                key = key,
+                finishedAt = FINISHED_AT,
+                durationMs = 42,
+                errorType = "failed",
+                errorMessage = "failure"
+            )
         }
 
         sink.recordCompleted(key, FINISHED_AT, 43)
@@ -107,21 +122,21 @@ class ExportingLeaderHistorySinkTest {
         val exporter = RecordingExporter(LeaderAuditSubmitResult.DROPPED_QUEUE_FULL)
         val key = LeaderHistoryKey(lockName = "job", token = "secret")
         val sink = ExportingLeaderHistorySink(
-            RecordingSink(key),
-            exporter,
-            LeaderAuditValueSanitizer.Truncate(maxBytes = 64),
+            delegate = RecordingSink(key),
+            exporter = exporter,
+            sanitizer = LeaderAuditValueSanitizer.Truncate(maxBytes = 64),
         )
 
         sink.recordAcquired(record()) shouldBeEqualTo key
         sink.recordFailed(
-            LeaderHistoryKey(lockName = "unknown", token = "unknown"),
-            FINISHED_AT,
-            7,
-            "java.lang.IllegalStateException",
-            "failed",
+            key = LeaderHistoryKey(lockName = "unknown", token = "unknown"),
+            finishedAt = FINISHED_AT,
+            durationMs = 7,
+            errorType = "java.lang.IllegalStateException",
+            errorMessage = "failed",
         )
 
-        exporter.events.size shouldBeEqualTo 2
+        exporter.events shouldHaveSize 2
         exporter.events.last().shouldBeInstanceOf<LeaderAuditExportEvent.History>()
             .attributes["audit_context"] shouldBeEqualTo "missing"
     }
@@ -131,11 +146,11 @@ class ExportingLeaderHistorySinkTest {
         val exporter = RecordingExporter()
         val key = LeaderHistoryKey(historyId = "history-oversized", lockName = "job", token = "secret")
         val sink = ExportingLeaderHistorySink(
-            RecordingSink(key),
-            exporter,
-            LeaderAuditValueSanitizer.Truncate(maxBytes = 10_000),
+            delegate = RecordingSink(key),
+            exporter = exporter,
+            sanitizer = LeaderAuditValueSanitizer.Truncate(maxBytes = 10_000),
         )
-        val metadata = linkedMapOf<String, String>().apply {
+        val metadata = buildMap {
             repeat(LeaderLockHistoryRecord.MAX_METADATA_KEYS + 4) { index ->
                 put("entry-$index", "v".repeat(1000))
             }
@@ -146,6 +161,9 @@ class ExportingLeaderHistorySinkTest {
 
         val acquired = exporter.events[0].shouldBeInstanceOf<LeaderAuditExportEvent.History>()
         val completed = exporter.events[1].shouldBeInstanceOf<LeaderAuditExportEvent.History>()
+
+        log.debug { "acquired=$acquired" }
+        log.debug { "completed=$completed" }
         completed.attributes.size shouldBeGreaterThan acquired.attributes.size
         completed.attributes["entry-0"]?.length shouldBeEqualTo LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH
     }
@@ -339,6 +357,7 @@ class ExportingLeaderHistorySinkTest {
     ): LeaderAuditExporter {
         private val _events = ConcurrentLinkedQueue<LeaderAuditExportEvent>()
         val events get() = _events.toList()
+
         private val closed = AtomicInteger()
 
         override fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult {
@@ -348,39 +367,41 @@ class ExportingLeaderHistorySinkTest {
 
         override fun observe(observer: LeaderAuditExportObserver): AutoCloseable = AutoCloseable { }
 
-        override fun snapshot(): LeaderAuditExportSnapshot = LeaderAuditExportSnapshot(
-            queued = 0,
-            inFlight = 0,
-            scheduledRetries = 0,
-            admitted = 0,
-            accepted = events.size.toLong(),
-            droppedQueueFull = 0,
-            droppedClosed = 0,
-            retries = 0,
-            terminalFailures = 0,
-            cancellations = 0,
-            executorRejections = 0,
-            schedulerRejections = 0,
-            observerDrops = 0,
-            observerRegistrationDrops = 0,
-            diagnosticsFatalErrors = 0,
-            diagnosticsClosed = closed.get() > 0,
-            closed = closed.get() > 0,
-        )
+        override fun snapshot(): LeaderAuditExportSnapshot =
+            LeaderAuditExportSnapshot(
+                queued = 0,
+                inFlight = 0,
+                scheduledRetries = 0,
+                admitted = 0,
+                accepted = events.size.toLong(),
+                droppedQueueFull = 0,
+                droppedClosed = 0,
+                retries = 0,
+                terminalFailures = 0,
+                cancellations = 0,
+                executorRejections = 0,
+                schedulerRejections = 0,
+                observerDrops = 0,
+                observerRegistrationDrops = 0,
+                diagnosticsFatalErrors = 0,
+                diagnosticsClosed = closed.get() > 0,
+                closed = closed.get() > 0,
+            )
 
         override fun close() {
             closed.incrementAndGet()
         }
     }
 
-    private fun record(metadata: Map<String, String> = emptyMap()): LeaderLockHistoryRecord = LeaderLockHistoryRecord(
-        lockName = "job",
-        token = "secret",
-        kind = LockIdentity.AnnotationKind.SINGLE,
-        acquiredAt = ACQUIRED_AT,
-        lockedUntil = LOCKED_UNTIL,
-        nodeId = "node-1",
-        status = LeaderHistoryStatus.ACQUIRED,
-        metadata = metadata,
-    )
+    private fun record(metadata: Map<String, String> = emptyMap()): LeaderLockHistoryRecord =
+        LeaderLockHistoryRecord(
+            lockName = "job",
+            token = "secret",
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            acquiredAt = ACQUIRED_AT,
+            lockedUntil = LOCKED_UNTIL,
+            nodeId = "node-1",
+            status = LeaderHistoryStatus.ACQUIRED,
+            metadata = metadata,
+        )
 }

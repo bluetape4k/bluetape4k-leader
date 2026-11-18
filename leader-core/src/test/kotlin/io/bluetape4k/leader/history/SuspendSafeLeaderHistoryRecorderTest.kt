@@ -3,18 +3,20 @@ package io.bluetape4k.leader.history
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import java.time.Instant
 
 class SuspendSafeLeaderHistoryRecorderTest {
 
     companion object: KLoggingChannel()
 
-    private val now = java.time.Instant.parse("2026-05-14T10:00:00Z")
-    private val future = now.plusSeconds(60)
+    private val now = Instant.now()
+    private val future = now + 60.seconds()
 
     private fun record() = LeaderLockHistoryRecord(
         lockName = "test-lock",

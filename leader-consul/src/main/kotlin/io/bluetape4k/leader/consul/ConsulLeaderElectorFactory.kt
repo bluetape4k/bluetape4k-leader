@@ -24,8 +24,8 @@ class ConsulLeaderElectorFactory(
 
     override fun create(options: LeaderElectionOptions): LeaderElector =
         ConsulLeaderElector(
-            endpoint,
-            baseOptions.copy(leaderOptions = options),
+            endpoint = endpoint,
+            options = baseOptions.copy(leaderOptions = options),
         )
 }
 
@@ -42,8 +42,8 @@ class ConsulLeaderGroupElectorFactory(
 
     override fun create(options: LeaderGroupElectionOptions): LeaderGroupElector =
         ConsulLeaderGroupElector(
-            endpoint,
-            baseOptions.copy(leaderGroupOptions = options),
+            endpoint = endpoint,
+            options = baseOptions.copy(leaderGroupOptions = options),
         )
 }
 
@@ -60,8 +60,8 @@ class ConsulSuspendLeaderElectorFactory(
 
     override suspend fun create(options: LeaderElectionOptions): SuspendLeaderElector =
         ConsulSuspendLeaderElector(
-            endpoint,
-            baseOptions.copy(leaderOptions = options),
+            endpoint = endpoint,
+            options = baseOptions.copy(leaderOptions = options),
         )
 }
 
@@ -78,7 +78,7 @@ class ConsulSuspendLeaderGroupElectorFactory(
 
     override suspend fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
         ConsulSuspendLeaderGroupElector(
-            endpoint,
-            baseOptions.copy(leaderGroupOptions = options),
+            endpoint = endpoint,
+            options = baseOptions.copy(leaderGroupOptions = options),
         )
 }

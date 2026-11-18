@@ -10,6 +10,8 @@ import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -19,6 +21,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
 
 class LocalStrategicCandidateTtlTest {
+
+    companion object: KLogging()
 
     private val lockName = "local-strategic-ttl-${Base58.randomString(8)}"
     private val registeredAt = Instant.parse("2026-01-01T00:00:00Z")
@@ -53,11 +57,14 @@ class LocalStrategicCandidateTtlTest {
 
         elector.refreshCandidate(lockName, refreshedCandidate())
 
-        elector.listCandidates(lockName).map(CandidateInfo::nodeId) shouldBeEqualTo listOf("node-2")
+        elector.listCandidates(lockName)
+            .map(CandidateInfo::nodeId) shouldBeEqualTo listOf("node-2")
+
         var actionRan = false
         elector.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 1) {
             actionRan = true
         }.shouldBeNull()
+
         actionRan.shouldBeFalse()
     }
 
@@ -70,7 +77,9 @@ class LocalStrategicCandidateTtlTest {
 
         elector.refreshCandidate(lockName, refreshedCandidate())
 
-        elector.listCandidates(lockName).map(CandidateInfo::nodeId) shouldBeEqualTo listOf("node-2")
+        elector.listCandidates(lockName)
+            .map(CandidateInfo::nodeId) shouldBeEqualTo listOf("node-2")
+
         var actionRan = false
         elector.runIfLeader(lockName, FifoElectionStrategy) { actionRan = true }.shouldBeNull()
         actionRan.shouldBeFalse()
@@ -85,7 +94,9 @@ class LocalStrategicCandidateTtlTest {
 
         elector.refreshCandidate(lockName, refreshedCandidate())
 
-        elector.listCandidates(lockName).map(CandidateInfo::nodeId) shouldBeEqualTo listOf("node-2")
+        elector.listCandidates(lockName)
+            .map(CandidateInfo::nodeId) shouldBeEqualTo listOf("node-2")
+
         var actionRan = false
         elector.runIfLeader(lockName, FifoGroupElectionStrategy, maxLeaders = 1) {
             actionRan = true
@@ -100,8 +111,10 @@ class LocalStrategicCandidateTtlTest {
         registry.register(CandidateInfo("node-1"), 5.nanoseconds)
 
         registry.list().map(CandidateInfo::nodeId) shouldBeEqualTo listOf("node-1")
+
         nowNanos.set(104L)
         registry.list().map(CandidateInfo::nodeId) shouldBeEqualTo listOf("node-1")
+
         nowNanos.set(105L)
         registry.list().shouldBeEmpty()
     }
@@ -128,6 +141,7 @@ class LocalStrategicCandidateTtlTest {
         registry.refresh(CandidateInfo("node-1", metadata = mapOf("heartbeat" to "new")), 10.nanoseconds)
 
         val refreshed = registry.list().single()
+        log.debug { "refreshed: $refreshed" }
         refreshed.registeredAt shouldBeEqualTo beforeRefresh.registeredAt
         refreshed.lastStartTime shouldBeEqualTo beforeRefresh.lastStartTime
         refreshed.lastCompletionTime shouldBeEqualTo beforeRefresh.lastCompletionTime
@@ -137,6 +151,7 @@ class LocalStrategicCandidateTtlTest {
 
         nowNanos.set(113L)
         registry.list().map(CandidateInfo::nodeId) shouldBeEqualTo listOf("node-1")
+
         nowNanos.set(114L)
         registry.list().shouldBeEmpty()
     }

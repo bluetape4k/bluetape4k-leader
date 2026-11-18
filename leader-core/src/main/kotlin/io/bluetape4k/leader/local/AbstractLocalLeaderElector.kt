@@ -21,7 +21,7 @@ import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LocalRequestLeaseStore
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.leader.parkRemainingMinLeaseTime
-import io.bluetape4k.logging.KotlinLogging
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.support.requireNotBlank
 import kotlinx.atomicfu.locks.withLock
@@ -30,8 +30,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.time.Duration
-
-private val log = KotlinLogging.logger {}
+import kotlin.time.toJavaDuration
 
 /**
  * JVM 프로세스 안에서 lock별 `ReentrantLock`, 상태 snapshot, listener, request lease를 관리하는 단일 선거 기반 클래스입니다.
@@ -45,7 +44,7 @@ abstract class AbstractLocalLeaderElector(
    LeaderLeaseAcquirer,
    LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
 
-    companion object {
+    companion object: KLogging() {
         /**
          * `LOCAL_FACTORY_BEAN_NAME`는 backend별 leader elector 인스턴스를 생성하는 factory 계약입니다.
          */
@@ -86,9 +85,7 @@ abstract class AbstractLocalLeaderElector(
      * @return `action`이 반환한 값
      */
     protected fun <T> withLeaderLock(lockName: String, action: () -> T): T {
-        return getLock(lockName).withLock {
-            action()
-        }
+        return getLock(lockName).withLock { action() }
     }
 
     /**
@@ -158,12 +155,10 @@ abstract class AbstractLocalLeaderElector(
         val delegate = object: ExtendDelegate {
             private val _lastExtendDeadline = lastExtendDeadline
             override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
-            override fun extend(lockAtMostFor: Duration): io.bluetape4k.leader.ExtendOutcome {
+            override fun extend(lockAtMostFor: Duration): ExtendOutcome {
                 val extended = states.extendSingle(lockName, lockAtMostFor)
                 return if (extended) {
-                    ExtendOutcome.Extended(
-                        Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds)
-                    )
+                    ExtendOutcome.Extended(Instant.now() + lockAtMostFor.toJavaDuration())
                 } else {
                     ExtendOutcome.NotHeld
                 }

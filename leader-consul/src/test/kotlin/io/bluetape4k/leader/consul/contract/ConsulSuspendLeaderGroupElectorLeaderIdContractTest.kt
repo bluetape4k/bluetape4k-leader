@@ -21,8 +21,8 @@ class ConsulSuspendLeaderGroupElectorLeaderIdContractTest: AbstractSuspendLeader
         log.info { "create ConsulSuspendLeaderGroupElector. options=$options" }
 
         return ConsulSuspendLeaderGroupElector(
-            ConsulContractSupport.endpoint(),
-            ConsulLeaderGroupElectionOptions(
+            endpoint = ConsulContractSupport.endpoint(),
+            options = ConsulLeaderGroupElectionOptions(
                 leaderGroupOptions = options,
                 keyPrefix = ConsulContractSupport.keyPrefix(),
             ),

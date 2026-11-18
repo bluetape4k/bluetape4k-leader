@@ -32,7 +32,6 @@ class LocalSuspendLeaderElectorFactoryTest {
     @Test
     fun `create - 기본 옵션으로 SuspendLeaderElector 인스턴스 반환`() = runSuspendIO {
         val elector = factory.create(LeaderElectionOptions.Default)
-        elector.shouldNotBeNull()
         elector.shouldBeInstanceOf<LocalSuspendLeaderElector>()
     }
 

@@ -2,17 +2,13 @@ package io.bluetape4k.leader.identity
 
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.support.requireGt
+import io.bluetape4k.support.requirePositiveNumber
 
 /**
  * Base58 문자 집합에서 임의의 leader ID를 생성합니다.
  * @property length 생성할 ID 문자열의 문자 수. 0보다 커야 합니다.
  */
 class RandomLeaderIdProvider(val length: Int = DefaultLength): LeaderIdProvider {
-
-    init {
-        length.requireGt(0, "length")
-    }
 
     companion object: KLogging() {
         /**
@@ -27,5 +23,10 @@ class RandomLeaderIdProvider(val length: Int = DefaultLength): LeaderIdProvider 
         val Default: LeaderIdProvider = RandomLeaderIdProvider()
     }
 
-    override fun nextLeaderId(lockName: String): String = Base58.randomString(length)
+    init {
+        length.requirePositiveNumber("length")
+    }
+
+    override fun nextLeaderId(lockName: String): String =
+        Base58.randomString(length)
 }

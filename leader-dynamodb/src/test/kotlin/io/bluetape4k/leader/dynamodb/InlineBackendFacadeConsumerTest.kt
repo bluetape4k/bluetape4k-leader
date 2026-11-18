@@ -1,16 +1,21 @@
 package io.bluetape4k.leader.dynamodb
 
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.until
+import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition
@@ -24,22 +29,21 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import org.awaitility.kotlin.atMost
-import org.awaitility.kotlin.await
-import org.awaitility.kotlin.until
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
+class InlineBackendFacadeConsumerTest: AbstractDynamoDbLeaderTest() {
+
+    companion object: KLogging()
 
     @BeforeAll
     fun createDefaultOptionsTable() {
         val defaultTable = DynamoDbLeaderElectionOptions.DefaultTableName
-        if (dynamoDb.listTables().tableNames().contains(defaultTable)) {
+        if (dynamoDbSync.listTables().tableNames().contains(defaultTable)) {
             return
         }
 
-        dynamoDb.createTable(
+        dynamoDbSync.createTable(
             CreateTableRequest.builder()
                 .tableName(defaultTable)
                 .billingMode(BillingMode.PAY_PER_REQUEST)
@@ -57,66 +61,80 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
                 )
                 .build(),
         )
-        dynamoDb.waiter().waitUntilTableExists { it.tableName(defaultTable) }
+        dynamoDbSync.waiter().waitUntilTableExists { it.tableName(defaultTable) }
     }
 
     private fun singleOptions(
         prefix: String = keyPrefix(),
         leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
-    ) = DynamoDbLeaderElectionOptions(
-        leaderOptions = leaderOptions,
-        tableName = tableName,
-        keyPrefix = prefix,
-        clockSkewTolerance = 10.milliseconds,
-        ttlPadding = 1.seconds,
-    )
+    ): DynamoDbLeaderElectionOptions =
+        DynamoDbLeaderElectionOptions(
+            leaderOptions = leaderOptions,
+            tableName = tableName,
+            keyPrefix = prefix,
+            clockSkewTolerance = 10.milliseconds,
+            ttlPadding = 1.seconds,
+        )
 
     private fun groupOptions(
         prefix: String = keyPrefix(),
         leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-    ) = DynamoDbLeaderGroupElectionOptions(
-        leaderGroupOptions = leaderGroupOptions,
-        tableName = tableName,
-        keyPrefix = prefix,
-        clockSkewTolerance = 10.milliseconds,
-        ttlPadding = 1.seconds,
-    )
+    ): DynamoDbLeaderGroupElectionOptions =
+        DynamoDbLeaderGroupElectionOptions(
+            leaderGroupOptions = leaderGroupOptions,
+            tableName = tableName,
+            keyPrefix = prefix,
+            clockSkewTolerance = 10.milliseconds,
+            ttlPadding = 1.seconds,
+        )
 
     private fun callRunIfLeaderExplicit(lockName: String, action: () -> String): String? =
-        dynamoDb.runIfLeader(lockName, singleOptions(), action)
+        dynamoDbSync.runIfLeader(lockName, singleOptions(), action)
 
     private fun callRunIfLeaderDefault(lockName: String, action: () -> String): String? =
-        dynamoDb.runIfLeader(lockName, action = action)
+        dynamoDbSync.runIfLeader(lockName, action = action)
 
-    private fun callRunAsyncIfLeaderExplicit(lockName: String, action: () -> CompletableFuture<String>): CompletableFuture<String?> =
-        dynamoDb.runAsyncIfLeader(lockName, VirtualThreadExecutor, singleOptions(), action)
+    private fun callRunAsyncIfLeaderExplicit(
+        lockName: String,
+        action: () -> CompletableFuture<String>,
+    ): CompletableFuture<String?> =
+        dynamoDbSync.runAsyncIfLeader(lockName, VirtualThreadExecutor, singleOptions(), action)
 
-    private fun callRunAsyncIfLeaderDefault(lockName: String, action: () -> CompletableFuture<String>): CompletableFuture<String?> =
-        dynamoDb.runAsyncIfLeader(lockName, action = action)
+    private fun callRunAsyncIfLeaderDefault(
+        lockName: String,
+        action: () -> CompletableFuture<String>,
+    ): CompletableFuture<String?> =
+        dynamoDbSync.runAsyncIfLeader(lockName, action = action)
 
     private fun callRunIfLeaderGroupExplicit(lockName: String, action: () -> String): String? =
-        dynamoDb.runIfLeaderGroup(lockName, groupOptions(), action)
+        dynamoDbSync.runIfLeaderGroup(lockName, groupOptions(), action)
 
     private fun callRunIfLeaderGroupDefault(lockName: String, action: () -> String): String? =
-        dynamoDb.runIfLeaderGroup(lockName, action = action)
+        dynamoDbSync.runIfLeaderGroup(lockName, action = action)
 
-    private fun callRunAsyncIfLeaderGroupExplicit(lockName: String, action: () -> CompletableFuture<String>): CompletableFuture<String?> =
-        dynamoDb.runAsyncIfLeaderGroup(lockName, VirtualThreadExecutor, groupOptions(), action)
+    private fun callRunAsyncIfLeaderGroupExplicit(
+        lockName: String,
+        action: () -> CompletableFuture<String>,
+    ): CompletableFuture<String?> =
+        dynamoDbSync.runAsyncIfLeaderGroup(lockName, VirtualThreadExecutor, groupOptions(), action)
 
-    private fun callRunAsyncIfLeaderGroupDefault(lockName: String, action: () -> CompletableFuture<String>): CompletableFuture<String?> =
-        dynamoDb.runAsyncIfLeaderGroup(lockName, action = action)
+    private fun callRunAsyncIfLeaderGroupDefault(
+        lockName: String,
+        action: () -> CompletableFuture<String>,
+    ): CompletableFuture<String?> =
+        dynamoDbSync.runAsyncIfLeaderGroup(lockName, action = action)
 
     private fun callRunVirtualIfLeaderExplicit(lockName: String, action: () -> String) =
-        dynamoDb.runVirtualIfLeader(lockName, singleOptions(), action)
+        dynamoDbSync.runVirtualIfLeader(lockName, singleOptions(), action)
 
     private fun callRunVirtualIfLeaderDefault(lockName: String, action: () -> String) =
-        dynamoDb.runVirtualIfLeader(lockName, action = action)
+        dynamoDbSync.runVirtualIfLeader(lockName, action = action)
 
     private fun callRunVirtualIfLeaderGroupExplicit(lockName: String, action: () -> String) =
-        dynamoDb.runVirtualIfLeaderGroup(lockName, groupOptions(), action)
+        dynamoDbSync.runVirtualIfLeaderGroup(lockName, groupOptions(), action)
 
     private fun callRunVirtualIfLeaderGroupDefault(lockName: String, action: () -> String) =
-        dynamoDb.runVirtualIfLeaderGroup(lockName, action = action)
+        dynamoDbSync.runVirtualIfLeaderGroup(lockName, action = action)
 
     private suspend fun callSuspendRunIfLeaderExplicit(lockName: String, action: suspend () -> String): String? =
         dynamoDbAsync.suspendRunIfLeader(lockName, singleOptions(), action)
@@ -164,8 +182,9 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
         val singleLockName = randomName()
         val singleStarted = CountDownLatch(1)
         val singleRelease = CountDownLatch(1)
+
         val singleHolder = executor.submit {
-            dynamoDb.runIfLeader(
+            dynamoDbSync.runIfLeader(
                 singleLockName,
                 singleOptions(
                     singlePrefix,
@@ -182,8 +201,9 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
         val groupLockName = randomName()
         val groupStarted = CountDownLatch(1)
         val groupRelease = CountDownLatch(1)
+
         val groupHolder = executor.submit {
-            dynamoDb.runIfLeaderGroup(
+            dynamoDbSync.runIfLeaderGroup(
                 groupLockName,
                 groupOptions(
                     groupPrefix,
@@ -201,11 +221,11 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
             groupStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
 
             val singleCalls = AtomicInteger()
-            dynamoDb.runIfLeader(
-                singleLockName,
-                singleOptions(
-                    singlePrefix,
-                    LeaderElectionOptions(waitTime = 150.milliseconds, leaseTime = 5.seconds),
+            dynamoDbSync.runIfLeader(
+                lockName = singleLockName,
+                options = singleOptions(
+                    prefix = singlePrefix,
+                    leaderOptions = LeaderElectionOptions(waitTime = 150.milliseconds, leaseTime = 5.seconds),
                 ),
             ) {
                 singleCalls.incrementAndGet()
@@ -214,11 +234,15 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
             singleCalls.get() shouldBeEqualTo 0
 
             val groupCalls = AtomicInteger()
-            dynamoDb.runIfLeaderGroup(
-                groupLockName,
-                groupOptions(
-                    groupPrefix,
-                    LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 150.milliseconds, leaseTime = 5.seconds),
+            dynamoDbSync.runIfLeaderGroup(
+                lockName = groupLockName,
+                options = groupOptions(
+                    prefix = groupPrefix,
+                    leaderGroupOptions = LeaderGroupElectionOptions(
+                        maxLeaders = 1,
+                        waitTime = 150.milliseconds,
+                        leaseTime = 5.seconds
+                    ),
                 ),
             ) {
                 groupCalls.incrementAndGet()
@@ -240,12 +264,14 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
         val failure = IllegalStateException("issue-994 facade failure")
 
         assertFailsWith<IllegalStateException> {
-            dynamoDb.runIfLeader(lockName, singleOptions()) {
+            dynamoDbSync.runIfLeader(lockName, singleOptions()) {
                 throw failure
             }
         }
 
-        dynamoDb.runIfLeader(lockName, singleOptions()) { "reacquired" } shouldBeEqualTo "reacquired"
+        dynamoDbSync.runIfLeader(lockName, singleOptions()) {
+            "reacquired"
+        } shouldBeEqualTo "reacquired"
     }
 
     @Test
@@ -258,17 +284,19 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
         val failure = IllegalStateException("issue-994 group facade failure")
 
         assertFailsWith<IllegalStateException> {
-            dynamoDb.runIfLeaderGroup(lockName, options) {
+            dynamoDbSync.runIfLeaderGroup(lockName, options) {
                 throw failure
             }
         }
-        dynamoDb.runIfLeaderGroup(lockName, options) { "after-failure" } shouldBeEqualTo "after-failure"
+        dynamoDbSync.runIfLeaderGroup(lockName, options) {
+            "after-failure"
+        } shouldBeEqualTo "after-failure"
 
         val executor = Executors.newVirtualThreadPerTaskExecutor()
         val actionStarted = CountDownLatch(1)
         val action = CompletableFuture<String>()
         try {
-            val result = dynamoDb.runAsyncIfLeaderGroup(lockName, executor, options) {
+            val result = dynamoDbSync.runAsyncIfLeaderGroup(lockName, executor, options) {
                 actionStarted.countDown()
                 action
             }
@@ -276,7 +304,10 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
             actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             await atMost 5.seconds until { action.isCancelled }
-            dynamoDb.runIfLeaderGroup(lockName, options) { "after-cancel" } shouldBeEqualTo "after-cancel"
+
+            dynamoDbSync.runIfLeaderGroup(lockName, options) {
+                "after-cancel"
+            } shouldBeEqualTo "after-cancel"
         } finally {
             action.cancel(true)
             executor.shutdownNow()
@@ -295,7 +326,7 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
         val action = CompletableFuture<String>()
 
         try {
-            val result = dynamoDb.runAsyncIfLeader(lockName, executor, options) {
+            val result = dynamoDbSync.runAsyncIfLeader(lockName, executor, options) {
                 actionStarted.countDown()
                 action
             }
@@ -303,7 +334,8 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
             actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
             result.cancel(false).shouldBeTrue()
             await atMost 5.seconds until { action.isCancelled }
-            dynamoDb.runIfLeader(lockName, options) { "reacquired" } shouldBeEqualTo "reacquired"
+
+            dynamoDbSync.runIfLeader(lockName, options) { "reacquired" } shouldBeEqualTo "reacquired"
         } finally {
             action.cancel(true)
             executor.shutdownNow()
@@ -326,7 +358,9 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
             }
         }
 
-        dynamoDbAsync.suspendRunIfLeader(lockName, options) { "reacquired" } shouldBeEqualTo "reacquired"
+        dynamoDbAsync.suspendRunIfLeader(lockName, options) {
+            "reacquired"
+        } shouldBeEqualTo "reacquired"
     }
 
     @Test
@@ -339,7 +373,8 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
         val actionStarted = CountDownLatch(1)
         val actionInterrupted = CountDownLatch(1)
         val release = CountDownLatch(1)
-        val result = dynamoDb.runVirtualIfLeader(lockName, options) {
+
+        val result = dynamoDbSync.runVirtualIfLeader(lockName, options) {
             actionStarted.countDown()
             try {
                 release.await()
@@ -354,8 +389,9 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
             actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
             result.cancel(true).shouldBeTrue()
             actionInterrupted.await(5, TimeUnit.SECONDS).shouldBeTrue()
-            await atMost 5.seconds until {
-                dynamoDb.runIfLeader(lockName, options) { "reacquired" } == "reacquired"
+
+            await atMost 5.seconds untilAsserted {
+                dynamoDbSync.runIfLeader(lockName, options) { "reacquired" } shouldBeEqualTo "reacquired"
             }
         } finally {
             release.countDown()
@@ -372,7 +408,8 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
         val actionStarted = CountDownLatch(1)
         val actionInterrupted = CountDownLatch(1)
         val release = CountDownLatch(1)
-        val result = dynamoDb.runVirtualIfLeaderGroup(lockName, options) {
+
+        val result = dynamoDbSync.runVirtualIfLeaderGroup(lockName, options) {
             actionStarted.countDown()
             try {
                 release.await()
@@ -387,8 +424,8 @@ class InlineBackendFacadeConsumerTest : AbstractDynamoDbLeaderTest() {
             actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
             result.cancel(true).shouldBeTrue()
             actionInterrupted.await(5, TimeUnit.SECONDS).shouldBeTrue()
-            await atMost 5.seconds until {
-                dynamoDb.runIfLeaderGroup(lockName, options) { "slot-reused" } == "slot-reused"
+            await atMost 5.seconds untilAsserted {
+                dynamoDbSync.runIfLeaderGroup(lockName, options) { "slot-reused" } shouldBeEqualTo "slot-reused"
             }
         } finally {
             release.countDown()

@@ -175,10 +175,10 @@ class ConsulLeaderElector private constructor(
             auditLeaderId = handle.auditLeaderId,
         )
         val watchdog = LeaderLeaseAutoExtender.start(
-            options.leaderOptions.autoExtend,
-            options.leaderOptions.leaseTime,
-            delegate,
-            ERROR_CLASSIFIER,
+            enabled = options.leaderOptions.autoExtend,
+            leaseTime = options.leaderOptions.leaseTime,
+            delegate = delegate,
+            classifier = ERROR_CLASSIFIER,
         )
 
         try {
@@ -201,11 +201,12 @@ class ConsulLeaderElector private constructor(
         val cleanupBarrier = AsyncLeaseCleanupBarrier(::release)
         val beginCleanup: () -> CompletableFuture<Unit> = {
             when {
-                lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) -> cleanupBarrier.request()
-                lifecycle.get() == AsyncLifecycle.CLEANUP -> cleanupBarrier.request()
-                else                                      -> completableFutureOf(
-                    Unit
-                )
+                lifecycle.compareAndSet(AsyncLifecycle.WAITING, AsyncLifecycle.CLEANUP) ->
+                    cleanupBarrier.request()
+                lifecycle.get() == AsyncLifecycle.CLEANUP                               ->
+                    cleanupBarrier.request()
+                else                                                                    ->
+                    completableFutureOf(Unit)
             }
         }
         val acquisitionFuture = futureOf(executor) {
@@ -409,10 +410,11 @@ class ConsulLeaderElector private constructor(
     }
 
     private fun destroySession(sessionId: ConsulSessionId) {
-        runCatching { lockClient.destroySession(sessionId).getWithinRequestTimeout(lockClient) }
-            .onFailure { e ->
-                log.warn(e) { "Failed to destroy Consul session. sessionId=${sessionId.value}" }
-            }
+        runCatching {
+            lockClient.destroySession(sessionId).getWithinRequestTimeout(lockClient)
+        }.onFailure { e ->
+            log.warn(e) { "Failed to destroy Consul session. sessionId=${sessionId.value}" }
+        }
     }
 }
 
@@ -426,20 +428,23 @@ private fun remainingMillis(deadlineNanos: Long): Long =
  * [this] Consul endpoint에서 [lockName]을 획득했을 때만 [action]을 실행합니다.
  * 경합이면 null을 반환하고, session과 KV ownership은 action 종료 후 정리합니다.
  */
-fun <T> ConsulEndpoint.runIfLeader(
+inline fun <T> ConsulEndpoint.runIfLeader(
     lockName: String,
     options: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
-    action: () -> T,
-): T? = ConsulLeaderElector(this, options).runIfLeader(lockName, action)
+    crossinline action: () -> T,
+): T? =
+    ConsulLeaderElector(this, options)
+        .runIfLeader(lockName) { action() }
 
 /**
  * [this] Consul endpoint에서 [lockName]을 비동기로 획득한 뒤 [action]을 실행합니다.
  * 기본 [executor]는 virtual thread executor이며 경합 시 null로 완료합니다.
  */
-fun <T> ConsulEndpoint.runAsyncIfLeader(
+inline fun <T> ConsulEndpoint.runAsyncIfLeader(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
     options: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
-    action: () -> CompletableFuture<T>,
+    crossinline action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> =
-    ConsulLeaderElector(this, options).runAsyncIfLeader(lockName, executor, action)
+    ConsulLeaderElector(this, options)
+        .runAsyncIfLeader(lockName, executor) { action() }

@@ -47,8 +47,8 @@ class SuspendLeaderManagementActionRegistryTest {
         registry.register(handle).accepted.shouldBeTrue()
 
         registry.release("suspend-primary") shouldBeEqualTo LeaderManagementActionResult(
-            LeaderManagementAction.RELEASE,
-            LeaderManagementActionOutcome.RELEASED,
+            action = LeaderManagementAction.RELEASE,
+            outcome = LeaderManagementActionOutcome.RELEASED,
             mutationAttempted = true,
         )
 
@@ -71,8 +71,8 @@ class SuspendLeaderManagementActionRegistryTest {
         registry.register(handle)
 
         registry.release(
-            "ktor-surface",
-            io.bluetape4k.leader.LeaderManagementActionSurface.KTOR,
+            lockName = "ktor-surface",
+            surface = io.bluetape4k.leader.LeaderManagementActionSurface.KTOR,
         ).outcome shouldBeEqualTo LeaderManagementActionOutcome.RELEASED
 
         observations.single().surface shouldBeEqualTo LeaderManagementActionSurface.KTOR
@@ -268,7 +268,7 @@ class SuspendLeaderManagementActionRegistryTest {
         }
     }
 
-    private fun eventually(assertion: () -> Unit) {
+    private inline fun eventually(crossinline assertion: () -> Unit) {
         await atMost 2.seconds withPollInterval 5.milliseconds untilAsserted {
             assertion()
         }

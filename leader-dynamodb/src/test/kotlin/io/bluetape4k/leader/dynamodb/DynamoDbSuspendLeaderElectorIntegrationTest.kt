@@ -114,8 +114,8 @@ class DynamoDbSuspendLeaderElectorIntegrationTest: AbstractDynamoDbLeaderTest() 
         leaderOptions: LeaderElectionOptions = LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 5.seconds),
     ): DynamoDbSuspendLeaderElector =
         DynamoDbSuspendLeaderElector(
-            dynamoDbAsync,
-            DynamoDbLeaderElectionOptions(
+            dynamoDb = dynamoDbAsync,
+            options = DynamoDbLeaderElectionOptions(
                 leaderOptions = leaderOptions,
                 tableName = tableName,
                 keyPrefix = keyPrefix,

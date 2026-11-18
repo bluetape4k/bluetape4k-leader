@@ -14,6 +14,7 @@ import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.RandomElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
@@ -33,13 +34,14 @@ class ElectionStrategyTest {
         lastCompletionTime: Instant? = null,
         successCount: Long = 0,
         failureCount: Long = 0,
-    ) = CandidateInfo(
-        nodeId = id,
-        registeredAt = registeredAt,
-        lastCompletionTime = lastCompletionTime,
-        successCount = successCount,
-        failureCount = failureCount,
-    )
+    ): CandidateInfo =
+        CandidateInfo(
+            nodeId = id,
+            registeredAt = registeredAt,
+            lastCompletionTime = lastCompletionTime,
+            successCount = successCount,
+            failureCount = failureCount,
+        )
 
     // ── FifoElectionStrategy ──────────────────────────────────────────────────
 
@@ -81,6 +83,7 @@ class ElectionStrategyTest {
             candidate("c", registeredAt = t2),
         )
         val result = FifoElectionStrategy.elect(candidates)
+        log.debug { "result: $result" }
         result.winner?.nodeId shouldBeEqualTo "a"
         result.eliminations.size shouldBeEqualTo 2
         result.eliminations.all { it.reason.contains("registered later") }.shouldBeTrue()
@@ -93,10 +96,10 @@ class ElectionStrategyTest {
         val candidates = listOf(candidate("a"), candidate("b"), candidate("c"))
         val strategy = RandomElectionStrategy(seed = 42L)
 
-        val r1 = strategy.elect(candidates).winner
-        val r2 = strategy.elect(candidates).winner
+        val r1 = strategy.elect(candidates).winner.shouldNotBeNull()
+        val r2 = strategy.elect(candidates).winner.shouldNotBeNull()
 
-        r1.shouldNotBeNull().nodeId shouldBeEqualTo r2.shouldNotBeNull().nodeId
+        r1.nodeId shouldBeEqualTo r2.nodeId
     }
 
     @Test
@@ -109,6 +112,7 @@ class ElectionStrategyTest {
         val candidates = listOf(candidate("a"), candidate("b"), candidate("c"))
         val result = RandomElectionStrategy(seed = 42L).elect(candidates)
 
+        log.debug { "result: $result" }
         result.winner.shouldNotBeNull()
         result.eliminations.size shouldBeEqualTo 2
         result.eliminations.all { it.reason.contains("not selected by random election") }.shouldBeTrue()
@@ -163,6 +167,7 @@ class ElectionStrategyTest {
         )
 
         val result = ScoredElectionStrategy(SuccessRateScorer).elect(candidates)
+        log.debug { "result: $result" }
         result.winner?.nodeId shouldBeEqualTo "high"
         result.eliminations.size shouldBeEqualTo 1
         result.eliminations.first().reason.contains("score below winner").shouldBeTrue()
@@ -194,6 +199,7 @@ class ElectionStrategyTest {
             candidate("m", registeredAt = t0),
         )
         val winner = ScoredElectionStrategy(SuccessRateScorer).elect(candidates).winner
+        log.debug { "winner=$winner" }
         winner.shouldNotBeNull()
         winner.nodeId shouldBeEqualTo "a"
     }

@@ -4,10 +4,13 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotBeEqualTo
+import io.bluetape4k.assertions.shouldNotContain
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -21,11 +24,12 @@ class LeaderLockHandleTest {
 
     companion object: KLogging()
 
-    private fun identity(name: String = "test-lock") = LockIdentity(
-        lockName = name,
-        kind = LockIdentity.AnnotationKind.SINGLE,
-        factoryBeanName = "testFactory",
-    )
+    private fun identity(name: String = "test-lock"): LockIdentity =
+        LockIdentity(
+            lockName = name,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = "testFactory",
+        )
 
     private fun fakeDelegate(held: Boolean = true): ExtendDelegate = object: ExtendDelegate {
         private val deadline = AtomicReference(Instant.EPOCH)
@@ -141,9 +145,11 @@ class LeaderLockHandleTest {
     fun `withReentryDepth copies share the same extendDelegate instance`() {
         val handle = realHandle(depth = 0)
         val inner = handle.withReentryDepth(1)
+
         // Both share the same delegate — both return Extended (same backend)
         handle.extend(30.seconds).isExtended.shouldBeTrue()
         inner.extend(30.seconds).isExtended.shouldBeTrue()
+
         // Structural: inner reentryDepth is 1, outer is 0
         inner.reentryDepth shouldBeEqualTo 1
         handle.reentryDepth shouldBeEqualTo 0
@@ -153,6 +159,8 @@ class LeaderLockHandleTest {
     fun `withReentryDepth preserves identity and token`() {
         val handle = realHandle(name = "shared-lock", token = "tok-xyz")
         val inner = handle.withReentryDepth(2)
+
+        log.debug { "inner=$inner" }
         inner.identity shouldBeEqualTo handle.identity
         inner.token shouldBeEqualTo handle.token
     }
@@ -162,8 +170,8 @@ class LeaderLockHandleTest {
         val token = "example-key-redacted-token"
         val text = realHandle(token = token).toString()
 
-        text.contains(token).shouldBeFalse()
-        text.contains("token=$REDACTED").shouldBeTrue()
+        text shouldNotContain token
+        text shouldContain "token=$REDACTED"
     }
 
     // --- equals / hashCode ---
@@ -172,8 +180,21 @@ class LeaderLockHandleTest {
     fun `Real equals based on identity, token, reentryDepth, slotId`() {
         val delegate = fakeDelegate()
         val id = identity()
-        val h1 = LeaderLockHandle.real(id, "tok", System.nanoTime(), reentryDepth = 0, extendDelegate = delegate)
-        val h2 = LeaderLockHandle.real(id, "tok", System.nanoTime() + 1000, reentryDepth = 0, extendDelegate = delegate)
+
+        val h1 = LeaderLockHandle.real(
+            identity = id,
+            token = "tok",
+            acquiredAtNanos = System.nanoTime(),
+            reentryDepth = 0,
+            extendDelegate = delegate
+        )
+        val h2 = LeaderLockHandle.real(
+            identity = id,
+            token = "tok",
+            acquiredAtNanos = System.nanoTime() + 1000,
+            reentryDepth = 0,
+            extendDelegate = delegate
+        )
         // acquiredAtNanos differs but equals ignores it
         h1 shouldBeEqualTo h2
     }
@@ -182,8 +203,21 @@ class LeaderLockHandleTest {
     fun `Real not equals when token differs`() {
         val delegate = fakeDelegate()
         val id = identity()
-        val h1 = LeaderLockHandle.real(id, "tok-A", System.nanoTime(), reentryDepth = 0, extendDelegate = delegate)
-        val h2 = LeaderLockHandle.real(id, "tok-B", System.nanoTime(), reentryDepth = 0, extendDelegate = delegate)
+
+        val h1 = LeaderLockHandle.real(
+            identity = id,
+            token = "tok-A",
+            acquiredAtNanos = System.nanoTime(),
+            reentryDepth = 0,
+            extendDelegate = delegate
+        )
+        val h2 = LeaderLockHandle.real(
+            identity = id,
+            token = "tok-B",
+            acquiredAtNanos = System.nanoTime(),
+            reentryDepth = 0,
+            extendDelegate = delegate
+        )
         h1 shouldNotBeEqualTo h2
     }
 

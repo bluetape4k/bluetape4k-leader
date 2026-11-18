@@ -102,7 +102,7 @@ class LeaderRecorderContextDropLogTest {
 
         val warnings = try {
             captureWarningMessages {
-                val tasks = (1..workerCount).map {
+                val tasks = List(workerCount) {
                     executor.submit {
                         ready.countDown()
                         start.await()
@@ -171,7 +171,7 @@ class LeaderRecorderContextDropLogTest {
     private class AnotherFakeRecorder
     private class ThirdFakeRecorder
 
-    private fun captureWarningMessages(block: () -> Unit): List<String> {
+    private inline fun captureWarningMessages(block: () -> Unit): List<String> {
         val logger = LoggerFactory.getLogger(LeaderRecorderContextDropLog::class.java) as Logger
         val appender = ListAppender<ILoggingEvent>().apply {
             context = logger.loggerContext

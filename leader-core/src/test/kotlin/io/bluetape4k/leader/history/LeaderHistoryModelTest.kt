@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
@@ -13,9 +14,9 @@ class LeaderHistoryModelTest {
 
     companion object: KLogging()
 
-    private val now = Instant.parse("2026-05-14T10:00:00Z")
-    private val future = now.plusSeconds(60)
-    private val past = now.minusSeconds(1)
+    private val now = Instant.now()
+    private val future = now + 60.seconds()
+    private val past = now - 1.seconds()
 
     private fun baseRecord(
         lockedUntil: Instant = future,

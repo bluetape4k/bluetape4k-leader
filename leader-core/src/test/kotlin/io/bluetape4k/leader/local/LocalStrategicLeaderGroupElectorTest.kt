@@ -7,16 +7,20 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.GroupElectionStrategy
 import io.bluetape4k.leader.strategy.StrategicGroupElectionResult
 import io.bluetape4k.leader.strategy.strategies.FifoGroupElectionStrategy
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
 import kotlinx.coroutines.CancellationException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.EnabledForJreRange
+import org.junit.jupiter.api.condition.JRE
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -103,8 +107,8 @@ class LocalStrategicLeaderGroupElectorTest {
     @Test
     fun `refreshCandidate - 결과 통계와 등록 시각을 보존하고 metadata만 갱신한다`() {
         node1.registerCandidate(
-            lockName,
-            CandidateInfo(
+            lockName = lockName,
+            info = CandidateInfo(
                 nodeId = node1.nodeId,
                 registeredAt = Instant.parse("2026-01-01T00:00:00Z"),
                 successCount = 3,
@@ -112,15 +116,16 @@ class LocalStrategicLeaderGroupElectorTest {
                 metadata = mapOf("version" to "old"),
             ),
         )
-        node1.updateResult(lockName, node1.nodeId, io.bluetape4k.leader.strategy.CandidateResult.SUCCESS)
+        node1.updateResult(lockName, node1.nodeId, CandidateResult.SUCCESS)
         val beforeRefresh = node1.listCandidates(lockName).single()
 
         node1.refreshCandidate(
-            lockName,
-            CandidateInfo(node1.nodeId, metadata = mapOf("version" to "new")),
+            lockName = lockName,
+            info = CandidateInfo(node1.nodeId, metadata = mapOf("version" to "new")),
         )
 
         val refreshed = node1.listCandidates(lockName).single()
+        log.debug { "refreshed: $refreshed" }
         refreshed.registeredAt shouldBeEqualTo beforeRefresh.registeredAt
         refreshed.lastCompletionTime shouldBeEqualTo beforeRefresh.lastCompletionTime
         refreshed.successCount shouldBeEqualTo beforeRefresh.successCount
@@ -146,6 +151,24 @@ class LocalStrategicLeaderGroupElectorTest {
         node1.listCandidates(lockName).single().successCount shouldBeEqualTo (workers * rounds).toLong()
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
+    @Test
+    fun `refreshCandidate와 updateResult 동시 호출에서도 결과 카운터를 잃지 않는다 - Virtual Threads`() {
+        val workers = 2 * Runtimex.availableProcessors
+        val rounds = 100
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+
+        StructuredTaskScopeTester()
+            .rounds(workers * rounds)
+            .add {
+                node1.updateResult(lockName, node1.nodeId, CandidateResult.SUCCESS)
+                node1.refreshCandidate(lockName, CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok")))
+            }
+            .run()
+
+        node1.listCandidates(lockName).single().successCount shouldBeEqualTo (workers * rounds).toLong()
+    }
+
     @Test
     fun `refreshCandidate와 unregisterCandidate 동시 호출에서도 후보를 되살리지 않는다`() {
         node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
@@ -153,15 +176,36 @@ class LocalStrategicLeaderGroupElectorTest {
         MultithreadingTester()
             .workers(2)
             .rounds(100)
-            .addAll(
-                {
-                    node1.refreshCandidate(
-                        lockName,
-                        CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok"))
-                    )
-                },
-                { node1.unregisterCandidate(lockName, node1.nodeId) },
-            )
+            .add {
+                node1.refreshCandidate(
+                    lockName,
+                    CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok"))
+                )
+            }
+            .add {
+                node1.unregisterCandidate(lockName, node1.nodeId)
+            }
+            .run()
+
+        node1.listCandidates(lockName).shouldBeEmpty()
+    }
+
+    @EnabledForJreRange(min = JRE.JAVA_21)
+    @Test
+    fun `refreshCandidate와 unregisterCandidate 동시 호출에서도 후보를 되살리지 않는다 - Virtual Threads`() {
+        node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
+
+        StructuredTaskScopeTester()
+            .rounds(2 * 100)
+            .add {
+                node1.refreshCandidate(
+                    lockName = lockName,
+                    info = CandidateInfo(node1.nodeId, metadata = mapOf("heartbeat" to "ok"))
+                )
+            }
+            .add {
+                node1.unregisterCandidate(lockName, node1.nodeId)
+            }
             .run()
 
         node1.listCandidates(lockName).shouldBeEmpty()

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.support.toUtf8Bytes
 import io.lettuce.core.RedisCommandExecutionException
 
 /**
@@ -50,7 +51,7 @@ internal object LettuceCandidateKeyCodec {
         "${legacyIndexKey(keyPrefix, lockName)}:$nodeId"
 
     private fun lengthDelimited(value: String): String {
-        val byteLength = value.toByteArray(Charsets.UTF_8).size
+        val byteLength = value.toUtf8Bytes().size
         return "$byteLength:$value"
     }
 

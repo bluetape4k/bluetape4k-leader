@@ -3,7 +3,8 @@ package io.bluetape4k.leader
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldContainIgnoringCase
+import io.bluetape4k.assertions.shouldNotContainIgnoringCase
 import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
@@ -52,11 +53,9 @@ class LeaderLeaseExtensionObservationScopeTest {
 
     @Test
     fun `scope handle does not reveal capability state`() {
-        val scope = LeaderLeaseExtensionObservers.addScopedObserver { }
-
-        scope.use { scope ->
-            scope.toString().contains("observer", ignoreCase = true).shouldBeFalse()
-            scope.toString().contains("scope", ignoreCase = true).shouldBeTrue()
+        LeaderLeaseExtensionObservers.addScopedObserver { }.use { scope ->
+            scope.toString() shouldNotContainIgnoringCase "observer"
+            scope.toString() shouldContainIgnoringCase "scope"
         }
     }
 }

@@ -20,7 +20,9 @@ class RandomElectionStrategy(val seed: Long? = null): ElectionStrategy {
 
         val eliminations = candidates
             .filter { it.nodeId != winner.nodeId }
-            .map { c -> Elimination(c, "not selected by random election (winner: ${winner.nodeId})") }
+            .map { c ->
+                Elimination(c, "not selected by random election (winner: ${winner.nodeId})")
+            }
 
         return ElectionResult(winner, eliminations)
     }

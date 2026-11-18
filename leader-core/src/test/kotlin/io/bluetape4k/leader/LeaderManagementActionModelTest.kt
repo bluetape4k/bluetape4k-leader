@@ -5,16 +5,17 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotContainIgnoringCase
+import io.bluetape4k.io.lookup
 import io.bluetape4k.io.serializer.BinarySerializers
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.ObjectInputStream
-import java.io.ObjectOutputStream
-import java.io.ObjectStreamClass
 import java.util.concurrent.atomic.AtomicInteger
 
 class LeaderManagementActionModelTest {
+
+    companion object: KLogging()
 
     @Test
     fun `release action exposes the fixed outcome vocabulary`() {
@@ -35,6 +36,7 @@ class LeaderManagementActionModelTest {
         )
     }
 
+    @Suppress("DEPRECATION")
     @Test
     fun `action result is serializable without internal payload`() {
         val original = LeaderManagementActionResult(
@@ -43,18 +45,15 @@ class LeaderManagementActionModelTest {
             mutationAttempted = true,
         )
 
-        val bytes = ByteArrayOutputStream().use { output ->
-            ObjectOutputStream(output).use { stream -> stream.writeObject(original) }
-            output.toByteArray()
-        }
-        val copy = ByteArrayInputStream(bytes).use { input ->
-            ObjectInputStream(input).use { stream -> stream.readObject() as LeaderManagementActionResult }
-        }
+        val bytes = BinarySerializers.JdkUnfiltered.serialize(original)
+        val copy = BinarySerializers.JdkUnfiltered.deserialize<LeaderManagementActionResult>(bytes)
 
         copy shouldBeEqualTo original
-        ObjectStreamClass.lookup(LeaderManagementActionResult::class.java).serialVersionUID shouldBeEqualTo 1L
-        original.toString().contains("exception", ignoreCase = true).shouldBeFalse()
-        original.toString().contains("token", ignoreCase = true).shouldBeFalse()
+        LeaderManagementActionResult::class.lookup().serialVersionUID shouldBeEqualTo 1L
+        original.toString().let {
+            it shouldNotContainIgnoringCase "exception"
+            it shouldNotContainIgnoringCase "token"
+        }
     }
 
     @Test
@@ -69,9 +68,12 @@ class LeaderManagementActionModelTest {
         val copy = BinarySerializers.FastFory.deserialize<LeaderManagementActionResult>(bytes)
 
         copy shouldBeEqualTo original
-        ObjectStreamClass.lookup(LeaderManagementActionResult::class.java).serialVersionUID shouldBeEqualTo 1L
-        original.toString().contains("exception", ignoreCase = true).shouldBeFalse()
-        original.toString().contains("token", ignoreCase = true).shouldBeFalse()
+        LeaderManagementActionResult::class.lookup().serialVersionUID shouldBeEqualTo 1L
+
+        original.toString().let {
+            it shouldNotContainIgnoringCase "exception"
+            it shouldNotContainIgnoringCase "token"
+        }
     }
 
     @Test
@@ -102,8 +104,10 @@ class LeaderManagementActionModelTest {
         )
 
         observation.quarantineReason.shouldBeNull()
-        observation.toString().contains("lock", ignoreCase = true).shouldBeFalse()
-        observation.toString().contains("token", ignoreCase = true).shouldBeFalse()
+        observation.toString().let {
+            it shouldNotContainIgnoringCase "lock"
+            it shouldNotContainIgnoringCase "token"
+        }
     }
 
     @Test
@@ -125,6 +129,7 @@ class LeaderManagementActionModelTest {
             .filter { it != LeaderManagementRegistrationOutcome.ACCEPTED }
             .forEach { outcome ->
                 val registration = LeaderManagementRegistration(false, outcome)
+                log.debug { "registration=$registration" }
                 registration.accepted.shouldBeFalse()
             }
 

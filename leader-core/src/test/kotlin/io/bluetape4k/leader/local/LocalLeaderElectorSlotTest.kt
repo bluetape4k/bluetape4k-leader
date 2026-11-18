@@ -4,11 +4,13 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -44,9 +46,10 @@ class LocalLeaderElectorSlotTest {
         val s = slot("audit-node")
         val result = election.runIfLeaderResult(s) { "done" }
 
-        with(result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()) {
-            value shouldBeEqualTo "done"
-            leaderId shouldBeEqualTo "audit-node"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>().let {
+            log.debug { "result=$it" }
+            it.value shouldBeEqualTo "done"
+            it.leaderId shouldBeEqualTo "audit-node"
         }
     }
 
@@ -55,9 +58,10 @@ class LocalLeaderElectorSlotTest {
         val s = slot("null-node")
         val result = election.runIfLeaderResult(s) { null }
 
-        with(result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()) {
-            value.shouldBeNull()
-            leaderId shouldBeEqualTo "null-node"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().let {
+            log.debug { "result=$it" }
+            it.value.shouldBeNull()
+            it.leaderId shouldBeEqualTo "null-node"
         }
     }
 
@@ -79,7 +83,7 @@ class LocalLeaderElectorSlotTest {
         election.runIfLeader(s) {
             val lease = election.state(s.lockName).leader
             // nodeId = options.nodeId (LeaderNodeId.Default — hostname:pid)
-            (lease?.nodeId != null).shouldBeTrue()
+            lease?.nodeId.shouldNotBeNull()
         }
     }
 
@@ -109,10 +113,12 @@ class LocalLeaderElectorSlotTest {
             "outer"
         }
 
-        outerResult.shouldBeInstanceOf<LeaderRunResult.Elected<String>>().leaderId shouldBeEqualTo "reentrant-node"
+        outerResult.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+            .leaderId shouldBeEqualTo "reentrant-node"
 
         // reentrant path: leaderId comes from slot parameter in override
-        innerResult.shouldBeInstanceOf<LeaderRunResult.Elected<String>>().leaderId shouldBeEqualTo "reentrant-node"
+        innerResult.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
+            .leaderId shouldBeEqualTo "reentrant-node"
     }
 
     @Test

@@ -51,10 +51,13 @@ class TenantScopedLeaderElectorsTest {
         election.state("report-job")
         election.runIfLeader("report-job") { "sync" } shouldBeEqualTo "sync"
 
-        election.runAsyncIfLeader("report-job", executor) { completableFutureOf("async") }
-            .join() shouldBeEqualTo "async"
+        election.runAsyncIfLeader("report-job", executor) {
+            completableFutureOf("async")
+        }.join() shouldBeEqualTo "async"
 
-        election.runIfLeaderResult("report-job") { "result" } shouldBeEqualTo LeaderRunResult.Elected("result")
+        election.runIfLeaderResult("report-job") {
+            "result"
+        } shouldBeEqualTo LeaderRunResult.Elected("result")
 
         delegate.lockNames shouldBeEqualTo listOf(
             "tenant:acme:report-job",
@@ -73,10 +76,13 @@ class TenantScopedLeaderElectorsTest {
 
         election.runIfLeader(slot) { "sync" } shouldBeEqualTo "sync"
 
-        election.runAsyncIfLeader(slot, executor) { completableFutureOf("async") }
-            .join() shouldBeEqualTo "async"
+        election.runAsyncIfLeader(slot, executor) {
+            completableFutureOf("async")
+        }.join() shouldBeEqualTo "async"
 
-        election.runIfLeaderResult(slot) { "result" } shouldBeEqualTo LeaderRunResult.Elected("result", "node-1")
+        election.runIfLeaderResult(slot) {
+            "result"
+        } shouldBeEqualTo LeaderRunResult.Elected("result", "node-1")
 
         delegate.slots shouldBeEqualTo listOf(
             LeaderSlot("tenant:acme:report-job", "node-1"),
@@ -96,9 +102,13 @@ class TenantScopedLeaderElectorsTest {
         election.state("aggregation") shouldBeEqualTo LeaderGroupState("tenant:acme:aggregation", 3, 1)
 
         election.runIfLeader("aggregation") { "done" } shouldBeEqualTo "done"
-        election.runIfLeaderResult("aggregation") { "result" } shouldBeEqualTo LeaderRunResult.Elected("result")
-        election.runAsyncIfLeader("aggregation", executor) { completableFutureOf("async") }
-            .join() shouldBeEqualTo "async"
+        election.runIfLeaderResult("aggregation") {
+            "result"
+        } shouldBeEqualTo LeaderRunResult.Elected("result")
+
+        election.runAsyncIfLeader("aggregation", executor) {
+            completableFutureOf("async")
+        }.join() shouldBeEqualTo "async"
 
         delegate.lockNames shouldBeEqualTo listOf(
             "tenant:acme:aggregation",
@@ -120,10 +130,13 @@ class TenantScopedLeaderElectorsTest {
         election.runIfLeader(slot) { "sync" } shouldBeEqualTo "sync"
         election.runIfLeaderResult(slot) { "result" } shouldBeEqualTo LeaderRunResult.Elected("result", "node-1")
 
-        election.runAsyncIfLeader(slot, executor) { completableFutureOf("async") }
-            .join() shouldBeEqualTo "async"
-        election.runAsyncIfLeaderResult(slot, executor) { completableFutureOf("async-result") }
-            .join() shouldBeEqualTo LeaderRunResult.Elected("async-result", "node-1")
+        election.runAsyncIfLeader(slot, executor) {
+            completableFutureOf("async")
+        }.join() shouldBeEqualTo "async"
+
+        election.runAsyncIfLeaderResult(slot, executor) {
+            completableFutureOf("async-result")
+        }.join() shouldBeEqualTo LeaderRunResult.Elected("async-result", "node-1")
 
         delegate.slots shouldBeEqualTo listOf(
             LeaderSlot("tenant:acme:aggregation", "node-1"),
@@ -140,8 +153,8 @@ class TenantScopedLeaderElectorsTest {
         val slot = LeaderSlot("report-job", "node-1")
 
         election.state("report-job")
-        election.runAsyncIfLeader("report-job") { "done" }.toCompletableFuture().join() shouldBeEqualTo "done"
-        election.runAsyncIfLeader(slot) { "slot" }.toCompletableFuture().join() shouldBeEqualTo "slot"
+        election.runAsyncIfLeader("report-job") { "done" }.await() shouldBeEqualTo "done"
+        election.runAsyncIfLeader(slot) { "slot" }.await() shouldBeEqualTo "slot"
 
         delegate.lockNames shouldBeEqualTo listOf("tenant:acme:report-job", "tenant:acme:report-job")
         delegate.slots shouldBeEqualTo listOf(LeaderSlot("tenant:acme:report-job", "node-1"))
@@ -155,7 +168,7 @@ class TenantScopedLeaderElectorsTest {
         election.activeCount("aggregation") shouldBeEqualTo 1
         election.availableSlots("aggregation") shouldBeEqualTo 2
         election.state("aggregation") shouldBeEqualTo LeaderGroupState("tenant:acme:aggregation", 3, 1)
-        election.runAsyncIfLeader("aggregation") { "done" }.toCompletableFuture().join() shouldBeEqualTo "done"
+        election.runAsyncIfLeader("aggregation") { "done" }.await() shouldBeEqualTo "done"
 
         delegate.lockNames shouldBeEqualTo listOf(
             "tenant:acme:aggregation",
@@ -200,7 +213,7 @@ class TenantScopedLeaderElectorsTest {
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> {
             lockNames += lockName
-            return action().thenApply<T?> { it }
+            return action().thenApply { it }
         }
 
         override fun <T> runAsyncIfLeader(
@@ -209,7 +222,7 @@ class TenantScopedLeaderElectorsTest {
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> {
             slots += slot
-            return action().thenApply<T?> { it }
+            return action().thenApply { it }
         }
     }
 
@@ -259,7 +272,7 @@ class TenantScopedLeaderElectorsTest {
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> {
             lockNames += lockName
-            return action().thenApply<T?> { it }
+            return action().thenApply { it }
         }
 
         override fun <T> runAsyncIfLeader(
@@ -268,7 +281,7 @@ class TenantScopedLeaderElectorsTest {
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> {
             slots += slot
-            return action().thenApply<T?> { it }
+            return action().thenApply { it }
         }
 
         override fun <T> runAsyncIfLeaderResult(
@@ -277,7 +290,9 @@ class TenantScopedLeaderElectorsTest {
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<LeaderRunResult<T>> {
             slots += slot
-            return action().thenApply { LeaderRunResult.Elected(it, slot.leaderId) }
+            return action().thenApply {
+                LeaderRunResult.Elected(it, slot.leaderId)
+            }
         }
     }
 

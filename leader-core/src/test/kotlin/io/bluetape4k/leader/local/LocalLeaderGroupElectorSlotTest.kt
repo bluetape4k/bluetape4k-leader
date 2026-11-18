@@ -3,17 +3,21 @@ package io.bluetape4k.leader.local
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeEmpty
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.condition.EnabledForJreRange
+import org.junit.jupiter.api.condition.JRE
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -46,9 +50,11 @@ class LocalLeaderGroupElectorSlotTest {
         val s = slot("group-audit")
         val result = election.runIfLeaderResult(s) { "done" }
 
-        result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>()
-        result.value shouldBeEqualTo "done"
-        result.leaderId shouldBeEqualTo "group-audit"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<String>>().let {
+            log.debug { "result=$it" }
+            it.value shouldBeEqualTo "done"
+            it.leaderId shouldBeEqualTo "group-audit"
+        }
     }
 
     @Test
@@ -56,9 +62,11 @@ class LocalLeaderGroupElectorSlotTest {
         val s = slot("null-group")
         val result = election.runIfLeaderResult(s) { null }
 
-        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>()
-        result.value.shouldBeNull()
-        result.leaderId shouldBeEqualTo "null-group"
+        result.shouldBeInstanceOf<LeaderRunResult.Elected<*>>().let {
+            log.debug { "result=$it" }
+            it.value.shouldBeNull()
+            it.leaderId shouldBeEqualTo "null-group"
+        }
     }
 
     // --- LeaderGroupState.state().leaders 전파 ---
@@ -68,7 +76,7 @@ class LocalLeaderGroupElectorSlotTest {
         val s = slot("state-audit-group")
         election.runIfLeader(s) {
             val groupState = election.state(s.lockName)
-            groupState.leaders.isNotEmpty().shouldBeTrue()
+            groupState.leaders.shouldNotBeEmpty()
             val lease = groupState.leaders.first()
             lease.auditLeaderId shouldBeEqualTo "state-audit-group"
         }
@@ -105,6 +113,33 @@ class LocalLeaderGroupElectorSlotTest {
             .addAll(
                 { r1.set(election.runIfLeaderResult(slot1) { "result-1" }) },
                 { r2.set(election.runIfLeaderResult(slot2) { "result-2" }) },
+            )
+            .run()
+
+        r1.get().shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "node-1"
+        r2.get().shouldBeInstanceOf<LeaderRunResult.Elected<*>>().leaderId shouldBeEqualTo "node-2"
+    }
+
+    @EnabledForJreRange(min = JRE.JAVA_21)
+    @Test
+    fun `runIfLeader(slot) - maxLeaders=2 에서 두 노드 모두 선출 가능 - Virtual Threads`() {
+        val lockName = "lock-${Base58.randomString(8)}"
+        val slot1 = LeaderSlot(lockName, "node-1")
+        val slot2 = LeaderSlot(lockName, "node-2")
+
+        val r1 = AtomicReference<LeaderRunResult<String>?>()
+        val r2 = AtomicReference<LeaderRunResult<String>?>()
+
+        StructuredTaskScopeTester()
+            .workers(2)
+            .rounds(1)
+            .addAll(
+                {
+                    r1.set(election.runIfLeaderResult(slot1) { "result-1" })
+                },
+                {
+                    r2.set(election.runIfLeaderResult(slot2) { "result-2" })
+                },
             )
             .run()
 

@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.internal
 
+import io.bluetape4k.javatimes.nanos
 import io.bluetape4k.logging.KLogging
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
 /**
@@ -41,7 +41,7 @@ class MonotonicDeadline private constructor(
         if (remainingNanos <= 0L) {
             return 0L
         }
-        return TimeUnit.NANOSECONDS.toMillis(remainingNanos)
+        return remainingNanos.nanos().toMillis()
             .coerceAtLeast(1L)
             .coerceAtMost(maxDelayMillis)
     }
@@ -51,7 +51,7 @@ class MonotonicDeadline private constructor(
         if (remainingNanos <= 0L) {
             return 0L
         }
-        return TimeUnit.NANOSECONDS.toMillis(remainingNanos).coerceAtLeast(1L)
+        return remainingNanos.nanos().toMillis().coerceAtLeast(1L)
     }
 
     fun hasTimeRemaining(): Boolean = remainingNanos() > 0L

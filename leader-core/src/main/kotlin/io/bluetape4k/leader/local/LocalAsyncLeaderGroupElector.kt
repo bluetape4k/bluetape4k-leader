@@ -112,6 +112,7 @@ class LocalAsyncLeaderGroupElector private constructor(
 
         val elected = AtomicBoolean(false)
         val cancellationRelay = LeaderFutureBridge.cancellationRelay()
+
         return LeaderFutureBridge.map(
             futureOf(executor) {
                 tryWithPermit(

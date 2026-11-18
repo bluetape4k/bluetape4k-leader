@@ -160,7 +160,7 @@ class LeaderGroupElectorBenchmark {
         val ready = CountDownLatch(slots)
         val release = CountDownLatch(1)
         val futures = (0 until slots).map {
-            CompletableFuture.runAsync(
+            futureOf(
                 {
                     val acquired = elector.runIfLeader(lockName) {
                         ready.countDown()

@@ -10,6 +10,7 @@ import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderStatus
@@ -17,6 +18,8 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.EnabledForJreRange
+import org.junit.jupiter.api.condition.JRE
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
@@ -80,9 +83,9 @@ class LocalLeaderElectionTest {
         holder.join()
 
         val empty = stateElection.state(lockName)
+        log.debug { "empty: $empty" }
         empty.status shouldBeEqualTo LeaderStatus.Empty
         empty.isEmpty.shouldBeTrue()
-
         empty.leader.shouldBeNull()
     }
 
@@ -106,9 +109,9 @@ class LocalLeaderElectionTest {
         }.apply { start() }
 
         started.await()
-        val initialLeaseUntil = stateElection.state(lockName).leader.shouldNotBeNull().leaseUntil.shouldNotBeNull()
+        val initialLeaseUntil = stateElection.state(lockName).leader!!.leaseUntil!!
         Thread.sleep(180)
-        val extendedLeaseUntil = stateElection.state(lockName).leader.shouldNotBeNull().leaseUntil.shouldNotBeNull()
+        val extendedLeaseUntil = stateElection.state(lockName).leader!!.leaseUntil!!
 
         release.countDown()
         holder.join()
@@ -178,6 +181,36 @@ class LocalLeaderElectionTest {
         counter.get() shouldBeEqualTo numThreads * roundsPerThread
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
+    @Test
+    fun `runIfLeader - Virtual Threads 동시 실행 시 직렬 처리를 보장한다`() {
+        val lockName = randomLockName()
+        val counter = AtomicInteger(0)
+        val numThreads = 2 * Runtimex.availableProcessors
+        val roundsPerThread = 4
+
+        StructuredTaskScopeTester()
+            .rounds(numThreads * roundsPerThread / 2)
+            .add {
+                election.runIfLeader(lockName) {
+                    log.debug { "작업 1 실행. counter=${counter.get()}" }
+                    Thread.sleep(Random.nextLong(1, 5))
+                    counter.incrementAndGet()
+                }
+            }
+            .add {
+                election.runIfLeader(lockName) {
+                    log.debug { "작업 2 실행. counter=${counter.get()}" }
+                    Thread.sleep(Random.nextLong(1, 5))
+                    counter.incrementAndGet()
+                }
+            }
+            .run()
+
+        // workers * rounds = 8 * 4 = 32 태스크, block 이 2개이므로 각 block 은 16번 실행
+        counter.get() shouldBeEqualTo numThreads * roundsPerThread
+    }
+
     @Test
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action 을 실행하고 결과를 반환한다`() {
         val result = election.runAsyncIfLeader(randomLockName()) {
@@ -222,6 +255,39 @@ class LocalLeaderElectionTest {
         MultithreadingTester()
             .workers(numThreads)
             .rounds(roundsPerThread)
+            .add {
+                election.runAsyncIfLeader(lockName) {
+                    futureOf {
+                        log.debug { "비동기 작업 1 실행. counter=${counter.get()}" }
+                        Thread.sleep(Random.nextLong(1, 5))
+                        counter.incrementAndGet()
+                    }
+                }.join()
+            }
+            .add {
+                election.runAsyncIfLeader(lockName) {
+                    futureOf {
+                        log.debug { "비동기 작업 2 실행. counter=${counter.get()}" }
+                        Thread.sleep(Random.nextLong(1, 5))
+                        counter.incrementAndGet()
+                    }
+                }.join()
+            }
+            .run()
+
+        counter.get() shouldBeEqualTo numThreads * roundsPerThread
+    }
+
+    @EnabledForJreRange(min = JRE.JAVA_21)
+    @Test
+    fun `runAsyncIfLeader - Virtual Threads 동시 실행 시 직렬 처리를 보장한다`() {
+        val lockName = randomLockName()
+        val counter = AtomicInteger(0)
+        val numThreads = 2 * Runtimex.availableProcessors
+        val roundsPerThread = 4
+
+        StructuredTaskScopeTester()
+            .rounds(numThreads * roundsPerThread / 2)
             .add {
                 election.runAsyncIfLeader(lockName) {
                     futureOf {

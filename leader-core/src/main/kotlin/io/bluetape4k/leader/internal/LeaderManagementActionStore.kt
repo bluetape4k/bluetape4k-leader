@@ -202,6 +202,7 @@ internal class LeaderManagementActionStore(
 
         byHandle.remove(record.handle)
         byLockName[record.lockName]?.remove(record)
+
         if (byLockName[record.lockName].isNullOrEmpty()) {
             byLockName.remove(record.lockName)
         }
