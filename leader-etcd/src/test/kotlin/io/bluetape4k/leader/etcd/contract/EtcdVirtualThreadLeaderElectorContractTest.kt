@@ -5,7 +5,6 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
-import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.etcd.EtcdLeaderElectionOptions
 import io.bluetape4k.leader.etcd.EtcdLeaderElector
@@ -33,8 +32,8 @@ class EtcdVirtualThreadLeaderElectorContractTest {
     fun virtualWrapperAcquiresAndReleasesUsingLockName() {
         val elector = EtcdVirtualThreadLeaderElector(
             EtcdLeaderElector(
-                EtcdContractSupport.client,
-                EtcdLeaderElectionOptions(keyPrefix = EtcdContractSupport.keyPrefix()),
+                client = EtcdContractSupport.client,
+                options = EtcdLeaderElectionOptions(keyPrefix = EtcdContractSupport.keyPrefix()),
             ),
         )
         val lockName = "etcd-virtual-contract"
@@ -47,14 +46,15 @@ class EtcdVirtualThreadLeaderElectorContractTest {
     fun virtualWrapperCancellationInterruptsActionAndReleasesLock() {
         val elector = EtcdVirtualThreadLeaderElector(
             EtcdLeaderElector(
-                EtcdContractSupport.client,
-                EtcdLeaderElectionOptions(keyPrefix = EtcdContractSupport.keyPrefix()),
+                client = EtcdContractSupport.client,
+                options = EtcdLeaderElectionOptions(keyPrefix = EtcdContractSupport.keyPrefix()),
             ),
         )
         val lockName = "etcd-virtual-cancellation-contract"
         val actionStarted = CountDownLatch(1)
         val actionInterrupted = CountDownLatch(1)
         val release = CountDownLatch(1)
+
         val result = elector.runAsyncIfLeader(lockName) {
             actionStarted.countDown()
             try {
@@ -73,7 +73,7 @@ class EtcdVirtualThreadLeaderElectorContractTest {
 
             elector.runAsyncIfLeader(lockName) {
                 "virtual-reacquired"
-            }.await(10.seconds()) shouldBeEqualTo "virtual-reacquired"
+            }.await(10.seconds) shouldBeEqualTo "virtual-reacquired"
         } finally {
             release.countDown()
         }
@@ -82,8 +82,8 @@ class EtcdVirtualThreadLeaderElectorContractTest {
     @Test
     fun groupExecutorOverloadAcquiresAndReleases() {
         val elector = EtcdLeaderGroupElector(
-            EtcdContractSupport.client,
-            EtcdLeaderGroupElectionOptions(
+            client = EtcdContractSupport.client,
+            options = EtcdLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2),
                 keyPrefix = EtcdContractSupport.keyPrefix(),
             ),

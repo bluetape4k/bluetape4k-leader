@@ -32,8 +32,8 @@ class EtcdSuspendLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
         newClient().use { client ->
             val keyPrefix = "/bluetape4k/leader/test/${randomName()}"
             val holder = EtcdSuspendLeaderGroupElector(
-                client,
-                EtcdLeaderGroupElectionOptions(
+                client = client,
+                options = EtcdLeaderGroupElectionOptions(
                     leaderGroupOptions = LeaderGroupElectionOptions(
                         maxLeaders = 2,
                         waitTime = 5.seconds,
@@ -43,8 +43,8 @@ class EtcdSuspendLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 ),
             )
             val contender = EtcdSuspendLeaderGroupElector(
-                client,
-                EtcdLeaderGroupElectionOptions(
+                client = client,
+                options = EtcdLeaderGroupElectionOptions(
                     leaderGroupOptions = LeaderGroupElectionOptions(
                         maxLeaders = 2,
                         waitTime = 250.milliseconds,

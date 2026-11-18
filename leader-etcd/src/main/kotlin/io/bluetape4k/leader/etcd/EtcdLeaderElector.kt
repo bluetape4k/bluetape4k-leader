@@ -157,18 +157,17 @@ class EtcdLeaderElector private constructor(
             executor
         )
 
-        val ordered = LeaderFutureBridge
-            .flatMap(pipelineFuture) { value, failure ->
-                if (failure == null) {
-                    completableFutureOf(value)
-                } else {
-                    beginCleanup().handle { _, cleanupFailure ->
-                        val cause = failure.unwrapCompletionException()
-                        cleanupFailure?.unwrapCompletionException()?.let(cause::addSuppressed)
-                        throw CompletionException(cause)
-                    }
+        val ordered = LeaderFutureBridge.flatMap(pipelineFuture) { value, failure ->
+            if (failure == null) {
+                completableFutureOf(value)
+            } else {
+                beginCleanup().handle { _, cleanupFailure ->
+                    val cause = failure.unwrapCompletionException()
+                    cleanupFailure?.unwrapCompletionException()?.let(cause::addSuppressed)
+                    throw CompletionException(cause)
                 }
             }
+        }
         return LeaderFutureBridge.propagateCancellation(ordered, cancellationRelay)
     }
 

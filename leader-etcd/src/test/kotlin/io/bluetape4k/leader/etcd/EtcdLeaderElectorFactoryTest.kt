@@ -77,10 +77,9 @@ class EtcdLeaderElectorFactoryTest {
         blockingElector.options.keyPrefix shouldBeEqualTo "/apps/orders/leader"
         blockingElector.options.leaderGroupOptions shouldBeEqualTo groupOptions
 
-        val suspendElector =
-            EtcdSuspendLeaderGroupElectorFactory(client, baseOptions)
-                .create(groupOptions)
-                .shouldBeInstanceOf<EtcdSuspendLeaderGroupElector>()
+        val suspendElector = EtcdSuspendLeaderGroupElectorFactory(client, baseOptions)
+            .create(groupOptions)
+            .shouldBeInstanceOf<EtcdSuspendLeaderGroupElector>()
 
         log.debug { "elector options=${suspendElector.options}" }
         suspendElector.options.keyPrefix shouldBeEqualTo "/apps/orders/leader"

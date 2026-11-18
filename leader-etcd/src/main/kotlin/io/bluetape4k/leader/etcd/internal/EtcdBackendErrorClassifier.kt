@@ -2,6 +2,7 @@ package io.bluetape4k.leader.etcd.internal
 
 import io.bluetape4k.leader.internal.BackendErrorClassifier
 import io.bluetape4k.leader.internal.BackendErrorKind
+import io.bluetape4k.logging.KLogging
 import io.etcd.jetcd.lease.NoSuchLeaseException
 import io.grpc.Status
 import io.grpc.StatusException
@@ -20,7 +21,7 @@ internal enum class EtcdBackendErrorKind {
  * `EtcdBackendErrorClassifier`는 gRPC 상태와 lease/key not found 오류를 cleanup·transient·non-transient로 분류합니다.
  *
  */
-internal object EtcdBackendErrorClassifier: BackendErrorClassifier {
+internal object EtcdBackendErrorClassifier: BackendErrorClassifier, KLogging() {
 
     private val expectedCleanupMessages = listOf(
         "etcdserver: requested lease not found",

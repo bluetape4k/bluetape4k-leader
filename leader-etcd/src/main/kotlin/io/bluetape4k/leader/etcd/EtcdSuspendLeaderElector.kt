@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.etcd
 
+import io.bluetape4k.coroutines.support.awaitUntilOrNull
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
@@ -29,7 +30,6 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.CompletableFuture
 import kotlin.time.Duration
 import io.bluetape4k.leader.etcd.suspendRunIfLeader as currentSuspendRunIfLeader
@@ -73,6 +73,7 @@ class EtcdSuspendLeaderElector private constructor(
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         val leaseHandle = acquire(lockName) ?: return null
         val delegate: SuspendExtendDelegate = EtcdSuspendLockExtendDelegate(lockClient, leaseHandle)
+
         val handle = LeaderLockHandle.real(
             identity = LockIdentity(
                 lockName = lockName,
@@ -109,14 +110,14 @@ class EtcdSuspendLeaderElector private constructor(
         try {
             val ttlSeconds = EtcdLeaseTime.ttlSeconds(options.leaderOptions.leaseTime)
             val deadline = EtcdAcquisitionDeadline.fromNow(options.leaderOptions.waitTime)
-            leaseId = withTimeoutOrNull(deadline.remainingDuration()) {
-                lockClient.grantLease(ttlSeconds).await()
-            } ?: run {
-                log.debug { "etcd suspend lease grant timed out. lockName=$lockName" }
-                return null
-            }
+
+            leaseId = lockClient.grantLease(ttlSeconds).awaitUntilOrNull(deadline.remainingDuration())
+                ?: run {
+                    log.debug { "etcd suspend lease grant timed out. lockName=$lockName" }
+                    return null
+                }
             lockFuture = lockClient.lock(lockClient.singleLockKey(lockName), leaseId)
-            val ownershipKey = withTimeoutOrNull(deadline.remainingDuration()) { lockFuture.await() }
+            val ownershipKey = lockFuture.awaitUntilOrNull(deadline.remainingDuration())
 
             if (ownershipKey == null) {
                 scheduleLateCleanup(lockFuture, leaseId)

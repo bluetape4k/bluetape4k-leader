@@ -18,8 +18,8 @@ class EtcdLeaderGroupElectorLeaderIdContractTest: AbstractLeaderGroupElectorLead
 
     override fun createElector(options: LeaderGroupElectionOptions): LeaderGroupElector =
         EtcdLeaderGroupElector(
-            EtcdContractSupport.client,
-            EtcdLeaderGroupElectionOptions(
+            client = EtcdContractSupport.client,
+            options = EtcdLeaderGroupElectionOptions(
                 leaderGroupOptions = options,
                 keyPrefix = EtcdContractSupport.keyPrefix(),
             ),

@@ -1,10 +1,14 @@
 package io.bluetape4k.leader.etcd
 
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.concurrent.get
+import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -12,65 +16,115 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.until
+import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
-import org.awaitility.kotlin.atMost
-import org.awaitility.kotlin.await
-import org.awaitility.kotlin.until
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-class InlineBackendFacadeConsumerTest : AbstractEtcdLeaderTest() {
+class InlineBackendFacadeConsumerTest: AbstractEtcdLeaderTest() {
 
     private fun singleOptions(
         prefix: String = "/issue-994/single-${randomName()}",
         leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
-    ) = EtcdLeaderElectionOptions(keyPrefix = prefix, leaderOptions = leaderOptions)
+    ): EtcdLeaderElectionOptions =
+        EtcdLeaderElectionOptions(keyPrefix = prefix, leaderOptions = leaderOptions)
 
     private fun groupOptions(
         prefix: String = "/issue-994/group-${randomName()}",
         leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-    ) = EtcdLeaderGroupElectionOptions(keyPrefix = prefix, leaderGroupOptions = leaderGroupOptions)
+    ): EtcdLeaderGroupElectionOptions =
+        EtcdLeaderGroupElectionOptions(keyPrefix = prefix, leaderGroupOptions = leaderGroupOptions)
 
-    private fun callRunAsyncIfLeaderExplicit(client: io.etcd.jetcd.Client, lockName: String, action: () -> CompletableFuture<String>) =
+    private fun callRunAsyncIfLeaderExplicit(
+        client: io.etcd.jetcd.Client,
+        lockName: String,
+        action: () -> CompletableFuture<String>,
+    ): CompletableFuture<String?> =
         client.runAsyncIfLeader(lockName, singleOptions(), VirtualThreadExecutor, action)
 
-    private fun callRunAsyncIfLeaderDefault(client: io.etcd.jetcd.Client, lockName: String, action: () -> CompletableFuture<String>) =
+    private fun callRunAsyncIfLeaderDefault(
+        client: io.etcd.jetcd.Client,
+        lockName: String,
+        action: () -> CompletableFuture<String>,
+    ): CompletableFuture<String?> =
         client.runAsyncIfLeader(lockName, action = action)
 
-    private fun callRunAsyncIfLeaderGroupExplicit(client: io.etcd.jetcd.Client, lockName: String, action: () -> CompletableFuture<String>) =
+    private fun callRunAsyncIfLeaderGroupExplicit(
+        client: io.etcd.jetcd.Client,
+        lockName: String,
+        action: () -> CompletableFuture<String>,
+    ): CompletableFuture<String?> =
         client.runAsyncIfLeaderGroup(lockName, groupOptions(), VirtualThreadExecutor, action)
 
-    private fun callRunAsyncIfLeaderGroupDefault(client: io.etcd.jetcd.Client, lockName: String, action: () -> CompletableFuture<String>) =
+    private fun callRunAsyncIfLeaderGroupDefault(
+        client: io.etcd.jetcd.Client,
+        lockName: String,
+        action: () -> CompletableFuture<String>,
+    ): CompletableFuture<String?> =
         client.runAsyncIfLeaderGroup(lockName, action = action)
 
-    private suspend fun callSuspendRunIfLeaderExplicit(client: io.etcd.jetcd.Client, lockName: String, action: suspend () -> String) =
+    private suspend fun callSuspendRunIfLeaderExplicit(
+        client: io.etcd.jetcd.Client,
+        lockName: String,
+        action: suspend () -> String,
+    ) =
         client.suspendRunIfLeader(lockName, singleOptions(), action)
 
-    private suspend fun callSuspendRunIfLeaderDefault(client: io.etcd.jetcd.Client, lockName: String, action: suspend () -> String) =
+    private suspend fun callSuspendRunIfLeaderDefault(
+        client: io.etcd.jetcd.Client,
+        lockName: String,
+        action: suspend () -> String,
+    ): String? =
         client.suspendRunIfLeader(lockName, action = action)
 
-    private suspend fun callSuspendRunIfLeaderGroupExplicit(client: io.etcd.jetcd.Client, lockName: String, action: suspend () -> String) =
+    private suspend fun callSuspendRunIfLeaderGroupExplicit(
+        client: io.etcd.jetcd.Client,
+        lockName: String,
+        action: suspend () -> String,
+    ): String? =
         client.suspendRunIfLeaderGroup(lockName, groupOptions(), action)
 
-    private suspend fun callSuspendRunIfLeaderGroupDefault(client: io.etcd.jetcd.Client, lockName: String, action: suspend () -> String) =
+    private suspend fun callSuspendRunIfLeaderGroupDefault(
+        client: io.etcd.jetcd.Client,
+        lockName: String,
+        action: suspend () -> String,
+    ): String? =
         client.suspendRunIfLeaderGroup(lockName, action = action)
 
-    private fun callRunVirtualIfLeaderExplicit(client: io.etcd.jetcd.Client, lockName: String, action: () -> String) =
+    private fun callRunVirtualIfLeaderExplicit(
+        client: io.etcd.jetcd.Client,
+        lockName: String,
+        action: () -> String,
+    ): VirtualFuture<String?> =
         client.runVirtualIfLeader(lockName, singleOptions(), action)
 
-    private fun callRunVirtualIfLeaderDefault(client: io.etcd.jetcd.Client, lockName: String, action: () -> String) =
+    private fun callRunVirtualIfLeaderDefault(
+        client: io.etcd.jetcd.Client,
+        lockName: String,
+        action: () -> String,
+    ): VirtualFuture<String?> =
         client.runVirtualIfLeader(lockName, action = action)
 
-    private fun callRunVirtualIfLeaderGroupExplicit(client: io.etcd.jetcd.Client, lockName: String, action: () -> String) =
+    private fun callRunVirtualIfLeaderGroupExplicit(
+        client: io.etcd.jetcd.Client,
+        lockName: String,
+        action: () -> String,
+    ): VirtualFuture<String?> =
         client.runVirtualIfLeaderGroup(lockName, groupOptions(), action)
 
-    private fun callRunVirtualIfLeaderGroupDefault(client: io.etcd.jetcd.Client, lockName: String, action: () -> String) =
+    private fun callRunVirtualIfLeaderGroupDefault(
+        client: io.etcd.jetcd.Client,
+        lockName: String,
+        action: () -> String,
+    ): VirtualFuture<String?> =
         client.runVirtualIfLeaderGroup(lockName, action = action)
 
     @Test
@@ -78,21 +132,32 @@ class InlineBackendFacadeConsumerTest : AbstractEtcdLeaderTest() {
         newClient().use { client ->
             val calls = AtomicInteger()
             val next: () -> String = { "call-${calls.incrementAndGet()}" }
-            val nextAsync: () -> CompletableFuture<String> = { CompletableFuture.completedFuture(next()) }
+            val nextAsync: () -> CompletableFuture<String> = { completableFutureOf(next()) }
 
-            callRunAsyncIfLeaderExplicit(client, randomName(), nextAsync).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-1"
-            callRunAsyncIfLeaderGroupExplicit(client, randomName(), nextAsync).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-2"
+            callRunAsyncIfLeaderExplicit(client, randomName(), nextAsync)
+                .get(10.seconds) shouldBeEqualTo "call-1"
+
+            callRunAsyncIfLeaderGroupExplicit(client, randomName(), nextAsync)
+                .get(10.seconds) shouldBeEqualTo "call-2"
+
             callSuspendRunIfLeaderExplicit(client, randomName()) { next() } shouldBeEqualTo "call-3"
             callSuspendRunIfLeaderGroupExplicit(client, randomName()) { next() } shouldBeEqualTo "call-4"
-            callRunVirtualIfLeaderExplicit(client, randomName(), next).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-5"
-            callRunVirtualIfLeaderGroupExplicit(client, randomName(), next).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-6"
 
-            callRunAsyncIfLeaderDefault(client, randomName(), nextAsync).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-7"
-            callRunAsyncIfLeaderGroupDefault(client, randomName(), nextAsync).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-8"
+            callRunVirtualIfLeaderExplicit(client, randomName(), next)
+                .get(10.seconds) shouldBeEqualTo "call-5"
+            callRunVirtualIfLeaderGroupExplicit(client, randomName(), next)
+                .get(10.seconds) shouldBeEqualTo "call-6"
+
+            callRunAsyncIfLeaderDefault(client, randomName(), nextAsync)
+                .get(10.seconds) shouldBeEqualTo "call-7"
+            callRunAsyncIfLeaderGroupDefault(client, randomName(), nextAsync)
+                .get(10.seconds) shouldBeEqualTo "call-8"
             callSuspendRunIfLeaderDefault(client, randomName()) { next() } shouldBeEqualTo "call-9"
             callSuspendRunIfLeaderGroupDefault(client, randomName()) { next() } shouldBeEqualTo "call-10"
-            callRunVirtualIfLeaderDefault(client, randomName(), next).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-11"
-            callRunVirtualIfLeaderGroupDefault(client, randomName(), next).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-12"
+            callRunVirtualIfLeaderDefault(client, randomName(), next)
+                .get(10.seconds) shouldBeEqualTo "call-11"
+            callRunVirtualIfLeaderGroupDefault(client, randomName(), next)
+                .get(10.seconds) shouldBeEqualTo "call-12"
 
             calls.get() shouldBeEqualTo 12
         }
@@ -108,7 +173,10 @@ class InlineBackendFacadeConsumerTest : AbstractEtcdLeaderTest() {
             val singleAction = CompletableFuture<String>()
             val singleHolder = client.runAsyncIfLeader(
                 singleLockName,
-                options = singleOptions(singlePrefix, LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 5.seconds)),
+                options = singleOptions(
+                    singlePrefix,
+                    LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 5.seconds)
+                ),
                 executor = executor,
             ) {
                 singleStarted.countDown()
@@ -132,8 +200,8 @@ class InlineBackendFacadeConsumerTest : AbstractEtcdLeaderTest() {
             }
 
             try {
-                singleStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
-                groupStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                singleStarted.await(5.seconds).shouldBeTrue()
+                groupStarted.await(5.seconds).shouldBeTrue()
 
                 val singleCalls = AtomicInteger()
                 client.runAsyncIfLeader(
@@ -145,8 +213,8 @@ class InlineBackendFacadeConsumerTest : AbstractEtcdLeaderTest() {
                     executor = VirtualThreadExecutor,
                 ) {
                     singleCalls.incrementAndGet()
-                    CompletableFuture.completedFuture("must-not-run")
-                }.get(5, TimeUnit.SECONDS).shouldBeNull()
+                    completableFutureOf("must-not-run")
+                }.get(5.seconds).shouldBeNull()
                 singleCalls.get() shouldBeEqualTo 0
 
                 val groupCalls = AtomicInteger()
@@ -159,20 +227,27 @@ class InlineBackendFacadeConsumerTest : AbstractEtcdLeaderTest() {
                     executor = VirtualThreadExecutor,
                 ) {
                     groupCalls.incrementAndGet()
-                    CompletableFuture.completedFuture("must-not-run")
-                }.get(5, TimeUnit.SECONDS).shouldBeNull()
+                    completableFutureOf("must-not-run")
+                }.get(5.seconds).shouldBeNull()
                 groupCalls.get() shouldBeEqualTo 0
 
                 singleHolder.cancel(true).shouldBeTrue()
                 groupHolder.cancel(true).shouldBeTrue()
-                await atMost 5.seconds until { singleAction.isCancelled && groupAction.isCancelled }
+                await atMost 5.seconds until {
+                    singleAction.isCancelled && groupAction.isCancelled
+                }
 
                 client.runAsyncIfLeader(
                     singleLockName,
-                    options = singleOptions(singlePrefix, LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 5.seconds)),
+                    options = singleOptions(
+                        singlePrefix,
+                        LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 5.seconds)
+                    ),
                     executor = VirtualThreadExecutor,
-                ) { CompletableFuture.completedFuture("single-reacquired") }
-                    .get(5, TimeUnit.SECONDS) shouldBeEqualTo "single-reacquired"
+                ) {
+                    completableFutureOf("single-reacquired")
+                }.get(5.seconds) shouldBeEqualTo "single-reacquired"
+
                 client.runAsyncIfLeaderGroup(
                     groupLockName,
                     options = groupOptions(
@@ -180,8 +255,9 @@ class InlineBackendFacadeConsumerTest : AbstractEtcdLeaderTest() {
                         LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 1.seconds, leaseTime = 5.seconds),
                     ),
                     executor = VirtualThreadExecutor,
-                ) { CompletableFuture.completedFuture("group-reacquired") }
-                    .get(5, TimeUnit.SECONDS) shouldBeEqualTo "group-reacquired"
+                ) {
+                    completableFutureOf("group-reacquired")
+                }.get(5.seconds) shouldBeEqualTo "group-reacquired"
             } finally {
                 singleAction.cancel(true)
                 groupAction.cancel(true)
@@ -205,15 +281,18 @@ class InlineBackendFacadeConsumerTest : AbstractEtcdLeaderTest() {
                 options = options,
                 executor = VirtualThreadExecutor,
             ) { failedCompletableFutureOf<String>(failure) }
-            val thrown = assertFailsWith<ExecutionException> { result.get(5, TimeUnit.SECONDS) }
+            val thrown = assertFailsWith<ExecutionException> {
+                result.get(5.seconds)
+            }
             thrown.cause shouldBeEqualTo failure
 
             client.runAsyncIfLeader(
                 lockName,
                 options = options,
                 executor = VirtualThreadExecutor,
-            ) { CompletableFuture.completedFuture("reacquired") }
-                .get(5, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+            ) {
+                completableFutureOf("reacquired")
+            }.get(5.seconds) shouldBeEqualTo "reacquired"
         }
     }
 
@@ -232,15 +311,18 @@ class InlineBackendFacadeConsumerTest : AbstractEtcdLeaderTest() {
                 options = options,
                 executor = VirtualThreadExecutor,
             ) { failedCompletableFutureOf<String>(failure) }
-            val thrown = assertFailsWith<ExecutionException> { failed.get(5, TimeUnit.SECONDS) }
+            val thrown = assertFailsWith<ExecutionException> {
+                failed.get(5.seconds)
+            }
             thrown.cause shouldBeEqualTo failure
 
             client.runAsyncIfLeaderGroup(
                 lockName,
                 options = options,
                 executor = VirtualThreadExecutor,
-            ) { CompletableFuture.completedFuture("reacquired") }
-                .get(5, TimeUnit.SECONDS) shouldBeEqualTo "reacquired"
+            ) {
+                completableFutureOf("reacquired")
+            }.get(5.seconds) shouldBeEqualTo "reacquired"
         }
     }
 
@@ -288,11 +370,11 @@ class InlineBackendFacadeConsumerTest : AbstractEtcdLeaderTest() {
             }
 
             try {
-                actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                actionStarted.await(5.seconds).shouldBeTrue()
                 result.cancel(true).shouldBeTrue()
-                actionInterrupted.await(5, TimeUnit.SECONDS).shouldBeTrue()
-                await atMost 5.seconds until {
-                    client.runIfLeader(lockName, options) { "reacquired" } == "reacquired"
+                actionInterrupted.await(5.seconds).shouldBeTrue()
+                await atMost 5.seconds untilAsserted {
+                    client.runIfLeader(lockName, options) { "reacquired" } shouldBeEqualTo "reacquired"
                 }
             } finally {
                 release.countDown()
@@ -323,11 +405,11 @@ class InlineBackendFacadeConsumerTest : AbstractEtcdLeaderTest() {
             }
 
             try {
-                actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                actionStarted.await(5.seconds).shouldBeTrue()
                 result.cancel(true).shouldBeTrue()
-                actionInterrupted.await(5, TimeUnit.SECONDS).shouldBeTrue()
-                await atMost 5.seconds until {
-                    client.runIfLeaderGroup(lockName, options) { "slot-reused" } == "slot-reused"
+                actionInterrupted.await(5.seconds).shouldBeTrue()
+                await atMost 5.seconds untilAsserted {
+                    client.runIfLeaderGroup(lockName, options) { "slot-reused" } shouldBeEqualTo "slot-reused"
                 }
             } finally {
                 release.countDown()

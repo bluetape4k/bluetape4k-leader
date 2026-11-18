@@ -31,8 +31,8 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
         newClient().use { client ->
             val keyPrefix = "/bluetape4k/leader/test/${randomName()}"
             val holder = EtcdLeaderGroupElector(
-                client,
-                EtcdLeaderGroupElectionOptions(
+                client = client,
+                options = EtcdLeaderGroupElectionOptions(
                     leaderGroupOptions = LeaderGroupElectionOptions(
                         maxLeaders = 2,
                         waitTime = 5.seconds,
@@ -42,8 +42,8 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 ),
             )
             val contender = EtcdLeaderGroupElector(
-                client,
-                EtcdLeaderGroupElectionOptions(
+                client = client,
+                options = EtcdLeaderGroupElectionOptions(
                     leaderGroupOptions = LeaderGroupElectionOptions(
                         maxLeaders = 2,
                         waitTime = 250.milliseconds,
@@ -94,8 +94,8 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
         newClient().use { client ->
             val keyPrefix = "/bluetape4k/leader/test/${randomName()}"
             val holder = EtcdLeaderGroupElector(
-                client,
-                EtcdLeaderGroupElectionOptions(
+                client = client,
+                options = EtcdLeaderGroupElectionOptions(
                     leaderGroupOptions = LeaderGroupElectionOptions(
                         maxLeaders = 1,
                         waitTime = 2.seconds,
@@ -105,8 +105,8 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 ),
             )
             val contender = EtcdLeaderGroupElector(
-                client,
-                EtcdLeaderGroupElectionOptions(
+                client = client,
+                options = EtcdLeaderGroupElectionOptions(
                     leaderGroupOptions = LeaderGroupElectionOptions(
                         maxLeaders = 1,
                         waitTime = 250.milliseconds,
