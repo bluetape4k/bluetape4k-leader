@@ -13,7 +13,6 @@ import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.concurrent.get
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.leader.LeaderGroupElectionOptions
-import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElector
@@ -29,6 +28,7 @@ import org.jetbrains.exposed.v1.core.statements.GlobalStatementInterceptor
 import org.jetbrains.exposed.v1.core.statements.StatementContext
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Test
@@ -271,7 +271,8 @@ class ExposedJdbcGroupLockQueryBudgetTest: AbstractExposedJdbcLeaderTest() {
         )
 
         transaction(db) {
-            exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
+            SchemaUtils.drop(LeaderGroupLockTable)
+            // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
         }
 
         ExposedJdbcSchemaInitializer.resetFor(db)
