@@ -15,5 +15,8 @@ class RedissonLeaderGroupElectorFactory(
 ): LeaderGroupElectorFactory {
 
     override fun create(options: LeaderGroupElectionOptions): LeaderGroupElector =
-        RedissonLeaderGroupElector(redissonClient, options)
+        RedissonLeaderGroupElector(
+            redissonClient = redissonClient,
+            options = options,
+        )
 }

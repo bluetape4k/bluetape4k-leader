@@ -70,7 +70,7 @@ private fun redactHierarchicalUri(uri: URI): String {
 
 private fun redactOpaqueUri(uri: URI): String {
     uri.scheme.requireNotBlank { "Database URL scheme is required." }
-    
+
     uri.rawSchemeSpecificPart
         ?.takeUnless(String::isBlank)
         ?: throw IllegalArgumentException("Database URL scheme-specific part is required.")

@@ -12,9 +12,6 @@ import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
 /** DynamoDB backend의 정적 capability와 안전한 connectivity 계약입니다. */
 object DynamoDbLeaderBackendDiagnostics: LeaderBackendDiagnosticsProvider {
 
-    const val BackendId = "dynamodb"
-    const val DisplayName = "DynamoDB"
-
     private val SupportedModes = LeaderBackendModeSupport(
         single = LeaderBackendSupport.SUPPORTED,
         group = LeaderBackendSupport.SUPPORTED,
@@ -26,8 +23,8 @@ object DynamoDbLeaderBackendDiagnostics: LeaderBackendDiagnosticsProvider {
 
     override val backendDescriptor: LeaderBackendDescriptor =
         LeaderBackendDescriptor(
-            backendId = BackendId,
-            displayName = DisplayName,
+            backendId = "dynamodb",
+            displayName = "DynamoDB",
             capabilities = LeaderBackendCapabilities(
                 singleExecutionModels = LeaderExecutionModel.entries.toSet(),
                 groupExecutionModels = LeaderExecutionModel.entries.toSet(),

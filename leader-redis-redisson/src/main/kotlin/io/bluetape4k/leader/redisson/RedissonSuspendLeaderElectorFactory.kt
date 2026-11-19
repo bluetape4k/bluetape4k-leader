@@ -18,5 +18,8 @@ class RedissonSuspendLeaderElectorFactory(
     companion object: KLogging()
 
     override suspend fun create(options: LeaderElectionOptions): SuspendLeaderElector =
-        RedissonSuspendLeaderElector(redissonClient, options)
+        RedissonSuspendLeaderElector(
+            redissonClient = redissonClient,
+            options = options,
+        )
 }

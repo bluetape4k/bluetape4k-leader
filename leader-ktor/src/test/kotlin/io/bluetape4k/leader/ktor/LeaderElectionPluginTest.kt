@@ -83,7 +83,7 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
                     leaderElection = FakeSuspendLeaderElector()
                 }
                 resource = AutoCloseable { closeCount.incrementAndGet() }
-                registry = leaderElectionResourceRegistryOrNull()!!
+                registry = leaderElectionResourceRegistryOrNull().shouldNotBeNull()
                 registry.register(resource)
             }
             startApplication()
@@ -105,7 +105,7 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
                 install(LeaderElectionPlugin) {
                     leaderElection = FakeSuspendLeaderElector()
                 }
-                leaderRegistry = leaderElectionResourceRegistryOrNull()!!
+                leaderRegistry = leaderElectionResourceRegistryOrNull().shouldNotBeNull()
                 leaderRegistry.register { closeCount.incrementAndGet() }
             }
             startApplication()
@@ -133,7 +133,7 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
                 install(LeaderElectionPlugin) {
                     leaderElection = FakeSuspendLeaderElector()
                 }
-                leaderRegistry = leaderElectionResourceRegistryOrNull()!!
+                leaderRegistry = leaderElectionResourceRegistryOrNull().shouldNotBeNull()
                 leaderRegistry.register { regularCloseCount.incrementAndGet() }
             }
             startApplication()
@@ -177,8 +177,8 @@ class LeaderElectionPluginTest: AbstractLeaderKtorTest() {
                             managementActionRouteEnabled = true
                         }
                     } catch (cause: Throwable) {
-                        leaderRegistry = requireNotNull(leaderElectionResourceRegistryOrNull())
-                        hub = requireNotNull(pluginOrNull(LeaderEventStreamRuntimePlugin)?.hub)
+                        leaderRegistry = leaderElectionResourceRegistryOrNull().shouldNotBeNull()
+                        hub = pluginOrNull(LeaderEventStreamRuntimePlugin)?.hub.shouldNotBeNull()
 
                         withContext(Dispatchers.IO) {
                             withTimeout(1.seconds) {

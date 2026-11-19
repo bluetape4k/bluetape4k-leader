@@ -31,7 +31,10 @@ class DynamoDbLeaderConfiguration {
         client: DynamoDbClient,
         props: LeaderProperties,
     ): DynamoDbLeaderElector =
-        DynamoDbLeaderElector(client, electionOptions(props))
+        DynamoDbLeaderElector(
+            client = client,
+            options = electionOptions(props),
+        )
 
     @Bean
     @ConditionalOnBean(DynamoDbClient::class)
@@ -40,7 +43,10 @@ class DynamoDbLeaderConfiguration {
         client: DynamoDbClient,
         props: LeaderProperties,
     ): DynamoDbLeaderGroupElector =
-        DynamoDbLeaderGroupElector(client, groupOptions(props))
+        DynamoDbLeaderGroupElector(
+            dynamoDb = client,
+            options = groupOptions(props),
+        )
 
     @Bean
     @ConditionalOnBean(DynamoDbLeaderElector::class)
@@ -66,7 +72,10 @@ class DynamoDbLeaderConfiguration {
         client: DynamoDbAsyncClient,
         props: LeaderProperties,
     ): DynamoDbSuspendLeaderElector =
-        DynamoDbSuspendLeaderElector(client, electionOptions(props))
+        DynamoDbSuspendLeaderElector(
+            dynamoDb = client,
+            options = electionOptions(props),
+        )
 
     @Bean
     @ConditionalOnBean(DynamoDbAsyncClient::class)
@@ -76,7 +85,10 @@ class DynamoDbLeaderConfiguration {
         client: DynamoDbAsyncClient,
         props: LeaderProperties,
     ): DynamoDbSuspendLeaderGroupElector =
-        DynamoDbSuspendLeaderGroupElector(client, groupOptions(props))
+        DynamoDbSuspendLeaderGroupElector(
+            dynamoDb = client,
+            options = groupOptions(props),
+        )
 
     companion object {
         fun electionOptions(props: LeaderProperties): DynamoDbLeaderElectionOptions =

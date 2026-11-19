@@ -18,5 +18,8 @@ class RedissonLeaderElectorFactory(
     companion object: KLogging()
 
     override fun create(options: LeaderElectionOptions): LeaderElector =
-        RedissonLeaderElector(redissonClient, options)
+        RedissonLeaderElector(
+            redissonClient = redissonClient,
+            options = options,
+        )
 }

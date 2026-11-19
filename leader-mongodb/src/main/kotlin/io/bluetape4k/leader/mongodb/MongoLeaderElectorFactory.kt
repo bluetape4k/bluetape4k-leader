@@ -18,5 +18,8 @@ class MongoLeaderElectorFactory(
 ): LeaderElectorFactory {
 
     override fun create(options: LeaderElectionOptions): LeaderElector =
-        MongoLeaderElector(collection, baseOptions.copy(leaderOptions = options))
+        MongoLeaderElector(
+            collection = collection,
+            options = baseOptions.copy(leaderOptions = options),
+        )
 }

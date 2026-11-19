@@ -28,7 +28,10 @@ class HazelcastLeaderConfiguration {
         hazelcast: HazelcastInstance,
         props: LeaderProperties,
     ): HazelcastLeaderElector =
-        HazelcastLeaderElector(hazelcast, PropertiesAdapter.toCommonElection(props))
+        HazelcastLeaderElector(
+            hazelcast = hazelcast,
+            options = PropertiesAdapter.toCommonElection(props),
+        )
 
     @Bean
     @ConditionalOnMissingBean(name = ["hazelcastSuspendLeaderElector"])
@@ -36,7 +39,10 @@ class HazelcastLeaderConfiguration {
         hazelcast: HazelcastInstance,
         props: LeaderProperties,
     ): HazelcastSuspendLeaderElector =
-        HazelcastSuspendLeaderElector(hazelcast, PropertiesAdapter.toCommonElection(props))
+        HazelcastSuspendLeaderElector(
+            hazelcast = hazelcast,
+            options = PropertiesAdapter.toCommonElection(props),
+        )
 
     @Bean
     @ConditionalOnMissingBean(name = ["hazelcastLeaderGroupElector"])
@@ -44,7 +50,10 @@ class HazelcastLeaderConfiguration {
         hazelcast: HazelcastInstance,
         props: LeaderProperties,
     ): HazelcastLeaderGroupElector =
-        HazelcastLeaderGroupElector(hazelcast, PropertiesAdapter.toCommonGroup(props))
+        HazelcastLeaderGroupElector(
+            hazelcast = hazelcast,
+            options = PropertiesAdapter.toCommonGroup(props),
+        )
 
     @Bean
     @ConditionalOnMissingBean(name = ["hazelcastSuspendLeaderGroupElector"])
@@ -52,5 +61,8 @@ class HazelcastLeaderConfiguration {
         hazelcast: HazelcastInstance,
         props: LeaderProperties,
     ): HazelcastSuspendLeaderGroupElector =
-        HazelcastSuspendLeaderGroupElector(hazelcast, PropertiesAdapter.toCommonGroup(props))
+        HazelcastSuspendLeaderGroupElector(
+            hazelcast = hazelcast,
+            options = PropertiesAdapter.toCommonGroup(props),
+        )
 }

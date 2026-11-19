@@ -18,5 +18,8 @@ class HazelcastLeaderGroupElectorFactory(
     companion object: KLogging()
 
     override fun create(options: LeaderGroupElectionOptions): LeaderGroupElector =
-        HazelcastLeaderGroupElector(hazelcast, options)
+        HazelcastLeaderGroupElector(
+            hazelcast = hazelcast,
+            options = options,
+        )
 }

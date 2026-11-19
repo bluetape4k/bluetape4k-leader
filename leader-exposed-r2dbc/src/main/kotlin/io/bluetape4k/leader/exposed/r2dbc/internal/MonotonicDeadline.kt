@@ -34,7 +34,7 @@ internal class MonotonicDeadline private constructor(
     }
 
     companion object: KLogging() {
-        
+
         fun fromNow(
             waitTime: Duration,
             ticker: () -> Long = System::nanoTime,

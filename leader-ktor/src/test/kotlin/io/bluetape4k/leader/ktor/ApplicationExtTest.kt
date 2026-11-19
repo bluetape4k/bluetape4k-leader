@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.coroutines.support.awaitUntil
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
@@ -168,7 +169,7 @@ class ApplicationExtTest: AbstractLeaderKtorTest() {
         testApplication {
             application {
                 install(LeaderElectionPlugin) { leaderElection = FakeSuspendLeaderElector() }
-                registry = leaderElectionResourceRegistryOrNull()!!
+                registry = leaderElectionResourceRegistryOrNull().shouldNotBeNull()
                 scheduledJob = leaderScheduled(randomName(), SHORT_PERIOD) {
                     started.complete(Unit)
                     awaitCancellation()
@@ -192,7 +193,7 @@ class ApplicationExtTest: AbstractLeaderKtorTest() {
         testApplication {
             application {
                 install(LeaderElectionPlugin) { leaderElection = FakeSuspendLeaderElector() }
-                registry = leaderElectionResourceRegistryOrNull()!!
+                registry = leaderElectionResourceRegistryOrNull().shouldNotBeNull()
                 scheduledJob = leaderScheduled("scheduled-job", 10.milliseconds) { }
             }
             startApplication()

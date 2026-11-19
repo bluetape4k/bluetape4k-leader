@@ -18,5 +18,9 @@ class ZooKeeperLeaderGroupElectorFactory(
 ): LeaderGroupElectorFactory {
 
     override fun create(options: LeaderGroupElectionOptions): LeaderGroupElector =
-        ZooKeeperLeaderGroupElector(client, options, basePath)
+        ZooKeeperLeaderGroupElector(
+            client = client,
+            options = options,
+            basePath = basePath,
+        )
 }

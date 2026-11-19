@@ -17,7 +17,10 @@ inline fun <T> RedissonClient.runIfLeader(
     crossinline action: () -> T,
 ): T? {
     jobName.validateLockName("jobName")
-    val leaderElection = RedissonLeaderElector(this, options)
+    val leaderElection = RedissonLeaderElector(
+        redissonClient = this,
+        options = options,
+    )
     return leaderElection.runIfLeader(jobName) { action() }
 }
 
@@ -29,7 +32,10 @@ inline fun <T> RedissonClient.runAsyncIfLeader(
     crossinline action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> {
     jobName.validateLockName("jobName")
-    val leaderElection = RedissonLeaderElector(this, options)
+    val leaderElection = RedissonLeaderElector(
+        redissonClient = this,
+        options = options,
+    )
     return leaderElection.runAsyncIfLeader(jobName, executor) { action() }
 }
 
@@ -40,7 +46,10 @@ inline fun <T> RedissonClient.runIfLeaderGroup(
     crossinline action: () -> T,
 ): T? {
     lockName.requireNotBlank("lockName")
-    return RedissonLeaderGroupElector(this, options)
+    return RedissonLeaderGroupElector(
+        redissonClient = this,
+        options = options,
+    )
         .runIfLeader(lockName) {
             action()
         }
@@ -54,7 +63,10 @@ suspend inline fun <T> RedissonClient.suspendRunIfLeader(
 ): T? {
     jobName.validateLockName("jobName")
 
-    val leaderElection = RedissonSuspendLeaderElector(this, options)
+    val leaderElection = RedissonSuspendLeaderElector(
+        redissonClient = this,
+        options = options,
+    )
     return leaderElection.runIfLeader(jobName) { action() }
 }
 
@@ -66,5 +78,8 @@ suspend fun <T> RedissonClient.runSuspendIfLeaderGroup(
 ): T? {
     lockName.requireNotBlank("lockName")
     options.maxLeaders.requirePositiveNumber("maxLeaders")
-    return RedissonSuspendLeaderGroupElector(this, options).runIfLeader(lockName, action)
+    return RedissonSuspendLeaderGroupElector(
+        redissonClient = this,
+        options = options,
+    ).runIfLeader(lockName, action)
 }

@@ -34,9 +34,11 @@ class ExposedR2dbcLeaderConfiguration {
         operationName = "exposedR2dbcSuspendLeaderElector",
     ) {
         ExposedR2DbcSuspendLeaderElector(
-            db,
-            ExposedR2dbcLeaderElectionOptions(leaderOptions = PropertiesAdapter.toCommonElection(props)),
-            recorderProvider.ifAvailable,
+            db = db,
+            options = ExposedR2dbcLeaderElectionOptions(
+                leaderOptions = PropertiesAdapter.toCommonElection(props),
+            ),
+            historyRecorder = recorderProvider.ifAvailable,
         )
     }
 
@@ -50,9 +52,11 @@ class ExposedR2dbcLeaderConfiguration {
         operationName = "exposedR2dbcSuspendLeaderGroupElector",
     ) {
         ExposedR2DbcSuspendLeaderGroupElector(
-            db,
-            ExposedR2dbcLeaderGroupElectionOptions(leaderGroupOptions = PropertiesAdapter.toCommonGroup(props)),
-            recorderProvider.ifAvailable,
+            db = db,
+            options = ExposedR2dbcLeaderGroupElectionOptions(
+                leaderGroupOptions = PropertiesAdapter.toCommonGroup(props),
+            ),
+            historyRecorder = recorderProvider.ifAvailable,
         )
     }
 }

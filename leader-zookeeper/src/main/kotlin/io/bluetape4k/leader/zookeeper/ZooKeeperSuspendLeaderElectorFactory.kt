@@ -16,5 +16,9 @@ class ZooKeeperSuspendLeaderElectorFactory(
 ): SuspendLeaderElectorFactory {
 
     override suspend fun create(options: LeaderElectionOptions): ZooKeeperSuspendLeaderElector =
-        ZooKeeperSuspendLeaderElector(client, basePath, options)
+        ZooKeeperSuspendLeaderElector(
+            client = client,
+            basePath = basePath,
+            options = options,
+        )
 }
