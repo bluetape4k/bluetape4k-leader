@@ -398,7 +398,6 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
             try {
                 suspendTransaction(db) {
                     SchemaUtils.drop(LeaderGroupLockTable)
-                    // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
                 }
 
                 election.activeCountSuspend(lockName) shouldBeEqualTo maxLeaders
@@ -488,7 +487,6 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
             try {
                 suspendTransaction(db) {
                     SchemaUtils.drop(LeaderGroupLockTable)
-                    // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
                 }
                 election.activeCountSuspend(lockName) shouldBeEqualTo maxLeaders
             } finally {

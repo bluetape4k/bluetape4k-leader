@@ -5,13 +5,13 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.exposed.tests.TestDB
-import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
@@ -238,7 +238,8 @@ class ExposedJdbcGroupLockTest: AbstractExposedJdbcLeaderTest() {
             lock.unlockAndReport() shouldBeEqualTo ExposedJdbcUnlockOutcome.NOT_HELD
 
             transaction(db) {
-                exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
+                SchemaUtils.drop(LeaderGroupLockTable)
+                // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
             }
             ExposedJdbcSchemaInitializer.resetFor(db)
 

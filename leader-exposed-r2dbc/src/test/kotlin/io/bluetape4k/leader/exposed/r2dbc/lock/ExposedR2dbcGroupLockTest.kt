@@ -14,7 +14,6 @@ import io.bluetape4k.concurrent.await
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
-import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
 import io.bluetape4k.leader.exposed.r2dbc.AbstractExposedR2dbcLeaderTest
 import io.bluetape4k.leader.exposed.r2dbc.TestR2dbcDB
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
@@ -154,7 +153,6 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         suspend fun dropSchema() {
             suspendTransaction(db) {
                 SchemaUtils.drop(LeaderGroupLockTable)
-                // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
             }
             ExposedR2dbcSchemaInitializer.resetFor(db)
         }
@@ -219,7 +217,6 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         try {
             suspendTransaction(db) {
                 SchemaUtils.drop(LeaderGroupLockTable)
-                // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
             }
             ExposedR2dbcSchemaInitializer.resetFor(db)
 
@@ -261,7 +258,6 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
             try {
                 suspendTransaction(db) {
                     SchemaUtils.drop(LeaderGroupLockTable)
-                    // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
                 }
                 ExposedR2dbcSchemaInitializer.resetFor(db)
 
@@ -474,7 +470,6 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
             callbackEntered.await(5.seconds).shouldBeTrue()
             suspendTransaction(db) {
                 SchemaUtils.drop(LeaderGroupLockTable)
-                // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
             }
             ExposedR2dbcSchemaInitializer.resetFor(db)
             tableDropped.countDown()

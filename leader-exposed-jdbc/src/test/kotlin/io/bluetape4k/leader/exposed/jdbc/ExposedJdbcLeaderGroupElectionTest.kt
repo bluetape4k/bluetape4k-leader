@@ -23,11 +23,11 @@ import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderSlot
-import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
 import io.bluetape4k.leader.exposed.jdbc.history.ExposedLeaderHistorySink
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcGroupLock
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderHistoryStatus
@@ -42,6 +42,7 @@ import org.awaitility.kotlin.until
 import org.awaitility.kotlin.untilAsserted
 import org.awaitility.kotlin.withPollInterval
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.condition.EnabledForJreRange
@@ -313,7 +314,8 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
 
         try {
             transaction(db) {
-                exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
+                SchemaUtils.drop(LeaderGroupLockTable)
+                // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
             }
 
             election.activeCount(lockName) shouldBeEqualTo maxLeaders

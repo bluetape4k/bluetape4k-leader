@@ -10,7 +10,6 @@ import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionOptions
-import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
 import io.bluetape4k.leader.exposed.r2dbc.AbstractExposedR2dbcLeaderTest
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderGroupElector
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderGroupElectionOptions
@@ -281,7 +280,6 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
 
         suspendTransaction(db) {
             SchemaUtils.drop(LeaderGroupLockTable)
-            // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
         }
         ExposedR2dbcSchemaInitializer.resetFor(db)
         val failedSql = recordSql {
