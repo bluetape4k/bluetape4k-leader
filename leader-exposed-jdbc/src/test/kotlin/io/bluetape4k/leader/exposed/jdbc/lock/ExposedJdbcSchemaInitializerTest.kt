@@ -17,6 +17,8 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.utils.Runtimex
 import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.condition.EnabledForJreRange
+import org.junit.jupiter.api.condition.JRE
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.slf4j.LoggerFactory
@@ -82,6 +84,7 @@ class ExposedJdbcSchemaInitializerTest: AbstractExposedJdbcLeaderTest() {
         errorCount.get() shouldBeEqualTo 0
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `ensureSchema - 다중 Virtual Threads 동시 호출에도 예외 없이 1회만 초기화된다`(testDB: TestDB) {

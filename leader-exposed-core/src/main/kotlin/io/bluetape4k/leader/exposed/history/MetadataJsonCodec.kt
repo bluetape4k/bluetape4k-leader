@@ -79,34 +79,25 @@ object MetadataJsonCodec {
         if (start >= s.length || s[start] != '"') return null
         val sb = StringBuilder()
         var i = start + 1
+
         while (i < s.length) {
-            val ch = s[i]
-            if (ch == '\\' && i + 1 < s.length) {
-                when (s[i + 1]) {
-                    '"' -> {
-                        sb.append('"'); i += 2
+            when (val ch = s[i]) {
+                '\\' if i + 1 < s.length -> {
+                    when (s[i + 1]) {
+                        '"'  -> sb.append('"')
+                        '\\' -> sb.append('\\')
+                        'n'  -> sb.append('\n')
+                        'r'  -> sb.append('\r')
+                        't'  -> sb.append('\t')
+                        else -> sb.append(s[i + 1])
                     }
-                    '\\' -> {
-                        sb.append('\\'); i += 2
-                    }
-                    'n' -> {
-                        sb.append('\n'); i += 2
-                    }
-                    'r' -> {
-                        sb.append('\r'); i += 2
-                    }
-                    't' -> {
-                        sb.append('\t'); i += 2
-                    }
-                    else -> {
-                        sb.append(s[i + 1]); i += 2
-                    }
+                    i += 2
                 }
-            } else if (ch == '"') {
-                return Pair(sb.toString(), i + 1)
-            } else {
-                sb.append(ch)
-                i++
+                '"'                      -> return Pair(sb.toString(), i + 1)
+                else                     -> {
+                    sb.append(ch)
+                    i++
+                }
             }
         }
         return null

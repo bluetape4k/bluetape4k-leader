@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.exposed.jdbc
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInRange
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.logging.KLogging
@@ -19,7 +20,7 @@ class RetryStrategyTest {
         log.debug { "strategy=$strategy" }
 
         val delay = strategy.delayMs(attempt = 0, remaining = 1L)
-        delay shouldBeInRange 1L..1L
+        delay shouldBeEqualTo 1L
     }
 
     @Test
@@ -71,7 +72,7 @@ class RetryStrategyTest {
     fun `Fixed - remaining이 1일 때 반환값은 1이다`() {
         val strategy = RetryStrategy.Fixed(fixedMs = 50L)
         val delay = strategy.delayMs(attempt = 0, remaining = 1L)
-        delay shouldBeInRange 1L..1L
+        delay shouldBeEqualTo 1L
     }
 
     @Test

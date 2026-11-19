@@ -8,6 +8,7 @@ import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendLeaderHistorySink
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.warn
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
@@ -44,11 +45,27 @@ class ExposedSuspendLeaderHistorySink(
                 it[metadata] = MetadataJsonCodec.encode(record.metadata)
             }[LeaderLockHistoryTable.id]
         }
-        return LeaderHistoryKey(id = id, lockName = record.lockName, token = record.token, slotId = record.slotId)
+        return LeaderHistoryKey(
+            id = id,
+            lockName = record.lockName,
+            token = record.token,
+            slotId = record.slotId
+        )
     }
 
-    override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
-        updateFinished(key, finishedAt, durationMs, LeaderHistoryStatus.COMPLETED, null, null)
+    override suspend fun recordCompleted(
+        key: LeaderHistoryKey,
+        finishedAt: Instant,
+        durationMs: Long,
+    ) {
+        updateFinished(
+            key = key,
+            finishedAt = finishedAt,
+            durationMs = durationMs,
+            status = LeaderHistoryStatus.COMPLETED,
+            errorType = null,
+            errorMessage = null
+        )
     }
 
     override suspend fun recordFailed(
@@ -58,7 +75,14 @@ class ExposedSuspendLeaderHistorySink(
         errorType: String?,
         errorMessage: String?,
     ) {
-        updateFinished(key, finishedAt, durationMs, LeaderHistoryStatus.FAILED, errorType, errorMessage)
+        updateFinished(
+            key = key,
+            finishedAt = finishedAt,
+            durationMs = durationMs,
+            status = LeaderHistoryStatus.FAILED,
+            errorType = errorType,
+            errorMessage = errorMessage
+        )
     }
 
     /**
@@ -82,12 +106,14 @@ class ExposedSuspendLeaderHistorySink(
     ) {
         val keyId = key.id
         val updated = suspendTransaction(database) {
-            val where = if (keyId != null) {
-                { (LeaderLockHistoryTable.id eq keyId) and (LeaderLockHistoryTable.token eq key.token) }
-            } else {
-                { (LeaderLockHistoryTable.lockName eq key.lockName) and (LeaderLockHistoryTable.token eq key.token) }
-            }
-            LeaderLockHistoryTable.update(where = where) { row ->
+            val whereClause: () -> Op<Boolean> =
+                if (keyId != null) {
+                    { (LeaderLockHistoryTable.id eq keyId) and (LeaderLockHistoryTable.token eq key.token) }
+                } else {
+                    { (LeaderLockHistoryTable.lockName eq key.lockName) and (LeaderLockHistoryTable.token eq key.token) }
+                }
+
+            LeaderLockHistoryTable.update(where = whereClause) { row ->
                 row[LeaderLockHistoryTable.status] = status
                 row[LeaderLockHistoryTable.finishedAt] = finishedAt
                 row[LeaderLockHistoryTable.durationMs] = durationMs

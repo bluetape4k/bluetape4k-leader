@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.exposed.jdbc.internal
 
 import io.bluetape4k.ToStringBuilder
+import io.bluetape4k.logging.KLogging
 import kotlin.time.Duration
 import io.bluetape4k.leader.internal.MonotonicDeadline as CoreMonotonicDeadline
 
@@ -17,7 +18,8 @@ internal class MonotonicDeadline private constructor(
     ticker: () -> Long,
 ) {
 
-    companion object {
+    companion object: KLogging() {
+
         fun fromNow(
             waitTime: Duration,
             ticker: () -> Long = System::nanoTime,
@@ -26,9 +28,11 @@ internal class MonotonicDeadline private constructor(
             val timeoutNanos = waitTime.inWholeNanoseconds.coerceAtLeast(0L)
             return MonotonicDeadline(startNanos, timeoutNanos, ticker)
         }
+
     }
 
-    private val delegate = CoreMonotonicDeadline.fromStart(startNanos, timeoutNanos, ticker)
+    private val delegate: CoreMonotonicDeadline =
+        CoreMonotonicDeadline.fromStart(startNanos, timeoutNanos, ticker)
 
     fun remainingNanos(): Long = delegate.remainingNanos()
 

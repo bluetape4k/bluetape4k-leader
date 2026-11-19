@@ -34,11 +34,10 @@ class ExposedR2dbcLeaderBackendDiagnosticsTest {
         val capabilities = descriptor.capabilities
 
         log.debug { "descriptor=$descriptor" }
-        log.debug { "capabilities=$capabilities" }
-
         descriptor.backendId shouldBeEqualTo "exposed-r2dbc"
         descriptor.displayName shouldBeEqualTo "Exposed R2DBC"
 
+        log.debug { "capabilities=$capabilities" }
         capabilities.singleExecutionModels shouldBeEqualTo setOf(LeaderExecutionModel.SUSPEND)
         capabilities.groupExecutionModels shouldBeEqualTo setOf(LeaderExecutionModel.SUSPEND)
         capabilities.leaseExtension shouldBeEqualTo supportedModes

@@ -17,6 +17,31 @@ class MonotonicDeadline private constructor(
     private val ticker: () -> Long,
 ) {
 
+    companion object: KLogging() {
+        /**
+         * 이미 읽은 시작 시각과 timeout으로 deadline을 만듭니다.
+         *
+         * backend wrapper가 기존 JVM constructor 모양을 유지하면서도 공통 계산기를
+         * 위임할 수 있도록 제공하는 내부 생태계용 factory입니다.
+         */
+        fun fromStart(
+            startNanos: Long,
+            timeoutNanos: Long,
+            ticker: () -> Long = System::nanoTime,
+        ): MonotonicDeadline {
+            return MonotonicDeadline(startNanos, timeoutNanos.coerceAtLeast(0L), ticker)
+        }
+
+        fun fromNow(
+            waitTime: Duration,
+            ticker: () -> Long = System::nanoTime,
+        ): MonotonicDeadline {
+            val startNanos = ticker()
+            val timeoutNanos = waitTime.inWholeNanoseconds.coerceAtLeast(0L)
+            return fromStart(startNanos, timeoutNanos, ticker)
+        }
+    }
+
     private fun elapsedNanos(): Long = (ticker() - startNanos).coerceAtLeast(0L)
 
     fun remainingNanos(): Long {
@@ -59,28 +84,4 @@ class MonotonicDeadline private constructor(
     override fun toString(): String =
         "MonotonicDeadline(startNanos=$startNanos, timeoutNanos=$timeoutNanos, ticker = $ticker)"
 
-    companion object: KLogging() {
-        /**
-         * 이미 읽은 시작 시각과 timeout으로 deadline을 만듭니다.
-         *
-         * backend wrapper가 기존 JVM constructor 모양을 유지하면서도 공통 계산기를
-         * 위임할 수 있도록 제공하는 내부 생태계용 factory입니다.
-         */
-        fun fromStart(
-            startNanos: Long,
-            timeoutNanos: Long,
-            ticker: () -> Long = System::nanoTime,
-        ): MonotonicDeadline {
-            return MonotonicDeadline(startNanos, timeoutNanos.coerceAtLeast(0L), ticker)
-        }
-
-        fun fromNow(
-            waitTime: Duration,
-            ticker: () -> Long = System::nanoTime,
-        ): MonotonicDeadline {
-            val startNanos = ticker()
-            val timeoutNanos = waitTime.inWholeNanoseconds.coerceAtLeast(0L)
-            return fromStart(startNanos, timeoutNanos, ticker)
-        }
-    }
 }

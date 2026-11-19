@@ -34,7 +34,8 @@ class ExposedR2dbcSuspendLockExtenderContractTest: AbstractSuspendLockExtenderCo
         }
     }
 
-    override val elector: SuspendLeaderElector = runBlocking {
-        ExposedR2DbcSuspendLeaderElector(db)
-    }
+    override val elector: SuspendLeaderElector =
+        runBlocking {
+            ExposedR2DbcSuspendLeaderElector(db)
+        }
 }

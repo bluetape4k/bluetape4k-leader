@@ -108,7 +108,8 @@ class LeaderGroupLockTableTest: AbstractExposedTableTest() {
                 it[lockedUntil] = now + 60.seconds()
             }
 
-            val activeCount = LeaderGroupLockTable.selectAll()
+            val activeCount = LeaderGroupLockTable
+                .selectAll()
                 .where {
                     LeaderGroupLockTable.lockName eq "test-group" and
                             LeaderGroupLockTable.lockedUntil.greaterEq(now)
@@ -167,7 +168,8 @@ class LeaderGroupLockTableTest: AbstractExposedTableTest() {
                 }
             }
 
-            val count = LeaderGroupLockTable.selectAll()
+            val count = LeaderGroupLockTable
+                .selectAll()
                 .where {
                     LeaderGroupLockTable.lockName eq "range-group" and
                             (LeaderGroupLockTable.slot greaterEq 0) and

@@ -72,10 +72,8 @@ class ExposedJdbcExtendDelegateReferenceTest {
     @Test
     fun `sync group — extendActiveLockDetailed uses extendDetailed and Extended is returned`() {
         val elector = ExposedJdbcLeaderGroupElector(
-            db,
-            ExposedJdbcLeaderGroupElectionOptions(
-                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 2),
-            ),
+            db = db,
+            options = ExposedJdbcLeaderGroupElectionOptions(LeaderGroupElectionOptions(maxLeaders = 2)),
         )
         val lockName = randomLockName()
 

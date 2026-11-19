@@ -12,33 +12,36 @@ import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
 /** Exposed JDBC backend의 정적 capability와 안전한 connectivity 계약입니다. */
 object ExposedJdbcLeaderBackendDiagnostics: LeaderBackendDiagnosticsProvider {
 
-    private val SupportedModes = LeaderBackendModeSupport(
-        single = LeaderBackendSupport.SUPPORTED,
-        group = LeaderBackendSupport.SUPPORTED,
-    )
-    private val UnsupportedModes = LeaderBackendModeSupport(
-        single = LeaderBackendSupport.UNSUPPORTED,
-        group = LeaderBackendSupport.UNSUPPORTED,
-    )
+    private val SupportedModes: LeaderBackendModeSupport =
+        LeaderBackendModeSupport(
+            single = LeaderBackendSupport.SUPPORTED,
+            group = LeaderBackendSupport.SUPPORTED,
+        )
+    private val UnsupportedModes: LeaderBackendModeSupport =
+        LeaderBackendModeSupport(
+            single = LeaderBackendSupport.UNSUPPORTED,
+            group = LeaderBackendSupport.UNSUPPORTED,
+        )
 
-    override val backendDescriptor: LeaderBackendDescriptor = LeaderBackendDescriptor(
-        backendId = "exposed-jdbc",
-        displayName = "Exposed JDBC",
-        capabilities = LeaderBackendCapabilities(
-            singleExecutionModels = setOf(
-                LeaderExecutionModel.BLOCKING,
-                LeaderExecutionModel.ASYNC,
-                LeaderExecutionModel.VIRTUAL_THREAD,
+    override val backendDescriptor: LeaderBackendDescriptor =
+        LeaderBackendDescriptor(
+            backendId = "exposed-jdbc",
+            displayName = "Exposed JDBC",
+            capabilities = LeaderBackendCapabilities(
+                singleExecutionModels = setOf(
+                    LeaderExecutionModel.BLOCKING,
+                    LeaderExecutionModel.ASYNC,
+                    LeaderExecutionModel.VIRTUAL_THREAD,
+                ),
+                groupExecutionModels = setOf(
+                    LeaderExecutionModel.BLOCKING,
+                    LeaderExecutionModel.ASYNC,
+                    LeaderExecutionModel.VIRTUAL_THREAD,
+                ),
+                leaseExtension = SupportedModes,
+                auditState = UnsupportedModes,
+                clockSource = LeaderBackendClockSource.CONFIGURABLE,
+                ttlMode = LeaderBackendTtlMode.DATABASE_TIMESTAMP,
             ),
-            groupExecutionModels = setOf(
-                LeaderExecutionModel.BLOCKING,
-                LeaderExecutionModel.ASYNC,
-                LeaderExecutionModel.VIRTUAL_THREAD,
-            ),
-            leaseExtension = SupportedModes,
-            auditState = UnsupportedModes,
-            clockSource = LeaderBackendClockSource.CONFIGURABLE,
-            ttlMode = LeaderBackendTtlMode.DATABASE_TIMESTAMP,
-        ),
-    )
+        )
 }

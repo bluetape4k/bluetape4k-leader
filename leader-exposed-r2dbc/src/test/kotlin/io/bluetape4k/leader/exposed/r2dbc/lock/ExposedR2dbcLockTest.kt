@@ -180,50 +180,48 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
-    fun `isHeldByCurrentInstance - 만료 후 다른 인스턴스 takeover 시 원본 인스턴스는 false 반환`(testDB: TestR2dbcDB) =
-        runSuspendIO {
-            val db = setupDb(testDB)
-            cleanTables(db)
+    fun `isHeldByCurrentInstance - 만료 후 다른 인스턴스 takeover 시 원본 인스턴스는 false 반환`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
 
-            val lockName = randomName()
+        val lockName = randomName()
 
-            val original = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
-            original.tryLock(1.seconds, 150.milliseconds).shouldBeTrue()
-            delay(300.milliseconds)
+        val original = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
+        original.tryLock(1.seconds, 150.milliseconds).shouldBeTrue()
+        delay(300.milliseconds)
 
-            val takeover = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
-            takeover.tryLock(1.seconds, 10.seconds).shouldBeTrue()
+        val takeover = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
+        takeover.tryLock(1.seconds, 10.seconds).shouldBeTrue()
 
-            original.isHeldByCurrentInstance().shouldBeFalse()
-            takeover.isHeldByCurrentInstance().shouldBeTrue()
+        original.isHeldByCurrentInstance().shouldBeFalse()
+        takeover.isHeldByCurrentInstance().shouldBeTrue()
 
-            takeover.unlock()
-        }
+        takeover.unlock()
+    }
 
     @ParameterizedTest
     @MethodSource("enableDialects")
-    fun `unlock - 만료 후 다른 인스턴스가 takeover하면 zombie 인스턴스의 unlock이 현재 락을 해제하지 않는다`(testDB: TestR2dbcDB) =
-        runSuspendIO {
-            val db = setupDb(testDB)
-            cleanTables(db)
+    fun `unlock - 만료 후 다른 인스턴스가 takeover하면 zombie 인스턴스의 unlock이 현재 락을 해제하지 않는다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
 
-            val lockName = randomName()
+        val lockName = randomName()
 
-            val zombie = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
-            zombie.tryLock(1.seconds, 150.milliseconds).shouldBeTrue()
+        val zombie = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
+        zombie.tryLock(1.seconds, 150.milliseconds).shouldBeTrue()
 
-            delay(300.milliseconds)  // lease 만료 대기
+        delay(300.milliseconds)  // lease 만료 대기
 
-            val current = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
-            current.tryLock(1.seconds, 10.seconds).shouldBeTrue()
-            current.isHeldByCurrentInstance().shouldBeTrue()
+        val current = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
+        current.tryLock(1.seconds, 10.seconds).shouldBeTrue()
+        current.isHeldByCurrentInstance().shouldBeTrue()
 
-            // 만료된 zombie가 unlock 시도 → token 불일치이므로 current 락이 유지됨
-            zombie.unlock()
+        // 만료된 zombie가 unlock 시도 → token 불일치이므로 current 락이 유지됨
+        zombie.unlock()
 
-            current.isHeldByCurrentInstance().shouldBeTrue()
-            current.unlock()
-        }
+        current.isHeldByCurrentInstance().shouldBeTrue()
+        current.unlock()
+    }
 
     @ParameterizedTest
     @MethodSource("enableDialects")

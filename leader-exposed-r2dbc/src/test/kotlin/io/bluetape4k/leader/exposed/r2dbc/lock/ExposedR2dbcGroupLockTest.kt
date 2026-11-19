@@ -29,6 +29,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.r2dbc.SchemaUtils
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
@@ -74,8 +75,8 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         val acquired0 = lock0.tryLock(2.seconds, 10.seconds)
         val acquired1 = lock1.tryLock(2.seconds, 10.seconds)
 
-        acquired0.shouldNotBeNull().shouldBeTrue()
-        acquired1.shouldNotBeNull().shouldBeTrue()
+        acquired0.shouldBeTrue()
+        acquired1.shouldBeTrue()
         lock0.unlock()
         lock1.unlock()
     }
@@ -93,7 +94,7 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         val contender = ExposedR2dbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 10L))
         val acquired = contender.tryLock(100.milliseconds, 5.seconds)
 
-        acquired.shouldNotBeNull().shouldBeFalse()
+        acquired.shouldBeFalse()
         holder.unlock()
     }
 
@@ -151,7 +152,10 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         cleanTables(db)
 
         suspend fun dropSchema() {
-            suspendTransaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+            suspendTransaction(db) {
+                SchemaUtils.drop(LeaderGroupLockTable)
+                // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
+            }
             ExposedR2dbcSchemaInitializer.resetFor(db)
         }
 
@@ -160,7 +164,7 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
             cleanTables(db)
         }
 
-        suspend fun newLock(signals: MutableList<Boolean>): ExposedR2dbcGroupLock {
+        fun newLock(signals: MutableList<Boolean>): ExposedR2dbcGroupLock {
             return ExposedR2dbcGroupLock(
                 db,
                 randomName(),
@@ -213,7 +217,10 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         cleanTables(db)
 
         try {
-            suspendTransaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+            suspendTransaction(db) {
+                SchemaUtils.drop(LeaderGroupLockTable)
+                // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
+            }
             ExposedR2dbcSchemaInitializer.resetFor(db)
 
             val signals = mutableListOf<Boolean>()
@@ -252,7 +259,10 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
             cleanTables(db)
 
             try {
-                suspendTransaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+                suspendTransaction(db) {
+                    SchemaUtils.drop(LeaderGroupLockTable)
+                    // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
+                }
                 ExposedR2dbcSchemaInitializer.resetFor(db)
 
                 val signals = mutableListOf<Boolean>()
@@ -462,7 +472,10 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         val callbackFailure = IllegalStateException("availability callback failed before compensation")
         val dropper = async(Dispatchers.IO) {
             callbackEntered.await(5.seconds).shouldBeTrue()
-            suspendTransaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+            suspendTransaction(db) {
+                SchemaUtils.drop(LeaderGroupLockTable)
+                // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
+            }
             ExposedR2dbcSchemaInitializer.resetFor(db)
             tableDropped.countDown()
         }

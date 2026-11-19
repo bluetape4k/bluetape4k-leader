@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.r2dbc
 
+import io.bluetape4k.javatimes.nanos
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
@@ -28,6 +29,7 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import java.time.Instant
 import java.util.concurrent.TimeUnit
+import kotlin.time.toJavaDuration
 
 /**
  * `ExposedR2DbcSuspendLeaderElector`는 R2DBC lock 행을 이용해 단일 leader의 suspend 실행과 lease 수명을 관리합니다.
@@ -120,7 +122,7 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
                     token = lock.token,
                     kind = LockIdentity.AnnotationKind.SINGLE,
                     acquiredAt = startedAt,
-                    lockedUntil = startedAt.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds),
+                    lockedUntil = startedAt + options.leaderOptions.leaseTime.toJavaDuration(),
                     nodeId = options.lockOwner,
                 )
             }
@@ -129,18 +131,16 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
                 key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token) }
 
             return try {
-                val result = withContext(AopScopeAccess.createLockHandleElement(handle)) {
-                    action()
-                }
+                val result = withContext(AopScopeAccess.createLockHandleElement(handle)) { action() }
                 val finishedAt = Instant.now()
-                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
+                val durationMs = (System.nanoTime() - acquiredAtNanos).nanos().toMillis()
                 effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
                 result
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 val finishedAt = Instant.now()
-                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
+                val durationMs = (System.nanoTime() - acquiredAtNanos).nanos().toMillis()
                 effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
                 throw e
             }

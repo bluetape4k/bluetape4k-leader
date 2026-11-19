@@ -30,7 +30,9 @@ internal class ExposedR2dbcSuspendSlotExtendDelegate(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            log.warn(e) { "Exposed R2DBC suspend group extendSuspend failed. lockName=${slotLock.lockName}, slot=${slotLock.slot}" }
+            log.warn(e) {
+                "Exposed R2DBC suspend group extendSuspend failed. lockName=${slotLock.lockName}, slot=${slotLock.slot}"
+            }
             ExtendOutcome.BackendError(e)
         }
 
@@ -40,7 +42,9 @@ internal class ExposedR2dbcSuspendSlotExtendDelegate(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            log.warn(e) { "Exposed R2DBC suspend group isHeld failed. lockName=${slotLock.lockName}, slot=${slotLock.slot}" }
+            log.warn(e) {
+                "Exposed R2DBC suspend group isHeld failed. lockName=${slotLock.lockName}, slot=${slotLock.slot}"
+            }
             false
         }
 }

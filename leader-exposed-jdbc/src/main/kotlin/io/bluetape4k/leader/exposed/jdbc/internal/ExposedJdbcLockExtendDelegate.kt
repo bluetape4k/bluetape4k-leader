@@ -39,17 +39,18 @@ internal class ExposedJdbcLockExtendDelegate(
      * JDBC blocking lease 연장을 IO dispatcher에서 수행합니다.
      * 코루틴 취소는 그대로 전파하고, 그 밖의 DB 오류는 [ExtendOutcome.BackendError]로 반환합니다.
      */
-    override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
-        coroutineContext.ensureActive()
-        try {
-            lock.extendDetailed(lockAtMostFor)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.warn(e) { "Exposed JDBC extendSuspend failed. lockName=${lock.lockName}" }
-            ExtendOutcome.BackendError(e)
+    override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
+        withContext(Dispatchers.IO) {
+            coroutineContext.ensureActive()
+            try {
+                lock.extendDetailed(lockAtMostFor)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.warn(e) { "Exposed JDBC extendSuspend failed. lockName=${lock.lockName}" }
+                ExtendOutcome.BackendError(e)
+            }
         }
-    }
 
     override fun isHeld(): Boolean =
         try {

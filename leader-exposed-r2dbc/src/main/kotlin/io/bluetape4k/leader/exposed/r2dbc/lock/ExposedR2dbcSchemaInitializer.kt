@@ -31,6 +31,7 @@ internal object ExposedR2dbcSchemaInitializer: KLoggingChannel() {
     suspend fun ensureSchema(db: R2dbcDatabase) {
         val dbKey = db.url
         if (initializedDbs.containsKey(dbKey)) return
+
         initMutex.withLock {
             if (initializedDbs.containsKey(dbKey)) return
             try {

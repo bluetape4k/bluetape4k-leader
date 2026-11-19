@@ -27,6 +27,7 @@ abstract class AbstractExposedTableTest {
         fun enableDialects(): List<TestDB> {
             val filter = System.getenv("LEADER_TEST_DB")?.uppercase()
                 ?: return listOf(TestDB.H2, TestDB.POSTGRESQL, TestDB.MYSQL_V8)
+
             return when (filter) {
                 "H2"                -> listOf(TestDB.H2)
                 "POSTGRESQL", "POSTGRES" -> listOf(TestDB.POSTGRESQL)

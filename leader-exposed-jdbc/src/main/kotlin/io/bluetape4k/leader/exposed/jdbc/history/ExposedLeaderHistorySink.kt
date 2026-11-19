@@ -8,6 +8,7 @@ import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
@@ -44,11 +45,23 @@ class ExposedLeaderHistorySink(
                 it[metadata] = MetadataJsonCodec.encode(record.metadata)
             }[LeaderLockHistoryTable.id]
         }
-        return LeaderHistoryKey(id = id, lockName = record.lockName, token = record.token, slotId = record.slotId)
+        return LeaderHistoryKey(
+            id = id,
+            lockName = record.lockName,
+            token = record.token,
+            slotId = record.slotId
+        )
     }
 
     override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
-        updateFinished(key, finishedAt, durationMs, LeaderHistoryStatus.COMPLETED, null, null)
+        updateFinished(
+            key = key,
+            finishedAt = finishedAt,
+            durationMs = durationMs,
+            status = LeaderHistoryStatus.COMPLETED,
+            errorType = null,
+            errorMessage = null
+        )
     }
 
     override fun recordFailed(
@@ -59,12 +72,12 @@ class ExposedLeaderHistorySink(
         errorMessage: String?,
     ) {
         updateFinished(
-            key,
-            finishedAt,
-            durationMs,
-            LeaderHistoryStatus.FAILED,
-            errorType,
-            errorMessage
+            key = key,
+            finishedAt = finishedAt,
+            durationMs = durationMs,
+            status = LeaderHistoryStatus.FAILED,
+            errorType = errorType,
+            errorMessage = errorMessage
         )
     }
 
@@ -74,9 +87,10 @@ class ExposedLeaderHistorySink(
      */
     override fun deleteOlderThan(cutoff: Instant, limit: Int): Int =
         transaction(database) {
-            LeaderLockHistoryTable.deleteWhere(limit = limit) {
-                LeaderLockHistoryTable.startedAt less cutoff
-            }
+            LeaderLockHistoryTable
+                .deleteWhere(limit = limit) {
+                    LeaderLockHistoryTable.startedAt less cutoff
+                }
         }
 
     private fun updateFinished(
@@ -89,11 +103,18 @@ class ExposedLeaderHistorySink(
     ) {
         val keyId = key.id
         val updated = transaction(database) {
-            val whereOp = if (keyId != null) {
-                { (LeaderLockHistoryTable.id eq keyId) and (LeaderLockHistoryTable.token eq key.token) }
+            val whereOp: () -> Op<Boolean> = if (keyId != null) {
+                {
+                    (LeaderLockHistoryTable.id eq keyId) and
+                            (LeaderLockHistoryTable.token eq key.token)
+                }
             } else {
-                { (LeaderLockHistoryTable.lockName eq key.lockName) and (LeaderLockHistoryTable.token eq key.token) }
+                {
+                    (LeaderLockHistoryTable.lockName eq key.lockName) and
+                            (LeaderLockHistoryTable.token eq key.token)
+                }
             }
+
             LeaderLockHistoryTable.update(where = whereOp) { row ->
                 row[LeaderLockHistoryTable.status] = status
                 row[LeaderLockHistoryTable.finishedAt] = finishedAt

@@ -8,6 +8,7 @@ import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.awaitTermination
@@ -43,6 +44,8 @@ import org.awaitility.kotlin.withPollInterval
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.junit.jupiter.api.condition.EnabledForJreRange
+import org.junit.jupiter.api.condition.JRE
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
@@ -70,7 +73,7 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         waitSec: Long = 10,
         leaseSec: Long = 30,
         useDbTime: Boolean = false,
-    ) =
+    ): ExposedJdbcLeaderGroupElectionOptions =
         ExposedJdbcLeaderGroupElectionOptions(
             leaderGroupOptions = LeaderGroupElectionOptions(
                 maxLeaders = maxLeaders,
@@ -138,7 +141,7 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         val holdLatch = CountDownLatch(1)
         val executor = Executors.newSingleThreadExecutor()
 
-        executor.submit {
+        executor.submit<Unit> {
             singleElection.runIfLeader(lockName) {
                 acquiredLatch.countDown()
                 holdLatch.await()
@@ -309,7 +312,9 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
 
         try {
-            transaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+            transaction(db) {
+                exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
+            }
 
             election.activeCount(lockName) shouldBeEqualTo maxLeaders
             election.availableSlots(lockName) shouldBeEqualTo 0
@@ -339,12 +344,13 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         election.runIfLeader(lockName) { "done" } shouldBeEqualTo "done"
 
         val rows = transaction(db) {
-            LeaderLockHistoryTable.selectAll()
+            LeaderLockHistoryTable
+                .selectAll()
                 .where { LeaderLockHistoryTable.lockName eq lockName }
                 .toList()
+                .onEach { log.debug { "Record=$it" } }
         }
-        log.debug { "rows=$rows" }
-        rows.size shouldBeEqualTo 1
+        rows shouldHaveSize 1
         rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.COMPLETED
         rows[0][LeaderLockHistoryTable.slot].shouldNotBeNull()
     }
@@ -369,7 +375,8 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
 
         thrown shouldBeEqualTo cancellation
         val history = transaction(db) {
-            LeaderLockHistoryTable.selectAll()
+            LeaderLockHistoryTable
+                .selectAll()
                 .where { LeaderLockHistoryTable.lockName eq lockName }
                 .single()
         }
@@ -383,6 +390,7 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         election.runIfLeader(lockName) { "group-recovered-after-cancel" } shouldBeEqualTo "group-recovered-after-cancel"
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action을 실행하고 결과를 반환한다`(testDB: TestDB) {
@@ -398,6 +406,7 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         result shouldBeEqualTo "async 성공"
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runAsyncIfLeader - terminal cleanup 완료 후 결과를 반환한다`(testDB: TestDB) {
@@ -409,7 +418,7 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         val recorder = object: SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db)) {
             override fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
                 cleanupStarted.countDown()
-                check(cleanupAllowed.await(5.seconds)) { "terminal cleanup 대기 시간이 초과되었습니다." }
+                cleanupAllowed.await(5.seconds).shouldBeTrue()
                 super.recordCompleted(key, finishedAt, durationMs)
             }
         }
@@ -425,7 +434,9 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
             }
 
             actionStarted.await(5.seconds).shouldBeTrue()
-            completionExecutor.submit { actionFuture.complete("async cleanup 완료") }
+            completionExecutor.submit {
+                actionFuture.complete("async cleanup 완료")
+            }
 
             cleanupStarted.await(5.seconds).shouldBeTrue()
             resultFuture.isDone.shouldBeFalse()
@@ -438,6 +449,7 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         }
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runAsyncIfLeader - action 동기 throw 후 슬롯이 반환되어 다음 호출이 성공한다`(testDB: TestDB) {
@@ -459,6 +471,7 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         result shouldBeEqualTo "복구 성공"
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runAsyncIfLeader - action이 failedFuture 반환 시 슬롯이 반환되어 다음 호출 성공한다`(testDB: TestDB) {
@@ -512,12 +525,15 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
 
             actionInvoked.get().shouldBeFalse()
 
-            election.runIfLeader(lockName) { "executor 거부 후 슬롯 복구" } shouldBeEqualTo "executor 거부 후 슬롯 복구"
+            election.runIfLeader(lockName) {
+                "executor 거부 후 슬롯 복구"
+            } shouldBeEqualTo "executor 거부 후 슬롯 복구"
         } finally {
             worker.shutdownNow()
         }
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runAsyncIfLeader - action future 취소 후 FAILED 이력을 기록하고 슬롯을 반환한다`(testDB: TestDB) {
@@ -548,7 +564,8 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         thrown.cause.shouldBeInstanceOf<FutureCancellationException>()
 
         val history = transaction(db) {
-            LeaderLockHistoryTable.selectAll()
+            LeaderLockHistoryTable
+                .selectAll()
                 .where { LeaderLockHistoryTable.lockName eq lockName }
                 .single()
         }
@@ -556,9 +573,12 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         history[LeaderLockHistoryTable.finishedAt].shouldNotBeNull()
         history[LeaderLockHistoryTable.durationMs].shouldNotBeNull() shouldBeGreaterOrEqualTo 0L
 
-        election.runIfLeader(lockName) { "async-group-recovered-after-cancel" } shouldBeEqualTo "async-group-recovered-after-cancel"
+        election.runIfLeader(lockName) {
+            "async-group-recovered-after-cancel"
+        } shouldBeEqualTo "async-group-recovered-after-cancel"
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runAsyncIfLeader - recordAcquired 인터럽트 후 슬롯을 정리한다`(testDB: TestDB) {
@@ -586,9 +606,11 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         failure.cause.shouldBeInstanceOf<InterruptedException>()
         actionInvocations.get() shouldBeEqualTo 0
 
-        ExposedJdbcLeaderGroupElector(db, options).runIfLeader(lockName) { "복구 성공" } shouldBeEqualTo "복구 성공"
+        ExposedJdbcLeaderGroupElector(db, options)
+            .runIfLeader(lockName) { "복구 성공" } shouldBeEqualTo "복구 성공"
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runAsyncIfLeader - 반환 future 취소를 action에 전파하고 FAILED 이력과 슬롯 반환을 보장한다`(testDB: TestDB) {
@@ -636,6 +658,7 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
                 "async-group-recovered-after-result-cancel"
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `runAsyncIfLeaderResult - 반환 future 취소를 action에 전파하고 FAILED 이력과 슬롯 반환을 보장한다`(testDB: TestDB) {
@@ -652,10 +675,8 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         val actionStarted = CountDownLatch(1)
         val actionFuture = CompletableFuture<String>()
 
-        val resultFuture = election.runAsyncIfLeaderResult(
-            LeaderSlot(lockName, "group-result-cancel-node"),
-            VirtualThreadExecutor,
-        ) {
+        val slot = LeaderSlot(lockName, "group-result-cancel-node")
+        val resultFuture = election.runAsyncIfLeaderResult(slot, VirtualThreadExecutor) {
             actionStarted.countDown()
             actionFuture
         }
@@ -671,16 +692,18 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
             actionFuture.isCancelled
         }
 
-        await atMost 5.seconds withPollInterval 100.milliseconds until {
+        await atMost 5.seconds withPollInterval 100.milliseconds untilAsserted {
             val historyStatus = transaction(db) {
                 LeaderLockHistoryTable.selectAll()
                     .where { LeaderLockHistoryTable.lockName eq lockName }
                     .single()[LeaderLockHistoryTable.status]
             }
-            historyStatus == LeaderHistoryStatus.FAILED
+            historyStatus shouldBeEqualTo LeaderHistoryStatus.FAILED
         }
 
-        election.runIfLeader(lockName) { "group result 취소 후 복구" } shouldBeEqualTo "group result 취소 후 복구"
+        election.runIfLeader(lockName) {
+            "group result 취소 후 복구"
+        } shouldBeEqualTo "group result 취소 후 복구"
     }
 
     @ParameterizedTest

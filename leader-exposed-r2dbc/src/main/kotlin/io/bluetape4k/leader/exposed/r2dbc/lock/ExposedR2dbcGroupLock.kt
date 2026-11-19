@@ -2,6 +2,7 @@ package io.bluetape4k.leader.exposed.r2dbc.lock
 
 import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.exposed.r2dbc.any
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.exposed.r2dbc.internal.MonotonicDeadline
 import io.bluetape4k.leader.exposed.r2dbc.internal.classifyAcquisitionFailure
@@ -34,6 +35,7 @@ import java.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
 
 
 /**
@@ -148,7 +150,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
 
         return suspendTransaction(db) {
             val now = currentTime(useDbTime, clock)
-            val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
+            val lockedUntil = now + leaseTime.toJavaDuration()
 
             val updated = LeaderGroupLockTable.update(
                 where = {
@@ -190,7 +192,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
                 if (!inserted) return@suspendTransaction false
 
                 // insertIgnore가 경합 행 때문에 무시됐을 수 있으므로 토큰 소유 여부 확인
-                return@suspendTransaction !LeaderGroupLockTable
+                return@suspendTransaction LeaderGroupLockTable
                     .selectAll()
                     .where {
                         (LeaderGroupLockTable.lockName eq lockNameVal) and
@@ -198,7 +200,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
                                 (LeaderGroupLockTable.token eq tokenVal) and
                                 (LeaderGroupLockTable.lockedUntil greater now)
                     }
-                    .empty()
+                    .any()
             }
 
             // UPDATE가 성공한 경우 — 이미 토큰이 행에 기록됨
@@ -218,7 +220,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
         ) {
             suspendTransaction(db) {
                 val now = currentTime(useDbTime, clock)
-                !LeaderGroupLockTable
+                LeaderGroupLockTable
                     .selectAll()
                     .where {
                         (LeaderGroupLockTable.lockName eq lockName) and
@@ -226,7 +228,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
                                 (LeaderGroupLockTable.token eq token) and
                                 (LeaderGroupLockTable.lockedUntil greater now)
                     }
-                    .empty()
+                    .any()
             }
         } ?: return false
         // callback 실패가 DB 오류 fallback 경계에 포함되지 않도록 분리합니다.
@@ -277,7 +279,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
                                     (LeaderGroupLockTable.lockedUntil greater now)
                         }
                     ) {
-                        it[LeaderGroupLockTable.lockedUntil] = now.plusMillis(remaining.inWholeMilliseconds)
+                        it[LeaderGroupLockTable.lockedUntil] = now + remaining.toJavaDuration()
                     } to true
                 } else {
                     LeaderGroupLockTable.deleteWhere {
@@ -321,7 +323,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
         ) {
             suspendTransaction(db) {
                 val now = currentTime(useDbTime, clock)
-                val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
+                val newLockedUntil = now + leaseTime.toJavaDuration()
                 val updated = LeaderGroupLockTable.update(
                     where = {
                         (LeaderGroupLockTable.lockName eq lockNameVal) and

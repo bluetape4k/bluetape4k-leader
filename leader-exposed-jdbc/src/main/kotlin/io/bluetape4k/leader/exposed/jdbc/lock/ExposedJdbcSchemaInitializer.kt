@@ -2,7 +2,6 @@ package io.bluetape4k.leader.exposed.jdbc.lock
 
 import io.bluetape4k.leader.exposed.ExposedLeaderSchema
 import io.bluetape4k.leader.exposed.internal.redactDatabaseUrlForLog
-import io.bluetape4k.leader.exposed.jdbc.internal.validateExposedLockName as validateInternalExposedLockName
 import io.bluetape4k.leader.identity.LeaderInternalApi
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -13,6 +12,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import io.bluetape4k.leader.exposed.jdbc.internal.validateExposedLockName as validateInternalExposedLockName
 
 /**
  * `ExposedJdbcSchemaInitializer`는 JDBC URL별로 leader 테이블을 한 번 생성하고 누락 열을 보완합니다.

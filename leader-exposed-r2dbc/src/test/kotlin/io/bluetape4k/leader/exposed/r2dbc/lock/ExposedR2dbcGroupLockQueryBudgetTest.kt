@@ -33,6 +33,7 @@ import org.jetbrains.exposed.v1.core.statements.StatementContext
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabaseConfig
 import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
+import org.jetbrains.exposed.v1.r2dbc.SchemaUtils
 import org.jetbrains.exposed.v1.r2dbc.statements.GlobalSuspendStatementInterceptor
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
@@ -60,8 +61,8 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         cleanTables(db)
 
         val lock = ExposedR2dbcGroupLock(
-            db,
-            randomName(),
+            db = db,
+            lockName = randomName(),
             slot = 0,
             retryStrategy = RetryStrategy.Jitter(),
             useDbTime = true,
@@ -74,6 +75,7 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         sql.forEach { log.debug { it } }
         sql.currentTimestampCount() shouldBeEqualTo 1
         sql shouldHaveSize 4
+
         lock.unlock()
     }
 
@@ -95,7 +97,7 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         val sql = recordSql { lock.isHeldByCurrentInstance() }
 
         sql.forEach { log.debug { it } }
-        sql.currentTimestampCount().shouldBeEqualTo(1)
+        sql.currentTimestampCount() shouldBeEqualTo 1 
         sql shouldHaveSize 2
 
         lock.unlock()
@@ -119,7 +121,7 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         val sql = recordSql { lock.extendDetailed(10.seconds) }
 
         sql.forEach { log.debug { it } }
-        sql.currentTimestampCount().shouldBeEqualTo(1)
+        sql.currentTimestampCount() shouldBeEqualTo 1
         sql shouldHaveSize 2
 
         lock.unlock()
@@ -145,7 +147,7 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         }
 
         sql.forEach { log.debug { it } }
-        sql.currentTimestampCount().shouldBeEqualTo(1)
+        sql.currentTimestampCount() shouldBeEqualTo 1
         sql shouldHaveSize 2
 
         lock.unlock()
@@ -169,7 +171,7 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         val sql = recordSql { lock.unlock() }
 
         sql.forEach { log.debug { it } }
-        sql.currentTimestampCount().shouldBeEqualTo(0)
+        sql.currentTimestampCount() shouldBeEqualTo 0
         sql shouldHaveSize 1
     }
 
@@ -189,7 +191,7 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         val sql = recordSql { election.activeCountSuspend(randomName()) }
 
         sql.forEach { log.debug { it } }
-        sql.currentTimestampCount().shouldBeEqualTo(1)
+        sql.currentTimestampCount() shouldBeEqualTo 1
         sql shouldHaveSize 2
     }
 
@@ -212,7 +214,7 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         }
 
         sql.forEach { log.debug { it } }
-        sql.currentTimestampCount().shouldBeEqualTo(0)
+        sql.currentTimestampCount() shouldBeEqualTo 0
         sql shouldHaveSize 3
         lock.unlock()
     }
@@ -245,8 +247,8 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         }
 
         val takeover = ExposedR2dbcGroupLock(
-            db,
-            lockName,
+            db = db,
+            lockName = lockName,
             slot = 0,
             retryStrategy = RetryStrategy.Jitter(),
             useDbTime = true,
@@ -257,7 +259,7 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         }
 
         sql.forEach { log.debug { it } }
-        sql.currentTimestampCount().shouldBeEqualTo(1)
+        sql.currentTimestampCount() shouldBeEqualTo 1
         sql shouldHaveSize 2
         takeover.unlock()
         first.unlock()
@@ -277,7 +279,10 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
             useDbTime = true,
         )
 
-        suspendTransaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+        suspendTransaction(db) {
+            SchemaUtils.drop(LeaderGroupLockTable)
+            // exec("DROP TABLE $GROUP_LOCK_TABLE_NAME")
+        }
         ExposedR2dbcSchemaInitializer.resetFor(db)
         val failedSql = recordSql {
             lock.tryLock(Duration.ZERO, 10.seconds).shouldBeNull()
@@ -290,7 +295,7 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         val recoveredSql = recordSql {
             lock.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
         }
-        recoveredSql.currentTimestampCount().shouldBeEqualTo(1)
+        recoveredSql.currentTimestampCount() shouldBeEqualTo 1 
         lock.unlock()
     }
 
@@ -352,7 +357,7 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
             holder.unlock()
 
             val metrics = pool.metrics.get()
-            metrics.acquiredSize().shouldBeEqualTo(0)
+            metrics.acquiredSize() shouldBeEqualTo 0 
             metrics.allocatedSize() shouldBeLessOrEqualTo 2
             metrics.pendingAcquireSize() shouldBeEqualTo 0
         } finally {
@@ -365,12 +370,12 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         cleanTables(db)
     }
 
-    private suspend fun recordSql(block: suspend () -> Any?): List<String> {
+    private suspend inline fun recordSql(block: suspend () -> Any?): List<String> {
         val recorder = SqlRecorder()
         R2dbcTransaction.globalInterceptors += recorder
         return try {
             block()
-            recorder.sql.toList()
+            recorder.sql
         } finally {
             R2dbcTransaction.globalInterceptors.remove(recorder)
         }
@@ -381,13 +386,15 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
     }
 
     private class SqlRecorder: GlobalSuspendStatementInterceptor {
-        val sql = ConcurrentLinkedQueue<String>()
+        private val _sql = ConcurrentLinkedQueue<String>()
+
+        val sql: List<String> get() = _sql.toList()
 
         override suspend fun beforeExecution(
             transaction: R2dbcTransaction,
             context: StatementContext,
         ) {
-            sql += context.sql(transaction)
+            _sql += context.sql(transaction)
         }
     }
 }

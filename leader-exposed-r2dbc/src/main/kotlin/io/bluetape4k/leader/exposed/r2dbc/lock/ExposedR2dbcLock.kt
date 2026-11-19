@@ -2,6 +2,7 @@ package io.bluetape4k.leader.exposed.r2dbc.lock
 
 import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.exposed.r2dbc.any
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.exposed.r2dbc.internal.MonotonicDeadline
 import io.bluetape4k.leader.exposed.r2dbc.internal.classifyAcquisitionFailure
@@ -32,6 +33,7 @@ import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
 import java.time.Instant
 import kotlin.time.Duration
+import kotlin.time.toJavaDuration
 
 /**
  * `ExposedR2dbcLock`는 lock 이름과 owner token을 조건에 포함해 단일 R2DBC lock 행을 suspend 방식으로 관리합니다.
@@ -101,7 +103,7 @@ internal class ExposedR2dbcLock internal constructor(
         return try {
             suspendTransaction(db) {
                 val now = currentTime(useDbTime)
-                val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
+                val lockedUntil = now + leaseTime.toJavaDuration()
 
                 // Step 1: 만료된 락 갱신 시도
                 val updated = LeaderLockTable.update(
@@ -139,14 +141,14 @@ internal class ExposedR2dbcLock internal constructor(
                     if (!inserted) return@suspendTransaction false
 
                     // insertIgnore가 경합 행 때문에 무시됐을 수 있으므로 토큰 소유 여부 확인
-                    return@suspendTransaction !LeaderLockTable
+                    return@suspendTransaction LeaderLockTable
                         .selectAll()
                         .where {
                             (LeaderLockTable.lockName eq lockNameVal) and
                                     (LeaderLockTable.token eq tokenVal) and
                                     (LeaderLockTable.lockedUntil greater now)
                         }
-                        .empty()
+                        .any()
                 }
 
                 // UPDATE가 성공한 경우 — 이미 토큰이 행에 기록됨
@@ -198,14 +200,14 @@ internal class ExposedR2dbcLock internal constructor(
         ) {
             suspendTransaction(db) {
                 val now = currentTime(useDbTime)
-                !LeaderLockTable
+                LeaderLockTable
                     .selectAll()
                     .where {
                         (LeaderLockTable.lockName eq lockName) and
                                 (LeaderLockTable.token eq token) and
                                 (LeaderLockTable.lockedUntil greater now)
                     }
-                    .empty()
+                    .any()
             }
         }
 
@@ -222,9 +224,7 @@ internal class ExposedR2dbcLock internal constructor(
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
         runR2dbcLockOperationPreservingCancellation(
-            onFailure = { e ->
-                log.warn(e) { "락 해제 중 DB 오류: lockName=$lockName" }
-            },
+            onFailure = { e -> log.warn(e) { "락 해제 중 DB 오류: lockName=$lockName" } },
         ) {
             val matched = suspendTransaction(db) {
                 if (remaining > Duration.ZERO) {
@@ -232,7 +232,7 @@ internal class ExposedR2dbcLock internal constructor(
                     LeaderLockTable.update(
                         where = { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal) }
                     ) {
-                        it[LeaderLockTable.lockedUntil] = now.plusMillis(remaining.inWholeMilliseconds)
+                        it[LeaderLockTable.lockedUntil] = now + remaining.toJavaDuration()
                     }
                 } else {
                     LeaderLockTable.deleteWhere {
@@ -258,7 +258,7 @@ internal class ExposedR2dbcLock internal constructor(
 
         return suspendTransaction(db) {
             val now = currentTime(useDbTime)
-            val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
+            val newLockedUntil = now + leaseTime.toJavaDuration()
             val updated = LeaderLockTable.update(
                 where = {
                     (LeaderLockTable.lockName eq lockNameVal) and
@@ -292,7 +292,7 @@ internal class ExposedR2dbcLock internal constructor(
  */
 @Suppress("unused")
 @JvmName("runR2dbcLockOperationPreservingCancellation")
-public suspend fun <T> legacyRunR2dbcLockOperationPreservingCancellation(
+suspend fun <T> legacyRunR2dbcLockOperationPreservingCancellation(
     onFailure: (Exception) -> T,
     operation: suspend () -> T,
 ): T = runR2dbcLockOperationPreservingCancellation(onFailure, operation)

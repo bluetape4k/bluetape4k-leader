@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.exposed.internal
 
+import io.bluetape4k.apache.startsWithIgnoreCase
 import io.bluetape4k.leader.identity.LeaderInternalApi
+import io.bluetape4k.support.requireNotBlank
 import java.net.URI
 import java.net.URISyntaxException
 
@@ -37,17 +39,17 @@ fun redactDatabaseUrlForLog(url: String): String {
 
 private fun unwrapDatabaseUrl(url: String): Pair<String, String>? {
     val unwrapped = when {
-        url.isBlank()                              -> null
-        url.startsWith("jdbc:", ignoreCase = true) -> url.take(5) to url.substring(5)
-        url.startsWith("r2dbc:", ignoreCase = true) -> url.take(6) to url.substring(6)
-        "://" in url                               -> "" to url
-        else                                       -> null
+        url.isBlank()                      -> null
+        url.startsWithIgnoreCase("jdbc:")  -> url.take(5) to url.substring(5)
+        url.startsWithIgnoreCase("r2dbc:") -> url.take(6) to url.substring(6)
+        "://" in url                       -> "" to url
+        else                               -> null
     }
     return unwrapped?.takeIf { (_, databaseUrl) -> databaseUrl.isNotBlank() }
 }
 
 private fun redactHierarchicalUri(uri: URI): String {
-    require(!uri.scheme.isNullOrBlank()) { "Database URL scheme is required." }
+    uri.scheme.requireNotBlank { "Database URL scheme is required." }
     require(uri.rawAuthority == null || uri.host != null) { "Database URL host is invalid." }
 
     val redactedUserInfo = uri.rawUserInfo
@@ -67,8 +69,8 @@ private fun redactHierarchicalUri(uri: URI): String {
 }
 
 private fun redactOpaqueUri(uri: URI): String {
-    require(!uri.scheme.isNullOrBlank()) { "Database URL scheme is required." }
-
+    uri.scheme.requireNotBlank { "Database URL scheme is required." }
+    
     uri.rawSchemeSpecificPart
         ?.takeUnless(String::isBlank)
         ?: throw IllegalArgumentException("Database URL scheme-specific part is required.")

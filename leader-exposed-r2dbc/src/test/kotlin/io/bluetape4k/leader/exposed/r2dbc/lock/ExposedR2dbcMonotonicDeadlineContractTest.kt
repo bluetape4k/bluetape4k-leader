@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.contract.AbstractMonotonicDeadlineContractTest
@@ -18,6 +20,7 @@ import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.deleteAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.microseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -65,17 +68,19 @@ class ExposedR2dbcMonotonicDeadlineContractTest: AbstractMonotonicDeadlineContra
                 LockTarget.GROUP -> observeGroupWait(case)
             }
         }
-        return requireNotNull(observed)
+        return observed.shouldNotBeNull()
     }
 
     private suspend fun observeSingleWait(case: WaitOutcomeCase): WaitOutcome {
         val lockName = randomLockName()
         val holder = ExposedR2dbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 1L))
-        check(holder.tryLock(Duration.ZERO, 5.seconds))
+        holder.tryLock(Duration.ZERO, 5.seconds).shouldBeTrue()
         val contender = ExposedR2dbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 1L))
 
         return try {
-            observeContender(case) { contender.tryLock(case.waitTime, 5.seconds) }
+            observeContender(case) {
+                contender.tryLock(case.waitTime, 5.seconds)
+            }
         } finally {
             holder.unlock()
         }
@@ -84,11 +89,13 @@ class ExposedR2dbcMonotonicDeadlineContractTest: AbstractMonotonicDeadlineContra
     private suspend fun observeGroupWait(case: WaitOutcomeCase): WaitOutcome {
         val lockName = randomLockName()
         val holder = ExposedR2dbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 1L))
-        check(holder.tryLock(Duration.ZERO, 5.seconds) == true)
+        holder.tryLock(Duration.ZERO, 5.seconds).shouldBeTrue()
         val contender = ExposedR2dbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 1L))
 
         return try {
-            observeContender(case) { contender.tryLock(case.waitTime, 5.seconds) == true }
+            observeContender(case) {
+                contender.tryLock(case.waitTime, 5.seconds) == true
+            }
         } finally {
             holder.unlock()
         }
@@ -110,8 +117,9 @@ class ExposedR2dbcMonotonicDeadlineContractTest: AbstractMonotonicDeadlineContra
                 attempt()
             }
             attemptStarted.await()
-            delay(1L)
+            delay(1.microseconds)
             contender.cancel(CancellationException("deadline contract cancellation"))
+
             try {
                 contender.await()
                 error("취소된 lock 경합이 정상 완료되었습니다: $case")
@@ -120,6 +128,4 @@ class ExposedR2dbcMonotonicDeadlineContractTest: AbstractMonotonicDeadlineContra
             }
         }
     }
-
-
 }

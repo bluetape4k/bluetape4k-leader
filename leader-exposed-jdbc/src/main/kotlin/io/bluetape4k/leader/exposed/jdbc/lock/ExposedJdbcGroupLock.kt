@@ -26,6 +26,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import java.time.Clock
 import kotlin.time.Duration
+import kotlin.time.toJavaDuration
 
 
 /**
@@ -136,15 +137,14 @@ internal class ExposedJdbcGroupLock internal constructor(
 
         return transaction(db) {
             val now = currentTime(useDbTime, clock)
-            val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
+            val lockedUntil = now + leaseTime.toJavaDuration()
 
-            val updated = LeaderGroupLockTable.update(
-                where = {
-                    (LeaderGroupLockTable.lockName eq lockNameVal) and
-                            (LeaderGroupLockTable.slot eq slotVal) and
-                            (LeaderGroupLockTable.lockedUntil less now)
-                }
-            ) {
+            val whereOp = {
+                (LeaderGroupLockTable.lockName eq lockNameVal) and
+                        (LeaderGroupLockTable.slot eq slotVal) and
+                        (LeaderGroupLockTable.lockedUntil less now)
+            }
+            val updated = LeaderGroupLockTable.update(whereOp) {
                 it[LeaderGroupLockTable.lockOwner] = lockOwnerVal
                 it[LeaderGroupLockTable.token] = tokenVal
                 it[LeaderGroupLockTable.lockedAt] = now
@@ -180,8 +180,7 @@ internal class ExposedJdbcGroupLock internal constructor(
                 .andWhere { LeaderGroupLockTable.slot eq slotVal }
                 .andWhere { LeaderGroupLockTable.token eq tokenVal }
                 .andWhere { LeaderGroupLockTable.lockedUntil greater now }
-                .empty()
-                .not()
+                .any()
         }
     }
 
@@ -199,8 +198,7 @@ internal class ExposedJdbcGroupLock internal constructor(
                     .andWhere { LeaderGroupLockTable.slot eq slotVal }
                     .andWhere { LeaderGroupLockTable.token eq tokenVal }
                     .andWhere { LeaderGroupLockTable.lockedUntil greater now }
-                    .empty()
-                    .not()
+                    .any()
             }
         } catch (e: CancellationException) {
             throw e
@@ -239,15 +237,14 @@ internal class ExposedJdbcGroupLock internal constructor(
             val matched = transaction(db) {
                 if (remaining > Duration.ZERO) {
                     val now = currentTime(useDbTime, clock)
-                    LeaderGroupLockTable.update(
-                        where = {
-                            (LeaderGroupLockTable.lockName eq lockNameVal) and
-                                    (LeaderGroupLockTable.slot eq slotVal) and
-                                    (LeaderGroupLockTable.token eq tokenVal) and
-                                    (LeaderGroupLockTable.lockedUntil greater now)
-                        }
-                    ) {
-                        it[LeaderGroupLockTable.lockedUntil] = now.plusMillis(remaining.inWholeMilliseconds)
+                    val whereOp = {
+                        (LeaderGroupLockTable.lockName eq lockNameVal) and
+                                (LeaderGroupLockTable.slot eq slotVal) and
+                                (LeaderGroupLockTable.token eq tokenVal) and
+                                (LeaderGroupLockTable.lockedUntil greater now)
+                    }
+                    LeaderGroupLockTable.update(whereOp) {
+                        it[LeaderGroupLockTable.lockedUntil] = now + remaining.toJavaDuration()
                     }
                 } else {
                     LeaderGroupLockTable.deleteWhere {
@@ -283,15 +280,14 @@ internal class ExposedJdbcGroupLock internal constructor(
 
         return transaction(db) {
             val now = currentTime(useDbTime, clock)
-            val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
-            val updated = LeaderGroupLockTable.update(
-                where = {
-                    (LeaderGroupLockTable.lockName eq lockNameVal) and
-                            (LeaderGroupLockTable.slot eq slotVal) and
-                            (LeaderGroupLockTable.token eq tokenVal) and
-                            (LeaderGroupLockTable.lockedUntil greater now)  // R6: expired row revival 차단
-                }
-            ) {
+            val newLockedUntil = now + leaseTime.toJavaDuration()
+            val whereOp = {
+                (LeaderGroupLockTable.lockName eq lockNameVal) and
+                        (LeaderGroupLockTable.slot eq slotVal) and
+                        (LeaderGroupLockTable.token eq tokenVal) and
+                        (LeaderGroupLockTable.lockedUntil greater now)  // R6: expired row revival 차단
+            }
+            val updated = LeaderGroupLockTable.update(whereOp) {
                 it[LeaderGroupLockTable.lockedUntil] = newLockedUntil
             }
             if (updated > 0) {

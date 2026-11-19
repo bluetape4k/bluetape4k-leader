@@ -67,7 +67,6 @@ class ExposedR2DbcSuspendLeaderElectorFactoryTest: AbstractExposedR2dbcLeaderTes
         val elector = factory.create(LeaderElectionOptions.Default)
 
         val result = elector.runIfLeader(randomName()) { "factory-ok" }
-
         result shouldBeEqualTo "factory-ok"
     }
 
@@ -79,7 +78,6 @@ class ExposedR2DbcSuspendLeaderElectorFactoryTest: AbstractExposedR2dbcLeaderTes
         var called = false
 
         elector.runIfLeader(randomName()) { called = true }
-
         called.shouldBeTrue()
     }
 }

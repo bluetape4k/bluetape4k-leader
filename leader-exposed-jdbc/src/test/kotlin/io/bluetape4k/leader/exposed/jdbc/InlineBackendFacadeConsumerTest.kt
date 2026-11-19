@@ -4,30 +4,32 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.concurrent.await
+import io.bluetape4k.concurrent.get
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.leader.LeaderElectionException
-import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcGroupLock
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcLock
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.MethodSource
-import org.jetbrains.exposed.v1.jdbc.Database
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
 import org.awaitility.kotlin.until
+import org.awaitility.kotlin.untilAsserted
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
-class InlineBackendFacadeConsumerTest : AbstractExposedJdbcLeaderTest() {
+class InlineBackendFacadeConsumerTest: AbstractExposedJdbcLeaderTest() {
 
     private fun callRunIfLeaderExplicit(db: Database, lockName: String, action: () -> String): String? =
         db.runIfLeader(lockName, ExposedJdbcLeaderElectionOptions.Default, action)
@@ -53,11 +55,24 @@ class InlineBackendFacadeConsumerTest : AbstractExposedJdbcLeaderTest() {
     private fun callRunIfLeaderGroupDefault(db: Database, lockName: String, action: () -> String): String? =
         db.runIfLeaderGroup(lockName, action = action)
 
-    private fun callRunAsyncIfLeaderGroupExplicit(db: Database, lockName: String, action: () -> CompletableFuture<String>) =
-        db.runAsyncIfLeaderGroup(lockName, VirtualThreadExecutor, ExposedJdbcLeaderGroupElectionOptions.Default, action)
+    private inline fun callRunAsyncIfLeaderGroupExplicit(
+        db: Database,
+        lockName: String,
+        crossinline action: () -> CompletableFuture<String>,
+    ): CompletableFuture<String?> =
+        db.runAsyncIfLeaderGroup(
+            lockName = lockName, executor = VirtualThreadExecutor,
+            options = ExposedJdbcLeaderGroupElectionOptions.Default,
+        ) {
+            action()
+        }
 
-    private fun callRunAsyncIfLeaderGroupDefault(db: Database, lockName: String, action: () -> CompletableFuture<String>) =
-        db.runAsyncIfLeaderGroup(lockName, action = action)
+    private inline fun callRunAsyncIfLeaderGroupDefault(
+        db: Database,
+        lockName: String,
+        crossinline action: () -> CompletableFuture<String>,
+    ): CompletableFuture<String?> =
+        db.runAsyncIfLeaderGroup(lockName) { action() }
 
     @Test
     fun `source consumers call every jdbc facade and delegate each callback once`() {
@@ -67,16 +82,18 @@ class InlineBackendFacadeConsumerTest : AbstractExposedJdbcLeaderTest() {
         val nextAsync: () -> CompletableFuture<String> = { CompletableFuture.completedFuture(next()) }
 
         callRunIfLeaderExplicit(db, randomName(), next) shouldBeEqualTo "call-1"
-        callRunAsyncIfLeaderExplicit(db, randomName(), nextAsync).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-2"
-        callRunVirtualIfLeaderExplicit(db, randomName(), next).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-3"
+        callRunAsyncIfLeaderExplicit(db, randomName(), nextAsync).get(10.seconds) shouldBeEqualTo "call-2"
+        callRunVirtualIfLeaderExplicit(db, randomName(), next).get(10.seconds) shouldBeEqualTo "call-3"
         callRunIfLeaderGroupExplicit(db, randomName(), next) shouldBeEqualTo "call-4"
-        callRunAsyncIfLeaderGroupExplicit(db, randomName(), nextAsync).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-5"
+        callRunAsyncIfLeaderGroupExplicit(db, randomName(), nextAsync)
+            .get(10.seconds) shouldBeEqualTo "call-5"
 
         callRunIfLeaderDefault(db, randomName(), next) shouldBeEqualTo "call-6"
-        callRunAsyncIfLeaderDefault(db, randomName(), nextAsync).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-7"
-        callRunVirtualIfLeaderDefault(db, randomName(), next).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-8"
+        callRunAsyncIfLeaderDefault(db, randomName(), nextAsync).get(10.seconds) shouldBeEqualTo "call-7"
+        callRunVirtualIfLeaderDefault(db, randomName(), next).get(10.seconds) shouldBeEqualTo "call-8"
         callRunIfLeaderGroupDefault(db, randomName(), next) shouldBeEqualTo "call-9"
-        callRunAsyncIfLeaderGroupDefault(db, randomName(), nextAsync).get(10, TimeUnit.SECONDS) shouldBeEqualTo "call-10"
+        callRunAsyncIfLeaderGroupDefault(db, randomName(), nextAsync)
+            .get(10.seconds) shouldBeEqualTo "call-10"
 
         calls.get() shouldBeEqualTo 10
     }
@@ -106,12 +123,13 @@ class InlineBackendFacadeConsumerTest : AbstractExposedJdbcLeaderTest() {
 
         val groupName = randomName()
         val groupHolder = ExposedJdbcGroupLock(
-            db,
-            groupName,
+            db = db,
+            lockName = groupName,
             slot = 0,
-            RetryStrategy.Jitter(),
+            retryStrategy = RetryStrategy.Jitter(),
         )
         groupHolder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
+
         try {
             val groupCalls = AtomicInteger()
             val groupOptions = ExposedJdbcLeaderGroupElectionOptions(
@@ -154,7 +172,11 @@ class InlineBackendFacadeConsumerTest : AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
         val lockName = randomName()
         val options = ExposedJdbcLeaderGroupElectionOptions(
-            leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 1.seconds, leaseTime = 5.seconds),
+            leaderGroupOptions = LeaderGroupElectionOptions(
+                maxLeaders = 1,
+                waitTime = 1.seconds,
+                leaseTime = 5.seconds
+            ),
         )
 
         assertFailsWith<LeaderGroupElectionException> {
@@ -170,9 +192,11 @@ class InlineBackendFacadeConsumerTest : AbstractExposedJdbcLeaderTest() {
             actionStarted.countDown()
             action
         }
-        actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        actionStarted.await(5.seconds).shouldBeTrue()
         result.cancel(false).shouldBeTrue()
+
         await atMost 5.seconds until { action.isCancelled }
+
         db.runIfLeaderGroup(lockName, options) { "after-cancel" } shouldBeEqualTo "after-cancel"
     }
 
@@ -184,13 +208,15 @@ class InlineBackendFacadeConsumerTest : AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
         val actionStarted = CountDownLatch(1)
         val action = CompletableFuture<String>()
+
         val result = db.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
             actionStarted.countDown()
             action
         }
 
-        actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        actionStarted.await(5.seconds).shouldBeTrue()
         result.cancel(false).shouldBeTrue()
+
         await atMost 5.seconds until { action.isCancelled }
 
         db.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
@@ -219,11 +245,12 @@ class InlineBackendFacadeConsumerTest : AbstractExposedJdbcLeaderTest() {
         }
 
         try {
-            actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            actionStarted.await(5.seconds).shouldBeTrue()
             result.cancel(true).shouldBeTrue()
-            actionInterrupted.await(5, TimeUnit.SECONDS).shouldBeTrue()
-            await atMost 5.seconds until {
-                db.runIfLeader(lockName, options) { "reacquired" } == "reacquired"
+            actionInterrupted.await(5.seconds).shouldBeTrue()
+
+            await atMost 5.seconds untilAsserted {
+                db.runIfLeader(lockName, options) { "reacquired" } shouldBeEqualTo "reacquired"
             }
         } finally {
             release.countDown()
