@@ -4,12 +4,14 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldHaveSize
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.exposed.tests.withTables
 import io.bluetape4k.leader.exposed.AbstractExposedTableTest
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -50,7 +52,8 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                 }
             }
 
-            val count = LeaderLockHistoryTable.selectAll()
+            val count = LeaderLockHistoryTable
+                .selectAll()
                 .where { LeaderLockHistoryTable.lockName eq "history-lock" }
                 .count()
             count shouldBeEqualTo LeaderHistoryStatus.entries.size.toLong()
@@ -95,10 +98,13 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                 }
             }
 
-            val rows = LeaderLockHistoryTable.selectAll()
+            val rows = LeaderLockHistoryTable
+                .selectAll()
                 .where { LeaderLockHistoryTable.lockName eq name }
                 .toList()
-            rows.size shouldBeEqualTo 3
+                .onEach { log.debug { "row: $it" } }
+
+            rows shouldHaveSize 3
         }
     }
 
@@ -117,7 +123,8 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                 // finishedAt, durationMs 미설정 — null 허용
             }[LeaderLockHistoryTable.id]
 
-            val row = LeaderLockHistoryTable.selectAll()
+            val row = LeaderLockHistoryTable
+                .selectAll()
                 .where { LeaderLockHistoryTable.id eq id }
                 .single()
 

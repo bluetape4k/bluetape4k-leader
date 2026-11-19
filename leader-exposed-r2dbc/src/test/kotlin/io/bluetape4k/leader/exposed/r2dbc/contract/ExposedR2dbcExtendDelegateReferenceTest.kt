@@ -114,8 +114,9 @@ class ExposedR2dbcExtendDelegateReferenceTest: AbstractExposedR2dbcLeaderTest() 
         }
 
         log.debug { "preExtend=$preExtend" }
-        log.debug { "postExtend=$postExtend" }
         preExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
+
+        log.debug { "postExtend=$postExtend" }
         postExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
     }
 }

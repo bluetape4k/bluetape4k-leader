@@ -3,6 +3,7 @@ package io.bluetape4k.leader.exposed.jdbc
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.javatimes.nanos
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
@@ -27,6 +28,7 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
@@ -41,6 +43,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.toJavaDuration
 
 /**
  * `ExposedJdbcLeaderGroupElector`는 JDBC slot 행을 이용해 여러 leader의 blocking/async 실행과 slot lease를 관리합니다.
@@ -90,7 +93,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
         try {
             transaction(db) {
                 val now = currentTime(options.leaderGroupOptions.useDbTime)
-                val whereOp = (LeaderGroupLockTable.lockName eq lockName) and
+                val whereOp: Op<Boolean> = (LeaderGroupLockTable.lockName eq lockName) and
                         (LeaderGroupLockTable.lockedUntil greater now)
                 LeaderGroupLockTable
                     .selectAll()
@@ -134,17 +137,16 @@ class ExposedJdbcLeaderGroupElector private constructor(
         for (i in 0 until maxLeaders) {
             val slot = (start + i) % maxLeaders
             val lock = ExposedJdbcGroupLock(
-                db,
-                lockName,
-                slot,
-                options.retryStrategy,
-                options.lockOwner,
-                options.leaderGroupOptions.useDbTime,
+                db = db,
+                lockName = lockName,
+                slot = slot,
+                retryStrategy = options.retryStrategy,
+                lockOwner = options.lockOwner,
+                useDbTime = options.leaderGroupOptions.useDbTime,
             )
 
             when (lock.tryLock(perSlotWait, leaseTime)) {
-                true -> { /* 획득 성공 — 아래 로직 계속 */
-                }
+                true -> Unit // 획득 성공 — 아래 로직 계속
                 false -> continue
                 null -> {
                     log.warn { "DB 오류로 슬롯 순회 중단: lockName=$lockName" }
@@ -162,7 +164,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     token = lock.token,
                     kind = LockIdentity.AnnotationKind.GROUP,
                     acquiredAt = startedAt,
-                    lockedUntil = startedAt.plusMillis(leaseTime.inWholeMilliseconds),
+                    lockedUntil = startedAt + leaseTime.toJavaDuration(),
                     nodeId = options.lockOwner,
                     slotId = slot.toString(),
                 )
@@ -218,7 +220,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
             } finally {
                 watchdog.close()
                 val finishedAt = Instant.now()
-                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
+                val durationMs = (System.nanoTime() - acquiredAtNanos).nanos().toMillis()
                 when {
                     actionSucceeded -> effectiveKey?.let {
                         historyRecorder?.recordCompleted(
@@ -271,6 +273,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
         val acquiredSlotRef = AtomicReference<Pair<ExposedJdbcGroupLock, Int>?>(null)
         val lifecycleStarted = AtomicBoolean()
         val rejectionCleanupClaimed = AtomicBoolean()
+
         val releaseIfUnclaimed: () -> Unit = {
             val acquired = acquiredSlotRef.get()
             val canUnlock = acquired != null &&
@@ -293,13 +296,14 @@ class ExposedJdbcLeaderGroupElector private constructor(
                 if (resultFuture.isCancelled) return@futureOf null
                 val slot = (start + i) % maxLeaders
                 val lock = ExposedJdbcGroupLock(
-                    db,
-                    lockName,
-                    slot,
-                    options.retryStrategy,
-                    options.lockOwner,
-                    options.leaderGroupOptions.useDbTime,
+                    db = db,
+                    lockName = lockName,
+                    slot = slot,
+                    retryStrategy = options.retryStrategy,
+                    lockOwner = options.lockOwner,
+                    useDbTime = options.leaderGroupOptions.useDbTime,
                 )
+
                 when (lock.tryLock(perSlotWait, leaseTime) { resultFuture.isCancelled }) {
                     true -> {
                         acquired = lock to slot
@@ -344,12 +348,15 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     var watchdog: AutoCloseable? = null
                     var effectiveKey: LeaderHistoryKey? = null
                     val terminal = AtomicBoolean()
+
                     val finishAction: (Throwable?) -> CompletableFuture<Throwable?> = { throwable ->
                         if (!terminal.compareAndSet(false, true)) {
                             completableFutureOf(null)
                         } else {
-                            val closeFuture = watchdog?.let { LeaderLeaseAutoExtender.closeAsync(it) }
+                            val closeFuture = watchdog
+                                ?.let { LeaderLeaseAutoExtender.closeAsync(it) }
                                 ?: completableFutureOf(null)
+
                             closeFuture.handle { _, closeFailure ->
                                 var cleanupFailure = closeFailure?.unwrapCompletionCause()?.also { e ->
                                     log.warn(e) { "비동기 그룹 watchdog 종료 실패. lockName=$lockName, slot=$slot" }
@@ -446,21 +453,24 @@ class ExposedJdbcLeaderGroupElector private constructor(
                             }
                         }
 
-                    val terminalFuture = actionFuture.handle { value, throwable ->
-                        Triple(value, throwable, finishAction(throwable))
-                    }.thenCompose { (value, throwable, cleanup) ->
-                        cleanup.thenCompose { cleanupFailure ->
-                            if (throwable != null) {
-                                failedCompletableFutureOf<T?>(throwable)
-                            } else if (cleanupFailure != null) {
-                                failedCompletableFutureOf(cleanupFailure)
-                            } else {
-                                completableFutureOf(value)
+                    val terminalFuture = actionFuture
+                        .handle { value, throwable ->
+                            Triple(value, throwable, finishAction(throwable))
+                        }.thenCompose { (value, throwable, cleanup) ->
+                            cleanup.thenCompose { cleanupFailure ->
+                                if (throwable != null) {
+                                    failedCompletableFutureOf<T?>(throwable)
+                                } else if (cleanupFailure != null) {
+                                    failedCompletableFutureOf(cleanupFailure)
+                                } else {
+                                    completableFutureOf(value)
+                                }
                             }
                         }
-                    }
                     actionFutureRef.set(actionFuture)
-                    if (resultFuture.isCancelled) actionFuture.cancel(false)
+                    if (resultFuture.isCancelled) {
+                        actionFuture.cancel(false)
+                    }
                     terminalFuture
                 }
             }, executor)

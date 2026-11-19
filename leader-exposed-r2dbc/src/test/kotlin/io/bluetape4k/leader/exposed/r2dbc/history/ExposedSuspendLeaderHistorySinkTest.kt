@@ -2,6 +2,7 @@ package io.bluetape4k.leader.exposed.r2dbc.history
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.exposed.r2dbc.AbstractExposedR2dbcLeaderTest
@@ -57,7 +58,7 @@ class ExposedSuspendLeaderHistorySinkTest: AbstractExposedR2dbcLeaderTest() {
             token = token,
             kind = LockIdentity.AnnotationKind.SINGLE,
             acquiredAt = now,
-            lockedUntil = now.plusSeconds(30),
+            lockedUntil = now + 30.seconds(),
             nodeId = "test-node",
         )
     }

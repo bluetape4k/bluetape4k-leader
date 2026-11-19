@@ -3,19 +3,28 @@ package io.bluetape4k.leader.exposed.jdbc
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.concurrent.await
 import io.bluetape4k.concurrent.awaitTermination
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.exposed.tests.TestDB
+import io.bluetape4k.javatimes.seconds
+import io.bluetape4k.jdbc.sql.singleInt
+import io.bluetape4k.jdbc.sql.singleLong
 import io.bluetape4k.leader.exposed.jdbc.history.ExposedLeaderHistorySink
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.checkBeTrue
+import io.bluetape4k.support.checkNotNull
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.junit.jupiter.api.condition.EnabledForJreRange
+import org.junit.jupiter.api.condition.JRE
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.testcontainers.utility.Base58
@@ -38,7 +47,7 @@ class JdbcTransactionInterruptionContractTest: AbstractExposedJdbcLeaderTest() {
 
     private companion object: KLogging() {
         const val POLL_MILLIS = 10L
-        val WAIT_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(5)
+        val WAIT_TIMEOUT_NANOS = 5.seconds().toNanos()
     }
 
     @ParameterizedTest
@@ -97,6 +106,7 @@ class JdbcTransactionInterruptionContractTest: AbstractExposedJdbcLeaderTest() {
         }
     }
 
+    @EnabledForJreRange(min = JRE.JAVA_21)
     @ParameterizedTest
     @MethodSource("enableDialects")
     fun `driver cancel 뒤 terminal history를 한 번 기록하고 lock을 반환한다`(testDB: TestDB) {
@@ -111,8 +121,12 @@ class JdbcTransactionInterruptionContractTest: AbstractExposedJdbcLeaderTest() {
         )
 
         val resultFuture = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
-            RunningJdbcTransaction.start(testDB).also(runningRef::set).actionFuture
-                .whenComplete { _, _ -> terminalCount.incrementAndGet() }
+            RunningJdbcTransaction.start(testDB)
+                .also(runningRef::set)
+                .actionFuture
+                .whenComplete { _, _ ->
+                    terminalCount.incrementAndGet()
+                }
         }
         val running = awaitRunningTransaction(runningRef)
 
@@ -178,8 +192,10 @@ private class RunningJdbcTransaction private constructor(
     private val terminalInterrupt = AtomicBoolean()
     private val cancelRequested = AtomicBoolean()
     private val rollbackOnly = AtomicBoolean()
+
     private val executor: ExecutorService = Executors.newSingleThreadExecutor { command ->
-        Thread(command, "issue-855-${contract.testDB.name.lowercase()}").also(workerRef::set)
+        Thread(command, "issue-855-${contract.testDB.name.lowercase()}")
+            .also(workerRef::set)
     }
 
     val actionFuture = CompletableFuture<Unit>()
@@ -193,7 +209,9 @@ private class RunningJdbcTransaction private constructor(
     }
 
     fun awaitActive() {
-        awaitCondition("marker query가 active 상태가 되지 않았습니다.") { isActive() }
+        awaitCondition("marker query가 active 상태가 되지 않았습니다.") {
+            isActive()
+        }
     }
 
     fun isActive(): Boolean {
@@ -204,7 +222,7 @@ private class RunningJdbcTransaction private constructor(
     }
 
     fun cancelStatement() {
-        val statement = checkNotNull(statementRef.get()) { "실행 중 Statement가 없습니다." }
+        val statement = statementRef.get().shouldNotBeNull() // 실행 중 Statement가 없습니다.
         rollbackOnly.set(true)
         cancelRequested.set(true)
         statement.cancel()
@@ -215,18 +233,18 @@ private class RunningJdbcTransaction private constructor(
     }
 
     fun interruptWorker() {
-        checkNotNull(workerRef.get()) { "JDBC worker가 시작되지 않았습니다." }.interrupt()
+        workerRef.get().shouldNotBeNull().interrupt()
     }
 
-    fun workerInterrupted(): Boolean = checkNotNull(workerRef.get()).isInterrupted
+    fun workerInterrupted(): Boolean = workerRef.get().shouldNotBeNull().isInterrupted
 
     fun awaitFinished() {
-        check(finished.await(WAIT_TIMEOUT_SECONDS.seconds)) { "JDBC transaction 종료를 기다리다 timeout이 발생했습니다." }
+        finished.await(WAIT_TIMEOUT_SECONDS.seconds).shouldBeTrue() // JDBC transaction 종료를 기다리다 timeout이 발생했습니다.
     }
 
     fun assertCancelOutcome(): JdbcCancelTerminalOutcome {
         actionFuture.isDone.shouldBeTrue()
-        check(cancelRequested.get()) { "Statement.cancel() 요청이 관찰되지 않았습니다." }
+        cancelRequested.get().shouldBeTrue() // Statement.cancel() 요청이 관찰되지 않았습니다.
 
         val failure = failureRef.get()
         val outcome = if (failure == null) {
@@ -234,7 +252,7 @@ private class RunningJdbcTransaction private constructor(
             JdbcCancelTerminalOutcome.NORMAL_COMPLETION
         } else {
             actionFuture.isCompletedExceptionally.shouldBeTrue()
-            check(failure is SQLException) { "SQLException이 필요하지만 ${failure.javaClass.name}을 관찰했습니다." }
+            failure.shouldBeInstanceOf<SQLException>()  // { "SQLException이 필요하지만 ${failure.javaClass.name}을 관찰했습니다." }
             failure.javaClass.name shouldBeEqualTo contract.exceptionClass
             failure.sqlState shouldBeEqualTo contract.cancelSqlState
             JdbcCancelTerminalOutcome.DRIVER_EXCEPTION
@@ -247,12 +265,13 @@ private class RunningJdbcTransaction private constructor(
 
     fun assertRolledBack() {
         rawConnection().use { connection ->
-            connection.prepareStatement("SELECT probe_value FROM $tableName WHERE probe_id = 1").use { statement ->
-                statement.executeQuery().use { resultSet ->
-                    check(resultSet.next()) { "probe row가 없습니다." }
-                    resultSet.getInt(1) shouldBeEqualTo 0
+            connection
+                .prepareStatement("SELECT probe_value FROM $tableName WHERE probe_id = 1")
+                .use { statement ->
+                    statement.executeQuery().use { resultSet ->
+                        resultSet.singleInt() shouldBeEqualTo 0
+                    }
                 }
-            }
         }
     }
 
@@ -261,16 +280,16 @@ private class RunningJdbcTransaction private constructor(
         runCatching { statementRef.get()?.cancel() }
         if (!finished.await(WAIT_TIMEOUT_SECONDS.seconds)) {
             runCatching { connectionRef.get()?.close() }
-            check(finished.await(WAIT_TIMEOUT_SECONDS.seconds)) {
-                "JDBC transaction을 cancel 또는 connection close로 종료하지 못했습니다."
-            }
+            finished.await(WAIT_TIMEOUT_SECONDS.seconds)
+                .shouldBeTrue() // JDBC transaction을 cancel 또는 connection close로 종료하지 못했습니다.
         }
         executor.shutdownNow()
-        check(executor.awaitTermination(WAIT_TIMEOUT_SECONDS.seconds)) {
-            "JDBC worker executor가 종료되지 않았습니다."
-        }
+        executor.awaitTermination(WAIT_TIMEOUT_SECONDS.seconds).shouldBeTrue()  // JDBC worker executor가 종료되지 않았습니다.
+
         rawConnection().use { connection ->
-            connection.createStatement().use { it.executeUpdate("DROP TABLE IF EXISTS $tableName") }
+            connection.createStatement().use {
+                it.executeUpdate("DROP TABLE IF EXISTS $tableName")
+            }
         }
     }
 
@@ -280,7 +299,9 @@ private class RunningJdbcTransaction private constructor(
                 statement.executeUpdate(
                     "CREATE TABLE $tableName (probe_id INTEGER PRIMARY KEY, probe_value INTEGER NOT NULL)",
                 )
-                statement.executeUpdate("INSERT INTO $tableName (probe_id, probe_value) VALUES (1, 0)")
+                statement.executeUpdate(
+                    "INSERT INTO $tableName (probe_id, probe_value) VALUES (1, 0)"
+                )
             }
         }
     }
@@ -293,14 +314,18 @@ private class RunningJdbcTransaction private constructor(
             connectionRef.set(activeConnection)
             activeConnection.autoCommit = false
             sessionIdRef.set(contract.sessionId(activeConnection))
-            activeConnection.prepareStatement("UPDATE $tableName SET probe_value = 1 WHERE probe_id = 1").use {
-                it.executeUpdate()
-            }
+
+            activeConnection
+                .prepareStatement("UPDATE $tableName SET probe_value = 1 WHERE probe_id = 1")
+                .use {
+                    it.executeUpdate()
+                }
             activeConnection.createStatement().use { statement ->
                 statement.queryTimeout = QUERY_TIMEOUT_SECONDS
                 statementRef.set(statement)
                 statement.execute(contract.longRunningQuery(marker))
             }
+
             if (rollbackOnly.get() || actionFuture.isCancelled) activeConnection.rollback() else activeConnection.commit()
             actionFuture.complete(Unit)
         } catch (e: Throwable) {
@@ -326,7 +351,7 @@ private class RunningJdbcTransaction private constructor(
     }
 
     private fun awaitCondition(message: String, condition: () -> Boolean) {
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(WAIT_TIMEOUT_SECONDS)
+        val deadline = System.nanoTime() + WAIT_TIMEOUT_SECONDS.seconds().toNanos()
         while (System.nanoTime() - deadline < 0L) {
             if (condition()) return
             Thread.sleep(POLL_MILLIS)
@@ -334,7 +359,7 @@ private class RunningJdbcTransaction private constructor(
         error(message)
     }
 
-    companion object {
+    companion object: KLogging() {
         private const val POLL_MILLIS = 10L
         private const val QUERY_TIMEOUT_SECONDS = 10
         private const val WAIT_TIMEOUT_SECONDS = 5L
@@ -379,8 +404,7 @@ private enum class JdbcDriverInterruptionContract(
 
     fun sessionId(connection: Connection): Long = connection.createStatement().use { statement ->
         statement.executeQuery(sessionIdQuery()).use { resultSet ->
-            check(resultSet.next()) { "JDBC session id를 조회하지 못했습니다: $name" }
-            resultSet.getLong(1)
+            resultSet.singleLong()
         }
     }
 
@@ -412,7 +436,8 @@ private enum class JdbcDriverInterruptionContract(
     }
 
     companion object {
-        fun from(testDB: TestDB): JdbcDriverInterruptionContract = entries.single { it.testDB == testDB }
+        fun from(testDB: TestDB): JdbcDriverInterruptionContract =
+            entries.single { it.testDB == testDB }
     }
 }
 

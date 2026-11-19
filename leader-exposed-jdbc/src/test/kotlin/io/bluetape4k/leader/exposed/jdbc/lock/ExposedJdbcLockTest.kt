@@ -274,7 +274,7 @@ class ExposedJdbcLockTest: AbstractExposedJdbcLeaderTest() {
 
         MultithreadingTester()
             .workers(2 * Runtimex.availableProcessors)
-            .rounds(1)
+            .rounds(2)
             .add {
                 val lock = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 10L))
                 if (lock.tryLock(200.milliseconds, 5.seconds)) {

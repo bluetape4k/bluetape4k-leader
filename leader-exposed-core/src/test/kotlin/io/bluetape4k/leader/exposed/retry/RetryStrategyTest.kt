@@ -33,7 +33,9 @@ class RetryStrategyTest {
 
     @Test
     fun `Jitter - baseDelayMs 1이면 IllegalArgumentException`() {
-        assertFailsWith<IllegalArgumentException> { RetryStrategy.Jitter(baseDelayMs = 1L) }
+        assertFailsWith<IllegalArgumentException> {
+            RetryStrategy.Jitter(baseDelayMs = 1L)
+        }
     }
 
     @Test
@@ -166,7 +168,9 @@ class RetryStrategyTest {
 
     @Test
     fun `Fixed - fixedMs 0이면 IllegalArgumentException`() {
-        assertFailsWith<IllegalArgumentException> { RetryStrategy.Fixed(fixedMs = 0L) }
+        assertFailsWith<IllegalArgumentException> {
+            RetryStrategy.Fixed(fixedMs = 0L)
+        }
     }
 
     @Test

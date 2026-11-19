@@ -33,7 +33,8 @@ sealed class RetryStrategy: Serializable {
 
         override fun delayMs(attempt: Int, remaining: Long): Long {
             if (remaining <= 0L) return 0L
-            return ThreadLocalRandom.current().nextLong(1L, baseDelayMs).coerceAtMost(remaining)
+            return ThreadLocalRandom.current().nextLong(1L, baseDelayMs)
+                .coerceAtMost(remaining)
         }
     }
 

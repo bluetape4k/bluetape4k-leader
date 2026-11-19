@@ -11,6 +11,7 @@ import io.bluetape4k.exposed.tests.withTables
 import io.bluetape4k.javatimes.seconds
 import io.bluetape4k.leader.exposed.AbstractExposedTableTest
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
@@ -102,9 +103,10 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
             }
 
             val newToken = Base58.randomString(8)
-            val updated = LeaderLockTable.update(
-                where = { LeaderLockTable.lockName eq name and (LeaderLockTable.lockedUntil less now) }
-            ) {
+            val whereOp = {
+                LeaderLockTable.lockName eq name and (LeaderLockTable.lockedUntil less now)
+            }
+            val updated = LeaderLockTable.update(whereOp) {
                 it[token] = newToken
                 it[lockedAt] = now
                 it[lockedUntil] = now + 60.seconds()
@@ -135,10 +137,11 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
                 it[lockedUntil] = now + 60.seconds()
             }
 
-            val deleted = LeaderLockTable.deleteWhere {
-                LeaderLockTable.lockName eq name and
-                        (LeaderLockTable.token eq "wrong-token-value")
-            }
+            val deleted = LeaderLockTable
+                .deleteWhere {
+                    LeaderLockTable.lockName eq name and
+                            (LeaderLockTable.token eq "wrong-token-value")
+                }
 
             deleted shouldBeEqualTo 0
 
@@ -147,6 +150,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
                 .where { LeaderLockTable.lockName eq name }
                 .singleOrNull()
 
+            log.debug { "row: $row" }
             row.shouldNotBeNull()
         }
     }

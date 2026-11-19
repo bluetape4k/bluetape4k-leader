@@ -3,8 +3,10 @@ package io.bluetape4k.leader.exposed.jdbc
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.concurrent.futureOf
+import io.bluetape4k.javatimes.nanos
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
@@ -28,10 +30,10 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.toJavaDuration
 
 /**
  * `ExposedJdbcLeaderElector`는 JDBC lock 행을 이용해 단일 leader의 blocking/async 실행과 lease 수명을 관리합니다.
@@ -46,7 +48,7 @@ class ExposedJdbcLeaderElector private constructor(
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
 ): LeaderElector,
    LeaderBackendDiagnosticsProvider by ExposedJdbcLeaderBackendDiagnostics,
-   io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+   LeaderLeaseAcquirerSupport {
 
     override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
         LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
@@ -126,7 +128,7 @@ class ExposedJdbcLeaderElector private constructor(
                 token = lock.token,
                 kind = LockIdentity.AnnotationKind.SINGLE,
                 acquiredAt = startedAt,
-                lockedUntil = startedAt.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds),
+                lockedUntil = startedAt + options.leaderOptions.leaseTime.toJavaDuration(),
                 nodeId = options.lockOwner,
             )
         }
@@ -138,8 +140,10 @@ class ExposedJdbcLeaderElector private constructor(
             return try {
                 val result = AopScopeAccess.withPushedSync(handle) { action() }
                 val finishedAt = Instant.now()
-                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-                effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
+                val durationMs = (System.nanoTime() - acquiredAtNanos).nanos().toMillis()
+                effectiveKey?.let {
+                    historyRecorder?.recordCompleted(it, finishedAt, durationMs)
+                }
                 result
             } catch (e: CancellationException) {
                 throw e
@@ -148,8 +152,10 @@ class ExposedJdbcLeaderElector private constructor(
                 throw e
             } catch (e: Exception) {
                 val finishedAt = Instant.now()
-                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-                effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
+                val durationMs = (System.nanoTime() - acquiredAtNanos).nanos().toMillis()
+                effectiveKey?.let {
+                    historyRecorder?.recordFailed(it, finishedAt, durationMs, e)
+                }
                 throw e
             }
         } finally {
@@ -191,6 +197,7 @@ class ExposedJdbcLeaderElector private constructor(
         val acquiredAtNanosRef = AtomicLong()
         val lifecycleStarted = AtomicBoolean()
         val rejectionCleanupClaimed = AtomicBoolean()
+
         val releaseIfUnclaimed: () -> Unit = {
             val canUnlock = lockAcquired.get() &&
                     !lifecycleStarted.get() &&
@@ -229,6 +236,7 @@ class ExposedJdbcLeaderElector private constructor(
                     val terminal = AtomicBoolean()
                     var watchdog: AutoCloseable = AutoCloseable { }
                     var effectiveKey: LeaderHistoryKey? = null
+
                     val finishAction: (Throwable?) -> CompletableFuture<Throwable?> = { throwable ->
                         if (!terminal.compareAndSet(false, true)) {
                             completableFutureOf(null)
@@ -240,7 +248,7 @@ class ExposedJdbcLeaderElector private constructor(
 
                                 runCatching {
                                     val finishedAt = Instant.now()
-                                    val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
+                                    val durationMs = (System.nanoTime() - acquiredAtNanos).nanos().toMillis()
                                     when {
                                         throwable == null -> effectiveKey?.let {
                                             historyRecorder?.recordCompleted(it, finishedAt, durationMs)
@@ -275,9 +283,10 @@ class ExposedJdbcLeaderElector private constructor(
 
                     if (resultFuture.isCancelled) {
                         val cancellation = CancellationException("runAsyncIfLeader result was cancelled")
-                        return@thenComposeAsync finishAction(cancellation).thenCompose {
-                            failedCompletableFutureOf(cancellation)
-                        }
+                        return@thenComposeAsync finishAction(cancellation)
+                            .thenCompose {
+                                failedCompletableFutureOf(cancellation)
+                            }
                     }
 
                     log.debug { "리더로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
@@ -296,18 +305,23 @@ class ExposedJdbcLeaderElector private constructor(
                                 token = lock.token,
                                 kind = LockIdentity.AnnotationKind.SINGLE,
                                 acquiredAt = startedAt,
-                                lockedUntil = startedAt.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds),
+                                lockedUntil = startedAt + options.leaderOptions.leaseTime.toJavaDuration(),
                                 nodeId = options.lockOwner,
                             )
                         }
-                        val fallbackKey = record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token) }
+                        val fallbackKey = record?.let {
+                            LeaderHistoryKey(lockName = lockName, token = lock.token)
+                        }
                         effectiveKey = fallbackKey
-                        val key = record?.let { historyRecorder.recordAcquired(it) }
+                        val key = record?.let {
+                            historyRecorder.recordAcquired(it)
+                        }
                         effectiveKey = key ?: fallbackKey
                     } catch (e: Throwable) {
-                        return@thenComposeAsync finishAction(e).thenCompose {
-                            failedCompletableFutureOf(e)
-                        }
+                        return@thenComposeAsync finishAction(e)
+                            .thenCompose {
+                                failedCompletableFutureOf(e)
+                            }
                     }
 
                     if (resultFuture.isCancelled) {
@@ -319,50 +333,58 @@ class ExposedJdbcLeaderElector private constructor(
                         }
                     }
 
-                    val actionFuture = runCatching { action() }
-                        .getOrElse { e ->
-                            return@thenComposeAsync finishAction(e).thenCompose {
+                    val actionFuture = runCatching {
+                        action()
+                    }.getOrElse { e ->
+                        return@thenComposeAsync finishAction(e)
+                            .thenCompose {
                                 failedCompletableFutureOf(e)
                             }
-                        }
+                    }
 
-                    val terminalFuture = actionFuture.handle { value, throwable ->
-                        Triple(value, throwable, finishAction(throwable))
-                    }.thenCompose { (value, throwable, cleanup) ->
-                        cleanup.thenCompose { cleanupFailure ->
-                            if (throwable != null) {
-                                failedCompletableFutureOf<T?>(throwable)
-                            } else if (cleanupFailure != null) {
-                                failedCompletableFutureOf(cleanupFailure)
-                            } else {
-                                completableFutureOf(value)
+                    val terminalFuture = actionFuture
+                        .handle { value, throwable ->
+                            Triple(value, throwable, finishAction(throwable))
+                        }.thenCompose { (value, throwable, cleanup) ->
+                            cleanup.thenCompose { cleanupFailure ->
+                                if (throwable != null) {
+                                    failedCompletableFutureOf<T?>(throwable)
+                                } else if (cleanupFailure != null) {
+                                    failedCompletableFutureOf(cleanupFailure)
+                                } else {
+                                    completableFutureOf(value)
+                                }
                             }
                         }
-                    }
                     actionFutureRef.set(actionFuture)
-                    if (resultFuture.isCancelled) actionFuture.cancel(false)
+                    if (resultFuture.isCancelled) {
+                        actionFuture.cancel(false)
+                    }
                     terminalFuture
                 }
             }, executor)
         } catch (e: Throwable) {
-            acquisitionFuture.whenComplete { acquired, _ ->
-                if (acquired == true) releaseIfUnclaimed()
-            }
+            acquisitionFuture
+                .whenComplete { acquired, _ ->
+                    if (acquired == true) releaseIfUnclaimed()
+                }
             failedCompletableFutureOf(e)
         }
 
-        resultFuture.whenComplete { _, _ ->
-            if (resultFuture.isCancelled) actionFutureRef.get()?.cancel(false)
-        }
-
-        pipelineFuture.whenComplete { value, throwable ->
-            if (throwable != null) releaseIfUnclaimed()
-            if (throwable == null) {
-                resultFuture.complete(value)
-            } else {
-                resultFuture.completeExceptionally(throwable)
+        resultFuture
+            .whenComplete { _, _ ->
+                if (resultFuture.isCancelled) actionFutureRef.get()?.cancel(false)
             }
-        }
+
+        pipelineFuture
+            .whenComplete { value, throwable ->
+                if (throwable != null) releaseIfUnclaimed()
+                if (throwable == null) {
+                    resultFuture.complete(value)
+                } else {
+                    resultFuture.completeExceptionally(throwable)
+                }
+            }
         return resultFuture
     }
 }

@@ -2,6 +2,7 @@ package io.bluetape4k.leader.exposed.jdbc.lock
 
 import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.jdbc.sql.getTimestampOrNull
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.exposed.jdbc.internal.MonotonicDeadline
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
@@ -10,6 +11,7 @@ import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.asInstantOrNull
 import kotlinx.coroutines.CancellationException
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -30,6 +32,7 @@ import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import kotlin.time.Duration
+import kotlin.time.toJavaDuration
 
 /**
  * `ExposedJdbcLock`는 lock 이름과 owner token을 조건에 포함해 단일 JDBC lock 행을 획득·연장·반납합니다.
@@ -121,15 +124,14 @@ internal class ExposedJdbcLock internal constructor(
 
         return transaction(db) {
             val now = currentTime(useDbTime)
-            val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
+            val lockedUntil = now + leaseTime.toJavaDuration()
 
             // Step 1: 만료된 락 갱신 시도
-            val updated = LeaderLockTable.update(
-                where = {
-                    (LeaderLockTable.lockName eq lockNameVal) and
-                            (LeaderLockTable.lockedUntil less now)
-                }
-            ) {
+            val whereOp = {
+                (LeaderLockTable.lockName eq lockNameVal) and
+                        (LeaderLockTable.lockedUntil less now)
+            }
+            val updated = LeaderLockTable.update(whereOp) {
                 it[LeaderLockTable.lockOwner] = lockOwnerVal
                 it[LeaderLockTable.token] = tokenVal
                 it[LeaderLockTable.lockedAt] = now
@@ -159,14 +161,14 @@ internal class ExposedJdbcLock internal constructor(
             }
 
             // Step 3: token 소유 + lease 유효성 확인 (R2DBC 형제 모듈과 대칭)
-            !LeaderLockTable
+            LeaderLockTable
                 .selectAll()
                 .where {
                     (LeaderLockTable.lockName eq lockNameVal) and
                             (LeaderLockTable.token eq tokenVal) and
                             (LeaderLockTable.lockedUntil greater now)
                 }
-                .empty()
+                .any()
         }
     }
 
@@ -175,14 +177,14 @@ internal class ExposedJdbcLock internal constructor(
         try {
             transaction(db) {
                 val now = currentTime(useDbTime)
-                !LeaderLockTable
+                LeaderLockTable
                     .selectAll()
                     .where {
                         (LeaderLockTable.lockName eq lockName) and
                                 (LeaderLockTable.token eq token) and
                                 (LeaderLockTable.lockedUntil greater now)
                     }
-                    .empty()
+                    .any()
             }
         } catch (e: CancellationException) {
             throw e
@@ -213,7 +215,7 @@ internal class ExposedJdbcLock internal constructor(
                                     (LeaderLockTable.token eq tokenVal)
                         }
                     ) {
-                        it[LeaderLockTable.lockedUntil] = now.plusMillis(remaining.inWholeMilliseconds)
+                        it[LeaderLockTable.lockedUntil] = now + remaining.toJavaDuration()
                     }
                 } else {
                     LeaderLockTable.deleteWhere {
@@ -244,7 +246,7 @@ internal class ExposedJdbcLock internal constructor(
 
         return transaction(db) {
             val now = currentTime(useDbTime)
-            val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
+            val newLockedUntil = now + leaseTime.toJavaDuration()
             val updated = LeaderLockTable.update(
                 where = {
                     (LeaderLockTable.lockName eq lockNameVal) and
@@ -283,15 +285,15 @@ private fun JdbcTransaction.dbCurrentTimestamp(): Instant =
         if (!resultSet.next()) {
             error("SELECT CURRENT_TIMESTAMP returned no rows")
         }
-        resultSet.getObject(1).toInstant()
+        resultSet.getTimestampOrNull(1).asInstantOrNull()
     } ?: error("SELECT CURRENT_TIMESTAMP returned no result set")
 
 private fun Any?.toInstant(): Instant =
     when (this) {
-        is Instant -> this
-        is Timestamp -> toInstant()
+        is Instant       -> this
+        is Timestamp     -> toInstant()
         is OffsetDateTime -> toInstant()
         is ZonedDateTime -> toInstant()
         is LocalDateTime -> toInstant(ZoneOffset.UTC)
-        else -> error("Unsupported CURRENT_TIMESTAMP value: ${this?.javaClass?.name ?: "null"}")
+        else             -> error("Unsupported CURRENT_TIMESTAMP value: ${this?.javaClass?.name ?: "null"}")
     }

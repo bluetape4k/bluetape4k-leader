@@ -20,12 +20,13 @@ internal suspend fun R2dbcTransaction.currentTime(
 /** 1.0.0에서 공개된 JVM facade를 유지하는 timestamp 변환 함수입니다. */
 internal fun Any?.toExposedR2dbcInstant(): Instant =
     when (this) {
-        is Instant -> this
-        is Timestamp -> toInstant()
+        is Instant       -> this
+        is Timestamp     -> toInstant()
         is OffsetDateTime -> toInstant()
         is ZonedDateTime -> toInstant()
         is LocalDateTime -> toInstant(ZoneOffset.UTC)
-        else -> error("Unsupported CURRENT_TIMESTAMP value: ${this?.javaClass?.name ?: "null"}")
+        else             ->
+            asInstantOrNull() ?: error("Unsupported CURRENT_TIMESTAMP value: ${this?.javaClass?.name ?: "null"}")
     }
 
 private suspend fun R2dbcTransaction.dbCurrentTimestamp(): Instant =

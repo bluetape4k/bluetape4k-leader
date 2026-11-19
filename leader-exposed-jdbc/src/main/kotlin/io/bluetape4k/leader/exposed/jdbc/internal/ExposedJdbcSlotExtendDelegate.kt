@@ -35,17 +35,18 @@ internal class ExposedJdbcSlotExtendDelegate(
             ExtendOutcome.BackendError(e)
         }
 
-    override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
-        coroutineContext.ensureActive()
-        try {
-            slotLock.extendDetailed(lockAtMostFor)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.warn(e) { "Exposed JDBC group extendSuspend failed. lockName=${slotLock.lockName}, slot=${slotLock.slot}" }
-            ExtendOutcome.BackendError(e)
+    override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
+        withContext(Dispatchers.IO) {
+            coroutineContext.ensureActive()
+            try {
+                slotLock.extendDetailed(lockAtMostFor)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.warn(e) { "Exposed JDBC group extendSuspend failed. lockName=${slotLock.lockName}, slot=${slotLock.slot}" }
+                ExtendOutcome.BackendError(e)
+            }
         }
-    }
 
     override fun isHeld(): Boolean =
         try {

@@ -48,7 +48,6 @@ class MonotonicDeadlineTest: AbstractMonotonicDeadlineContractTest() {
         holder.tryLock(Duration.ZERO, 5.seconds).shouldBeTrue()
 
         val contender = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 1L))
-
         return try {
             observeContender(case) {
                 contender.tryLock(case.waitTime, 5.seconds)
@@ -99,5 +98,6 @@ class MonotonicDeadlineTest: AbstractMonotonicDeadlineContractTest() {
         }
     }
 
-    private fun randomLockName(): String = "deadline-${Base58.randomString(12)}"
+    private fun randomLockName(): String =
+        "deadline-${Base58.randomString(12)}"
 }

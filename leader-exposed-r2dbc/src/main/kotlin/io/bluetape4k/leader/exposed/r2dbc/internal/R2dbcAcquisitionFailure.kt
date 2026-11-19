@@ -13,6 +13,7 @@ internal fun classifyAcquisitionFailure(failure: Exception): BackendErrorKind {
     var current: Throwable? = failure
     var deepest: Throwable = failure
     var backendKind: BackendErrorKind? = null
+
     while (current != null && seen.add(current)) {
         when (current) {
             is Error -> throw current
