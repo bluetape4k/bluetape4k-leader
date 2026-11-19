@@ -428,23 +428,19 @@ private fun remainingMillis(deadlineNanos: Long): Long =
  * [this] Consul endpoint에서 [lockName]을 획득했을 때만 [action]을 실행합니다.
  * 경합이면 null을 반환하고, session과 KV ownership은 action 종료 후 정리합니다.
  */
-inline fun <T> ConsulEndpoint.runIfLeader(
+fun <T> ConsulEndpoint.runIfLeader(
     lockName: String,
     options: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
-    crossinline action: () -> T,
-): T? =
-    ConsulLeaderElector(this, options)
-        .runIfLeader(lockName) { action() }
+    action: () -> T,
+): T? = ConsulLeaderElector(this, options).runIfLeader(lockName, action)
 
 /**
  * [this] Consul endpoint에서 [lockName]을 비동기로 획득한 뒤 [action]을 실행합니다.
  * 기본 [executor]는 virtual thread executor이며 경합 시 null로 완료합니다.
  */
-inline fun <T> ConsulEndpoint.runAsyncIfLeader(
+fun <T> ConsulEndpoint.runAsyncIfLeader(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
     options: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
-    crossinline action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> =
-    ConsulLeaderElector(this, options)
-        .runAsyncIfLeader(lockName, executor) { action() }
+    action: () -> CompletableFuture<T>,
+): CompletableFuture<T?> = ConsulLeaderElector(this, options).runAsyncIfLeader(lockName, executor, action)

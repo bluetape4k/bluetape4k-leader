@@ -736,10 +736,16 @@ val issue994FacadeVerifierTasks = listOf(
         commandLine("python3", rootProject.file("scripts/compatibility/verify_issue_994_facades.py").absolutePath, "--$mode")
     }
 }
+val publicFacadeContractVerification = tasks.register<Exec>("verifyPublicFacadeContracts") {
+    group = "verification"
+    description = "Verify that selected public Kotlin facades remain non-inline wrappers."
+    commandLine("python3", rootProject.file("scripts/ci/validate_public_facade_contract.py").absolutePath)
+}
 tasks.register("verifyIssue994FacadeContracts") {
     group = "verification"
     description = "Verify the approved backend facade source and Kotlin consumer bytecode contracts."
     issue994FacadeVerifierTasks.forEach(::dependsOn)
+    dependsOn(publicFacadeContractVerification)
 }
 
 val publishedProjects = subprojects.filterNot(Project::isNonPublishedProject)

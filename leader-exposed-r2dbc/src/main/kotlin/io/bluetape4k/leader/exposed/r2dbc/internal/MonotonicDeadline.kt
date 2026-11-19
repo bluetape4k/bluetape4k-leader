@@ -1,7 +1,6 @@
 package io.bluetape4k.leader.exposed.r2dbc.internal
 
 import io.bluetape4k.ToStringBuilder
-import io.bluetape4k.logging.KLogging
 import kotlin.time.Duration
 import io.bluetape4k.leader.internal.MonotonicDeadline as CoreMonotonicDeadline
 
@@ -33,8 +32,7 @@ internal class MonotonicDeadline private constructor(
             .toString()
     }
 
-    companion object: KLogging() {
-
+    companion object {
         fun fromNow(
             waitTime: Duration,
             ticker: () -> Long = System::nanoTime,

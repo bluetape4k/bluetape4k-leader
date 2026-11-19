@@ -301,9 +301,8 @@ class ConsulSuspendLeaderGroupElector private constructor(
  * [this] Consul endpoint에서 그룹 [lockName]의 슬롯을 suspend 방식으로 획득했을 때만 [action]을 실행합니다.
  * 슬롯을 얻지 못하면 null을 반환하고 취소 뒤에도 session과 ownership을 정리합니다.
  */
-suspend inline fun <T> ConsulEndpoint.suspendRunIfLeaderGroup(
+suspend fun <T> ConsulEndpoint.suspendRunIfLeaderGroup(
     lockName: String,
     options: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
-    crossinline action: suspend () -> T,
-): T? = ConsulSuspendLeaderGroupElector(this, options)
-    .runIfLeader(lockName) { action() }
+    action: suspend () -> T,
+): T? = ConsulSuspendLeaderGroupElector(this, options).runIfLeader(lockName, action)
