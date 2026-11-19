@@ -22,8 +22,8 @@ class MongoSuspendLeaderGroupElectorFactory(
 
     override suspend fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
         MongoSuspendLeaderGroupElector(
-            groupCollection,
-            coroutineGroupCollection,
-            baseOptions.copy(leaderGroupOptions = options),
+            groupCollection = groupCollection,
+            coroutineGroupCollection = coroutineGroupCollection,
+            options = baseOptions.copy(leaderGroupOptions = options),
         )
 }

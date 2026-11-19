@@ -17,7 +17,6 @@ import io.bluetape4k.leader.micrometer.InstrumentedLeaderElector
 import io.bluetape4k.leader.micrometer.LeaderMetricTagOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import io.bluetape4k.support.requireNotNull
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import org.junit.jupiter.api.Test
@@ -127,7 +126,7 @@ class PrometheusBackendConnectivityProbeTest {
             LeaderElector by StubLeaderElector,
             LeaderBackendDiagnosticsProvider by provider {}
         return InstrumentedLeaderElector(delegate, registry)
-            .backendDiagnosticsProvider.requireNotNull("backendDiagnosticsProvider")
+            .backendDiagnosticsProvider.shouldNotBeNull()
     }
 
     private fun PrometheusMeterRegistry.connectivityCount(
@@ -171,7 +170,7 @@ class PrometheusBackendConnectivityProbeTest {
             observedTimeout = timeout
             probeCount++
             failure?.let { throw it }
-            return connectivity.requireNotNull("connectivity")
+            return connectivity.shouldNotBeNull()
         }
     }
 

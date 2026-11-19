@@ -18,5 +18,8 @@ class MongoSuspendLeaderElectorFactory(
 ): SuspendLeaderElectorFactory {
 
     override suspend fun create(options: LeaderElectionOptions): SuspendLeaderElector =
-        MongoSuspendLeaderElector(collection, baseOptions.copy(leaderOptions = options))
+        MongoSuspendLeaderElector(
+            collection = collection,
+            options = baseOptions.copy(leaderOptions = options),
+        )
 }

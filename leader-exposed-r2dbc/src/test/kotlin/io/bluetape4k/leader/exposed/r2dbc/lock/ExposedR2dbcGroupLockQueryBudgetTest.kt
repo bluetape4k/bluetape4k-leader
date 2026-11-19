@@ -96,7 +96,7 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         val sql = recordSql { lock.isHeldByCurrentInstance() }
 
         sql.forEach { log.debug { it } }
-        sql.currentTimestampCount() shouldBeEqualTo 1 
+        sql.currentTimestampCount() shouldBeEqualTo 1
         sql shouldHaveSize 2
 
         lock.unlock()
@@ -293,7 +293,7 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
         val recoveredSql = recordSql {
             lock.tryLock(Duration.ZERO, 10.seconds).shouldBeTrue()
         }
-        recoveredSql.currentTimestampCount() shouldBeEqualTo 1 
+        recoveredSql.currentTimestampCount() shouldBeEqualTo 1
         lock.unlock()
     }
 
@@ -355,7 +355,7 @@ class ExposedR2dbcGroupLockQueryBudgetTest: AbstractExposedR2dbcLeaderTest() {
             holder.unlock()
 
             val metrics = pool.metrics.get()
-            metrics.acquiredSize() shouldBeEqualTo 0 
+            metrics.acquiredSize() shouldBeEqualTo 0
             metrics.allocatedSize() shouldBeLessOrEqualTo 2
             metrics.pendingAcquireSize() shouldBeEqualTo 0
         } finally {

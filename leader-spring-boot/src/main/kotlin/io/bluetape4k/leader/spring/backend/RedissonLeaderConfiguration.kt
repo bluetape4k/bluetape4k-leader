@@ -28,7 +28,10 @@ class RedissonLeaderConfiguration {
         client: RedissonClient,
         props: LeaderProperties,
     ): RedissonLeaderElector =
-        RedissonLeaderElector(client, PropertiesAdapter.toCommonElection(props))
+        RedissonLeaderElector(
+            redissonClient = client,
+            options = PropertiesAdapter.toCommonElection(props),
+        )
 
     @Bean
     @ConditionalOnMissingBean(name = ["redissonSuspendLeaderElector"])
@@ -36,7 +39,10 @@ class RedissonLeaderConfiguration {
         client: RedissonClient,
         props: LeaderProperties,
     ): RedissonSuspendLeaderElector =
-        RedissonSuspendLeaderElector(client, PropertiesAdapter.toCommonElection(props))
+        RedissonSuspendLeaderElector(
+            redissonClient = client,
+            options = PropertiesAdapter.toCommonElection(props),
+        )
 
     @Bean
     @ConditionalOnMissingBean(name = ["redissonLeaderGroupElector"])
@@ -44,7 +50,10 @@ class RedissonLeaderConfiguration {
         client: RedissonClient,
         props: LeaderProperties,
     ): RedissonLeaderGroupElector =
-        RedissonLeaderGroupElector(client, PropertiesAdapter.toCommonGroup(props))
+        RedissonLeaderGroupElector(
+            redissonClient = client,
+            options = PropertiesAdapter.toCommonGroup(props),
+        )
 
     @Bean
     @ConditionalOnMissingBean(name = ["redissonSuspendLeaderGroupElector"])
@@ -52,5 +61,8 @@ class RedissonLeaderConfiguration {
         client: RedissonClient,
         props: LeaderProperties,
     ): RedissonSuspendLeaderGroupElector =
-        RedissonSuspendLeaderGroupElector(client, PropertiesAdapter.toCommonGroup(props))
+        RedissonSuspendLeaderGroupElector(
+            redissonClient = client,
+            options = PropertiesAdapter.toCommonGroup(props),
+        )
 }

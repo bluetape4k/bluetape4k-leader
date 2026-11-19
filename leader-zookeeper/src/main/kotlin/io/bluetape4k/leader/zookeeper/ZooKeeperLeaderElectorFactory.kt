@@ -17,5 +17,9 @@ class ZooKeeperLeaderElectorFactory(
 ): LeaderElectorFactory {
 
     override fun create(options: LeaderElectionOptions): LeaderElector =
-        ZooKeeperLeaderElector(client, basePath, options)
+        ZooKeeperLeaderElector(
+            client = client,
+            basePath = basePath,
+            options = options,
+        )
 }

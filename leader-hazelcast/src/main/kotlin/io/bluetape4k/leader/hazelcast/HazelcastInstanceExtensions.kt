@@ -14,7 +14,10 @@ inline fun <T> HazelcastInstance.runIfLeader(
     crossinline action: () -> T,
 ): T? {
     jobName.validateLockName("jobName")
-    return HazelcastLeaderElector(this, options).runIfLeader(jobName) { action() }
+    return HazelcastLeaderElector(
+        hazelcast = this,
+        options = options,
+    ).runIfLeader(jobName) { action() }
 }
 
 /** 단일 Hazelcast lock을 비동기로 획득한 뒤, 획득 시 `action`의 `CompletableFuture`를 평탄화합니다. 경합이면 완료값 `null`을 반환합니다. */
@@ -25,7 +28,10 @@ inline fun <T> HazelcastInstance.runAsyncIfLeader(
     crossinline action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> {
     jobName.validateLockName("jobName")
-    return HazelcastLeaderElector(this, options).runAsyncIfLeader(jobName, executor) { action() }
+    return HazelcastLeaderElector(
+        hazelcast = this,
+        options = options,
+    ).runAsyncIfLeader(jobName, executor) { action() }
 }
 
 
@@ -36,7 +42,10 @@ inline fun <T> HazelcastInstance.runIfLeaderGroup(
     crossinline action: () -> T,
 ): T? {
     lockName.validateLockName("lockName")
-    return HazelcastLeaderGroupElector(this, options).runIfLeader(lockName) { action() }
+    return HazelcastLeaderGroupElector(
+        hazelcast = this,
+        options = options,
+    ).runIfLeader(lockName) { action() }
 }
 
 /** 단일 Hazelcast lock 획득을 중단 가능한 코루틴으로 수행하고, 획득 시에만 `action`을 실행합니다. 경합이면 `null`을 반환합니다. */
@@ -46,7 +55,10 @@ suspend inline fun <T> HazelcastInstance.suspendRunIfLeader(
     crossinline action: suspend () -> T,
 ): T? {
     jobName.validateLockName("jobName")
-    return HazelcastSuspendLeaderElector(this, options).runIfLeader(jobName) { action() }
+    return HazelcastSuspendLeaderElector(
+        hazelcast = this,
+        options = options,
+    ).runIfLeader(jobName) { action() }
 }
 
 /** Hazelcast 그룹 슬롯을 중단 가능한 코루틴으로 획득해 `action`을 실행하며, 슬롯이 없으면 `null`을 반환합니다. */
@@ -56,5 +68,8 @@ suspend inline fun <T> HazelcastInstance.suspendRunIfLeaderGroup(
     crossinline action: suspend () -> T,
 ): T? {
     lockName.validateLockName("lockName")
-    return HazelcastSuspendLeaderGroupElector(this, options).runIfLeader(lockName) { action() }
+    return HazelcastSuspendLeaderGroupElector(
+        hazelcast = this,
+        options = options,
+    ).runIfLeader(lockName) { action() }
 }

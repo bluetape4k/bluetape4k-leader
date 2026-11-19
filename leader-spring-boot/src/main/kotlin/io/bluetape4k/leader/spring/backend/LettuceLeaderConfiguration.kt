@@ -32,7 +32,11 @@ class LettuceLeaderConfiguration {
         props: LeaderProperties,
         recorderProvider: ObjectProvider<SafeLeaderHistoryRecorder>,
     ): LettuceLeaderElector =
-        LettuceLeaderElector(connection, PropertiesAdapter.toCommonElection(props), recorderProvider.ifAvailable)
+        LettuceLeaderElector(
+            connection = connection,
+            options = PropertiesAdapter.toCommonElection(props),
+            historyRecorder = recorderProvider.ifAvailable,
+        )
 
     @Bean
     @ConditionalOnMissingBean(name = ["lettuceSuspendLeaderElector"])
@@ -41,7 +45,11 @@ class LettuceLeaderConfiguration {
         props: LeaderProperties,
         recorderProvider: ObjectProvider<SuspendSafeLeaderHistoryRecorder>,
     ): LettuceSuspendLeaderElector =
-        LettuceSuspendLeaderElector(connection, PropertiesAdapter.toCommonElection(props), recorderProvider.ifAvailable)
+        LettuceSuspendLeaderElector(
+            connection = connection,
+            options = PropertiesAdapter.toCommonElection(props),
+            historyRecorder = recorderProvider.ifAvailable,
+        )
 
     @Bean
     @ConditionalOnMissingBean(name = ["lettuceLeaderGroupElector"])
@@ -49,7 +57,10 @@ class LettuceLeaderConfiguration {
         connection: StatefulRedisConnection<String, String>,
         props: LeaderProperties,
     ): LettuceLeaderGroupElector =
-        LettuceLeaderGroupElector(connection, PropertiesAdapter.toCommonGroup(props))
+        LettuceLeaderGroupElector(
+            connection = connection,
+            options = PropertiesAdapter.toCommonGroup(props),
+        )
 
     @Bean
     @ConditionalOnMissingBean(name = ["lettuceSuspendLeaderGroupElector"])
@@ -57,5 +68,8 @@ class LettuceLeaderConfiguration {
         connection: StatefulRedisConnection<String, String>,
         props: LeaderProperties,
     ): LettuceSuspendLeaderGroupElector =
-        LettuceSuspendLeaderGroupElector(connection, PropertiesAdapter.toCommonGroup(props))
+        LettuceSuspendLeaderGroupElector(
+            connection = connection,
+            options = PropertiesAdapter.toCommonGroup(props),
+        )
 }

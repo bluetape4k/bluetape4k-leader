@@ -3,6 +3,7 @@ package io.bluetape4k.leader.examples.prometheus
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityReason
@@ -111,13 +112,11 @@ class PrometheusLettuceConnectivityProbeTest {
         val delegate = object:
             LeaderElector by StubLeaderElector,
             LeaderBackendDiagnosticsProvider by provider {}
-        return requireNotNull(
-            InstrumentedLeaderElector(
-                delegate = delegate,
-                registry = registry,
-                tagOptions = LeaderMetricTagOptions.Default,
-            ).backendDiagnosticsProvider,
-        )
+        return InstrumentedLeaderElector(
+            delegate = delegate,
+            registry = registry,
+            tagOptions = LeaderMetricTagOptions.Default,
+        ).backendDiagnosticsProvider.shouldNotBeNull()
     }
 
     private fun PrometheusMeterRegistry.connectivityCount(

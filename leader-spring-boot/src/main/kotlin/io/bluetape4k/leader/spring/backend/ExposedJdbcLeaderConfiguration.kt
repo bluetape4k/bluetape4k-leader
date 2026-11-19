@@ -33,9 +33,11 @@ class ExposedJdbcLeaderConfiguration {
         recorderProvider: ObjectProvider<SafeLeaderHistoryRecorder>,
     ): ExposedJdbcLeaderElector =
         ExposedJdbcLeaderElector(
-            db,
-            ExposedJdbcLeaderElectionOptions(leaderOptions = PropertiesAdapter.toCommonElection(props)),
-            recorderProvider.ifAvailable,
+            db = db,
+            options = ExposedJdbcLeaderElectionOptions(
+                leaderOptions = PropertiesAdapter.toCommonElection(props),
+            ),
+            historyRecorder = recorderProvider.ifAvailable,
         )
 
     @Bean
@@ -46,9 +48,11 @@ class ExposedJdbcLeaderConfiguration {
         recorderProvider: ObjectProvider<SafeLeaderHistoryRecorder>,
     ): ExposedJdbcLeaderGroupElector =
         ExposedJdbcLeaderGroupElector(
-            db,
-            ExposedJdbcLeaderGroupElectionOptions(leaderGroupOptions = PropertiesAdapter.toCommonGroup(props)),
-            recorderProvider.ifAvailable,
+            db = db,
+            options = ExposedJdbcLeaderGroupElectionOptions(
+                leaderGroupOptions = PropertiesAdapter.toCommonGroup(props),
+            ),
+            historyRecorder = recorderProvider.ifAvailable,
         )
 
     @Bean

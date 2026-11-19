@@ -27,20 +27,28 @@ class LocalLeaderConfiguration {
     @Bean
     @ConditionalOnMissingBean(LeaderElector::class)
     fun localLeaderElector(props: LeaderProperties): LeaderElector =
-        LocalLeaderElector(PropertiesAdapter.toCommonElection(props))
+        LocalLeaderElector(
+            options = PropertiesAdapter.toCommonElection(props),
+        )
 
     @Bean
     @ConditionalOnMissingBean(SuspendLeaderElector::class)
     fun localSuspendLeaderElector(props: LeaderProperties): SuspendLeaderElector =
-        LocalSuspendLeaderElector(PropertiesAdapter.toCommonElection(props))
+        LocalSuspendLeaderElector(
+            options = PropertiesAdapter.toCommonElection(props),
+        )
 
     @Bean
     @ConditionalOnMissingBean(LeaderGroupElector::class)
     fun localLeaderGroupElector(props: LeaderProperties): LeaderGroupElector =
-        LocalLeaderGroupElector(PropertiesAdapter.toCommonGroup(props))
+        LocalLeaderGroupElector(
+            options = PropertiesAdapter.toCommonGroup(props),
+        )
 
     @Bean
     @ConditionalOnMissingBean(SuspendLeaderGroupElector::class)
     fun localSuspendLeaderGroupElector(props: LeaderProperties): SuspendLeaderGroupElector =
-        LocalSuspendLeaderGroupElector(PropertiesAdapter.toCommonGroup(props))
+        LocalSuspendLeaderGroupElector(
+            options = PropertiesAdapter.toCommonGroup(props),
+        )
 }

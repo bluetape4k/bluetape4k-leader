@@ -18,5 +18,8 @@ class MongoLeaderGroupElectorFactory(
 ): LeaderGroupElectorFactory {
 
     override fun create(options: LeaderGroupElectionOptions): LeaderGroupElector =
-        MongoLeaderGroupElector(groupCollection, baseOptions.copy(leaderGroupOptions = options))
+        MongoLeaderGroupElector(
+            groupCollection = groupCollection,
+            options = baseOptions.copy(leaderGroupOptions = options),
+        )
 }

@@ -43,7 +43,11 @@ class MongoLeaderConfiguration {
         recorderProvider: ObjectProvider<SafeLeaderHistoryRecorder>,
     ): MongoLeaderElector {
         val collection = db.getCollection(props.mongo.singleCollection, Document::class.java)
-        return MongoLeaderElector(collection, electionOptions(props), recorderProvider.ifAvailable)
+        return MongoLeaderElector(
+            collection = collection,
+            options = electionOptions(props),
+            historyRecorder = recorderProvider.ifAvailable,
+        )
     }
 
     @Bean
@@ -55,7 +59,11 @@ class MongoLeaderConfiguration {
         recorderProvider: ObjectProvider<SafeLeaderHistoryRecorder>,
     ): MongoLeaderGroupElector {
         val collection = db.getCollection(props.mongo.groupCollection, Document::class.java)
-        return MongoLeaderGroupElector(collection, groupOptions(props), recorderProvider.ifAvailable)
+        return MongoLeaderGroupElector(
+            groupCollection = collection,
+            options = groupOptions(props),
+            historyRecorder = recorderProvider.ifAvailable,
+        )
     }
 
     @Bean
@@ -69,9 +77,9 @@ class MongoLeaderConfiguration {
         operationName = "mongoSuspendLeaderElector",
     ) {
         MongoSuspendLeaderElector(
-            coroutineDb.getCollection<Document>(props.mongo.singleCollection),
-            electionOptions(props),
-            recorderProvider.ifAvailable,
+            collection = coroutineDb.getCollection<Document>(props.mongo.singleCollection),
+            options = electionOptions(props),
+            historyRecorder = recorderProvider.ifAvailable,
         )
     }
 
@@ -87,10 +95,10 @@ class MongoLeaderConfiguration {
         operationName = "mongoSuspendLeaderGroupElector",
     ) {
         MongoSuspendLeaderGroupElector(
-            db.getCollection(props.mongo.groupCollection, Document::class.java),
-            coroutineDb.getCollection<Document>(props.mongo.groupCollection),
-            groupOptions(props),
-            recorderProvider.ifAvailable,
+            groupCollection = db.getCollection(props.mongo.groupCollection, Document::class.java),
+            coroutineGroupCollection = coroutineDb.getCollection<Document>(props.mongo.groupCollection),
+            options = groupOptions(props),
+            historyRecorder = recorderProvider.ifAvailable,
         )
     }
 }
