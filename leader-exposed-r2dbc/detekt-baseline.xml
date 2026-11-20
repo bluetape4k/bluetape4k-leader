@@ -5,10 +5,7 @@
     <ID>LongMethod:ExposedR2DbcSuspendLeaderElector.kt:ExposedR2DbcSuspendLeaderElector$override suspend fun &lt;T> runIfLeader: T?</ID>
     <ID>MagicNumber:ExposedR2dbcGroupLock.kt:ExposedR2dbcGroupLock$8</ID>
     <ID>MagicNumber:ExposedR2dbcLock.kt:ExposedR2dbcLock$8</ID>
-    <ID>MaxLineLength:ExposedR2DbcSuspendLeaderElectorFactory.kt:ExposedR2DbcSuspendLeaderElectorFactory$*</ID>
-    <ID>MaxLineLength:ExposedR2DbcSuspendLeaderGroupElectorFactory.kt:ExposedR2DbcSuspendLeaderGroupElectorFactory$*</ID>
-    <ID>MaxLineLength:ExposedR2dbcSuspendSlotExtendDelegate.kt:ExposedR2dbcSuspendSlotExtendDelegate$log.warn(e) { "Exposed R2DBC suspend group extendSuspend failed. lockName=${slotLock.lockName}, slot=${slotLock.slot}" }</ID>
-    <ID>MaxLineLength:ExposedR2dbcSuspendSlotExtendDelegate.kt:ExposedR2dbcSuspendSlotExtendDelegate$log.warn(e) { "Exposed R2DBC suspend group isHeld failed. lockName=${slotLock.lockName}, slot=${slotLock.slot}" }</ID>
+    <ID>MaxLineLength:ExposedSuspendLeaderHistorySink.kt:ExposedSuspendLeaderHistorySink${ (LeaderLockHistoryTable.lockName eq key.lockName) and (LeaderLockHistoryTable.token eq key.token) }</ID>
     <ID>SerialVersionUIDInSerializableClass:ExposedR2dbcLeaderElectionOptions.kt:ExposedR2dbcLeaderElectionOptions : Serializable</ID>
     <ID>SerialVersionUIDInSerializableClass:ExposedR2dbcLeaderGroupElectionOptions.kt:ExposedR2dbcLeaderGroupElectionOptions : Serializable</ID>
     <ID>SwallowedException:ExposedR2dbcGroupLock.kt:ExposedR2dbcGroupLock$e: UnsupportedByDialectException</ID>
