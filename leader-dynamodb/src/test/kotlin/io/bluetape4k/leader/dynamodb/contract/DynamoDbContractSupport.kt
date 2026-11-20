@@ -3,6 +3,7 @@ package io.bluetape4k.leader.dynamodb.contract
 import io.bluetape4k.aws.auth.staticCredentialsProviderOf
 import io.bluetape4k.aws.dynamodb.dynamoDbAsyncClient
 import io.bluetape4k.aws.dynamodb.dynamoDbClient
+import io.bluetape4k.aws.http.SdkAsyncHttpClientProvider
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.testcontainers.aws.DynamoDbLocalServer
 import software.amazon.awssdk.regions.Region
@@ -38,6 +39,7 @@ internal object DynamoDbContractSupport {
             endpointOverride(dynamodb.awsEndpoint)
             credentialsProvider(credentials)
             region(region)
+            httpClient(SdkAsyncHttpClientProvider.AwsCrt.httpClient)
         }
 
     }

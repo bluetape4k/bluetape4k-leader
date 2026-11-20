@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.examples.dynamodbexport
 
 import io.bluetape4k.aws.dynamodb.DynamoDbClientFactory
+import io.bluetape4k.aws.http.SdkAsyncHttpClientProvider
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElectionOptions
@@ -50,6 +51,7 @@ abstract class AbstractDynamoDbExportTest {
             endpointOverride(container.awsEndpoint)
             credentialsProvider(credentials)
             region(region)
+            httpClient(SdkAsyncHttpClientProvider.AwsCrt.httpClient)
         }
 
         val suffix = Base58.randomString(12)

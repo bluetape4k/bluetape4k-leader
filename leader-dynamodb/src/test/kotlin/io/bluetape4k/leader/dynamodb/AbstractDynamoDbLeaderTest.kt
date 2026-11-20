@@ -2,6 +2,7 @@ package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.aws.dynamodb.dynamoDbAsyncClient
 import io.bluetape4k.aws.dynamodb.dynamoDbClient
+import io.bluetape4k.aws.http.SdkAsyncHttpClientProvider
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -52,6 +53,7 @@ abstract class AbstractDynamoDbLeaderTest {
                 endpointOverride(endpoint)
                 credentialsProvider(credentials)
                 region(region)
+                httpClient(SdkAsyncHttpClientProvider.AwsCrt.httpClient)
             }
 
             sharedTableName = "leader_${Base58.randomString(12)}"
