@@ -4,6 +4,8 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.LeaderElectionException
+import io.bluetape4k.leader.audit.http.LeaderAuditHttpPayload
+import io.bluetape4k.leader.audit.http.LeaderAuditTrustedHttpsEndpoint
 import io.bluetape4k.leader.history.LeaderHistorySink
 import io.bluetape4k.leader.history.SuspendLeaderHistorySink
 import io.bluetape4k.logging.KLogging
@@ -66,6 +68,12 @@ class LeaderAuditPublicApiCompatibilityTest {
         LeaderAuditExportSnapshot.Companion::class.java.declaredMethods
             .any { method -> method.name == factoryName }
             .shouldBeTrue()
+    }
+
+    @Test
+    fun `audit HTTP companions retain Object as their direct superclass`() {
+        LeaderAuditHttpPayload.Companion::class.java.superclass shouldBeEqualTo Any::class.java
+        LeaderAuditTrustedHttpsEndpoint.Companion::class.java.superclass shouldBeEqualTo Any::class.java
     }
 }
 

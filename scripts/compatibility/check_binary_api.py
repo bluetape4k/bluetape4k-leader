@@ -87,6 +87,13 @@ KNOWN_SYNTHETIC_ACCESSORS: dict[str, frozenset[str]] = {
             + "org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction, kotlin.coroutines.Continuation)"
         }
     ),
+    "io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock": frozenset(
+        {
+            "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) "
+            + "org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase "
+            + "access$getDb$p(io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock)"
+        }
+    ),
     "io.bluetape4k.leader.ktor.LeaderElectionManagementRouteKt": frozenset(
         {
             "PUBLIC(-) STATIC(-) FINAL(-) SYNTHETIC(-) java.lang.String "

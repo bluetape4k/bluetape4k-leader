@@ -170,11 +170,11 @@ class LocalSuspendLeaderGroupElector private constructor(
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
-    private suspend inline fun <T> tryWithPermit(
+    private suspend fun <T> tryWithPermit(
         lockName: String,
         auditLeaderId: String,
         nodeId: String? = options.nodeId,
-        crossinline action: suspend () -> T,
+        action: suspend () -> T,
     ): T? {
         val semaphore = getSemaphore(lockName)
         // withTimeoutOrNull 은 semaphore 획득 시도에만 적용합니다. action() 실행은 포함하지 않습니다.

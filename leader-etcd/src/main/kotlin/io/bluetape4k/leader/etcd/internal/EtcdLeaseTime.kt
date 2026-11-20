@@ -1,6 +1,5 @@
 package io.bluetape4k.leader.etcd.internal
 
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requirePositiveDuration
 import kotlin.math.ceil
 import kotlin.math.roundToLong
@@ -14,7 +13,7 @@ import kotlin.time.DurationUnit
  *
  * @property DefaultJitterRatio keep-alive cadence에 적용할 기본 jitter의 절대 비율 상한입니다. 값은 0.10(±10%)입니다.
  */
-internal object EtcdLeaseTime: KLogging() {
+internal object EtcdLeaseTime {
 
     const val DefaultJitterRatio: Double = 0.10
 

@@ -17,7 +17,7 @@ import io.bluetape4k.leader.internal.CaptureScope
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.leader.parkRemainingMinLeaseTime
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.KotlinLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requireNotNull
@@ -28,6 +28,8 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.toJavaDuration
+
+private val log = KotlinLogging.logger {}
 
 /**
  * JVM 프로세스 안에서 lock별 fair `Semaphore`, 그룹 상태, listener를 관리하는 그룹 선거 기반 클래스입니다.
@@ -40,7 +42,7 @@ abstract class AbstractLocalLeaderGroupElector(
    LeaderElectionListenerRegistry,
    LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
 
-    companion object: KLogging() {
+    companion object {
         /**
          * `LOCAL_GROUP_FACTORY_BEAN_NAME`는 backend별 leader elector 인스턴스를 생성하는 factory 계약입니다.
          */
