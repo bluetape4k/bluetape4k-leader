@@ -2,7 +2,6 @@ package io.bluetape4k.leader.audit.http
 
 import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.audit.LeaderAuditExportEvent
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.hashOf
 import io.bluetape4k.support.requireLe
 import io.bluetape4k.support.requireNotBlank
@@ -33,7 +32,7 @@ class LeaderAuditHttpPayload private constructor(
     /** 요청 전송에 사용할 body의 방어적 복사본을 반환합니다. */
     fun body(): ByteArray = bytes.copyOf()
 
-    companion object: KLogging() {
+    companion object {
         /** 검증·복사된 payload를 생성합니다. */
         @JvmStatic
         fun of(contentType: String, body: ByteArray): LeaderAuditHttpPayload {

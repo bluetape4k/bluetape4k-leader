@@ -2,7 +2,6 @@ package io.bluetape4k.leader.etcd.internal
 
 import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.validateLockName
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requirePositiveNumber
 import io.etcd.jetcd.ByteSequence
 import java.util.concurrent.atomic.AtomicBoolean
@@ -25,7 +24,7 @@ internal class EtcdLeaseHandle(
     val acquiredAtNanos: Long = System.nanoTime(),
     val slotId: String? = null,
 ) {
-    companion object: KLogging() {
+    companion object {
         fun ownershipToken(ownershipKey: ByteSequence): String {
             val bytes = ownershipKey.bytes
             val result = StringBuilder(bytes.size * 2)

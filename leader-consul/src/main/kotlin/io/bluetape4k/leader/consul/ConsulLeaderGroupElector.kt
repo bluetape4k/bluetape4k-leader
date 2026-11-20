@@ -450,23 +450,19 @@ private fun Throwable?.unwrapCompletionException(): Throwable? =
  * [this] Consul endpoint에서 그룹 [lockName]의 슬롯을 획득했을 때만 [action]을 실행합니다.
  * 사용할 슬롯이 없으면 null을 반환하고, action 종료 후 session과 슬롯 ownership을 정리합니다.
  */
-inline fun <T> ConsulEndpoint.runIfLeaderGroup(
+fun <T> ConsulEndpoint.runIfLeaderGroup(
     lockName: String,
     options: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
-    crossinline action: () -> T,
-): T? =
-    ConsulLeaderGroupElector(this, options)
-        .runIfLeader(lockName) { action() }
+    action: () -> T,
+): T? = ConsulLeaderGroupElector(this, options).runIfLeader(lockName, action)
 
 /**
  * [this] Consul endpoint에서 그룹 [lockName]의 슬롯을 비동기로 획득한 뒤 [action]을 실행합니다.
  * 기본 [executor]에서 처리하며 슬롯을 얻지 못하면 null로 완료합니다.
  */
-inline fun <T> ConsulEndpoint.runAsyncIfLeaderGroup(
+fun <T> ConsulEndpoint.runAsyncIfLeaderGroup(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
     options: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
-    crossinline action: () -> CompletableFuture<T>,
-): CompletableFuture<T?> =
-    ConsulLeaderGroupElector(this, options)
-        .runAsyncIfLeader(lockName, executor) { action() }
+    action: () -> CompletableFuture<T>,
+): CompletableFuture<T?> = ConsulLeaderGroupElector(this, options).runAsyncIfLeader(lockName, executor, action)

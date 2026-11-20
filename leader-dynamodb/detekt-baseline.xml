@@ -5,7 +5,7 @@
     <ID>CyclomaticComplexMethod:DynamoDbLockClient.kt:DynamoDbLockClient$fun acquireAsync: CompletableFuture&lt;AcquiredLock?></ID>
     <ID>LongMethod:DynamoDbLeaderGroupElector.kt:DynamoDbLeaderGroupElector$private inline fun &lt;T> runWithLock: T?</ID>
     <ID>LongMethod:DynamoDbSuspendLeaderElector.kt:DynamoDbSuspendLeaderElector$private suspend fun &lt;T> runWithLock: T?</ID>
-    <ID>LongMethod:DynamoDbSuspendLeaderGroupElector.kt:DynamoDbSuspendLeaderGroupElector$private suspend inline fun &lt;T> runWithLock: T?</ID>
+    <ID>LongMethod:DynamoDbSuspendLeaderGroupElector.kt:DynamoDbSuspendLeaderGroupElector$private suspend fun &lt;T> runWithLock: T?</ID>
     <ID>MagicNumber:DynamoDbBackendErrorClassifier.kt:DynamoDbBackendErrorClassifier$500</ID>
     <ID>MagicNumber:DynamoDbLockClient.kt:DynamoDbLockClient$1000.0</ID>
     <ID>RethrowCaughtException:DynamoDbSuspendLeaderElector.kt:DynamoDbSuspendLeaderElector$throw e</ID>

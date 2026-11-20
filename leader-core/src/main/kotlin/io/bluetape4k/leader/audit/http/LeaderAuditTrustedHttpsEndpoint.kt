@@ -1,6 +1,5 @@
 package io.bluetape4k.leader.audit.http
 
-import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.equalsIgnoreCase
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requireNull
@@ -18,7 +17,7 @@ class LeaderAuditTrustedHttpsEndpoint private constructor(
     val uri: URI,
 ) {
 
-    companion object: KLogging() {
+    companion object {
         /** 명시적으로 신뢰한 HTTPS endpoint를 생성합니다. */
         @JvmStatic
         fun trusted(uri: URI): LeaderAuditTrustedHttpsEndpoint {

@@ -298,6 +298,10 @@ jobs:
           python3 scripts/ci/validate_test_assertion_contract_test.py
           python3 scripts/ci/validate_timing_contract.py
           python3 scripts/ci/validate_timing_contract_test.py
+          python3 scripts/ci/validate_detekt_baseline.py
+          python3 scripts/ci/validate_detekt_baseline_test.py
+          python3 scripts/ci/validate_public_facade_contract.py
+          python3 scripts/ci/validate_public_facade_contract_test.py
           python3 scripts/ci/validate_detekt_configuration_cache.py
           python3 scripts/ci/validate_detekt_configuration_cache_test.py
           python3 scripts/ci/validate_provider_artifacts.py --workflow-contract .github/workflows/ci.yml .github/workflows/nightly-tests.yml

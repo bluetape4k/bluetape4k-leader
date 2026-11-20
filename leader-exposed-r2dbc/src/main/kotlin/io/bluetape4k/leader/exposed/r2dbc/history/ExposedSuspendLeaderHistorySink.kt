@@ -110,7 +110,10 @@ class ExposedSuspendLeaderHistorySink(
                 if (keyId != null) {
                     { (LeaderLockHistoryTable.id eq keyId) and (LeaderLockHistoryTable.token eq key.token) }
                 } else {
-                    { (LeaderLockHistoryTable.lockName eq key.lockName) and (LeaderLockHistoryTable.token eq key.token) }
+                    {
+                        (LeaderLockHistoryTable.lockName eq key.lockName) and
+                            (LeaderLockHistoryTable.token eq key.token)
+                    }
                 }
 
             LeaderLockHistoryTable.update(where = whereClause) { row ->

@@ -2,7 +2,6 @@ package io.bluetape4k.leader.etcd.internal
 
 import io.bluetape4k.ToStringBuilder
 import io.bluetape4k.leader.utils.safePlus
-import io.bluetape4k.logging.KLogging
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -11,7 +10,7 @@ internal class EtcdAcquisitionDeadline private constructor(
     private val deadlineNanos: Long,
 ) {
 
-    companion object: KLogging() {
+    companion object {
         fun fromNow(waitTime: Duration): EtcdAcquisitionDeadline {
             val budgetNanos = waitTime.inWholeNanoseconds.coerceAtLeast(1L)
             val now = System.nanoTime()

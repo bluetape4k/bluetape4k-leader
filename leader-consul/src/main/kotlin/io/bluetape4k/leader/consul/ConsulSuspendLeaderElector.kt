@@ -287,10 +287,8 @@ private fun remainingMillis(deadlineNanos: Long): Long =
  * [this] Consul endpoint에서 [lockName]을 suspend 방식으로 획득했을 때만 [action]을 실행합니다.
  * 경합이면 null을 반환하고 취소 뒤에도 session과 KV ownership을 정리합니다.
  */
-suspend inline fun <T> ConsulEndpoint.suspendRunIfLeader(
+suspend fun <T> ConsulEndpoint.suspendRunIfLeader(
     lockName: String,
     options: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
-    crossinline action: suspend () -> T,
-): T? =
-    ConsulSuspendLeaderElector(this, options)
-        .runIfLeader(lockName) { action() }
+    action: suspend () -> T,
+): T? = ConsulSuspendLeaderElector(this, options).runIfLeader(lockName, action)
