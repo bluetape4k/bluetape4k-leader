@@ -320,7 +320,7 @@ val election = RedissonLeaderElector(client, options)
 
 `minLeaseTime`은 ShedLock `lockAtLeastFor` 대응 옵션입니다. 로컬 elector는 release 전 대기하고, 지원되는 분산 backend는 남은 최소 lease를 storage TTL에 위임하므로 caller는 즉시 반환됩니다.
 
-`autoExtend` 의미는 백엔드마다 다릅니다. [백엔드 capability matrix](#백엔드-capability-matrix)와 [lease 연장 가이드](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.0/core/lease-extension/)를 기준으로 확인하세요. `@LeaderGroupElection`은 auto-extension을 지원하지 않습니다.
+`autoExtend` 의미는 백엔드마다 다릅니다. [백엔드 capability matrix](#백엔드-capability-matrix)와 [lease 연장 가이드](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.1/core/lease-extension/)를 기준으로 확인하세요. `@LeaderGroupElection`은 auto-extension을 지원하지 않습니다.
 
 ### 상태 기준 정보
 
