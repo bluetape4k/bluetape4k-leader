@@ -10,7 +10,7 @@ English | [한국어](README.ko.md)
 
 Current stable version: `1.1.0`
 
-Current development line: `1.2.0-SNAPSHOT` on `develop`
+Current development line: `1.2.0` on `develop` (Nightly publications append `-SNAPSHOT`, producing `1.2.0-SNAPSHOT`.)
 
 ![Bluetape4k leader election workbench](./docs/assets/leader-election-workbench.png)
 

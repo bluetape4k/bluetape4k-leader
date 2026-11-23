@@ -9,7 +9,7 @@
 
 현재 안정 버전: `1.1.0`
 
-현재 개발선: `develop`의 `1.2.0-SNAPSHOT`
+현재 개발 버전: `1.2.0` (`develop`의 Nightly 게시 시 `-SNAPSHOT`을 붙여 `1.2.0-SNAPSHOT`으로 배포합니다.)
 
 ![bluetape4k 리더 선출 작업대 일러스트](./docs/assets/leader-election-workbench.png)
 
