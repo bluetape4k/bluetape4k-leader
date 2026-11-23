@@ -7,9 +7,9 @@
 [![JVM](https://img.shields.io/badge/JVM-25-ED8B00?logo=openjdk)](https://openjdk.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-현재 안정 버전: `1.0.0`
+현재 안정 버전: `1.1.0`
 
-현재 개발 버전: `1.1.0`
+현재 개발 버전: `1.2.0` (`develop`의 Nightly 게시 시 `-SNAPSHOT`을 붙여 `1.2.0-SNAPSHOT`으로 배포합니다.)
 
 ![bluetape4k 리더 선출 작업대 일러스트](./docs/assets/leader-election-workbench.png)
 
@@ -41,13 +41,13 @@ Kotlin/JVM 기반 **분산 리더 선출 (Distributed Leader Election)** 독립 
 
 ## 매뉴얼
 
-[Leader 1.0.0 매뉴얼](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.0/)은 안정판 동작을 설명하는 기준 문서입니다. 선출 모델과 백엔드 선택, 실행 결과와 취소 규칙, Spring Boot·Ktor 연동, 운영 방법, 실행 예제를 따라가는 학습 경로를 함께 다룹니다. README는 빠른 안내만 맡고, 상세한 사용법은 중앙 매뉴얼에서 관리합니다.
+[Leader 1.1.0 매뉴얼](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.1/)은 안정판 동작을 설명하는 기준 문서입니다. 선출 모델과 백엔드 선택, 실행 결과와 취소 규칙, Spring Boot·Ktor 연동, 운영 방법, 실행 예제를 따라가는 학습 경로를 함께 다룹니다. README는 빠른 안내만 맡고, 상세한 사용법은 중앙 매뉴얼에서 관리합니다.
 
 ## 개발 상태
 
-`1.0.0`이 최신 안정 릴리스이며 `develop`은 `1.1.0-SNAPSHOT` 빌드가 속한 `1.1.0+` 개발선을 추적합니다.
+`1.1.0`이 최신 안정 릴리스이며 `develop`은 `1.2.0-SNAPSHOT` 빌드가 속한 `1.2.0+` 개발선을 추적합니다.
 [`WIP.md`](./WIP.md)에서 기준일의 프로젝트 상태와 release 경계를 확인하고,
-[`CHANGELOG.md`](./CHANGELOG.md)에서 배포 내역과 다음 변경을 확인하세요. 버전 매뉴얼은 exact `1.0.0` release commit에 고정되어 있습니다.
+[`CHANGELOG.md`](./CHANGELOG.md)에서 배포 내역과 다음 변경을 확인하세요. 버전 매뉴얼은 exact `1.1.0` release commit에 고정되어 있습니다.
 
 ## 벤치마크
 
@@ -145,12 +145,12 @@ Connectivity 결과에는 제한된 `LeaderBackendConnectivityReason` 값도 포
 `checkConnectivity` 또는 `diagnostics(probe = true)`를 실행하면
 `leader.backend.connectivity` counter가 호출마다 한 번 증가합니다. 태그는 정제된 `backend.name`, `status`, `reason`뿐이며 passive diagnostics는 series를 만들지 않습니다. 예외 원문, endpoint, credential, lock name은 export하지 않습니다. `UNKNOWN`은 dashboard와 warning 신호로만 사용하고 자동으로 `DOWN`이나 page로 승격하지 마세요.
 
-운영 decision table과 timeout/bypass 런북은 [backend connectivity 관측성 가이드](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.0/guides/backend-connectivity-observability/)에서 확인하세요.
+운영 decision table과 timeout/bypass 런북은 [backend connectivity 관측성 가이드](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.1/guides/backend-connectivity-observability/)에서 확인하세요.
 <!-- LEADER_BACKEND_DIAGNOSTICS:END -->
 
 `@LeaderGroupElection`은 scalar, suspend, `Mono` 결과를 지원하지만 slot별 stream lease extension이 정의되지 않아 `Flux`와 Kotlin `Flow`를 거부합니다. 길거나 무한에 가까운 단일 리더 stream에는 `@LeaderElection(autoExtend = true)`를 사용하세요.
 
-선택 기준은 [백엔드 선택](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.0/guides/backend-selection/), [실행 모델 선택](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.0/guides/execution-model-selection/), [lease 연장](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.0/core/lease-extension/)을 참고하세요. 실행 경로는 [예제](#예제-examples)에서 확인할 수 있습니다.
+선택 기준은 [백엔드 선택](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.1/guides/backend-selection/), [실행 모델 선택](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.1/guides/execution-model-selection/), [lease 연장](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.1/core/lease-extension/)을 참고하세요. 실행 경로는 [예제](#예제-examples)에서 확인할 수 있습니다.
 
 ## 예제 (Examples)
 
@@ -320,7 +320,7 @@ val election = RedissonLeaderElector(client, options)
 
 `minLeaseTime`은 ShedLock `lockAtLeastFor` 대응 옵션입니다. 로컬 elector는 release 전 대기하고, 지원되는 분산 backend는 남은 최소 lease를 storage TTL에 위임하므로 caller는 즉시 반환됩니다.
 
-`autoExtend` 의미는 백엔드마다 다릅니다. [백엔드 capability matrix](#백엔드-capability-matrix)와 [lease 연장 가이드](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.0/core/lease-extension/)를 기준으로 확인하세요. `@LeaderGroupElection`은 auto-extension을 지원하지 않습니다.
+`autoExtend` 의미는 백엔드마다 다릅니다. [백엔드 capability matrix](#백엔드-capability-matrix)와 [lease 연장 가이드](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.1/core/lease-extension/)를 기준으로 확인하세요. `@LeaderGroupElection`은 auto-extension을 지원하지 않습니다.
 
 ### 상태 기준 정보
 
@@ -718,7 +718,7 @@ Callback 예외는 extension 결과를 바꾸지 않습니다. extension 경로�
 `LeaderLeaseExtensionContext.toString()`은 redaction하므로 애플리케이션도 raw `lockName`이나
 `auditLeaderId`를 로그에 남기지 않아야 합니다. Fail-open `NotHeld` event에는 `context`의 lock name이 남고
 `auditLeaderId = null`입니다. Scope 밖이나 named mismatch event의 `context`는 `null`입니다. 전체 계약과 Micrometer/Spring adapter는
-[lease 연장 가이드](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.0/core/lease-extension/)에서 확인할 수 있습니다.
+[lease 연장 가이드](https://bluetape4k.github.io/ko/manual/bluetape4k-leader/1.1/core/lease-extension/)에서 확인할 수 있습니다.
 
 ### HTTP/webhook sink로 audit export
 
