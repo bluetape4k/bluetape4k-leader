@@ -64,3 +64,16 @@ fun <T> Database.runAsyncIfLeaderGroup(
     action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> =
     ExposedJdbcLeaderGroupElector(this, options).runAsyncIfLeader(lockName, executor, action)
+
+/**
+ * [this] 데이터베이스에서 virtual thread로 그룹 슬롯을 획득하고 [action]을 실행합니다.
+ * 경합으로 슬롯을 얻지 못하면 null로 완료하며, future 취소 시 실행 중인 action에 interruption을 전달합니다.
+ */
+fun <T> Database.runVirtualIfLeaderGroup(
+    lockName: String,
+    options: ExposedJdbcLeaderGroupElectionOptions = ExposedJdbcLeaderGroupElectionOptions.Default,
+    action: () -> T,
+): VirtualFuture<T?> {
+    val election = ExposedJdbcLeaderGroupElector(this, options)
+    return ExposedJdbcVirtualThreadLeaderGroupElector(election).runAsyncIfLeader(lockName, action)
+}

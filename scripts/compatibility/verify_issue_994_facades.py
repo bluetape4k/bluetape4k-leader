@@ -22,7 +22,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE_HEAD = "ad4110a92afb0c3f40bc0e84e7e9da1e6b61c97f"
 LEGACY_HEAD = "a6e17f71cdfde18b6d7e8575c7db26385902e9b4"
-DECLARATION_SHA256 = "a6e5d530ab2c39f3b46f04360cf4844396db60e0ccd4462ca296bb1e1ec88a5b"
+DECLARATION_SHA256 = "afb965098a6d57b797bbae230b8cdb81c6e57a5a17f6971eb93ccc1d147d0362"
 CALLSITE_SHA256 = "15c43af9dae781a37a419ff1c3b624e0a5909fcf0eb828ca52ef0f1125e04ae6"
 DYNAMODB_ABI_SHA256 = "bb8f880f7f74a3867ddca612b256651cad37ee7d68c91957c94eac920c4dd7a9"
 DYNAMODB_HIDDEN_SIGNATURE_DELTA = {"suspendRunIfLeader", "suspendRunIfLeaderGroup"}
@@ -30,6 +30,12 @@ DECLARATIONS = Path("verification/issue-994/facade-declarations-baseline.tsv")
 CALLSITES = Path("verification/issue-994/facade-call-sites-baseline.tsv")
 LEGACY_FIXTURE = Path("verification/issue-994/DynamoDbLegacySourceConsumerTest.kt")
 DYNAMODB_ABI_BASELINE = Path("verification/issue-994/dynamodb-hidden-shim-abi-baseline.json")
+ADDITIVE_DECLARATION_KEYS = frozenset(
+    {
+        "leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/ExposedJdbcLeaderElectorExtensions.kt#"
+        "runVirtualIfLeaderGroup(String,ExposedJdbcLeaderGroupElectionOptions,Function0)",
+    }
+)
 
 FUNCTION_START = re.compile(
     r"(?m)^(?P<modifiers>(?:(?:public|private|protected|internal|suspend|inline|"
@@ -129,11 +135,11 @@ def require_sha256(path: Path, data: bytes, expected_sha: str) -> None:
 
 
 def load_manifests() -> tuple[list[dict[str, str]], list[dict[str, str]]]:
-    declarations = load_tsv(DECLARATIONS, DECLARATION_SHA256, 37)
+    declarations = load_tsv(DECLARATIONS, DECLARATION_SHA256, 38)
     callsites = load_tsv(CALLSITES, CALLSITE_SHA256, 72)
     declaration_map = {row["declaration_key"]: row for row in declarations}
-    if sum(row["kind"] == "source" for row in declarations) != 34:
-        raise VerificationError("declaration manifest must contain 34 source facades")
+    if sum(row["kind"] == "source" for row in declarations) != 35:
+        raise VerificationError("declaration manifest must contain 35 source facades")
     if sum(row["kind"] == "shim" for row in declarations) != 2:
         raise VerificationError("declaration manifest must contain two DynamoDB shims")
     helpers = [row for row in declarations if row["kind"] == "helper"]
@@ -284,7 +290,7 @@ def transform_target_block(block: str) -> str:
 
 def without_kdoc(text: str) -> str:
     """Ignore reader-facing KDoc while comparing declaration implementation blocks."""
-    return KDOC_BLOCK.sub("", text)
+    return re.sub(r"\n{3,}", "\n\n", KDOC_BLOCK.sub("", text))
 
 
 def source_at_revision(revision: str, path: str) -> str:
@@ -299,8 +305,13 @@ def validate_source_inventory(declarations: list[dict[str, str]]) -> list[str]:
     all_paths = sorted({row["source_file"] for row in declarations})
     target_rows = [row for row in declarations if row["kind"] != "helper"]
     target_map = {target_key(row): row for row in target_rows}
-    if len(target_map) != 36:
-        raise VerificationError(f"expected 36 unique facade/shim target keys, found {len(target_map)}")
+    if len(target_map) != 37:
+        raise VerificationError(f"expected 37 unique facade/shim target keys, found {len(target_map)}")
+    approved_additions = {
+        target_key(row)
+        for row in target_rows
+        if row["declaration_key"] in ADDITIVE_DECLARATION_KEYS
+    }
 
     for path in all_paths:
         baseline = source_at_revision(BASELINE_HEAD, path)
@@ -316,11 +327,27 @@ def validate_source_inventory(declarations: list[dict[str, str]]) -> list[str]:
         if len(base_by_key) != len(base_declarations) or len(current_by_key) != len(current_declarations):
             errors.append(f"duplicate extension declaration signature in {path}")
             continue
-        if base_by_key.keys() != current_by_key.keys():
-            added = sorted(current_by_key.keys() - base_by_key.keys())
-            removed = sorted(base_by_key.keys() - current_by_key.keys())
-            errors.append(f"extension inventory changed in {path}: added={added}, removed={removed}")
+        added = current_by_key.keys() - base_by_key.keys()
+        removed = base_by_key.keys() - current_by_key.keys()
+        unapproved_added = added - approved_additions
+        if removed or unapproved_added:
+            errors.append(
+                f"extension inventory changed in {path}: "
+                f"added={sorted(unapproved_added)}, removed={sorted(removed)}"
+            )
             continue
+
+        for added_key in sorted(added):
+            target = target_map.get(added_key)
+            if target is None:
+                errors.append(f"missing manifest row for approved additive declaration: {added_key}")
+                continue
+            current_declaration = current_by_key[added_key]
+            if (str(int(current_declaration.is_inline)), str(int(current_declaration.is_crossinline))) != (
+                target["target_inline"],
+                target["target_crossinline"],
+            ):
+                errors.append(f"target modifier mismatch: {target['declaration_key']}")
 
         expected = baseline
         for declaration in reversed(base_declarations):
@@ -347,18 +374,36 @@ def validate_source_inventory(declarations: list[dict[str, str]]) -> list[str]:
 
         if path.endswith("leader/etcd/support/ClientSupport.kt") and current != baseline:
             errors.append("ClientSupport.kt changed; etcdClientOf and its sibling helpers must remain byte-identical")
-        if without_kdoc(current) != without_kdoc(expected):
+        current_without_additions = current
+        for added_key in sorted(added, key=lambda key: current_by_key[key].start, reverse=True):
+            declaration = current_by_key[added_key]
+            block_start = declaration.start
+            comment_start = current.rfind("/**", 0, declaration.start)
+            comment_end = current.find("*/", comment_start, declaration.start) if comment_start >= 0 else -1
+            if comment_end >= 0 and current[comment_end + 2 : declaration.start].strip() == "":
+                block_start = comment_start
+            prefix = current_without_additions[:block_start]
+            suffix = current_without_additions[declaration.end :]
+            if prefix.endswith("\n") and suffix.startswith("\n"):
+                suffix = suffix[1:]
+            elif not suffix and prefix.endswith("\n\n"):
+                prefix = prefix[:-1]
+            current_without_additions = (
+                prefix
+                + suffix
+            )
+        if without_kdoc(current_without_additions) != without_kdoc(expected):
             difference = "\n".join(
                 list(
                     difflib.unified_diff(
                         without_kdoc(expected).splitlines(),
-                        without_kdoc(current).splitlines(),
+                        without_kdoc(current_without_additions).splitlines(),
                         fromfile="expected",
                         tofile=path,
                     )
                 )[:24]
             )
-            errors.append(f"source differs from the approved 36-facade transformation in {path}:\n{difference}")
+            errors.append(f"source differs from the approved 37-facade transformation in {path}:\n{difference}")
     return errors
 
 
@@ -809,7 +854,7 @@ def main() -> int:
             if errors:
                 raise VerificationError("source inventory failed:\n" + "\n".join(errors))
             print(
-                "PASS: exactly 36 approved facade/shim transformations; etcdClientOf and non-target "
+                "PASS: exactly 37 approved facade/shim transformations; etcdClientOf and non-target "
                 "declaration implementations unchanged (KDoc excluded)"
             )
         elif args.consumer_bytecode:

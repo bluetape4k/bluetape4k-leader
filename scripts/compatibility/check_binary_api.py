@@ -221,6 +221,20 @@ KNOWN_REDIS_BRIDGE_METHODS["io.bluetape4k.leader.redisson.RedissonLeaderElector"
     }
 )
 
+KNOWN_EXPOSED_JDBC_BRIDGE_METHODS = {
+    "io.bluetape4k.leader.exposed.jdbc.ExposedJdbcVirtualThreadLeaderGroupElector": frozenset(
+        {
+            "PUBLIC(-) BRIDGE(-) io.bluetape4k.concurrent.virtualthread.VirtualFuture<T> "
+            + "runAsyncIfLeader(io.bluetape4k.leader.LeaderSlot, "
+            + "kotlin.jvm.functions.Function0<? extends T>)",
+            "PUBLIC(-) BRIDGE(-) "
+            + "io.bluetape4k.concurrent.virtualthread.VirtualFuture<io.bluetape4k.leader.LeaderRunResult<T>> "
+            + "runAsyncIfLeaderResult(io.bluetape4k.leader.LeaderSlot, "
+            + "kotlin.jvm.functions.Function0<? extends T>)",
+        }
+    ),
+}
+
 # Kotlin `internal` declarations can still be public JVM ABI. These reviewed
 # transitions are keyed by exact owner and every incompatible japicmp line;
 # package names alone must never suppress public changes.
@@ -453,6 +467,13 @@ def is_intentionally_ignored(block: str) -> str | None:
             and member_descriptors <= KNOWN_REDIS_BRIDGE_METHODS[name]
     ):
         return "known Redis JVM bridge descriptor"
+    if (
+            member_descriptors
+            and len(member_descriptors) == len(incompatible_members)
+            and name in KNOWN_EXPOSED_JDBC_BRIDGE_METHODS
+            and member_descriptors <= KNOWN_EXPOSED_JDBC_BRIDGE_METHODS[name]
+    ):
+        return "known Exposed JDBC JVM bridge descriptor"
     if (
             member_descriptors
             and len(member_descriptors) == len(incompatible_members)

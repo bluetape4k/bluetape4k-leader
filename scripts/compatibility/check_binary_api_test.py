@@ -192,6 +192,31 @@ class BinaryApiClassificationTest(unittest.TestCase):
             "known Redis JVM bridge descriptor",
         )
 
+    def test_known_exposed_jdbc_bridge_descriptor_change_is_allowlisted(self) -> None:
+        owner = "io.bluetape4k.leader.exposed.jdbc.ExposedJdbcVirtualThreadLeaderGroupElector"
+        block = f"""***! MODIFIED CLASS: PUBLIC FINAL {owner}  (not serializable)
+\t===  CLASS FILE FORMAT VERSION: 69.0 <- 69.0
+\t===  UNCHANGED SUPERCLASS: java.lang.Object (<- java.lang.Object)
+\t---! REMOVED METHOD: PUBLIC(-) BRIDGE(-) io.bluetape4k.concurrent.virtualthread.VirtualFuture<T> runAsyncIfLeader(io.bluetape4k.leader.LeaderSlot, kotlin.jvm.functions.Function0<? extends T>)
+\t\tGENERIC TEMPLATES: --- T:java.lang.Object
+\t---! REMOVED METHOD: PUBLIC(-) BRIDGE(-) io.bluetape4k.concurrent.virtualthread.VirtualFuture<io.bluetape4k.leader.LeaderRunResult<T>> runAsyncIfLeaderResult(io.bluetape4k.leader.LeaderSlot, kotlin.jvm.functions.Function0<? extends T>)
+\t\tGENERIC TEMPLATES: --- T:java.lang.Object
+"""
+
+        self.assertEqual(
+            is_intentionally_ignored(block),
+            "known Exposed JDBC JVM bridge descriptor",
+        )
+
+    def test_known_exposed_jdbc_bridge_class_with_an_extra_member_stays_unclassified(self) -> None:
+        owner = "io.bluetape4k.leader.exposed.jdbc.ExposedJdbcVirtualThreadLeaderGroupElector"
+        block = f"""***! MODIFIED CLASS: PUBLIC FINAL {owner}  (not serializable)
+\t---! REMOVED METHOD: PUBLIC(-) BRIDGE(-) io.bluetape4k.concurrent.virtualthread.VirtualFuture<T> runAsyncIfLeader(io.bluetape4k.leader.LeaderSlot, kotlin.jvm.functions.Function0<? extends T>)
+\t---! REMOVED METHOD: PUBLIC(-) BRIDGE(-) java.lang.String unrelated(java.lang.String)
+"""
+
+        self.assertIsNone(is_intentionally_ignored(block))
+
     def test_known_bridge_class_with_an_extra_member_stays_unclassified(self) -> None:
         block = """***! MODIFIED CLASS: PUBLIC FINAL io.bluetape4k.leader.lettuce.LettuceLeaderElector  (not serializable)
 \t---! REMOVED METHOD: PUBLIC(-) BRIDGE(-) java.util.concurrent.CompletableFuture<T> runAsyncIfLeader(io.bluetape4k.leader.LeaderSlot, java.util.concurrent.Executor, kotlin.jvm.functions.Function0<? extends java.util.concurrent.CompletableFuture<? extends T>>)

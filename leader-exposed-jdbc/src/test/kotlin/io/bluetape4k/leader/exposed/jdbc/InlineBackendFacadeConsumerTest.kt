@@ -74,6 +74,12 @@ class InlineBackendFacadeConsumerTest: AbstractExposedJdbcLeaderTest() {
     ): CompletableFuture<String?> =
         db.runAsyncIfLeaderGroup(lockName) { action() }
 
+    private fun callRunVirtualIfLeaderGroupExplicit(db: Database, lockName: String, action: () -> String) =
+        db.runVirtualIfLeaderGroup(lockName, ExposedJdbcLeaderGroupElectionOptions.Default, action)
+
+    private fun callRunVirtualIfLeaderGroupDefault(db: Database, lockName: String, action: () -> String) =
+        db.runVirtualIfLeaderGroup(lockName, action = action)
+
     @Test
     fun `source consumers call every jdbc facade and delegate each callback once`() {
         val db = connectDb(TestDB.H2)
@@ -87,15 +93,19 @@ class InlineBackendFacadeConsumerTest: AbstractExposedJdbcLeaderTest() {
         callRunIfLeaderGroupExplicit(db, randomName(), next) shouldBeEqualTo "call-4"
         callRunAsyncIfLeaderGroupExplicit(db, randomName(), nextAsync)
             .get(10.seconds) shouldBeEqualTo "call-5"
+        callRunVirtualIfLeaderGroupExplicit(db, randomName(), next)
+            .get(10.seconds) shouldBeEqualTo "call-6"
 
-        callRunIfLeaderDefault(db, randomName(), next) shouldBeEqualTo "call-6"
-        callRunAsyncIfLeaderDefault(db, randomName(), nextAsync).get(10.seconds) shouldBeEqualTo "call-7"
-        callRunVirtualIfLeaderDefault(db, randomName(), next).get(10.seconds) shouldBeEqualTo "call-8"
-        callRunIfLeaderGroupDefault(db, randomName(), next) shouldBeEqualTo "call-9"
+        callRunIfLeaderDefault(db, randomName(), next) shouldBeEqualTo "call-7"
+        callRunAsyncIfLeaderDefault(db, randomName(), nextAsync).get(10.seconds) shouldBeEqualTo "call-8"
+        callRunVirtualIfLeaderDefault(db, randomName(), next).get(10.seconds) shouldBeEqualTo "call-9"
+        callRunIfLeaderGroupDefault(db, randomName(), next) shouldBeEqualTo "call-10"
         callRunAsyncIfLeaderGroupDefault(db, randomName(), nextAsync)
-            .get(10.seconds) shouldBeEqualTo "call-10"
+            .get(10.seconds) shouldBeEqualTo "call-11"
+        callRunVirtualIfLeaderGroupDefault(db, randomName(), next)
+            .get(10.seconds) shouldBeEqualTo "call-12"
 
-        calls.get() shouldBeEqualTo 10
+        calls.get() shouldBeEqualTo 12
     }
 
     @ParameterizedTest
