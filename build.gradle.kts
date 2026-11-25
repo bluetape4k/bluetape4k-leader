@@ -585,6 +585,10 @@ subprojects {
                     from(layout.buildDirectory.asFile.get().resolve("javadoc"))
                 }
                 from(components["java"])
+                // java-test-fixtures capability는 Gradle Module Metadata에만 표현된다.
+                listOf("testFixturesApiElements", "testFixturesRuntimeElements").forEach { variantName ->
+                    suppressPomMetadataWarningsFor(variantName)
+                }
                 artifact(sourcesJar)
                 artifact(javadocJar)
 
