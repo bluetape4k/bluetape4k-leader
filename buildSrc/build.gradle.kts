@@ -10,6 +10,7 @@ plugins {
 
 dependencies {
     testImplementation(kotlin("test"))
+    testImplementation(gradleTestKit())
     testImplementation("io.github.bluetape4k:bluetape4k-assertions:2.0.0")
 }
 
